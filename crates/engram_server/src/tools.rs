@@ -1026,11 +1026,13 @@ impl Engram {
             .ok();
 
         // Notify watcher actor
-        let _ = self.state.events_tx.send(AppEvent::WatchUpdate {
+        if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
             project_id: pid.clone(),
             directory: rec.directory.clone(),
             enabled: req.enabled,
-        });
+        }) {
+            tracing::warn!("Failed to send WatchUpdate event: {e}");
+        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} watch_project: {}\nenabled: {}",
@@ -1058,11 +1060,13 @@ impl Engram {
             .ok();
 
         // Notify watcher actor
-        let _ = self.state.events_tx.send(AppEvent::WatchUpdate {
+        if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
             project_id: pid.clone(),
             directory: "".into(),
             enabled: false,
-        });
+        }) {
+            tracing::warn!("Failed to send WatchUpdate event: {e}");
+        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} unwatch_project: {pid}"
@@ -1456,30 +1460,39 @@ impl Engram {
         params: Parameters<QueryGraphNodesRequest>,
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
-        let nodes = self
-            .state
-            .graph
-            .query_nodes(
-                &req.project_id,
-                Some(&req.node_type),
-                Some(&req.name_pattern),
-                Some(&req.file_path),
-                req.limit,
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let nodes = graph
+                .query_nodes(
+                    &req.project_id,
+                    Some(&req.node_type),
+                    Some(&req.name_pattern),
+                    Some(&req.file_path),
+                    req.limit,
+                )
+                .map_err(|e| e.to_string())?;
 
-        if nodes.is_empty() {
+            if nodes.is_empty() {
+                return Ok(String::new());
+            }
+
+            let mut out = String::new();
+            for n in nodes {
+                out.push_str(&format!(
+                    "- {} | {} | {} (lines {}-{} | gen {})\n",
+                    n.node_id, n.node_type, n.file_path, n.start_line, n.end_line, n.generation
+                ));
+            }
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        if out.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No matching nodes.",
             )]));
-        }
-
-        let mut out = String::new();
-        for n in nodes {
-            out.push_str(&format!(
-                "- {} | {} | {} (lines {}-{} | gen {})\n",
-                n.node_id, n.node_type, n.file_path, n.start_line, n.end_line, n.generation
-            ));
         }
 
         Ok(CallToolResult::success(vec![Content::text(
@@ -1505,48 +1518,53 @@ impl Engram {
             _ => None,
         };
 
-        let mut out = String::new();
+        let graph = self.state.graph.clone();
+        let edge_kind_str = req.edge_kind.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let mut out = String::new();
 
-        if req.direction == "in" || req.direction == "both" {
-            let incoming = self
-                .state
-                .graph
-                .find_incoming_edges(&req.project_id, kind.clone(), &req.node_id, 100)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if !incoming.is_empty() {
-                let header = match req.edge_kind.as_deref() {
-                    Some("contains") => "Containers (Incoming 'contains'):\n",
-                    Some("imports") => "Imported by (Incoming 'imports'):\n",
-                    Some(k) => &format!("Incoming references (kind='{}'):\n", k),
-                    None => "Incoming references (all kinds):\n",
-                };
-                out.push_str(header);
-                for (n, w) in incoming {
-                    out.push_str(&format!("- {} (weight={})\n", n, w));
+            if req.direction == "in" || req.direction == "both" {
+                let incoming = graph
+                    .find_incoming_edges(&req.project_id, kind.clone(), &req.node_id, 100)
+                    .map_err(|e| e.to_string())?;
+                if !incoming.is_empty() {
+                    let header = match edge_kind_str.as_deref() {
+                        Some("contains") => "Containers (Incoming 'contains'):\n",
+                        Some("imports") => "Imported by (Incoming 'imports'):\n",
+                        Some(k) => &format!("Incoming references (kind='{}'):\n", k),
+                        None => "Incoming references (all kinds):\n",
+                    };
+                    out.push_str(header);
+                    for (n, w) in incoming {
+                        out.push_str(&format!("- {} (weight={})\n", n, w));
+                    }
                 }
             }
-        }
 
-        if req.direction == "out" || req.direction == "both" {
-            let search_kind = kind.unwrap_or(EdgeKind::Dependency);
-            let outgoing = self
-                .state
-                .graph
-                .neighbors(&req.project_id, search_kind, &req.node_id, 100)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if !outgoing.is_empty() {
-                let header = match req.edge_kind.as_deref() {
-                    Some("contains") => "Members (Outgoing 'contains'):\n",
-                    Some("imports") => "Imports (Outgoing 'imports'):\n",
-                    Some(k) => &format!("Outgoing references (kind='{}'):\n", k),
-                    None => "Outgoing references (dependencies):\n",
-                };
-                out.push_str(header);
-                for (n, w) in outgoing {
-                    out.push_str(&format!("- {} (weight={})\n", n, w));
+            if req.direction == "out" || req.direction == "both" {
+                let search_kind = kind.unwrap_or(EdgeKind::Dependency);
+                let outgoing = graph
+                    .neighbors(&req.project_id, search_kind, &req.node_id, 100)
+                    .map_err(|e| e.to_string())?;
+                if !outgoing.is_empty() {
+                    let header = match edge_kind_str.as_deref() {
+                        Some("contains") => "Members (Outgoing 'contains'):\n",
+                        Some("imports") => "Imports (Outgoing 'imports'):\n",
+                        Some(k) => &format!("Outgoing references (kind='{}'):\n", k),
+                        None => "Outgoing references (dependencies):\n",
+                    };
+                    out.push_str(header);
+                    for (n, w) in outgoing {
+                        out.push_str(&format!("- {} (weight={})\n", n, w));
+                    }
                 }
             }
-        }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         if out.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
@@ -1765,21 +1783,18 @@ impl Engram {
 
                 // Sort numerically — extract digits from anywhere in name for proper order.
                 // Handles "2.zip", "10.zip", "snapshot-1.zip", "backup_20.zip", etc.
-                zip_files.sort_by(|a, b| {
-                    let name_a = a.file_name().to_string_lossy().to_string();
-                    let name_b = b.file_name().to_string_lossy().to_string();
-                    // Extract the first run of digits found anywhere in the name
-                    fn extract_first_number(s: &str) -> u64 {
-                        let digits: String = s
-                            .chars()
-                            .skip_while(|c| !c.is_ascii_digit())
-                            .take_while(|c| c.is_ascii_digit())
-                            .collect();
-                        digits.parse().unwrap_or(u64::MAX)
-                    }
-                    let num_a = extract_first_number(&name_a);
-                    let num_b = extract_first_number(&name_b);
-                    num_a.cmp(&num_b).then_with(|| name_a.cmp(&name_b))
+                fn extract_first_number(s: &str) -> u64 {
+                    let digits: String = s
+                        .chars()
+                        .skip_while(|c| !c.is_ascii_digit())
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect();
+                    digits.parse().unwrap_or(u64::MAX)
+                }
+                zip_files.sort_by_cached_key(|entry| {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let num = extract_first_number(&name);
+                    (num, name)
                 });
 
                 if zip_files.len() < 2 {
@@ -2118,155 +2133,145 @@ impl Engram {
         let req = params.0;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
-        // 1. Resolve target node
-        let target_id = if let Some(ref fqn) = req.symbol_fqn {
-            if fqn.starts_with("sql:") || fqn.starts_with("table:") || fqn.starts_with("state:") {
-                fqn.clone()
-            } else {
-                // Try as a table name: table:{fqn.to_lowercase()}
-                let table_id = engram_core::ids::NodeId::table(fqn).0;
-                if self
-                    .state
-                    .graph
-                    .get_node(&req.project_id, &table_id)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .is_some()
+        // Validate early — no graph access needed
+        if req.symbol_fqn.is_none() && req.file_path.is_none() {
+            return Err(McpError::invalid_params(
+                "Either file_path or symbol_fqn must be provided.",
+                None,
+            ));
+        }
+
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            // 1. Resolve target node
+            let target_id = if let Some(ref fqn) = req.symbol_fqn {
+                if fqn.starts_with("sql:") || fqn.starts_with("table:") || fqn.starts_with("state:")
                 {
-                    table_id
-                } else if let Ok(candidates) =
-                    // If it looks like an FQN, try to find the node.
-                    // We don't have rel_path here, so we might need to search.
-                    self.state.graph.query_nodes(
-                        &req.project_id,
-                        None,
-                        None,
-                        None,
-                        100,
-                    )
-                    && let Some(n) = candidates.iter().find(|n| {
-                        n.metadata
-                            .as_ref()
-                            .and_then(|m| m.get("fqn"))
-                            .and_then(|v| v.as_str())
-                            == Some(fqn)
-                    })
-                {
-                    n.node_id.clone()
+                    fqn.clone()
                 } else {
-                    // Fallback to searching by short name, but verify FQN match
-                    let short = fqn.split('.').next_back().unwrap_or(fqn);
-                    if let Ok(candidates) =
-                        self.state
-                            .graph
-                            .query_nodes(&req.project_id, None, Some(short), None, 20)
-                        && !candidates.is_empty()
+                    let table_id = engram_core::ids::NodeId::table(fqn).0;
+                    if graph
+                        .get_node(&req.project_id, &table_id)
+                        .map_err(|e| e.to_string())?
+                        .is_some()
                     {
-                        // Prefer exact FQN match to avoid pollution from other symbols
-                        // sharing the same short name.
-                        if let Some(exact) = candidates.iter().find(|n| {
+                        table_id
+                    } else if let Ok(candidates) =
+                        graph.query_nodes(&req.project_id, None, None, None, 100)
+                        && let Some(n) = candidates.iter().find(|n| {
                             n.metadata
                                 .as_ref()
                                 .and_then(|m| m.get("fqn"))
                                 .and_then(|v| v.as_str())
                                 == Some(fqn)
-                        }) {
-                            exact.node_id.clone()
-                        } else {
-                            candidates[0].node_id.clone()
-                        }
+                        })
+                    {
+                        n.node_id.clone()
                     } else {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "Symbol '{fqn}' not found in graph."
-                        ))]));
+                        // Fallback: search by short name with higher limit to avoid FQN truncation
+                        let short = fqn.split('.').next_back().unwrap_or(fqn);
+                        if let Ok(candidates) =
+                            graph.query_nodes(&req.project_id, None, Some(short), None, 200)
+                            && !candidates.is_empty()
+                        {
+                            if let Some(exact) = candidates.iter().find(|n| {
+                                n.metadata
+                                    .as_ref()
+                                    .and_then(|m| m.get("fqn"))
+                                    .and_then(|v| v.as_str())
+                                    == Some(fqn)
+                            }) {
+                                exact.node_id.clone()
+                            } else {
+                                candidates[0].node_id.clone()
+                            }
+                        } else {
+                            return Ok(format!("Symbol '{fqn}' not found in graph."));
+                        }
                     }
                 }
-            }
-        } else if let Some(ref path) = req.file_path {
-            engram_core::ids::NodeId::file(path).0
-        } else {
-            return Err(McpError::invalid_params(
-                "Either file_path or symbol_fqn must be provided.",
-                None,
-            ));
-        };
-
-        // 2. Find incoming edges (who depends on this?)
-        let incoming = self
-            .state
-            .graph
-            .find_incoming_edges_with_kind(&req.project_id, None, &target_id, req.limit)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        if incoming.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No dependent nodes found for {target_id}."
-            ))]));
-        }
-
-        // 3. Format results
-        let mut out = format!("Impact Analysis for {target_id}:\n\n");
-        out.push_str("Nodes that depend on or are related to this:\n");
-
-        // Group by source_id to combine reasons
-        let mut grouped: std::collections::HashMap<String, (Vec<engram_graph::EdgeKind>, u32)> =
-            std::collections::HashMap::new();
-        for (src_id, kind, weight) in incoming {
-            let entry = grouped.entry(src_id).or_insert((Vec::new(), 0));
-            entry.0.push(kind);
-            if weight > entry.1 {
-                entry.1 = weight;
-            }
-        }
-
-        let mut sorted: Vec<_> = grouped.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.1.cmp(&a.1.1));
-
-        for (src_id, (kinds, weight)) in sorted {
-            let Some(src_node) = self
-                .state
-                .graph
-                .get_node(&req.project_id, &src_id)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            else {
-                continue;
-            };
-
-            let mut reasons = Vec::new();
-            for ek in kinds {
-                let r = match ek {
-                    engram_graph::EdgeKind::Dependency => "Calls/Uses this",
-                    engram_graph::EdgeKind::Contains => "Contains this",
-                    engram_graph::EdgeKind::Imports => "Imports this",
-                    engram_graph::EdgeKind::SqlCalls => "Executes this SQL",
-                    engram_graph::EdgeKind::CoOccurrence => {
-                        "Often searched with this (Co-occurrence)"
-                    }
-                    engram_graph::EdgeKind::TemporalCoupling => {
-                        "Often changed with this (Temporal coupling)"
-                    }
-                    engram_graph::EdgeKind::QueriesTable => "Queries this table",
-                    engram_graph::EdgeKind::ReadsState => "Reads this state",
-                    engram_graph::EdgeKind::WritesState => "Writes this state",
-                    engram_graph::EdgeKind::HasColumn => "Has column",
-                    engram_graph::EdgeKind::ForeignKey => "Foreign key reference",
-                    _ => "Related",
-                };
-                reasons.push(r);
-            }
-            reasons.sort();
-            reasons.dedup();
-
-            let reason_str = if reasons.is_empty() {
-                "Dependent".to_string()
+            } else if let Some(ref path) = req.file_path {
+                engram_core::ids::NodeId::file(path).0
             } else {
-                reasons.join(", ")
+                unreachable!()
             };
 
-            out.push_str(&format!(
-                "- {} [{}] (weight: {weight}) - {reason_str}\n",
-                src_node.node_id, src_node.node_type
-            ));
-        }
+            // 2. Find incoming edges (who depends on this?)
+            let incoming = graph
+                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, req.limit)
+                .map_err(|e| e.to_string())?;
+
+            if incoming.is_empty() {
+                return Ok(format!("No dependent nodes found for {target_id}."));
+            }
+
+            // 3. Format results
+            let mut out = format!("Impact Analysis for {target_id}:\n\n");
+            out.push_str("Nodes that depend on or are related to this:\n");
+
+            let mut grouped: std::collections::HashMap<String, (Vec<engram_graph::EdgeKind>, u32)> =
+                std::collections::HashMap::new();
+            for (src_id, kind, weight) in incoming {
+                let entry = grouped.entry(src_id).or_insert((Vec::new(), 0));
+                entry.0.push(kind);
+                if weight > entry.1 {
+                    entry.1 = weight;
+                }
+            }
+
+            let mut sorted: Vec<_> = grouped.into_iter().collect();
+            sorted.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+
+            for (src_id, (kinds, weight)) in sorted {
+                let Some(src_node) = graph
+                    .get_node(&req.project_id, &src_id)
+                    .map_err(|e| e.to_string())?
+                else {
+                    continue;
+                };
+
+                let mut reasons = Vec::new();
+                for ek in kinds {
+                    let r = match ek {
+                        engram_graph::EdgeKind::Dependency => "Calls/Uses this",
+                        engram_graph::EdgeKind::Contains => "Contains this",
+                        engram_graph::EdgeKind::Imports => "Imports this",
+                        engram_graph::EdgeKind::SqlCalls => "Executes this SQL",
+                        engram_graph::EdgeKind::CoOccurrence => {
+                            "Often searched with this (Co-occurrence)"
+                        }
+                        engram_graph::EdgeKind::TemporalCoupling => {
+                            "Often changed with this (Temporal coupling)"
+                        }
+                        engram_graph::EdgeKind::QueriesTable => "Queries this table",
+                        engram_graph::EdgeKind::ReadsState => "Reads this state",
+                        engram_graph::EdgeKind::WritesState => "Writes this state",
+                        engram_graph::EdgeKind::HasColumn => "Has column",
+                        engram_graph::EdgeKind::ForeignKey => "Foreign key reference",
+                        _ => "Related",
+                    };
+                    reasons.push(r);
+                }
+                reasons.sort();
+                reasons.dedup();
+
+                let reason_str = if reasons.is_empty() {
+                    "Dependent".to_string()
+                } else {
+                    reasons.join(", ")
+                };
+
+                out.push_str(&format!(
+                    "- {} [{}] (weight: {weight}) - {reason_str}\n",
+                    src_node.node_id, src_node.node_type
+                ));
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2282,135 +2287,129 @@ impl Engram {
         let req = params.0;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
-        let table_id = engram_core::ids::NodeId::table(&req.table_name).0;
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let table_id = engram_core::ids::NodeId::table(&req.table_name).0;
 
-        // 1. Find the table node.
-        let table_node = self
-            .state
-            .graph
-            .get_node(&req.project_id, &table_id)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            // 1. Find the table node.
+            let table_node = graph
+                .get_node(&req.project_id, &table_id)
+                .map_err(|e| e.to_string())?;
 
-        let Some(table_node) = table_node else {
-            // Try fuzzy match: search for similar table names.
-            let candidates = self
-                .state
-                .graph
-                .query_nodes(
-                    &req.project_id,
-                    Some("db_table"),
-                    Some(&req.table_name),
-                    None,
-                    10,
-                )
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if candidates.is_empty() {
-                return Ok(CallToolResult::success(vec![Content::text(format!(
-                    "Table '{}' not found. Make sure the project has .sql DDL files indexed.",
-                    req.table_name
-                ))]));
-            }
-            let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "Table '{}' not found exactly. Did you mean one of: {}?",
-                req.table_name,
-                names.join(", ")
-            ))]));
-        };
-
-        let mut out = format!("## Table: {}\n\n", table_node.name);
-
-        // 2. Show DDL from metadata.
-        if let Some(ref meta) = table_node.metadata {
-            if let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
-                out.push_str("### DDL\n```sql\n");
-                out.push_str(ddl);
-                out.push_str("\n```\n\n");
-            }
-        }
-
-        // 3. Find columns via outgoing HasColumn edges.
-        let columns = self
-            .state
-            .graph
-            .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        if !columns.is_empty() {
-            out.push_str("### Columns\n");
-            for (col_id, _weight) in &columns {
-                if let Ok(Some(col_node)) = self.state.graph.get_node(&req.project_id, col_id) {
-                    let data_type = col_node
-                        .metadata
-                        .as_ref()
-                        .and_then(|m| m.get("data_type"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("?");
-                    let nullable = col_node
-                        .metadata
-                        .as_ref()
-                        .and_then(|m| m.get("nullable"))
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("?");
-                    out.push_str(&format!(
-                        "- **{}** {} (nullable: {})\n",
-                        col_node.name, data_type, nullable
+            let Some(table_node) = table_node else {
+                let candidates = graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("db_table"),
+                        Some(&req.table_name),
+                        None,
+                        10,
+                    )
+                    .map_err(|e| e.to_string())?;
+                if candidates.is_empty() {
+                    return Ok(format!(
+                        "Table '{}' not found. Make sure the project has .sql DDL files indexed.",
+                        req.table_name
                     ));
                 }
-            }
-            out.push('\n');
-        }
+                let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+                return Ok(format!(
+                    "Table '{}' not found exactly. Did you mean one of: {}?",
+                    req.table_name,
+                    names.join(", ")
+                ));
+            };
 
-        // 4. Find foreign keys from column nodes.
-        let mut fk_lines = Vec::new();
-        for (col_id, _) in &columns {
-            let fks = self
-                .state
-                .graph
-                .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 50)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            for (ref_col_id, _) in fks {
-                fk_lines.push(format!("- {} -> {}", col_id, ref_col_id));
+            let mut out = format!("## Table: {}\n\n", table_node.name);
+
+            // 2. Show DDL from metadata.
+            if let Some(ref meta) = table_node.metadata {
+                if let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
+                    out.push_str("### DDL\n```sql\n");
+                    out.push_str(ddl);
+                    out.push_str("\n```\n\n");
+                }
             }
-        }
-        if !fk_lines.is_empty() {
-            out.push_str("### Foreign Keys\n");
-            for line in &fk_lines {
-                out.push_str(line);
+
+            // 3. Find columns via outgoing HasColumn edges.
+            let columns = graph
+                .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
+                .map_err(|e| e.to_string())?;
+
+            if !columns.is_empty() {
+                out.push_str("### Columns\n");
+                for (col_id, _weight) in &columns {
+                    if let Ok(Some(col_node)) = graph.get_node(&req.project_id, col_id) {
+                        let data_type = col_node
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("data_type"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        let nullable = col_node
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("nullable"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        out.push_str(&format!(
+                            "- **{}** {} (nullable: {})\n",
+                            col_node.name, data_type, nullable
+                        ));
+                    }
+                }
                 out.push('\n');
             }
-            out.push('\n');
-        }
 
-        // 5. Find incoming QueriesTable edges (SQL nodes that reference this table).
-        let referencing = self
-            .state
-            .graph
-            .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 50)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        if !referencing.is_empty() {
-            out.push_str("### Referenced by SQL Nodes\n");
-            for (sql_id, weight) in &referencing {
-                // For each SQL node, find who calls it (via SqlCalls edges).
-                let callers = self
-                    .state
-                    .graph
-                    .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 20)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                let caller_strs: Vec<_> = callers.iter().map(|(id, _)| id.as_str()).collect();
-                if caller_strs.is_empty() {
-                    out.push_str(&format!("- {} (weight: {})\n", sql_id, weight));
-                } else {
-                    out.push_str(&format!(
-                        "- {} (weight: {}) <- called from: {}\n",
-                        sql_id,
-                        weight,
-                        caller_strs.join(", ")
-                    ));
+            // 4. Find foreign keys from column nodes.
+            let mut fk_lines = Vec::new();
+            for (col_id, _) in &columns {
+                let fks = graph
+                    .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 50)
+                    .map_err(|e| e.to_string())?;
+                for (ref_col_id, _) in fks {
+                    fk_lines.push(format!("- {} -> {}", col_id, ref_col_id));
                 }
             }
-        }
+            if !fk_lines.is_empty() {
+                out.push_str("### Foreign Keys\n");
+                for line in &fk_lines {
+                    out.push_str(line);
+                    out.push('\n');
+                }
+                out.push('\n');
+            }
+
+            // 5. Find incoming QueriesTable edges (SQL nodes that reference this table).
+            let referencing = graph
+                .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 50)
+                .map_err(|e| e.to_string())?;
+
+            if !referencing.is_empty() {
+                out.push_str("### Referenced by SQL Nodes\n");
+                for (sql_id, weight) in &referencing {
+                    let callers = graph
+                        .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 20)
+                        .map_err(|e| e.to_string())?;
+                    let caller_strs: Vec<_> = callers.iter().map(|(id, _)| id.as_str()).collect();
+                    if caller_strs.is_empty() {
+                        out.push_str(&format!("- {} (weight: {})\n", sql_id, weight));
+                    } else {
+                        out.push_str(&format!(
+                            "- {} (weight: {}) <- called from: {}\n",
+                            sql_id,
+                            weight,
+                            caller_strs.join(", ")
+                        ));
+                    }
+                }
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2426,110 +2425,106 @@ impl Engram {
         let req = params.0;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
-        let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
 
-        // Check if the state node exists.
-        let state_node = self
-            .state
-            .graph
-            .get_node(&req.project_id, &state_id)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let state_node = graph
+                .get_node(&req.project_id, &state_id)
+                .map_err(|e| e.to_string())?;
 
-        if state_node.is_none() {
-            // Try fuzzy: list all global_state nodes matching a pattern.
-            let candidates = self
-                .state
-                .graph
-                .query_nodes(
+            if state_node.is_none() {
+                let candidates = graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("global_state"),
+                        Some(&req.state_key),
+                        None,
+                        20,
+                    )
+                    .map_err(|e| e.to_string())?;
+                if candidates.is_empty() {
+                    return Ok(format!(
+                        "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
+                        req.state_type, req.state_key, req.state_type
+                    ));
+                }
+                let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+                return Ok(format!(
+                    "State key '{}:{}' not found exactly. Similar keys found: {}",
+                    req.state_type,
+                    req.state_key,
+                    names.join(", ")
+                ));
+            }
+
+            let mut out = format!(
+                "## State Usage: {}[\"{}\"]\n\n",
+                req.state_type, req.state_key
+            );
+
+            let writers = graph
+                .find_incoming_edges(
                     &req.project_id,
-                    Some("global_state"),
-                    Some(&req.state_key),
-                    None,
-                    20,
+                    Some(EdgeKind::WritesState),
+                    &state_id,
+                    req.limit,
                 )
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if candidates.is_empty() {
-                return Ok(CallToolResult::success(vec![Content::text(format!(
-                    "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
-                    req.state_type, req.state_key, req.state_type
-                ))]));
-            }
-            let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "State key '{}:{}' not found exactly. Similar keys found: {}",
-                req.state_type,
-                req.state_key,
-                names.join(", ")
-            ))]));
-        }
+                .map_err(|e| e.to_string())?;
 
-        let mut out = format!(
-            "## State Usage: {}[\"{}\"]\n\n",
-            req.state_type, req.state_key
-        );
-
-        // Find writers (incoming WritesState edges).
-        let writers = self
-            .state
-            .graph
-            .find_incoming_edges(
-                &req.project_id,
-                Some(EdgeKind::WritesState),
-                &state_id,
-                req.limit,
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        if !writers.is_empty() {
-            out.push_str("### Writers\n");
-            for (writer_id, weight) in &writers {
-                if let Ok(Some(node)) = self.state.graph.get_node(&req.project_id, writer_id) {
-                    out.push_str(&format!(
-                        "- {} [{}] in {} (weight: {})\n",
-                        node.name,
-                        node.node_type,
-                        node.file_path.as_str(),
-                        weight
-                    ));
-                } else {
-                    out.push_str(&format!("- {} (weight: {})\n", writer_id, weight));
+            if !writers.is_empty() {
+                out.push_str("### Writers\n");
+                for (writer_id, weight) in &writers {
+                    if let Ok(Some(node)) = graph.get_node(&req.project_id, writer_id) {
+                        out.push_str(&format!(
+                            "- {} [{}] in {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!("- {} (weight: {})\n", writer_id, weight));
+                    }
                 }
+                out.push('\n');
+            } else {
+                out.push_str("### Writers\nNo writers found.\n\n");
             }
-            out.push('\n');
-        } else {
-            out.push_str("### Writers\nNo writers found.\n\n");
-        }
 
-        // Find readers (incoming ReadsState edges).
-        let readers = self
-            .state
-            .graph
-            .find_incoming_edges(
-                &req.project_id,
-                Some(EdgeKind::ReadsState),
-                &state_id,
-                req.limit,
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let readers = graph
+                .find_incoming_edges(
+                    &req.project_id,
+                    Some(EdgeKind::ReadsState),
+                    &state_id,
+                    req.limit,
+                )
+                .map_err(|e| e.to_string())?;
 
-        if !readers.is_empty() {
-            out.push_str("### Readers\n");
-            for (reader_id, weight) in &readers {
-                if let Ok(Some(node)) = self.state.graph.get_node(&req.project_id, reader_id) {
-                    out.push_str(&format!(
-                        "- {} [{}] in {} (weight: {})\n",
-                        node.name,
-                        node.node_type,
-                        node.file_path.as_str(),
-                        weight
-                    ));
-                } else {
-                    out.push_str(&format!("- {} (weight: {})\n", reader_id, weight));
+            if !readers.is_empty() {
+                out.push_str("### Readers\n");
+                for (reader_id, weight) in &readers {
+                    if let Ok(Some(node)) = graph.get_node(&req.project_id, reader_id) {
+                        out.push_str(&format!(
+                            "- {} [{}] in {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!("- {} (weight: {})\n", reader_id, weight));
+                    }
                 }
+            } else {
+                out.push_str("### Readers\nNo readers found.\n");
             }
-        } else {
-            out.push_str("### Readers\nNo readers found.\n");
-        }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2753,113 +2748,96 @@ impl Engram {
         let _ps = self.ensure_project_runtime(&pid).await?;
         let _active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
 
-        // Prepare zip in memory first
-        let mut buffer = Vec::new();
-        {
-            let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buffer));
-            let options = zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Deflated);
+        // Fetch overview before entering spawn_blocking (it's async)
+        let overview = self
+            .get_codebase_overview(Parameters(ProjectIdRequest {
+                project_id: pid.clone(),
+            }))
+            .await?;
+        let overview_text = match &overview.content[0].raw {
+            RawContent::Text(t) => t.text.clone(),
+            _ => String::new(),
+        };
 
-            // 1. overview.md
-            let overview = self
-                .get_codebase_overview(Parameters(ProjectIdRequest {
-                    project_id: pid.clone(),
-                }))
-                .await?;
-            let overview_text = match &overview.content[0].raw {
-                RawContent::Text(t) => &t.text,
-                _ => "",
-            };
-            zip.start_file("overview.md", options)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            std::io::Write::write_all(&mut zip, overview_text.as_bytes())
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let graph = self.state.graph.clone();
+        let data_dir = self.state.cfg.data_dir.clone();
+        let pid_clone = pid.clone();
+        let buffer = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+            let mut buffer = Vec::new();
+            {
+                let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buffer));
+                let options = zip::write::SimpleFileOptions::default()
+                    .compression_method(zip::CompressionMethod::Deflated);
 
-            // 2. graph_topology.json — only load the 1000 we actually use
-            let all_nodes = self
-                .state
-                .graph
-                .query_nodes(&pid, None, None, None, 1000)
-                .unwrap_or_default();
-            // Get total count separately (cheap: no deserialization of 100k nodes)
-            let total_node_count = self
-                .state
-                .graph
-                .count_nodes(&pid)
-                .unwrap_or(all_nodes.len());
-            let topo = serde_json::json!({
-                "node_count": total_node_count,
-                "nodes": all_nodes.iter().map(|n| {
-                    serde_json::json!({
-                        "id": n.node_id,
-                        "type": n.node_type,
-                        "name": n.name,
-                        "path": n.file_path,
-                        "language": n.language
-                    })
-                }).collect::<Vec<_>>()
-            });
-            zip.start_file("graph_topology.json", options)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            std::io::Write::write_all(
-                &mut zip,
-                serde_json::to_string_pretty(&topo)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .as_bytes(),
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                // 1. overview.md
+                zip.start_file("overview.md", options)
+                    .map_err(|e| e.to_string())?;
+                std::io::Write::write_all(&mut zip, overview_text.as_bytes())
+                    .map_err(|e| e.to_string())?;
 
-            // 3. ui_wiring.json
-            let ui_nodes = self
-                .state
-                .graph
-                .query_nodes(&pid, Some("control"), None, None, 5000)
-                .unwrap_or_default();
-            let mut wiring = Vec::new();
-            for ctrl in ui_nodes {
-                let deps = self
-                    .state
-                    .graph
-                    .neighbors(&pid, engram_graph::EdgeKind::Dependency, &ctrl.node_id, 10)
+                // 2. graph_topology.json
+                let all_nodes = graph
+                    .query_nodes(&pid_clone, None, None, None, 1000)
                     .unwrap_or_default();
-                wiring.push(serde_json::json!({
-                    "control": ctrl.node_id,
-                    "handlers": deps.iter().map(|(id, _)| id).collect::<Vec<_>>()
-                }));
+                let total_node_count = graph.count_nodes(&pid_clone).unwrap_or(all_nodes.len());
+                let topo = serde_json::json!({
+                    "node_count": total_node_count,
+                    "nodes": all_nodes.iter().map(|n| {
+                        serde_json::json!({
+                            "id": n.node_id,
+                            "type": n.node_type,
+                            "name": n.name,
+                            "path": n.file_path,
+                            "language": n.language
+                        })
+                    }).collect::<Vec<_>>()
+                });
+                zip.start_file("graph_topology.json", options)
+                    .map_err(|e| e.to_string())?;
+                serde_json::to_writer_pretty(&mut zip, &topo).map_err(|e| e.to_string())?;
+
+                // 3. ui_wiring.json
+                let ui_nodes = graph
+                    .query_nodes(&pid_clone, Some("control"), None, None, 5000)
+                    .unwrap_or_default();
+                let mut wiring = Vec::new();
+                for ctrl in ui_nodes {
+                    let deps = graph
+                        .neighbors(
+                            &pid_clone,
+                            engram_graph::EdgeKind::Dependency,
+                            &ctrl.node_id,
+                            10,
+                        )
+                        .unwrap_or_default();
+                    wiring.push(serde_json::json!({
+                        "control": ctrl.node_id,
+                        "handlers": deps.iter().map(|(id, _)| id).collect::<Vec<_>>()
+                    }));
+                }
+                zip.start_file("ui_wiring.json", options)
+                    .map_err(|e| e.to_string())?;
+                serde_json::to_writer_pretty(&mut zip, &wiring).map_err(|e| e.to_string())?;
+
+                // 4. sql_map.json
+                let sql_edges = graph
+                    .list_edges_by_kind(&pid_clone, engram_graph::EdgeKind::SqlCalls, 5000)
+                    .unwrap_or_default();
+                zip.start_file("sql_map.json", options)
+                    .map_err(|e| e.to_string())?;
+                serde_json::to_writer_pretty(&mut zip, &sql_edges).map_err(|e| e.to_string())?;
+
+                zip.finish().map_err(|e| e.to_string())?;
             }
-            zip.start_file("ui_wiring.json", options)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            std::io::Write::write_all(
-                &mut zip,
-                serde_json::to_string_pretty(&wiring)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .as_bytes(),
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-            // 4. sql_map.json
-            let sql_edges = self
-                .state
-                .graph
-                .list_edges_by_kind(&pid, engram_graph::EdgeKind::SqlCalls, 5000)
-                .unwrap_or_default();
-            zip.start_file("sql_map.json", options)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            std::io::Write::write_all(
-                &mut zip,
-                serde_json::to_string_pretty(&sql_edges)
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .as_bytes(),
-            )
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-            zip.finish()
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        }
+            Ok(buffer)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         // Write to disk — use tokio::fs to avoid blocking the async executor
         let timestamp = now_ms();
-        let exports_dir = self.state.cfg.data_dir.join("exports").join(&pid);
+        let exports_dir = data_dir.join("exports").join(&pid);
         tokio::fs::create_dir_all(&exports_dir)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -3215,9 +3193,11 @@ impl Engram {
             ))]));
         }
 
-        let _ = self.state.events_tx.send(AppEvent::TriggerDream {
+        if let Err(e) = self.state.events_tx.send(AppEvent::TriggerDream {
             project_id: pid.clone(),
-        });
+        }) {
+            tracing::warn!("Failed to send TriggerDream event: {e}");
+        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "ðŸ§  Dream requested for project_id: {pid} (max_pairs={})",
@@ -3329,7 +3309,14 @@ impl Engram {
         let current_content = {
             let resolved_clone = resolved.clone();
             tokio::task::spawn_blocking(move || -> Option<String> {
+                const MAX_FILE_SIZE: u64 = 1_048_576; // 1MB
                 if !is_dir {
+                    // Skip files larger than 1MB (e.g. minified JS, generated code)
+                    if let Ok(m) = std::fs::metadata(&resolved_clone) {
+                        if m.len() > MAX_FILE_SIZE {
+                            return None;
+                        }
+                    }
                     std::fs::read_to_string(&resolved_clone).ok()
                 } else {
                     // For directory, sample sorted files for deterministic results
@@ -3344,6 +3331,12 @@ impl Engram {
                         file_paths.sort();
                         let mut count = 0;
                         for path in file_paths {
+                            // Skip files larger than 1MB
+                            if let Ok(m) = std::fs::metadata(&path) {
+                                if m.len() > MAX_FILE_SIZE {
+                                    continue;
+                                }
+                            }
                             if let Ok(content) = std::fs::read_to_string(&path) {
                                 sampled_text.push_str(&content);
                                 sampled_text.push('\n');
@@ -4049,20 +4042,21 @@ impl Engram {
         for (rel_path, sym) in &stats.symbols {
             let language = engram_core::guess_language(std::path::Path::new(rel_path.as_str()));
 
-            let mut metadata = None;
-            if let Some(m) = &sym.metadata {
-                let mut map = std::collections::HashMap::new();
-                for (k, v) in m {
-                    map.insert(k.clone(), serde_json::Value::String(v.clone()));
-                }
-                metadata = Some(serde_json::to_value(map).unwrap_or(serde_json::Value::Null));
-            }
-
-            let fqn = sym
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("fqn"))
-                .map(|v| v.as_str());
+            // Extract both metadata JSON and FQN in a single pass over sym.metadata
+            let (metadata, fqn) = if let Some(m) = &sym.metadata {
+                let fqn_val = m.get("fqn").map(|v| v.as_str().to_string());
+                let map: std::collections::HashMap<String, serde_json::Value> = m
+                    .iter()
+                    .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+                    .collect();
+                (
+                    Some(serde_json::to_value(map).unwrap_or(serde_json::Value::Null)),
+                    fqn_val,
+                )
+            } else {
+                (None, None)
+            };
+            let fqn = fqn.as_deref();
 
             let (node_id, final_kind) = if sym.kind == "page" {
                 (
@@ -4512,11 +4506,24 @@ impl Engram {
                             .and_then(|v| v.as_str())
                             .map(|s| s.to_string());
 
+                        // Stream-hash files to avoid OOM on large files.
+                        // Skip hash verification for files > 100MB (trust mtime+size).
+                        let stream_hash = |path: &std::path::Path| -> Option<String> {
+                            let meta = std::fs::metadata(path).ok()?;
+                            if meta.len() > 100_000_000 {
+                                return None; // too large, skip hashing
+                            }
+                            let file = std::fs::File::open(path).ok()?;
+                            let mut hasher = blake3::Hasher::new();
+                            let mut reader = std::io::BufReader::new(file);
+                            std::io::copy(&mut reader, &mut hasher).ok()?;
+                            Some(hasher.finalize().to_hex().to_string())
+                        };
+
                         if stored_mtime == mtime && stored_size == size {
                             // mtime + size match => trust it unless hash disagrees
                             if let Some(ref sh) = stored_hash {
-                                if let Ok(bytes) = std::fs::read(&p) {
-                                    let current_hash = blake3::hash(&bytes).to_hex().to_string();
+                                if let Some(current_hash) = stream_hash(&p) {
                                     if current_hash == *sh {
                                         is_changed = false;
                                     }
@@ -4528,8 +4535,7 @@ impl Engram {
                             // Bug fix: mtime differs but size is same — check hash
                             // (handles git checkout of same-content branch)
                             if let Some(ref sh) = stored_hash {
-                                if let Ok(bytes) = std::fs::read(&p) {
-                                    let current_hash = blake3::hash(&bytes).to_hex().to_string();
+                                if let Some(current_hash) = stream_hash(&p) {
                                     if current_hash == *sh {
                                         is_changed = false;
                                     }
@@ -4597,22 +4603,27 @@ impl Engram {
         let project_id_for_job = project_id.clone();
         let job_id_for_job = job_id.clone();
 
-        let active_count = state_for_spawn
+        let max_jobs = state_for_spawn.cfg.max_concurrent_jobs;
+        if state_for_spawn
             .active_indexing_count
-            .load(std::sync::atomic::Ordering::SeqCst);
-        if active_count >= state_for_spawn.cfg.max_concurrent_jobs {
+            .fetch_update(
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
+                |current| {
+                    if current >= max_jobs {
+                        None
+                    } else {
+                        Some(current + 1)
+                    }
+                },
+            )
+            .is_err()
+        {
             return Err(McpError::internal_error(
-                format!(
-                    "Too many concurrent jobs running (limit: {})",
-                    state_for_spawn.cfg.max_concurrent_jobs
-                ),
+                format!("Too many concurrent jobs running (limit: {})", max_jobs),
                 None,
             ));
         }
-
-        state_for_spawn
-            .active_indexing_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         let token = tokio_util::sync::CancellationToken::new();
         {
@@ -4643,6 +4654,7 @@ impl Engram {
                                 limit
                             ))
                         } else {
+                            let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                             search
                                 .index_files(
                                     &project_id_for_job,
@@ -4654,9 +4666,14 @@ impl Engram {
                                     &token,
                                     move |curr, total| {
                                         let pct = ((curr as f32 / total as f32) * 100.0) as u8;
+                                        let prev =
+                                            last_pct.load(std::sync::atomic::Ordering::Relaxed);
+                                        if pct.saturating_sub(prev) < 5 && curr != total {
+                                            return;
+                                        }
+                                        last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
                                         if let Ok(Some(mut job)) =
                                             reg_for_cb.get_job(&job_id_for_cb)
-                                            && (job.progress_pct != pct || curr % 10 == 0)
                                         {
                                             job.progress_pct = pct;
                                             job.message =
@@ -4669,6 +4686,7 @@ impl Engram {
                                 .await
                         }
                     } else {
+                        let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                         search
                             .index_files(
                                 &project_id_for_job,
@@ -4680,9 +4698,12 @@ impl Engram {
                                 &token,
                                 move |curr, total| {
                                     let pct = ((curr as f32 / total as f32) * 100.0) as u8;
-                                    if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb)
-                                        && (job.progress_pct != pct || curr % 10 == 0)
-                                    {
+                                    let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
+                                    if pct.saturating_sub(prev) < 5 && curr != total {
+                                        return;
+                                    }
+                                    last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
+                                    if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
                                         job.progress_pct = pct;
                                         job.message = format!("Indexing: {}/{} files", curr, total);
                                         job.updated_at_ms = now_ms();
@@ -4753,7 +4774,8 @@ impl Engram {
                 created_at_ms: now,
                 updated_at_ms: now,
             };
-            let _ = reg2.put_job(&jr);
+            let reg_final = reg2.clone();
+            let _ = tokio::task::spawn_blocking(move || reg_final.put_job(&jr)).await;
 
             // Drop handle and token from active maps
             {
@@ -4810,22 +4832,27 @@ impl Engram {
         let job_id_for_job = job_id.clone();
         let project_id_for_job = project_id.clone();
 
-        let active_count = state
+        let max_jobs = state.cfg.max_concurrent_jobs;
+        if state
             .active_indexing_count
-            .load(std::sync::atomic::Ordering::SeqCst);
-        if active_count >= state.cfg.max_concurrent_jobs {
+            .fetch_update(
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
+                |current| {
+                    if current >= max_jobs {
+                        None
+                    } else {
+                        Some(current + 1)
+                    }
+                },
+            )
+            .is_err()
+        {
             return Err(McpError::internal_error(
-                format!(
-                    "Too many concurrent jobs running (limit: {})",
-                    state.cfg.max_concurrent_jobs
-                ),
+                format!("Too many concurrent jobs running (limit: {})", max_jobs),
                 None,
             ));
         }
-
-        state
-            .active_indexing_count
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         let token = tokio_util::sync::CancellationToken::new();
         {
@@ -4896,6 +4923,7 @@ impl Engram {
 
                 let reg_for_progress = reg_for_cb.clone();
                 let job_id_for_progress = job_id_for_cb.clone();
+                let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                 let stats = ps
                     .search
                     .index_files(
@@ -4908,9 +4936,13 @@ impl Engram {
                         &token,
                         move |curr, total| {
                             let pct = ((curr as f32 / total as f32) * 100.0) as u8;
+                            let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
+                            if pct.saturating_sub(prev) < 5 && curr != total {
+                                return;
+                            }
+                            last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
                             if let Ok(Some(mut job)) =
                                 reg_for_progress.get_job(&job_id_for_progress)
-                                && (job.progress_pct != pct || curr % 10 == 0)
                             {
                                 job.progress_pct = pct;
                                 job.message = format!("Indexing: {}/{} files", curr, total);
@@ -4929,12 +4961,18 @@ impl Engram {
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await
                 {
-                    if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
-                        job.status = "failed".into();
-                        job.message = format!("Graph processing failed: {}", e);
-                        job.updated_at_ms = now_ms();
-                        let _ = reg_for_cb.put_job(&job);
-                    }
+                    let reg_err = reg_for_cb.clone();
+                    let jid_err = job_id_for_cb.clone();
+                    let err_msg = format!("Graph processing failed: {}", e);
+                    let _ = tokio::task::spawn_blocking(move || {
+                        if let Ok(Some(mut job)) = reg_err.get_job(&jid_err) {
+                            job.status = "failed".into();
+                            job.message = err_msg;
+                            job.updated_at_ms = now_ms();
+                            let _ = reg_err.put_job(&job);
+                        }
+                    })
+                    .await;
                     return Ok(());
                 }
 
@@ -4955,7 +4993,7 @@ impl Engram {
                         &token,
                         Box::new(move |curr, total| {
                             if let Ok(Some(mut job)) = reg_for_git.get_job(&jid_for_git)
-                                && (curr % 10 == 0 || curr == total)
+                                && (curr % 20 == 0 || curr == total)
                             {
                                 job.message =
                                     format!("Analyzing history: {}/{} commits", curr, total);
@@ -4999,7 +5037,8 @@ impl Engram {
                 created_at_ms: now,
                 updated_at_ms: now,
             };
-            let _ = state.registry.put_job(&jr2);
+            let reg_final = state.registry.clone();
+            let _ = tokio::task::spawn_blocking(move || reg_final.put_job(&jr2)).await;
 
             {
                 let mut m = state.active_jobs.write().await;
@@ -5092,7 +5131,7 @@ impl Engram {
                         Box::new(move |curr, total| {
                             if let Ok(Some(mut job)) = reg_for_git.get_job(&jid_for_git) {
                                 let pct = ((curr as f32 / total as f32) * 100.0) as u8;
-                                if job.progress_pct != pct || curr % 10 == 0 {
+                                if job.progress_pct != pct && (curr % 20 == 0 || curr == total) {
                                     job.progress_pct = pct;
                                     job.message =
                                         format!("Analyzing history: {}/{} commits", curr, total);
@@ -5130,7 +5169,8 @@ impl Engram {
                 created_at_ms: now,
                 updated_at_ms: now,
             };
-            let _ = state.registry.put_job(&jr2);
+            let reg_final = state.registry.clone();
+            let _ = tokio::task::spawn_blocking(move || reg_final.put_job(&jr2)).await;
 
             {
                 let mut m = state.active_jobs.write().await;
@@ -5150,29 +5190,44 @@ impl Engram {
     }
 
     async fn cancel_job_internal(&self, job_id: &str) -> bool {
-        let mut tokens = self.state.cancellation_tokens.write().await;
-        if let Some(token) = tokens.remove(job_id) {
+        // Take cancellation_tokens lock, extract token, then release lock
+        // BEFORE acquiring active_jobs to avoid lock-order inversion with
+        // spawned tasks that take active_jobs → cancellation_tokens.
+        let token = {
+            let mut tokens = self.state.cancellation_tokens.write().await;
+            tokens.remove(job_id)
+        };
+
+        if let Some(token) = token {
             token.cancel();
 
-            // Also abort handle as fallback if not responsive to cooperative cancellation
-            let mut handles = self.state.active_jobs.write().await;
-            if let Some(h) = handles.remove(job_id) {
-                h.abort();
+            // Now safe to acquire active_jobs (no other lock held)
+            {
+                let mut handles = self.state.active_jobs.write().await;
+                if let Some(h) = handles.remove(job_id) {
+                    h.abort();
+                }
             }
 
-            let now = now_ms();
-            let jr = JobRecord {
-                job_id: job_id.to_string(),
-                kind: "unknown".into(),
-                project_id: None,
-                status: "cancelled".into(),
-                message: "cancelled by user".into(),
-                progress_pct: 0,
-                estimated_time_remaining_ms: None,
-                created_at_ms: now,
-                updated_at_ms: now,
-            };
-            let _ = self.state.registry.put_job(&jr);
+            // Offload blocking Redb write to the blocking pool
+            let reg = self.state.registry.clone();
+            let jid = job_id.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                let now = now_ms();
+                let jr = JobRecord {
+                    job_id: jid,
+                    kind: "unknown".into(),
+                    project_id: None,
+                    status: "cancelled".into(),
+                    message: "cancelled by user".into(),
+                    progress_pct: 0,
+                    estimated_time_remaining_ms: None,
+                    created_at_ms: now,
+                    updated_at_ms: now,
+                };
+                let _ = reg.put_job(&jr);
+            })
+            .await;
             true
         } else {
             false
@@ -5223,6 +5278,8 @@ impl Engram {
             let mut reverts: usize = 0;
             let mut anti_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
+            let mut history_batch_bytes: usize = 0;
+            let mut anti_batch_bytes: usize = 0;
             let mut last_processed_oid: Option<Oid> = None;
 
             let mut commit_history: Vec<Oid> = Vec::new();
@@ -5391,16 +5448,23 @@ impl Engram {
                     }
                 }
 
-                // Batch index to avoid huge memory usage
-                if history_docs.len() >= 100 {
+                // Track batch byte sizes
+                history_batch_bytes = history_docs.iter().map(|d| d.content.len()).sum();
+                anti_batch_bytes = anti_docs.iter().map(|d| d.content.len()).sum();
+
+                // Batch index to avoid huge memory usage (flush on count OR byte threshold)
+                const MAX_BATCH_BYTES: usize = 10_000_000; // 10MB
+                if history_docs.len() >= 100 || history_batch_bytes >= MAX_BATCH_BYTES {
                     let rt = tokio::runtime::Handle::current();
                     rt.block_on(search.index_docs(&pid_clone, &history_docs, &cancel_clone))?;
                     history_docs.clear();
+                    history_batch_bytes = 0;
                 }
-                if anti_docs.len() >= 100 {
+                if anti_docs.len() >= 100 || anti_batch_bytes >= MAX_BATCH_BYTES {
                     let rt = tokio::runtime::Handle::current();
                     rt.block_on(search.index_docs(&pid_clone, &anti_docs, &cancel_clone))?;
                     anti_docs.clear();
+                    anti_batch_bytes = 0;
                 }
 
                 Ok(())
@@ -5502,8 +5566,9 @@ fn link_sql_to_schema(
             .unwrap_or_default();
 
         for (table_name, table_id) in &table_name_to_id {
-            // Simple substring match: does the SQL node name or metadata mention this table?
-            let matches = sql_name_lower.contains(table_name) || metadata_str.contains(table_name);
+            // Word-boundary match: table name must not be adjacent to alphanumeric/underscore
+            let matches = contains_word(&sql_name_lower, table_name)
+                || contains_word(&metadata_str, table_name);
 
             if matches && linked.insert((sql_node.node_id.clone(), table_id.clone())) {
                 new_edges.push(engram_graph::Edge {
@@ -5541,6 +5606,29 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
+/// Check if `haystack` contains `needle` as a whole word (not surrounded by alphanumeric/underscore).
+fn contains_word(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return false;
+    }
+    let hay = haystack.as_bytes();
+    for (pos, _) in haystack.match_indices(needle) {
+        let before_ok = pos == 0 || {
+            let b = hay[pos - 1];
+            !b.is_ascii_alphanumeric() && b != b'_'
+        };
+        let after_pos = pos + needle.len();
+        let after_ok = after_pos >= hay.len() || {
+            let b = hay[after_pos];
+            !b.is_ascii_alphanumeric() && b != b'_'
+        };
+        if before_ok && after_ok {
+            return true;
+        }
+    }
+    false
+}
+
 fn pattern_match(file_path: &str, pattern: &str) -> bool {
     // Very small glob-like matcher:
     // - if pattern contains '*' we treat it like a suffix/prefix/contains check
@@ -5559,13 +5647,21 @@ fn pattern_match(file_path: &str, pattern: &str) -> bool {
         if parts.is_empty() {
             return true;
         }
+        let must_anchor_start = !pattern.starts_with('*');
+        let must_anchor_end = !pattern.ends_with('*');
         let mut idx = 0usize;
-        for p in parts {
+        for (i, p) in parts.iter().enumerate() {
             if let Some(pos) = file_path[idx..].find(p) {
+                if i == 0 && must_anchor_start && pos != 0 {
+                    return false;
+                }
                 idx += pos + p.len();
             } else {
                 return false;
             }
+        }
+        if must_anchor_end && idx != file_path.len() {
+            return false;
         }
         return true;
     }
