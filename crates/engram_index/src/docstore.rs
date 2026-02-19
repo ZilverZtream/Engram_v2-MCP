@@ -9,6 +9,19 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 
+// Fix #4: key components must not contain the delimiter bytes used for
+// composite key construction ('\0' for field separator, '\n' for list items).
+// Reject such values early so they can never silently corrupt the database.
+fn validate_key_component(value: &str, name: &str) -> anyhow::Result<()> {
+    if value.contains('\0') || value.contains('\n') {
+        anyhow::bail!(
+            "DocStore key component `{name}` must not contain '\\0' or '\\n' (got {:?})",
+            value
+        );
+    }
+    Ok(())
+}
+
 // ---- Table definitions ----
 
 /// key = "{project_id}\0{namespace}\0{doc_id}"
@@ -74,6 +87,9 @@ impl DocStore {
 
     /// Persist a DocRecord.
     pub fn put_doc(&self, project_id: &str, rec: &DocRecord) -> anyhow::Result<()> {
+        validate_key_component(project_id, "project_id")?;
+        validate_key_component(&rec.namespace, "namespace")?;
+        validate_key_component(&rec.doc_id, "doc_id")?;
         let key = format!("{}\0{}\0{}", project_id, rec.namespace, rec.doc_id);
         let val = serde_json::to_vec(rec)?;
         let wtx = self.db.begin_write()?;
@@ -90,10 +106,13 @@ impl DocStore {
         if recs.is_empty() {
             return Ok(());
         }
+        validate_key_component(project_id, "project_id")?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(DOC_BY_ID)?;
             for rec in recs {
+                validate_key_component(&rec.namespace, "namespace")?;
+                validate_key_component(&rec.doc_id, "doc_id")?;
                 let key = format!("{}\0{}\0{}", project_id, rec.namespace, rec.doc_id);
                 let val = serde_json::to_vec(rec)?;
                 t.insert(key.as_str(), val.as_slice())?;
@@ -127,6 +146,12 @@ impl DocStore {
         rel_path: &str,
         doc_ids: &[String],
     ) -> anyhow::Result<()> {
+        validate_key_component(project_id, "project_id")?;
+        validate_key_component(namespace, "namespace")?;
+        validate_key_component(rel_path, "rel_path")?;
+        for did in doc_ids {
+            validate_key_component(did, "doc_id")?;
+        }
         let key = format!("{}\0{}\0{}", project_id, namespace, rel_path);
         let val = doc_ids.join("\n").into_bytes();
         let wtx = self.db.begin_write()?;
@@ -177,6 +202,8 @@ impl DocStore {
 
     /// Store or update a file fingerprint.
     pub fn set_fingerprint(&self, project_id: &str, fp: &FileFingerprint) -> anyhow::Result<()> {
+        validate_key_component(project_id, "project_id")?;
+        validate_key_component(&fp.rel_path, "rel_path")?;
         let key = format!("{}\0{}", project_id, fp.rel_path);
         let val = serde_json::to_vec(fp)?;
         let wtx = self.db.begin_write()?;
@@ -212,10 +239,12 @@ impl DocStore {
         if fps.is_empty() {
             return Ok(());
         }
+        validate_key_component(project_id, "project_id")?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(FILE_FINGERPRINT)?;
             for fp in fps {
+                validate_key_component(&fp.rel_path, "rel_path")?;
                 let key = format!("{}\0{}", project_id, fp.rel_path);
                 let val = serde_json::to_vec(fp)?;
                 t.insert(key.as_str(), val.as_slice())?;

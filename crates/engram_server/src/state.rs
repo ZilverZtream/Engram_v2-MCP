@@ -158,7 +158,7 @@ impl AppState {
 
     pub async fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
         let map = self.projects.read().await;
-        if let Some(ps) = map.get(project_id) {
+        if let Some(_ps) = map.get(project_id) {
             // Bump LRU timestamp on every access so the least-recently-used entry
             // is always the correct eviction candidate.
             drop(map);
@@ -170,6 +170,33 @@ impl AppState {
             self.projects.read().await.get(project_id).cloned()
         } else {
             None
+        }
+    }
+
+    /// Fix #10: Evict any projects that overshot MAX_CACHED_PROJECTS while all
+    /// slots were busy indexing.  Call this immediately after decrementing
+    /// `active_indexing_count` so the overshoot is cleaned up promptly.
+    pub async fn evict_cache_overshoot(&self) {
+        let mut map = self.projects.write().await;
+        if map.len() <= MAX_CACHED_PROJECTS {
+            return;
+        }
+        let active_jobs = self.active_jobs.read().await;
+        let mut lru = self.project_lru.write().await;
+        while map.len() > MAX_CACHED_PROJECTS {
+            let evict_key = map
+                .keys()
+                .filter(|k| !active_jobs.contains_key(*k))
+                .min_by_key(|k| lru.get(*k).copied().unwrap_or(std::time::Instant::now()))
+                .cloned();
+            match evict_key {
+                Some(key) => {
+                    tracing::debug!(evicted = %key, "LRU-evicting overshoot project from cache");
+                    map.remove(&key);
+                    lru.remove(&key);
+                }
+                None => break, // all remaining are still active — stop
+            }
         }
     }
 

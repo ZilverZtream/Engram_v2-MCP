@@ -61,6 +61,24 @@ impl PathContext {
                                     )));
                                 }
                             }
+                            // Security (Fix #1): walk each existing intermediate component
+                            // of the suffix and reject any that is a symlink.  A symlink
+                            // in the unresolved suffix can point outside allowed_roots even
+                            // though the lexical `starts_with` check below would pass.
+                            let mut partial = canon_ancestor.clone();
+                            for component in suffix.components() {
+                                partial.push(component);
+                                if partial.exists() {
+                                    match std::fs::symlink_metadata(&partial) {
+                                        Ok(meta) if meta.file_type().is_symlink() => {
+                                            return Err(EngramError::PathNotAllowed(format!(
+                                                "cannot access {input:?}: symlink in unresolved path component {partial:?}"
+                                            )));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
                             break Ok(canon_ancestor.join(&suffix));
                         }
                     }

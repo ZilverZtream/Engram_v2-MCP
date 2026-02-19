@@ -221,6 +221,9 @@ impl Engram {
             state_for_spawn
                 .active_indexing_count
                 .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            // Fix #10: now that one indexing job has finished, evict any projects
+            // that overshot MAX_CACHED_PROJECTS while all cache slots were busy.
+            state_for_spawn.evict_cache_overshoot().await;
 
             let mut status = "done";
             let mut msg = "completed".to_string();

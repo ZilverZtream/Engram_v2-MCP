@@ -1,6 +1,6 @@
 use ahash::AHasher;
 use async_trait::async_trait;
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, Hash, Hasher};
 
 pub type Embedding = Vec<f32>;
 
@@ -30,16 +30,24 @@ impl Embedder for ProjectionEmbedder {
     }
 
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
-        let mut vec = vec![0.0f32; self.dim];
+        // Fix #3: empty / whitespace-only text returns a stable unit vector anchored
+        // at dimension 0 rather than an all-zero vector.  An all-zero vector causes
+        // division-by-zero in cosine-similarity databases (LanceDB).
         if text.is_empty() {
+            let mut vec = vec![0.0f32; self.dim];
+            if self.dim > 0 {
+                vec[0] = 1.0;
+            }
             return Ok(vec);
         }
+
+        let mut vec = vec![0.0f32; self.dim];
 
         // Tokenize into trigrams
         let chars: Vec<char> = text.chars().collect();
         if chars.len() < 3 {
-            // Fallback for very short text — still use ahash for consistency.
-            let h = ahash_u64(text.as_bytes());
+            // Fallback for very short text.
+            let h = ahash_u64_fixed_a(text.as_bytes());
             let idx = (h as usize) % self.dim;
             vec[idx] = 1.0;
             return Ok(vec);
@@ -53,11 +61,11 @@ impl Embedder for ProjectionEmbedder {
                 trigram_buf.push(c);
             }
 
-            // Two independent ahash calls with different seeds give two projection slots.
-            // AHasher is a non-cryptographic hasher optimised for throughput — ideal for
-            // SimHash where we call it millions of times on tiny inputs.
-            let h0 = ahash_u64_seeded(trigram_buf.as_bytes(), 0xdeadbeef_cafebabe);
-            let h1 = ahash_u64_seeded(trigram_buf.as_bytes(), 0x01234567_89abcdef);
+            // Two independent fixed-seed ahash calls give two projection slots.
+            // Fix #2: use ahash::RandomState::with_seeds so the hash output is
+            // identical across process restarts (AHasher::default() uses OS entropy).
+            let h0 = ahash_u64_fixed_a(trigram_buf.as_bytes());
+            let h1 = ahash_u64_fixed_b(trigram_buf.as_bytes());
 
             let idx0 = (h0 as usize) % self.dim;
             let sign0 = if (h0 >> 63) == 0 { 1.0f32 } else { -1.0 };
@@ -73,6 +81,11 @@ impl Embedder for ProjectionEmbedder {
         if norm > 0.0 {
             for x in vec.iter_mut() {
                 *x /= norm;
+            }
+        } else {
+            // Guard: all projections cancelled; fall back to unit vector at dim 0.
+            if self.dim > 0 {
+                vec[0] = 1.0;
             }
         }
 
@@ -94,21 +107,35 @@ impl Embedder for LocalEmbedder {
     }
 }
 
-/// Hash `data` with AHasher (default seed).
-fn ahash_u64(data: &[u8]) -> u64 {
-    let mut h = AHasher::default();
+// Fix #2: Two independent fixed-seed hash families.
+// ahash::RandomState::with_seeds uses compile-time constants, so the hash
+// output is identical across every process restart (unlike AHasher::default()
+// which re-seeds from OS entropy on every startup).
+
+/// Hash family A — used for projection slot 0.
+fn ahash_u64_fixed_a(data: &[u8]) -> u64 {
+    let state = ahash::RandomState::with_seeds(
+        0x6c62272e_07bb0142,
+        0x62b82175_6295c58d,
+        0x9368d954_3c2f05db,
+        0x2f50f073_c8fa3ba5,
+    );
+    let mut h: AHasher = state.build_hasher();
     data.hash(&mut h);
     h.finish()
 }
 
-/// Hash `data` with AHasher, mixing in a fixed `seed` constant so the two
-/// projection slots are independent.  AHasher::default() is deterministic
-/// within a single process run; mixing the seed gives us a second independent
-/// hash family without a cryptographic primitive.
-fn ahash_u64_seeded(data: &[u8], seed: u64) -> u64 {
-    // XOR the seed into the hash of the data to create a second independent value.
-    let base = ahash_u64(data);
-    base ^ seed.wrapping_mul(0x9e3779b97f4a7c15)
+/// Hash family B — used for projection slot 1 (independent of A).
+fn ahash_u64_fixed_b(data: &[u8]) -> u64 {
+    let state = ahash::RandomState::with_seeds(
+        0xdeadbabe_f00dcafe,
+        0x01234567_89abcdef,
+        0xfedcba98_76543210,
+        0xc0ffee11_deadbeef,
+    );
+    let mut h: AHasher = state.build_hasher();
+    data.hash(&mut h);
+    h.finish()
 }
 
 /// Placeholder remote embedder (Ollama/OpenAI/etc.)

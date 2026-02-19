@@ -60,6 +60,9 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
 
     let index = if index_dir.join("meta.json").exists() {
         // Attempt to open existing index; if schema mismatch occurs we must recreate.
+        // Fix #5: only wipe the directory on confirmed schema incompatibility.
+        // Transient errors (e.g. antivirus lock, read timeout) must propagate as
+        // errors rather than silently destroying the entire index.
         match Index::open_in_dir(index_dir) {
             Ok(idx) => {
                 // Check if pk field exists - if not, the index predates this schema.
@@ -72,10 +75,16 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
                     idx
                 }
             }
-            Err(_) => {
+            Err(tantivy::TantivyError::SchemaError(_)) => {
+                // Explicit schema incompatibility — safe to wipe.
                 std::fs::remove_dir_all(index_dir)?;
                 std::fs::create_dir_all(index_dir)?;
                 Index::create_in_dir(index_dir, schema)?
+            }
+            Err(e) => {
+                // Transient IO or other error — propagate rather than destroying
+                // a potentially good index.
+                return Err(e);
             }
         }
     } else {

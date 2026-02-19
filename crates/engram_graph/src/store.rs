@@ -336,6 +336,10 @@ impl GraphStore {
     /// Batch-increment multiple edges in a single write transaction.
     /// Each entry is (kind, source_id, target_id, delta).
     /// This avoids the per-call transaction overhead of `increment_edge`.
+    ///
+    /// Fix #8: adjacency lists for hot nodes are cached in a local HashMap so
+    /// that N edges touching the same high-degree node deserialization happens
+    /// once (read) and once (flush), not once per edge (O(N²) → O(N)).
     #[allow(clippy::too_many_arguments)]
     pub fn batch_increment_edges(
         &self,
@@ -354,6 +358,12 @@ impl GraphStore {
             let mut et = wtx.open_table(EDGES)?;
             let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
             let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+
+            // In-memory adjacency cache: key → Vec<AdjEntry>.
+            // Avoids re-deserializing the same JSON array for every edge that
+            // touches the same high-degree node within this batch.
+            let mut adj_out_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
+            let mut adj_in_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
 
             for (kind, source_id, target_id, delta) in increments {
                 let key = edge_key(project_id, kind, source_id, target_id);
@@ -391,16 +401,34 @@ impl GraphStore {
                 let bytes = serde_json::to_vec(&final_edge)?;
                 et.insert(key.as_str(), bytes.as_slice())?;
 
-                // Update adjacency tables
+                // Update adjacency caches (read from DB only on first access).
                 let out_key = adj_key(project_id, kind, source_id);
-                let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
-                upsert_adj_entry(&mut out_list, target_id, new_weight, now);
-                adj_out_t.insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+                let out_list = if let Some(cached) = adj_out_cache.get_mut(&out_key) {
+                    cached
+                } else {
+                    let list = read_adj_list(&adj_out_t, &out_key)?;
+                    adj_out_cache.insert(out_key.clone(), list);
+                    adj_out_cache.get_mut(&out_key).unwrap()
+                };
+                upsert_adj_entry(out_list, target_id, new_weight, now);
 
                 let in_key = adj_key(project_id, kind, target_id);
-                let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-                upsert_adj_entry(&mut in_list, source_id, new_weight, now);
-                adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+                let in_list = if let Some(cached) = adj_in_cache.get_mut(&in_key) {
+                    cached
+                } else {
+                    let list = read_adj_list(&adj_in_t, &in_key)?;
+                    adj_in_cache.insert(in_key.clone(), list);
+                    adj_in_cache.get_mut(&in_key).unwrap()
+                };
+                upsert_adj_entry(in_list, source_id, new_weight, now);
+            }
+
+            // Flush all modified adjacency lists to the DB once at the end.
+            for (key, list) in adj_out_cache {
+                adj_out_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
+            }
+            for (key, list) in adj_in_cache {
+                adj_in_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
             }
         }
         wtx.commit()?;
@@ -979,13 +1007,21 @@ impl GraphStore {
             keys
         };
 
-        // Remove stale edges + adjacency entries in batches
+        // Remove stale edges + adjacency entries in batches.
+        // Fix #12: cache adjacency lists in memory for the duration of each
+        // batch so high-degree nodes don't cause O(N²) JSON serialize/deserialize
+        // (one round-trip per removed edge that touches the same node).
         for chunk in edge_keys_to_remove.chunks(BATCH_SIZE) {
             let wtx = self.db.begin_write()?;
             {
                 let mut et = wtx.open_table(EDGES)?;
                 let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
                 let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+
+                // In-memory caches: key → Option<Vec<AdjEntry>>
+                // None means "delete this key" (empty list).
+                let mut adj_out_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
+                let mut adj_in_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
 
                 for k in chunk {
                     // Parse edge key: "project\0kind\0source\0target"
@@ -996,34 +1032,46 @@ impl GraphStore {
                         let target_id = parts[3];
 
                         if let Some(ek) = EdgeKind::from_str(kind_str) {
-                            // Remove from ADJ_OUT[source] → target
+                            // Remove from ADJ_OUT[source] → target (cached)
                             let out_key = adj_key(project_id, &ek, source_id);
-                            let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
+                            let out_list = if let Some(cached) = adj_out_cache.get_mut(&out_key) {
+                                cached
+                            } else {
+                                let list = read_adj_list(&adj_out_t, &out_key)?;
+                                adj_out_cache.insert(out_key.clone(), list);
+                                adj_out_cache.get_mut(&out_key).unwrap()
+                            };
                             out_list.retain(|e| e.id != target_id);
-                            if out_list.is_empty() {
-                                adj_out_t.remove(out_key.as_str())?;
-                            } else {
-                                adj_out_t.insert(
-                                    out_key.as_str(),
-                                    serde_json::to_vec(&out_list)?.as_slice(),
-                                )?;
-                            }
 
-                            // Remove from ADJ_IN[target] → source
+                            // Remove from ADJ_IN[target] → source (cached)
                             let in_key = adj_key(project_id, &ek, target_id);
-                            let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-                            in_list.retain(|e| e.id != source_id);
-                            if in_list.is_empty() {
-                                adj_in_t.remove(in_key.as_str())?;
+                            let in_list = if let Some(cached) = adj_in_cache.get_mut(&in_key) {
+                                cached
                             } else {
-                                adj_in_t.insert(
-                                    in_key.as_str(),
-                                    serde_json::to_vec(&in_list)?.as_slice(),
-                                )?;
-                            }
+                                let list = read_adj_list(&adj_in_t, &in_key)?;
+                                adj_in_cache.insert(in_key.clone(), list);
+                                adj_in_cache.get_mut(&in_key).unwrap()
+                            };
+                            in_list.retain(|e| e.id != source_id);
                         }
                     }
                     et.remove(k.as_str())?;
+                }
+
+                // Flush adjacency caches once per batch.
+                for (key, list) in adj_out_cache {
+                    if list.is_empty() {
+                        adj_out_t.remove(key.as_str())?;
+                    } else {
+                        adj_out_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
+                    }
+                }
+                for (key, list) in adj_in_cache {
+                    if list.is_empty() {
+                        adj_in_t.remove(key.as_str())?;
+                    } else {
+                        adj_in_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
+                    }
                 }
             }
             wtx.commit()?;
