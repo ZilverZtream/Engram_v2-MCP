@@ -48,6 +48,16 @@ pub enum EdgeKind {
     Imports,
     /// SQL database calls (stored procs, inline SQL).
     SqlCalls,
+    /// Structural: Table → Column.
+    HasColumn,
+    /// Schema relationship: Column → Column (FK reference).
+    ForeignKey,
+    /// SQL node → Table node (code references schema).
+    QueriesTable,
+    /// Function/Page reads a global state key (Session, ViewState, etc.).
+    ReadsState,
+    /// Function/Page writes a global state key (Session, ViewState, etc.).
+    WritesState,
 }
 
 impl EdgeKind {
@@ -61,6 +71,11 @@ impl EdgeKind {
             EdgeKind::Contains => "contains",
             EdgeKind::Imports => "imports",
             EdgeKind::SqlCalls => "sql_calls",
+            EdgeKind::HasColumn => "has_column",
+            EdgeKind::ForeignKey => "foreign_key",
+            EdgeKind::QueriesTable => "queries_table",
+            EdgeKind::ReadsState => "reads_state",
+            EdgeKind::WritesState => "writes_state",
         }
     }
 
@@ -74,6 +89,11 @@ impl EdgeKind {
             "contains" => Some(EdgeKind::Contains),
             "imports" => Some(EdgeKind::Imports),
             "sql_calls" => Some(EdgeKind::SqlCalls),
+            "has_column" => Some(EdgeKind::HasColumn),
+            "foreign_key" => Some(EdgeKind::ForeignKey),
+            "queries_table" => Some(EdgeKind::QueriesTable),
+            "reads_state" => Some(EdgeKind::ReadsState),
+            "writes_state" => Some(EdgeKind::WritesState),
             _ => None,
         }
     }
@@ -501,6 +521,11 @@ impl GraphStore {
                 EdgeKind::Contains,
                 EdgeKind::Imports,
                 EdgeKind::SqlCalls,
+                EdgeKind::HasColumn,
+                EdgeKind::ForeignKey,
+                EdgeKind::QueriesTable,
+                EdgeKind::ReadsState,
+                EdgeKind::WritesState,
             ] {
                 let key = adj_key(project_id, ek, target_id);
                 let list = read_adj_list_ro(&adj, &key)?;
@@ -1202,6 +1227,11 @@ impl GraphStore {
                         EdgeKind::CoOccurrence,
                         EdgeKind::AntiPattern,
                         EdgeKind::SqlCalls,
+                        EdgeKind::HasColumn,
+                        EdgeKind::ForeignKey,
+                        EdgeKind::QueriesTable,
+                        EdgeKind::ReadsState,
+                        EdgeKind::WritesState,
                     ];
                     for k in all_kinds {
                         let out = self.neighbors(project_id, k, &curr_id, 100)?;

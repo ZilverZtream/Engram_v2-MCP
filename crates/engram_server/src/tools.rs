@@ -393,6 +393,21 @@ pub struct AntiPatternGuardRequest {
     pub limit: usize,
 }
 
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetTableSchemaRequest {
+    pub project_id: String,
+    pub table_name: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct TraceStateUsageRequest {
+    pub project_id: String,
+    pub state_type: String,
+    pub state_key: String,
+    #[serde(default = "default_top_k")]
+    pub limit: usize,
+}
+
 fn default_true() -> bool {
     true
 }
@@ -748,6 +763,25 @@ impl Engram {
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Link SQL nodes to schema tables (QueriesTable edges).
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let link_result: Result<anyhow::Result<usize>, _> =
+                tokio::task::spawn_blocking(move || link_sql_to_schema(&graph, &pid, generation))
+                    .await;
+            match link_result {
+                Ok(Ok(_count)) => {}
+                Ok(Err(e)) => {
+                    tracing::warn!("link_sql_to_schema for {project_id}: {e}");
+                }
+                Err(e) => {
+                    tracing::warn!("link_sql_to_schema task panicked for {project_id}: {e}");
+                }
+            }
+        }
 
         // Link unresolved edges
         let graph = self.state.graph.clone();
@@ -2086,15 +2120,29 @@ impl Engram {
 
         // 1. Resolve target node
         let target_id = if let Some(ref fqn) = req.symbol_fqn {
-            if fqn.starts_with("sql:") {
+            if fqn.starts_with("sql:") || fqn.starts_with("table:") || fqn.starts_with("state:") {
                 fqn.clone()
             } else {
-                // If it looks like an FQN, try to find the node.
-                // We don't have rel_path here, so we might need to search.
-                if let Ok(candidates) =
-                    self.state
-                        .graph
-                        .query_nodes(&req.project_id, None, None, None, 100)
+                // Try as a table name: table:{fqn.to_lowercase()}
+                let table_id = engram_core::ids::NodeId::table(fqn).0;
+                if self
+                    .state
+                    .graph
+                    .get_node(&req.project_id, &table_id)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .is_some()
+                {
+                    table_id
+                } else if let Ok(candidates) =
+                    // If it looks like an FQN, try to find the node.
+                    // We don't have rel_path here, so we might need to search.
+                    self.state.graph.query_nodes(
+                        &req.project_id,
+                        None,
+                        None,
+                        None,
+                        100,
+                    )
                     && let Some(n) = candidates.iter().find(|n| {
                         n.metadata
                             .as_ref()
@@ -2196,6 +2244,11 @@ impl Engram {
                     engram_graph::EdgeKind::TemporalCoupling => {
                         "Often changed with this (Temporal coupling)"
                     }
+                    engram_graph::EdgeKind::QueriesTable => "Queries this table",
+                    engram_graph::EdgeKind::ReadsState => "Reads this state",
+                    engram_graph::EdgeKind::WritesState => "Writes this state",
+                    engram_graph::EdgeKind::HasColumn => "Has column",
+                    engram_graph::EdgeKind::ForeignKey => "Foreign key reference",
                     _ => "Related",
                 };
                 reasons.push(r);
@@ -2213,6 +2266,269 @@ impl Engram {
                 "- {} [{}] (weight: {weight}) - {reason_str}\n",
                 src_node.node_id, src_node.node_type
             ));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    #[tool(
+        description = "Get schema info for a database table: DDL, columns, foreign keys, and referencing code."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, table = %params.0.table_name))]
+    pub async fn get_table_schema(
+        &self,
+        params: Parameters<GetTableSchemaRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let table_id = engram_core::ids::NodeId::table(&req.table_name).0;
+
+        // 1. Find the table node.
+        let table_node = self
+            .state
+            .graph
+            .get_node(&req.project_id, &table_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let Some(table_node) = table_node else {
+            // Try fuzzy match: search for similar table names.
+            let candidates = self
+                .state
+                .graph
+                .query_nodes(
+                    &req.project_id,
+                    Some("db_table"),
+                    Some(&req.table_name),
+                    None,
+                    10,
+                )
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if candidates.is_empty() {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Table '{}' not found. Make sure the project has .sql DDL files indexed.",
+                    req.table_name
+                ))]));
+            }
+            let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "Table '{}' not found exactly. Did you mean one of: {}?",
+                req.table_name,
+                names.join(", ")
+            ))]));
+        };
+
+        let mut out = format!("## Table: {}\n\n", table_node.name);
+
+        // 2. Show DDL from metadata.
+        if let Some(ref meta) = table_node.metadata {
+            if let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
+                out.push_str("### DDL\n```sql\n");
+                out.push_str(ddl);
+                out.push_str("\n```\n\n");
+            }
+        }
+
+        // 3. Find columns via outgoing HasColumn edges.
+        let columns = self
+            .state
+            .graph
+            .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if !columns.is_empty() {
+            out.push_str("### Columns\n");
+            for (col_id, _weight) in &columns {
+                if let Ok(Some(col_node)) = self.state.graph.get_node(&req.project_id, col_id) {
+                    let data_type = col_node
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("data_type"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?");
+                    let nullable = col_node
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("nullable"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("?");
+                    out.push_str(&format!(
+                        "- **{}** {} (nullable: {})\n",
+                        col_node.name, data_type, nullable
+                    ));
+                }
+            }
+            out.push('\n');
+        }
+
+        // 4. Find foreign keys from column nodes.
+        let mut fk_lines = Vec::new();
+        for (col_id, _) in &columns {
+            let fks = self
+                .state
+                .graph
+                .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 50)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            for (ref_col_id, _) in fks {
+                fk_lines.push(format!("- {} -> {}", col_id, ref_col_id));
+            }
+        }
+        if !fk_lines.is_empty() {
+            out.push_str("### Foreign Keys\n");
+            for line in &fk_lines {
+                out.push_str(line);
+                out.push('\n');
+            }
+            out.push('\n');
+        }
+
+        // 5. Find incoming QueriesTable edges (SQL nodes that reference this table).
+        let referencing = self
+            .state
+            .graph
+            .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 50)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if !referencing.is_empty() {
+            out.push_str("### Referenced by SQL Nodes\n");
+            for (sql_id, weight) in &referencing {
+                // For each SQL node, find who calls it (via SqlCalls edges).
+                let callers = self
+                    .state
+                    .graph
+                    .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 20)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                let caller_strs: Vec<_> = callers.iter().map(|(id, _)| id.as_str()).collect();
+                if caller_strs.is_empty() {
+                    out.push_str(&format!("- {} (weight: {})\n", sql_id, weight));
+                } else {
+                    out.push_str(&format!(
+                        "- {} (weight: {}) <- called from: {}\n",
+                        sql_id,
+                        weight,
+                        caller_strs.join(", ")
+                    ));
+                }
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    #[tool(
+        description = "Trace all readers/writers of a global state key (Session, ViewState, Application, Cache)."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, state_type = %params.0.state_type, state_key = %params.0.state_key))]
+    pub async fn trace_state_usage(
+        &self,
+        params: Parameters<TraceStateUsageRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
+
+        // Check if the state node exists.
+        let state_node = self
+            .state
+            .graph
+            .get_node(&req.project_id, &state_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if state_node.is_none() {
+            // Try fuzzy: list all global_state nodes matching a pattern.
+            let candidates = self
+                .state
+                .graph
+                .query_nodes(
+                    &req.project_id,
+                    Some("global_state"),
+                    Some(&req.state_key),
+                    None,
+                    20,
+                )
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if candidates.is_empty() {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
+                    req.state_type, req.state_key, req.state_type
+                ))]));
+            }
+            let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "State key '{}:{}' not found exactly. Similar keys found: {}",
+                req.state_type,
+                req.state_key,
+                names.join(", ")
+            ))]));
+        }
+
+        let mut out = format!(
+            "## State Usage: {}[\"{}\"]\n\n",
+            req.state_type, req.state_key
+        );
+
+        // Find writers (incoming WritesState edges).
+        let writers = self
+            .state
+            .graph
+            .find_incoming_edges(
+                &req.project_id,
+                Some(EdgeKind::WritesState),
+                &state_id,
+                req.limit,
+            )
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if !writers.is_empty() {
+            out.push_str("### Writers\n");
+            for (writer_id, weight) in &writers {
+                if let Ok(Some(node)) = self.state.graph.get_node(&req.project_id, writer_id) {
+                    out.push_str(&format!(
+                        "- {} [{}] in {} (weight: {})\n",
+                        node.name,
+                        node.node_type,
+                        node.file_path.as_str(),
+                        weight
+                    ));
+                } else {
+                    out.push_str(&format!("- {} (weight: {})\n", writer_id, weight));
+                }
+            }
+            out.push('\n');
+        } else {
+            out.push_str("### Writers\nNo writers found.\n\n");
+        }
+
+        // Find readers (incoming ReadsState edges).
+        let readers = self
+            .state
+            .graph
+            .find_incoming_edges(
+                &req.project_id,
+                Some(EdgeKind::ReadsState),
+                &state_id,
+                req.limit,
+            )
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if !readers.is_empty() {
+            out.push_str("### Readers\n");
+            for (reader_id, weight) in &readers {
+                if let Ok(Some(node)) = self.state.graph.get_node(&req.project_id, reader_id) {
+                    out.push_str(&format!(
+                        "- {} [{}] in {} (weight: {})\n",
+                        node.name,
+                        node.node_type,
+                        node.file_path.as_str(),
+                        weight
+                    ));
+                } else {
+                    out.push_str(&format!("- {} (weight: {})\n", reader_id, weight));
+                }
+            }
+        } else {
+            out.push_str("### Readers\nNo readers found.\n");
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -2608,6 +2924,67 @@ impl Engram {
             out.push_str("\nTop central nodes (PageRank):\n");
             for (id, score) in top_nodes.iter().take(8) {
                 out.push_str(&format!("- {} ({:.4})\n", id, score));
+            }
+        }
+
+        // Database tables overview
+        let table_nodes = self
+            .state
+            .graph
+            .query_nodes(&pid, Some("db_table"), None, None, 100)
+            .unwrap_or_default();
+        if !table_nodes.is_empty() {
+            out.push_str(&format!("\nDatabase Tables ({}): ", table_nodes.len()));
+            let names: Vec<_> = table_nodes
+                .iter()
+                .take(15)
+                .map(|n| n.name.as_str())
+                .collect();
+            out.push_str(&names.join(", "));
+            if table_nodes.len() > 15 {
+                out.push_str(&format!(" ... and {} more", table_nodes.len() - 15));
+            }
+            out.push('\n');
+        }
+
+        // Top global state keys (Session, ViewState, etc.)
+        let state_nodes = self
+            .state
+            .graph
+            .query_nodes(&pid, Some("global_state"), None, None, 100)
+            .unwrap_or_default();
+        if !state_nodes.is_empty() {
+            // Count incoming edges (reads + writes) per state node for ranking.
+            let mut state_usage: Vec<(&str, usize, usize)> = Vec::new();
+            for sn in &state_nodes {
+                let reads = self
+                    .state
+                    .graph
+                    .find_incoming_edges(&pid, Some(EdgeKind::ReadsState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                let writes = self
+                    .state
+                    .graph
+                    .find_incoming_edges(&pid, Some(EdgeKind::WritesState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                state_usage.push((&sn.name, reads, writes));
+            }
+            state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
+
+            out.push_str(&format!(
+                "\nGlobal State Keys ({} total):\n",
+                state_nodes.len()
+            ));
+            for (name, reads, writes) in state_usage.iter().take(10) {
+                out.push_str(&format!(
+                    "- {} (reads={}, writes={})\n",
+                    name, reads, writes
+                ));
+            }
+            if state_nodes.len() > 10 {
+                out.push_str(&format!("  ... and {} more\n", state_nodes.len() - 10));
             }
         }
 
@@ -3719,6 +4096,39 @@ impl Engram {
                     engram_core::ids::NodeId::control(page_path, &sym.name).0,
                     "control".to_string(),
                 )
+            } else if sym.kind == "db_table" {
+                (
+                    engram_core::ids::NodeId::table(&sym.name).0,
+                    "db_table".to_string(),
+                )
+            } else if sym.kind == "db_column" {
+                let table = sym
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("table"))
+                    .map(|s| s.as_str())
+                    .unwrap_or("unknown");
+                (
+                    engram_core::ids::NodeId::column(table, &sym.name).0,
+                    "db_column".to_string(),
+                )
+            } else if sym.kind == "global_state" {
+                let state_type = sym
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("state_type"))
+                    .map(|s| s.as_str())
+                    .unwrap_or("Session");
+                let state_key = sym
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("state_key"))
+                    .map(|s| s.as_str())
+                    .unwrap_or(&sym.name);
+                (
+                    engram_core::ids::NodeId::state(state_type, state_key).0,
+                    "global_state".to_string(),
+                )
             } else {
                 (
                     engram_core::ids::NodeId::symbol(
@@ -3860,6 +4270,20 @@ impl Engram {
                     engram_core::ids::NodeId::control(page_path, simple_name).0
                 } else if edge.target_name.starts_with("sql:") {
                     edge.target_name.clone()
+                } else if edge.target_name.starts_with("state:") {
+                    edge.target_name.clone()
+                } else if edge.target_name.starts_with("column:") {
+                    edge.target_name.clone()
+                } else if edge.target_kind.as_deref() == Some("db_table") {
+                    engram_core::ids::NodeId::table(&edge.target_name).0
+                } else if edge.target_kind.as_deref() == Some("db_column") {
+                    let table = edge
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("local_table").or_else(|| m.get("table")))
+                        .map(|s| s.as_str())
+                        .unwrap_or("unknown");
+                    engram_core::ids::NodeId::column(table, &edge.target_name).0
                 } else if let Some(kind) = &edge.target_kind {
                     let fqn = if edge.target_name.contains('.') {
                         Some(edge.target_name.as_str())
@@ -3909,12 +4333,41 @@ impl Engram {
                 });
             }
 
+            // Virtual nodes for global state targets
+            if target_id.starts_with("state:") {
+                let parts: Vec<&str> = target_id.splitn(3, ':').collect();
+                if parts.len() == 3 {
+                    let state_type = parts[1];
+                    let state_key = parts[2];
+                    nodes.push(engram_graph::Node {
+                        node_id: target_id.clone(),
+                        node_type: "global_state".into(),
+                        name: format!("{}:{}", state_type, state_key),
+                        namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                        language: "text".into(),
+                        file_path: rel_path.clone(),
+                        start_line: 0,
+                        end_line: 0,
+                        generation,
+                        metadata: Some(serde_json::json!({
+                            "state_type": state_type,
+                            "state_key": state_key,
+                        })),
+                    });
+                }
+            }
+
             let edge_kind = match edge.kind.as_str() {
                 "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                     engram_graph::EdgeKind::Contains
                 }
                 "imports" => engram_graph::EdgeKind::Imports,
                 "sql_calls" => engram_graph::EdgeKind::SqlCalls,
+                "has_column" => engram_graph::EdgeKind::HasColumn,
+                "foreign_key" => engram_graph::EdgeKind::ForeignKey,
+                "queries_table" => engram_graph::EdgeKind::QueriesTable,
+                "reads_state" => engram_graph::EdgeKind::ReadsState,
+                "writes_state" => engram_graph::EdgeKind::WritesState,
                 _ => engram_graph::EdgeKind::Dependency,
             };
 
@@ -4991,6 +5444,93 @@ impl Engram {
 
         Ok(summary)
     }
+}
+
+/// Post-ingest: link SQL nodes (stored_proc, inline_sql) to db_table nodes via QueriesTable edges.
+///
+/// 1. Collect all `db_table` node names into a lookup set.
+/// 2. Collect all `stored_proc` and `inline_sql` nodes.
+/// 3. For each SQL node, check if its name/metadata references any known table.
+/// 4. Create `QueriesTable` edges from SQL node → table node.
+fn link_sql_to_schema(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    generation: u64,
+) -> anyhow::Result<usize> {
+    use std::collections::HashSet;
+
+    // 1. Gather all db_table node names (lowercased for matching).
+    let table_node_ids = graph.list_node_ids(project_id, Some("db_table"))?;
+    if table_node_ids.is_empty() {
+        return Ok(0); // No schema tables indexed — nothing to link.
+    }
+
+    // Build: table_name_lower → table_node_id
+    let mut table_name_to_id: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    for tid in &table_node_ids {
+        // node_id format: "table:tablename" (already lowered)
+        if let Some(name) = tid.strip_prefix("table:") {
+            table_name_to_id.insert(name.to_string(), tid.clone());
+        }
+    }
+
+    if table_name_to_id.is_empty() {
+        return Ok(0);
+    }
+
+    // 2. Collect all SQL nodes.
+    let mut sql_nodes: Vec<engram_graph::Node> = Vec::new();
+    sql_nodes.extend(graph.query_nodes(project_id, Some("stored_proc"), None, None, 5000)?);
+    sql_nodes.extend(graph.query_nodes(project_id, Some("inline_sql"), None, None, 5000)?);
+
+    if sql_nodes.is_empty() {
+        return Ok(0);
+    }
+
+    // 3. For each SQL node, check if its name contains any known table name.
+    let mut new_edges: Vec<engram_graph::Edge> = Vec::new();
+    let mut linked: HashSet<(String, String)> = HashSet::new();
+
+    for sql_node in &sql_nodes {
+        let sql_name_lower = sql_node.name.to_lowercase();
+        // Also check metadata for SQL content/name hints.
+        let metadata_str = sql_node
+            .metadata
+            .as_ref()
+            .map(|m| m.to_string().to_lowercase())
+            .unwrap_or_default();
+
+        for (table_name, table_id) in &table_name_to_id {
+            // Simple substring match: does the SQL node name or metadata mention this table?
+            let matches = sql_name_lower.contains(table_name) || metadata_str.contains(table_name);
+
+            if matches && linked.insert((sql_node.node_id.clone(), table_id.clone())) {
+                new_edges.push(engram_graph::Edge {
+                    source_id: sql_node.node_id.clone(),
+                    target_id: table_id.clone(),
+                    namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                    language: "sql".into(),
+                    edge_kind: engram_graph::EdgeKind::QueriesTable,
+                    weight: 1,
+                    generation,
+                    metadata: None,
+                    updated_at_ms: now_ms(),
+                });
+            }
+        }
+    }
+
+    let count = new_edges.len();
+    if !new_edges.is_empty() {
+        graph.upsert_edges(project_id, &new_edges)?;
+        tracing::info!(
+            "link_sql_to_schema: created {} QueriesTable edges for {}",
+            count,
+            project_id
+        );
+    }
+    Ok(count)
 }
 
 fn now_ms() -> u64 {

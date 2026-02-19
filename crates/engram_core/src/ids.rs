@@ -66,6 +66,25 @@ impl NodeId {
         Self(format!("control:{}:{}", page_rel_path, control_id))
     }
 
+    /// Canonical ID for a database table node.
+    pub fn table(table_name: &str) -> Self {
+        Self(format!("table:{}", table_name.to_lowercase()))
+    }
+
+    /// Canonical ID for a database column node.
+    pub fn column(table_name: &str, column_name: &str) -> Self {
+        Self(format!(
+            "column:{}:{}",
+            table_name.to_lowercase(),
+            column_name.to_lowercase()
+        ))
+    }
+
+    /// Canonical ID for a global state node (Session, ViewState, etc.).
+    pub fn state(state_type: &str, key: &str) -> Self {
+        Self(format!("state:{}:{}", state_type, key))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

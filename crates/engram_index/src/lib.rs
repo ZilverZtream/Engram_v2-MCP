@@ -2,10 +2,12 @@
 #![deny(clippy::unwrap_used)]
 
 pub mod chunking;
+pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;
 pub mod ingest;
 pub mod parsing;
+pub mod state_extractor;
 pub mod tantivy_index;
 pub mod vb_extractor;
 #[cfg(feature = "vector")]

@@ -671,9 +671,16 @@ impl HybridSearchEngine {
                                 file_hash,
                             });
 
+                        let ext_lower = p
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| e.to_lowercase());
+
                         let (syms, edges) = if crate::webforms::is_webforms_markup(p) {
                             crate::webforms::extract_webforms(&root_buf, &rel_path, &text)
-                        } else if p.extension().and_then(|e| e.to_str()) == Some("vb") {
+                        } else if ext_lower.as_deref() == Some("sql") {
+                            crate::ddl_extractor::extract_ddl(&rel_path, &text)
+                        } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
                         } else {
                             extractor.extract(p, &text)
@@ -683,6 +690,20 @@ impl HybridSearchEngine {
                         }
                         for e in edges {
                             local_stats.edges.push((rel_path.clone(), e));
+                        }
+
+                        // Post-processing: detect global state accesses in C#/VB files.
+                        if matches!(language, "csharp" | "vbnet") {
+                            let (state_syms, state_edges) =
+                                crate::state_extractor::extract_state_accesses(
+                                    &rel_path, &text, language,
+                                );
+                            for s in &state_syms {
+                                local_stats.symbols.push((rel_path.clone(), s.clone()));
+                            }
+                            for e in state_edges {
+                                local_stats.edges.push((rel_path.clone(), e));
+                            }
                         }
 
                         let mut chunks =

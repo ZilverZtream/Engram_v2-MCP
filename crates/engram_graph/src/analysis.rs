@@ -41,6 +41,11 @@ pub fn compute_pagerank(
         (EdgeKind::Imports, 0.5),
         (EdgeKind::Contains, 0.3),
         (EdgeKind::SqlCalls, 0.8),
+        (EdgeKind::HasColumn, 0.2), // Structural, low signal for code centrality
+        (EdgeKind::ForeignKey, 0.4), // Schema relationships moderately important
+        (EdgeKind::QueriesTable, 0.7), // SQL-to-schema is a strong signal
+        (EdgeKind::ReadsState, 0.6), // State dependencies important for migration
+        (EdgeKind::WritesState, 0.7), // State writers more impactful than readers
     ];
     for (kind, weight_multiplier) in edge_configs {
         let edges = store.list_edges(project_id, Some(kind.clone()))?;
