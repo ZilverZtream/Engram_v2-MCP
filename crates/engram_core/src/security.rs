@@ -50,6 +50,17 @@ impl PathContext {
                             let canon_ancestor = std::fs::canonicalize(ancestor).map_err(|e| {
                                 EngramError::PathNotAllowed(format!("cannot access {input:?}: {e}"))
                             })?;
+                            // Security: reject any suffix component that is `..`.
+                            // Such components would escape the canonicalized ancestor and
+                            // bypass the allowed-roots check below (lexical starts_with
+                            // cannot resolve `..` across a join boundary).
+                            for component in suffix.components() {
+                                if matches!(component, std::path::Component::ParentDir) {
+                                    return Err(EngramError::PathNotAllowed(format!(
+                                        "cannot access {input:?}: path traversal via '..' detected"
+                                    )));
+                                }
+                            }
                             break Ok(canon_ancestor.join(&suffix));
                         }
                     }

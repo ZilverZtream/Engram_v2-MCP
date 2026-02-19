@@ -1,0 +1,13 @@
+﻿cargo.exe :     Checking engram_core v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_core)
+At line:1 char:1
++ & 'C:\Users\Dennis\.cargo\bin\cargo.exe' check --all-targets --manife ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Checking en...es\engram_core):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Checking engram_ml v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_ml)
+    Checking engram_git v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_git)
+    Checking engram_graph v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_graph)
+    Checking engram_index v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_index)
+    Checking engram_server v0.1.0 (C:\ai-projects\Engram-MCP_v2\crates\engram_server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.87s

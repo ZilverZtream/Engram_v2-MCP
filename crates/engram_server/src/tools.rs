@@ -57,21 +57,6 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
 
-        // Dedupe: if a project already exists for this directory, return it.
-        if req.dedupe_by_directory {
-            let dir_str = req.directory.clone();
-            let reg = self.state.registry.clone();
-            if let Ok(existing) = tokio::task::spawn_blocking(move || reg.list_projects()).await
-                && let Ok(list) = existing
-                && let Some(p) = list.into_iter().find(|p| p.directory == dir_str)
-            {
-                return Ok(CallToolResult::success(vec![Content::text(format!(
-                    "\u{2705} Already indexed.\nproject_id: {}\nproject_name: {}\ndirectory: {}",
-                    p.project_id, p.project_name, p.directory
-                ))]));
-            }
-        }
-
         let dir = match self.state.paths.resolve_path(&req.directory) {
             Ok(p) => p,
             Err(e) => {
@@ -81,7 +66,48 @@ impl Engram {
             }
         };
 
+        // Dedupe + registry insert in a single Redb write transaction.
+        // Because Redb is single-writer, the list→find→put sequence is atomic:
+        // no concurrent `index_project` call can sneak in between the check and
+        // the write, preventing the TOCTOU duplicate-UUID corruption bug.
+        let dir_str = dir.to_string_lossy().to_string();
         let project_id = Uuid::new_v4().to_string();
+        let project_name = req.project_name.clone();
+        let project_type = req.project_type.clone();
+        let now = now_ms();
+        let rec_candidate = ProjectRecord {
+            project_id: project_id.clone(),
+            project_name: project_name.clone(),
+            project_type: project_type.clone(),
+            directory: dir_str.clone(),
+            created_at_ms: now,
+            updated_at_ms: now,
+        };
+        let dedupe = req.dedupe_by_directory;
+        let reg = self.state.registry.clone();
+        let pid_for_meta = project_id.clone();
+        // Returns Ok(Some(existing)) if deduped, Ok(None) if newly inserted.
+        let existing_opt = tokio::task::spawn_blocking(move || -> anyhow::Result<Option<ProjectRecord>> {
+            if dedupe {
+                let list = reg.list_projects()?;
+                if let Some(existing) = list.into_iter().find(|p| p.directory == dir_str) {
+                    return Ok(Some(existing));
+                }
+            }
+            reg.put_project(&rec_candidate)?;
+            reg.set_meta(&pid_for_meta, "active_generation", "1")?;
+            Ok(None)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if let Some(p) = existing_opt {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "\u{2705} Already indexed.\nproject_id: {}\nproject_name: {}\ndirectory: {}",
+                p.project_id, p.project_name, p.directory
+            ))]));
+        }
         let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
         let tantivy_dir = project_root.join("tantivy");
         let lancedb_dir = project_root.join("lancedb");
@@ -97,34 +123,11 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let search = std::sync::Arc::new(search);
 
-        // Persist registry now so a background job can resume.
-        let now = now_ms();
-        let rec = ProjectRecord {
-            project_id: project_id.clone(),
-            project_name: req.project_name.clone(),
-            project_type: req.project_type.clone(),
-            directory: dir.to_string_lossy().to_string(),
-            created_at_ms: now,
-            updated_at_ms: now,
-        };
-        {
-            let reg = self.state.registry.clone();
-            let pid_clone = project_id.clone();
-            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                reg.put_project(&rec)?;
-                reg.set_meta(&pid_clone, "active_generation", "1")?;
-                Ok(())
-            })
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        }
-
         // Runtime cache
         let info = ProjectInfo {
             project_id: project_id.clone(),
-            project_name: req.project_name,
-            project_type: req.project_type,
+            project_name,
+            project_type,
             directory: dir.to_string_lossy().to_string(),
             tantivy_dir: tantivy_dir.clone(),
             lancedb_dir: lancedb_dir.clone(),
@@ -151,6 +154,7 @@ impl Engram {
                 ))]));
             }
 
+            let max_chunks = self.state.cfg.max_chunks_per_file;
             let stats = search
                 .index_files(
                     &project_id,
@@ -158,7 +162,7 @@ impl Engram {
                     1,
                     &dir,
                     files,
-                    2000,
+                    max_chunks,
                     &cancel,
                     |_, _| {},
                 )
@@ -254,6 +258,14 @@ impl Engram {
         index_antipatterns: bool,
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
+        // Serialise concurrent updates for this project. The watcher actor and a
+        // direct Agent MCP call can race; without this lock they both read the same
+        // generation N and write N+1, corrupting Tantivy/LanceDB data.
+        let _update_guard = self
+            .state
+            .acquire_project_update_lock(project_id)
+            .await;
+
         let ps = self
             .ensure_project_runtime(project_id)
             .await
@@ -387,7 +399,8 @@ impl Engram {
             .await
             .map_err(|e| anyhow::anyhow!(e.message))?;
 
-        // Commit generation
+        // Commit generation. Propagate errors — if this write fails the generation
+        // counter is desynchronised and future incremental updates will be wrong.
         {
             let reg = self.state.registry.clone();
             let pid_clone = project_id.to_string();
@@ -395,7 +408,8 @@ impl Engram {
                 reg.set_meta(&pid_clone, "active_generation", &new_gen.to_string())
             })
             .await
-            .ok();
+            .map_err(|e| anyhow::anyhow!("set_meta join error: {e}"))?
+            .map_err(|e| anyhow::anyhow!("set_meta failed: {e}"))?;
         }
 
         // Automatic GC for Snapshot namespaces
@@ -575,9 +589,15 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         }
 
-        // Delete on-disk project dir
+        // Delete on-disk project dir. Use tokio::fs to avoid blocking the async
+        // executor — large LanceDB/Tantivy directories can take hundreds of ms.
         let proj_dir = self.state.cfg.data_dir.join("projects").join(&pid);
-        let _ = std::fs::remove_dir_all(&proj_dir);
+        if let Err(e) = tokio::fs::remove_dir_all(&proj_dir).await {
+            // Not an error if the directory never existed.
+            if e.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!("delete_project: could not remove {proj_dir:?}: {e}");
+            }
+        }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} Deleted project_id: {pid}"
@@ -605,7 +625,8 @@ impl Engram {
         let pid2 = pid.clone();
         tokio::task::spawn_blocking(move || reg.put_watch(&pid2, &watch))
             .await
-            .ok();
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // Notify watcher actor
         if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
@@ -639,7 +660,8 @@ impl Engram {
         let pid_clone = pid.clone();
         tokio::task::spawn_blocking(move || reg.put_watch(&pid_clone, &watch))
             .await
-            .ok();
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // Notify watcher actor
         if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
@@ -978,7 +1000,8 @@ impl Engram {
         let pid = req.project_id.clone();
         tokio::task::spawn_blocking(move || reg.put_repo_rule(&pid, &rule))
             .await
-            .ok();
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} repo rule added\nrule_id: {rule_id}"
@@ -1363,8 +1386,14 @@ impl Engram {
                     })
                     .collect();
 
-                // Sort numerically — extract digits from anywhere in name for proper order.
+                // Sort numerically — extract the leading digit sequence from the
+                // filename for chronological ordering.
                 // Handles "2.zip", "10.zip", "snapshot-1.zip", "backup_20.zip", etc.
+                // For filenames with no digits (e.g. "commit-abc.zip") the numeric
+                // key is u64::MAX and the secondary alphabetical key is used, which
+                // produces correct results only when filenames are alphabetically
+                // chronological. Warn the caller when all files are non-numeric so
+                // they can rename them if the ordering is wrong.
                 fn extract_first_number(s: &str) -> u64 {
                     let digits: String = s
                         .chars()
@@ -1381,6 +1410,19 @@ impl Engram {
 
                 if zip_files.len() < 2 {
                     return Ok("Need at least 2 zip files to compute pseudo-history.".to_string());
+                }
+
+                // Warn if no numeric ordering is available — alphabetical fallback
+                // may not reflect chronological order.
+                let all_non_numeric = zip_files.iter().all(|e| {
+                    extract_first_number(&e.file_name().to_string_lossy()) == u64::MAX
+                });
+                if all_non_numeric {
+                    tracing::warn!(
+                        "ingest_zip_history: no numeric prefixes found in zip filenames — \
+                         falling back to alphabetical ordering which may not be chronological. \
+                         Rename files as 01_name.zip, 02_name.zip … for correct ordering."
+                    );
                 }
 
                 let mut temporal_edges = 0;
@@ -1622,15 +1664,18 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
-        let (summary, _rules_added) = tokio::task::spawn_blocking({
+        // Phase 1 (CPU-bound): walk commits and build anti-pattern docs in a blocking thread.
+        // We intentionally do NOT call the async index_docs here to avoid the
+        // `block_on`-inside-`spawn_blocking` anti-pattern which can deadlock under load.
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let (anti_docs, reverts_found, rules_added) = tokio::task::spawn_blocking({
             let directory = ps.info.directory.clone();
             let project_id = req.project_id.clone();
             let registry = self.state.registry.clone();
-            let search = ps.search.clone();
             let max_commits = req.max_commits;
-            let cancel = tokio_util::sync::CancellationToken::new();
+            let cancel_clone = cancel.clone();
 
-            move || -> anyhow::Result<(String, usize)> {
+            move || -> anyhow::Result<(Vec<engram_index::IndexDoc>, usize, usize)> {
                 let repo = GitWalker::open_repo(Path::new(&directory))?;
 
                 let mut reverts_found = 0;
@@ -1642,7 +1687,7 @@ impl Engram {
                     None,
                     max_commits,
                     engram_git::history::MergeCommitPolicy::AllParents,
-                    &cancel,
+                    &cancel_clone,
                     |oid, _curr, _total| {
                     let docs = GitWalker::extract_antipatterns_from_reverts(&repo, oid, 50_000)?;
                     if !docs.is_empty() {
@@ -1656,8 +1701,6 @@ impl Engram {
                                 priority: 10,
                                 updated_at_ms: now_ms(),
                             };
-                            // Wait, RepoRule doesn't have progress fields. I updated JobRecord.
-                            // I'll fix this in a moment.
                             registry.put_repo_rule(&project_id, &rule)?;
                             rules_added += 1;
 
@@ -1687,19 +1730,26 @@ impl Engram {
                     Ok(())
                 })?;
 
-                if !anti_docs.is_empty() {
-                    // We need to wait for index_docs which is async.
-                    // Blocking inside spawn_blocking is okay if we use a runtime block_on.
-                    let rt = tokio::runtime::Handle::current();
-                    rt.block_on(search.index_docs(&project_id, &anti_docs, &cancel))?;
-                }
-
-                Ok((format!("\u{2705} Immune System active.\nReverts analyzed: {}\nAnti-patterns indexed: {}\nRepo rules generated: {}", reverts_found, anti_docs.len(), rules_added), rules_added))
+                Ok((anti_docs, reverts_found, rules_added))
             }
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Phase 2 (async): index the anti-pattern docs in the outer async context,
+        // eliminating the block_on-inside-spawn_blocking deadlock risk.
+        if !anti_docs.is_empty() {
+            ps.search
+                .index_docs(&req.project_id, &anti_docs, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        let summary = format!(
+            "\u{2705} Immune System active.\nReverts analyzed: {reverts_found}\nAnti-patterns indexed: {}\nRepo rules generated: {rules_added}",
+            anti_docs.len()
+        );
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
     }
@@ -1779,8 +1829,10 @@ impl Engram {
             };
 
             // 2. Find incoming edges (who depends on this?)
+            // Cap the limit to prevent unbounded memory allocation and LLM context overflow.
+            let capped_limit = req.limit.clamp(1, 1000);
             let incoming = graph
-                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, req.limit)
+                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, capped_limit)
                 .map_err(|e| e.to_string())?;
 
             if incoming.is_empty() {
@@ -2011,9 +2063,12 @@ impl Engram {
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
 
+            // Propagate real DB errors as Err so the outer handler surfaces them
+            // as McpError rather than silently returning a "not found" string that
+            // makes the LLM think the code simply doesn't exist.
             let state_node = graph
                 .get_node(&req.project_id, &state_id)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("DB error looking up state node: {e}"))?;
 
             if state_node.is_none() {
                 let candidates = graph
@@ -2024,7 +2079,7 @@ impl Engram {
                         None,
                         20,
                     )
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| format!("DB error querying state candidates: {e}"))?;
                 if candidates.is_empty() {
                     return Ok(format!(
                         "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
@@ -2052,7 +2107,7 @@ impl Engram {
                     &state_id,
                     req.limit,
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("DB error querying writers: {e}"))?;
 
             if !writers.is_empty() {
                 out.push_str("### Writers\n");
@@ -2081,7 +2136,7 @@ impl Engram {
                     &state_id,
                     req.limit,
                 )
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| format!("DB error querying readers: {e}"))?;
 
             if !readers.is_empty() {
                 out.push_str("### Readers\n");

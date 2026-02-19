@@ -37,6 +37,7 @@ async fn test_incremental_indexing() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();

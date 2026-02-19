@@ -394,7 +394,8 @@ pub async fn process_ingest_stats(
         });
     }
 
-    if !nodes.is_empty() {
+    let nodes_written = !nodes.is_empty();
+    if nodes_written {
         let graph = state.graph.clone();
         let pid = project_id.to_string();
         match tokio::task::spawn_blocking(move || graph.upsert_nodes(&pid, &nodes)).await {
@@ -416,7 +417,21 @@ pub async fn process_ingest_stats(
         match tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &edges)).await {
             Ok(Ok(())) => {}
             Ok(Err(e)) => {
-                tracing::error!("graph upsert_edges failed for {project_id}: {e}");
+                // PARTIAL FAILURE: nodes were already written to the graph but edges
+                // failed. The text index (Tantivy) already committed its changes too.
+                // The graph is now desynchronised from the text index for this generation.
+                // A full re-index of this project is required to restore consistency.
+                if nodes_written {
+                    tracing::error!(
+                        project_id,
+                        "PARTIAL FAILURE in process_ingest_stats: \
+                         graph nodes were written but edge upsert failed ({e}). \
+                         The graph is desynchronised from the text index. \
+                         Re-index this project to restore consistency."
+                    );
+                } else {
+                    tracing::error!("graph upsert_edges failed for {project_id}: {e}");
+                }
                 return Err(e);
             }
             Err(e) => {

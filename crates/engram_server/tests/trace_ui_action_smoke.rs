@@ -43,6 +43,7 @@ namespace MyApp {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
     std::fs::create_dir_all(&cfg.data_dir).unwrap();
 

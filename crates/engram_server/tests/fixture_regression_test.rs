@@ -27,6 +27,7 @@ async fn test_fixture_dotnet_webforms_cs() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -110,6 +111,7 @@ async fn test_fixture_dotnet_webforms_vb() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();

@@ -18,6 +18,7 @@ async fn test_instrumentation_pack_and_ingest() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
     std::fs::create_dir_all(&cfg.data_dir).unwrap();
 

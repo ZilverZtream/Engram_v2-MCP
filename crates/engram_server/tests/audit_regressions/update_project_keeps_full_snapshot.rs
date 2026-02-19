@@ -45,6 +45,7 @@ async fn test_update_project_keeps_full_snapshot() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();

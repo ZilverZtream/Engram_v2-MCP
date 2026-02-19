@@ -26,6 +26,7 @@ async fn test_index_and_search_flow() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -125,6 +126,7 @@ async fn test_csharp_symbol_extraction() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -219,6 +221,7 @@ async fn test_vbnet_graceful_fallback() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -264,6 +267,7 @@ async fn test_job_cancellation() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -356,6 +360,7 @@ async fn test_path_normalization() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -473,6 +478,7 @@ async fn test_memory_bank_persistence() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -584,6 +590,7 @@ async fn test_indexing_deduplication() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -701,6 +708,7 @@ async fn test_gc_preserves_global_namespaces() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -847,6 +855,7 @@ async fn test_project_health() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -937,6 +946,7 @@ async fn test_project_repair() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -1012,6 +1022,7 @@ async fn test_delete_project() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -1150,6 +1161,7 @@ async fn test_watch_project() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1276,6 +1288,7 @@ async fn test_search_features() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1424,6 +1437,7 @@ async fn test_get_chunk_hardening() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1568,6 +1582,7 @@ async fn test_query_graph_nodes() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1678,6 +1693,7 @@ async fn test_find_references() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1789,6 +1805,7 @@ async fn test_graph_search() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -1959,6 +1976,7 @@ async fn test_search_history() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -2065,6 +2083,7 @@ async fn test_analyze_temporal_couplings() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _events_rx) = AppState::new(cfg).unwrap();
@@ -2206,6 +2225,7 @@ async fn test_dream_project() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -2402,6 +2422,7 @@ async fn test_analyze_file_coding_style() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -2515,6 +2536,7 @@ fn test_it() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -2659,6 +2681,7 @@ async fn test_immune_system_end_to_end() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -2798,6 +2821,7 @@ async fn test_dream_immune_integration() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3045,6 +3069,7 @@ async fn test_find_symbol_references() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3155,6 +3180,7 @@ async fn test_analyze_error_stack() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3242,6 +3268,7 @@ async fn test_cpp_symbol_extraction() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3308,6 +3335,7 @@ async fn test_gc_policy_preservation() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3515,6 +3543,7 @@ async fn test_language_aware_resolution() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3599,6 +3628,7 @@ async fn test_graph_structure_edges() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3786,6 +3816,7 @@ async fn test_graph_traversal() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -3937,6 +3968,7 @@ async fn test_incremental_temporal_coupling() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -4103,6 +4135,7 @@ async fn test_rename_preserves_coupling() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -4371,6 +4404,7 @@ async fn test_structural_revert_detection() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -4439,6 +4473,7 @@ async fn test_insight_deduplication() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -4638,6 +4673,7 @@ async fn test_analyze_directory_coding_style() {
         ollama_url: None,
         openai_api_key: None,
         max_concurrent_jobs: 2,
+        ..Default::default()
     };
 
     let (state, _rx) = AppState::new(cfg).unwrap();
