@@ -26,7 +26,8 @@ pub struct Fields {
 }
 
 pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
-    std::fs::create_dir_all(index_dir).ok();
+    std::fs::create_dir_all(index_dir)
+        .map_err(|e| tantivy::TantivyError::IoError(std::sync::Arc::new(e)))?;
 
     let mut schema_builder = Schema::builder();
 
@@ -64,16 +65,16 @@ pub fn open_or_create(index_dir: &Path) -> TantivyResult<(Index, Fields)> {
                 // Check if pk field exists - if not, the index predates this schema.
                 if idx.schema().get_field("pk").is_err() {
                     // Schema is stale; wipe and recreate.
-                    std::fs::remove_dir_all(index_dir).ok();
-                    std::fs::create_dir_all(index_dir).ok();
+                    std::fs::remove_dir_all(index_dir)?;
+                    std::fs::create_dir_all(index_dir)?;
                     Index::create_in_dir(index_dir, schema)?
                 } else {
                     idx
                 }
             }
             Err(_) => {
-                std::fs::remove_dir_all(index_dir).ok();
-                std::fs::create_dir_all(index_dir).ok();
+                std::fs::remove_dir_all(index_dir)?;
+                std::fs::create_dir_all(index_dir)?;
                 Index::create_in_dir(index_dir, schema)?
             }
         }

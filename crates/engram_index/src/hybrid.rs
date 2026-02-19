@@ -105,6 +105,12 @@ impl HybridSearchEngine {
                 crate::vector::VECTOR_DIM,
             )),
         };
+        // Eagerly validate that the embedder dimension is non-zero to catch
+        // misconfigured backends before any data is written.
+        #[cfg(feature = "vector")]
+        if embedder.dimension() == 0 {
+            anyhow::bail!("Embedder reported dimension 0 — check embedding_backend config");
+        }
 
         Ok(Self {
             tantivy_index: index,
@@ -186,7 +192,12 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         if self.embedding_backend != "fts_only" {
             let table_name = format!("project_{}", project_id.replace('-', "_"));
-            let table = crate::vector::open_or_create_table(&self.lance_conn, &table_name).await?;
+            let table = crate::vector::open_or_create_table(
+                &self.lance_conn,
+                &table_name,
+                self.embedder.dimension(),
+            )
+            .await?;
 
             let mut pks = Vec::with_capacity(docs.len());
             let mut doc_ids = Vec::with_capacity(docs.len());
@@ -243,6 +254,7 @@ impl HybridSearchEngine {
                     &authors,
                     &timestamps,
                     &vectors,
+                    self.embedder.dimension(),
                 )?;
 
                 crate::vector::upsert_vectors(&table, vec![batch]).await?;

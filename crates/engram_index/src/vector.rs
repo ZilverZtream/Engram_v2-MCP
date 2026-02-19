@@ -9,7 +9,9 @@ use rayon::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
 
-pub const VECTOR_DIM: usize = 384; // Typical for small-bert / all-MiniLM-L6-v2
+/// Default vector dimension for the ProjectionEmbedder / LocalEmbedder (all-MiniLM-L6-v2 style).
+/// External callers should use the embedder's `dimension()` method instead of this constant.
+pub const VECTOR_DIM: usize = 384;
 
 /// Connect to a local LanceDB database.
 pub async fn connect(db_dir: &Path) -> anyhow::Result<Connection> {
@@ -20,9 +22,9 @@ pub async fn connect(db_dir: &Path) -> anyhow::Result<Connection> {
     Ok(db)
 }
 
-/// The canonical schema for vector rows.
+/// The canonical schema for vector rows, parameterised by `dim`.
 /// Includes `pk` as the primary key for true upsert.
-fn vector_schema() -> Arc<Schema> {
+fn vector_schema(dim: usize) -> Arc<Schema> {
     Arc::new(Schema::new(vec![
         // Primary key for upsert: {project_id}:{namespace}:{generation}:{doc_id}
         Field::new("pk", DataType::Utf8, false),
@@ -40,15 +42,34 @@ fn vector_schema() -> Arc<Schema> {
             "vector",
             DataType::FixedSizeList(
                 Arc::new(Field::new("item", DataType::Float32, true)),
-                VECTOR_DIM as i32,
+                dim as i32,
             ),
             false,
         ),
     ]))
 }
 
-pub async fn open_or_create_table(conn: &Connection, name: &str) -> anyhow::Result<Table> {
-    let schema = vector_schema();
+/// Read the actual vector dimension stored in an existing table's schema.
+fn stored_vector_dim(tschema: &arrow_schema::Schema) -> Option<usize> {
+    let field = tschema.field_with_name("vector").ok()?;
+    if let DataType::FixedSizeList(_, size) = field.data_type() {
+        Some(*size as usize)
+    } else {
+        None
+    }
+}
+
+/// Open or create a LanceDB table with the given vector `dim`.
+///
+/// If the existing table has a different vector dimension (e.g. an old 384-dim table
+/// when the embedder now produces 1536-dim vectors), the stale table is dropped and
+/// recreated with the correct schema so inserts do not panic.
+pub async fn open_or_create_table(
+    conn: &Connection,
+    name: &str,
+    dim: usize,
+) -> anyhow::Result<Table> {
+    let schema = vector_schema(dim);
 
     if conn
         .table_names()
@@ -57,10 +78,11 @@ pub async fn open_or_create_table(conn: &Connection, name: &str) -> anyhow::Resu
         .contains(&name.to_string())
     {
         let table = conn.open_table(name).execute().await?;
-        // Check if the table has the `pk` column; if not, drop and recreate.
         let tschema = table.schema().await?;
-        if tschema.field_with_name("pk").is_err() {
-            // Stale schema — drop and recreate.
+        // Drop and recreate if: pk column is missing OR vector dimension has changed.
+        let needs_recreate =
+            tschema.field_with_name("pk").is_err() || stored_vector_dim(&tschema) != Some(dim);
+        if needs_recreate {
             conn.drop_table(name, &[]).await?;
             let batch = RecordBatch::new_empty(schema.clone());
             let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
@@ -148,6 +170,7 @@ pub fn create_record_batch(
     authors: &[Option<String>],
     timestamps: &[Option<u64>],
     vectors: &[Vec<f32>],
+    dim: usize,
 ) -> anyhow::Result<RecordBatch> {
     let gens = vec![generation; pks.len()];
     create_record_batch_with_gens(
@@ -163,6 +186,7 @@ pub fn create_record_batch(
         authors,
         timestamps,
         vectors,
+        dim,
     )
 }
 
@@ -180,8 +204,9 @@ pub fn create_record_batch_with_gens(
     authors: &[Option<String>],
     timestamps: &[Option<u64>],
     vectors: &[Vec<f32>],
+    dim: usize,
 ) -> anyhow::Result<RecordBatch> {
-    let schema = vector_schema();
+    let schema = vector_schema(dim);
     let n = pks.len();
 
     let pk_arr = StringArray::from(pks.to_vec());
@@ -206,18 +231,18 @@ pub fn create_record_batch_with_gens(
             .collect::<Vec<_>>(),
     );
 
-    // Parallelize vector flattening
+    // Parallelize vector flattening; truncate/pad to `dim` to match the schema.
     let flat_vectors: Vec<f32> = vectors
         .par_iter()
         .flat_map(|v| {
             let mut v_resized = v.clone();
-            v_resized.resize(VECTOR_DIM, 0.0);
+            v_resized.resize(dim, 0.0);
             v_resized
         })
         .collect();
 
     let vector_values = Float32Array::from(flat_vectors);
-    let vector_arr = FixedSizeListArray::try_new_from_values(vector_values, VECTOR_DIM as i32)?;
+    let vector_arr = FixedSizeListArray::try_new_from_values(vector_values, dim as i32)?;
 
     RecordBatch::try_new(
         schema,

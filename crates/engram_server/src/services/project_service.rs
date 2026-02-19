@@ -8,15 +8,26 @@ pub async fn ensure_project_record(
     state: &AppState,
     project_id: &str,
 ) -> Result<ProjectRecord, EngramError> {
-    if project_id.contains('\0') {
-        return Err(EngramError::InvalidParams(
-            "project_id must not contain NUL bytes".into(),
-        ));
-    }
+    validate_project_id(project_id)?;
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid)).await??;
     rec.ok_or_else(|| EngramError::ProjectNotFound(project_id.to_string()))
+}
+
+/// Validate that `project_id` contains only safe characters to prevent directory traversal.
+/// Allowed: ASCII alphanumerics, hyphens, underscores.
+fn validate_project_id(project_id: &str) -> Result<(), EngramError> {
+    if project_id.is_empty()
+        || !project_id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(EngramError::InvalidParams(
+            "project_id must contain only alphanumeric characters, hyphens, or underscores".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Open (or cache-hit) a project's search engine runtime.
@@ -24,6 +35,8 @@ pub async fn ensure_project_runtime(
     state: &AppState,
     project_id: &str,
 ) -> Result<ProjectState, EngramError> {
+    validate_project_id(project_id)?;
+
     if let Some(p) = state.get_project_cached(project_id).await {
         return Ok(p);
     }
@@ -169,23 +182,50 @@ pub async fn get_incremental_changes(
             db_map.insert(file_path, metadata);
         }
 
-        for p in disk_files {
-            let rel = engram_core::RelPath::from_relative(&root_owned, &p)
-                .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()));
+        // Hash a file if it is ≤100 MB; returns None for oversized files.
+        let stream_hash = |path: &std::path::Path| -> Option<String> {
+            let meta = std::fs::metadata(path).ok()?;
+            if meta.len() > 100_000_000 {
+                return None; // Too large — caller handles None specially (fix 2.3)
+            }
+            let file = std::fs::File::open(path).ok()?;
+            let mut hasher = blake3::Hasher::new();
+            let mut reader = std::io::BufReader::new(file);
+            std::io::copy(&mut reader, &mut hasher).ok()?;
+            Some(hasher.finalize().to_hex().to_string())
+        };
 
-            let metadata = std::fs::metadata(&p).ok();
+        for p in disk_files {
+            // Fix 2.4: only keep files that can be expressed as a relative path;
+            // skip those that cannot to avoid storing absolute paths as DB keys.
+            let rel = match engram_core::RelPath::from_relative(&root_owned, &p) {
+                Some(r) => r,
+                None => continue,
+            };
+
+            // Fix 3.3: if the file vanished between the directory scan and now,
+            // treat it as deleted rather than logging it as an empty file.
+            let metadata = match std::fs::metadata(&p) {
+                Ok(m) => m,
+                Err(_) => {
+                    db_map.remove(&rel);
+                    deleted.push(rel);
+                    continue;
+                }
+            };
+
             let mtime = metadata
-                .as_ref()
-                .and_then(|m| m.modified().ok())
+                .modified()
+                .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
-            let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+            let size = metadata.len();
 
-            if let Some(metadata) = db_map.remove(&rel) {
+            if let Some(db_meta) = db_map.remove(&rel) {
                 let mut is_changed = true;
 
-                if let Some(meta) = metadata {
+                if let Some(meta) = db_meta {
                     let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
                     let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
                     let stored_hash = meta
@@ -193,35 +233,31 @@ pub async fn get_incremental_changes(
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string());
 
-                    let stream_hash = |path: &std::path::Path| -> Option<String> {
-                        let meta = std::fs::metadata(path).ok()?;
-                        if meta.len() > 100_000_000 {
-                            return None;
-                        }
-                        let file = std::fs::File::open(path).ok()?;
-                        let mut hasher = blake3::Hasher::new();
-                        let mut reader = std::io::BufReader::new(file);
-                        std::io::copy(&mut reader, &mut hasher).ok()?;
-                        Some(hasher.finalize().to_hex().to_string())
-                    };
-
                     if stored_mtime == mtime && stored_size == size {
                         if let Some(ref sh) = stored_hash {
-                            if let Some(current_hash) = stream_hash(&p) {
-                                if current_hash == *sh {
+                            match stream_hash(&p) {
+                                Some(ref current_hash) if current_hash == sh => {
                                     is_changed = false;
                                 }
+                                // Fix 2.3: file >100 MB, mtime+size unchanged →
+                                // treat as unchanged to prevent infinite re-index.
+                                None => {
+                                    is_changed = false;
+                                }
+                                _ => {}
                             }
                         } else {
                             is_changed = false;
                         }
                     } else if stored_size == size {
                         if let Some(ref sh) = stored_hash {
-                            if let Some(current_hash) = stream_hash(&p) {
-                                if current_hash == *sh {
+                            if let Some(ref current_hash) = stream_hash(&p) {
+                                if current_hash == sh {
                                     is_changed = false;
                                 }
                             }
+                            // If >100 MB and size same but mtime different, treat as
+                            // changed so it gets re-indexed once.
                         }
                     }
                 }

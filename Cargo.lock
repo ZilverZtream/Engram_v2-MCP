@@ -1826,6 +1826,7 @@ dependencies = [
 name = "engram_ml"
 version = "0.1.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "async-trait",
  "blake3",

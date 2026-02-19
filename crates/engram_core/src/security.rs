@@ -31,16 +31,34 @@ impl PathContext {
     pub fn resolve_path(&self, input: impl AsRef<Path>) -> Result<PathBuf> {
         let input = input.as_ref();
         let canon = std::fs::canonicalize(input).or_else(|_| {
-            // File may not exist yet — try canonicalizing the parent, then re-append the filename.
-            if let (Some(parent), Some(file_name)) = (input.parent(), input.file_name()) {
-                let canon_parent = std::fs::canonicalize(parent).map_err(|e| {
-                    EngramError::PathNotAllowed(format!("cannot access {input:?}: {e}"))
-                })?;
-                Ok(canon_parent.join(file_name))
-            } else {
-                Err(EngramError::PathNotAllowed(format!(
-                    "cannot access {input:?}: path has no parent"
-                )))
+            // Path may not exist yet (e.g. new file in a new nested directory).
+            // Walk up the ancestor chain until we find an existing directory we can
+            // canonicalize, then re-append the unresolved suffix beneath it.
+            let mut ancestor = input;
+            let mut suffix = std::path::PathBuf::new();
+            loop {
+                match ancestor.parent() {
+                    Some(parent) => {
+                        // Prepend current component to suffix before ascending.
+                        if let Some(name) = ancestor.file_name() {
+                            let mut new_suffix = std::path::PathBuf::from(name);
+                            new_suffix.push(&suffix);
+                            suffix = new_suffix;
+                        }
+                        ancestor = parent;
+                        if ancestor.exists() {
+                            let canon_ancestor = std::fs::canonicalize(ancestor).map_err(|e| {
+                                EngramError::PathNotAllowed(format!("cannot access {input:?}: {e}"))
+                            })?;
+                            break Ok(canon_ancestor.join(&suffix));
+                        }
+                    }
+                    None => {
+                        break Err(EngramError::PathNotAllowed(format!(
+                            "cannot access {input:?}: no existing ancestor directory found"
+                        )));
+                    }
+                }
             }
         })?;
         // On Windows, canonicalize returns \\?\ UNC paths. Strip the prefix for consistency.

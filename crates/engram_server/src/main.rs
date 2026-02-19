@@ -16,15 +16,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Cleanup orphaned jobs from previous run.
     let reg = state.registry.clone();
-    tokio::task::spawn_blocking(move || {
-        if let Ok(count) = reg.cleanup_orphaned_jobs()
-            && count > 0
-        {
-            tracing::info!("Aborted {count} orphaned jobs.");
-        }
-    })
-    .await
-    .ok();
+    match tokio::task::spawn_blocking(move || reg.cleanup_orphaned_jobs()).await {
+        Ok(Ok(count)) if count > 0 => tracing::info!("Aborted {count} orphaned jobs."),
+        Ok(Ok(_)) => {}
+        Ok(Err(e)) => tracing::warn!("Failed to clean up orphaned jobs: {e}"),
+        Err(e) => tracing::warn!("Orphaned-job cleanup task panicked: {e}"),
+    }
 
     // Background cognitive features.
     tokio::spawn(actors::dreamer::run_dreamer(state.clone(), events_rx));
