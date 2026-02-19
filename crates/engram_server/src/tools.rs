@@ -726,7 +726,10 @@ impl Engram {
         }
 
         // Acquire parse semaphore to bound concurrent parse/chunk blocking threads.
-        let _parse_permit = self.state.parse_semaphore.acquire().await.ok();
+        let _parse_permit =
+            self.state.parse_semaphore.acquire().await.map_err(|e| {
+                McpError::internal_error(format!("Parse semaphore closed: {e}"), None)
+            })?;
         let stats = ps
             .search
             .index_files(
@@ -1563,14 +1566,17 @@ impl Engram {
             let score = h.score;
             expanded_nodes.insert(node_id.clone(), score);
 
-            // Fetch neighbors
+            // Fetch neighbors — neighbor score is always lower than the originating hit's score
+            // to prevent graph neighbors from outranking actual search results.
             if let Ok(neighbors) =
                 self.state
                     .graph
                     .neighbors(&req.project_id, EdgeKind::Dependency, &node_id, 5)
             {
                 for (neigh_id, weight) in neighbors {
-                    let neigh_score = score * (1.0 + (weight as f32 * req.symbol_boost));
+                    // Neighbor score decays from parent: base * boost_factor, capped at parent score
+                    let decay = 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
+                    let neigh_score = score * decay.min(0.95); // Never exceed 95% of parent
                     let entry = expanded_nodes.entry(neigh_id).or_insert(0.0);
                     if neigh_score > *entry {
                         *entry = neigh_score;
@@ -1610,16 +1616,7 @@ impl Engram {
 
         let kinds = req.edge_kinds.as_ref().map(|v| {
             v.iter()
-                .filter_map(|s| match s.as_str() {
-                    "co_occurrence" => Some(EdgeKind::CoOccurrence),
-                    "temporal_coupling" => Some(EdgeKind::TemporalCoupling),
-                    "insight" => Some(EdgeKind::Insight),
-                    "dependency" => Some(EdgeKind::Dependency),
-                    "anti_pattern" => Some(EdgeKind::AntiPattern),
-                    "contains" => Some(EdgeKind::Contains),
-                    "imports" => Some(EdgeKind::Imports),
-                    _ => None,
-                })
+                .filter_map(|s| EdgeKind::from_str(s.as_str()))
                 .collect::<Vec<_>>()
         });
 
@@ -1732,23 +1729,22 @@ impl Engram {
                     })
                     .collect();
 
-                // Sort numerically — extract leading digits for proper chronological order.
-                // e.g. "2.zip" before "10.zip" even though "10" < "2" lexicographically.
+                // Sort numerically — extract digits from anywhere in name for proper order.
+                // Handles "2.zip", "10.zip", "snapshot-1.zip", "backup_20.zip", etc.
                 zip_files.sort_by(|a, b| {
                     let name_a = a.file_name().to_string_lossy().to_string();
                     let name_b = b.file_name().to_string_lossy().to_string();
-                    let num_a: u64 = name_a
-                        .chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .unwrap_or(u64::MAX);
-                    let num_b: u64 = name_b
-                        .chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .unwrap_or(u64::MAX);
+                    // Extract the first run of digits found anywhere in the name
+                    fn extract_first_number(s: &str) -> u64 {
+                        let digits: String = s
+                            .chars()
+                            .skip_while(|c| !c.is_ascii_digit())
+                            .take_while(|c| c.is_ascii_digit())
+                            .collect();
+                        digits.parse().unwrap_or(u64::MAX)
+                    }
+                    let num_a = extract_first_number(&name_a);
+                    let num_b = extract_first_number(&name_b);
                     num_a.cmp(&num_b).then_with(|| name_a.cmp(&name_b))
                 });
 
@@ -1760,10 +1756,25 @@ impl Engram {
                 let mut prev_fingerprints: std::collections::HashMap<String, String> =
                     std::collections::HashMap::new();
 
+                let mut skipped_zips = 0usize;
                 for (i, entry) in zip_files.iter().enumerate() {
                     let path = entry.path();
-                    let file = std::fs::File::open(&path)?;
-                    let mut archive = zip::ZipArchive::new(file)?;
+                    let file = match std::fs::File::open(&path) {
+                        Ok(f) => f,
+                        Err(e) => {
+                            tracing::warn!(path = %path.display(), error = %e, "Skipping unreadable zip file");
+                            skipped_zips += 1;
+                            continue;
+                        }
+                    };
+                    let mut archive = match zip::ZipArchive::new(file) {
+                        Ok(a) => a,
+                        Err(e) => {
+                            tracing::warn!(path = %path.display(), error = %e, "Skipping corrupt/invalid zip file");
+                            skipped_zips += 1;
+                            continue;
+                        }
+                    };
 
                     let mut current_fingerprints = std::collections::HashMap::new();
                     let mut changed_files = Vec::new();
@@ -1794,29 +1805,39 @@ impl Engram {
 
                     if !changed_files.is_empty() {
                         let pairs = engram_git::temporal::file_pairs(&changed_files, 100);
-                        for (a, b) in pairs {
-                            graph.increment_undirected_edge(
-                                &project_id,
-                                engram_core::namespaces::NAMESPACE_HISTORY,
-                                "text",
-                                engram_graph::EdgeKind::TemporalCoupling,
-                                &format!("file:{}", a),
-                                &format!("file:{}", b),
-                                1,
-                                active_gen,
-                            )?;
-                            temporal_edges += 1;
-                        }
+                        let batch: Vec<(engram_graph::EdgeKind, String, String, u32)> = pairs
+                            .iter()
+                            .map(|(a, b)| {
+                                (
+                                    engram_graph::EdgeKind::TemporalCoupling,
+                                    format!("file:{}", a),
+                                    format!("file:{}", b),
+                                    1u32,
+                                )
+                            })
+                            .collect();
+                        temporal_edges += batch.len();
+                        graph.batch_increment_undirected_edges(
+                            &project_id,
+                            engram_core::namespaces::NAMESPACE_HISTORY,
+                            "text",
+                            active_gen,
+                            &batch,
+                        )?;
                     }
 
                     prev_fingerprints = current_fingerprints;
                 }
 
-                Ok(format!(
+                let mut summary = format!(
                     "\u{2705} Ingested {} snapshots, added {} temporal edges.",
-                    zip_files.len(),
+                    zip_files.len().saturating_sub(skipped_zips),
                     temporal_edges
-                ))
+                );
+                if skipped_zips > 0 {
+                    summary.push_str(&format!("\n\u{26a0}\u{fe0f} {} zip files were skipped (corrupt or unreadable).", skipped_zips));
+                }
+                Ok(summary)
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -3362,7 +3383,7 @@ End Sub
         let project_id = req.project_id.clone();
 
         let count = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
-            let mut edges_added = 0;
+            let mut edge_batch: Vec<(engram_graph::EdgeKind, String, String, u32)> = Vec::new();
             for line in req.log_content.lines() {
                 if !line.contains("ENGRAM_LOG|") {
                     continue;
@@ -3385,6 +3406,12 @@ End Sub
                 // Normalize path (strip ~/)
                 let rel_path = path.trim_start_matches("~/").trim_start_matches('/');
 
+                // Security: reject path traversal in telemetry data
+                if rel_path.contains("..") {
+                    tracing::warn!(path = %rel_path, "Rejecting instrumentation log line with path traversal");
+                    continue;
+                }
+
                 let source_id = if !control_id.is_empty() {
                     engram_core::ids::NodeId::control(rel_path, control_id).0
                 } else {
@@ -3393,18 +3420,23 @@ End Sub
 
                 if !sql_hash.is_empty() {
                     let target_id = format!("sql:inline:{}", sql_hash);
-                    graph.increment_edge(
-                        &project_id,
-                        engram_core::namespaces::NAMESPACE_HISTORY,
-                        "text",
+                    edge_batch.push((
                         engram_graph::EdgeKind::SqlCalls,
-                        &source_id,
-                        &target_id,
+                        source_id,
+                        target_id,
                         1,
-                        active_gen,
-                    )?;
-                    edges_added += 1;
+                    ));
                 }
+            }
+            let edges_added = edge_batch.len();
+            if !edge_batch.is_empty() {
+                graph.batch_increment_edges(
+                    &project_id,
+                    engram_core::namespaces::NAMESPACE_HISTORY,
+                    "text",
+                    active_gen,
+                    &edge_batch,
+                )?;
             }
             Ok(edges_added)
         })
@@ -3986,13 +4018,11 @@ impl Engram {
         })
         .await?;
 
-        // 2. Scan DB — only load file_path + metadata, limit to streaming batches
+        // 2. Scan DB — only load file_path + metadata (lightweight, no full Node deserialization)
         let graph = self.state.graph.clone();
         let pid = project_id.to_string();
-        let db_nodes = tokio::task::spawn_blocking(move || {
-            graph.query_nodes(&pid, Some("file"), None, None, 1_000_000)
-        })
-        .await??;
+        let db_file_meta =
+            tokio::task::spawn_blocking(move || graph.list_file_node_metadata(&pid)).await??;
 
         // 3. Compare — do the expensive I/O (metadata + hash reads) in spawn_blocking
         let root_owned = root.to_path_buf();
@@ -4001,8 +4031,8 @@ impl Engram {
             let mut deleted = Vec::new();
             let mut db_map = std::collections::HashMap::new();
 
-            for n in db_nodes {
-                db_map.insert(n.file_path.clone(), n);
+            for (file_path, metadata) in db_file_meta {
+                db_map.insert(file_path, metadata);
             }
 
             for p in disk_files {
@@ -4018,10 +4048,10 @@ impl Engram {
                     .unwrap_or(0);
                 let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
 
-                if let Some(node) = db_map.remove(&rel) {
+                if let Some(metadata) = db_map.remove(&rel) {
                     let mut is_changed = true;
 
-                    if let Some(meta) = node.metadata {
+                    if let Some(meta) = metadata {
                         let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
                         let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
                         let stored_hash = meta
@@ -4064,8 +4094,8 @@ impl Engram {
                 }
             }
 
-            // Remaining in db_map are deleted
-            for (rel, _) in db_map {
+            // Remaining in db_map are deleted files
+            for (rel, _metadata) in db_map {
                 deleted.push(rel);
             }
 
@@ -4750,27 +4780,33 @@ impl Engram {
                 commit_history.push(oid);
                 let changes = GitWalker::files_changed_in_commit(&repo, oid)?;
 
-                // 1. Handle renames first (transfer edges)
+                // Collect all edge increments for this commit, then flush in one batch.
+                let mut commit_edge_batch: Vec<(EdgeKind, String, String, u32)> = Vec::new();
+
+                // 1. Handle renames first (transfer edges, then mark old node stale)
                 for change in &changes {
                     if let engram_git::history::FileChange::Renamed { old, new } = change {
                         let old_node_id = format!("file:{}", old);
                         let new_node_id = format!("file:{}", new);
 
-                        // We "transfer" edges by finding all neighbors of old and adding them to new.
-                        // This is a simplified BFS of 1 hop.
+                        // Transfer edges from old to new.
                         if let Ok(neighbors) = graph.neighbors(&pid_clone, EdgeKind::TemporalCoupling, &old_node_id, 1000) {
                             for (neigh_id, weight) in neighbors {
-                                let _ = graph.increment_undirected_edge(
-                                    &pid_clone,
-                                    engram_core::namespaces::NAMESPACE_HISTORY,
-                                    "text",
-                                    EdgeKind::TemporalCoupling,
-                                    &new_node_id,
-                                    &neigh_id,
-                                    weight,
-                                    active_gen,
-                                );
+                                if new_node_id != neigh_id {
+                                    commit_edge_batch.push((
+                                        EdgeKind::TemporalCoupling,
+                                        new_node_id.clone(),
+                                        neigh_id,
+                                        weight,
+                                    ));
+                                }
                             }
+                        }
+
+                        // Mark old node as renamed (set generation=0 so it gets purged)
+                        if let Ok(Some(mut old_node)) = graph.get_node(&pid_clone, &old_node_id) {
+                            old_node.generation = 0; // Will be purged by purge_old_generations
+                            let _ = graph.upsert_nodes(&pid_clone, &[old_node]);
                         }
                     }
                 }
@@ -4782,18 +4818,25 @@ impl Engram {
                 for (a, b) in &pairs {
                     let na = format!("file:{}", a);
                     let nb = format!("file:{}", b);
-                    let _ = graph.increment_undirected_edge(
+                    commit_edge_batch.push((
+                        EdgeKind::TemporalCoupling,
+                        na,
+                        nb,
+                        1,
+                    ));
+                }
+                temporal_edges += pairs.len() as u64;
+
+                // Flush all edge increments for this commit in a single transaction
+                if !commit_edge_batch.is_empty() {
+                    graph.batch_increment_undirected_edges(
                         &pid_clone,
                         engram_core::namespaces::NAMESPACE_HISTORY,
                         "text",
-                        EdgeKind::TemporalCoupling,
-                        &na,
-                        &nb,
-                        1,
                         active_gen,
-                    );
+                        &commit_edge_batch,
+                    )?;
                 }
-                temporal_edges += pairs.len() as u64;
 
                 let commit = repo.find_commit(oid)?;
                 let msg = commit.message().unwrap_or("").to_string();

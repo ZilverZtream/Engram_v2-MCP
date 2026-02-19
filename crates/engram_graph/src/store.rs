@@ -313,6 +313,104 @@ impl GraphStore {
         Ok(())
     }
 
+    /// Batch-increment multiple edges in a single write transaction.
+    /// Each entry is (kind, source_id, target_id, delta).
+    /// This avoids the per-call transaction overhead of `increment_edge`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn batch_increment_edges(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        language: &str,
+        generation: u64,
+        increments: &[(EdgeKind, String, String, u32)],
+    ) -> anyhow::Result<()> {
+        if increments.is_empty() {
+            return Ok(());
+        }
+        let now = now_ms();
+        let wtx = self.db.begin_write()?;
+        {
+            let mut et = wtx.open_table(EDGES)?;
+            let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+            let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+
+            for (kind, source_id, target_id, delta) in increments {
+                let key = edge_key(project_id, kind, source_id, target_id);
+
+                let maybe_edge = {
+                    let existing = et.get(key.as_str())?;
+                    if let Some(v) = existing {
+                        let bytes: &[u8] = v.value();
+                        serde_json::from_slice::<Edge>(bytes).ok()
+                    } else {
+                        None
+                    }
+                };
+
+                let final_edge = if let Some(mut e) = maybe_edge {
+                    e.weight = e.weight.saturating_add(*delta);
+                    e.updated_at_ms = now;
+                    e.generation = generation;
+                    e
+                } else {
+                    Edge {
+                        source_id: source_id.clone(),
+                        target_id: target_id.clone(),
+                        namespace: namespace.to_string(),
+                        language: language.to_string(),
+                        edge_kind: kind.clone(),
+                        weight: *delta,
+                        generation,
+                        metadata: None,
+                        updated_at_ms: now,
+                    }
+                };
+
+                let new_weight = final_edge.weight;
+                let bytes = serde_json::to_vec(&final_edge)?;
+                et.insert(key.as_str(), bytes.as_slice())?;
+
+                // Update adjacency tables
+                let out_key = adj_key(project_id, kind, source_id);
+                let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
+                upsert_adj_entry(&mut out_list, target_id, new_weight, now);
+                adj_out_t.insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+
+                let in_key = adj_key(project_id, kind, target_id);
+                let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
+                upsert_adj_entry(&mut in_list, source_id, new_weight, now);
+                adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+            }
+        }
+        wtx.commit()?;
+        Ok(())
+    }
+
+    /// Batch-increment undirected edges (both directions) in a single write transaction.
+    /// Each entry is (kind, node_a, node_b, delta).
+    #[allow(clippy::too_many_arguments)]
+    pub fn batch_increment_undirected_edges(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        language: &str,
+        generation: u64,
+        pairs: &[(EdgeKind, String, String, u32)],
+    ) -> anyhow::Result<()> {
+        // Expand undirected pairs into directed edges (a→b and b→a), skipping self-loops.
+        let mut directed: Vec<(EdgeKind, String, String, u32)> =
+            Vec::with_capacity(pairs.len() * 2);
+        for (kind, a, b, delta) in pairs {
+            if a == b {
+                continue;
+            }
+            directed.push((kind.clone(), a.clone(), b.clone(), *delta));
+            directed.push((kind.clone(), b.clone(), a.clone(), *delta));
+        }
+        self.batch_increment_edges(project_id, namespace, language, generation, &directed)
+    }
+
     /// Get weighted outgoing neighbors for `source_id`.
     /// O(degree) due to adjacency index.
     pub fn neighbors(
@@ -478,6 +576,34 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// List lightweight node metadata (file_path + metadata JSON) for file-type nodes.
+    /// Avoids deserializing full Node structs when only mtime/size/hash are needed.
+    pub fn list_file_node_metadata(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<Vec<(RelPath, Option<serde_json::Value>)>> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+        let mut out = Vec::new();
+        for r in nt.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            // Partial deserialization: extract only needed fields
+            let raw: serde_json::Value = serde_json::from_slice(v.value())?;
+            let node_type = raw.get("node_type").and_then(|v| v.as_str()).unwrap_or("");
+            if node_type != "file" {
+                continue;
+            }
+            let file_path_str = raw.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
+            let metadata = raw.get("metadata").cloned();
+            out.push((RelPath::new(file_path_str), metadata));
+        }
+        Ok(out)
+    }
+
     /// Count total nodes for a project without deserializing them.
     pub fn count_nodes(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
@@ -598,47 +724,50 @@ impl GraphStore {
     pub fn delete_project_data(&self, project_id: &str) -> anyhow::Result<()> {
         let prefix = format!("{project_id}\0");
 
-        // Helper: batched deletion to bound peak memory.
-        // Collects at most BATCH_SIZE keys, deletes them, repeats until done.
+        // Batched deletion: commit every BATCH_SIZE keys to bound transaction size.
         const BATCH_SIZE: usize = 2000;
 
-        // Delete from all tables in a single write transaction.
-        let wtx = self.db.begin_write()?;
+        // Helper: collect one batch of keys from a table with the given prefix.
+        fn collect_batch(
+            db: &Database,
+            tdef: TableDefinition<&str, &[u8]>,
+            prefix: &str,
+            batch_size: usize,
+        ) -> anyhow::Result<Vec<String>> {
+            let rtx = db.begin_read()?;
+            let t = rtx.open_table(tdef)?;
+            let mut batch = Vec::with_capacity(batch_size);
+            for r in t.range(prefix..)? {
+                let (k, _) = r?;
+                if !k.value().starts_with(prefix) {
+                    break;
+                }
+                batch.push(k.value().to_string());
+                if batch.len() >= batch_size {
+                    break;
+                }
+            }
+            Ok(batch)
+        }
 
-        // Macro to drain a table by prefix in bounded batches.
-        macro_rules! drain_table {
-            ($tdef:expr) => {{
-                let mut t = wtx.open_table($tdef)?;
-                loop {
-                    let mut batch = Vec::with_capacity(BATCH_SIZE);
-                    for r in t.range(prefix.as_str()..)? {
-                        let (k, _) = r?;
-                        if !k.value().starts_with(&prefix) {
-                            break;
-                        }
-                        batch.push(k.value().to_string());
-                        if batch.len() >= BATCH_SIZE {
-                            break;
-                        }
-                    }
-                    if batch.is_empty() {
-                        break;
-                    }
+        // Drain a table by prefix, committing each batch separately.
+        let tables = [ADJ_OUT, ADJ_IN, NODES, EDGES, META, CENTRALITY];
+        for tdef in tables {
+            loop {
+                let batch = collect_batch(&self.db, tdef, &prefix, BATCH_SIZE)?;
+                if batch.is_empty() {
+                    break;
+                }
+                let wtx = self.db.begin_write()?;
+                {
+                    let mut t = wtx.open_table(tdef)?;
                     for k in &batch {
                         t.remove(k.as_str())?;
                     }
                 }
-            }};
+                wtx.commit()?;
+            }
         }
-
-        drain_table!(ADJ_OUT);
-        drain_table!(ADJ_IN);
-        drain_table!(NODES);
-        drain_table!(EDGES);
-        drain_table!(META);
-        drain_table!(CENTRALITY);
-
-        wtx.commit()?;
         Ok(())
     }
 
@@ -751,10 +880,13 @@ impl GraphStore {
         active_generation: u64,
     ) -> anyhow::Result<()> {
         let prefix = format!("{project_id}\0");
-        let wtx = self.db.begin_write()?;
-        {
-            let mut nt = wtx.open_table(NODES)?;
-            let mut keys_to_remove = Vec::new();
+        const BATCH_SIZE: usize = 1000;
+
+        // --- Phase 1: Collect stale node keys (read-only) ---
+        let node_keys_to_remove = {
+            let rtx = self.db.begin_read()?;
+            let nt = rtx.open_table(NODES)?;
+            let mut keys = Vec::new();
             for r in nt.range(prefix.as_str()..)? {
                 let (k, v) = r?;
                 if !k.value().starts_with(&prefix) {
@@ -762,29 +894,41 @@ impl GraphStore {
                 }
                 let n: Node = serde_json::from_slice(v.value())?;
                 if let Ok(policy) = engram_core::get_policy(&n.namespace) {
-                    match policy.retention {
+                    let stale = match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
-                            if n.generation != active_generation {
-                                keys_to_remove.push(k.value().to_string());
-                            }
+                            n.generation != active_generation
                         }
                         engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
                             let min_keep = active_generation.saturating_sub(n_keep as u64 - 1);
-                            if n.generation < min_keep {
-                                keys_to_remove.push(k.value().to_string());
-                            }
+                            n.generation < min_keep
                         }
-                        engram_core::NamespaceRetention::KeepForever => {}
+                        engram_core::NamespaceRetention::KeepForever => false,
+                    };
+                    if stale {
+                        keys.push(k.value().to_string());
                     }
                 }
             }
-            for k in keys_to_remove {
-                nt.remove(k.as_str())?;
+            keys
+        };
+
+        // Remove stale nodes in batches
+        for chunk in node_keys_to_remove.chunks(BATCH_SIZE) {
+            let wtx = self.db.begin_write()?;
+            {
+                let mut nt = wtx.open_table(NODES)?;
+                for k in chunk {
+                    nt.remove(k.as_str())?;
+                }
             }
+            wtx.commit()?;
         }
-        {
-            let mut et = wtx.open_table(EDGES)?;
-            let mut keys_to_remove = Vec::new();
+
+        // --- Phase 2: Collect stale edge keys (read-only) ---
+        let edge_keys_to_remove = {
+            let rtx = self.db.begin_read()?;
+            let et = rtx.open_table(EDGES)?;
+            let mut keys = Vec::new();
             for r in et.range(prefix.as_str()..)? {
                 let (k, v) = r?;
                 if !k.value().starts_with(&prefix) {
@@ -792,67 +936,73 @@ impl GraphStore {
                 }
                 let e: Edge = serde_json::from_slice(v.value())?;
                 if let Ok(policy) = engram_core::get_policy(&e.namespace) {
-                    match policy.retention {
+                    let stale = match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
-                            if e.generation != active_generation {
-                                keys_to_remove.push(k.value().to_string());
-                            }
+                            e.generation != active_generation
                         }
                         engram_core::NamespaceRetention::KeepLastGenerations(n_keep) => {
                             let min_keep = active_generation.saturating_sub(n_keep as u64 - 1);
-                            if e.generation < min_keep {
-                                keys_to_remove.push(k.value().to_string());
+                            e.generation < min_keep
+                        }
+                        engram_core::NamespaceRetention::KeepForever => false,
+                    };
+                    if stale {
+                        keys.push(k.value().to_string());
+                    }
+                }
+            }
+            keys
+        };
+
+        // Remove stale edges + adjacency entries in batches
+        for chunk in edge_keys_to_remove.chunks(BATCH_SIZE) {
+            let wtx = self.db.begin_write()?;
+            {
+                let mut et = wtx.open_table(EDGES)?;
+                let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+                let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+
+                for k in chunk {
+                    // Parse edge key: "project\0kind\0source\0target"
+                    let parts: Vec<&str> = k.splitn(4, '\0').collect();
+                    if parts.len() == 4 {
+                        let kind_str = parts[1];
+                        let source_id = parts[2];
+                        let target_id = parts[3];
+
+                        if let Some(ek) = EdgeKind::from_str(kind_str) {
+                            // Remove from ADJ_OUT[source] → target
+                            let out_key = adj_key(project_id, &ek, source_id);
+                            let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
+                            out_list.retain(|e| e.id != target_id);
+                            if out_list.is_empty() {
+                                adj_out_t.remove(out_key.as_str())?;
+                            } else {
+                                adj_out_t.insert(
+                                    out_key.as_str(),
+                                    serde_json::to_vec(&out_list)?.as_slice(),
+                                )?;
+                            }
+
+                            // Remove from ADJ_IN[target] → source
+                            let in_key = adj_key(project_id, &ek, target_id);
+                            let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
+                            in_list.retain(|e| e.id != source_id);
+                            if in_list.is_empty() {
+                                adj_in_t.remove(in_key.as_str())?;
+                            } else {
+                                adj_in_t.insert(
+                                    in_key.as_str(),
+                                    serde_json::to_vec(&in_list)?.as_slice(),
+                                )?;
                             }
                         }
-                        engram_core::NamespaceRetention::KeepForever => {}
                     }
+                    et.remove(k.as_str())?;
                 }
             }
-            // Also clean adjacency tables for purged edges
-            let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
-            let mut adj_in_t = wtx.open_table(ADJ_IN)?;
-            for k in &keys_to_remove {
-                // Parse edge key: "project\0kind\0source\0target"
-                let parts: Vec<&str> = k.splitn(4, '\0').collect();
-                if parts.len() == 4 {
-                    let kind_str = parts[1];
-                    let source_id = parts[2];
-                    let target_id = parts[3];
-
-                    if let Some(ek) = EdgeKind::from_str(kind_str) {
-                        // Remove from ADJ_OUT[source] → target
-                        let out_key = adj_key(project_id, &ek, source_id);
-                        let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
-                        out_list.retain(|e| e.id != target_id);
-                        if out_list.is_empty() {
-                            adj_out_t.remove(out_key.as_str())?;
-                        } else {
-                            adj_out_t.insert(
-                                out_key.as_str(),
-                                serde_json::to_vec(&out_list)?.as_slice(),
-                            )?;
-                        }
-
-                        // Remove from ADJ_IN[target] → source
-                        let in_key = adj_key(project_id, &ek, target_id);
-                        let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-                        in_list.retain(|e| e.id != source_id);
-                        if in_list.is_empty() {
-                            adj_in_t.remove(in_key.as_str())?;
-                        } else {
-                            adj_in_t.insert(
-                                in_key.as_str(),
-                                serde_json::to_vec(&in_list)?.as_slice(),
-                            )?;
-                        }
-                    }
-                }
-            }
-            for k in keys_to_remove {
-                et.remove(k.as_str())?;
-            }
+            wtx.commit()?;
         }
-        wtx.commit()?;
         Ok(())
     }
 
@@ -870,6 +1020,11 @@ impl GraphStore {
     ) -> anyhow::Result<Vec<Vec<Node>>> {
         use std::collections::{HashSet, VecDeque};
 
+        // Bound total BFS work to prevent memory explosion on dense graphs.
+        const MAX_BFS_QUEUE_OPS: usize = 5000;
+        const MAX_BRANCHING: usize = 30;
+        let mut bfs_ops: usize = 0;
+
         // BFS over node IDs (lightweight); resolve to Nodes only at the end.
         let mut queue: VecDeque<(String, Vec<String>)> = VecDeque::new();
         let mut id_paths: Vec<Vec<String>> = Vec::new();
@@ -878,6 +1033,11 @@ impl GraphStore {
         queue.push_back((start_node_id.to_string(), Vec::new()));
 
         while let Some((curr_id, mut path_ids)) = queue.pop_front() {
+            bfs_ops += 1;
+            if bfs_ops > MAX_BFS_QUEUE_OPS {
+                break;
+            }
+
             // Check existence without full deserialization burden on path
             let node_exists = self.get_node(project_id, &curr_id)?;
             let Some(node) = node_exists else {
@@ -919,9 +1079,10 @@ impl GraphStore {
                 neighbors.extend(out.into_iter().map(|(id, _)| id));
             }
 
-            // Deduplicate neighbors to prevent double-enqueue
+            // Deduplicate and limit branching to prevent exponential expansion
             neighbors.sort();
             neighbors.dedup();
+            neighbors.truncate(MAX_BRANCHING);
 
             for mut next_id in neighbors {
                 if next_id.starts_with("::") {
@@ -971,6 +1132,9 @@ impl GraphStore {
     }
 
     /// Multi-hop BFS traversal from a start node.
+    ///
+    /// `MAX_BFS_RESULTS` bounds total output to prevent memory explosion on
+    /// highly connected graphs.
     pub fn traverse(
         &self,
         project_id: &str,
@@ -981,6 +1145,9 @@ impl GraphStore {
     ) -> anyhow::Result<Vec<(Node, usize)>> {
         use std::collections::{HashSet, VecDeque};
 
+        const MAX_BFS_RESULTS: usize = 500;
+        const MAX_BRANCHING_FACTOR: usize = 50;
+
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         let mut results = Vec::new();
@@ -989,6 +1156,10 @@ impl GraphStore {
         visited.insert(start_node_id.to_string());
 
         while let Some((curr_id, dist)) = queue.pop_front() {
+            if results.len() >= MAX_BFS_RESULTS {
+                break;
+            }
+
             if let Some(node) = self.get_node(project_id, &curr_id)? {
                 results.push((node, dist));
             }
@@ -1021,9 +1192,7 @@ impl GraphStore {
                         neighbors.extend(out.into_iter().map(|(id, _)| id));
                     }
                 } else {
-                    // If no kinds specified for outgoing, we might need a generic list_edges scan or default to some.
-                    // For BFS traversal, we typically want to know what it is connected to.
-                    // Let's iterate all known EdgeKinds if None.
+                    // If no kinds specified for outgoing, iterate all known EdgeKinds.
                     let all_kinds = vec![
                         EdgeKind::Dependency,
                         EdgeKind::Contains,
@@ -1031,6 +1200,8 @@ impl GraphStore {
                         EdgeKind::Insight,
                         EdgeKind::TemporalCoupling,
                         EdgeKind::CoOccurrence,
+                        EdgeKind::AntiPattern,
+                        EdgeKind::SqlCalls,
                     ];
                     for k in all_kinds {
                         let out = self.neighbors(project_id, k, &curr_id, 100)?;
@@ -1039,9 +1210,10 @@ impl GraphStore {
                 }
             }
 
-            // Deduplicate neighbors to prevent double-enqueue when direction=="both"
+            // Deduplicate and limit branching factor to prevent exponential expansion
             neighbors.sort();
             neighbors.dedup();
+            neighbors.truncate(MAX_BRANCHING_FACTOR);
 
             for mut next_id in neighbors {
                 if next_id.starts_with("::") {

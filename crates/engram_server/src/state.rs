@@ -130,13 +130,22 @@ impl AppState {
 
     pub async fn put_project_cached(&self, ps: ProjectState) {
         let mut map = self.projects.write().await;
-        // Evict oldest entry if at capacity to bound RAM usage.
+        // Evict if at capacity, but skip projects with active indexing jobs.
         if map.len() >= MAX_CACHED_PROJECTS && !map.contains_key(&ps.info.project_id) {
-            // Remove an arbitrary entry (HashMap doesn't track insertion order,
-            // but this still bounds the cache).
-            if let Some(evict_key) = map.keys().next().cloned() {
-                tracing::debug!(evicted = %evict_key, "Evicting project from cache (max={})", MAX_CACHED_PROJECTS);
-                map.remove(&evict_key);
+            let active_jobs = self.active_jobs.read().await;
+            // Find a key safe to evict (not actively indexing).
+            let evict_key = map.keys().find(|k| !active_jobs.contains_key(*k)).cloned();
+            drop(active_jobs);
+            if let Some(key) = evict_key {
+                tracing::debug!(evicted = %key, "Evicting project from cache (max={})", MAX_CACHED_PROJECTS);
+                map.remove(&key);
+            } else {
+                // All cached projects are actively indexing — allow overshoot rather than
+                // evict a project mid-index, which would cause errors.
+                tracing::warn!(
+                    "Cache at {} but all projects have active jobs; allowing temporary overshoot",
+                    MAX_CACHED_PROJECTS
+                );
             }
         }
         map.insert(ps.info.project_id.clone(), ps);

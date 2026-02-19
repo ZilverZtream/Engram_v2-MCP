@@ -328,6 +328,10 @@ impl HybridSearchEngine {
                 }
             }
             writer.commit()?;
+
+            // Trigger segment merge to reclaim disk space from deleted documents.
+            // Without this, deleted docs remain as tombstones in segments indefinitely.
+            let _ = writer.garbage_collect_files();
         }
 
         // 2. LanceDB purge
