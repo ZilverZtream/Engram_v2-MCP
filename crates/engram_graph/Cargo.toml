@@ -1,0 +1,18 @@
+[package]
+name = "engram_graph"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engram_core = { path = "../engram_core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+redb.workspace = true
+petgraph.workspace = true
+rustworkx-core.workspace = true
+blake3.workspace = true
+

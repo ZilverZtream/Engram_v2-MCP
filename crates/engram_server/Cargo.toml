@@ -1,0 +1,37 @@
+[package]
+name = "engram_server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["vector"]
+vector = ["engram_index/vector"]
+
+[dependencies]
+engram_core = { path = "../engram_core" }
+engram_index = { path = "../engram_index", default-features = false }
+engram_graph = { path = "../engram_graph" }
+engram_git = { path = "../engram_git" }
+engram_ml = { path = "../engram_ml" }
+
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+rmcp.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+uuid.workspace = true
+blake3.workspace = true
+regex.workspace = true
+git2.workspace = true
+notify.workspace = true
+zip = "2.2"
+
+[dev-dependencies]
+tempfile = "3"
+

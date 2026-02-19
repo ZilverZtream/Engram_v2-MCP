@@ -1,0 +1,106 @@
+use crate::state::AppState;
+use std::time::Duration;
+
+pub async fn run_gc_scheduler(state: AppState) {
+    let tick = Duration::from_secs(3600); // Once an hour
+    let mut interval = tokio::time::interval(tick);
+
+    loop {
+        interval.tick().await;
+        tracing::info!("GC: starting periodic generation purge");
+
+        let registry = state.registry.clone();
+        let project_ids: Vec<String> = tokio::task::spawn_blocking(move || {
+            registry
+                .list_projects()
+                .map(|v| v.into_iter().map(|p| p.project_id).collect())
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        for pid in project_ids {
+            if let Err(e) = purge_project_old_gens(&state, &pid).await {
+                tracing::error!("GC error for project {}: {:?}", pid, e);
+            }
+        }
+    }
+}
+
+async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
+    let reg = state.registry.clone();
+    let pid = project_id.to_string();
+    let active_gen = tokio::task::spawn_blocking(move || {
+        reg.get_meta(&pid, "active_generation")
+            .ok()
+            .flatten()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(1)
+    })
+    .await?;
+
+    // Purge GraphStore (always available via state)
+    state.graph.purge_old_generations(project_id, active_gen)?;
+
+    // Purge Search Index (need to load engine)
+    if let Some(ps) = load_project_runtime_minimal(state, project_id).await? {
+        ps.search
+            .purge_old_generations(project_id, active_gen)
+            .await?;
+    }
+
+    Ok(())
+}
+
+async fn load_project_runtime_minimal(
+    state: &AppState,
+    project_id: &str,
+) -> anyhow::Result<Option<crate::state::ProjectState>> {
+    if let Some(p) = state.get_project_cached(project_id).await {
+        return Ok(Some(p));
+    }
+    let reg = state.registry.clone();
+    let pid = project_id.to_string();
+    let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
+        .await
+        .unwrap_or_else(|_| Ok(None))?;
+    let Some(rec) = rec else {
+        return Ok(None);
+    };
+
+    let tantivy_dir = state
+        .cfg
+        .data_dir
+        .join("projects")
+        .join(project_id)
+        .join("tantivy");
+    let lancedb_dir = state
+        .cfg
+        .data_dir
+        .join("projects")
+        .join(project_id)
+        .join("lancedb");
+
+    // Minimal load: we don't ensure dirs exist if we are just purging (though they should)
+    let search = engram_index::HybridSearchEngine::new(
+        tantivy_dir,
+        lancedb_dir,
+        state.cfg.embedding_backend.clone(),
+    )
+    .await?;
+    let ps = crate::state::ProjectState {
+        info: crate::state::ProjectInfo {
+            project_id: project_id.to_string(),
+            project_name: rec.project_name,
+            project_type: rec.project_type,
+            directory: rec.directory,
+            tantivy_dir: PathBuf::from(""), // dummy for GC load
+            lancedb_dir: PathBuf::from(""),
+        },
+        search: std::sync::Arc::new(search),
+    };
+    // Don't necessarily cache it if we are just purging once an hour to avoid memory bloat
+    Ok(Some(ps))
+}
+
+use std::path::PathBuf;

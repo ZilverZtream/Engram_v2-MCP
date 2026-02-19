@@ -1,0 +1,22 @@
+[package]
+name = "engram_ml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engram_core = { path = "../engram_core" }
+anyhow.workspace = true
+serde.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+
+tokio.workspace = true
+regex.workspace = true
+blake3.workspace = true
+uuid.workspace = true
+tree-sitter.workspace = true
+tree-sitter-rust.workspace = true
+tree-sitter-python.workspace = true
+streaming-iterator = "0.1"
+

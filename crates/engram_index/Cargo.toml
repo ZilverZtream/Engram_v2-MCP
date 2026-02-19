@@ -1,0 +1,53 @@
+[package]
+name = "engram_index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["vector"]
+vector = ["dep:lancedb", "dep:lance-arrow", "dep:arrow", "dep:arrow-array", "dep:arrow-schema"]
+
+[dependencies]
+engram_core = { path = "../engram_core" }
+engram_ml = { path = "../engram_ml" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+tokio.workspace = true
+tokio-util = { version = "0.7", features = ["rt"] }
+futures.workspace = true
+redb.workspace = true
+rayon = "1.10"
+
+tantivy.workspace = true
+lancedb = { workspace = true, optional = true }
+lance-arrow = { workspace = true, optional = true }
+arrow = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
+
+tree-sitter.workspace = true
+tree-sitter-rust.workspace = true
+tree-sitter-python.workspace = true
+tree-sitter-go.workspace = true
+tree-sitter-java.workspace = true
+tree-sitter-typescript.workspace = true
+tree-sitter-c-sharp.workspace = true
+tree-sitter-c.workspace = true
+tree-sitter-cpp.workspace = true
+arborium-vb.workspace = true
+streaming-iterator = "0.1"
+
+walkdir.workspace = true
+ignore.workspace = true
+blake3.workspace = true
+regex.workspace = true
+memchr = "2.8.0"
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
+

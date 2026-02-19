@@ -1,0 +1,15 @@
+[package]
+name = "engram_git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+engram_core = { path = "../engram_core" }
+anyhow.workspace = true
+serde.workspace = true
+tracing.workspace = true
+tokio-util = { version = "0.7", features = ["rt"] }
+
+git2.workspace = true
+

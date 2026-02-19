@@ -1,0 +1,1402 @@
+use crate::tantivy_index::{Fields, open_or_create};
+use crate::{chunking, ingest};
+use engram_core::{ContentHash, DocIdStr, RelPath, build_pk};
+#[cfg(feature = "vector")]
+use lancedb::query::{ExecutableQuery, QueryBase};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tantivy::collector::TopDocs;
+use tantivy::doc;
+use tantivy::query::{BooleanQuery, Occur, QueryParser, TermQuery};
+use tantivy::schema::{IndexRecordOption, Term, Value};
+use tantivy::{DocAddress, Score};
+use tokio_util::sync::CancellationToken;
+
+#[derive(Debug, Clone)]
+pub struct HybridQuery {
+    pub project_id: String,
+    pub namespace: String,
+    pub generation: u64,
+    pub text: String,
+    pub top_k: usize,
+    pub fts_mode: String, // "strict", "loose", "regex"
+    pub include_path_prefixes: Option<Vec<String>>,
+    pub exclude_path_prefixes: Option<Vec<String>>,
+    pub language_filters: Option<Vec<String>>,
+    pub author_filter: Option<String>,
+    pub date_after: Option<u64>,
+    pub date_before: Option<u64>,
+    pub use_mmr: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct HybridHit {
+    pub pk: String,
+    pub chunk_id: u64,
+    pub path: RelPath,
+    pub score: f32,
+    pub centrality: f32, // PageRank score
+    pub snippet: Option<String>,
+    /// doc_id of the specific chunk instance.
+    pub doc_id: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexDoc {
+    pub generation: u64,
+    pub chunk_id: u64,
+    pub path: RelPath,
+    pub language: String,
+    pub content: String,
+    pub namespace: String,
+    pub author: Option<String>,
+    pub timestamp: Option<u64>,
+    pub start_line: u32,
+    pub end_line: u32,
+    /// Instance-level identity (from DocIdStr).
+    pub doc_id: String,
+    /// Content-level hash (from ContentHash).
+    pub content_hash: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct IngestStats {
+    pub files: usize,
+    pub chunks: usize,
+    pub bytes: u64,
+    pub all_files: Vec<RelPath>,
+    pub fingerprints: Vec<crate::docstore::FileFingerprint>,
+    pub symbols: Vec<(RelPath, crate::parsing::ExtractedSymbol)>,
+    pub edges: Vec<(RelPath, crate::parsing::ExtractedEdge)>,
+    pub skipped_files: Vec<(RelPath, String)>,
+    pub languages: std::collections::HashMap<String, usize>,
+    pub warnings: Vec<String>,
+}
+
+pub struct HybridSearchEngine {
+    tantivy_index: tantivy::Index,
+    fields: Fields,
+    extractor: Arc<crate::parsing::SymbolExtractor>,
+    #[cfg(feature = "vector")]
+    embedder: Arc<dyn engram_ml::Embedder>,
+    #[cfg(feature = "vector")]
+    lance_conn: lancedb::Connection,
+    embedding_backend: String,
+    _tantivy_dir: PathBuf,
+    _lance_dir: PathBuf,
+}
+
+impl HybridSearchEngine {
+    pub async fn new(
+        tantivy_dir: PathBuf,
+        lance_dir: PathBuf,
+        embedding_backend: String,
+    ) -> anyhow::Result<Self> {
+        let (index, fields) = open_or_create(&tantivy_dir)?;
+
+        #[cfg(feature = "vector")]
+        let lance_conn = crate::vector::connect(&lance_dir).await?;
+
+        #[cfg(feature = "vector")]
+        let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
+            "openai" | "remote" => Arc::new(engram_ml::embed::RemoteEmbedder),
+            "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
+            _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
+                crate::vector::VECTOR_DIM,
+            )),
+        };
+
+        Ok(Self {
+            tantivy_index: index,
+            fields,
+            extractor: Arc::new(crate::parsing::SymbolExtractor::new()),
+            #[cfg(feature = "vector")]
+            embedder,
+            #[cfg(feature = "vector")]
+            lance_conn,
+            embedding_backend,
+            _tantivy_dir: tantivy_dir,
+            _lance_dir: lance_dir,
+        })
+    }
+
+    pub async fn index_docs(
+        &self,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        if docs.is_empty() {
+            return Ok(());
+        }
+
+        if cancel.is_cancelled() {
+            return Ok(());
+        }
+
+        // 1. Lexical index (Tantivy) — pk-based upsert
+        {
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
+                self.tantivy_index.writer(50_000_000)?;
+            for d in docs {
+                if cancel.is_cancelled() {
+                    break;
+                }
+
+                let effective_gen = if let Ok(policy) = engram_core::get_policy(&d.namespace) {
+                    if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                        0
+                    } else {
+                        d.generation
+                    }
+                } else {
+                    d.generation
+                };
+
+                let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
+                // Delete any existing doc with the same pk (true upsert)
+                writer.delete_term(Term::from_field_text(self.fields.pk, &pk));
+
+                let tdoc = doc!(
+                    self.fields.pk => pk.as_str(),
+                    self.fields.doc_id => d.doc_id.as_str(),
+                    self.fields.content_hash => d.content_hash.as_str(),
+                    self.fields.project_id => project_id,
+                    self.fields.namespace => d.namespace.as_str(),
+                    self.fields.generation => effective_gen,
+                    self.fields.chunk_id => d.chunk_id,
+                    self.fields.path => d.path.as_str(),
+                    self.fields.language => d.language.as_str(),
+                    self.fields.author => d.author.as_deref().unwrap_or(""),
+                    self.fields.timestamp => d.timestamp.unwrap_or(0),
+                    self.fields.start_line => d.start_line as u64,
+                    self.fields.end_line => d.end_line as u64,
+                    self.fields.content => d.content.as_str(),
+                );
+                writer.add_document(tdoc)?;
+            }
+            writer.commit()?;
+        }
+
+        if cancel.is_cancelled() {
+            return Ok(());
+        }
+
+        // 2. Vector index (LanceDB) — pk-based upsert
+        #[cfg(feature = "vector")]
+        if self.embedding_backend != "fts_only" {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            let table = crate::vector::open_or_create_table(&self.lance_conn, &table_name).await?;
+
+            let mut pks = Vec::with_capacity(docs.len());
+            let mut doc_ids = Vec::with_capacity(docs.len());
+            let mut content_hashes = Vec::with_capacity(docs.len());
+            let mut chunk_ids = Vec::with_capacity(docs.len());
+            let mut paths = Vec::with_capacity(docs.len());
+            let mut languages = Vec::with_capacity(docs.len());
+            let mut authors = Vec::with_capacity(docs.len());
+            let mut timestamps = Vec::with_capacity(docs.len());
+            let mut effective_gens = Vec::with_capacity(docs.len());
+            let mut vectors = Vec::with_capacity(docs.len());
+
+            for d in docs {
+                if cancel.is_cancelled() {
+                    break;
+                }
+
+                let effective_gen = if let Ok(policy) = engram_core::get_policy(&d.namespace) {
+                    if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                        0
+                    } else {
+                        d.generation
+                    }
+                } else {
+                    d.generation
+                };
+
+                let vec = self.embedder.embed(&d.content).await?;
+                let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
+                pks.push(pk);
+                doc_ids.push(d.doc_id.clone());
+                content_hashes.push(d.content_hash.clone());
+                chunk_ids.push(d.chunk_id);
+                paths.push(d.path.as_str().to_string());
+                languages.push(d.language.clone());
+                authors.push(d.author.clone());
+                timestamps.push(d.timestamp);
+                effective_gens.push(effective_gen);
+                vectors.push(vec);
+            }
+
+            if !cancel.is_cancelled() && !pks.is_empty() {
+                let ns = &docs[0].namespace;
+                let batch = crate::vector::create_record_batch_with_gens(
+                    project_id,
+                    ns,
+                    &effective_gens,
+                    &pks,
+                    &doc_ids,
+                    &content_hashes,
+                    &chunk_ids,
+                    &paths,
+                    &languages,
+                    &authors,
+                    &timestamps,
+                    &vectors,
+                )?;
+
+                crate::vector::upsert_vectors(&table, vec![batch]).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn purge_old_generations(
+        &self,
+        project_id: &str,
+        active_generation: u64,
+    ) -> anyhow::Result<()> {
+        // 1. Tantivy purge
+        {
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
+                self.tantivy_index.writer(50_000_000)?;
+
+            for ns in engram_core::KNOWN_NAMESPACES {
+                if let Ok(policy) = engram_core::get_policy(ns) {
+                    let pid_term = Term::from_field_text(self.fields.project_id, project_id);
+                    let ns_term = Term::from_field_text(self.fields.namespace, ns);
+
+                    match policy.retention {
+                        engram_core::NamespaceRetention::KeepLatestOnly => {
+                            let query = BooleanQuery::new(vec![
+                                (
+                                    Occur::Must,
+                                    Box::new(TermQuery::new(pid_term, IndexRecordOption::Basic)),
+                                ),
+                                (
+                                    Occur::Must,
+                                    Box::new(TermQuery::new(ns_term, IndexRecordOption::Basic)),
+                                ),
+                                (
+                                    Occur::MustNot,
+                                    Box::new(TermQuery::new(
+                                        Term::from_field_u64(
+                                            self.fields.generation,
+                                            active_generation,
+                                        ),
+                                        IndexRecordOption::Basic,
+                                    )),
+                                ),
+                            ]);
+                            writer.delete_query(Box::new(query))?;
+                        }
+                        engram_core::NamespaceRetention::KeepLastGenerations(n) => {
+                            let min_keep = active_generation.saturating_sub(n as u64 - 1);
+                            if min_keep > 0 {
+                                let parser = QueryParser::for_index(
+                                    &self.tantivy_index,
+                                    vec![self.fields.generation],
+                                );
+                                if let Ok(gen_query) = parser.parse_query(&format!(
+                                    "generation:[* TO {}]",
+                                    min_keep.saturating_sub(1)
+                                )) {
+                                    let query = BooleanQuery::new(vec![
+                                        (
+                                            Occur::Must,
+                                            Box::new(TermQuery::new(
+                                                pid_term,
+                                                IndexRecordOption::Basic,
+                                            )),
+                                        ),
+                                        (
+                                            Occur::Must,
+                                            Box::new(TermQuery::new(
+                                                ns_term,
+                                                IndexRecordOption::Basic,
+                                            )),
+                                        ),
+                                        (Occur::Must, gen_query),
+                                    ]);
+                                    writer.delete_query(Box::new(query))?;
+                                }
+                            }
+                        }
+                        engram_core::NamespaceRetention::KeepForever => {}
+                    }
+                }
+            }
+            writer.commit()?;
+        }
+
+        // 2. LanceDB purge
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                crate::vector::purge_old_generations(&table, active_generation).await?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Copy all docs for `unchanged_paths` from `old_generation` → `new_generation`.
+    /// This implements copy-forward for snapshot namespaces: unchanged files still
+    /// appear in the new generation without re-reading from disk.
+    pub async fn copy_generation_for_paths(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        old_generation: u64,
+        new_generation: u64,
+        unchanged_paths: &[RelPath],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        if unchanged_paths.is_empty() {
+            return Ok(());
+        }
+
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let mut all_docs: Vec<IndexDoc> = Vec::new();
+
+        for path in unchanged_paths {
+            if cancel.is_cancelled() {
+                break;
+            }
+
+            let pid_term = Term::from_field_text(self.fields.project_id, project_id);
+            let pid_q = TermQuery::new(pid_term, IndexRecordOption::Basic);
+            let ns_term = Term::from_field_text(self.fields.namespace, namespace);
+            let ns_q = TermQuery::new(ns_term, IndexRecordOption::Basic);
+            let path_term = Term::from_field_text(self.fields.path, path.as_str());
+            let path_q = TermQuery::new(path_term, IndexRecordOption::Basic);
+            let gen_term = Term::from_field_u64(self.fields.generation, old_generation);
+            let gen_q = TermQuery::new(gen_term, IndexRecordOption::Basic);
+
+            let query = BooleanQuery::new(vec![
+                (
+                    Occur::Must,
+                    Box::new(pid_q) as Box<dyn tantivy::query::Query>,
+                ),
+                (
+                    Occur::Must,
+                    Box::new(ns_q) as Box<dyn tantivy::query::Query>,
+                ),
+                (
+                    Occur::Must,
+                    Box::new(path_q) as Box<dyn tantivy::query::Query>,
+                ),
+                (
+                    Occur::Must,
+                    Box::new(gen_q) as Box<dyn tantivy::query::Query>,
+                ),
+            ]);
+
+            let top_docs: Vec<(Score, DocAddress)> =
+                searcher.search(&query, &TopDocs::with_limit(10_000))?;
+
+            for (_, addr) in top_docs {
+                let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+                let get_str = |f| {
+                    doc.get_first(f)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                let get_u64 = |f| doc.get_first(f).and_then(|v| v.as_u64()).unwrap_or(0);
+
+                let content_hash = get_str(self.fields.content_hash);
+                let path_str = get_str(self.fields.path);
+                let language = get_str(self.fields.language);
+                let content = get_str(self.fields.content);
+                let author = get_str(self.fields.author);
+                let timestamp = get_u64(self.fields.timestamp);
+                let chunk_id = get_u64(self.fields.chunk_id);
+                let start_line = get_u64(self.fields.start_line) as u32;
+                let end_line = get_u64(self.fields.end_line) as u32;
+
+                // doc_id is location-based so it is stable across generations for same content at same place
+                let ch = ContentHash(content_hash.clone());
+                let new_doc_id = DocIdStr::compute(&path_str, start_line, end_line, &ch);
+
+                all_docs.push(IndexDoc {
+                    generation: new_generation,
+                    chunk_id,
+                    path: RelPath::new(&path_str),
+                    language,
+                    content,
+                    namespace: namespace.to_string(),
+                    author: if author.is_empty() {
+                        None
+                    } else {
+                        Some(author)
+                    },
+                    timestamp: if timestamp == 0 {
+                        None
+                    } else {
+                        Some(timestamp)
+                    },
+                    start_line,
+                    end_line,
+                    doc_id: new_doc_id.0,
+                    content_hash,
+                });
+            }
+
+            if all_docs.len() >= 512 {
+                self.index_docs(project_id, &all_docs, cancel).await?;
+                all_docs.clear();
+            }
+        }
+
+        if !all_docs.is_empty() && !cancel.is_cancelled() {
+            self.index_docs(project_id, &all_docs, cancel).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete all docs for given paths from GlobalMutable/AppendOnly namespaces.
+    /// For Snapshot namespaces, use copy-forward instead; this is a no-op for those.
+    pub async fn delete_files(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        paths: &[RelPath],
+    ) -> anyhow::Result<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        // 1. Tantivy
+        {
+            let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
+                self.tantivy_index.writer(50_000_000)?;
+            for p in paths {
+                let pid_term = Term::from_field_text(self.fields.project_id, project_id);
+                let ns_term = Term::from_field_text(self.fields.namespace, namespace);
+                let path_term = Term::from_field_text(self.fields.path, p.as_str());
+                let query = BooleanQuery::new(vec![
+                    (
+                        Occur::Must,
+                        Box::new(TermQuery::new(pid_term, IndexRecordOption::Basic)),
+                    ),
+                    (
+                        Occur::Must,
+                        Box::new(TermQuery::new(ns_term, IndexRecordOption::Basic)),
+                    ),
+                    (
+                        Occur::Must,
+                        Box::new(TermQuery::new(path_term, IndexRecordOption::Basic)),
+                    ),
+                ]);
+                writer.delete_query(Box::new(query))?;
+            }
+            writer.commit()?;
+        }
+
+        // 2. LanceDB
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                for p in paths {
+                    // Escape single quotes in path (SQL injection safety)
+                    let safe_path = p.as_str().replace('\'', "''");
+                    let safe_ns = namespace.replace('\'', "''");
+                    let filter = format!("namespace = '{}' AND path = '{}'", safe_ns, safe_path);
+                    table.delete(&filter).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn count_docs(&self, project_id: &str) -> anyhow::Result<usize> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let pid_term = Term::from_field_text(self.fields.project_id, project_id);
+        let pid_q = TermQuery::new(pid_term, IndexRecordOption::Basic);
+        let count = searcher.search(&pid_q, &tantivy::collector::Count)?;
+        Ok(count)
+    }
+
+    pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(0);
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+            Ok(table.count_rows(None).await?)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = project_id;
+            Ok(0)
+        }
+    }
+
+    /// Full reindex of all given files. Used for both `index_project` and
+    /// the "changed files" portion of `update_project`.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn index_files<F>(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+        root: &Path,
+        files: Vec<PathBuf>,
+        max_chars_per_chunk: usize,
+        cancel: &CancellationToken,
+        mut progress_cb: F,
+    ) -> anyhow::Result<IngestStats>
+    where
+        F: FnMut(usize, usize) + Send,
+    {
+        use rayon::prelude::*;
+
+        let mut stats = IngestStats::default();
+        let total_files = files.len();
+        stats.files = total_files;
+
+        let mut batch: Vec<IndexDoc> = Vec::with_capacity(512);
+        let mut processed_count = 0;
+
+        for file_chunk in files.chunks(50) {
+            if cancel.is_cancelled() {
+                break;
+            }
+
+            let chunk_paths = file_chunk.to_vec();
+            let extractor = self.extractor.clone();
+            let root_buf = root.to_path_buf();
+            let namespace_str = namespace.to_string();
+
+            let (chunk_stats, chunk_docs) = tokio::task::spawn_blocking(move || {
+                chunk_paths
+                    .par_iter()
+                    .map(|p| {
+                        let mut local_stats = IngestStats::default();
+                        let mut local_docs = Vec::new();
+                        let rel_path = RelPath::from_relative(&root_buf, p)
+                            .unwrap_or_else(|| RelPath::new(&p.to_string_lossy()));
+
+                        let Ok(meta) = std::fs::metadata(p) else {
+                            local_stats
+                                .skipped_files
+                                .push((rel_path, "Could not read metadata".into()));
+                            return (local_stats, local_docs);
+                        };
+                        if meta.len() > ingest::MAX_FILE_SIZE {
+                            local_stats
+                                .skipped_files
+                                .push((rel_path, format!("File too large ({} bytes)", meta.len())));
+                            return (local_stats, local_docs);
+                        }
+
+                        if ingest::is_binary(p) {
+                            local_stats
+                                .skipped_files
+                                .push((rel_path, "Binary file".into()));
+                            return (local_stats, local_docs);
+                        }
+
+                        let Ok(bytes) = std::fs::read(p) else {
+                            local_stats
+                                .skipped_files
+                                .push((rel_path, "Could not read file content".into()));
+                            return (local_stats, local_docs);
+                        };
+                        let size = bytes.len() as u64;
+                        local_stats.bytes += size;
+
+                        let file_hash = blake3::hash(&bytes).to_hex().to_string();
+                        // Reuse the metadata we already read (avoids second stat syscall)
+                        let mtime_ms = meta
+                            .modified()
+                            .ok()
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+
+                        let Ok(text) = String::from_utf8(bytes) else {
+                            local_stats
+                                .skipped_files
+                                .push((rel_path, "Invalid UTF-8 encoding".into()));
+                            return (local_stats, local_docs);
+                        };
+                        let language = engram_core::guess_language(p);
+                        *local_stats
+                            .languages
+                            .entry(language.to_string())
+                            .or_insert(0) += 1;
+
+                        local_stats.all_files.push(rel_path.clone());
+
+                        local_stats
+                            .fingerprints
+                            .push(crate::docstore::FileFingerprint {
+                                rel_path: rel_path.as_str().to_string(),
+                                size,
+                                mtime_ms,
+                                file_hash,
+                            });
+
+                        let (syms, edges) = if crate::webforms::is_webforms_markup(p) {
+                            crate::webforms::extract_webforms(&root_buf, &rel_path, &text)
+                        } else if p.extension().and_then(|e| e.to_str()) == Some("vb") {
+                            crate::vb_extractor::extract_vb(p, &text)
+                        } else {
+                            extractor.extract(p, &text)
+                        };
+                        for s in &syms {
+                            local_stats.symbols.push((rel_path.clone(), s.clone()));
+                        }
+                        for e in edges {
+                            local_stats.edges.push((rel_path.clone(), e));
+                        }
+
+                        let mut chunks =
+                            chunking::semantic_chunk_lines(&text, max_chars_per_chunk, &syms);
+
+                        for c in &mut chunks {
+                            c.set_doc_id(rel_path.as_str());
+                        }
+
+                        for c in chunks {
+                            let chunk_id = chunk_id_from_content_hash(&c.content_hash);
+                            local_docs.push(IndexDoc {
+                                generation,
+                                chunk_id,
+                                path: rel_path.clone(),
+                                language: language.to_string(),
+                                content: c.content,
+                                namespace: namespace_str.clone(),
+                                author: None,
+                                timestamp: None,
+                                start_line: c.start_line,
+                                end_line: c.end_line,
+                                doc_id: c.doc_id.0,
+                                content_hash: c.content_hash.0,
+                            });
+                            local_stats.chunks += 1;
+                        }
+
+                        (local_stats, local_docs)
+                    })
+                    .reduce(
+                        || (IngestStats::default(), Vec::new()),
+                        |mut a, b| {
+                            a.0.chunks += b.0.chunks;
+                            a.0.bytes += b.0.bytes;
+                            a.0.all_files.extend(b.0.all_files);
+                            a.0.fingerprints.extend(b.0.fingerprints);
+                            a.0.symbols.extend(b.0.symbols);
+                            a.0.edges.extend(b.0.edges);
+                            a.0.skipped_files.extend(b.0.skipped_files);
+                            for (lang, count) in b.0.languages {
+                                *a.0.languages.entry(lang).or_insert(0) += count;
+                            }
+                            a.0.warnings.extend(b.0.warnings);
+                            a.1.extend(b.1);
+                            a
+                        },
+                    )
+            })
+            .await?;
+
+            stats.chunks += chunk_stats.chunks;
+            stats.bytes += chunk_stats.bytes;
+            stats.all_files.extend(chunk_stats.all_files);
+            stats.fingerprints.extend(chunk_stats.fingerprints);
+            stats.symbols.extend(chunk_stats.symbols);
+            stats.edges.extend(chunk_stats.edges);
+            stats.skipped_files.extend(chunk_stats.skipped_files);
+            for (lang, count) in chunk_stats.languages {
+                *stats.languages.entry(lang).or_insert(0) += count;
+            }
+            stats.warnings.extend(chunk_stats.warnings);
+
+            batch.extend(chunk_docs);
+            if batch.len() >= 512 {
+                self.index_docs(project_id, &batch, cancel).await?;
+                batch.clear();
+            }
+
+            processed_count += file_chunk.len();
+            progress_cb(processed_count, total_files);
+        }
+
+        if !batch.is_empty() && !cancel.is_cancelled() {
+            self.index_docs(project_id, &batch, cancel).await?;
+        }
+
+        Ok(stats)
+    }
+
+    pub fn lexical_search(&self, q: &HybridQuery) -> anyhow::Result<Vec<HybridHit>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+
+        let content_q: Box<dyn tantivy::query::Query> = match q.fts_mode.as_str() {
+            "regex" => {
+                let mut parser =
+                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.set_conjunction_by_default();
+                parser.parse_query(&q.text)?
+            }
+            "loose" => {
+                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.parse_query(&escape_tantivy_literal(&q.text))?
+            }
+            _ => {
+                let mut parser =
+                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.set_conjunction_by_default();
+                parser.parse_query(&escape_tantivy_literal(&q.text))?
+            }
+        };
+
+        let pid_term = Term::from_field_text(self.fields.project_id, &q.project_id);
+        let pid_q = TermQuery::new(pid_term, IndexRecordOption::Basic);
+
+        let ns_term = Term::from_field_text(self.fields.namespace, &q.namespace);
+        let ns_q = TermQuery::new(ns_term, IndexRecordOption::Basic);
+
+        let mut must_clauses: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
+            (Occur::Must, content_q),
+            (
+                Occur::Must,
+                Box::new(pid_q) as Box<dyn tantivy::query::Query>,
+            ),
+            (
+                Occur::Must,
+                Box::new(ns_q) as Box<dyn tantivy::query::Query>,
+            ),
+        ];
+
+        if let Ok(policy) = engram_core::get_policy(&q.namespace) {
+            match policy.versioning {
+                engram_core::NamespaceVersioning::Snapshot => {
+                    let gen_term = Term::from_field_u64(self.fields.generation, q.generation);
+                    let gen_q = TermQuery::new(gen_term, IndexRecordOption::Basic);
+                    must_clauses.push((Occur::Must, Box::new(gen_q)));
+                }
+                engram_core::NamespaceVersioning::AppendOnly => {
+                    let parser =
+                        QueryParser::for_index(&self.tantivy_index, vec![self.fields.generation]);
+                    if let Ok(query) =
+                        parser.parse_query(&format!("generation:[* TO {}]", q.generation))
+                    {
+                        must_clauses.push((Occur::Must, query));
+                    }
+                }
+                engram_core::NamespaceVersioning::GlobalMutable => {}
+            }
+        }
+
+        if let Some(prefixes) = &q.include_path_prefixes {
+            let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for p in prefixes {
+                if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                    &format!("{}.*", regex::escape(p)),
+                    self.fields.path,
+                ) {
+                    prefix_queries.push((Occur::Should, Box::new(rq)));
+                }
+            }
+            if !prefix_queries.is_empty() {
+                must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(prefix_queries))));
+            }
+        }
+
+        if let Some(prefixes) = &q.exclude_path_prefixes {
+            for p in prefixes {
+                if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                    &format!("{}.*", regex::escape(p)),
+                    self.fields.path,
+                ) {
+                    must_clauses.push((Occur::MustNot, Box::new(rq)));
+                }
+            }
+        }
+
+        if let Some(langs) = &q.language_filters {
+            let mut lang_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for l in langs {
+                lang_queries.push((
+                    Occur::Should,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.language, l),
+                        IndexRecordOption::Basic,
+                    )),
+                ));
+            }
+            must_clauses.push((Occur::Must, Box::new(BooleanQuery::new(lang_queries))));
+        }
+
+        if let Some(author) = &q.author_filter {
+            must_clauses.push((
+                Occur::Must,
+                Box::new(TermQuery::new(
+                    Term::from_field_text(self.fields.author, author),
+                    IndexRecordOption::Basic,
+                )),
+            ));
+        }
+
+        if q.date_after.is_some() || q.date_before.is_some() {
+            let after = q.date_after.unwrap_or(0);
+            let before = q.date_before.unwrap_or(u64::MAX);
+            let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.timestamp]);
+            if let Ok(query) = parser.parse_query(&format!("timestamp:[{} TO {}]", after, before)) {
+                must_clauses.push((Occur::Must, query));
+            }
+        }
+
+        let query = BooleanQuery::new(must_clauses);
+
+        let top_docs: Vec<(Score, DocAddress)> =
+            searcher.search(&query, &TopDocs::with_limit(q.top_k))?;
+
+        let mut out = Vec::with_capacity(top_docs.len());
+        for (score, addr) in top_docs {
+            let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+            let pk = doc
+                .get_first(self.fields.pk)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let chunk_id = doc
+                .get_first(self.fields.chunk_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let path_str = doc
+                .get_first(self.fields.path)
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let path = RelPath::new(path_str);
+            let doc_id_str = doc
+                .get_first(self.fields.doc_id)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let snippet = if let Some(v) = doc.get_first(self.fields.content) {
+                v.as_str().map(|s| s.chars().take(300).collect::<String>())
+            } else {
+                None
+            };
+
+            out.push(HybridHit {
+                pk,
+                chunk_id,
+                path,
+                score,
+                centrality: 0.0,
+                snippet,
+                doc_id: doc_id_str,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Retrieve a doc by its doc_id string (instance identity).
+    #[allow(clippy::type_complexity)]
+    pub fn get_doc_by_doc_id(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+        doc_id_str: &str,
+    ) -> anyhow::Result<Option<(RelPath, String, String, u32, u32)>> {
+        let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
+            if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                0
+            } else {
+                generation
+            }
+        } else {
+            generation
+        };
+        let pk = build_pk(project_id, namespace, effective_gen, doc_id_str);
+        self.get_doc_by_pk(&pk)
+    }
+
+    /// Retrieve a doc by its primary key.
+    #[allow(clippy::type_complexity)]
+    pub fn get_doc_by_pk(
+        &self,
+        pk: &str,
+    ) -> anyhow::Result<Option<(RelPath, String, String, u32, u32)>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+
+        let pk_term = Term::from_field_text(self.fields.pk, pk);
+        let pk_q = TermQuery::new(pk_term, IndexRecordOption::Basic);
+
+        let top_docs: Vec<(Score, DocAddress)> = searcher.search(&pk_q, &TopDocs::with_limit(1))?;
+        if top_docs.is_empty() {
+            return Ok(None);
+        }
+        let (_, addr) = top_docs[0];
+        let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+
+        let path_str = doc
+            .get_first(self.fields.path)
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let path = RelPath::new(path_str);
+        let language = doc
+            .get_first(self.fields.language)
+            .and_then(|v| v.as_str())
+            .unwrap_or("text")
+            .to_string();
+        let content = doc
+            .get_first(self.fields.content)
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let start_line = doc
+            .get_first(self.fields.start_line)
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
+        let end_line = doc
+            .get_first(self.fields.end_line)
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u32;
+
+        Ok(Some((path, language, content, start_line, end_line)))
+    }
+
+    #[allow(dead_code)]
+    fn add_generation_filter(
+        &self,
+        namespace: &str,
+        generation: u64,
+        clauses: &mut Vec<(Occur, Box<dyn tantivy::query::Query>)>,
+    ) -> anyhow::Result<()> {
+        if let Ok(policy) = engram_core::get_policy(namespace) {
+            match policy.versioning {
+                engram_core::NamespaceVersioning::Snapshot => {
+                    let gen_term = Term::from_field_u64(self.fields.generation, generation);
+                    clauses.push((
+                        Occur::Must,
+                        Box::new(TermQuery::new(gen_term, IndexRecordOption::Basic)),
+                    ));
+                }
+                engram_core::NamespaceVersioning::AppendOnly => {
+                    let parser =
+                        QueryParser::for_index(&self.tantivy_index, vec![self.fields.generation]);
+                    if let Ok(query) =
+                        parser.parse_query(&format!("generation:[* TO {}]", generation))
+                    {
+                        clauses.push((Occur::Must, query));
+                    }
+                }
+                engram_core::NamespaceVersioning::GlobalMutable => {}
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn vector_search(&self, q: &HybridQuery) -> anyhow::Result<Vec<HybridHit>> {
+        if self.embedding_backend == "fts_only" {
+            return Ok(Vec::new());
+        }
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", q.project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(Vec::new());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+
+            let query_vec = self.embedder.embed(&q.text).await?;
+
+            let mut filters = Vec::new();
+            let safe_ns = q.namespace.replace('\'', "''");
+            filters.push(format!("namespace = '{}'", safe_ns));
+
+            if let Ok(policy) = engram_core::get_policy(&q.namespace) {
+                match policy.versioning {
+                    engram_core::NamespaceVersioning::Snapshot => {
+                        filters.push(format!("generation = {}", q.generation));
+                    }
+                    engram_core::NamespaceVersioning::AppendOnly => {
+                        filters.push(format!("generation <= {}", q.generation));
+                    }
+                    engram_core::NamespaceVersioning::GlobalMutable => {}
+                }
+            }
+
+            if let Some(prefixes) = &q.include_path_prefixes {
+                let mut parts = Vec::new();
+                for p in prefixes {
+                    let safe_p = p.replace('\'', "''");
+                    parts.push(format!("path LIKE '{}%'", safe_p));
+                }
+                if !parts.is_empty() {
+                    filters.push(format!("({})", parts.join(" OR ")));
+                }
+            }
+
+            if let Some(prefixes) = &q.exclude_path_prefixes {
+                for p in prefixes {
+                    let safe_p = p.replace('\'', "''");
+                    filters.push(format!("path NOT LIKE '{}%'", safe_p));
+                }
+            }
+
+            if let Some(langs) = &q.language_filters {
+                let list = langs
+                    .iter()
+                    .map(|l| format!("'{}'", l.replace('\'', "''")))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                filters.push(format!("language IN ({})", list));
+            }
+
+            if let Some(author) = &q.author_filter {
+                let safe_author = author.replace('\'', "''");
+                filters.push(format!("author = '{}'", safe_author));
+            }
+
+            if let Some(after) = q.date_after {
+                filters.push(format!("timestamp >= {}", after));
+            }
+            if let Some(before) = q.date_before {
+                filters.push(format!("timestamp < {}", before));
+            }
+
+            let where_clause = filters.join(" AND ");
+
+            let mut results = table
+                .query()
+                .nearest_to(query_vec)?
+                .only_if(where_clause)
+                .limit(q.top_k)
+                .execute()
+                .await?;
+
+            let mut hits = Vec::new();
+            use futures::TryStreamExt;
+            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                let batch: arrow_array::RecordBatch = batch;
+                let pk_arr = batch
+                    .column_by_name("pk")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                    .ok_or_else(|| anyhow::anyhow!("missing pk"))?;
+                let chunk_id_arr = batch
+                    .column_by_name("chunk_id")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::UInt64Array>())
+                    .ok_or_else(|| anyhow::anyhow!("missing chunk_id"))?;
+                let path_arr = batch
+                    .column_by_name("path")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                    .ok_or_else(|| anyhow::anyhow!("missing path"))?;
+                let score_arr = batch
+                    .column_by_name("_distance")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::Float32Array>())
+                    .ok_or_else(|| anyhow::anyhow!("missing _distance"))?;
+                let doc_id_arr = batch
+                    .column_by_name("doc_id")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>());
+
+                for i in 0..batch.num_rows() {
+                    let doc_id_val = doc_id_arr
+                        .map(|a| a.value(i).to_string())
+                        .unwrap_or_default();
+                    hits.push(HybridHit {
+                        pk: pk_arr.value(i).to_string(),
+                        chunk_id: chunk_id_arr.value(i),
+                        path: RelPath::new(path_arr.value(i)),
+                        score: 1.0 - score_arr.value(i),
+                        centrality: 0.0,
+                        snippet: None,
+                        doc_id: doc_id_val,
+                    });
+                }
+            }
+
+            Ok(hits)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = q;
+            Ok(Vec::new())
+        }
+    }
+
+    pub async fn get_vectors_by_chunk_ids(
+        &self,
+        project_id: &str,
+        chunk_ids: &[u64],
+    ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if !self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                return Ok(std::collections::HashMap::new());
+            }
+            let table = self.lance_conn.open_table(&table_name).execute().await?;
+
+            let id_list = chunk_ids
+                .iter()
+                .map(|id| format!("CAST({} AS BIGINT UNSIGNED)", id))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let filter = format!("chunk_id IN ({})", id_list);
+
+            let mut results = table.query().only_if(filter).execute().await?;
+
+            let mut map = std::collections::HashMap::new();
+            use futures::TryStreamExt;
+            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+                let chunk_id_arr = batch
+                    .column_by_name("chunk_id")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::UInt64Array>())
+                    .ok_or_else(|| anyhow::anyhow!("missing chunk_id"))?;
+                let vector_arr = batch
+                    .column_by_name("vector")
+                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::FixedSizeListArray>())
+                    .ok_or_else(|| anyhow::anyhow!("missing vector"))?;
+
+                for i in 0..batch.num_rows() {
+                    let id = chunk_id_arr.value(i);
+                    let vec_view = vector_arr.value(i);
+                    let vec_f32 = vec_view
+                        .as_any()
+                        .downcast_ref::<arrow_array::Float32Array>()
+                        .ok_or_else(|| anyhow::anyhow!("vector is not f32"))?;
+                    map.insert(id, vec_f32.values().to_vec());
+                }
+            }
+
+            Ok(map)
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = project_id;
+            let _ = chunk_ids;
+            Ok(std::collections::HashMap::new())
+        }
+    }
+
+    /// MMR diversity rerank.
+    #[cfg(feature = "vector")]
+    pub fn mmr_rerank(
+        &self,
+        candidates: Vec<HybridHit>,
+        vectors: &std::collections::HashMap<u64, Vec<f32>>,
+        top_k: usize,
+        lambda: f32,
+    ) -> Vec<HybridHit> {
+        if candidates.is_empty() || top_k == 0 {
+            return Vec::new();
+        }
+
+        let mut selected: Vec<HybridHit> = Vec::new();
+        let mut remaining = candidates;
+
+        if let Some(first) = remaining.first().cloned() {
+            selected.push(first);
+            remaining.remove(0);
+        }
+
+        // Pre-allocate a single fallback zero-vector outside the hot loop
+        let zero_vec = vec![0.0f32; self.embedder.dimension()];
+
+        while selected.len() < top_k && !remaining.is_empty() {
+            let mut best_mmr_score = f32::MIN;
+            let mut best_idx = 0;
+
+            for (idx, cand) in remaining.iter().enumerate() {
+                let cand_vec = vectors.get(&cand.chunk_id).unwrap_or(&zero_vec);
+
+                let mut max_sim = 0.0f32;
+                for sel in &selected {
+                    let sel_vec = match vectors.get(&sel.chunk_id) {
+                        Some(v) => v,
+                        None => continue,
+                    };
+                    let sim = dot_product(cand_vec, sel_vec);
+                    if sim > max_sim {
+                        max_sim = sim;
+                    }
+                }
+
+                let mmr_score = lambda * cand.score - (1.0 - lambda) * max_sim;
+                if mmr_score > best_mmr_score {
+                    best_mmr_score = mmr_score;
+                    best_idx = idx;
+                }
+            }
+
+            selected.push(remaining.remove(best_idx));
+        }
+
+        selected
+    }
+
+    /// Hybrid fuse (RRF).
+    pub async fn search(
+        &self,
+        q: &HybridQuery,
+        centrality_boost: Option<&std::collections::HashMap<String, f32>>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        let fetch_k = if q.use_mmr { q.top_k * 3 } else { q.top_k };
+
+        let mut q_modified = q.clone();
+        q_modified.top_k = fetch_k;
+
+        let lexical = self.lexical_search(&q_modified)?;
+        let vector = self.vector_search(&q_modified).await?;
+
+        use std::collections::HashMap;
+        let mut rrf_scores: HashMap<String, (f32, HybridHit)> = HashMap::new();
+        let k = 60.0;
+
+        for (rank, mut hit) in lexical.into_iter().enumerate() {
+            if let Some(boosts) = centrality_boost {
+                let file_node_id = format!("file:{}", hit.path.as_str());
+                hit.centrality = *boosts.get(&file_node_id).unwrap_or(&0.0);
+            }
+            let score = 1.0 / (k + (rank + 1) as f32);
+            // Use pk as the merge key so identical content at different paths or generations is NOT collapsed.
+            let key = if hit.pk.is_empty() {
+                format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
+            } else {
+                hit.pk.clone()
+            };
+            let entry = rrf_scores.entry(key).or_insert((0.0, hit));
+            entry.0 += score;
+        }
+
+        for (rank, mut hit) in vector.into_iter().enumerate() {
+            if let Some(boosts) = centrality_boost {
+                let file_node_id = format!("file:{}", hit.path.as_str());
+                hit.centrality = *boosts.get(&file_node_id).unwrap_or(&0.0);
+            }
+            let score = 1.0 / (k + (rank + 1) as f32);
+            let key = if hit.pk.is_empty() {
+                format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
+            } else {
+                hit.pk.clone()
+            };
+            let entry = rrf_scores.entry(key).or_insert((0.0, hit.clone()));
+            entry.0 += score;
+        }
+
+        let mut merged: Vec<HybridHit> = rrf_scores
+            .into_values()
+            .map(|(rrf_score, mut hit)| {
+                let boost = (1.0 + hit.centrality).ln() * 0.05;
+                hit.score = rrf_score + boost;
+                hit
+            })
+            .collect();
+
+        merged.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        #[cfg(feature = "vector")]
+        if q.use_mmr && merged.len() > q.top_k {
+            let chunk_ids: Vec<u64> = merged.iter().map(|h| h.chunk_id).collect();
+            let vectors = self
+                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
+                .await?;
+            merged = self.mmr_rerank(merged, &vectors, q.top_k, 0.5);
+        } else if merged.len() > q.top_k {
+            merged.truncate(q.top_k);
+        }
+
+        #[cfg(not(feature = "vector"))]
+        if merged.len() > q.top_k {
+            merged.truncate(q.top_k);
+        }
+
+        Ok(merged)
+    }
+}
+
+pub fn escape_tantivy_literal(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '+' | '-' | '&' | '|' | '!' | '(' | ')' | '{' | '}' | '[' | ']' | '^' | '"' | '~'
+            | '*' | '?' | ':' | '\\' | '/' => {
+                out.push('\\');
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+#[cfg(feature = "vector")]
+fn dot_product(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+}
+
+/// Derive a u64 chunk_id from the content_hash for backward compatibility.
+/// Uses the first 8 bytes of the raw blake3 hash (not the hex string).
+pub fn chunk_id_from_hash(hash: [u8; 32]) -> u64 {
+    let mut b = [0u8; 8];
+    b.copy_from_slice(&hash[0..8]);
+    u64::from_le_bytes(b)
+}
+
+/// Derive a u64 chunk_id from a ContentHash (hex string).
+pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
+    // Decode first 8 bytes of hex string
+    let hex = &h.0;
+    if hex.len() < 16 {
+        return 0;
+    }
+    let mut bytes = [0u8; 8];
+    for i in 0..8 {
+        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap_or(0);
+    }
+    u64::from_le_bytes(bytes)
+}
