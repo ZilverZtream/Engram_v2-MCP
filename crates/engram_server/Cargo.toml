@@ -16,6 +16,7 @@ engram_git = { path = "../engram_git" }
 engram_ml = { path = "../engram_ml" }
 
 anyhow.workspace = true
+thiserror = "2"
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
