@@ -490,8 +490,8 @@ impl Engram {
         let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
         let tantivy_dir = project_root.join("tantivy");
         let lancedb_dir = project_root.join("lancedb");
-        std::fs::create_dir_all(&tantivy_dir).ok();
-        std::fs::create_dir_all(&lancedb_dir).ok();
+        tokio::fs::create_dir_all(&tantivy_dir).await.ok();
+        tokio::fs::create_dir_all(&lancedb_dir).await.ok();
 
         let search = engram_index::HybridSearchEngine::new(
             tantivy_dir.clone(),
@@ -1212,7 +1212,9 @@ impl Engram {
             gen_
         };
 
-        let mb_path = format!("{}:{}", namespace, section_id);
+        // Escape colons in section_id to prevent ambiguity in chunk identity parsing.
+        let safe_section_id = section_id.replace(':', "_");
+        let mb_path = format!("{}:{}", namespace, safe_section_id);
         let mut chunks = engram_index::chunking::chunk_lines(&sec.content, 2000);
         for c in &mut chunks {
             c.set_doc_id(&mb_path);
@@ -1730,8 +1732,25 @@ impl Engram {
                     })
                     .collect();
 
-                // Sort by name (which usually contains timestamp or version)
-                zip_files.sort_by_key(|e| e.file_name());
+                // Sort numerically — extract leading digits for proper chronological order.
+                // e.g. "2.zip" before "10.zip" even though "10" < "2" lexicographically.
+                zip_files.sort_by(|a, b| {
+                    let name_a = a.file_name().to_string_lossy().to_string();
+                    let name_b = b.file_name().to_string_lossy().to_string();
+                    let num_a: u64 = name_a
+                        .chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .unwrap_or(u64::MAX);
+                    let num_b: u64 = name_b
+                        .chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .unwrap_or(u64::MAX);
+                    num_a.cmp(&num_b).then_with(|| name_a.cmp(&name_b))
+                });
 
                 if zip_files.len() < 2 {
                     return Ok("Need at least 2 zip files to compute pseudo-history.".to_string());
@@ -2065,15 +2084,27 @@ impl Engram {
                 {
                     n.node_id.clone()
                 } else {
-                    // Fallback to searching by name
+                    // Fallback to searching by short name, but verify FQN match
                     let short = fqn.split('.').next_back().unwrap_or(fqn);
                     if let Ok(candidates) =
                         self.state
                             .graph
-                            .query_nodes(&req.project_id, None, Some(short), None, 1)
+                            .query_nodes(&req.project_id, None, Some(short), None, 20)
                         && !candidates.is_empty()
                     {
-                        candidates[0].node_id.clone()
+                        // Prefer exact FQN match to avoid pollution from other symbols
+                        // sharing the same short name.
+                        if let Some(exact) = candidates.iter().find(|n| {
+                            n.metadata
+                                .as_ref()
+                                .and_then(|m| m.get("fqn"))
+                                .and_then(|v| v.as_str())
+                                == Some(fqn)
+                        }) {
+                            exact.node_id.clone()
+                        } else {
+                            candidates[0].node_id.clone()
+                        }
                     } else {
                         return Ok(CallToolResult::success(vec![Content::text(format!(
                             "Symbol '{fqn}' not found in graph."
@@ -2489,12 +2520,15 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         }
 
-        // Write to disk
+        // Write to disk — use tokio::fs to avoid blocking the async executor
         let timestamp = now_ms();
         let exports_dir = self.state.cfg.data_dir.join("exports").join(&pid);
-        std::fs::create_dir_all(&exports_dir).ok();
+        tokio::fs::create_dir_all(&exports_dir)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let zip_path = exports_dir.join(format!("{}.zip", timestamp));
-        std::fs::write(&zip_path, buffer)
+        tokio::fs::write(&zip_path, buffer)
+            .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
@@ -2893,32 +2927,49 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let current_content = if !is_dir {
-            std::fs::read_to_string(&resolved).ok()
-        } else {
-            // For directory, sample a few files to get current context.
-            let mut sampled_text = String::new();
-            if let Ok(entries) = std::fs::read_dir(&resolved) {
-                let mut count = 0;
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_file()
-                        && let Ok(content) = std::fs::read_to_string(&path)
-                    {
-                        sampled_text.push_str(&content);
-                        sampled_text.push('\n');
-                        count += 1;
+        // Wrap blocking file I/O in spawn_blocking to avoid async executor starvation
+        let current_content = {
+            let resolved_clone = resolved.clone();
+            tokio::task::spawn_blocking(move || -> Option<String> {
+                if !is_dir {
+                    std::fs::read_to_string(&resolved_clone).ok()
+                } else {
+                    // For directory, sample sorted files for deterministic results
+                    let mut sampled_text = String::new();
+                    if let Ok(entries) = std::fs::read_dir(&resolved_clone) {
+                        let mut file_paths: Vec<PathBuf> = entries
+                            .flatten()
+                            .map(|e| e.path())
+                            .filter(|p| p.is_file())
+                            .collect();
+                        // Sort for deterministic sampling across OSs/runs
+                        file_paths.sort();
+                        let mut count = 0;
+                        for path in file_paths {
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                sampled_text.push_str(&content);
+                                sampled_text.push('\n');
+                                count += 1;
+                            } else {
+                                tracing::warn!(
+                                    "Failed to read file for style analysis: {:?}",
+                                    path
+                                );
+                            }
+                            if count >= 5 {
+                                break;
+                            }
+                        }
                     }
-                    if count >= 5 {
-                        break;
+                    if sampled_text.is_empty() {
+                        None
+                    } else {
+                        Some(sampled_text)
                     }
                 }
-            }
-            if sampled_text.is_empty() {
-                None
-            } else {
-                Some(sampled_text)
-            }
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
         };
 
         let guide = self
@@ -3316,7 +3367,10 @@ End Sub
                 if !line.contains("ENGRAM_LOG|") {
                     continue;
                 }
-                let log_part = line.split("ENGRAM_LOG|").nth(1).expect("log content");
+                let Some(log_part) = line.split("ENGRAM_LOG|").nth(1).filter(|s| !s.is_empty())
+                else {
+                    continue; // Skip malformed log lines (e.g. "ENGRAM_LOG|" with no data)
+                };
                 let parts: Vec<&str> = log_part.split('|').collect();
                 if parts.len() < 5 {
                     continue;
@@ -3399,6 +3453,13 @@ pub async fn run_stdio(state: AppState) -> anyhow::Result<()> {
 
 impl Engram {
     async fn ensure_project_record(&self, project_id: &str) -> Result<ProjectRecord, McpError> {
+        // Security: reject NUL bytes in project_id to prevent key-prefix injection
+        if project_id.contains('\0') {
+            return Err(McpError::invalid_params(
+                "project_id must not contain NUL bytes",
+                None,
+            ));
+        }
         let reg = self.state.registry.clone();
         let pid = project_id.to_string();
         let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
@@ -3490,8 +3551,8 @@ impl Engram {
         let project_root = self.state.cfg.data_dir.join("projects").join(project_id);
         let tantivy_dir = project_root.join("tantivy");
         let lancedb_dir = project_root.join("lancedb");
-        std::fs::create_dir_all(&tantivy_dir).ok();
-        std::fs::create_dir_all(&lancedb_dir).ok();
+        tokio::fs::create_dir_all(&tantivy_dir).await.ok();
+        tokio::fs::create_dir_all(&lancedb_dir).await.ok();
 
         let search = engram_index::HybridSearchEngine::new(
             tantivy_dir.clone(),
@@ -3916,7 +3977,7 @@ impl Engram {
         root: &Path,
         exts: &[&str],
     ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
-        // 1. Scan disk
+        // 1. Scan disk (already in spawn_blocking)
         let root_clone = root.to_path_buf();
         let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
         let disk_files = tokio::task::spawn_blocking(move || {
@@ -3925,7 +3986,7 @@ impl Engram {
         })
         .await?;
 
-        // 2. Scan DB
+        // 2. Scan DB — only load file_path + metadata, limit to streaming batches
         let graph = self.state.graph.clone();
         let pid = project_id.to_string();
         let db_nodes = tokio::task::spawn_blocking(move || {
@@ -3933,70 +3994,84 @@ impl Engram {
         })
         .await??;
 
-        // 3. Compare
-        let mut changed = Vec::new();
-        let mut deleted = Vec::new();
-        let mut db_map = std::collections::HashMap::new();
+        // 3. Compare — do the expensive I/O (metadata + hash reads) in spawn_blocking
+        let root_owned = root.to_path_buf();
+        let (changed, deleted) = tokio::task::spawn_blocking(move || {
+            let mut changed = Vec::new();
+            let mut deleted = Vec::new();
+            let mut db_map = std::collections::HashMap::new();
 
-        for n in db_nodes {
-            db_map.insert(n.file_path.clone(), n);
-        }
+            for n in db_nodes {
+                db_map.insert(n.file_path.clone(), n);
+            }
 
-        for p in disk_files {
-            let rel = engram_core::RelPath::from_relative(root, &p)
-                .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()));
+            for p in disk_files {
+                let rel = engram_core::RelPath::from_relative(&root_owned, &p)
+                    .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()));
 
-            let metadata = std::fs::metadata(&p).ok();
-            let mtime = metadata
-                .as_ref()
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
-            let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                let metadata = std::fs::metadata(&p).ok();
+                let mtime = metadata
+                    .as_ref()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
 
-            if let Some(node) = db_map.remove(&rel) {
-                // Check if changed
+                if let Some(node) = db_map.remove(&rel) {
+                    let mut is_changed = true;
 
-                let mut is_changed = true;
+                    if let Some(meta) = node.metadata {
+                        let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let stored_hash = meta
+                            .get("file_hash")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
 
-                if let Some(meta) = node.metadata {
-                    let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
-
-                    let stored_size = meta.get("size").and_then(|v| v.as_u64()).unwrap_or(0);
-
-                    let stored_hash = meta.get("file_hash").and_then(|v| v.as_str());
-
-                    if stored_mtime == mtime && stored_size == size {
-                        // If mtime/size match, we still check hash to be 100% sure if we have it
-
-                        if let Some(sh) = stored_hash {
-                            if let Ok(bytes) = std::fs::read(&p) {
-                                let current_hash = blake3::hash(&bytes).to_hex().to_string();
-
-                                if current_hash == sh {
-                                    is_changed = false;
+                        if stored_mtime == mtime && stored_size == size {
+                            // mtime + size match => trust it unless hash disagrees
+                            if let Some(ref sh) = stored_hash {
+                                if let Ok(bytes) = std::fs::read(&p) {
+                                    let current_hash = blake3::hash(&bytes).to_hex().to_string();
+                                    if current_hash == *sh {
+                                        is_changed = false;
+                                    }
+                                }
+                            } else {
+                                is_changed = false;
+                            }
+                        } else if stored_size == size {
+                            // Bug fix: mtime differs but size is same — check hash
+                            // (handles git checkout of same-content branch)
+                            if let Some(ref sh) = stored_hash {
+                                if let Ok(bytes) = std::fs::read(&p) {
+                                    let current_hash = blake3::hash(&bytes).to_hex().to_string();
+                                    if current_hash == *sh {
+                                        is_changed = false;
+                                    }
                                 }
                             }
-                        } else {
-                            is_changed = false;
                         }
                     }
-                }
 
-                if is_changed {
+                    if is_changed {
+                        changed.push(p);
+                    }
+                } else {
+                    // New file
                     changed.push(p);
                 }
-            } else {
-                // New file
-                changed.push(p);
             }
-        }
 
-        // Remaining in db_map are deleted
-        for (rel, _) in db_map {
-            deleted.push(rel);
-        }
+            // Remaining in db_map are deleted
+            for (rel, _) in db_map {
+                deleted.push(rel);
+            }
+
+            (changed, deleted)
+        })
+        .await?;
 
         Ok((changed, deleted))
     }
@@ -4915,11 +4990,11 @@ fn pattern_match(file_path: &str, pattern: &str) -> bool {
 }
 
 fn stacktrace_to_query(stack: &str) -> String {
-    // Pull identifiers and file-ish tokens.
-    let re = regex::Regex::new(
-        r"[A-Za-z_][A-Za-z0-9_]{2,}|[A-Za-z0-9_\-/\\]+\.(rs|py|js|ts|go|java|cs)",
-    )
-    .expect("Invalid regex");
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = RE.get_or_init(|| {
+        regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}|[A-Za-z0-9_\-/\\]+\.(rs|py|js|ts|go|java|cs)")
+            .expect("Invalid regex")
+    });
     let mut terms: Vec<String> = Vec::new();
     for m in re.find_iter(stack).take(60) {
         let t = m.as_str();
@@ -4932,7 +5007,9 @@ fn stacktrace_to_query(stack: &str) -> String {
 }
 
 fn code_to_query(code: &str) -> String {
-    let re = regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("Invalid regex");
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re =
+        RE.get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("Invalid regex"));
     let mut terms: Vec<String> = Vec::new();
     for m in re.find_iter(code).take(30) {
         let t = m.as_str();

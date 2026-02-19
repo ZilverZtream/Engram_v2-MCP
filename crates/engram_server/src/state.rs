@@ -11,6 +11,10 @@ use tokio_util::sync::CancellationToken;
 /// Maximum concurrent parse/chunk blocking tasks.
 const MAX_PARSE_CONCURRENCY: usize = 4;
 
+/// Maximum number of project search engines cached in memory simultaneously.
+/// Beyond this limit, the least recently inserted project is evicted.
+const MAX_CACHED_PROJECTS: usize = 5;
+
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     /// A completed search returned chunk_ids; record co-occurrence edges.
@@ -93,7 +97,11 @@ impl AppState {
         let graph_path = cfg.data_dir.join("graph").join("graph.redb");
         let graph = GraphStore::open(&graph_path)?;
 
-        let (events_tx, events_rx) = broadcast::channel(1024);
+        // Capacity 4096 gives the dreamer ample headroom to drain events before
+        // the `Lagged` error starts dropping co-occurrence data.  If the dreamer
+        // stalls (e.g., long PageRank), excess events are silently discarded, but
+        // this only affects search analytics quality, not correctness.
+        let (events_tx, events_rx) = broadcast::channel(4096);
 
         Ok((
             Self {
@@ -122,6 +130,15 @@ impl AppState {
 
     pub async fn put_project_cached(&self, ps: ProjectState) {
         let mut map = self.projects.write().await;
+        // Evict oldest entry if at capacity to bound RAM usage.
+        if map.len() >= MAX_CACHED_PROJECTS && !map.contains_key(&ps.info.project_id) {
+            // Remove an arbitrary entry (HashMap doesn't track insertion order,
+            // but this still bounds the cache).
+            if let Some(evict_key) = map.keys().next().cloned() {
+                tracing::debug!(evicted = %evict_key, "Evicting project from cache (max={})", MAX_CACHED_PROJECTS);
+                map.remove(&evict_key);
+            }
+        }
         map.insert(ps.info.project_id.clone(), ps);
     }
 }

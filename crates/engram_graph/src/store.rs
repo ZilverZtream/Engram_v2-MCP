@@ -63,6 +63,20 @@ impl EdgeKind {
             EdgeKind::SqlCalls => "sql_calls",
         }
     }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "co_occurrence" => Some(EdgeKind::CoOccurrence),
+            "temporal_coupling" => Some(EdgeKind::TemporalCoupling),
+            "insight" => Some(EdgeKind::Insight),
+            "dependency" => Some(EdgeKind::Dependency),
+            "anti_pattern" => Some(EdgeKind::AntiPattern),
+            "contains" => Some(EdgeKind::Contains),
+            "imports" => Some(EdgeKind::Imports),
+            "sql_calls" => Some(EdgeKind::SqlCalls),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -583,80 +597,47 @@ impl GraphStore {
 
     pub fn delete_project_data(&self, project_id: &str) -> anyhow::Result<()> {
         let prefix = format!("{project_id}\0");
+
+        // Helper: batched deletion to bound peak memory.
+        // Collects at most BATCH_SIZE keys, deletes them, repeats until done.
+        const BATCH_SIZE: usize = 2000;
+
+        // Delete from all tables in a single write transaction.
         let wtx = self.db.begin_write()?;
-        {
-            // Clean up adjacency tables
-            for tdef in [&ADJ_OUT, &ADJ_IN] {
-                let mut t = wtx.open_table(*tdef)?;
-                let mut keys = Vec::new();
-                for r in t.range(prefix.as_str()..)? {
-                    let (k, _) = r?;
-                    if !k.value().starts_with(&prefix) {
+
+        // Macro to drain a table by prefix in bounded batches.
+        macro_rules! drain_table {
+            ($tdef:expr) => {{
+                let mut t = wtx.open_table($tdef)?;
+                loop {
+                    let mut batch = Vec::with_capacity(BATCH_SIZE);
+                    for r in t.range(prefix.as_str()..)? {
+                        let (k, _) = r?;
+                        if !k.value().starts_with(&prefix) {
+                            break;
+                        }
+                        batch.push(k.value().to_string());
+                        if batch.len() >= BATCH_SIZE {
+                            break;
+                        }
+                    }
+                    if batch.is_empty() {
                         break;
                     }
-                    keys.push(k.value().to_string());
+                    for k in &batch {
+                        t.remove(k.as_str())?;
+                    }
                 }
-                for k in keys {
-                    t.remove(k.as_str())?;
-                }
-            }
+            }};
         }
-        {
-            let mut nt = wtx.open_table(NODES)?;
-            let mut keys = Vec::new();
-            for r in nt.range(prefix.as_str()..)? {
-                let (k, _) = r?;
-                if !k.value().starts_with(&prefix) {
-                    break;
-                }
-                keys.push(k.value().to_string());
-            }
-            for k in keys {
-                nt.remove(k.as_str())?;
-            }
-        }
-        {
-            let mut et = wtx.open_table(EDGES)?;
-            let mut keys = Vec::new();
-            for r in et.range(prefix.as_str()..)? {
-                let (k, _) = r?;
-                if !k.value().starts_with(&prefix) {
-                    break;
-                }
-                keys.push(k.value().to_string());
-            }
-            for k in keys {
-                et.remove(k.as_str())?;
-            }
-        }
-        {
-            let mut mt = wtx.open_table(META)?;
-            let mut keys = Vec::new();
-            for r in mt.range(prefix.as_str()..)? {
-                let (k, _) = r?;
-                if !k.value().starts_with(&prefix) {
-                    break;
-                }
-                keys.push(k.value().to_string());
-            }
-            for k in keys {
-                mt.remove(k.as_str())?;
-            }
-        }
-        {
-            let mut ct = wtx.open_table(CENTRALITY)?;
-            let mut keys = Vec::new();
-            for r in ct.range(prefix.as_str()..)? {
-                let (k, _) = r?;
-                if !k.value().starts_with(&prefix) {
-                    break;
-                }
-                keys.push(k.value().to_string());
-            }
-            for k in keys {
-                ct.remove(k.as_str())?;
-            }
-        }
+
+        drain_table!(ADJ_OUT);
+        drain_table!(ADJ_IN);
+        drain_table!(NODES);
+        drain_table!(EDGES);
+        drain_table!(META);
+        drain_table!(CENTRALITY);
+
         wtx.commit()?;
         Ok(())
     }
@@ -827,6 +808,46 @@ impl GraphStore {
                     }
                 }
             }
+            // Also clean adjacency tables for purged edges
+            let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+            let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+            for k in &keys_to_remove {
+                // Parse edge key: "project\0kind\0source\0target"
+                let parts: Vec<&str> = k.splitn(4, '\0').collect();
+                if parts.len() == 4 {
+                    let kind_str = parts[1];
+                    let source_id = parts[2];
+                    let target_id = parts[3];
+
+                    if let Some(ek) = EdgeKind::from_str(kind_str) {
+                        // Remove from ADJ_OUT[source] → target
+                        let out_key = adj_key(project_id, &ek, source_id);
+                        let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
+                        out_list.retain(|e| e.id != target_id);
+                        if out_list.is_empty() {
+                            adj_out_t.remove(out_key.as_str())?;
+                        } else {
+                            adj_out_t.insert(
+                                out_key.as_str(),
+                                serde_json::to_vec(&out_list)?.as_slice(),
+                            )?;
+                        }
+
+                        // Remove from ADJ_IN[target] → source
+                        let in_key = adj_key(project_id, &ek, target_id);
+                        let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
+                        in_list.retain(|e| e.id != source_id);
+                        if in_list.is_empty() {
+                            adj_in_t.remove(in_key.as_str())?;
+                        } else {
+                            adj_in_t.insert(
+                                in_key.as_str(),
+                                serde_json::to_vec(&in_list)?.as_slice(),
+                            )?;
+                        }
+                    }
+                }
+            }
             for k in keys_to_remove {
                 et.remove(k.as_str())?;
             }
@@ -838,6 +859,8 @@ impl GraphStore {
     /// Find paths from a start node to any SQL nodes.
     ///
     /// Useful for tracing "Click -> Handler -> SQL".
+    /// Uses lightweight `Vec<String>` (node IDs) during BFS to avoid cloning
+    /// full Node structs at every branch, then materializes Nodes only for result paths.
     pub fn find_ui_paths(
         &self,
         project_id: &str,
@@ -847,39 +870,40 @@ impl GraphStore {
     ) -> anyhow::Result<Vec<Vec<Node>>> {
         use std::collections::{HashSet, VecDeque};
 
-        let mut queue = VecDeque::new();
-        let mut results = Vec::new();
+        // BFS over node IDs (lightweight); resolve to Nodes only at the end.
+        let mut queue: VecDeque<(String, Vec<String>)> = VecDeque::new();
+        let mut id_paths: Vec<Vec<String>> = Vec::new();
         let mut visited = HashSet::new();
 
-        // Each queue entry is (current_node_id, path_so_far)
         queue.push_back((start_node_id.to_string(), Vec::new()));
 
-        while let Some((curr_id, mut path)) = queue.pop_front() {
-            let Some(node) = self.get_node(project_id, &curr_id)? else {
+        while let Some((curr_id, mut path_ids)) = queue.pop_front() {
+            // Check existence without full deserialization burden on path
+            let node_exists = self.get_node(project_id, &curr_id)?;
+            let Some(node) = node_exists else {
                 continue;
             };
 
             // Avoid cycles within a single path
-            if path.iter().any(|n: &Node| n.node_id == curr_id) {
+            if path_ids.contains(&curr_id) {
                 continue;
             }
 
-            path.push(node.clone());
+            path_ids.push(curr_id.clone());
 
             // If we hit a SQL node, we found a target path
             if node.node_id.starts_with("sql:")
                 || node.node_type == "inline_sql"
                 || node.node_type == "stored_proc"
             {
-                results.push(path.clone());
-                if results.len() >= max_paths {
+                id_paths.push(path_ids);
+                if id_paths.len() >= max_paths {
                     break;
                 }
-                // Don't continue BFS from a SQL node (it's a leaf for our purposes)
                 continue;
             }
 
-            if path.len() > max_hops {
+            if path_ids.len() > max_hops {
                 continue;
             }
 
@@ -889,12 +913,15 @@ impl GraphStore {
             }
 
             let mut neighbors = Vec::new();
-            // Trace through event_wiring (Dependency), calls (Dependency), containment (Contains), and SQL calls
-            let kinds = vec![EdgeKind::Dependency, EdgeKind::Contains, EdgeKind::SqlCalls];
+            let kinds = [EdgeKind::Dependency, EdgeKind::Contains, EdgeKind::SqlCalls];
             for k in kinds {
                 let out = self.neighbors(project_id, k, &curr_id, 100)?;
                 neighbors.extend(out.into_iter().map(|(id, _)| id));
             }
+
+            // Deduplicate neighbors to prevent double-enqueue
+            neighbors.sort();
+            neighbors.dedup();
 
             for mut next_id in neighbors {
                 if next_id.starts_with("::") {
@@ -922,12 +949,22 @@ impl GraphStore {
                     }
                 }
 
-                // Only enqueue if we haven't visited this node OR it's a SQL target
-                // (SQL targets are always enqueued so we capture the path)
                 if !visited.contains(&next_id) || next_id.starts_with("sql:") {
-                    queue.push_back((next_id, path.clone()));
+                    queue.push_back((next_id, path_ids.clone()));
                 }
             }
+        }
+
+        // Materialize Node objects only for the winning paths.
+        let mut results = Vec::with_capacity(id_paths.len());
+        for id_path in id_paths {
+            let mut node_path = Vec::with_capacity(id_path.len());
+            for nid in &id_path {
+                if let Some(n) = self.get_node(project_id, nid)? {
+                    node_path.push(n);
+                }
+            }
+            results.push(node_path);
         }
 
         Ok(results)
@@ -1001,6 +1038,10 @@ impl GraphStore {
                     }
                 }
             }
+
+            // Deduplicate neighbors to prevent double-enqueue when direction=="both"
+            neighbors.sort();
+            neighbors.dedup();
 
             for mut next_id in neighbors {
                 if next_id.starts_with("::") {
