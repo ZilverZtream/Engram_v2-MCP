@@ -118,7 +118,7 @@ impl Engram {
         let search = engram_index::HybridSearchEngine::new(
             tantivy_dir.clone(),
             lancedb_dir.clone(),
-            self.state.cfg.embedding_backend.clone(),
+            &self.state.cfg,
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;

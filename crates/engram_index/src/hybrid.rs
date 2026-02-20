@@ -90,8 +90,9 @@ impl HybridSearchEngine {
     pub async fn new(
         tantivy_dir: PathBuf,
         lance_dir: PathBuf,
-        embedding_backend: String,
+        cfg: &engram_core::Config,
     ) -> anyhow::Result<Self> {
+        let embedding_backend = cfg.embedding_backend.clone();
         let (index, fields) = open_or_create(&tantivy_dir)?;
 
         #[cfg(feature = "vector")]
@@ -99,7 +100,7 @@ impl HybridSearchEngine {
 
         #[cfg(feature = "vector")]
         let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
-            "openai" | "remote" => build_embedder_for_backend(embedding_backend.as_str()),
+            "openai" | "remote" => build_embedder_for_backend(cfg),
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
             _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
                 crate::vector::VECTOR_DIM,
@@ -418,55 +419,67 @@ impl HybridSearchEngine {
                 ),
             ]);
 
-            let top_docs: Vec<(Score, DocAddress)> =
-                searcher.search(&query, &TopDocs::with_limit(10_000))?;
+            const PAGE_SIZE: usize = 2000;
+            let mut offset = 0usize;
+            loop {
+                let page: Vec<(Score, DocAddress)> =
+                    searcher.search(&query, &TopDocs::with_limit(PAGE_SIZE).and_offset(offset))?;
+                if page.is_empty() {
+                    break;
+                }
 
-            for (_, addr) in top_docs {
-                let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
-                let get_str = |f| {
-                    doc.get_first(f)
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string()
-                };
-                let get_u64 = |f| doc.get_first(f).and_then(|v| v.as_u64()).unwrap_or(0);
+                for (_, addr) in page.iter().copied() {
+                    let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+                    let get_str = |f| {
+                        doc.get_first(f)
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string()
+                    };
+                    let get_u64 = |f| doc.get_first(f).and_then(|v| v.as_u64()).unwrap_or(0);
 
-                let content_hash = get_str(self.fields.content_hash);
-                let path_str = get_str(self.fields.path);
-                let language = get_str(self.fields.language);
-                let content = get_str(self.fields.content);
-                let author = get_str(self.fields.author);
-                let timestamp = get_u64(self.fields.timestamp);
-                let chunk_id = get_u64(self.fields.chunk_id);
-                let start_line = get_u64(self.fields.start_line) as u32;
-                let end_line = get_u64(self.fields.end_line) as u32;
+                    let content_hash = get_str(self.fields.content_hash);
+                    let path_str = get_str(self.fields.path);
+                    let language = get_str(self.fields.language);
+                    let content = get_str(self.fields.content);
+                    let author = get_str(self.fields.author);
+                    let timestamp = get_u64(self.fields.timestamp);
+                    let chunk_id = get_u64(self.fields.chunk_id);
+                    let start_line = get_u64(self.fields.start_line) as u32;
+                    let end_line = get_u64(self.fields.end_line) as u32;
 
-                // doc_id is location-based so it is stable across generations for same content at same place
-                let ch = ContentHash(content_hash.clone());
-                let new_doc_id = DocIdStr::compute(&path_str, start_line, end_line, &ch);
+                    // doc_id is location-based so it is stable across generations for same content at same place
+                    let ch = ContentHash(content_hash.clone());
+                    let new_doc_id = DocIdStr::compute(&path_str, start_line, end_line, &ch);
 
-                all_docs.push(IndexDoc {
-                    generation: new_generation,
-                    chunk_id,
-                    path: RelPath::new(&path_str),
-                    language,
-                    content,
-                    namespace: namespace.to_string(),
-                    author: if author.is_empty() {
-                        None
-                    } else {
-                        Some(author)
-                    },
-                    timestamp: if timestamp == 0 {
-                        None
-                    } else {
-                        Some(timestamp)
-                    },
-                    start_line,
-                    end_line,
-                    doc_id: new_doc_id.0,
-                    content_hash,
-                });
+                    all_docs.push(IndexDoc {
+                        generation: new_generation,
+                        chunk_id,
+                        path: RelPath::new(&path_str),
+                        language,
+                        content,
+                        namespace: namespace.to_string(),
+                        author: if author.is_empty() {
+                            None
+                        } else {
+                            Some(author)
+                        },
+                        timestamp: if timestamp == 0 {
+                            None
+                        } else {
+                            Some(timestamp)
+                        },
+                        start_line,
+                        end_line,
+                        doc_id: new_doc_id.0,
+                        content_hash,
+                    });
+                }
+
+                offset = offset.saturating_add(PAGE_SIZE);
+                if page.len() < PAGE_SIZE {
+                    break;
+                }
             }
 
             if all_docs.len() >= 512 {
@@ -1442,30 +1455,34 @@ pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
 // Embedder factory (for HybridSearchEngine::new)
 // ---------------------------------------------------------------------------
 
-/// Build an embedder from the embedding_backend string.
+/// Build an embedder from the configured embedding backend.
 /// Falls back to ProjectionEmbedder for unknown backends.
-/// For "ollama" and "openai" backends, reads config from environment variables.
 #[cfg(feature = "vector")]
-fn build_embedder_for_backend(backend: &str) -> Arc<dyn engram_ml::Embedder> {
-    match backend {
+fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::Embedder> {
+    match cfg.embedding_backend.as_str() {
         "openai" | "remote" => {
-            let api_key = std::env::var("OPENAI_API_KEY")
-                .or_else(|_| std::env::var("ENGRAM_OPENAI_API_KEY"))
-                .unwrap_or_default();
-            let api_base = std::env::var("OPENAI_API_BASE")
-                .unwrap_or_else(|_| "https://api.openai.com/v1".into());
-            let model = std::env::var("ENGRAM_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "text-embedding-3-small".into());
+            let api_key = cfg.openai_api_key.clone().unwrap_or_default();
+            let api_base = cfg
+                .openai_api_base
+                .clone()
+                .unwrap_or_else(|| "https://api.openai.com/v1".into());
+            let model = cfg
+                .embedding_model
+                .clone()
+                .unwrap_or_else(|| "text-embedding-3-small".into());
             Arc::new(engram_ml::embed::RemoteEmbedder::openai(
                 model, api_key, api_base, 1536,
             ))
         }
         "ollama" => {
-            let url = std::env::var("OLLAMA_URL")
-                .or_else(|_| std::env::var("ENGRAM_OLLAMA_URL"))
-                .unwrap_or_else(|_| "http://localhost:11434".into());
-            let model = std::env::var("ENGRAM_EMBEDDING_MODEL")
-                .unwrap_or_else(|_| "nomic-embed-text".into());
+            let url = cfg
+                .ollama_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:11434".into());
+            let model = cfg
+                .embedding_model
+                .clone()
+                .unwrap_or_else(|| "nomic-embed-text".into());
             Arc::new(engram_ml::embed::RemoteEmbedder::ollama(model, url, 768))
         }
         "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),

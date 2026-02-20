@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -21,6 +22,8 @@ static ADJ_OUT: TableDefinition<&str, &[u8]> = TableDefinition::new("adj_out");
 static ADJ_IN: TableDefinition<&str, &[u8]> = TableDefinition::new("adj_in");
 static META: TableDefinition<&str, &[u8]> = TableDefinition::new("meta");
 static CENTRALITY: TableDefinition<&str, &[u8]> = TableDefinition::new("centrality");
+static INSIGHT_FINGERPRINTS: TableDefinition<&str, &[u8]> =
+    TableDefinition::new("insight_fingerprints");
 
 /// Adjacency list entry (compact).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,7 +83,7 @@ impl EdgeKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "co_occurrence" => Some(EdgeKind::CoOccurrence),
             "temporal_coupling" => Some(EdgeKind::TemporalCoupling),
@@ -97,6 +100,14 @@ impl EdgeKind {
             "writes_state" => Some(EdgeKind::WritesState),
             _ => None,
         }
+    }
+}
+
+impl FromStr for EdgeKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).ok_or(())
     }
 }
 
@@ -152,6 +163,7 @@ impl GraphStore {
             let _ = wtx.open_table(ADJ_IN)?;
             let _ = wtx.open_table(META)?;
             let _ = wtx.open_table(CENTRALITY)?;
+            let _ = wtx.open_table(INSIGHT_FINGERPRINTS)?;
         }
         wtx.commit()?;
 
@@ -169,6 +181,54 @@ impl GraphStore {
                 let key = format!("{project_id}\0{}", n.node_id);
                 let val = serde_json::to_vec(n)?;
                 nt.insert(key.as_str(), val.as_slice())?;
+            }
+        }
+        wtx.commit()?;
+        Ok(())
+    }
+
+    pub fn upsert_nodes_and_edges(
+        &self,
+        project_id: &str,
+        nodes: &[Node],
+        edges: &[Edge],
+    ) -> anyhow::Result<()> {
+        if nodes.is_empty() && edges.is_empty() {
+            return Ok(());
+        }
+
+        let wtx = self.db.begin_write()?;
+        {
+            if !nodes.is_empty() {
+                let mut nt = wtx.open_table(NODES)?;
+                for n in nodes {
+                    let key = format!("{project_id}\0{}", n.node_id);
+                    let val = serde_json::to_vec(n)?;
+                    nt.insert(key.as_str(), val.as_slice())?;
+                }
+            }
+
+            if !edges.is_empty() {
+                let mut et = wtx.open_table(EDGES)?;
+                let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+                let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+
+                for e in edges {
+                    let ekey = edge_key(project_id, &e.edge_kind, &e.source_id, &e.target_id);
+                    let val = serde_json::to_vec(e)?;
+                    et.insert(ekey.as_str(), val.as_slice())?;
+
+                    let out_key = adj_key(project_id, &e.edge_kind, &e.source_id);
+                    let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
+                    upsert_adj_entry(&mut out_list, &e.target_id, e.weight, e.updated_at_ms);
+                    adj_out_t
+                        .insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+
+                    let in_key = adj_key(project_id, &e.edge_kind, &e.target_id);
+                    let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
+                    upsert_adj_entry(&mut in_list, &e.source_id, e.weight, e.updated_at_ms);
+                    adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+                }
             }
         }
         wtx.commit()?;
@@ -318,20 +378,13 @@ impl GraphStore {
         if a == b {
             return Ok(());
         }
-        self.increment_edge(
+        self.batch_increment_undirected_edges(
             project_id,
             namespace,
             language,
-            kind.clone(),
-            a,
-            b,
-            delta,
             generation,
-        )?;
-        self.increment_edge(
-            project_id, namespace, language, kind, b, a, delta, generation,
-        )?;
-        Ok(())
+            &[(kind, a.to_string(), b.to_string(), delta)],
+        )
     }
 
     /// Batch-increment multiple edges in a single write transaction.
@@ -814,7 +867,15 @@ impl GraphStore {
         }
 
         // Drain a table by prefix, committing each batch separately.
-        let tables = [ADJ_OUT, ADJ_IN, NODES, EDGES, META, CENTRALITY];
+        let tables = [
+            ADJ_OUT,
+            ADJ_IN,
+            NODES,
+            EDGES,
+            META,
+            CENTRALITY,
+            INSIGHT_FINGERPRINTS,
+        ];
         for tdef in tables {
             loop {
                 let batch = collect_batch(&self.db, tdef, &prefix, BATCH_SIZE)?;
@@ -894,6 +955,20 @@ impl GraphStore {
             });
         }
         self.upsert_edges(project_id, &edges)?;
+        if let Some(fp) = cluster_fingerprint.filter(|fp| !fp.is_empty()) {
+            self.set_insight_fingerprint(project_id, &fp)?;
+        }
+        Ok(())
+    }
+
+    fn set_insight_fingerprint(&self, project_id: &str, fingerprint: &str) -> anyhow::Result<()> {
+        let wtx = self.db.begin_write()?;
+        {
+            let mut t = wtx.open_table(INSIGHT_FINGERPRINTS)?;
+            let k = format!("{project_id}\0{fingerprint}");
+            t.insert(k.as_str(), b"1" as &[u8])?;
+        }
+        wtx.commit()?;
         Ok(())
     }
 
@@ -917,6 +992,16 @@ impl GraphStore {
         project_id: &str,
         fingerprint: &str,
     ) -> anyhow::Result<bool> {
+        let key = format!("{project_id}\0{fingerprint}");
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(INSIGHT_FINGERPRINTS)?;
+        if t.get(key.as_str())?.is_some() {
+            return Ok(true);
+        }
+        drop(t);
+        drop(rtx);
+
+        // Backward-compat fallback for pre-index-table data; hydrate on hit.
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
         let nt = rtx.open_table(NODES)?;
@@ -931,6 +1016,7 @@ impl GraphStore {
                 && let Some(fp) = meta.get("cluster_fingerprint").and_then(|v| v.as_str())
                 && fp == fingerprint
             {
+                self.set_insight_fingerprint(project_id, fingerprint)?;
                 return Ok(true);
             }
         }
@@ -1041,7 +1127,7 @@ impl GraphStore {
                         let source_id = parts[2];
                         let target_id = parts[3];
 
-                        if let Some(ek) = EdgeKind::from_str(kind_str) {
+                        if let Some(ek) = EdgeKind::parse(kind_str) {
                             // Remove from ADJ_OUT[source] → target (cached)
                             let out_key = adj_key(project_id, &ek, source_id);
                             let out_list = match adj_out_cache.entry(out_key.clone()) {

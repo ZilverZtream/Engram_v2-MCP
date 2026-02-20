@@ -101,12 +101,9 @@ async fn load_project_runtime(
     std::fs::create_dir_all(&tantivy_dir).ok();
     std::fs::create_dir_all(&lancedb_dir).ok();
 
-    let search = engram_index::HybridSearchEngine::new(
-        tantivy_dir.clone(),
-        lancedb_dir.clone(),
-        state.cfg.embedding_backend.clone(),
-    )
-    .await?;
+    let search =
+        engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir.clone(), &state.cfg)
+            .await?;
     let ps = crate::state::ProjectState {
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),
@@ -147,6 +144,7 @@ pub async fn record_cooccurrence(
 
     // Ensure chunk + file nodes exist.
     let mut nodes: Vec<Node> = Vec::new();
+    let mut dep_pairs: Vec<(EdgeKind, String, String, u32)> = Vec::new();
     for item in &h {
         let language = engram_core::guess_language(std::path::Path::new(item.path.as_str()));
         let chunk_node_id = format!("pk:{}", item.pk);
@@ -182,35 +180,36 @@ pub async fn record_cooccurrence(
 
         let file_node_id = format!("file:{}", item.path);
         // Link file <-> chunk (static edge, so weight doesn't matter much).
-        state.graph.increment_undirected_edge(
-            project_id,
-            engram_core::namespaces::NAMESPACE_MEMORY,
-            language,
-            EdgeKind::Dependency,
-            &file_node_id,
-            &chunk_node_id,
-            1,
-            active_gen,
-        )?;
+        dep_pairs.push((EdgeKind::Dependency, file_node_id, chunk_node_id, 1));
     }
     state.graph.upsert_nodes(project_id, &nodes)?;
+    if !dep_pairs.is_empty() {
+        state.graph.batch_increment_undirected_edges(
+            project_id,
+            engram_core::namespaces::NAMESPACE_MEMORY,
+            "text",
+            active_gen,
+            &dep_pairs,
+        )?;
+    }
 
     // Update co-occurrence weights for all pairs.
+    let mut co_pairs: Vec<(EdgeKind, String, String, u32)> = Vec::new();
     for i in 0..h.len() {
         for j in (i + 1)..h.len() {
             let a = format!("pk:{}", h[i].pk);
             let b = format!("pk:{}", h[j].pk);
-            state.graph.increment_undirected_edge(
-                project_id,
-                engram_core::namespaces::NAMESPACE_MEMORY,
-                "text", // Co-occurrence is cross-language/generic
-                EdgeKind::CoOccurrence,
-                &a,
-                &b,
-                1,
-                active_gen,
-            )?;
+            co_pairs.push((EdgeKind::CoOccurrence, a, b, 1));
         }
+    }
+    if !co_pairs.is_empty() {
+        state.graph.batch_increment_undirected_edges(
+            project_id,
+            engram_core::namespaces::NAMESPACE_MEMORY,
+            "text",
+            active_gen,
+            &co_pairs,
+        )?;
     }
 
     Ok(())

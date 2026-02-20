@@ -154,6 +154,7 @@ pub struct OllamaEmbedder {
     pub model: String,
     pub url: String,
     pub dim: usize,
+    client: reqwest::Client,
 }
 
 impl OllamaEmbedder {
@@ -162,10 +163,16 @@ impl OllamaEmbedder {
     /// Use `dim = 0` to auto-detect on first call (not yet implemented;
     /// caller should know the model's dimension).
     pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         Self {
             model: model.into(),
             url: url.into().trim_end_matches('/').to_string(),
             dim,
+            client,
         }
     }
 }
@@ -177,22 +184,18 @@ impl Embedder for OllamaEmbedder {
     }
 
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
-        embed_via_ollama(&self.url, &self.model, text, self.dim).await
+        embed_via_ollama(&self.client, &self.url, &self.model, text, self.dim).await
     }
 }
 
 /// Shared HTTP helper for Ollama /api/embed with exponential-backoff retry.
 async fn embed_via_ollama(
+    client: &reqwest::Client,
     base_url: &str,
     model: &str,
     text: &str,
     expected_dim: usize,
 ) -> anyhow::Result<Embedding> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .connect_timeout(std::time::Duration::from_secs(10))
-        .build()?;
-
     let url = format!("{base_url}/api/embed");
     let body = serde_json::json!({
         "model": model,
@@ -253,6 +256,7 @@ pub struct OpenAIEmbedder {
     pub api_key: String,
     pub api_base: String,
     pub dim: usize,
+    client: reqwest::Client,
 }
 
 impl OpenAIEmbedder {
@@ -262,11 +266,17 @@ impl OpenAIEmbedder {
         api_base: impl Into<String>,
         dim: usize,
     ) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
         Self {
             model: model.into(),
             api_key: api_key.into(),
             api_base: api_base.into().trim_end_matches('/').to_string(),
             dim,
+            client,
         }
     }
 }
@@ -278,23 +288,27 @@ impl Embedder for OpenAIEmbedder {
     }
 
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
-        embed_via_openai(&self.api_base, &self.api_key, &self.model, text, self.dim).await
+        embed_via_openai(
+            &self.client,
+            &self.api_base,
+            &self.api_key,
+            &self.model,
+            text,
+            self.dim,
+        )
+        .await
     }
 }
 
 /// Shared HTTP helper for OpenAI /embeddings with exponential-backoff retry.
 async fn embed_via_openai(
+    client: &reqwest::Client,
     api_base: &str,
     api_key: &str,
     model: &str,
     text: &str,
     expected_dim: usize,
 ) -> anyhow::Result<Embedding> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .connect_timeout(std::time::Duration::from_secs(10))
-        .build()?;
-
     let url = format!("{api_base}/embeddings");
     let body = serde_json::json!({
         "model": model,
@@ -433,10 +447,7 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             Ok(Box::new(OllamaEmbedder::new(model, url, dim)))
         }
         "openai" => {
-            let api_key = cfg
-                .openai_api_key
-                .clone()
-                .unwrap_or_default();
+            let api_key = cfg.openai_api_key.clone().unwrap_or_default();
             if api_key.is_empty() {
                 anyhow::bail!(
                     "embedding_backend=openai requires openai_api_key to be set in config"

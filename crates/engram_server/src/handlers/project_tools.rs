@@ -139,7 +139,7 @@ impl Engram {
             let search_init = engram_index::HybridSearchEngine::new(
                 tantivy_dir,
                 lancedb_dir,
-                state_for_spawn.cfg.embedding_backend.clone(),
+                &state_for_spawn.cfg,
             )
             .await;
 
@@ -391,7 +391,7 @@ impl Engram {
                     let search = engram_index::HybridSearchEngine::new(
                         tantivy_dir.clone(),
                         lancedb_dir.clone(),
-                        state.cfg.embedding_backend.clone(),
+                        &state.cfg,
                     )
                     .await?;
                     let rec = state
