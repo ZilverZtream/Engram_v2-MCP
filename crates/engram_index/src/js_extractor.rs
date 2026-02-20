@@ -157,10 +157,7 @@ fn split_service_url(raw_url: &str) -> (String, Option<String>) {
 /// captures functions, classes, imports, and call edges). The JS extractor
 /// focuses exclusively on cross-boundary edges that tree-sitter cannot detect:
 /// jQuery control selectors, `__doPostBack`, and AJAX service calls.
-pub fn extract_js(
-    path: &Path,
-    source: &str,
-) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let mut edges = Vec::new();
     let syms = Vec::new(); // JS extractor only produces edges, not symbols
 
@@ -247,9 +244,10 @@ fn extract_jquery_selectors(
             target_kind: Some("control".into()),
             target_start_line: None,
             kind: "manipulates_dom".into(),
-            metadata: Some(HashMap::from([
-                ("selector_type".into(), "jquery_ends_with".into()),
-            ])),
+            metadata: Some(HashMap::from([(
+                "selector_type".into(),
+                "jquery_ends_with".into(),
+            )])),
         });
     }
 }
@@ -288,9 +286,10 @@ fn extract_asp_client_ids(
             target_kind: Some("control".into()),
             target_start_line: None,
             kind: "manipulates_dom".into(),
-            metadata: Some(HashMap::from([
-                ("selector_type".into(), "asp_client_id".into()),
-            ])),
+            metadata: Some(HashMap::from([(
+                "selector_type".into(),
+                "asp_client_id".into(),
+            )])),
         });
     }
 }
@@ -331,9 +330,7 @@ fn extract_postbacks(
             target_kind: Some("control".into()),
             target_start_line: None,
             kind: "triggers_postback".into(),
-            metadata: Some(HashMap::from([
-                ("unique_id".into(), ctrl_id.to_string()),
-            ])),
+            metadata: Some(HashMap::from([("unique_id".into(), ctrl_id.to_string())])),
         });
     }
 }
@@ -370,9 +367,10 @@ fn extract_getelementbyid(
             target_kind: Some("control".into()),
             target_start_line: None,
             kind: "manipulates_dom".into(),
-            metadata: Some(HashMap::from([
-                ("selector_type".into(), "getelementbyid".into()),
-            ])),
+            metadata: Some(HashMap::from([(
+                "selector_type".into(),
+                "getelementbyid".into(),
+            )])),
         });
     }
 }
@@ -613,7 +611,10 @@ mod tests {
         assert_eq!(edges[0].kind, "manipulates_dom");
         assert_eq!(edges[0].source_language, "javascript");
         let meta = edges[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("selector_type").map(|s| s.as_str()), Some("jquery_ends_with"));
+        assert_eq!(
+            meta.get("selector_type").map(|s| s.as_str()),
+            Some("jquery_ends_with")
+        );
     }
 
     #[test]
@@ -643,7 +644,10 @@ mod tests {
         assert_eq!(edges[0].target_name, "txtFirstName");
         assert_eq!(edges[0].kind, "manipulates_dom");
         let meta = edges[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("selector_type").map(|s| s.as_str()), Some("asp_client_id"));
+        assert_eq!(
+            meta.get("selector_type").map(|s| s.as_str()),
+            Some("asp_client_id")
+        );
     }
 
     // ── Feature 3: __doPostBack ─────────────────────────────────────────
@@ -827,8 +831,7 @@ mod tests {
 
     #[test]
     fn split_url_with_query_string() {
-        let (path, method) =
-            split_service_url("Services/Data.asmx/GetRows?filter=active&page=1");
+        let (path, method) = split_service_url("Services/Data.asmx/GetRows?filter=active&page=1");
         assert_eq!(path, "Services/Data.asmx");
         assert_eq!(method.as_deref(), Some("GetRows"));
     }
@@ -901,19 +904,26 @@ mod tests {
         // Search.asmx (api_call), FormatResults (api_call)
         assert_eq!(edges.len(), 4);
 
-        let dom_edges: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        let dom_edges: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
         assert_eq!(dom_edges.len(), 1);
         assert_eq!(dom_edges[0].target_name, "gvResults");
 
-        let postback_edges: Vec<_> =
-            edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        let postback_edges: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "triggers_postback")
+            .collect();
         assert_eq!(postback_edges.len(), 1);
         assert_eq!(postback_edges[0].target_name, "btnSearch");
 
         let api_edges: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         assert_eq!(api_edges.len(), 2);
 
-        let asmx_edge = api_edges.iter().find(|e| e.target_name == "Services/Search.asmx");
+        let asmx_edge = api_edges
+            .iter()
+            .find(|e| e.target_name == "Services/Search.asmx");
         assert!(asmx_edge.is_some());
 
         let pm_edge = api_edges.iter().find(|e| e.target_name == "FormatResults");

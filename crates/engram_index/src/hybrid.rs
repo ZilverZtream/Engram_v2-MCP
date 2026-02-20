@@ -742,8 +742,7 @@ impl HybridSearchEngine {
 
                         // Post-processing: extract JS→ASP.NET bridge edges (.js files).
                         if matches!(language, "javascript") {
-                            let (_js_syms, js_edges) =
-                                crate::js_extractor::extract_js(p, &text);
+                            let (_js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
                             for e in js_edges {
                                 local_stats.edges.push((rel_path.clone(), e));
                             }

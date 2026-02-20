@@ -408,6 +408,20 @@ pub struct AntiPatternGuardRequest {
     pub limit: usize,
 }
 
+// -------------------- Migration slicer --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateMigrationBlueprintRequest {
+    pub project_id: String,
+    /// The node ID of the entry point (e.g. a file node like "file:Map.aspx",
+    /// or a symbol like "sym:class:MapPage"). Partial matches are attempted
+    /// if an exact node is not found.
+    pub entry_node: String,
+    /// Maximum BFS depth from the entry node (default 3, max 5).
+    #[serde(default = "default_max_depth_3")]
+    pub max_depth: u8,
+}
+
 // -------------------- Jobs --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -512,6 +526,12 @@ impl ImmuneCheckRequest {
 impl AntiPatternGuardRequest {
     pub fn sanitized_limit(&self) -> usize {
         self.limit.clamp(1, MAX_IMMUNE_TOP_K)
+    }
+}
+
+impl GenerateMigrationBlueprintRequest {
+    pub fn sanitized_max_depth(&self) -> usize {
+        (self.max_depth as usize).clamp(1, 5)
     }
 }
 
