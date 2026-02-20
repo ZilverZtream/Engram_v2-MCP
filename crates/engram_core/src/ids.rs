@@ -85,6 +85,11 @@ impl NodeId {
         Self(format!("state:{}:{}", state_type, key))
     }
 
+    /// Canonical ID for a data-binding field node (Eval/Bind expression target).
+    pub fn binding_field(field_name: &str) -> Self {
+        Self(format!("binding_field:{}", field_name))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }

@@ -253,6 +253,12 @@ impl Engram {
                     msg = format!("Graph processing failed: {}", e);
                     progress = 0;
                 } else {
+                    let _ = crate::services::graph_service::resolve_app_code_globals(
+                        &engram.state.graph, &pid, 1,
+                    );
+                    let _ = crate::services::graph_service::link_binding_fields_to_columns(
+                        &engram.state.graph, &pid, 1,
+                    );
                     let _ = engram.state.graph.resolve_symbol_edges(&pid);
 
                     let report = engram.generate_indexing_report(stats);
@@ -493,6 +499,12 @@ impl Engram {
                     return Err(anyhow::anyhow!("Graph processing failed: {}", e));
                 }
 
+                let _ = crate::services::graph_service::resolve_app_code_globals(
+                    &engram.state.graph, &project_id_for_job, new_gen,
+                );
+                let _ = crate::services::graph_service::link_binding_fields_to_columns(
+                    &engram.state.graph, &project_id_for_job, new_gen,
+                );
                 let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
 
                 let reg_for_git = state.registry.clone();

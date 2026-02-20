@@ -62,9 +62,32 @@ pub enum EdgeKind {
     ReadsState,
     /// Function/Page writes a global state key (Session, ViewState, etc.).
     WritesState,
+    /// Markup data-binding expression referencing a model/schema field (Eval, Bind).
+    DataBinding,
+    /// WebForms <%@ Register %> directive: parent page → child user control (.ascx).
+    RegistersControl,
 }
 
 impl EdgeKind {
+    /// All known edge kinds. Keep in sync with the enum variants.
+    pub const ALL: &'static [EdgeKind] = &[
+        EdgeKind::CoOccurrence,
+        EdgeKind::TemporalCoupling,
+        EdgeKind::Insight,
+        EdgeKind::Dependency,
+        EdgeKind::AntiPattern,
+        EdgeKind::Contains,
+        EdgeKind::Imports,
+        EdgeKind::SqlCalls,
+        EdgeKind::HasColumn,
+        EdgeKind::ForeignKey,
+        EdgeKind::QueriesTable,
+        EdgeKind::ReadsState,
+        EdgeKind::WritesState,
+        EdgeKind::DataBinding,
+        EdgeKind::RegistersControl,
+    ];
+
     pub fn as_str(&self) -> &'static str {
         match self {
             EdgeKind::CoOccurrence => "co_occurrence",
@@ -80,6 +103,8 @@ impl EdgeKind {
             EdgeKind::QueriesTable => "queries_table",
             EdgeKind::ReadsState => "reads_state",
             EdgeKind::WritesState => "writes_state",
+            EdgeKind::DataBinding => "data_binding",
+            EdgeKind::RegistersControl => "registers_control",
         }
     }
 
@@ -98,6 +123,8 @@ impl EdgeKind {
             "queries_table" => Some(EdgeKind::QueriesTable),
             "reads_state" => Some(EdgeKind::ReadsState),
             "writes_state" => Some(EdgeKind::WritesState),
+            "data_binding" => Some(EdgeKind::DataBinding),
+            "registers_control" => Some(EdgeKind::RegistersControl),
             _ => None,
         }
     }
@@ -592,21 +619,7 @@ impl GraphStore {
             }
         } else {
             // All edge kinds
-            for ek in &[
-                EdgeKind::CoOccurrence,
-                EdgeKind::TemporalCoupling,
-                EdgeKind::Insight,
-                EdgeKind::Dependency,
-                EdgeKind::AntiPattern,
-                EdgeKind::Contains,
-                EdgeKind::Imports,
-                EdgeKind::SqlCalls,
-                EdgeKind::HasColumn,
-                EdgeKind::ForeignKey,
-                EdgeKind::QueriesTable,
-                EdgeKind::ReadsState,
-                EdgeKind::WritesState,
-            ] {
+            for ek in EdgeKind::ALL {
                 let key = adj_key(project_id, ek, target_id);
                 let list = read_adj_list_ro(&adj, &key)?;
                 for e in list {
@@ -1364,22 +1377,7 @@ impl GraphStore {
                     }
                 } else {
                     // If no kinds specified for outgoing, iterate all known EdgeKinds.
-                    let all_kinds = vec![
-                        EdgeKind::Dependency,
-                        EdgeKind::Contains,
-                        EdgeKind::Imports,
-                        EdgeKind::Insight,
-                        EdgeKind::TemporalCoupling,
-                        EdgeKind::CoOccurrence,
-                        EdgeKind::AntiPattern,
-                        EdgeKind::SqlCalls,
-                        EdgeKind::HasColumn,
-                        EdgeKind::ForeignKey,
-                        EdgeKind::QueriesTable,
-                        EdgeKind::ReadsState,
-                        EdgeKind::WritesState,
-                    ];
-                    for k in all_kinds {
+                    for k in EdgeKind::ALL.iter().cloned() {
                         let out = self.neighbors(project_id, k, &curr_id, 100)?;
                         neighbors.extend(out.into_iter().map(|(id, _)| id));
                     }
