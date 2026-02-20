@@ -13,10 +13,11 @@ async fn test_generation_semantics_enforcement() {
     let tantivy_dir = tmp_path.join("tantivy");
     let lancedb_dir = tmp_path.join("lancedb");
 
+    let cfg = engram_core::Config::default();
     let engine = HybridSearchEngine::new(
         tantivy_dir,
         lancedb_dir,
-        "fts_only".to_string(), // Keep it simple
+        &cfg,
     )
     .await
     .unwrap();

@@ -335,6 +335,8 @@ pub async fn process_ingest_stats(
             edge.target_name.clone()
         } else if edge.target_name.starts_with("state:") {
             edge.target_name.clone()
+        } else if edge.target_name.starts_with("binding_field:") {
+            edge.target_name.clone()
         } else if edge.target_name.starts_with("column:") {
             edge.target_name.clone()
         } else if edge.target_kind.as_deref() == Some("db_table") {
@@ -394,6 +396,29 @@ pub async fn process_ingest_stats(
             });
         }
 
+        // Virtual nodes for binding_field targets (Eval/Bind expressions)
+        if target_id.starts_with("binding_field:")
+            && seen_virtual_node_ids.insert(target_id.clone())
+        {
+            let field_name = target_id
+                .strip_prefix("binding_field:")
+                .unwrap_or(&target_id);
+            nodes.push(engram_graph::Node {
+                node_id: target_id.clone(),
+                node_type: "binding_field".into(),
+                name: field_name.to_string(),
+                namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                language: "text".into(),
+                file_path: rel_path.clone(),
+                start_line: 0,
+                end_line: 0,
+                generation,
+                metadata: Some(serde_json::json!({
+                    "field_name": field_name,
+                })),
+            });
+        }
+
         // Virtual nodes for global state targets
         if target_id.starts_with("state:") && seen_virtual_node_ids.insert(target_id.clone()) {
             let parts: Vec<&str> = target_id.splitn(3, ':').collect();
@@ -429,6 +454,8 @@ pub async fn process_ingest_stats(
             "queries_table" => engram_graph::EdgeKind::QueriesTable,
             "reads_state" => engram_graph::EdgeKind::ReadsState,
             "writes_state" => engram_graph::EdgeKind::WritesState,
+            "data_binding" => engram_graph::EdgeKind::DataBinding,
+            "registers_control" => engram_graph::EdgeKind::RegistersControl,
             _ => engram_graph::EdgeKind::Dependency,
         };
 

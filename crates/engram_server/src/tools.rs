@@ -174,6 +174,17 @@ impl Engram {
                 .await
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+            // Post-ingest graph enrichment passes
+            {
+                let graph = self.state.graph.clone();
+                let pid = project_id.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    let _ = graph_service::resolve_app_code_globals(&graph, &pid, 1);
+                    let _ = graph_service::link_binding_fields_to_columns(&graph, &pid, 1);
+                })
+                .await;
+            }
+
             // Link unresolved edges
             let graph = self.state.graph.clone();
             let pid = project_id.clone();
@@ -371,6 +382,52 @@ impl Engram {
                 }
                 Err(e) => {
                     tracing::warn!("link_sql_to_schema task panicked for {project_id}: {e}");
+                }
+            }
+        }
+
+        // Resolve App_Code global FQN references (legacy WebForms).
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let result: Result<anyhow::Result<usize>, _> =
+                tokio::task::spawn_blocking(move || {
+                    graph_service::resolve_app_code_globals(&graph, &pid, generation)
+                })
+                .await;
+            match result {
+                Ok(Ok(_count)) => {}
+                Ok(Err(e)) => {
+                    tracing::warn!("resolve_app_code_globals for {project_id}: {e}");
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "resolve_app_code_globals task panicked for {project_id}: {e}"
+                    );
+                }
+            }
+        }
+
+        // Link binding_field nodes to db_column nodes.
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let result: Result<anyhow::Result<usize>, _> =
+                tokio::task::spawn_blocking(move || {
+                    graph_service::link_binding_fields_to_columns(&graph, &pid, generation)
+                })
+                .await;
+            match result {
+                Ok(Ok(_count)) => {}
+                Ok(Err(e)) => {
+                    tracing::warn!("link_binding_fields_to_columns for {project_id}: {e}");
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "link_binding_fields_to_columns task panicked for {project_id}: {e}"
+                    );
                 }
             }
         }
@@ -1272,7 +1329,7 @@ impl Engram {
 
         let kinds = req.edge_kinds.as_ref().map(|v| {
             v.iter()
-                .filter_map(|s| EdgeKind::from_str(s.as_str()))
+                .filter_map(|s| EdgeKind::parse(s.as_str()))
                 .collect::<Vec<_>>()
         });
 
@@ -1539,7 +1596,7 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
         // Map filters
-        let include_path_prefixes = req.file_filter.map(|f| vec![f]);
+        let include_path_prefixes = req.file_filter.clone().map(|f| vec![f]);
 
         let hits = ps
             .search
