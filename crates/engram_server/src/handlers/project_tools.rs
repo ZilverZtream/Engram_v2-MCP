@@ -94,7 +94,10 @@ impl Engram {
             move || reg.put_job(&job)
         })
         .await
-        .ok();
+        .map_err(|e| McpError::internal_error(format!("failed to persist job: {e}"), None))?
+        .map_err(|e| {
+            McpError::internal_error(format!("failed to persist job record: {e}"), None)
+        })?;
 
         let reg2 = self.state.registry.clone();
         let projects_cache = self.state.projects.clone();
@@ -166,7 +169,11 @@ impl Engram {
                                     2000,
                                     &token,
                                     move |curr, total| {
-                                        let pct = ((curr as f32 / total as f32) * 100.0) as u8;
+                                        let pct = if total == 0 {
+                                            100
+                                        } else {
+                                            ((curr as f32 / total as f32) * 100.0) as u8
+                                        };
                                         let prev =
                                             last_pct.load(std::sync::atomic::Ordering::Relaxed);
                                         if pct.saturating_sub(prev) < 5 && curr != total {
@@ -198,7 +205,11 @@ impl Engram {
                                 2000,
                                 &token,
                                 move |curr, total| {
-                                    let pct = ((curr as f32 / total as f32) * 100.0) as u8;
+                                    let pct = if total == 0 {
+                                        100
+                                    } else {
+                                        ((curr as f32 / total as f32) * 100.0) as u8
+                                    };
                                     let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
                                     if pct.saturating_sub(prev) < 5 && curr != total {
                                         return;
@@ -271,7 +282,7 @@ impl Engram {
                 message: msg,
                 progress_pct: progress,
                 estimated_time_remaining_ms: None,
-                created_at_ms: now,
+                created_at_ms: job.created_at_ms,
                 updated_at_ms: now,
             };
             let reg_final = reg2.clone();
@@ -324,7 +335,10 @@ impl Engram {
             move || reg.put_job(&jr)
         })
         .await
-        .ok();
+        .map_err(|e| McpError::internal_error(format!("failed to persist job: {e}"), None))?
+        .map_err(|e| {
+            McpError::internal_error(format!("failed to persist job record: {e}"), None)
+        })?;
 
         let state = self.state.clone();
         let job_id_for_job = job_id.clone();
@@ -372,9 +386,11 @@ impl Engram {
                         .join(&project_id_for_job);
                     let tantivy_dir = project_root.join("tantivy");
                     let lancedb_dir = project_root.join("lancedb");
+                    tokio::fs::create_dir_all(&tantivy_dir).await?;
+                    tokio::fs::create_dir_all(&lancedb_dir).await?;
                     let search = engram_index::HybridSearchEngine::new(
-                        tantivy_dir,
-                        lancedb_dir,
+                        tantivy_dir.clone(),
+                        lancedb_dir.clone(),
                         state.cfg.embedding_backend.clone(),
                     )
                     .await?;
@@ -388,8 +404,8 @@ impl Engram {
                             project_name: rec.project_name,
                             project_type: rec.project_type,
                             directory: rec.directory,
-                            tantivy_dir: PathBuf::new(),
-                            lancedb_dir: PathBuf::new(),
+                            tantivy_dir,
+                            lancedb_dir,
                         },
                         search: std::sync::Arc::new(search),
                     }
@@ -432,7 +448,11 @@ impl Engram {
                         2000,
                         &token,
                         move |curr, total| {
-                            let pct = ((curr as f32 / total as f32) * 100.0) as u8;
+                            let pct = if total == 0 {
+                                100
+                            } else {
+                                ((curr as f32 / total as f32) * 100.0) as u8
+                            };
                             let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
                             if pct.saturating_sub(prev) < 5 && curr != total {
                                 return;
@@ -470,7 +490,7 @@ impl Engram {
                         }
                     })
                     .await;
-                    return Ok(());
+                    return Err(anyhow::anyhow!("Graph processing failed: {}", e));
                 }
 
                 let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
@@ -528,7 +548,7 @@ impl Engram {
                 message: msg,
                 progress_pct: progress,
                 estimated_time_remaining_ms: None,
-                created_at_ms: now,
+                created_at_ms: jr.created_at_ms,
                 updated_at_ms: now,
             };
             let reg_final = state.registry.clone();
