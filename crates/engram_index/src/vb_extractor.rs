@@ -27,6 +27,14 @@ const VB_QUERY_SRC: &str = include_str!("../queries/vb.scm");
 /// Maximum source size we'll attempt tree-sitter parsing on (10 MiB).
 const MAX_TREE_SITTER_SOURCE_BYTES: usize = 10 * 1024 * 1024;
 
+/// Maximum source size we'll allow for whole-buffer regex fallback.
+///
+/// Regex fallback runs multiple multi-line patterns over the full source. Even with
+/// Rust's linear-time regex engine, this can create severe CPU pressure on very
+/// large files. Above this limit we fail closed (skip extraction) to keep indexing
+/// latency and memory bounded.
+const MAX_REGEX_FALLBACK_SOURCE_BYTES: usize = 2 * 1024 * 1024;
+
 /// Maximum SQL snippet length stored in metadata.
 const SQL_SNIPPET_MAX_LEN: usize = 200;
 
@@ -1113,9 +1121,18 @@ impl LineIndex {
 }
 
 fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-    let _ = path;
     let mut symbols = Vec::new();
     let mut edges = Vec::new();
+
+    if source.len() > MAX_REGEX_FALLBACK_SOURCE_BYTES {
+        tracing::warn!(
+            "regex fallback skipped for {} ({} bytes > {} byte limit)",
+            path.display(),
+            source.len(),
+            MAX_REGEX_FALLBACK_SOURCE_BYTES,
+        );
+        return (symbols, edges);
+    }
 
     let Some(ns_re) = get_compiled_regex(
         &REGEX_NS_RE,
@@ -1283,6 +1300,22 @@ End Namespace
             gen_sym.metadata.as_ref().unwrap()["fqn"],
             "MyOrg.Reports.OrderReport.GenerateReport"
         );
+    }
+
+    #[test]
+    fn test_regex_fallback_hard_limit_skips_extraction() {
+        let mut code = String::with_capacity(MAX_TREE_SITTER_SOURCE_BYTES + 256);
+        code.push_str("Namespace N\n");
+        code.push_str("Public Class C\n");
+        code.push_str("Public Sub M()\nEnd Sub\n");
+        code.push_str("End Class\nEnd Namespace\n");
+        while code.len() <= MAX_TREE_SITTER_SOURCE_BYTES {
+            code.push_str("' pad to force fallback\n");
+        }
+
+        let (symbols, edges) = extract_vb(Path::new("Huge.vb"), &code);
+        assert!(symbols.is_empty());
+        assert!(edges.is_empty());
     }
 
     #[test]
