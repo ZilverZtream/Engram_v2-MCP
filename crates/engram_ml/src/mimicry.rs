@@ -4,6 +4,23 @@ use std::sync::OnceLock;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StyleGuide {
     pub bullets: Vec<String>,
@@ -203,11 +220,7 @@ impl StyleMimicryEngine {
             out.push("Prefer private-by-default visibility for internal logic.".into());
         }
 
-        if out.is_empty() {
-            None
-        } else {
-            Some((out, 1))
-        }
+        if out.is_empty() { None } else { Some((out, 1)) }
     }
 
     fn analyze_python(&self, text: &str) -> Option<(Vec<String>, usize)> {
@@ -258,11 +271,7 @@ impl StyleMimicryEngine {
             );
         }
 
-        if out.is_empty() {
-            None
-        } else {
-            Some((out, 1))
-        }
+        if out.is_empty() { None } else { Some((out, 1)) }
     }
 }
 
@@ -299,13 +308,22 @@ fn detect_naming(text: &str) -> Option<String> {
     static CAMEL_RE: OnceLock<Regex> = OnceLock::new();
     static PASCAL_RE: OnceLock<Regex> = OnceLock::new();
 
-    let snake =
-        SNAKE_RE.get_or_init(|| Regex::new(r"\b[a-z]+_[a-z0-9_]+\b").expect("Invalid snake regex"));
-    let camel = CAMEL_RE
-        .get_or_init(|| Regex::new(r"\b[a-z]+[A-Z][A-Za-z0-9]*\b").expect("Invalid camel regex"));
-    let pascal = PASCAL_RE.get_or_init(|| {
-        Regex::new(r"\b[A-Z][a-z0-9]+[A-Za-z0-9]*\b").expect("Invalid pascal regex")
-    });
+    let Some(snake) = get_compiled_regex(&SNAKE_RE, r"\b[a-z]+_[a-z0-9_]+\b", "mimicry_snake")
+    else {
+        return None;
+    };
+    let Some(camel) =
+        get_compiled_regex(&CAMEL_RE, r"\b[a-z]+[A-Z][A-Za-z0-9]*\b", "mimicry_camel")
+    else {
+        return None;
+    };
+    let Some(pascal) = get_compiled_regex(
+        &PASCAL_RE,
+        r"\b[A-Z][a-z0-9]+[A-Za-z0-9]*\b",
+        "mimicry_pascal",
+    ) else {
+        return None;
+    };
 
     let mut s = 0usize;
     let mut c = 0usize;
