@@ -7,8 +7,8 @@ pub mod mimicry;
 
 pub use dreaming::{DreamInsight, DreamingEngine};
 pub use embed::{
-    build_embedder, Embedder, Embedding, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder,
-    ProjectionEmbedder, RemoteEmbedder,
+    Embedder, Embedding, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder,
+    RemoteEmbedder, build_embedder,
 };
 pub use immune::{ImmuneDecision, ImmuneEngine};
 pub use mimicry::{StyleGuide, StyleMimicryEngine};

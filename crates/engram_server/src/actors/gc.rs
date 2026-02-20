@@ -82,12 +82,8 @@ async fn load_project_runtime_minimal(
         .join("lancedb");
 
     // Minimal load: we don't ensure dirs exist if we are just purging (though they should)
-    let search = engram_index::HybridSearchEngine::new(
-        tantivy_dir,
-        lancedb_dir,
-        state.cfg.embedding_backend.clone(),
-    )
-    .await?;
+    let search =
+        engram_index::HybridSearchEngine::new(tantivy_dir, lancedb_dir, &state.cfg).await?;
     let ps = crate::state::ProjectState {
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),

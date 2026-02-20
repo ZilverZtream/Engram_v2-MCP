@@ -1,5 +1,6 @@
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 fn get_compiled_regex<'a>(
@@ -56,6 +57,10 @@ SUMMARY:
 <markdown bullets>
 TERMS: <comma-separated terms>
 "#;
+
+const MAX_SNIPPETS_FOR_CLUSTER_SUMMARY: usize = 24;
+const MAX_SNIPPET_CHARS: usize = 8_000;
+const MAX_CONTEXT_BYTES_FOR_INSIGHT: usize = 16_000;
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -138,7 +143,8 @@ pub struct DreamingEngine {
 /// Inner handle so the engine is Clone/Default even when holding the config.
 #[derive(Clone)]
 struct LlmBackendHandle {
-    backend: std::sync::Arc<LlmBackend>,
+    backend: Arc<LlmBackend>,
+    client: reqwest::Client,
 }
 
 impl DreamingEngine {
@@ -152,7 +158,12 @@ impl DreamingEngine {
         let llm = match &backend {
             LlmBackend::None => None,
             _ => Some(LlmBackendHandle {
-                backend: std::sync::Arc::new(backend),
+                backend: Arc::new(backend),
+                client: reqwest::Client::builder()
+                    .timeout(Duration::from_secs(120))
+                    .connect_timeout(Duration::from_secs(10))
+                    .build()
+                    .unwrap_or_else(|_| reqwest::Client::new()),
             }),
         };
         Self { llm }
@@ -184,9 +195,17 @@ impl DreamingEngine {
         context_b: &str,
         max_wait: Duration,
     ) -> String {
+        let safe_a = truncate_for_prompt(
+            &redact_control_chars(context_a),
+            MAX_CONTEXT_BYTES_FOR_INSIGHT,
+        );
+        let safe_b = truncate_for_prompt(
+            &redact_control_chars(context_b),
+            MAX_CONTEXT_BYTES_FOR_INSIGHT,
+        );
         let prompt = INSIGHT_PROMPT
-            .replace("{context_a}", context_a)
-            .replace("{context_b}", context_b);
+            .replace("{context_a}", &safe_a)
+            .replace("{context_b}", &safe_b);
 
         match timeout(max_wait, self.call_llm(&prompt, 256)).await {
             Ok(Ok(text)) => {
@@ -216,14 +235,19 @@ impl DreamingEngine {
 
         let snippets = context_blobs
             .iter()
+            .take(MAX_SNIPPETS_FOR_CLUSTER_SUMMARY)
             .enumerate()
-            .map(|(i, b)| format!("--- Snippet {} ---\n{}", i + 1, b))
+            .map(|(i, b)| {
+                let sanitized = redact_control_chars(b);
+                let compact = truncate_for_prompt(&sanitized, MAX_SNIPPET_CHARS);
+                format!("--- Snippet {} ---\n{}", i + 1, compact)
+            })
             .collect::<Vec<_>>()
             .join("\n\n");
 
         let prompt = CLUSTER_SUMMARY_PROMPT.replace("{snippets}", &snippets);
         let raw = self
-            .call_llm_with_backend(&handle.backend, &prompt, 512)
+            .call_llm_with_backend(&handle.client, &handle.backend, &prompt, 512)
             .await?;
 
         Ok(parse_llm_cluster_response(&raw, context_blobs))
@@ -234,12 +258,13 @@ impl DreamingEngine {
         let Some(handle) = &self.llm else {
             anyhow::bail!("no LLM backend configured");
         };
-        self.call_llm_with_backend(&handle.backend, prompt, max_tokens)
+        self.call_llm_with_backend(&handle.client, &handle.backend, prompt, max_tokens)
             .await
     }
 
     async fn call_llm_with_backend(
         &self,
+        client: &reqwest::Client,
         backend: &LlmBackend,
         prompt: &str,
         max_tokens: u32,
@@ -247,28 +272,34 @@ impl DreamingEngine {
         match backend {
             LlmBackend::None => anyhow::bail!("LLM backend is None"),
             LlmBackend::Ollama { url, model } => {
-                call_ollama_generate(url, model, prompt, max_tokens).await
+                call_ollama_generate(client, url, model, prompt, max_tokens).await
             }
             LlmBackend::OpenAI {
                 api_key,
                 api_base,
                 model,
-            } => call_openai_chat(api_base, api_key, model, prompt, max_tokens).await,
+            } => call_openai_chat(client, api_base, api_key, model, prompt, max_tokens).await,
         }
     }
 
     /// Deterministic, local "dream" summarizer — always available as fallback.
     pub fn deterministic_summarize(&self, context_blobs: &[String]) -> DreamInsight {
+        if context_blobs.is_empty() {
+            return DreamInsight {
+                title: "Insight".into(),
+                summary_markdown: "No context was available to summarize.".into(),
+                key_terms: Vec::new(),
+            };
+        }
+
         static TOKEN_RE: OnceLock<Regex> = OnceLock::new();
         let Some(re) = get_compiled_regex(&TOKEN_RE, r"[A-Za-z_][A-Za-z0-9_]{2,}", "dream_token")
         else {
             return DreamInsight {
                 title: "Insight".into(),
-                summary:
+                summary_markdown:
                     "Unable to compute deterministic summary due to regex initialization failure."
                         .into(),
-                actions: Vec::new(),
-                confidence: 0.0,
                 key_terms: Vec::new(),
             };
         };
@@ -330,6 +361,23 @@ impl DreamingEngine {
     }
 }
 
+fn truncate_for_prompt(input: &str, max_chars: usize) -> String {
+    input.chars().take(max_chars).collect()
+}
+
+fn redact_control_chars(input: &str) -> String {
+    input
+        .chars()
+        .map(|c| {
+            if c == '\n' || c == '\t' || !c.is_control() {
+                c
+            } else {
+                ' '
+            }
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Parse the structured LLM cluster response
 // ---------------------------------------------------------------------------
@@ -355,11 +403,21 @@ fn parse_llm_cluster_response(raw: &str, context_blobs: &[String]) -> DreamInsig
     }
 
     let key_terms: Vec<String> = if !terms_line.is_empty() {
-        terms_line
+        let mut terms: Vec<String> = Vec::new();
+        for term in terms_line
             .split(',')
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim())
             .filter(|s| !s.is_empty())
-            .collect()
+        {
+            if terms.iter().any(|t| t.eq_ignore_ascii_case(term)) {
+                continue;
+            }
+            terms.push(term.to_string());
+            if terms.len() >= 12 {
+                break;
+            }
+        }
+        terms
     } else {
         Vec::new()
     };
@@ -375,7 +433,16 @@ fn parse_llm_cluster_response(raw: &str, context_blobs: &[String]) -> DreamInsig
         return det;
     }
 
-    let summary_markdown = summary_lines.join("\n");
+    let summary_markdown = if summary_lines.is_empty() {
+        let mut det = DreamingEngine::new().deterministic_summarize(context_blobs);
+        if !title.is_empty() {
+            det.title = title.clone();
+        }
+        det.summary_markdown
+    } else {
+        let joined = summary_lines.join("\n");
+        joined.trim().to_string()
+    };
 
     DreamInsight {
         title: if title.is_empty() {
@@ -394,15 +461,18 @@ fn parse_llm_cluster_response(raw: &str, context_blobs: &[String]) -> DreamInsig
 
 /// Call Ollama's /api/generate endpoint (non-streaming).
 async fn call_ollama_generate(
+    client: &reqwest::Client,
     base_url: &str,
     model: &str,
     prompt: &str,
     max_tokens: u32,
 ) -> anyhow::Result<String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120))
-        .connect_timeout(Duration::from_secs(10))
-        .build()?;
+    if model.trim().is_empty() {
+        anyhow::bail!("Ollama model cannot be empty");
+    }
+    if base_url.trim().is_empty() {
+        anyhow::bail!("Ollama base URL cannot be empty");
+    }
 
     let url = format!("{}/api/generate", base_url.trim_end_matches('/'));
     let body = serde_json::json!({
@@ -418,7 +488,7 @@ async fn call_ollama_generate(
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3u32 {
         if attempt > 0 {
-            let backoff = Duration::from_millis(500 * (1 << attempt));
+            let backoff = Duration::from_millis(500_u64.saturating_mul(1_u64 << attempt));
             tokio::time::sleep(backoff).await;
         }
         match client.post(&url).json(&body).send().await {
@@ -436,7 +506,13 @@ async fn call_ollama_generate(
                     .json()
                     .await
                     .map_err(|e| anyhow::anyhow!("Ollama generate JSON parse: {e}"))?;
-                let text = data["response"].as_str().unwrap_or("").to_string();
+                let text = data["response"].as_str().unwrap_or("").trim().to_string();
+                if text.is_empty() {
+                    last_err = Some(anyhow::anyhow!(
+                        "Ollama generate returned empty response payload"
+                    ));
+                    continue;
+                }
                 return Ok(text);
             }
             Err(e) => {
@@ -449,16 +525,22 @@ async fn call_ollama_generate(
 
 /// Call OpenAI's /chat/completions endpoint.
 async fn call_openai_chat(
+    client: &reqwest::Client,
     api_base: &str,
     api_key: &str,
     model: &str,
     prompt: &str,
     max_tokens: u32,
 ) -> anyhow::Result<String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(120))
-        .connect_timeout(Duration::from_secs(10))
-        .build()?;
+    if api_key.trim().is_empty() {
+        anyhow::bail!("OpenAI API key cannot be empty when llm_backend=openai");
+    }
+    if model.trim().is_empty() {
+        anyhow::bail!("OpenAI model cannot be empty");
+    }
+    if api_base.trim().is_empty() {
+        anyhow::bail!("OpenAI API base URL cannot be empty");
+    }
 
     let url = format!("{}/chat/completions", api_base.trim_end_matches('/'));
     let body = serde_json::json!({
@@ -473,7 +555,7 @@ async fn call_openai_chat(
     let mut last_err: Option<anyhow::Error> = None;
     for attempt in 0..3u32 {
         if attempt > 0 {
-            let backoff = Duration::from_millis(500 * (1 << attempt));
+            let backoff = Duration::from_millis(500_u64.saturating_mul(1_u64 << attempt));
             tokio::time::sleep(backoff).await;
         }
         match client
@@ -500,7 +582,14 @@ async fn call_openai_chat(
                 let text = data["choices"][0]["message"]["content"]
                     .as_str()
                     .unwrap_or("")
+                    .trim()
                     .to_string();
+                if text.is_empty() {
+                    last_err = Some(anyhow::anyhow!(
+                        "OpenAI chat returned empty choices[0].message.content"
+                    ));
+                    continue;
+                }
                 return Ok(text);
             }
             Err(e) => {
