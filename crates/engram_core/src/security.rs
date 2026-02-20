@@ -16,7 +16,7 @@ impl PathContext {
             let canon = std::fs::canonicalize(&r).map_err(|e| {
                 EngramError::Config(format!("cannot canonicalize allowed root {r:?}: {e}"))
             })?;
-            roots.push(canon);
+            roots.push(Self::strip_unc_prefix(&canon));
         }
         Ok(Self {
             allowed_roots: roots,
