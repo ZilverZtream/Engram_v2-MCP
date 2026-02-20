@@ -18,6 +18,14 @@ pub async fn ensure_project_record(
 /// Validate that `project_id` contains only safe characters to prevent directory traversal.
 /// Allowed: ASCII alphanumerics, hyphens, underscores.
 pub fn validate_project_id(project_id: &str) -> Result<(), EngramError> {
+    // Hard upper bound prevents path/accounting amplification attacks and accidental
+    // oversized IDs that can exceed filesystem or DB index limits.
+    if project_id.len() > 128 {
+        return Err(EngramError::InvalidParams(
+            "project_id must be at most 128 characters".into(),
+        ));
+    }
+
     if project_id.is_empty()
         || !project_id
             .chars()
@@ -45,8 +53,12 @@ pub async fn ensure_project_runtime(
     let project_root = state.cfg.data_dir.join("projects").join(project_id);
     let tantivy_dir = project_root.join("tantivy");
     let lancedb_dir = project_root.join("lancedb");
-    tokio::fs::create_dir_all(&tantivy_dir).await.ok();
-    tokio::fs::create_dir_all(&lancedb_dir).await.ok();
+    tokio::fs::create_dir_all(&tantivy_dir)
+        .await
+        .map_err(|e| EngramError::Internal(format!("failed to create tantivy dir: {e}")))?;
+    tokio::fs::create_dir_all(&lancedb_dir)
+        .await
+        .map_err(|e| EngramError::Internal(format!("failed to create lancedb dir: {e}")))?;
 
     let search = engram_index::HybridSearchEngine::new(
         tantivy_dir.clone(),
@@ -75,7 +87,11 @@ pub async fn get_active_generation(state: &AppState, project_id: &str) -> Result
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     let s = tokio::task::spawn_blocking(move || reg.get_meta(&pid, "active_generation")).await??;
-    Ok(s.and_then(|x| x.parse::<u64>().ok()).unwrap_or(1))
+    let generation = s
+        .and_then(|x| x.parse::<u64>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(1);
+    Ok(generation)
 }
 
 /// Generate a human-readable indexing report from ingest stats.
