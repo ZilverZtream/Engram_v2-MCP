@@ -20,6 +20,23 @@ static CREATE_TABLE_RE: OnceLock<Regex> = OnceLock::new();
 static COLUMN_DEF_RE: OnceLock<Regex> = OnceLock::new();
 static FK_CONSTRAINT_RE: OnceLock<Regex> = OnceLock::new();
 
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
+
 /// Strip surrounding brackets `[Name]` → `Name`.
 fn strip_brackets(s: &str) -> &str {
     let s = s.trim();
@@ -57,24 +74,32 @@ pub fn extract_ddl(rel_path: &RelPath, source: &str) -> (Vec<ExtractedSymbol>, V
     };
 
     // Regex: CREATE TABLE [schema.]TableName (
-    let create_table_re = CREATE_TABLE_RE.get_or_init(|| {
-        Regex::new(r"(?i)CREATE\s+TABLE\s+(?:\[?\w+\]?\.)?(\[?\w+\]?)\s*\(").expect("Invalid regex")
-    });
+    let Some(create_table_re) = get_compiled_regex(
+        &CREATE_TABLE_RE,
+        r"(?i)CREATE\s+TABLE\s+(?:\[?\w+\]?\.)?(\[?\w+\]?)\s*\(",
+        "ddl_create_table",
+    ) else {
+        return (symbols, edges);
+    };
 
     // Regex: column definition line
     // Matches: [ColumnName] datatype(params) [NOT] NULL | IDENTITY | etc.
-    let column_def_re = COLUMN_DEF_RE.get_or_init(|| {
-        Regex::new(r"(?i)^\s*(\[?\w+\]?)\s+(\w+(?:\s*\([^)]*\))?)\s*(NOT\s+NULL|NULL|IDENTITY)?")
-            .expect("Invalid regex")
-    });
+    let Some(column_def_re) = get_compiled_regex(
+        &COLUMN_DEF_RE,
+        r"(?i)^\s*(\[?\w+\]?)\s+(\w+(?:\s*\([^)]*\))?)\s*(NOT\s+NULL|NULL|IDENTITY)?",
+        "ddl_column_def",
+    ) else {
+        return (symbols, edges);
+    };
 
     // Regex: FOREIGN KEY (col) REFERENCES [schema.]Table(col2)
-    let fk_re = FK_CONSTRAINT_RE.get_or_init(|| {
-        Regex::new(
-            r"(?i)FOREIGN\s+KEY\s*\(\s*(\[?\w+\]?)\s*\)\s*REFERENCES\s+(?:\[?\w+\]?\.)?(\[?\w+\]?)\s*\(\s*(\[?\w+\]?)\s*\)",
-        )
-        .expect("Invalid regex")
-    });
+    let Some(fk_re) = get_compiled_regex(
+        &FK_CONSTRAINT_RE,
+        r"(?i)FOREIGN\s+KEY\s*\(\s*(\[?\w+\]?)\s*\)\s*REFERENCES\s+(?:\[?\w+\]?\.)?(\[?\w+\]?)\s*\(\s*(\[?\w+\]?)\s*\)",
+        "ddl_fk_constraint",
+    ) else {
+        return (symbols, edges);
+    };
 
     // Keywords that should NOT be treated as column names.
     let reserved_keywords: &[&str] = &[

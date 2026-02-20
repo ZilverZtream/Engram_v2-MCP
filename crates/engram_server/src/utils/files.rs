@@ -22,40 +22,84 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
 }
 
 pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
-    // Very small glob-like matcher:
-    // - if pattern contains '*' we treat it like a suffix/prefix/contains check
-    // - if pattern starts with '.' treat as suffix
+    // Glob-style wildcard matcher supporting:
+    // - `*` for 0+ characters
+    // - `?` for exactly one character
+    // - `\` to escape a literal `*`, `?`, or `\`
+    //
+    // Matching is done against normalized path separators.
     if pattern.trim().is_empty() {
         return false;
     }
-    if pattern == "*" {
-        return true;
-    }
-    if pattern.starts_with('.') {
-        return file_path.ends_with(pattern);
-    }
-    if pattern.contains('*') {
-        let parts: Vec<&str> = pattern.split('*').filter(|p| !p.is_empty()).collect();
-        if parts.is_empty() {
-            return true;
+
+    let text = file_path.replace('\\', "/");
+    let pat = pattern.trim().replace('\\', "/");
+
+    let text_chars: Vec<char> = text.chars().collect();
+    let mut tokens = Vec::new();
+    let mut escaped = false;
+    for c in pat.chars() {
+        if escaped {
+            tokens.push((c, false));
+            escaped = false;
+            continue;
         }
-        let must_anchor_start = !pattern.starts_with('*');
-        let must_anchor_end = !pattern.ends_with('*');
-        let mut idx = 0usize;
-        for (i, p) in parts.iter().enumerate() {
-            if let Some(pos) = file_path[idx..].find(p) {
-                if i == 0 && must_anchor_start && pos != 0 {
-                    return false;
-                }
-                idx += pos + p.len();
+        if c == '\\' {
+            escaped = true;
+        } else {
+            tokens.push((c, true));
+        }
+    }
+    if escaped {
+        tokens.push(('\\', false));
+    }
+
+    let mut dp = vec![vec![false; text_chars.len() + 1]; tokens.len() + 1];
+    dp[0][0] = true;
+
+    for i in 1..=tokens.len() {
+        let (pc, is_meta) = tokens[i - 1];
+        if is_meta && pc == '*' {
+            dp[i][0] = dp[i - 1][0];
+        }
+    }
+
+    for i in 1..=tokens.len() {
+        let (pc, is_meta) = tokens[i - 1];
+        for j in 1..=text_chars.len() {
+            let tc = text_chars[j - 1];
+            dp[i][j] = if is_meta && pc == '*' {
+                dp[i - 1][j] || dp[i][j - 1]
+            } else if is_meta && pc == '?' {
+                dp[i - 1][j - 1]
             } else {
-                return false;
-            }
+                dp[i - 1][j - 1] && pc == tc
+            };
         }
-        if must_anchor_end && idx != file_path.len() {
-            return false;
-        }
-        return true;
     }
-    file_path.contains(pattern)
+
+    dp[tokens.len()][text_chars.len()]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pattern_match;
+
+    #[test]
+    fn matches_glob_wildcards() {
+        assert!(pattern_match("src/foo/bar.rs", "src/*/*.rs"));
+        assert!(pattern_match("src/foo/bar.rs", "src/*/ba?.rs"));
+        assert!(!pattern_match("src/foo/bar.rs", "src/*/ba??.rs"));
+    }
+
+    #[test]
+    fn supports_path_separator_normalization() {
+        assert!(pattern_match(r"src\\foo\\bar.rs", "src/*/*.rs"));
+    }
+
+    #[test]
+    fn escaped_meta_chars_are_literal() {
+        assert!(pattern_match("foo*bar.txt", r"foo\*bar.txt"));
+        assert!(!pattern_match("fooxbar.txt", r"foo\*bar.txt"));
+    }
 }

@@ -30,6 +30,23 @@ static ID_RE: OnceLock<Regex> = OnceLock::new();
 static HTML_CONTROL_RE: OnceLock<Regex> = OnceLock::new();
 static EVENT_ATTR_RE: OnceLock<Regex> = OnceLock::new();
 
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
+
 /// Extract symbols and edges from a WebForms markup file.
 ///
 /// `project_root` is the root directory of the project.
@@ -67,14 +84,27 @@ pub fn extract_webforms(
 
     // ── 0. Find Inherits FQN (Pass 0) ──────────────────────────────────────────
     // Match: <%@ (Page|Control|Master) ... %>
-    let directive_re = DIRECTIVE_RE.get_or_init(|| {
-        Regex::new(r"(?i)<%@\s*(?:Page|Control|Master)\b([^%]*)%>").expect("Invalid regex")
-    });
-    let inherits_re = INHERITS_RE
-        .get_or_init(|| Regex::new(r#"(?i)Inherits\s*=\s*"([^"]+)""#).expect("Invalid regex"));
-    let codebehind_re = CODEBEHIND_RE.get_or_init(|| {
-        Regex::new(r#"(?i)Code(?:Behind|File)\s*=\s*"([^"]+)""#).expect("Invalid regex")
-    });
+    let Some(directive_re) = get_compiled_regex(
+        &DIRECTIVE_RE,
+        r"(?i)<%@\s*(?:Page|Control|Master)\b([^%]*)%>",
+        "webforms_directive",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(inherits_re) = get_compiled_regex(
+        &INHERITS_RE,
+        r#"(?i)Inherits\s*=\s*"([^"]+)""#,
+        "webforms_inherits",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(codebehind_re) = get_compiled_regex(
+        &CODEBEHIND_RE,
+        r#"(?i)Code(?:Behind|File)\s*=\s*"([^"]+)""#,
+        "webforms_codebehind",
+    ) else {
+        return (symbols, edges);
+    };
 
     let mut page_inherits_fqn: Option<String> = None;
     if let Some(m) = directive_re.find(source)
@@ -203,30 +233,35 @@ pub fn extract_webforms(
 
     // ── 2. Server controls ────────────────────────────────────────────────────
     // Match tags with runat="server" and an ID attribute.
-    let control_re = CONTROL_RE.get_or_init(|| {
-        Regex::new(
-            r#"(?i)<(?:asp|ajaxToolkit|custom):[A-Za-z]+\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
-        )
-        .expect("Invalid regex")
-    });
-    let id_re =
-        ID_RE.get_or_init(|| Regex::new(r#"(?i)\bID\s*=\s*"([^"]+)""#).expect("Invalid regex"));
+    let Some(control_re) = get_compiled_regex(
+        &CONTROL_RE,
+        r#"(?i)<(?:asp|ajaxToolkit|custom):[A-Za-z]+\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
+        "webforms_control",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(id_re) = get_compiled_regex(&ID_RE, r#"(?i)\bID\s*=\s*"([^"]+)""#, "webforms_id")
+    else {
+        return (symbols, edges);
+    };
 
     // Also match plain HTML controls with runat="server".
-    let html_control_re = HTML_CONTROL_RE.get_or_init(|| {
-        Regex::new(
-            r#"(?i)<(?:input|select|textarea|button|form)\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
-        )
-        .expect("Invalid regex")
-    });
+    let Some(html_control_re) = get_compiled_regex(
+        &HTML_CONTROL_RE,
+        r#"(?i)<(?:input|select|textarea|button|form)\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
+        "webforms_html_control",
+    ) else {
+        return (symbols, edges);
+    };
 
     // Single combined regex for all 22 event attributes — compiled once.
-    let event_attr_re = EVENT_ATTR_RE.get_or_init(|| {
-        Regex::new(
-            r#"(?i)\b(OnClick|OnCommand|OnTextChanged|OnSelectedIndexChanged|OnCheckedChanged|OnValueChanged|OnLoad|OnPreRender|OnInit|OnDataBound|OnRowCommand|OnRowEditing|OnRowUpdating|OnRowDeleting|OnRowCancelingEdit|OnPageIndexChanging|OnSorting|OnItemCommand|OnItemDataBound|OnServerClick|OnServerChange|OnServerValidate)\s*=\s*"([^"]+)""#,
-        )
-        .expect("Invalid regex")
-    });
+    let Some(event_attr_re) = get_compiled_regex(
+        &EVENT_ATTR_RE,
+        r#"(?i)\b(OnClick|OnCommand|OnTextChanged|OnSelectedIndexChanged|OnCheckedChanged|OnValueChanged|OnLoad|OnPreRender|OnInit|OnDataBound|OnRowCommand|OnRowEditing|OnRowUpdating|OnRowDeleting|OnRowCancelingEdit|OnPageIndexChanging|OnSorting|OnItemCommand|OnItemDataBound|OnServerClick|OnServerChange|OnServerValidate)\s*=\s*"([^"]+)""#,
+        "webforms_event_attr",
+    ) else {
+        return (symbols, edges);
+    };
 
     let extract_controls = |tag_attrs: &str,
                             tag_line: u32,
