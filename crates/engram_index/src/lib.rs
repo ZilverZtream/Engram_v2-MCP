@@ -6,6 +6,7 @@ pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;
 pub mod ingest;
+pub mod layout_extractor;
 pub mod parsing;
 pub mod state_extractor;
 pub mod tantivy_index;

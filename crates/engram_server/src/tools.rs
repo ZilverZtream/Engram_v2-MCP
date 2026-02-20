@@ -2545,6 +2545,139 @@ impl Engram {
         ))]))
     }
 
+    #[tool(
+        description = "Get a JSON tree of the UI layout for a WebForms (.aspx/.ascx) or WinForms (.Designer.vb/.Designer.cs) file. Returns container hierarchy, child controls with labels, grid positions, logical groupings, and tab order."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, file_path = %params.0.file_path))]
+    pub async fn get_ui_blueprint(
+        &self,
+        params: Parameters<GetUiBlueprintRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            // 1. Find all ui_container nodes for this file.
+            let all_containers = graph
+                .query_nodes(
+                    &req.project_id,
+                    Some("ui_container"),
+                    None,
+                    Some(&req.file_path),
+                    500,
+                )
+                .map_err(|e| e.to_string())?;
+
+            if all_containers.is_empty() {
+                return Ok(format!(
+                    "No UI layout data found for '{}'. Ensure the file has been indexed and contains container elements (Panel, Table, GroupBox, div).",
+                    req.file_path
+                ));
+            }
+
+            // 2. For each container, find its children via ContainsUi edges.
+            let mut tree = serde_json::Map::new();
+            tree.insert("file".into(), serde_json::Value::String(req.file_path.clone()));
+
+            let mut containers_json = Vec::new();
+            for container in &all_containers {
+                let mut cobj = serde_json::Map::new();
+                cobj.insert("id".into(), serde_json::Value::String(container.name.clone()));
+                cobj.insert("node_id".into(), serde_json::Value::String(container.node_id.clone()));
+
+                if let Some(ref meta) = container.metadata {
+                    if let Some(ct) = meta.get("container_type").and_then(|v| v.as_str()) {
+                        cobj.insert("container_type".into(), serde_json::Value::String(ct.to_string()));
+                    }
+                    if let Some(ls) = meta.get("layout_style").and_then(|v| v.as_str()) {
+                        cobj.insert("layout_style".into(), serde_json::Value::String(ls.to_string()));
+                    }
+                    if let Some(lg) = meta.get("logical_grouping").and_then(|v| v.as_str()) {
+                        cobj.insert("logical_grouping".into(), serde_json::Value::String(lg.to_string()));
+                    }
+                    if let Some(css) = meta.get("css_class").and_then(|v| v.as_str()) {
+                        cobj.insert("css_class".into(), serde_json::Value::String(css.to_string()));
+                    }
+                }
+
+                // Find children via ContainsUi edges
+                let children = graph
+                    .neighbors(
+                        &req.project_id,
+                        EdgeKind::ContainsUi,
+                        &container.node_id,
+                        200,
+                    )
+                    .unwrap_or_default();
+
+                let mut children_json = Vec::new();
+                for (child_id, _weight) in &children {
+                    let mut child_obj = serde_json::Map::new();
+                    child_obj.insert("node_id".into(), serde_json::Value::String(child_id.clone()));
+
+                    if let Ok(Some(child_node)) = graph.get_node(&req.project_id, child_id) {
+                        child_obj.insert("name".into(), serde_json::Value::String(child_node.name.clone()));
+                        child_obj.insert("type".into(), serde_json::Value::String(child_node.node_type.clone()));
+
+                        if let Some(ref meta) = child_node.metadata {
+                            if let Some(label) = meta.get("ui_label").and_then(|v| v.as_str()) {
+                                child_obj.insert("ui_label".into(), serde_json::Value::String(label.to_string()));
+                            }
+                            if let Some(row) = meta.get("row").and_then(|v| v.as_str()) {
+                                child_obj.insert("row".into(), serde_json::Value::String(row.to_string()));
+                            }
+                            if let Some(col) = meta.get("col").and_then(|v| v.as_str()) {
+                                child_obj.insert("col".into(), serde_json::Value::String(col.to_string()));
+                            }
+                            if let Some(lg) = meta.get("logical_grouping").and_then(|v| v.as_str()) {
+                                child_obj.insert("logical_grouping".into(), serde_json::Value::String(lg.to_string()));
+                            }
+                            if let Some(x) = meta.get("x").and_then(|v| v.as_str()) {
+                                child_obj.insert("x".into(), serde_json::Value::String(x.to_string()));
+                            }
+                            if let Some(y) = meta.get("y").and_then(|v| v.as_str()) {
+                                child_obj.insert("y".into(), serde_json::Value::String(y.to_string()));
+                            }
+                        }
+
+                        // Find tab-order neighbors for this child
+                        let neighbors = graph
+                            .neighbors(
+                                &req.project_id,
+                                EdgeKind::UiLayoutNeighbor,
+                                child_id,
+                                5,
+                            )
+                            .unwrap_or_default();
+                        if !neighbors.is_empty() {
+                            let next_ids: Vec<serde_json::Value> = neighbors
+                                .iter()
+                                .map(|(nid, _)| serde_json::Value::String(nid.clone()))
+                                .collect();
+                            child_obj.insert("next_in_tab_order".into(), serde_json::Value::Array(next_ids));
+                        }
+                    }
+
+                    children_json.push(serde_json::Value::Object(child_obj));
+                }
+
+                cobj.insert("children".into(), serde_json::Value::Array(children_json));
+                containers_json.push(serde_json::Value::Object(cobj));
+            }
+
+            tree.insert("containers".into(), serde_json::Value::Array(containers_json));
+            tree.insert("container_count".into(), serde_json::Value::Number(all_containers.len().into()));
+
+            serde_json::to_string_pretty(&tree).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
     #[tool(description = "Get a lightweight codebase overview (v1 parity: get_codebase_overview).")]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn get_codebase_overview(

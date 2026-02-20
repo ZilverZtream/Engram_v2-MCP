@@ -78,6 +78,10 @@ pub enum EdgeKind {
     ExposesHttpHandler,
     /// WCF Service Host endpoint: .svc file → backing class (<%@ ServiceHost Service="..." %>).
     ExposesWcfService,
+    /// UI layout containment: a container (Panel, Table, GroupBox) contains a child control.
+    ContainsUi,
+    /// UI layout sibling adjacency: sequential controls in tab/visual order.
+    UiLayoutNeighbor,
 }
 
 impl EdgeKind {
@@ -104,6 +108,8 @@ impl EdgeKind {
         EdgeKind::ExposesWebService,
         EdgeKind::ExposesHttpHandler,
         EdgeKind::ExposesWcfService,
+        EdgeKind::ContainsUi,
+        EdgeKind::UiLayoutNeighbor,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -129,6 +135,8 @@ impl EdgeKind {
             EdgeKind::ExposesWebService => "exposes_web_service",
             EdgeKind::ExposesHttpHandler => "exposes_http_handler",
             EdgeKind::ExposesWcfService => "exposes_wcf_service",
+            EdgeKind::ContainsUi => "contains_ui",
+            EdgeKind::UiLayoutNeighbor => "ui_layout_neighbor",
         }
     }
 
@@ -155,6 +163,8 @@ impl EdgeKind {
             "exposes_web_service" => Some(EdgeKind::ExposesWebService),
             "exposes_http_handler" => Some(EdgeKind::ExposesHttpHandler),
             "exposes_wcf_service" => Some(EdgeKind::ExposesWcfService),
+            "contains_ui" => Some(EdgeKind::ContainsUi),
+            "ui_layout_neighbor" => Some(EdgeKind::UiLayoutNeighbor),
             _ => None,
         }
     }

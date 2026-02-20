@@ -458,6 +458,12 @@ pub fn extract_webforms(
     // ── 7. Server-Side Includes: <!--#include virtual="..." --> or file="..." ──
     extract_server_side_includes(source, project_root, rel_path, &char_to_line, &mut edges);
 
+    // ── 8. Deep Layout Extraction: container hierarchy, label proximity, grid ──
+    let (layout_syms, layout_edges) =
+        crate::layout_extractor::extract_webforms_layout(rel_path.as_str(), source);
+    symbols.extend(layout_syms);
+    edges.extend(layout_edges);
+
     (symbols, edges)
 }
 
@@ -570,11 +576,7 @@ fn extract_service_directives(
                     .captures(attrs)
                     .map(|c| c[1].trim().to_string())
             })
-            .or_else(|| {
-                inherits_re
-                    .captures(attrs)
-                    .map(|c| c[1].trim().to_string())
-            });
+            .or_else(|| inherits_re.captures(attrs).map(|c| c[1].trim().to_string()));
 
         // ── Determine code-behind path ───────────────────────────────────────
         // CodeBehind= / CodeFile= (handled by codebehind_re).
@@ -1436,7 +1438,13 @@ pub fn is_webforms_markup(path: &Path) -> bool {
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase())
             .as_deref(),
-        Some("aspx") | Some("ascx") | Some("master") | Some("asmx") | Some("ashx") | Some("svc") | Some("asax")
+        Some("aspx")
+            | Some("ascx")
+            | Some("master")
+            | Some("asmx")
+            | Some("ashx")
+            | Some("svc")
+            | Some("asax")
     )
 }
 
@@ -2124,8 +2132,7 @@ mod tests {
 
     #[test]
     fn test_asmx_webservice_extraction() {
-        let markup =
-            r#"<%@ WebService Language="VB" CodeBehind="~/App_Code/Optician.vb" Class="Optician" %>"#;
+        let markup = r#"<%@ WebService Language="VB" CodeBehind="~/App_Code/Optician.vb" Class="Optician" %>"#;
         let root = Path::new("C:/repo");
         let rel = RelPath::new("Optician.asmx");
         let (syms, edges) = extract_webforms(root, &rel, markup);
@@ -2208,8 +2215,7 @@ mod tests {
 
     #[test]
     fn test_ashx_webhandler_extraction() {
-        let markup =
-            r#"<%@ WebHandler Language="C#" Class="MyApp.ImageHandler" CodeBehind="ImageHandler.ashx.cs" %>"#;
+        let markup = r#"<%@ WebHandler Language="C#" Class="MyApp.ImageHandler" CodeBehind="ImageHandler.ashx.cs" %>"#;
         let root = Path::new("C:/repo");
         let rel = RelPath::new("Handlers/ImageHandler.ashx");
         let (syms, edges) = extract_webforms(root, &rel, markup);
@@ -2400,8 +2406,7 @@ mod tests {
     #[test]
     fn test_svc_with_service_attr_no_class() {
         // WCF .svc file with Service= but no Class=
-        let markup =
-            r#"<%@ ServiceHost Service="MyApp.Contracts.IOrderService" %>"#;
+        let markup = r#"<%@ ServiceHost Service="MyApp.Contracts.IOrderService" %>"#;
         let root = Path::new("C:/repo");
         let rel = RelPath::new("OrderService.svc");
         let (syms, edges) = extract_webforms(root, &rel, markup);
@@ -2455,8 +2460,7 @@ mod tests {
     #[test]
     fn test_directive_case_insensitive() {
         // ASP.NET directive keywords are case-insensitive
-        let markup =
-            r#"<%@ webservice language="VB" class="MyCaseService" codebehind="~/App_Code/MyCaseService.vb" %>"#;
+        let markup = r#"<%@ webservice language="VB" class="MyCaseService" codebehind="~/App_Code/MyCaseService.vb" %>"#;
         let root = Path::new("C:/repo");
         let rel = RelPath::new("MyCaseService.asmx");
         let (syms, edges) = extract_webforms(root, &rel, markup);

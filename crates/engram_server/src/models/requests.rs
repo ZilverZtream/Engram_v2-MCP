@@ -292,6 +292,13 @@ pub struct ExportCapturePackRequest {
     pub project_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetUiBlueprintRequest {
+    pub project_id: String,
+    /// Project-relative path to the .aspx, .ascx, .Designer.vb, or .Designer.cs file.
+    pub file_path: String,
+}
+
 // -------------------- Git --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

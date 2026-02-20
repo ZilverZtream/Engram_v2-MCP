@@ -703,6 +703,27 @@ impl HybridSearchEngine {
 
                         let (syms, edges) = if crate::webforms::is_webforms_markup(p) {
                             crate::webforms::extract_webforms(&root_buf, &rel_path, &text)
+                        } else if crate::layout_extractor::is_winforms_designer(p) {
+                            // WinForms Designer files: extract layout + fall through to
+                            // normal VB/CS extraction for the code symbols.
+                            let base_lang = if ext_lower.as_deref() == Some("vb") {
+                                "vb"
+                            } else {
+                                "cs"
+                            };
+                            let (mut s, mut e) = if base_lang == "vb" {
+                                crate::vb_extractor::extract_vb(p, &text)
+                            } else {
+                                extractor.extract(p, &text)
+                            };
+                            let (layout_s, layout_e) =
+                                crate::layout_extractor::extract_winforms_layout(
+                                    rel_path.as_str(),
+                                    &text,
+                                );
+                            s.extend(layout_s);
+                            e.extend(layout_e);
+                            (s, e)
                         } else if ext_lower.as_deref() == Some("sql") {
                             crate::ddl_extractor::extract_ddl(&rel_path, &text)
                         } else if ext_lower.as_deref() == Some("vb") {

@@ -173,6 +173,24 @@ pub async fn process_ingest_stats(
                 engram_core::ids::NodeId::state(state_type, state_key).0,
                 "global_state".to_string(),
             )
+        } else if sym.kind == "ui_container" {
+            (
+                engram_core::ids::NodeId::ui_container(rel_path.as_str(), &sym.name).0,
+                "ui_container".to_string(),
+            )
+        } else if sym.kind == "control_layout" {
+            // control_layout is metadata-enriched view of an existing control;
+            // use the same control NodeId so it merges with the base control node.
+            let control_id = sym
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("control_id"))
+                .map(|s| s.as_str())
+                .unwrap_or(sym.name.as_str());
+            (
+                engram_core::ids::NodeId::control(rel_path.as_str(), control_id).0,
+                "control".to_string(),
+            )
         } else {
             (
                 engram_core::ids::NodeId::symbol(
@@ -235,6 +253,8 @@ pub async fn process_ingest_stats(
             }
         } else if edge.source_kind == "page" {
             engram_core::ids::NodeId::page(rel_path.as_str()).0
+        } else if edge.source_kind == "ui_container" {
+            engram_core::ids::NodeId::ui_container(rel_path.as_str(), &edge.source_name).0
         } else if edge.source_kind == "control" {
             let control_id = edge
                 .metadata

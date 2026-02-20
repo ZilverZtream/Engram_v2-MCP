@@ -19,12 +19,12 @@ fn default_exts() -> Vec<&'static str> {
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     match project_type.to_lowercase().as_str() {
         "dotnetwebformscs" | "dotnet_webforms_cs" | "webforms_cs" | "webformscs" => vec![
-            "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml",
-            "sln", "csproj", "sql", "rdlc", "md", "json",
+            "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
+            "csproj", "sql", "rdlc", "md", "json",
         ],
         "dotnetwebformsvb" | "dotnet_webforms_vb" | "webforms_vb" | "webformsvb" => vec![
-            "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml",
-            "sln", "vbproj", "sql", "rdlc", "md", "json",
+            "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
+            "vbproj", "sql", "rdlc", "md", "json",
         ],
         _ => default_exts(),
     }
