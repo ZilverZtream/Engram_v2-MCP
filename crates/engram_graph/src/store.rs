@@ -403,22 +403,20 @@ impl GraphStore {
 
                 // Update adjacency caches (read from DB only on first access).
                 let out_key = adj_key(project_id, kind, source_id);
-                let out_list = if let Some(cached) = adj_out_cache.get_mut(&out_key) {
-                    cached
-                } else {
-                    let list = read_adj_list(&adj_out_t, &out_key)?;
-                    adj_out_cache.insert(out_key.clone(), list);
-                    adj_out_cache.get_mut(&out_key).unwrap()
+                let out_list = match adj_out_cache.entry(out_key.clone()) {
+                    std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        entry.insert(read_adj_list(&adj_out_t, &out_key)?)
+                    }
                 };
                 upsert_adj_entry(out_list, target_id, new_weight, now);
 
                 let in_key = adj_key(project_id, kind, target_id);
-                let in_list = if let Some(cached) = adj_in_cache.get_mut(&in_key) {
-                    cached
-                } else {
-                    let list = read_adj_list(&adj_in_t, &in_key)?;
-                    adj_in_cache.insert(in_key.clone(), list);
-                    adj_in_cache.get_mut(&in_key).unwrap()
+                let in_list = match adj_in_cache.entry(in_key.clone()) {
+                    std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+                    std::collections::hash_map::Entry::Vacant(entry) => {
+                        entry.insert(read_adj_list(&adj_in_t, &in_key)?)
+                    }
                 };
                 upsert_adj_entry(in_list, source_id, new_weight, now);
             }
@@ -1034,23 +1032,25 @@ impl GraphStore {
                         if let Some(ek) = EdgeKind::from_str(kind_str) {
                             // Remove from ADJ_OUT[source] → target (cached)
                             let out_key = adj_key(project_id, &ek, source_id);
-                            let out_list = if let Some(cached) = adj_out_cache.get_mut(&out_key) {
-                                cached
-                            } else {
-                                let list = read_adj_list(&adj_out_t, &out_key)?;
-                                adj_out_cache.insert(out_key.clone(), list);
-                                adj_out_cache.get_mut(&out_key).unwrap()
+                            let out_list = match adj_out_cache.entry(out_key.clone()) {
+                                std::collections::hash_map::Entry::Occupied(entry) => {
+                                    entry.into_mut()
+                                }
+                                std::collections::hash_map::Entry::Vacant(entry) => {
+                                    entry.insert(read_adj_list(&adj_out_t, &out_key)?)
+                                }
                             };
                             out_list.retain(|e| e.id != target_id);
 
                             // Remove from ADJ_IN[target] → source (cached)
                             let in_key = adj_key(project_id, &ek, target_id);
-                            let in_list = if let Some(cached) = adj_in_cache.get_mut(&in_key) {
-                                cached
-                            } else {
-                                let list = read_adj_list(&adj_in_t, &in_key)?;
-                                adj_in_cache.insert(in_key.clone(), list);
-                                adj_in_cache.get_mut(&in_key).unwrap()
+                            let in_list = match adj_in_cache.entry(in_key.clone()) {
+                                std::collections::hash_map::Entry::Occupied(entry) => {
+                                    entry.into_mut()
+                                }
+                                std::collections::hash_map::Entry::Vacant(entry) => {
+                                    entry.insert(read_adj_list(&adj_in_t, &in_key)?)
+                                }
                             };
                             in_list.retain(|e| e.id != source_id);
                         }

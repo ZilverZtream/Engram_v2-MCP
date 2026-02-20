@@ -737,7 +737,11 @@ fn extract_proc_name(after_exec: &str) -> Option<String> {
     let rest = after_exec.trim_start();
     let raw = rest.split_whitespace().next().unwrap_or(rest);
     let clean: String = raw.chars().filter(|&c| c != '[' && c != ']').collect();
-    if clean.is_empty() { None } else { Some(clean) }
+    if clean.is_empty() {
+        None
+    } else {
+        Some(clean)
+    }
 }
 
 // ── P0.6 Handles clause ─────────────────────────────────────────────────────
@@ -776,14 +780,9 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
                 let source_kind = match ctrl_id.as_bytes() {
                     // Fast check: "Me" or "MyBase" (case-insensitive)
                     [b'M' | b'm', b'e' | b'E']
-                    | [
-                        b'M' | b'm',
-                        b'y' | b'Y',
-                        b'B' | b'b',
-                        b'a' | b'A',
-                        b's' | b'S',
-                        b'e' | b'E',
-                    ] => "self",
+                    | [b'M' | b'm', b'y' | b'Y', b'B' | b'b', b'a' | b'A', b's' | b'S', b'e' | b'E'] => {
+                        "self"
+                    }
                     _ => "control",
                 };
 
@@ -984,7 +983,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         add_sql_edge(
             &mut results,
             &cap[1],
-            cap.get(0).expect("Capture group 0").start(),
+            cap.get(0).map(|m| m.start()).unwrap_or_default(),
             false,
         );
     }
@@ -997,7 +996,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         add_sql_edge(
             &mut results,
             &cap["sql"],
-            cap.get(0).expect("Capture group 0").start(),
+            cap.get(0).map(|m| m.start()).unwrap_or_default(),
             is_sp,
         );
     }
@@ -1005,7 +1004,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         add_sql_edge(
             &mut results,
             &cap[1],
-            cap.get(0).expect("Capture group 0").start(),
+            cap.get(0).map(|m| m.start()).unwrap_or_default(),
             false,
         );
     }
@@ -1013,7 +1012,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         add_sql_edge(
             &mut results,
             &cap[1],
-            cap.get(0).expect("Capture group 0").start(),
+            cap.get(0).map(|m| m.start()).unwrap_or_default(),
             false,
         );
     }
@@ -1022,7 +1021,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
     for cap in sql_exec_call_re.captures_iter(source) {
         let var = &cap["var"];
         let method = &cap["method"];
-        let pos = cap.get(0).expect("Capture group 0").start();
+        let pos = cap.get(0).map(|m| m.start()).unwrap_or_default();
         let meta = HashMap::from([("method".into(), method.to_string())]);
         results.push((
             ExtractedEdge {
@@ -1109,28 +1108,26 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     let mut hits: Vec<Hit<'_>> = Vec::new();
 
     for cap in ns_re.captures_iter(source) {
-        let m = cap.get(1).expect("Capture group 1");
-        hits.push(Hit::Namespace(
-            m.as_str().trim(),
-            cap.get(0).expect("Capture group 0").start(),
-        ));
+        if let (Some(m), Some(m0)) = (cap.get(1), cap.get(0)) {
+            hits.push(Hit::Namespace(m.as_str().trim(), m0.start()));
+        }
     }
     for cap in type_re.captures_iter(source) {
-        let m = cap.get(1).expect("Capture group 1");
-        hits.push(Hit::Type(
-            m.as_str().trim(),
-            cap.get(0).expect("Capture group 0").start(),
-        ));
+        if let (Some(m), Some(m0)) = (cap.get(1), cap.get(0)) {
+            hits.push(Hit::Type(m.as_str().trim(), m0.start()));
+        }
     }
     for cap in member_re.captures_iter(source) {
-        let kind_match = cap.name("member_kind").expect("Capture group member_kind");
-        let name_match = cap.name("member_name").expect("Capture group member_name");
-        let is_property = kind_match.as_str().eq_ignore_ascii_case("property");
-        hits.push(Hit::Member {
-            name: name_match.as_str().trim(),
-            is_property,
-            pos: cap.get(0).expect("Capture group 0").start(),
-        });
+        if let (Some(kind_match), Some(name_match), Some(m0)) =
+            (cap.name("member_kind"), cap.name("member_name"), cap.get(0))
+        {
+            let is_property = kind_match.as_str().eq_ignore_ascii_case("property");
+            hits.push(Hit::Member {
+                name: name_match.as_str().trim(),
+                is_property,
+                pos: m0.start(),
+            });
+        }
     }
 
     hits.sort_by_key(|h| match h {
@@ -1393,28 +1390,22 @@ Dim cmd2 As New SqlCommand("sp_GetOrders")
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
 
         // 1. SqlDataAdapter
-        assert!(
-            edges
-                .iter()
-                .any(|e| e.target_name == "sql:inline:63cc23e01345")
-        );
+        assert!(edges
+            .iter()
+            .any(|e| e.target_name == "sql:inline:63cc23e01345"));
 
         // 2. CommandType.StoredProcedure + CommandText
-        assert!(
-            edges
-                .iter()
-                .any(|e| e.target_name == "sql:stored_proc:GetDetails")
-        );
+        assert!(edges
+            .iter()
+            .any(|e| e.target_name == "sql:stored_proc:GetDetails"));
 
         // 3. ExecuteReader call
         assert!(edges.iter().any(|e| e.target_name == "cmd.ExecuteReader"));
 
         // 4. Object initializer
-        assert!(
-            edges
-                .iter()
-                .any(|e| e.target_name == "sql:inline:dd0b347a3141")
-        );
+        assert!(edges
+            .iter()
+            .any(|e| e.target_name == "sql:inline:dd0b347a3141"));
     }
 
     #[test]
