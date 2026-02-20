@@ -1,5 +1,5 @@
 use crate::models::*;
-use crate::services::graph_service;
+use crate::services::{graph_service, project_service};
 use crate::state::{AppEvent, AppState, ProjectInfo, ProjectState, SearchHitLite};
 use crate::utils::files::exts_for_project_type;
 use crate::utils::now_ms;
@@ -87,20 +87,21 @@ impl Engram {
         let reg = self.state.registry.clone();
         let pid_for_meta = project_id.clone();
         // Returns Ok(Some(existing)) if deduped, Ok(None) if newly inserted.
-        let existing_opt = tokio::task::spawn_blocking(move || -> anyhow::Result<Option<ProjectRecord>> {
-            if dedupe {
-                let list = reg.list_projects()?;
-                if let Some(existing) = list.into_iter().find(|p| p.directory == dir_str) {
-                    return Ok(Some(existing));
+        let existing_opt =
+            tokio::task::spawn_blocking(move || -> anyhow::Result<Option<ProjectRecord>> {
+                if dedupe {
+                    let list = reg.list_projects()?;
+                    if let Some(existing) = list.into_iter().find(|p| p.directory == dir_str) {
+                        return Ok(Some(existing));
+                    }
                 }
-            }
-            reg.put_project(&rec_candidate)?;
-            reg.set_meta(&pid_for_meta, "active_generation", "1")?;
-            Ok(None)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                reg.put_project(&rec_candidate)?;
+                reg.set_meta(&pid_for_meta, "active_generation", "1")?;
+                Ok(None)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if let Some(p) = existing_opt {
             return Ok(CallToolResult::success(vec![Content::text(format!(
@@ -226,7 +227,7 @@ impl Engram {
                 .update_project_impl(
                     &req.project_id,
                     new_gen,
-                    req.max_commits,
+                    req.sanitized_max_commits(),
                     req.index_antipatterns,
                     &cancel,
                 )
@@ -240,7 +241,7 @@ impl Engram {
             .spawn_job_update_project(
                 req.project_id.clone(),
                 new_gen,
-                req.max_commits,
+                req.sanitized_max_commits(),
                 req.index_antipatterns,
             )
             .await?;
@@ -261,10 +262,7 @@ impl Engram {
         // Serialise concurrent updates for this project. The watcher actor and a
         // direct Agent MCP call can race; without this lock they both read the same
         // generation N and write N+1, corrupting Tantivy/LanceDB data.
-        let _update_guard = self
-            .state
-            .acquire_project_update_lock(project_id)
-            .await;
+        let _update_guard = self.state.acquire_project_update_lock(project_id).await;
 
         let ps = self
             .ensure_project_runtime(project_id)
@@ -546,6 +544,7 @@ impl Engram {
         params: Parameters<ProjectIdRequest>,
     ) -> Result<CallToolResult, McpError> {
         let pid = params.0.project_id;
+        project_service::validate_project_id(&pid).map_err(McpError::from)?;
 
         // Cancel active jobs for this project (best-effort).
 
@@ -611,7 +610,7 @@ impl Engram {
         params: Parameters<WatchProjectRequest>,
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
-        let pid = req.project_id;
+        let pid = req.project_id.clone();
         let rec = self.ensure_project_record(&pid).await?;
 
         let watch = WatchRecord {
@@ -709,7 +708,7 @@ impl Engram {
                     namespace: req.namespace.clone(),
                     generation: gen_,
                     text: req.query.clone(),
-                    top_k: req.max_results,
+                    top_k: req.sanitized_max_results(),
                     fts_mode: req.fts_mode.clone(),
                     include_path_prefixes: req.include_path_prefixes.clone(),
                     exclude_path_prefixes: req.exclude_path_prefixes.clone(),
@@ -761,7 +760,7 @@ impl Engram {
                         .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &h.doc_id)
                 {
                     out.push_str("content:\n");
-                    let limit = req.max_content_chars_per_result;
+                    let limit = req.sanitized_max_content_chars_per_result();
                     if content.chars().count() > limit {
                         out.push_str(&content.chars().take(limit).collect::<String>());
                         out.push_str("... (truncated)");
@@ -1201,7 +1200,7 @@ impl Engram {
                     namespace: "memory".into(),
                     generation: gen_,
                     text: req.query.clone(),
-                    top_k: req.max_results,
+                    top_k: req.sanitized_max_results(),
                     fts_mode: "strict".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
@@ -1254,7 +1253,7 @@ impl Engram {
 
         let mut out = String::new();
         out.push_str(&format!("Graph search results for '{}':\n", req.query));
-        for (id, score) in sorted.iter().take(req.max_results) {
+        for (id, score) in sorted.iter().take(req.sanitized_max_results()) {
             out.push_str(&format!("- {} (score={:.3})\n", id, score));
         }
 
@@ -1283,7 +1282,7 @@ impl Engram {
             .traverse(
                 &req.project_id,
                 &req.node_id,
-                req.max_hops,
+                req.sanitized_max_hops(),
                 kinds,
                 &req.direction,
             )
@@ -1333,7 +1332,7 @@ impl Engram {
                     &req.project_id,
                     &ps.info.directory,
                     active_gen,
-                    req.max_commits,
+                    req.sanitized_max_commits(),
                     req.index_antipatterns,
                     engram_git::history::MergeCommitPolicy::AllParents,
                     &cancel,
@@ -1345,7 +1344,11 @@ impl Engram {
 
         let pid_clone = req.project_id.clone();
         let job_id = self
-            .spawn_job_git_history(pid_clone, req.max_commits, req.index_antipatterns)
+            .spawn_job_git_history(
+                pid_clone,
+                req.sanitized_max_commits(),
+                req.index_antipatterns,
+            )
             .await?;
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{1F7E1} Git history job started.\njob_id: {job_id}"
@@ -1545,8 +1548,8 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "history".into(),
                     generation: gen_,
-                    text: req.query,
-                    top_k: req.limit,
+                    text: req.query.clone(),
+                    top_k: req.sanitized_limit(),
                     fts_mode: "strict".into(),
                     include_path_prefixes,
                     exclude_path_prefixes: None,
@@ -1617,15 +1620,15 @@ impl Engram {
                 &self.state.graph,
                 &req.project_id,
                 &node_id,
-                req.min_frequency as u32,
-                req.limit,
+                req.sanitized_min_frequency() as u32,
+                req.sanitized_limit(),
             )
         } else {
             // Global search
             engram_graph::algorithms::coupling::top_project_couplings(
                 &self.state.graph,
                 &req.project_id,
-                req.limit,
+                req.sanitized_limit(),
             )
         }
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -2381,7 +2384,7 @@ impl Engram {
         params: Parameters<ExportCapturePackRequest>,
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
-        let pid = req.project_id;
+        let pid = req.project_id.clone();
         let _ps = self.ensure_project_runtime(&pid).await?;
         let _active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
 
@@ -2811,7 +2814,7 @@ impl Engram {
         params: Parameters<DreamProjectRequest>,
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
-        let pid = req.project_id;
+        let pid = req.project_id.clone();
         let _ = self.ensure_project_record(&pid).await?;
 
         if req.wait {
@@ -2820,7 +2823,7 @@ impl Engram {
                 &pid,
                 2, // min_edge_weight
                 3, // min_cluster_size
-                req.max_pairs,
+                req.sanitized_max_pairs(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -2902,7 +2905,7 @@ impl Engram {
         let diffs = tokio::task::spawn_blocking({
             let repo_path = PathBuf::from(&ps.info.directory);
             let file_path = req.file_path.clone();
-            let limit = req.diff_limit;
+            let limit = req.sanitized_diff_limit();
             let cancel = tokio_util::sync::CancellationToken::new();
             move || -> anyhow::Result<Vec<String>> {
                 let repo = GitWalker::open_repo(&repo_path)?;
@@ -3114,7 +3117,7 @@ impl Engram {
                     namespace: "antipattern".into(),
                     generation: gen_,
                     text: q,
-                    top_k: req.top_k,
+                    top_k: req.sanitized_top_k(),
                     fts_mode: "strict".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
@@ -3213,7 +3216,7 @@ impl Engram {
                     namespace: "antipattern".into(),
                     generation: gen_,
                     text: q,
-                    top_k: req.limit,
+                    top_k: req.sanitized_limit(),
                     fts_mode: "strict".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
@@ -3308,7 +3311,7 @@ impl Engram {
 
         if !hits.is_empty() {
             out.push_str("\n\nTop anti-pattern matches:\n");
-            for h in hits.iter().take(req.limit) {
+            for h in hits.iter().take(req.sanitized_limit()) {
                 out.push_str(&format!(
                     "- score={:.3} path={} chunk_id={}\n",
                     h.score, h.path, h.chunk_id

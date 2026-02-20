@@ -61,6 +61,16 @@ pub fn default_diff_limit() -> usize {
     10
 }
 
+pub const MAX_SEARCH_RESULTS: usize = 200;
+pub const MAX_CONTENT_CHARS_PER_RESULT: usize = 20_000;
+pub const MAX_GRAPH_HOPS: usize = 8;
+pub const MAX_GIT_COMMITS: usize = 10_000;
+pub const MAX_TEMPORAL_RESULTS: usize = 200;
+pub const MAX_TEMPORAL_MIN_FREQUENCY: usize = 1_000;
+pub const MAX_DREAM_PAIRS: usize = 500;
+pub const MAX_DIFF_LIMIT: usize = 200;
+pub const MAX_IMMUNE_TOP_K: usize = 200;
+
 // -------------------- Project lifecycle --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -404,4 +414,85 @@ pub struct IngestInstrumentationLogsRequest {
 pub struct GetInstrumentationPackResult {
     pub snippet: String,
     pub instructions: String,
+}
+
+impl SearchMemoryRequest {
+    pub fn sanitized_max_results(&self) -> usize {
+        self.max_results.clamp(1, MAX_SEARCH_RESULTS)
+    }
+
+    pub fn sanitized_max_content_chars_per_result(&self) -> usize {
+        self.max_content_chars_per_result
+            .clamp(1, MAX_CONTENT_CHARS_PER_RESULT)
+    }
+}
+
+impl GraphSearchRequest {
+    pub fn sanitized_max_results(&self) -> usize {
+        self.max_results.clamp(1, MAX_SEARCH_RESULTS)
+    }
+}
+
+impl TraverseGraphRequest {
+    pub fn sanitized_max_hops(&self) -> usize {
+        self.max_hops.clamp(1, MAX_GRAPH_HOPS)
+    }
+}
+
+impl IndexGitHistoryRequest {
+    pub fn sanitized_max_commits(&self) -> usize {
+        self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
+}
+
+impl AnalyzeRevertsRequest {
+    pub fn sanitized_max_commits(&self) -> usize {
+        self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
+}
+
+impl SearchHistoryRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_SEARCH_RESULTS)
+    }
+}
+
+impl AnalyzeTemporalCouplingsRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_TEMPORAL_RESULTS)
+    }
+
+    pub fn sanitized_min_frequency(&self) -> usize {
+        self.min_frequency.clamp(1, MAX_TEMPORAL_MIN_FREQUENCY)
+    }
+}
+
+impl DreamProjectRequest {
+    pub fn sanitized_max_pairs(&self) -> usize {
+        self.max_pairs.clamp(1, MAX_DREAM_PAIRS)
+    }
+}
+
+impl AnalyzeFileCodingStyleRequest {
+    pub fn sanitized_diff_limit(&self) -> usize {
+        self.diff_limit.clamp(1, MAX_DIFF_LIMIT)
+    }
+}
+
+impl ImmuneCheckRequest {
+    pub fn sanitized_top_k(&self) -> usize {
+        self.top_k.clamp(1, MAX_IMMUNE_TOP_K)
+    }
+}
+
+impl AntiPatternGuardRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_IMMUNE_TOP_K)
+    }
+}
+
+impl UpdateProjectRequest {
+    pub fn sanitized_max_commits(&self) -> usize {
+        self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
 }
