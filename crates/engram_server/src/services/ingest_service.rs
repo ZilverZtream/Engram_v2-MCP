@@ -1,6 +1,35 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
 
+fn is_safe_project_relative_path(path: &str) -> bool {
+    let p = std::path::Path::new(path);
+    if path.is_empty() || p.is_absolute() || path.contains('\0') {
+        return false;
+    }
+
+    for component in p.components() {
+        match component {
+            std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
+fn metadata_to_json(
+    metadata: &Option<std::collections::HashMap<String, String>>,
+) -> Option<serde_json::Value> {
+    metadata.as_ref().map(|m| {
+        let mut obj = serde_json::Map::with_capacity(m.len());
+        for (k, v) in m {
+            obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+        }
+        serde_json::Value::Object(obj)
+    })
+}
+
 /// Process ingest stats: create graph nodes and edges from parsed symbols.
 /// This is a large function that builds the graph from the AST extraction results.
 pub async fn process_ingest_stats(
@@ -14,13 +43,15 @@ pub async fn process_ingest_stats(
     let fp_map: std::collections::HashMap<_, _> = stats
         .fingerprints
         .iter()
-        .map(|fp| (&fp.rel_path, fp))
+        .map(|fp| (fp.rel_path.as_str(), fp))
         .collect();
 
+    let mut seen_virtual_node_ids = std::collections::HashSet::new();
+
     for rel_path in &stats.all_files {
-        if std::path::Path::new(rel_path.as_str()).is_absolute() {
+        if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
-                "process_ingest_stats: absolute path in all_files: {}",
+                "process_ingest_stats: unsafe relative path in all_files: {}",
                 rel_path.as_str()
             );
         }
@@ -28,7 +59,7 @@ pub async fn process_ingest_stats(
 
         let mut metadata = None;
 
-        if let Some(fp) = fp_map.get(&rel_path.as_str().to_string()) {
+        if let Some(fp) = fp_map.get(rel_path.as_str()) {
             metadata = Some(serde_json::json!({
                 "mtime": fp.mtime_ms / 1000,
                 "size": fp.size,
@@ -54,6 +85,13 @@ pub async fn process_ingest_stats(
     }
 
     for (rel_path, sym) in &stats.symbols {
+        if !is_safe_project_relative_path(rel_path.as_str()) {
+            anyhow::bail!(
+                "process_ingest_stats: unsafe relative path in symbols: {}",
+                rel_path.as_str()
+            );
+        }
+
         let language = engram_core::guess_language(std::path::Path::new(rel_path.as_str()));
 
         let (metadata, fqn) = if let Some(m) = &sym.metadata {
@@ -62,10 +100,7 @@ pub async fn process_ingest_stats(
                 .iter()
                 .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
                 .collect();
-            (
-                Some(serde_json::to_value(map).unwrap_or(serde_json::Value::Null)),
-                fqn_val,
-            )
+            (Some(serde_json::Value::Object(map.into_iter().collect())), fqn_val)
         } else {
             (None, None)
         };
@@ -165,6 +200,13 @@ pub async fn process_ingest_stats(
 
     let mut edges = Vec::with_capacity(stats.edges.len());
     for (rel_path, edge) in &stats.edges {
+        if !is_safe_project_relative_path(rel_path.as_str()) {
+            anyhow::bail!(
+                "process_ingest_stats: unsafe relative path in edges: {}",
+                rel_path.as_str()
+            );
+        }
+
         let language = engram_core::guess_language(std::path::Path::new(&format!(
             "dummy.{}",
             edge.source_language
@@ -176,9 +218,9 @@ pub async fn process_ingest_stats(
             } else {
                 &edge.source_name
             };
-            if std::path::Path::new(path).is_absolute() {
+            if !is_safe_project_relative_path(path) {
                 anyhow::bail!(
-                    "process_ingest_stats: absolute path in edge source: {} (file: {})",
+                    "process_ingest_stats: unsafe path in edge source: {} (file: {})",
                     path,
                     rel_path.as_str()
                 );
@@ -210,6 +252,13 @@ pub async fn process_ingest_stats(
             } else {
                 path_str
             };
+            if !is_safe_project_relative_path(page_path) {
+                anyhow::bail!(
+                    "process_ingest_stats: unsafe control source page path: {} (file: {})",
+                    page_path,
+                    rel_path.as_str()
+                );
+            }
             engram_core::ids::NodeId::control(page_path, control_id).0
         } else {
             let fqn = if edge.source_name.contains('.') {
@@ -237,9 +286,9 @@ pub async fn process_ingest_stats(
             } else {
                 &edge.target_name
             };
-            if std::path::Path::new(path).is_absolute() {
+            if !is_safe_project_relative_path(path) {
                 anyhow::bail!(
-                    "process_ingest_stats: absolute path in edge target: {} (file: {})",
+                    "process_ingest_stats: unsafe path in edge target: {} (file: {})",
                     path,
                     rel_path.as_str()
                 );
@@ -266,6 +315,13 @@ pub async fn process_ingest_stats(
             } else {
                 path_str
             };
+            if !is_safe_project_relative_path(page_path) {
+                anyhow::bail!(
+                    "process_ingest_stats: unsafe control target page path: {} (file: {})",
+                    page_path,
+                    rel_path.as_str()
+                );
+            }
             let simple_name = edge
                 .target_name
                 .split('.')
@@ -306,11 +362,15 @@ pub async fn process_ingest_stats(
             )
             .0
         } else {
-            format!("::{}", edge.target_name)
+            let sanitized = edge.target_name.trim().replace('\0', "");
+            if sanitized.is_empty() {
+                anyhow::bail!("process_ingest_stats: empty unresolved target name");
+            }
+            format!("::{}", sanitized)
         };
 
         // Virtual nodes for SQL targets
-        if target_id.starts_with("sql:") {
+        if target_id.starts_with("sql:") && seen_virtual_node_ids.insert(target_id.clone()) {
             let sql_name = target_id.split(':').next_back().unwrap_or(&target_id);
             let sql_kind = if target_id.contains(":stored_proc:") {
                 "stored_proc"
@@ -327,18 +387,12 @@ pub async fn process_ingest_stats(
                 start_line: edge.target_start_line.unwrap_or(0),
                 end_line: edge.target_start_line.unwrap_or(0),
                 generation,
-                metadata: edge.metadata.as_ref().map(|m| {
-                    let mut map = std::collections::HashMap::new();
-                    for (k, v) in m {
-                        map.insert(k.clone(), serde_json::Value::String(v.clone()));
-                    }
-                    serde_json::to_value(map).unwrap_or(serde_json::Value::Null)
-                }),
+                metadata: metadata_to_json(&edge.metadata),
             });
         }
 
         // Virtual nodes for global state targets
-        if target_id.starts_with("state:") {
+        if target_id.starts_with("state:") && seen_virtual_node_ids.insert(target_id.clone()) {
             let parts: Vec<&str> = target_id.splitn(3, ':').collect();
             if parts.len() == 3 {
                 let state_type = parts[1];
@@ -384,11 +438,11 @@ pub async fn process_ingest_stats(
             weight: 1,
             generation,
             metadata: edge.metadata.as_ref().map(|m| {
-                let mut map = std::collections::HashMap::new();
+                let mut obj = serde_json::Map::with_capacity(m.len());
                 for (k, v) in m {
-                    map.insert(k.clone(), serde_json::Value::String(v.clone()));
+                    obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
-                serde_json::to_value(map).unwrap_or(serde_json::Value::Null)
+                serde_json::Value::Object(obj)
             }),
             updated_at_ms: now_ms(),
         });
