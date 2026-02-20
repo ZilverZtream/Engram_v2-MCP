@@ -90,6 +90,11 @@ impl NodeId {
         Self(format!("binding_field:{}", field_name))
     }
 
+    /// Canonical ID for a UI container node (Panel, Table, GroupBox, div, etc.).
+    pub fn ui_container(page_rel_path: &str, container_id: &str) -> Self {
+        Self(format!("ui_container:{}:{}", page_rel_path, container_id))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
