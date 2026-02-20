@@ -1,5 +1,6 @@
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -79,10 +80,7 @@ impl LlmBackend {
                     .clone()
                     .or_else(|| cfg.ollama_url.clone())
                     .unwrap_or_else(|| "http://localhost:11434".into());
-                let model = cfg
-                    .llm_model
-                    .clone()
-                    .unwrap_or_else(|| "llama3.2".into());
+                let model = cfg.llm_model.clone().unwrap_or_else(|| "llama3.2".into());
                 LlmBackend::Ollama { url, model }
             }
             "openai" => {
@@ -244,7 +242,9 @@ impl DreamingEngine {
 
     /// Deterministic, local "dream" summarizer — always available as fallback.
     pub fn deterministic_summarize(&self, context_blobs: &[String]) -> DreamInsight {
-        let re = Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").unwrap();
+        static TOKEN_RE: OnceLock<Regex> = OnceLock::new();
+        let re = TOKEN_RE
+            .get_or_init(|| Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("Invalid token regex"));
         let mut counts: HashMap<String, usize> = HashMap::new();
 
         for blob in context_blobs {
@@ -409,10 +409,7 @@ async fn call_ollama_generate(
                     .json()
                     .await
                     .map_err(|e| anyhow::anyhow!("Ollama generate JSON parse: {e}"))?;
-                let text = data["response"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
+                let text = data["response"].as_str().unwrap_or("").to_string();
                 return Ok(text);
             }
             Err(e) => {

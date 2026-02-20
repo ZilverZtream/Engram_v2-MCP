@@ -1,5 +1,6 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
@@ -202,7 +203,11 @@ impl StyleMimicryEngine {
             out.push("Prefer private-by-default visibility for internal logic.".into());
         }
 
-        if out.is_empty() { None } else { Some((out, 1)) }
+        if out.is_empty() {
+            None
+        } else {
+            Some((out, 1))
+        }
     }
 
     fn analyze_python(&self, text: &str) -> Option<(Vec<String>, usize)> {
@@ -253,7 +258,11 @@ impl StyleMimicryEngine {
             );
         }
 
-        if out.is_empty() { None } else { Some((out, 1)) }
+        if out.is_empty() {
+            None
+        } else {
+            Some((out, 1))
+        }
     }
 }
 
@@ -286,9 +295,17 @@ fn detect_indent(text: &str) -> Option<String> {
 }
 
 fn detect_naming(text: &str) -> Option<String> {
-    let snake = Regex::new(r"\b[a-z]+_[a-z0-9_]+\b").unwrap();
-    let camel = Regex::new(r"\b[a-z]+[A-Z][A-Za-z0-9]*\b").unwrap();
-    let pascal = Regex::new(r"\b[A-Z][a-z0-9]+[A-Za-z0-9]*\b").unwrap();
+    static SNAKE_RE: OnceLock<Regex> = OnceLock::new();
+    static CAMEL_RE: OnceLock<Regex> = OnceLock::new();
+    static PASCAL_RE: OnceLock<Regex> = OnceLock::new();
+
+    let snake =
+        SNAKE_RE.get_or_init(|| Regex::new(r"\b[a-z]+_[a-z0-9_]+\b").expect("Invalid snake regex"));
+    let camel = CAMEL_RE
+        .get_or_init(|| Regex::new(r"\b[a-z]+[A-Z][A-Za-z0-9]*\b").expect("Invalid camel regex"));
+    let pascal = PASCAL_RE.get_or_init(|| {
+        Regex::new(r"\b[A-Z][a-z0-9]+[A-Za-z0-9]*\b").expect("Invalid pascal regex")
+    });
 
     let mut s = 0usize;
     let mut c = 0usize;
