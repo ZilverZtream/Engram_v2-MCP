@@ -733,14 +733,14 @@ pub fn extract_winforms_layout(
     };
     let Some(location_re) = get_compiled_regex(
         &WINFORMS_LOCATION_RE,
-        r#"(?i)(?:Me|this)\s*\.\s*(\w+)\s*\.\s*Location\s*=\s*[Nn]ew\s+(?:System\.Drawing\.)?Point\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)"#,
+        r#"(?i)(?:Me|this)\s*\.\s*(\w+)\s*\.\s*Location\s*=\s*[Nn]ew\s+(?:System\.Drawing\.)?Point\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"#,
         "dle_winforms_location",
     ) else {
         return (symbols, edges);
     };
     let Some(size_re) = get_compiled_regex(
         &WINFORMS_SIZE_RE,
-        r#"(?i)(?:Me|this)\s*\.\s*(\w+)\s*\.\s*Size\s*=\s*[Nn]ew\s+(?:System\.Drawing\.)?Size\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)"#,
+        r#"(?i)(?:Me|this)\s*\.\s*(\w+)\s*\.\s*Size\s*=\s*[Nn]ew\s+(?:System\.Drawing\.)?Size\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"#,
         "dle_winforms_size",
     ) else {
         return (symbols, edges);
