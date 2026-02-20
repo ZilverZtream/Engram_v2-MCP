@@ -6,20 +6,27 @@ pub const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024; // 10 MB limit for source files
 pub fn is_binary(path: &Path) -> bool {
     let mut file = match std::fs::File::open(path) {
         Ok(f) => f,
-        Err(_) => return false, // If we can't open, skip or assume not binary? Safe to assume skip.
+        // Fail-closed: unreadable files should not be treated as safe text files.
+        Err(_) => return true,
     };
     let mut buffer = [0; 8192];
     use std::io::Read;
     let n = match file.read(&mut buffer) {
         Ok(n) => n,
-        Err(_) => return false,
+        Err(_) => return true,
     };
     // Check for null bytes
     buffer[..n].contains(&0)
 }
 
 pub fn iter_files(root: &Path, exts: &[&str]) -> Vec<PathBuf> {
+    use std::collections::BTreeSet;
+
     let mut out = Vec::new();
+    let allowed_exts: BTreeSet<String> = exts
+        .iter()
+        .map(|x| x.trim_start_matches('.').to_ascii_lowercase())
+        .collect();
     let mut builder = WalkBuilder::new(root);
     builder
         .hidden(false)
@@ -33,10 +40,14 @@ pub fn iter_files(root: &Path, exts: &[&str]) -> Vec<PathBuf> {
         if !entry.file_type().map(|ft| ft.is_file()).unwrap_or(false) {
             continue;
         }
+        if entry.path_is_symlink() {
+            // Avoid indexing through symlinked files to prevent duplicate/cross-root ingestion.
+            continue;
+        }
         let p = entry.into_path();
         if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-            let lower = ext.to_lowercase();
-            if exts.iter().any(|x| x.trim_start_matches('.') == lower) {
+            let lower = ext.to_ascii_lowercase();
+            if allowed_exts.contains(&lower) {
                 out.push(p);
             }
         }
