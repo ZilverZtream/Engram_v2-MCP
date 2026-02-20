@@ -1,30 +1,36 @@
-/// WebForms event wiring extractor.
+/// ASP.NET WebForms & legacy service endpoint extractor.
 ///
-/// Parses .aspx / .ascx / .master files for:
-///   - `<%@ Page Inherits="Namespace.ClassName" CodeBehind="Foo.aspx.cs" %>`
-///   - `<%@ Control Inherits="..." %>`
-///   - Control IDs: `ID="btnSubmit"` → node of kind "control"
-///   - Event attributes: `OnClick="ButtonClick"` → edge from control to handler
+/// Parses all ASP.NET markup and service-endpoint file types for code-behind
+/// wiring, control hierarchies, data-source bindings, and service class references.
 ///
-/// P0.7 additions:
-///   - Code-behind path normalization for both `.cs` and `.vb` (Windows `\` + Linux `/`).
-///   - Emits three edge kinds for code-behind wiring:
-///       1. `codebehind`  — markup file → code-behind file  (with normalized `rel_path` in meta)
-///       2. `inherits`    — markup file → code-behind class (FQN in meta)
-///       3. `cb_defines`  — code-behind file → code-behind class (links file node to class node)
+/// Supported file types:
+///   - `.aspx`   — Web Forms pages (`<%@ Page ... %>`)
+///   - `.ascx`   — User Controls (`<%@ Control ... %>`)
+///   - `.master` — Master Pages (`<%@ Master ... %>`)
+///   - `.asmx`   — ASMX Web Services (`<%@ WebService Class="..." CodeBehind="..." %>`)
+///   - `.ashx`   — Generic HTTP Handlers (`<%@ WebHandler Class="..." CodeBehind="..." %>`)
+///   - `.svc`    — WCF Service Hosts (`<%@ ServiceHost Service="..." Factory="..." %>`)
+///   - `.asax`   — Global Application File (`<%@ Application Inherits="..." CodeBehind="..." %>`)
 ///
-/// P11 additions (legacy WebForms deep extraction):
-///   4. `<%@ Register %>` directive parsing — captures Src/TagPrefix/TagName, emits
-///      `registers_control` edges from the page to the referenced `.ascx` user control.
-///   5. User control tag resolution — when `<uc1:Menu>` is found, resolves the tag prefix
-///      against a Register table and emits a `registers_control` edge to the `.ascx` file.
-///   6. Data-source controls — `<asp:SqlDataSource>`, `<asp:ObjectDataSource>`, etc.
-///      Emits `sql_calls` edges for inline SQL (SelectCommand, etc.) and `event_wiring`
-///      edges for SelectMethod/InsertMethod bindings.
-///   7. Data-binding expressions — `<%# Eval("FieldName") %>`, `<%# Bind("FieldName") %>`.
-///      Emits `data_binding` edges from the page to a `binding_field:FieldName` virtual node.
+/// Extractions:
+///   1. Code-behind wiring (all directive types):
+///       - `codebehind_file` — markup file → code-behind file (with normalized `rel_path`)
+///       - `codebehind_class` / service-specific edge — markup → backing class (FQN in meta)
+///       - `cb_defines` — code-behind file → backing class (file→class shortcut)
+///   2. Server controls: `ID="btnSubmit"` → node of kind "control"
+///   3. Event attributes: `OnClick="ButtonClick"` → `event_wiring` edge
+///   4. `<%@ Register %>` directives → `registers_control` edges
+///   5. User control tags (`<uc1:Menu>`) → resolved `registers_control` edges
+///   6. DataSource controls → `sql_calls` and `event_wiring` edges
+///   7. Data-binding expressions → `data_binding` edges to `binding_field:*` nodes
+///   8. Server-Side Includes → `includes_file` edges
+///   9. Service endpoint directives (P13):
+///       - `exposes_web_service` — .asmx → backing class
+///       - `exposes_http_handler` — .ashx → backing class
+///       - `exposes_wcf_service` — .svc → backing class
+///       - WCF `Factory=` → additional `codebehind_class` edge with `role=factory`
 ///
-/// Emits `ExtractedSymbol` (controls + page) and `ExtractedEdge` (all of the above).
+/// Emits `ExtractedSymbol` (controls + page/service symbols) and `ExtractedEdge`.
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
 use engram_core::RelPath;
 use regex::Regex;
@@ -58,6 +64,19 @@ static DS_INSERT_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 static DS_UPDATE_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 static DS_DELETE_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 static DS_TYPE_NAME_RE: OnceLock<Regex> = OnceLock::new();
+
+/// Server-Side Include directive: `<!--#include virtual="..." -->` or `<!--#include file="..." -->`
+static SSI_RE: OnceLock<Regex> = OnceLock::new();
+
+/// Service-endpoint directives: `<%@ WebService ... %>`, `<%@ WebHandler ... %>`,
+/// `<%@ ServiceHost ... %>`, `<%@ Application ... %>`.
+static SERVICE_DIRECTIVE_RE: OnceLock<Regex> = OnceLock::new();
+/// `Class="Namespace.ClassName"` — used by ASMX WebService and ASHX WebHandler directives.
+static CLASS_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+/// `Service="Namespace.ClassName"` — used by WCF ServiceHost directives.
+static SERVICE_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+/// `Factory="Namespace.FactoryClass"` — used by WCF ServiceHost directives.
+static FACTORY_ATTR_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -144,7 +163,7 @@ pub fn extract_webforms(
     };
     let Some(codebehind_re) = get_compiled_regex(
         &CODEBEHIND_RE,
-        r#"(?i)Code(?:Behind|File)\s*=\s*"([^"]+)""#,
+        r#"(?i)Code(?:Behind(?:File)?|File)\s*=\s*"([^"]+)""#,
         "webforms_codebehind",
     ) else {
         return (symbols, edges);
@@ -274,6 +293,29 @@ pub fn extract_webforms(
             }
         }
     }
+
+    // ── 1b. Service endpoint directives (WebService / WebHandler / ServiceHost / Application) ──
+    //
+    // These directives use different attributes to wire up code-behind:
+    //   - .asmx:  <%@ WebService  Class="Namespace.Class" CodeBehind="..." %>
+    //   - .ashx:  <%@ WebHandler  Class="Namespace.Class" CodeBehind="..." %>
+    //   - .svc:   <%@ ServiceHost Service="Namespace.Class" CodeBehindFile="..."
+    //                              Factory="Namespace.Factory" %>
+    //   - .asax:  <%@ Application Inherits="Namespace.Class" CodeBehind="..." %>
+    //
+    // Application directives are handled by the Page/Control/Master regex above when they
+    // have Inherits=, but we still need the service-specific pass for the others.
+    extract_service_directives(
+        project_root,
+        rel_path,
+        source,
+        &file_name,
+        &codebehind_re,
+        &char_to_line,
+        &mut page_inherits_fqn,
+        &mut symbols,
+        &mut edges,
+    );
 
     // ── 2. Server controls ────────────────────────────────────────────────────
     // Match tags with runat="server" and an ID attribute.
@@ -413,7 +455,283 @@ pub fn extract_webforms(
         &mut edges,
     );
 
+    // ── 7. Server-Side Includes: <!--#include virtual="..." --> or file="..." ──
+    extract_server_side_includes(source, project_root, rel_path, &char_to_line, &mut edges);
+
     (symbols, edges)
+}
+
+// ── 1b. Service Endpoint Directive Extraction ────────────────────────────────
+
+/// Map an ASP.NET directive keyword to the symbol kind we emit in the graph.
+fn directive_to_symbol_kind(directive: &str) -> &'static str {
+    match directive.to_lowercase().as_str() {
+        "webservice" => "web_service",
+        "webhandler" => "http_handler",
+        "servicehost" => "wcf_service",
+        "application" => "application",
+        _ => "page",
+    }
+}
+
+/// Map an ASP.NET directive keyword to the edge kind for the endpoint → class wiring.
+fn directive_to_edge_kind(directive: &str) -> &'static str {
+    match directive.to_lowercase().as_str() {
+        "webservice" => "exposes_web_service",
+        "webhandler" => "exposes_http_handler",
+        "servicehost" => "exposes_wcf_service",
+        _ => "codebehind_class",
+    }
+}
+
+/// Extract class / code-behind wiring from service-endpoint directives.
+///
+/// Handles:
+///   - `<%@ WebService  Class="..." CodeBehind="..." %>`        (.asmx)
+///   - `<%@ WebHandler  Class="..." CodeBehind="..." %>`        (.ashx)
+///   - `<%@ ServiceHost Service="..." CodeBehindFile="..." %>`  (.svc)
+///   - `<%@ Application Inherits="..." CodeBehind="..." %>`     (.asax — fallback when
+///     the generic Page/Control/Master pass above didn't match it)
+///
+/// For each matched directive this emits:
+///   - A symbol with a kind derived from the directive type (`web_service`, `http_handler`,
+///     `wcf_service`, `application`).
+///   - A `codebehind_file` edge from the markup file to the code-behind file.
+///   - A service-specific edge (`exposes_web_service`, `exposes_http_handler`,
+///     `exposes_wcf_service`, or `codebehind_class`) from the markup to the backing class.
+///   - A `cb_defines` edge from the code-behind file to the backing class.
+///   - For WCF `.svc` files with a `Factory=` attribute: an additional `codebehind_class`
+///     edge from the markup to the factory class.
+#[allow(clippy::too_many_arguments)]
+fn extract_service_directives(
+    project_root: &Path,
+    rel_path: &RelPath,
+    source: &str,
+    file_name: &str,
+    codebehind_re: &Regex,
+    char_to_line: &dyn Fn(usize) -> u32,
+    page_inherits_fqn: &mut Option<String>,
+    symbols: &mut Vec<ExtractedSymbol>,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    // ── Compile service-specific regexes ──────────────────────────────────────
+    let Some(service_directive_re) = get_compiled_regex(
+        &SERVICE_DIRECTIVE_RE,
+        r"(?i)<%@\s*(WebService|WebHandler|ServiceHost|Application)\b([^%]*)%>",
+        "webforms_service_directive",
+    ) else {
+        return;
+    };
+    let Some(class_attr_re) = get_compiled_regex(
+        &CLASS_ATTR_RE,
+        r#"(?i)\bClass\s*=\s*"([^"]+)""#,
+        "webforms_class_attr",
+    ) else {
+        return;
+    };
+    let Some(service_attr_re) = get_compiled_regex(
+        &SERVICE_ATTR_RE,
+        r#"(?i)\bService\s*=\s*"([^"]+)""#,
+        "webforms_service_attr",
+    ) else {
+        return;
+    };
+    let Some(factory_attr_re) = get_compiled_regex(
+        &FACTORY_ATTR_RE,
+        r#"(?i)\bFactory\s*=\s*"([^"]+)""#,
+        "webforms_factory_attr",
+    ) else {
+        return;
+    };
+    // Inherits is already compiled above in the caller, but we need a local handle.
+    let Some(inherits_re) = get_compiled_regex(
+        &INHERITS_RE,
+        r#"(?i)Inherits\s*=\s*"([^"]+)""#,
+        "webforms_inherits",
+    ) else {
+        return;
+    };
+
+    for cap in service_directive_re.captures_iter(source) {
+        let directive_type = cap[1].to_string(); // e.g. "WebService", "WebHandler", etc.
+        let attrs = &cap[2];
+        let line = char_to_line(cap.get(0).map_or(0, |m| m.start()));
+
+        let symbol_kind = directive_to_symbol_kind(&directive_type);
+        let edge_kind = directive_to_edge_kind(&directive_type);
+
+        // ── Determine the class FQN ──────────────────────────────────────────
+        // Priority: Class= (ASMX/ASHX) > Service= (WCF) > Inherits= (Application/fallback)
+        let class_fqn: Option<String> = class_attr_re
+            .captures(attrs)
+            .map(|c| c[1].trim().to_string())
+            .or_else(|| {
+                service_attr_re
+                    .captures(attrs)
+                    .map(|c| c[1].trim().to_string())
+            })
+            .or_else(|| {
+                inherits_re
+                    .captures(attrs)
+                    .map(|c| c[1].trim().to_string())
+            });
+
+        // ── Determine code-behind path ───────────────────────────────────────
+        // CodeBehind= / CodeFile= (handled by codebehind_re).
+        // WCF also uses CodeBehindFile= which our regex already covers via `Code(?:Behind|File)`.
+        let cb_rel_path: Option<String> = codebehind_re.captures(attrs).map(|cap| {
+            let raw = cap[1].trim();
+            resolve_codebehind_path(project_root, rel_path, raw)
+        });
+
+        // Skip directives with neither class nor code-behind wiring (e.g. bare stubs).
+        if class_fqn.is_none() && cb_rel_path.is_none() {
+            continue;
+        }
+
+        // Populate the shared inherits FQN if we haven't yet (from Page/Control/Master pass).
+        if page_inherits_fqn.is_none() {
+            if let Some(ref fqn) = class_fqn {
+                *page_inherits_fqn = Some(fqn.clone());
+            }
+        }
+
+        // ── Emit symbol ──────────────────────────────────────────────────────
+        let mut sym_meta = HashMap::new();
+        sym_meta.insert("directive_type".into(), directive_type.clone());
+        if let Some(ref fqn) = class_fqn {
+            sym_meta.insert("class_fqn".into(), fqn.clone());
+        }
+
+        symbols.push(ExtractedSymbol {
+            name: file_name.to_string(),
+            kind: symbol_kind.into(),
+            start_line: line,
+            end_line: line,
+            metadata: Some(sym_meta),
+        });
+
+        // ── Edge: markup → code-behind file ──────────────────────────────────
+        if let Some(ref cb_path) = cb_rel_path {
+            let mut meta = HashMap::new();
+            meta.insert("relative_path".into(), cb_path.clone());
+            meta.insert("directive_type".into(), directive_type.clone());
+
+            let cb_lang = if cb_path.to_lowercase().ends_with(".vb") {
+                "vb"
+            } else {
+                "csharp"
+            };
+            meta.insert("language".into(), cb_lang.into());
+
+            edges.push(ExtractedEdge {
+                source_name: "file".into(),
+                source_kind: symbol_kind.into(),
+                source_start_line: line,
+                source_language: "aspx".into(),
+                target_name: cb_path.clone(),
+                target_kind: Some("file".into()),
+                target_start_line: None,
+                kind: "codebehind_file".into(),
+                metadata: Some(meta),
+            });
+        }
+
+        // ── Edge: markup → backing class (service-specific edge kind) ────────
+        if let Some(ref fqn) = class_fqn {
+            let simple_name = fqn.split('.').next_back().unwrap_or(fqn).to_string();
+
+            let mut meta = HashMap::new();
+            meta.insert("fqn".into(), fqn.clone());
+            meta.insert("directive_type".into(), directive_type.clone());
+
+            edges.push(ExtractedEdge {
+                source_name: "file".into(),
+                source_kind: symbol_kind.into(),
+                source_start_line: line,
+                source_language: "aspx".into(),
+                target_name: simple_name.clone(),
+                target_kind: Some("class".into()),
+                target_start_line: None,
+                kind: edge_kind.into(),
+                metadata: Some(meta.clone()),
+            });
+
+            // ── Edge: code-behind file → backing class (cb_defines) ──────────
+            if let Some(ref cb_path) = cb_rel_path {
+                edges.push(ExtractedEdge {
+                    source_name: cb_path.clone(),
+                    source_kind: "file".into(),
+                    source_start_line: 0,
+                    source_language: "aspx".into(),
+                    target_name: simple_name,
+                    target_kind: Some("class".into()),
+                    target_start_line: None,
+                    kind: "cb_defines".into(),
+                    metadata: Some(meta),
+                });
+            }
+        }
+
+        // ── WCF: Factory= attribute ─────────────────────────────────────────
+        if let Some(fc) = factory_attr_re.captures(attrs) {
+            let factory_fqn = fc[1].trim().to_string();
+            if !factory_fqn.is_empty() {
+                let factory_simple = factory_fqn
+                    .split('.')
+                    .next_back()
+                    .unwrap_or(&factory_fqn)
+                    .to_string();
+                let mut meta = HashMap::new();
+                meta.insert("fqn".into(), factory_fqn.clone());
+                meta.insert("directive_type".into(), directive_type.clone());
+                meta.insert("role".into(), "factory".into());
+
+                edges.push(ExtractedEdge {
+                    source_name: "file".into(),
+                    source_kind: symbol_kind.into(),
+                    source_start_line: line,
+                    source_language: "aspx".into(),
+                    target_name: factory_simple,
+                    target_kind: Some("class".into()),
+                    target_start_line: None,
+                    kind: "codebehind_class".into(),
+                    metadata: Some(meta),
+                });
+            }
+        }
+    }
+}
+
+/// Resolve a code-behind path from a directive attribute value to a normalized
+/// project-relative path. Handles `~/...` app-root paths, absolute paths, and
+/// paths relative to the markup file's directory.
+fn resolve_codebehind_path(project_root: &Path, markup_rel_path: &RelPath, raw: &str) -> String {
+    let raw = raw.trim();
+
+    // Handle app-root paths: ~/App_Code/Optician.vb → App_Code/Optician.vb
+    if let Some(stripped) = raw.strip_prefix("~/") {
+        return stripped.replace('\\', "/");
+    }
+
+    let p = Path::new(raw);
+    if p.is_absolute() {
+        if let Some(rel) = RelPath::from_relative(project_root, p) {
+            return rel.as_str().to_string();
+        }
+        return raw.replace('\\', "/");
+    }
+
+    // Relative to the markup file's parent directory.
+    if let Some(parent_abs) = project_root.join(markup_rel_path.as_str()).parent() {
+        let abs_cb = parent_abs.join(raw);
+        let normalized_abs = lexically_normalize(&abs_cb);
+        if let Some(rel) = RelPath::from_relative(project_root, &normalized_abs) {
+            return rel.as_str().to_string();
+        }
+    }
+
+    raw.replace('\\', "/")
 }
 
 // ── 3. Register Directive Extraction ────────────────────────────────────────
@@ -450,11 +768,8 @@ fn extract_register_directives(
     ) else {
         return Vec::new();
     };
-    let Some(src_re) = get_compiled_regex(
-        &SRC_RE,
-        r#"(?i)Src\s*=\s*"([^"]+)""#,
-        "webforms_src",
-    ) else {
+    let Some(src_re) = get_compiled_regex(&SRC_RE, r#"(?i)Src\s*=\s*"([^"]+)""#, "webforms_src")
+    else {
         return Vec::new();
     };
     let Some(assembly_re) = get_compiled_regex(
@@ -488,9 +803,7 @@ fn extract_register_directives(
             .map(|c| c[1].trim().to_string())
             .unwrap_or_default();
         let src_raw = src_re.captures(attrs).map(|c| c[1].trim().to_string());
-        let assembly = assembly_re
-            .captures(attrs)
-            .map(|c| c[1].trim().to_string());
+        let assembly = assembly_re.captures(attrs).map(|c| c[1].trim().to_string());
         let namespace = namespace_re
             .captures(attrs)
             .map(|c| c[1].trim().to_string());
@@ -499,9 +812,8 @@ fn extract_register_directives(
             continue;
         }
 
-        let src_rel_path = src_raw.and_then(|raw| {
-            resolve_aspnet_path(project_root, rel_path, &raw)
-        });
+        let src_rel_path =
+            src_raw.and_then(|raw| resolve_aspnet_path(project_root, rel_path, &raw));
 
         entries.push(RegisterEntry {
             tag_prefix,
@@ -516,7 +828,11 @@ fn extract_register_directives(
 }
 
 /// Resolve an ASP.NET virtual path (~/...) or relative path to a project-relative path.
-fn resolve_aspnet_path(project_root: &Path, markup_rel_path: &RelPath, raw: &str) -> Option<String> {
+fn resolve_aspnet_path(
+    project_root: &Path,
+    markup_rel_path: &RelPath,
+    raw: &str,
+) -> Option<String> {
     let raw = raw.trim();
     if raw.is_empty() {
         return None;
@@ -564,7 +880,10 @@ fn extract_user_control_tags(
         if let Some(ref src) = entry.src_rel_path {
             if !entry.tag_name.is_empty() {
                 prefix_lookup.insert(
-                    (entry.tag_prefix.to_lowercase(), entry.tag_name.to_lowercase()),
+                    (
+                        entry.tag_prefix.to_lowercase(),
+                        entry.tag_name.to_lowercase(),
+                    ),
                     src.clone(),
                 );
             }
@@ -610,7 +929,10 @@ fn extract_user_control_tags(
 
             for m in tag_re.find_iter(source) {
                 let line = char_to_line(m.start());
-                let key = (entry.tag_prefix.to_lowercase(), entry.tag_name.to_lowercase());
+                let key = (
+                    entry.tag_prefix.to_lowercase(),
+                    entry.tag_name.to_lowercase(),
+                );
                 if !seen.insert(key) {
                     continue; // Only emit one edge per unique prefix:tagname pair
                 }
@@ -671,11 +993,8 @@ fn extract_datasource_controls(
     ) else {
         return;
     };
-    let Some(id_re) = get_compiled_regex(
-        &ID_RE,
-        r#"(?i)\bID\s*=\s*"([^"]+)""#,
-        "webforms_id_ds",
-    ) else {
+    let Some(id_re) = get_compiled_regex(&ID_RE, r#"(?i)\bID\s*=\s*"([^"]+)""#, "webforms_id_ds")
+    else {
         return;
     };
 
@@ -976,6 +1295,97 @@ fn extract_data_binding_expressions(
     }
 }
 
+// ── 7. Server-Side Include Extraction ─────────────────────────────────────
+
+/// Extract `<!--#include virtual="..." -->` and `<!--#include file="..." -->`
+/// Server-Side Include directives from legacy ASP/ASP.NET markup.
+///
+/// SSI directives are used in classic ASP and legacy WebForms to share UI
+/// components, helper scripts, or global variables without using standard
+/// User Controls (.ascx).
+///
+/// Path resolution:
+///   - `virtual="..."`: Path is relative to the application root.
+///   - `file="..."`: Path is relative to the directory of the current document.
+///
+/// Emits `includes_file` edges from the current page to the resolved target file.
+fn extract_server_side_includes(
+    source: &str,
+    project_root: &Path,
+    rel_path: &RelPath,
+    char_to_line: &dyn Fn(usize) -> u32,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let Some(ssi_re) = get_compiled_regex(
+        &SSI_RE,
+        r#"(?i)<!--\s*#include\s+(virtual|file)\s*=\s*"([^"]+)"\s*-->"#,
+        "webforms_ssi",
+    ) else {
+        return;
+    };
+
+    let mut seen_includes = std::collections::HashSet::new();
+
+    for cap in ssi_re.captures_iter(source) {
+        let include_type = cap[1].to_lowercase();
+        let raw_path = cap[2].trim();
+        let line = char_to_line(cap.get(0).map_or(0, |m| m.start()));
+
+        if raw_path.is_empty() {
+            continue;
+        }
+
+        let resolved_path = match include_type.as_str() {
+            "virtual" => {
+                // Virtual paths are relative to the application root.
+                // Strip leading `/` if present (virtual root convention).
+                let effective = raw_path
+                    .strip_prefix('/')
+                    .unwrap_or(raw_path)
+                    .replace('\\', "/");
+                Some(effective)
+            }
+            "file" => {
+                // File paths are relative to the current document's directory.
+                resolve_aspnet_path(project_root, rel_path, raw_path)
+            }
+            _ => None,
+        };
+
+        if let Some(target) = resolved_path {
+            // Deduplicate: only emit one edge per unique target path per file.
+            if !seen_includes.insert(target.clone()) {
+                continue;
+            }
+
+            let mut meta = HashMap::new();
+            meta.insert("include_type".into(), include_type.clone());
+            meta.insert("raw_path".into(), raw_path.to_string());
+
+            // Determine the source language hint from the included file extension.
+            let inc_ext = Path::new(&target)
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_lowercase());
+            if let Some(ref ext) = inc_ext {
+                meta.insert("include_ext".into(), ext.clone());
+            }
+
+            edges.push(ExtractedEdge {
+                source_name: "file".into(),
+                source_kind: "page".into(),
+                source_start_line: line,
+                source_language: "aspx".into(),
+                target_name: target,
+                target_kind: Some("file".into()),
+                target_start_line: None,
+                kind: "includes_file".into(),
+                metadata: Some(meta),
+            });
+        }
+    }
+}
+
 // ── Path Utilities ──────────────────────────────────────────────────────────
 
 /// Simple lexical path normalization to handle ".." and "." components without hitting the disk.
@@ -1008,14 +1418,25 @@ fn lexically_normalize(path: &Path) -> std::path::PathBuf {
     ret
 }
 
-/// Returns true if the file extension suggests a WebForms markup file.
+/// Returns true if the file extension suggests an ASP.NET WebForms markup or
+/// service endpoint file that contains `<%@ ... %>` directives with code-behind
+/// wiring, controls, or class references.
+///
+/// Covers:
+///   - `.aspx`   — Web Forms pages (`<%@ Page ... %>`)
+///   - `.ascx`   — User Controls (`<%@ Control ... %>`)
+///   - `.master` — Master Pages (`<%@ Master ... %>`)
+///   - `.asmx`   — ASMX Web Services (`<%@ WebService ... %>`)
+///   - `.ashx`   — Generic HTTP Handlers (`<%@ WebHandler ... %>`)
+///   - `.svc`    — WCF Service Hosts (`<%@ ServiceHost ... %>`)
+///   - `.asax`   — Global Application File (`<%@ Application ... %>`)
 pub fn is_webforms_markup(path: &Path) -> bool {
     matches!(
         path.extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase())
             .as_deref(),
-        Some("aspx") | Some("ascx") | Some("master")
+        Some("aspx") | Some("ascx") | Some("master") | Some("asmx") | Some("ashx") | Some("svc") | Some("asax")
     )
 }
 
@@ -1347,7 +1768,8 @@ mod tests {
 
         // Should find the datasource control symbol
         assert!(
-            syms.iter().any(|s| s.name == "dsOrders" && s.kind == "control"),
+            syms.iter()
+                .any(|s| s.name == "dsOrders" && s.kind == "control"),
             "missing dsOrders control symbol"
         );
 
@@ -1448,7 +1870,9 @@ mod tests {
             "missing SelectMethod edge"
         );
         assert!(
-            method_edges.iter().any(|e| e.target_name == "InsertProduct"),
+            method_edges
+                .iter()
+                .any(|e| e.target_name == "InsertProduct"),
             "missing InsertMethod edge"
         );
     }
@@ -1467,10 +1891,7 @@ mod tests {
         let rel = RelPath::new("Products.aspx");
         let (_, edges) = extract_webforms(root, &rel, markup);
 
-        let binding_edges: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "data_binding")
-            .collect();
+        let binding_edges: Vec<_> = edges.iter().filter(|e| e.kind == "data_binding").collect();
         assert_eq!(
             binding_edges.len(),
             3,
@@ -1529,16 +1950,524 @@ mod tests {
         let rel = RelPath::new("Grid.aspx");
         let (_, edges) = extract_webforms(root, &rel, markup);
 
-        let binding_edges: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "data_binding")
-            .collect();
+        let binding_edges: Vec<_> = edges.iter().filter(|e| e.kind == "data_binding").collect();
         // "Status" should appear only once (deduplicated)
         assert_eq!(
             binding_edges.len(),
             1,
             "expected 1 deduplicated data_binding edge, got {}",
             binding_edges.len()
+        );
+    }
+
+    // ── P12: Server-Side Include (SSI) tests ─────────────────────────────────
+
+    #[test]
+    fn test_ssi_virtual_include() {
+        let markup = r#"
+<%@ Page Inherits="MyApp.Default" %>
+<!--#include virtual="/includes/header.inc" -->
+<div>Page content</div>
+<!--#include virtual="/includes/footer.inc" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Default.aspx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        let ssi_edges: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(
+            ssi_edges.len(),
+            2,
+            "expected 2 includes_file edges, got {}",
+            ssi_edges.len()
+        );
+
+        let header = ssi_edges
+            .iter()
+            .find(|e| e.target_name.contains("includes/header.inc"))
+            .expect("includes_file edge for header.inc");
+        assert_eq!(
+            header
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("include_type"))
+                .map(|s| s.as_str()),
+            Some("virtual")
+        );
+
+        let footer = ssi_edges
+            .iter()
+            .find(|e| e.target_name.contains("includes/footer.inc"))
+            .expect("includes_file edge for footer.inc");
+        assert_eq!(footer.target_kind.as_deref(), Some("file"));
+    }
+
+    #[test]
+    fn test_ssi_file_include() {
+        let markup = r#"
+<%@ Page Inherits="MyApp.Reports" %>
+<!--#include file="helpers/utils.asp" -->
+<!--#include file="../shared/nav.inc" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Reports/Summary.aspx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        let ssi_edges: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(
+            ssi_edges.len(),
+            2,
+            "expected 2 includes_file edges, got {}",
+            ssi_edges.len()
+        );
+
+        // file="helpers/utils.asp" relative to Reports/ → Reports/helpers/utils.asp
+        let utils = ssi_edges
+            .iter()
+            .find(|e| e.target_name.contains("utils.asp"))
+            .expect("includes_file edge for utils.asp");
+        assert_eq!(
+            utils
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("include_type"))
+                .map(|s| s.as_str()),
+            Some("file")
+        );
+
+        // file="../shared/nav.inc" relative to Reports/ → shared/nav.inc
+        let nav = ssi_edges
+            .iter()
+            .find(|e| e.target_name.contains("nav.inc"))
+            .expect("includes_file edge for nav.inc");
+        assert!(
+            nav.target_name.contains("shared/nav.inc"),
+            "parent traversal should resolve to shared/nav.inc, got: {}",
+            nav.target_name
+        );
+    }
+
+    #[test]
+    fn test_ssi_deduplication() {
+        let markup = r#"
+<!--#include virtual="/common/header.inc" -->
+<!--#include virtual="/common/header.inc" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Page.aspx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        let ssi_edges: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(
+            ssi_edges.len(),
+            1,
+            "duplicate SSI includes should be deduplicated, got {}",
+            ssi_edges.len()
+        );
+    }
+
+    #[test]
+    fn test_ssi_case_insensitive() {
+        // SSI directives are case-insensitive per the spec
+        let markup = r#"
+<!--#INCLUDE VIRTUAL="/Scripts/Global.js" -->
+<!--#Include File="local.asp" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("App/Page.aspx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        let ssi_edges: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(
+            ssi_edges.len(),
+            2,
+            "case-insensitive SSI should work, got {}",
+            ssi_edges.len()
+        );
+    }
+
+    #[test]
+    fn test_ssi_mixed_with_other_directives() {
+        // SSI alongside Register, DataSource, and binding expressions
+        let markup = r#"
+<%@ Page Inherits="MyApp.Default" %>
+<%@ Register Src="~/Controls/Menu.ascx" TagPrefix="uc1" TagName="Menu" %>
+<!--#include virtual="/includes/globals.inc" -->
+<asp:SqlDataSource ID="ds1" runat="server" SelectCommand="SELECT 1" />
+<%# Eval("Name") %>
+<!--#include file="footer.html" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Default.aspx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        // Should have SSI edges alongside other edge types
+        let ssi_edges: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(ssi_edges.len(), 2, "should find 2 SSI includes");
+
+        // Other edge types should still be present
+        assert!(
+            edges.iter().any(|e| e.kind == "registers_control"),
+            "Register directive edges should still work"
+        );
+        assert!(
+            edges.iter().any(|e| e.kind == "sql_calls"),
+            "SQL DataSource edges should still work"
+        );
+        assert!(
+            edges.iter().any(|e| e.kind == "data_binding"),
+            "Data-binding edges should still work"
+        );
+    }
+
+    // ── P13: Service endpoint directive tests ────────────────────────────────
+
+    #[test]
+    fn test_asmx_webservice_extraction() {
+        let markup =
+            r#"<%@ WebService Language="VB" CodeBehind="~/App_Code/Optician.vb" Class="Optician" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Optician.asmx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        // Should emit a web_service symbol
+        let ws_sym = syms
+            .iter()
+            .find(|s| s.kind == "web_service")
+            .expect("missing web_service symbol");
+        assert_eq!(ws_sym.name, "Optician.asmx");
+        assert_eq!(
+            ws_sym
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("class_fqn"))
+                .map(|s| s.as_str()),
+            Some("Optician")
+        );
+
+        // Should emit codebehind_file edge to App_Code/Optician.vb
+        let cb_edge = edges
+            .iter()
+            .find(|e| e.kind == "codebehind_file")
+            .expect("codebehind_file edge");
+        assert_eq!(cb_edge.target_name, "App_Code/Optician.vb");
+        assert_eq!(cb_edge.source_kind, "web_service");
+        assert_eq!(
+            cb_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("language"))
+                .map(|s| s.as_str()),
+            Some("vb")
+        );
+
+        // Should emit exposes_web_service edge to the Optician class
+        let ws_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_web_service")
+            .expect("exposes_web_service edge");
+        assert_eq!(ws_edge.target_name, "Optician");
+        assert_eq!(ws_edge.target_kind.as_deref(), Some("class"));
+
+        // Should emit cb_defines edge
+        let cbd_edge = edges
+            .iter()
+            .find(|e| e.kind == "cb_defines")
+            .expect("cb_defines edge");
+        assert_eq!(cbd_edge.source_name, "App_Code/Optician.vb");
+        assert_eq!(cbd_edge.target_name, "Optician");
+    }
+
+    #[test]
+    fn test_asmx_webservice_with_fqn() {
+        let markup = r#"<%@ WebService Language="C#" CodeBehind="Services/OrderService.asmx.cs" Class="MyApp.Services.OrderService" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Services/OrderService.asmx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        assert!(
+            syms.iter().any(|s| s.kind == "web_service"),
+            "missing web_service symbol"
+        );
+
+        let ws_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_web_service")
+            .expect("exposes_web_service edge");
+        // Simple name should be extracted from FQN
+        assert_eq!(ws_edge.target_name, "OrderService");
+        assert_eq!(
+            ws_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(|s| s.as_str()),
+            Some("MyApp.Services.OrderService")
+        );
+    }
+
+    #[test]
+    fn test_ashx_webhandler_extraction() {
+        let markup =
+            r#"<%@ WebHandler Language="C#" Class="MyApp.ImageHandler" CodeBehind="ImageHandler.ashx.cs" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Handlers/ImageHandler.ashx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        // Should emit an http_handler symbol
+        assert!(
+            syms.iter().any(|s| s.kind == "http_handler"),
+            "missing http_handler symbol"
+        );
+
+        // Should emit exposes_http_handler edge
+        let hh_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_http_handler")
+            .expect("exposes_http_handler edge");
+        assert_eq!(hh_edge.target_name, "ImageHandler");
+        assert_eq!(
+            hh_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(|s| s.as_str()),
+            Some("MyApp.ImageHandler")
+        );
+
+        // Should emit codebehind_file edge
+        let cb_edge = edges
+            .iter()
+            .find(|e| e.kind == "codebehind_file")
+            .expect("codebehind_file edge");
+        assert!(
+            cb_edge.target_name.contains("ImageHandler.ashx.cs"),
+            "codebehind target should contain ImageHandler.ashx.cs, got: {}",
+            cb_edge.target_name
+        );
+    }
+
+    #[test]
+    fn test_svc_servicehost_extraction() {
+        let markup = r#"<%@ ServiceHost Language="C#" Service="MyApp.WCF.CustomerService" Factory="System.ServiceModel.Activation.WebServiceHostFactory" CodeBehindFile="CustomerService.svc.cs" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Services/CustomerService.svc");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        // Should emit a wcf_service symbol
+        assert!(
+            syms.iter().any(|s| s.kind == "wcf_service"),
+            "missing wcf_service symbol"
+        );
+
+        // Should emit exposes_wcf_service edge via Service= attribute
+        let wcf_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_wcf_service")
+            .expect("exposes_wcf_service edge");
+        assert_eq!(wcf_edge.target_name, "CustomerService");
+        assert_eq!(
+            wcf_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(|s| s.as_str()),
+            Some("MyApp.WCF.CustomerService")
+        );
+
+        // Should emit codebehind_file edge
+        let cb_edge = edges
+            .iter()
+            .find(|e| e.kind == "codebehind_file")
+            .expect("codebehind_file edge");
+        assert!(
+            cb_edge.target_name.contains("CustomerService.svc.cs"),
+            "codebehind should point to .svc.cs, got: {}",
+            cb_edge.target_name
+        );
+
+        // Should emit codebehind_class edge for Factory
+        let factory_edge = edges
+            .iter()
+            .find(|e| {
+                e.kind == "codebehind_class"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("role"))
+                        .map(|s| s.as_str())
+                        == Some("factory")
+            })
+            .expect("factory codebehind_class edge");
+        assert_eq!(factory_edge.target_name, "WebServiceHostFactory");
+        assert_eq!(
+            factory_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(|s| s.as_str()),
+            Some("System.ServiceModel.Activation.WebServiceHostFactory")
+        );
+    }
+
+    #[test]
+    fn test_asax_application_extraction() {
+        let markup = r#"<%@ Application Language="VB" CodeBehind="Global.asax.vb" Inherits="MyLegacyApp.Global" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Global.asax");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        // The Application directive should be picked up either by the Page/Control/Master
+        // pass (via Inherits=) or the service pass. Check we get a symbol.
+        let has_page_or_app = syms
+            .iter()
+            .any(|s| s.kind == "page" || s.kind == "application");
+        assert!(
+            has_page_or_app,
+            "missing page or application symbol for Global.asax"
+        );
+
+        // Should have codebehind_file edge
+        let cb_edge = edges
+            .iter()
+            .find(|e| e.kind == "codebehind_file")
+            .expect("codebehind_file edge for Global.asax");
+        assert!(
+            cb_edge.target_name.contains("Global.asax.vb"),
+            "codebehind should point to Global.asax.vb, got: {}",
+            cb_edge.target_name
+        );
+
+        // Should have codebehind_class edge for Inherits
+        let class_edge = edges
+            .iter()
+            .find(|e| e.kind == "codebehind_class")
+            .expect("codebehind_class edge for Global.asax");
+        assert_eq!(class_edge.target_name, "Global");
+    }
+
+    #[test]
+    fn test_asmx_no_codebehind_class_only() {
+        // Some ASMX files only have a Class= attribute with no CodeBehind
+        let markup = r#"<%@ WebService Class="SimpleService" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("SimpleService.asmx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        assert!(
+            syms.iter().any(|s| s.kind == "web_service"),
+            "missing web_service symbol"
+        );
+
+        let ws_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_web_service")
+            .expect("exposes_web_service edge");
+        assert_eq!(ws_edge.target_name, "SimpleService");
+
+        // No codebehind_file edge should be emitted
+        assert!(
+            !edges.iter().any(|e| e.kind == "codebehind_file"),
+            "should NOT emit codebehind_file when attribute is absent"
+        );
+
+        // No cb_defines edge either
+        assert!(
+            !edges.iter().any(|e| e.kind == "cb_defines"),
+            "should NOT emit cb_defines when CodeBehind is absent"
+        );
+    }
+
+    #[test]
+    fn test_ashx_no_codebehind() {
+        // Inline ASHX handler with Class= only
+        let markup = r#"<%@ WebHandler Language="VB" Class="MyApp.DownloadHandler" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Download.ashx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        assert!(
+            syms.iter().any(|s| s.kind == "http_handler"),
+            "missing http_handler symbol"
+        );
+
+        let hh_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_http_handler")
+            .expect("exposes_http_handler edge");
+        assert_eq!(hh_edge.target_name, "DownloadHandler");
+    }
+
+    #[test]
+    fn test_svc_with_service_attr_no_class() {
+        // WCF .svc file with Service= but no Class=
+        let markup =
+            r#"<%@ ServiceHost Service="MyApp.Contracts.IOrderService" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("OrderService.svc");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        assert!(
+            syms.iter().any(|s| s.kind == "wcf_service"),
+            "missing wcf_service symbol"
+        );
+
+        let wcf_edge = edges
+            .iter()
+            .find(|e| e.kind == "exposes_wcf_service")
+            .expect("exposes_wcf_service edge");
+        assert_eq!(wcf_edge.target_name, "IOrderService");
+    }
+
+    #[test]
+    fn test_is_webforms_markup_new_extensions() {
+        assert!(is_webforms_markup(Path::new("Service.asmx")));
+        assert!(is_webforms_markup(Path::new("Handler.ashx")));
+        assert!(is_webforms_markup(Path::new("Service.svc")));
+        assert!(is_webforms_markup(Path::new("Global.asax")));
+        assert!(is_webforms_markup(Path::new("deep/path/to/Service.ASMX")));
+        assert!(!is_webforms_markup(Path::new("code.cs")));
+        assert!(!is_webforms_markup(Path::new("code.vb")));
+    }
+
+    #[test]
+    fn test_asmx_with_controls_and_ssi() {
+        // An .asmx should also get SSI and other extraction passes applied
+        // (though in practice rare, the pipeline should still work)
+        let markup = r#"
+<%@ WebService Language="VB" Class="Optician" CodeBehind="~/App_Code/Optician.vb" %>
+<!--#include virtual="/includes/globals.inc" -->
+"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("Optician.asmx");
+        let (_, edges) = extract_webforms(root, &rel, markup);
+
+        // Should have both the web service edge and the SSI edge
+        assert!(
+            edges.iter().any(|e| e.kind == "exposes_web_service"),
+            "missing exposes_web_service edge"
+        );
+        assert!(
+            edges.iter().any(|e| e.kind == "includes_file"),
+            "missing includes_file edge (SSI should work on .asmx too)"
+        );
+    }
+
+    #[test]
+    fn test_directive_case_insensitive() {
+        // ASP.NET directive keywords are case-insensitive
+        let markup =
+            r#"<%@ webservice language="VB" class="MyCaseService" codebehind="~/App_Code/MyCaseService.vb" %>"#;
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("MyCaseService.asmx");
+        let (syms, edges) = extract_webforms(root, &rel, markup);
+
+        assert!(
+            syms.iter().any(|s| s.kind == "web_service"),
+            "case-insensitive WebService directive should be parsed"
+        );
+        assert!(
+            edges.iter().any(|e| e.kind == "exposes_web_service"),
+            "case-insensitive Class= should produce exposes_web_service edge"
         );
     }
 }

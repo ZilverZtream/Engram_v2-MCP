@@ -110,8 +110,7 @@ pub fn resolve_app_code_globals(
 
     let is_app_code_path = |path: &str| -> bool {
         let lower = path.to_lowercase().replace('\\', "/");
-        lower.starts_with("app_code/")
-            || lower.contains("/app_code/")
+        lower.starts_with("app_code/") || lower.contains("/app_code/")
     };
 
     for node in all_classes.iter().chain(all_functions.iter()) {
@@ -152,10 +151,7 @@ pub fn resolve_app_code_globals(
 
     // Step 2: Find all unresolved edges (target_id starts with "::")
     // These are edges where the call resolver couldn't find a target.
-    let all_dep_edges = graph.list_edges(
-        project_id,
-        Some(engram_graph::EdgeKind::Dependency),
-    )?;
+    let all_dep_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Dependency))?;
 
     let mut new_edges: Vec<engram_graph::Edge> = Vec::new();
     let mut resolved_set: HashSet<(String, String)> = HashSet::new();

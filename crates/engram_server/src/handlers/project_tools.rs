@@ -254,10 +254,14 @@ impl Engram {
                     progress = 0;
                 } else {
                     let _ = crate::services::graph_service::resolve_app_code_globals(
-                        &engram.state.graph, &pid, 1,
+                        &engram.state.graph,
+                        &pid,
+                        1,
                     );
                     let _ = crate::services::graph_service::link_binding_fields_to_columns(
-                        &engram.state.graph, &pid, 1,
+                        &engram.state.graph,
+                        &pid,
+                        1,
                     );
                     let _ = engram.state.graph.resolve_symbol_edges(&pid);
 
@@ -500,10 +504,14 @@ impl Engram {
                 }
 
                 let _ = crate::services::graph_service::resolve_app_code_globals(
-                    &engram.state.graph, &project_id_for_job, new_gen,
+                    &engram.state.graph,
+                    &project_id_for_job,
+                    new_gen,
                 );
                 let _ = crate::services::graph_service::link_binding_fields_to_columns(
-                    &engram.state.graph, &project_id_for_job, new_gen,
+                    &engram.state.graph,
+                    &project_id_for_job,
+                    new_gen,
                 );
                 let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
 
