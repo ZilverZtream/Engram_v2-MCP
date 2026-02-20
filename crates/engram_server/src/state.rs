@@ -158,20 +158,14 @@ impl AppState {
     }
 
     pub async fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
-        let map = self.projects.read().await;
-        if let Some(_ps) = map.get(project_id) {
-            // Bump LRU timestamp on every access so the least-recently-used entry
-            // is always the correct eviction candidate.
-            drop(map);
+        let cached = self.projects.read().await.get(project_id).cloned();
+        if cached.is_some() {
             self.project_lru
                 .write()
                 .await
                 .insert(project_id.to_string(), std::time::Instant::now());
-            // Re-acquire to return the value (clone is cheap — Arc<Engine> inside).
-            self.projects.read().await.get(project_id).cloned()
-        } else {
-            None
         }
+        cached
     }
 
     /// Fix #10: Evict any projects that overshot MAX_CACHED_PROJECTS while all

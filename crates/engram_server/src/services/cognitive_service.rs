@@ -18,10 +18,7 @@ use std::time::Duration;
 ///
 /// Equivalent to v1's `dream_project()` tool handler.
 /// Returns the number of new insights generated.
-pub async fn dream_project(
-    state: &AppState,
-    project_id: &str,
-) -> anyhow::Result<usize> {
+pub async fn dream_project(state: &AppState, project_id: &str) -> anyhow::Result<usize> {
     dream_once(state, project_id, 2, 3, 5).await
 }
 
@@ -76,7 +73,7 @@ pub async fn analyze_file_style(
                 analyzed_commits: Vec::new(),
                 file_path: file_path.to_string(),
                 error: Some(format!("project '{project_id}' not found")),
-            }
+            };
         }
     };
 
@@ -273,7 +270,13 @@ fn collect_file_diffs(
     let cancel = CancellationToken::new();
 
     // Walk up to limit*4 commits to find `limit` diffs for this file.
-    let oids = GitWalker::walk_new_commits(&repo, None, limit * 4, MergeCommitPolicy::FirstParentOnly, &cancel)?;
+    let oids = GitWalker::walk_new_commits(
+        &repo,
+        None,
+        limit * 4,
+        MergeCommitPolicy::FirstParentOnly,
+        &cancel,
+    )?;
 
     let target = RelPath::new(file_path);
     let mut out: Vec<(String, String, String)> = Vec::new();

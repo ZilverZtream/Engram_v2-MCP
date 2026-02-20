@@ -100,7 +100,10 @@ pub async fn process_ingest_stats(
                 .iter()
                 .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
                 .collect();
-            (Some(serde_json::Value::Object(map.into_iter().collect())), fqn_val)
+            (
+                Some(serde_json::Value::Object(map.into_iter().collect())),
+                fqn_val,
+            )
         } else {
             (None, None)
         };
@@ -448,49 +451,22 @@ pub async fn process_ingest_stats(
         });
     }
 
-    let nodes_written = !nodes.is_empty();
-    if nodes_written {
+    if !nodes.is_empty() || !edges.is_empty() {
         let graph = state.graph.clone();
         let pid = project_id.to_string();
-        match tokio::task::spawn_blocking(move || graph.upsert_nodes(&pid, &nodes)).await {
+        match tokio::task::spawn_blocking(move || {
+            graph.upsert_nodes_and_edges(&pid, &nodes, &edges)
+        })
+        .await
+        {
             Ok(Ok(())) => {}
             Ok(Err(e)) => {
-                tracing::error!("graph upsert_nodes failed for {project_id}: {e}");
+                tracing::error!("graph upsert_nodes_and_edges failed for {project_id}: {e}");
                 return Err(e);
             }
             Err(e) => {
-                tracing::error!("graph upsert_nodes task panicked for {project_id}: {e}");
-                anyhow::bail!("graph upsert_nodes task panicked: {e}");
-            }
-        }
-    }
-
-    if !edges.is_empty() {
-        let graph = state.graph.clone();
-        let pid = project_id.to_string();
-        match tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &edges)).await {
-            Ok(Ok(())) => {}
-            Ok(Err(e)) => {
-                // PARTIAL FAILURE: nodes were already written to the graph but edges
-                // failed. The text index (Tantivy) already committed its changes too.
-                // The graph is now desynchronised from the text index for this generation.
-                // A full re-index of this project is required to restore consistency.
-                if nodes_written {
-                    tracing::error!(
-                        project_id,
-                        "PARTIAL FAILURE in process_ingest_stats: \
-                         graph nodes were written but edge upsert failed ({e}). \
-                         The graph is desynchronised from the text index. \
-                         Re-index this project to restore consistency."
-                    );
-                } else {
-                    tracing::error!("graph upsert_edges failed for {project_id}: {e}");
-                }
-                return Err(e);
-            }
-            Err(e) => {
-                tracing::error!("graph upsert_edges task panicked for {project_id}: {e}");
-                anyhow::bail!("graph upsert_edges task panicked: {e}");
+                tracing::error!("graph upsert_nodes_and_edges task panicked for {project_id}: {e}");
+                anyhow::bail!("graph upsert_nodes_and_edges task panicked: {e}");
             }
         }
     }
