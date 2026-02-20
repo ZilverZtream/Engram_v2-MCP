@@ -1,3 +1,4 @@
+use crate::analysis::compute_pagerank;
 use engram_core::RelPath;
 use redb::{Database, ReadableTable, TableDefinition};
 use serde::{Deserialize, Serialize};
@@ -735,9 +736,20 @@ impl GraphStore {
         Ok(count)
     }
 
-    pub fn get_centrality(&self, _project_id: &str, _node_id: &str) -> anyhow::Result<f32> {
-        // TODO: materialize graph in memory and compute centrality (PageRank, etc.)
-        Ok(0.0)
+    pub fn get_centrality(&self, project_id: &str, node_id: &str) -> anyhow::Result<f32> {
+        let generation = self
+            .get_meta(project_id, "active_generation")?
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+
+        if let Some(cached) = self.get_cached_centrality(project_id, generation)?
+            && let Some(score) = cached.get(node_id)
+        {
+            return Ok(*score);
+        }
+
+        let computed = compute_pagerank(self, project_id, generation)?;
+        Ok(computed.pagerank.get(node_id).copied().unwrap_or(0.0))
     }
 
     pub fn get_cached_centrality(

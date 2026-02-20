@@ -37,6 +37,23 @@ static CS_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 /// VB method declarations (Sub/Function).
 static VB_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
+
 /// Extract state accesses from a C# or VB.NET source file.
 ///
 /// `rel_path` is the project-relative path to the file.
@@ -60,8 +77,18 @@ pub fn extract_state_accesses(
     let method_map = build_method_map(&lines, language);
 
     let state_re = match language {
-        "csharp" => cs_state_regex(),
-        "vbnet" => vb_state_regex(),
+        "csharp" => {
+            let Some(re) = cs_state_regex() else {
+                return (symbols, edges);
+            };
+            re
+        }
+        "vbnet" => {
+            let Some(re) = vb_state_regex() else {
+                return (symbols, edges);
+            };
+            re
+        }
         _ => return (symbols, edges),
     };
 
@@ -146,20 +173,20 @@ pub fn extract_state_accesses(
     (symbols, edges)
 }
 
-fn cs_state_regex() -> &'static Regex {
-    CS_STATE_RE.get_or_init(|| {
-        Regex::new(
-            r#"(?i)(Session|ViewState|Application|Cache|HttpContext\.Current\.Items|HttpContext\.Current\.Session)\s*\[\s*"([^"]+)"\s*\]"#,
-        )
-        .expect("Invalid regex")
-    })
+fn cs_state_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &CS_STATE_RE,
+        r#"(?i)(Session|ViewState|Application|Cache|HttpContext\.Current\.Items|HttpContext\.Current\.Session)\s*\[\s*"([^"]+)"\s*\]"#,
+        "state_cs",
+    )
 }
 
-fn vb_state_regex() -> &'static Regex {
-    VB_STATE_RE.get_or_init(|| {
-        Regex::new(r#"(?i)(Session|ViewState|Application|Cache)\s*\(\s*"([^"]+)"\s*\)"#)
-            .expect("Invalid regex")
-    })
+fn vb_state_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &VB_STATE_RE,
+        r#"(?i)(Session|ViewState|Application|Cache)\s*\(\s*"([^"]+)"\s*\)"#,
+        "state_vb",
+    )
 }
 
 /// Normalize state type: e.g., `HttpContext.Current.Session` → `Session`.
@@ -178,17 +205,26 @@ fn normalize_state_type(raw: &str) -> String {
 /// lines to the most recent method until the next one is found.
 fn build_method_map(lines: &[&str], language: &str) -> HashMap<usize, String> {
     let method_re: &Regex = match language {
-        "csharp" => CS_METHOD_RE.get_or_init(|| {
-            // Matches: access_modifier? [static|async|override|virtual]* return_type MethodName(
-            Regex::new(
+        "csharp" => {
+            let Some(re) = get_compiled_regex(
+                &CS_METHOD_RE,
                 r"(?:public|private|protected|internal)?\s*(?:static\s+|async\s+|override\s+|virtual\s+)*\w+(?:<[^>]+>)?\s+(\w+)\s*\(",
-            )
-            .expect("Invalid regex")
-        }),
-        "vbnet" => VB_METHOD_RE.get_or_init(|| {
-            Regex::new(r"(?i)(?:Public|Private|Protected|Friend)?\s*(?:Shared\s+|Overrides\s+)?(?:Sub|Function)\s+(\w+)\s*\(")
-                .expect("Invalid regex")
-            }),
+                "state_cs_method",
+            ) else {
+                return HashMap::new();
+            };
+            re
+        }
+        "vbnet" => {
+            let Some(re) = get_compiled_regex(
+                &VB_METHOD_RE,
+                r"(?i)(?:Public|Private|Protected|Friend)?\s*(?:Shared\s+|Overrides\s+)?(?:Sub|Function)\s+(\w+)\s*\(",
+                "state_vb_method",
+            ) else {
+                return HashMap::new();
+            };
+            re
+        }
         _ => return HashMap::new(),
     };
 
