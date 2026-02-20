@@ -3076,7 +3076,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let cache_key = format!("style_guide:{}:{}", req.file_path, latest_oid);
+        let cache_subject = if let Some(rel) =
+            engram_core::RelPath::from_relative(std::path::Path::new(&ps.info.directory), &resolved)
+        {
+            rel.as_str().to_string()
+        } else {
+            req.file_path.clone()
+        };
+        let cache_key = format!("style_guide:{}:{}", cache_subject, latest_oid);
         if let Ok(Some(cached_json)) = self.state.registry.get_meta(&req.project_id, &cache_key)
             && let Ok(guide) = serde_json::from_str::<engram_ml::StyleGuide>(&cached_json)
         {
@@ -3156,6 +3163,7 @@ impl Engram {
                         // Sort for deterministic sampling across OSs/runs
                         file_paths.sort();
                         let mut count = 0;
+                        const MAX_AGGREGATED_BYTES: usize = 1_500_000;
                         for path in file_paths {
                             // Skip files larger than 1MB
                             if let Ok(m) = std::fs::metadata(&path) {
@@ -3164,6 +3172,9 @@ impl Engram {
                                 }
                             }
                             if let Ok(content) = std::fs::read_to_string(&path) {
+                                if sampled_text.len() + content.len() > MAX_AGGREGATED_BYTES {
+                                    break;
+                                }
                                 sampled_text.push_str(&content);
                                 sampled_text.push('\n');
                                 count += 1;
