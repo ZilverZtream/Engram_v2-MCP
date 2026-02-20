@@ -49,8 +49,8 @@ pub fn guess_language(path: &std::path::Path) -> &'static str {
         "md" => "markdown",
         "json" => "json",
         "yaml" | "yml" => "yaml",
-        // .NET WebForms / ASP.NET
-        "aspx" | "ascx" | "master" => "aspx",
+        // .NET WebForms / ASP.NET markup & service endpoints
+        "aspx" | "ascx" | "master" | "asmx" | "ashx" | "svc" | "asax" => "aspx",
         "config" => "xml",
         "xml" => "xml",
         "sln" => "text",

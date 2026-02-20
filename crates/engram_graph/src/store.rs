@@ -66,6 +66,18 @@ pub enum EdgeKind {
     DataBinding,
     /// WebForms <%@ Register %> directive: parent page → child user control (.ascx).
     RegistersControl,
+    /// Server-Side Include directive: parent file → included file (SSI `#include`).
+    IncludesFile,
+    /// State access via unresolved identifier (read): for downstream constant resolution.
+    UnresolvedStateRead,
+    /// State access via unresolved identifier (write): for downstream constant resolution.
+    UnresolvedStateWrite,
+    /// ASMX Web Service endpoint: .asmx file → backing class (<%@ WebService Class="..." %>).
+    ExposesWebService,
+    /// Generic HTTP Handler endpoint: .ashx file → backing class (<%@ WebHandler Class="..." %>).
+    ExposesHttpHandler,
+    /// WCF Service Host endpoint: .svc file → backing class (<%@ ServiceHost Service="..." %>).
+    ExposesWcfService,
 }
 
 impl EdgeKind {
@@ -86,6 +98,12 @@ impl EdgeKind {
         EdgeKind::WritesState,
         EdgeKind::DataBinding,
         EdgeKind::RegistersControl,
+        EdgeKind::IncludesFile,
+        EdgeKind::UnresolvedStateRead,
+        EdgeKind::UnresolvedStateWrite,
+        EdgeKind::ExposesWebService,
+        EdgeKind::ExposesHttpHandler,
+        EdgeKind::ExposesWcfService,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -105,6 +123,12 @@ impl EdgeKind {
             EdgeKind::WritesState => "writes_state",
             EdgeKind::DataBinding => "data_binding",
             EdgeKind::RegistersControl => "registers_control",
+            EdgeKind::IncludesFile => "includes_file",
+            EdgeKind::UnresolvedStateRead => "unresolved_state_read",
+            EdgeKind::UnresolvedStateWrite => "unresolved_state_write",
+            EdgeKind::ExposesWebService => "exposes_web_service",
+            EdgeKind::ExposesHttpHandler => "exposes_http_handler",
+            EdgeKind::ExposesWcfService => "exposes_wcf_service",
         }
     }
 
@@ -125,6 +149,12 @@ impl EdgeKind {
             "writes_state" => Some(EdgeKind::WritesState),
             "data_binding" => Some(EdgeKind::DataBinding),
             "registers_control" => Some(EdgeKind::RegistersControl),
+            "includes_file" => Some(EdgeKind::IncludesFile),
+            "unresolved_state_read" => Some(EdgeKind::UnresolvedStateRead),
+            "unresolved_state_write" => Some(EdgeKind::UnresolvedStateWrite),
+            "exposes_web_service" => Some(EdgeKind::ExposesWebService),
+            "exposes_http_handler" => Some(EdgeKind::ExposesHttpHandler),
+            "exposes_wcf_service" => Some(EdgeKind::ExposesWcfService),
             _ => None,
         }
     }

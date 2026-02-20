@@ -391,20 +391,17 @@ impl Engram {
             let graph = self.state.graph.clone();
             let pid = project_id.to_string();
             let generation = new_gen;
-            let result: Result<anyhow::Result<usize>, _> =
-                tokio::task::spawn_blocking(move || {
-                    graph_service::resolve_app_code_globals(&graph, &pid, generation)
-                })
-                .await;
+            let result: Result<anyhow::Result<usize>, _> = tokio::task::spawn_blocking(move || {
+                graph_service::resolve_app_code_globals(&graph, &pid, generation)
+            })
+            .await;
             match result {
                 Ok(Ok(_count)) => {}
                 Ok(Err(e)) => {
                     tracing::warn!("resolve_app_code_globals for {project_id}: {e}");
                 }
                 Err(e) => {
-                    tracing::warn!(
-                        "resolve_app_code_globals task panicked for {project_id}: {e}"
-                    );
+                    tracing::warn!("resolve_app_code_globals task panicked for {project_id}: {e}");
                 }
             }
         }
@@ -414,11 +411,10 @@ impl Engram {
             let graph = self.state.graph.clone();
             let pid = project_id.to_string();
             let generation = new_gen;
-            let result: Result<anyhow::Result<usize>, _> =
-                tokio::task::spawn_blocking(move || {
-                    graph_service::link_binding_fields_to_columns(&graph, &pid, generation)
-                })
-                .await;
+            let result: Result<anyhow::Result<usize>, _> = tokio::task::spawn_blocking(move || {
+                graph_service::link_binding_fields_to_columns(&graph, &pid, generation)
+            })
+            .await;
             match result {
                 Ok(Ok(_count)) => {}
                 Ok(Err(e)) => {

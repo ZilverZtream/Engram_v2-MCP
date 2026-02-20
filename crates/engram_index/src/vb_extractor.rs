@@ -895,18 +895,70 @@ pub fn extract_addhandler(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge
     edges
 }
 
+/// Strip an inline VB.NET comment while respecting string literal boundaries.
+///
+/// In VB.NET, `'` (apostrophe) starts a comment — unless it appears inside
+/// a string literal (`"..."`). This function returns the slice of the line
+/// up to (but not including) the first comment marker outside a string, or
+/// the entire line if there is no comment.
+///
+/// Also handles the `REM` keyword as a comment starter (legacy syntax) when
+/// it appears at the start of a token boundary (preceded by whitespace or
+/// start-of-line) and is not inside a string.
+fn strip_vb_comment(line: &str) -> &str {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut in_string = false;
+    let mut i = 0;
+
+    while i < len {
+        let b = bytes[i];
+        if b == b'"' {
+            in_string = !in_string;
+            i += 1;
+        } else if !in_string && b == b'\'' {
+            // Found a comment outside a string literal.
+            return &line[..i];
+        } else if !in_string
+            && i + 3 <= len
+            && bytes[i..i + 3].eq_ignore_ascii_case(b"rem")
+            && (i == 0 || bytes[i - 1].is_ascii_whitespace())
+            && (i + 3 == len || bytes[i + 3].is_ascii_whitespace())
+        {
+            // `REM` keyword at a word boundary outside a string → comment.
+            return &line[..i];
+        } else {
+            i += 1;
+        }
+    }
+    line
+}
+
 /// Join VB.NET logical lines (lines ending with ` _` are continuations).
 ///
 /// Per the VB spec, line continuation is a *space followed by underscore*
 /// at end of line — a bare trailing `_` (e.g. identifier `my_var_`) is NOT
 /// a continuation.
+///
+/// Inline comments (`'` or `REM`) are legally allowed *after* the continuation
+/// character. Example:
+/// ```vb
+/// Dim myVar As Integer = _ ' This is my variable
+///     GetSomeValue()
+/// ```
+/// We strip inline comments (while respecting string literals) before checking
+/// for the continuation marker.
 fn join_logical_lines(source: &str) -> Vec<String> {
     let mut result = Vec::new();
     let mut current = String::new();
 
     for raw_line in source.lines() {
-        let trimmed = raw_line.trim_end();
-        // VB line continuation: trailing ` _` (space then underscore)
+        // 1. Strip inline comments while respecting string literals.
+        let code_only = strip_vb_comment(raw_line);
+        // 2. Trim trailing whitespace from the code portion.
+        let trimmed = code_only.trim_end();
+
+        // 3. Check for continuation: trailing ` _` (space then underscore)
         if trimmed.len() >= 2 && trimmed.ends_with(" _") {
             current.push_str(&trimmed[..trimmed.len() - 2]);
             current.push(' ');
@@ -1694,6 +1746,70 @@ End Namespace
         let joined = join_logical_lines(source);
         assert_eq!(joined.len(), 1);
         assert_eq!(joined[0], "line1 line2 ");
+    }
+
+    // ── P12: Comment-aware line continuation tests ────────────────────────
+
+    #[test]
+    fn test_join_logical_lines_comment_after_continuation() {
+        // VB.NET allows comments after the continuation character.
+        // The continuation line's leading whitespace is preserved (only trailing ws is trimmed).
+        let source = "Dim myVar As Integer = _ ' This is my variable\n    GetSomeValue()";
+        let joined = join_logical_lines(source);
+        assert_eq!(joined.len(), 1);
+        // The joined line preserves the leading spaces from the continuation line
+        assert_eq!(joined[0], "Dim myVar As Integer =     GetSomeValue()");
+    }
+
+    #[test]
+    fn test_join_logical_lines_handles_with_comment() {
+        let source = "Protected Sub btnPrint_Click(ByVal sender As Object, ByVal e As EventArgs) _ ' handler\n    Handles btnPrint.Click\n    PrintReport()\nEnd Sub\n";
+        let joined = join_logical_lines(source);
+        assert!(
+            joined.iter().any(|l| l.contains("Handles btnPrint.Click")),
+            "Should join continuation despite trailing comment: {:?}",
+            joined
+        );
+    }
+
+    #[test]
+    fn test_strip_vb_comment_preserves_string_apostrophe() {
+        // Apostrophe inside a string literal must NOT be treated as comment
+        let line = r#"Response.Write("Don't fail here") ' real comment"#;
+        let stripped = strip_vb_comment(line);
+        assert_eq!(stripped, r#"Response.Write("Don't fail here") "#);
+    }
+
+    #[test]
+    fn test_strip_vb_comment_no_comment() {
+        let line = r#"Dim x As Integer = 42"#;
+        assert_eq!(strip_vb_comment(line), line);
+    }
+
+    #[test]
+    fn test_strip_vb_comment_rem_keyword() {
+        let line = "Dim x = 1 REM old-style comment";
+        let stripped = strip_vb_comment(line);
+        assert_eq!(stripped, "Dim x = 1 ");
+    }
+
+    #[test]
+    fn test_strip_vb_comment_rem_inside_string() {
+        // REM inside a string is not a comment
+        let line = r#"Dim s = "REM is not a comment""#;
+        assert_eq!(strip_vb_comment(line), line);
+    }
+
+    #[test]
+    fn test_join_logical_lines_addhandler_with_comment() {
+        let source = "AddHandler ctrl.Click, _ ' wire up the event\n    AddressOf HandleClick";
+        let joined = join_logical_lines(source);
+        assert_eq!(joined.len(), 1);
+        assert!(
+            joined[0].contains("AddHandler") && joined[0].contains("AddressOf HandleClick"),
+            "Should join AddHandler continuation: {:?}",
+            joined
+        );
     }
 
     // ── LineIndex tests ──────────────────────────────────────────────────

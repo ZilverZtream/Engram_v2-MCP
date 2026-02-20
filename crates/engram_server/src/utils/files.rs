@@ -1,21 +1,30 @@
 fn default_exts() -> Vec<&'static str> {
     vec![
         "rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "cs", "vb", "c", "cpp", "cc", "cxx",
-        "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx", "ascx", "master", "config", "xml",
+        "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx", "ascx", "master", "asmx", "ashx",
+        "svc", "asax", "config", "xml",
     ]
 }
 
 /// Return the file extensions to index for a given project_type.
-/// WebForms presets add .aspx/.ascx/.master/.vb/.config/.xml/.csproj/.vbproj/.sln/.sql/.rdlc.
+///
+/// WebForms presets include the full set of legacy ASP.NET file types:
+///   - `.aspx` / `.ascx` / `.master` — WebForms pages, user controls, master pages
+///   - `.asmx`  — ASMX Web Service endpoints
+///   - `.ashx`  — Generic HTTP Handlers
+///   - `.svc`   — WCF Service Host endpoints
+///   - `.asax`  — Global Application File (Global.asax)
+///   - `.config` / `.xml` / `.rdlc` — configuration and report definitions
+///   - `.sql`   — stored procedures and DDL scripts
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     match project_type.to_lowercase().as_str() {
         "dotnetwebformscs" | "dotnet_webforms_cs" | "webforms_cs" | "webformscs" => vec![
-            "cs", "aspx", "ascx", "master", "config", "xml", "sln", "csproj", "sql", "rdlc", "md",
-            "json",
+            "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml",
+            "sln", "csproj", "sql", "rdlc", "md", "json",
         ],
         "dotnetwebformsvb" | "dotnet_webforms_vb" | "webforms_vb" | "webformsvb" => vec![
-            "vb", "aspx", "ascx", "master", "config", "xml", "sln", "vbproj", "sql", "rdlc", "md",
-            "json",
+            "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml",
+            "sln", "vbproj", "sql", "rdlc", "md", "json",
         ],
         _ => default_exts(),
     }

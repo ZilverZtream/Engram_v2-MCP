@@ -14,13 +14,9 @@ async fn test_generation_semantics_enforcement() {
     let lancedb_dir = tmp_path.join("lancedb");
 
     let cfg = engram_core::Config::default();
-    let engine = HybridSearchEngine::new(
-        tantivy_dir,
-        lancedb_dir,
-        &cfg,
-    )
-    .await
-    .unwrap();
+    let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
+        .await
+        .unwrap();
 
     let project_id = "test_project";
     let cancel = CancellationToken::new();
