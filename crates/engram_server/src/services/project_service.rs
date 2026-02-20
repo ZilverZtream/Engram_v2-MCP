@@ -60,12 +60,9 @@ pub async fn ensure_project_runtime(
         .await
         .map_err(|e| EngramError::Internal(format!("failed to create lancedb dir: {e}")))?;
 
-    let search = engram_index::HybridSearchEngine::new(
-        tantivy_dir.clone(),
-        lancedb_dir.clone(),
-        state.cfg.embedding_backend.clone(),
-    )
-    .await?;
+    let search =
+        engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir.clone(), &state.cfg)
+            .await?;
 
     let ps = ProjectState {
         info: ProjectInfo {

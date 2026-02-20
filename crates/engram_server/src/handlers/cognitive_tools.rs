@@ -28,10 +28,7 @@ impl Engram {
 impl Engram {
     /// Trigger a dream cycle for a project and return insight count.
     /// Called by the `dream_project` MCP tool handler.
-    pub(crate) async fn run_dream_cycle(
-        &self,
-        project_id: &str,
-    ) -> anyhow::Result<usize> {
+    pub(crate) async fn run_dream_cycle(&self, project_id: &str) -> anyhow::Result<usize> {
         cognitive_service::dream_project(&self.state, project_id).await
     }
 
@@ -43,13 +40,7 @@ impl Engram {
         file_path: &str,
         diff_limit: usize,
     ) -> cognitive_service::StyleAnalysisResult {
-        cognitive_service::analyze_file_style(
-            &self.state,
-            project_id,
-            file_path,
-            diff_limit,
-        )
-        .await
+        cognitive_service::analyze_file_style(&self.state, project_id, file_path, diff_limit).await
     }
 
     /// Find files that frequently change together (temporal coupling).
@@ -59,12 +50,7 @@ impl Engram {
         min_frequency: u32,
         limit: usize,
     ) -> anyhow::Result<Vec<cognitive_service::TemporalCoupling>> {
-        cognitive_service::find_temporal_couplings(
-            &self.state,
-            project_id,
-            min_frequency,
-            limit,
-        )
-        .await
+        cognitive_service::find_temporal_couplings(&self.state, project_id, min_frequency, limit)
+            .await
     }
 }

@@ -82,11 +82,10 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     let watermark_key = "immune_watermark";
     let pid2 = project_id.to_string();
     let reg2 = state.registry.clone();
-    let watermark_str: Option<String> = tokio::task::spawn_blocking(move || {
-        reg2.get_meta(&pid2, watermark_key).ok().flatten()
-    })
-    .await
-    .unwrap_or(None);
+    let watermark_str: Option<String> =
+        tokio::task::spawn_blocking(move || reg2.get_meta(&pid2, watermark_key).ok().flatten())
+            .await
+            .unwrap_or(None);
 
     let stop_oid: Option<git2::Oid> = watermark_str
         .as_deref()
@@ -114,9 +113,8 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
             std::fs::create_dir_all(&tantivy_dir).ok();
             std::fs::create_dir_all(&lancedb_dir).ok();
 
-            let backend = state.cfg.embedding_backend.clone();
             let search =
-                engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir, backend)
+                engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir, &state.cfg)
                     .await?;
 
             let ps = crate::state::ProjectState {
@@ -257,8 +255,13 @@ fn scan_reverts_blocking(
     let repo = GitWalker::open_repo(directory)?;
     let cancel = CancellationToken::new(); // never cancelled inside blocking scope
 
-    let oids =
-        GitWalker::walk_new_commits(&repo, stop_oid, max_commits, engram_git::history::MergeCommitPolicy::FirstParentOnly, &cancel)?;
+    let oids = GitWalker::walk_new_commits(
+        &repo,
+        stop_oid,
+        max_commits,
+        engram_git::history::MergeCommitPolicy::FirstParentOnly,
+        &cancel,
+    )?;
 
     let mut out: Vec<AntiPatternDoc> = Vec::new();
     for oid in oids {
