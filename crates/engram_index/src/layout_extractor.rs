@@ -411,11 +411,20 @@ pub fn extract_webforms_layout(
     }
 
     // Sort by offset
-    events.sort_by_key(|e| match e {
-        LayoutEvent::ContainerOpen { offset, .. } => *offset,
-        LayoutEvent::ContainerClose { offset, .. } => *offset,
-        LayoutEvent::ContainerSelfClose { offset, .. } => *offset,
-        LayoutEvent::InputControl { offset, .. } => *offset,
+    events.sort_by(|a, b| {
+        let (ao, ap) = match a {
+            LayoutEvent::ContainerOpen { offset, .. } => (*offset, 0u8),
+            LayoutEvent::ContainerSelfClose { offset, .. } => (*offset, 1u8),
+            LayoutEvent::InputControl { offset, .. } => (*offset, 2u8),
+            LayoutEvent::ContainerClose { offset, .. } => (*offset, 3u8),
+        };
+        let (bo, bp) = match b {
+            LayoutEvent::ContainerOpen { offset, .. } => (*offset, 0u8),
+            LayoutEvent::ContainerSelfClose { offset, .. } => (*offset, 1u8),
+            LayoutEvent::InputControl { offset, .. } => (*offset, 2u8),
+            LayoutEvent::ContainerClose { offset, .. } => (*offset, 3u8),
+        };
+        ao.cmp(&bo).then_with(|| ap.cmp(&bp))
     });
 
     for event in &events {
@@ -538,7 +547,11 @@ pub fn extract_webforms_layout(
     }
 
     // ── Phase 4: Emit container symbols ─────────────────────────────────────
+    let mut seen_container_ids = std::collections::HashSet::new();
     for container in &all_containers {
+        if !seen_container_ids.insert(container.id.clone()) {
+            continue;
+        }
         let mut meta = HashMap::new();
         let clean_type = container.tag_type.replace("asp:", "");
         meta.insert("container_type".into(), clean_type.clone());
@@ -591,7 +604,7 @@ pub fn extract_webforms_layout(
             edges.push(ExtractedEdge {
                 source_name: parent_id.clone(),
                 source_kind: "ui_container".into(),
-                source_start_line: 0,
+                source_start_line: child.line,
                 source_language: "aspx".into(),
                 target_name: child.id.clone(),
                 target_kind: Some("control".into()),
@@ -890,8 +903,11 @@ pub fn extract_winforms_layout(
     }
 
     // ── Phase 2: Identify containers vs leaf controls ───────────────────────
-    let parent_names: std::collections::HashSet<String> =
-        parent_child.iter().map(|(p, _, _)| p.clone()).collect();
+    let parent_names: std::collections::HashSet<String> = parent_child
+        .iter()
+        .filter(|(p, _, _)| controls.contains_key(p))
+        .map(|(p, _, _)| p.clone())
+        .collect();
 
     // Emit container symbols
     for name in &parent_names {
@@ -955,36 +971,42 @@ pub fn extract_winforms_layout(
 
     // ── Phase 4: Emit ui_layout_neighbor edges ──────────────────────────────
     // Within each container, sort children by TabIndex (if available) or by Y,X position.
-    let mut children_by_parent: HashMap<String, Vec<&WinFormsControl>> = HashMap::new();
-    for (parent, child, _) in &parent_child {
+    let mut children_by_parent: HashMap<String, Vec<(u32, &WinFormsControl)>> = HashMap::new();
+    for (parent, child, line) in &parent_child {
         if let Some(ctrl) = controls.get(child) {
             children_by_parent
                 .entry(parent.clone())
                 .or_default()
-                .push(ctrl);
+                .push((*line, ctrl));
         }
     }
 
     for (_parent, children) in &mut children_by_parent {
-        // Sort by tab_index first, then by (y, x) position
-        children.sort_by(|a, b| match (a.tab_index, b.tab_index) {
-            (Some(ai), Some(bi)) => ai.cmp(&bi),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => {
-                let ay = a.y.unwrap_or(0);
-                let by = b.y.unwrap_or(0);
-                ay.cmp(&by).then_with(|| {
-                    let ax = a.x.unwrap_or(0);
-                    let bx = b.x.unwrap_or(0);
-                    ax.cmp(&bx)
-                })
+        // Sort by tab_index first, then by (y, x) position and declaration line for stability.
+        children.sort_by(|a, b| {
+            let (a_line, a_ctrl) = *a;
+            let (b_line, b_ctrl) = *b;
+            match (a_ctrl.tab_index, b_ctrl.tab_index) {
+                (Some(ai), Some(bi)) => ai.cmp(&bi).then_with(|| a_line.cmp(&b_line)),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => {
+                    let ay = a_ctrl.y.unwrap_or(0);
+                    let by = b_ctrl.y.unwrap_or(0);
+                    ay.cmp(&by)
+                        .then_with(|| {
+                            let ax = a_ctrl.x.unwrap_or(0);
+                            let bx = b_ctrl.x.unwrap_or(0);
+                            ax.cmp(&bx)
+                        })
+                        .then_with(|| a_line.cmp(&b_line))
+                }
             }
         });
 
         for window in children.windows(2) {
-            let prev = window[0];
-            let next = window[1];
+            let (_prev_add_line, prev) = window[0];
+            let (_next_add_line, next) = window[1];
             let mut meta = HashMap::new();
             meta.insert("direction".into(), "next_tab".into());
             if let Some(ti) = prev.tab_index {
