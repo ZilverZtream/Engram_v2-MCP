@@ -189,7 +189,7 @@ pub async fn process_ingest_stats(
                 .unwrap_or(sym.name.as_str());
             (
                 engram_core::ids::NodeId::control(rel_path.as_str(), control_id).0,
-                "control".to_string(),
+                "control_layout".to_string(),
             )
         } else {
             (
@@ -476,6 +476,14 @@ pub async fn process_ingest_stats(
             "writes_state" => engram_graph::EdgeKind::WritesState,
             "data_binding" => engram_graph::EdgeKind::DataBinding,
             "registers_control" => engram_graph::EdgeKind::RegistersControl,
+            "includes_file" => engram_graph::EdgeKind::IncludesFile,
+            "unresolved_state_read" => engram_graph::EdgeKind::UnresolvedStateRead,
+            "unresolved_state_write" => engram_graph::EdgeKind::UnresolvedStateWrite,
+            "exposes_web_service" => engram_graph::EdgeKind::ExposesWebService,
+            "exposes_http_handler" => engram_graph::EdgeKind::ExposesHttpHandler,
+            "exposes_wcf_service" => engram_graph::EdgeKind::ExposesWcfService,
+            "contains_ui" => engram_graph::EdgeKind::ContainsUi,
+            "ui_layout_neighbor" => engram_graph::EdgeKind::UiLayoutNeighbor,
             _ => engram_graph::EdgeKind::Dependency,
         };
 
