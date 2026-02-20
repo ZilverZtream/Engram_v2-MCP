@@ -3691,6 +3691,84 @@ End Sub
             count
         ))]))
     }
+
+    // ---- Migration slicer ----
+
+    #[tool(
+        description = "Compile a vertical-slice migration blueprint for a legacy entry point (WebForms page, JS file, VB class). Traverses the graph to collect all frontend scripts, backend methods, state mutations, database dependencies, component wiring, lifecycle info, and side-effects into one structured dossier. Use this BEFORE rewriting any legacy feature."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, entry_node = %params.0.entry_node))]
+    pub async fn generate_migration_blueprint(
+        &self,
+        params: Parameters<GenerateMigrationBlueprintRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let max_depth = req.sanitized_max_depth();
+        let graph = self.state.graph.clone();
+        let project_id = req.project_id.clone();
+        let entry_raw = req.entry_node.clone();
+
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            // Try exact match first, then fuzzy-find by substring
+            let entry_node_id = if graph
+                .get_node(&project_id, &entry_raw)
+                .map_err(|e| e.to_string())?
+                .is_some()
+            {
+                entry_raw.clone()
+            } else {
+                // Try common prefixes: file:, sym:class:, sym:function:
+                let candidates = [
+                    format!("file:{entry_raw}"),
+                    entry_raw.clone(),
+                ];
+                let mut found = None;
+                for cand in &candidates {
+                    if graph
+                        .get_node(&project_id, cand)
+                        .map_err(|e| e.to_string())?
+                        .is_some()
+                    {
+                        found = Some(cand.clone());
+                        break;
+                    }
+                }
+                if found.is_none() {
+                    // Substring search across all nodes
+                    let nodes = graph
+                        .query_nodes(&project_id, None, Some(&entry_raw), None, 10)
+                        .map_err(|e| e.to_string())?;
+                    if let Some(n) = nodes.first() {
+                        found = Some(n.node_id.clone());
+                    }
+                }
+                match found {
+                    Some(id) => id,
+                    None => {
+                        return Err(format!(
+                            "No node found matching '{}'. Try query_graph_nodes to discover node IDs.",
+                            entry_raw
+                        ));
+                    }
+                }
+            };
+
+            let slice = graph_service::compile_migration_slice(
+                &graph,
+                &project_id,
+                &entry_node_id,
+                max_depth,
+            )
+            .map_err(|e| e.to_string())?;
+
+            Ok(graph_service::format_migration_blueprint(&slice))
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
 }
 
 // -------------------- Server handler --------------------
