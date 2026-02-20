@@ -45,6 +45,23 @@ static REGEX_NS_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_TYPE_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_MEMBER_RE: OnceLock<Regex> = OnceLock::new();
 
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
+
 // ── FQN lookup tables ───────────────────────────────────────────────────────
 
 /// Two-tier FQN lookup: exact (case-sensitive) + lowercased (case-insensitive).
@@ -170,7 +187,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         Ok(q) => q,
         Err(e) => {
             if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-                panic!("ENGRAM_REQUIRE_VB_TREESITTER=1 but VB query compile failed: {e}");
+                tracing::error!("ENGRAM_REQUIRE_VB_TREESITTER=1 but VB query compile failed: {e}");
             }
             tracing::warn!("vb.scm query compile failed: {e}");
             return regex_extract(path, source);
@@ -181,7 +198,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     let mut parser = Parser::new();
     if parser.set_language(&lang).is_err() {
         if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-            panic!("ENGRAM_REQUIRE_VB_TREESITTER=1 but failed to set VB language");
+            tracing::error!("ENGRAM_REQUIRE_VB_TREESITTER=1 but failed to set VB language");
         }
         tracing::warn!("tree-sitter: failed to set VB language");
         return regex_extract(path, source);
@@ -191,7 +208,9 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         Some(t) => t,
         None => {
             if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-                panic!("ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB parse returned None");
+                tracing::error!(
+                    "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB parse returned None"
+                );
             }
             tracing::warn!("tree-sitter VB parse returned None, using regex fallback");
             return regex_extract(path, source);
@@ -518,7 +537,10 @@ fn build_fqn_tables(query: &Query, tree: &tree_sitter::Tree, source: &str) -> Fq
     let mut class_stack: Vec<(String, usize)> = Vec::new(); // (class, end_byte)
 
     while let Some(m) = matches.next() {
-        let anchor = m.captures.first().map(|c| c.node.start_byte()).unwrap_or(0);
+        let Some(first_capture) = m.captures.first() else {
+            continue;
+        };
+        let anchor = first_capture.node.start_byte();
 
         // Prune closed scopes
         while namespace_stack
@@ -737,32 +759,32 @@ fn extract_proc_name(after_exec: &str) -> Option<String> {
     let rest = after_exec.trim_start();
     let raw = rest.split_whitespace().next().unwrap_or(rest);
     let clean: String = raw.chars().filter(|&c| c != '[' && c != ']').collect();
-    if clean.is_empty() {
-        None
-    } else {
-        Some(clean)
-    }
+    if clean.is_empty() { None } else { Some(clean) }
 }
 
 // ── P0.6 Handles clause ─────────────────────────────────────────────────────
 
 pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
-    let sub_re = HANDLES_SUB_RE.get_or_init(|| {
-        Regex::new(
-            r"(?ix)
+    let Some(sub_re) = get_compiled_regex(
+        &HANDLES_SUB_RE,
+        r"(?ix)
             \bSub\s+(?P<handler>[A-Za-z_][A-Za-z0-9_]*)
             \s*\([^)]*\)
             \s*Handles\s+
             (?P<list>[A-Za-z0-9_.]+(?:\s*,\s*[A-Za-z0-9_.]+)*)
             ",
-        )
-        .expect("Invalid regex")
-    });
+        "vb_handles_sub",
+    ) else {
+        return Vec::new();
+    };
 
-    let pair_re = HANDLES_PAIR_RE.get_or_init(|| {
-        Regex::new(r"(?P<ctrl>[A-Za-z_][A-Za-z0-9_]*)\.(?P<evt>[A-Za-z_][A-Za-z0-9_]*)")
-            .expect("Invalid regex")
-    });
+    let Some(pair_re) = get_compiled_regex(
+        &HANDLES_PAIR_RE,
+        r"(?P<ctrl>[A-Za-z_][A-Za-z0-9_]*)\.(?P<evt>[A-Za-z_][A-Za-z0-9_]*)",
+        "vb_handles_pair",
+    ) else {
+        return Vec::new();
+    };
 
     let mut edges = Vec::new();
     let joined = join_logical_lines(source);
@@ -780,9 +802,14 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
                 let source_kind = match ctrl_id.as_bytes() {
                     // Fast check: "Me" or "MyBase" (case-insensitive)
                     [b'M' | b'm', b'e' | b'E']
-                    | [b'M' | b'm', b'y' | b'Y', b'B' | b'b', b'a' | b'A', b's' | b'S', b'e' | b'E'] => {
-                        "self"
-                    }
+                    | [
+                        b'M' | b'm',
+                        b'y' | b'Y',
+                        b'B' | b'b',
+                        b'a' | b'A',
+                        b's' | b'S',
+                        b'e' | b'E',
+                    ] => "self",
                     _ => "control",
                 };
 
@@ -813,17 +840,18 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
 /// Pattern: `AddHandler ctrl.Event, AddressOf handlerName`
 /// Common in dynamically-created controls (Repeaters, GridViews).
 pub fn extract_addhandler(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
-    let re = ADDHANDLER_RE.get_or_init(|| {
-        Regex::new(
-            r"(?ix)
+    let Some(re) = get_compiled_regex(
+        &ADDHANDLER_RE,
+        r"(?ix)
             \bAddHandler\s+
             (?P<ctrl>[A-Za-z_][A-Za-z0-9_]*)\.(?P<evt>[A-Za-z_][A-Za-z0-9_]*)
             \s*,\s*AddressOf\s+
             (?P<handler>[A-Za-z_][A-Za-z0-9_.]*)
             ",
-        )
-        .expect("Invalid regex")
-    });
+        "vb_addhandler",
+    ) else {
+        return Vec::new();
+    };
 
     let mut edges = Vec::new();
     for (line_no, line) in source.lines().enumerate() {
@@ -890,34 +918,53 @@ fn join_logical_lines(source: &str) -> Vec<String> {
 fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
     let mut results = Vec::new();
 
-    let sql_cmd_re = SQL_CMD_RE.get_or_init(|| {
-        Regex::new(r#"(?i)New\s+(?:Sql|OleDb|Odbc)Command\s*\(\s*"([^"]+)""#)
-            .expect("Invalid regex")
-    });
+    let Some(sql_cmd_re) = get_compiled_regex(
+        &SQL_CMD_RE,
+        r#"(?i)New\s+(?:Sql|OleDb|Odbc)Command\s*\(\s*"([^"]+)""#,
+        "vb_sql_cmd",
+    ) else {
+        return results;
+    };
 
-    let sql_text_re = SQL_TEXT_RE.get_or_init(|| {
-        Regex::new(r#"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)?\.CommandText\s*=\s*"(?P<sql>[^"]+)""#)
-            .expect("Invalid regex")
-    });
+    let Some(sql_text_re) = get_compiled_regex(
+        &SQL_TEXT_RE,
+        r#"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)?\.CommandText\s*=\s*"(?P<sql>[^"]+)""#,
+        "vb_sql_text",
+    ) else {
+        return results;
+    };
 
-    let sql_exec_re = SQL_EXEC_RE
-        .get_or_init(|| Regex::new(r#"(?i)"(EXEC(?:UTE)?\s+[^"]+)""#).expect("Invalid regex"));
+    let Some(sql_exec_re) = get_compiled_regex(
+        &SQL_EXEC_RE,
+        r#"(?i)"(EXEC(?:UTE)?\s+[^"]+)""#,
+        "vb_sql_exec",
+    ) else {
+        return results;
+    };
 
-    let sql_exec_call_re = SQL_EXEC_CALL_RE.get_or_init(|| {
-        Regex::new(
-            r"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.(?P<method>Execute(?:Reader|NonQuery|Scalar))\s*\(",
-        )
-        .expect("Invalid regex")
-    });
+    let Some(sql_exec_call_re) = get_compiled_regex(
+        &SQL_EXEC_CALL_RE,
+        r"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.(?P<method>Execute(?:Reader|NonQuery|Scalar))\s*\(",
+        "vb_sql_exec_call",
+    ) else {
+        return results;
+    };
 
-    let sql_adapter_re = SQL_ADAPTER_RE.get_or_init(|| {
-        Regex::new(r#"(?i)New\s+(?:Sql|OleDb|Odbc)DataAdapter\s*\(\s*"([^"]+)""#)
-            .expect("Invalid regex")
-    });
+    let Some(sql_adapter_re) = get_compiled_regex(
+        &SQL_ADAPTER_RE,
+        r#"(?i)New\s+(?:Sql|OleDb|Odbc)DataAdapter\s*\(\s*"([^"]+)""#,
+        "vb_sql_adapter",
+    ) else {
+        return results;
+    };
 
-    let sql_proc_type_re = SQL_PROC_TYPE_RE.get_or_init(|| {
-        Regex::new(r#"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.CommandType\s*=\s*CommandType\.StoredProcedure"#).expect("Invalid regex")
-    });
+    let Some(sql_proc_type_re) = get_compiled_regex(
+        &SQL_PROC_TYPE_RE,
+        r#"(?i)(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.CommandType\s*=\s*CommandType\.StoredProcedure"#,
+        "vb_sql_proc_type",
+    ) else {
+        return results;
+    };
 
     // De-duplicate by lowercased SQL. Use a compact hash set of u64 to avoid
     // storing full SQL strings a second time when files are large.
@@ -980,48 +1027,43 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
     }
 
     for cap in sql_cmd_re.captures_iter(source) {
-        add_sql_edge(
-            &mut results,
-            &cap[1],
-            cap.get(0).map(|m| m.start()).unwrap_or_default(),
-            false,
-        );
+        let Some(anchor) = cap.get(0) else {
+            continue;
+        };
+        add_sql_edge(&mut results, &cap[1], anchor.start(), false);
     }
     for cap in sql_text_re.captures_iter(source) {
+        let Some(anchor) = cap.get(0) else {
+            continue;
+        };
         let var = cap
             .name("var")
             .map(|m| m.as_str().to_lowercase())
             .unwrap_or_default();
         let is_sp = var_is_sp.get(&var).cloned().unwrap_or(false);
-        add_sql_edge(
-            &mut results,
-            &cap["sql"],
-            cap.get(0).map(|m| m.start()).unwrap_or_default(),
-            is_sp,
-        );
+        add_sql_edge(&mut results, &cap["sql"], anchor.start(), is_sp);
     }
     for cap in sql_exec_re.captures_iter(source) {
-        add_sql_edge(
-            &mut results,
-            &cap[1],
-            cap.get(0).map(|m| m.start()).unwrap_or_default(),
-            false,
-        );
+        let Some(anchor) = cap.get(0) else {
+            continue;
+        };
+        add_sql_edge(&mut results, &cap[1], anchor.start(), false);
     }
     for cap in sql_adapter_re.captures_iter(source) {
-        add_sql_edge(
-            &mut results,
-            &cap[1],
-            cap.get(0).map(|m| m.start()).unwrap_or_default(),
-            false,
-        );
+        let Some(anchor) = cap.get(0) else {
+            continue;
+        };
+        add_sql_edge(&mut results, &cap[1], anchor.start(), false);
     }
 
     // Emit lightweight `sql_exec` edges for Execute* calls
     for cap in sql_exec_call_re.captures_iter(source) {
         let var = &cap["var"];
         let method = &cap["method"];
-        let pos = cap.get(0).map(|m| m.start()).unwrap_or_default();
+        let Some(anchor) = cap.get(0) else {
+            continue;
+        };
+        let pos = anchor.start();
         let meta = HashMap::from([("method".into(), method.to_string())]);
         results.push((
             ExtractedEdge {
@@ -1075,21 +1117,27 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     let mut symbols = Vec::new();
     let mut edges = Vec::new();
 
-    let ns_re = REGEX_NS_RE.get_or_init(|| {
-        Regex::new(r"(?im)^\s*Namespace\s+([A-Za-z_][A-Za-z0-9_.]*)\s*$").expect("Invalid regex")
-    });
-    let type_re = REGEX_TYPE_RE.get_or_init(|| {
-        Regex::new(
-            r"(?im)^\s*(?:(?:Public|Private|Protected|Friend|Partial|MustInherit|NotInheritable)\s+)*(?:Class|Module|Structure|Interface|Enum)\s+([A-Za-z_][A-Za-z0-9_]*)",
-        )
-        .expect("Invalid regex")
-    });
-    let member_re = REGEX_MEMBER_RE.get_or_init(|| {
-        Regex::new(
-            r"(?im)^\s*(?:(?:Public|Private|Protected|Friend|Overrides|Overridable|MustOverride|NotOverridable|Shared|Async|ReadOnly|WriteOnly|Default|Iterator)\s+)*(?P<member_kind>Sub|Function|Property)\s+(?P<member_name>[A-Za-z_][A-Za-z0-9_]*)",
-        )
-        .expect("Invalid regex")
-    });
+    let Some(ns_re) = get_compiled_regex(
+        &REGEX_NS_RE,
+        r"(?im)^\s*Namespace\s+([A-Za-z_][A-Za-z0-9_.]*)\s*$",
+        "vb_regex_ns",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(type_re) = get_compiled_regex(
+        &REGEX_TYPE_RE,
+        r"(?im)^\s*(?:(?:Public|Private|Protected|Friend|Partial|MustInherit|NotInheritable)\s+)*(?:Class|Module|Structure|Interface|Enum)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        "vb_regex_type",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(member_re) = get_compiled_regex(
+        &REGEX_MEMBER_RE,
+        r"(?im)^\s*(?:(?:Public|Private|Protected|Friend|Overrides|Overridable|MustOverride|NotOverridable|Shared|Async|ReadOnly|WriteOnly|Default|Iterator)\s+)*(?P<member_kind>Sub|Function|Property)\s+(?P<member_name>[A-Za-z_][A-Za-z0-9_]*)",
+        "vb_regex_member",
+    ) else {
+        return (symbols, edges);
+    };
 
     let line_index = LineIndex::new(source);
 
@@ -1390,22 +1438,28 @@ Dim cmd2 As New SqlCommand("sp_GetOrders")
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
 
         // 1. SqlDataAdapter
-        assert!(edges
-            .iter()
-            .any(|e| e.target_name == "sql:inline:63cc23e01345"));
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.target_name == "sql:inline:63cc23e01345")
+        );
 
         // 2. CommandType.StoredProcedure + CommandText
-        assert!(edges
-            .iter()
-            .any(|e| e.target_name == "sql:stored_proc:GetDetails"));
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.target_name == "sql:stored_proc:GetDetails")
+        );
 
         // 3. ExecuteReader call
         assert!(edges.iter().any(|e| e.target_name == "cmd.ExecuteReader"));
 
         // 4. Object initializer
-        assert!(edges
-            .iter()
-            .any(|e| e.target_name == "sql:inline:dd0b347a3141"));
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.target_name == "sql:inline:dd0b347a3141")
+        );
     }
 
     #[test]

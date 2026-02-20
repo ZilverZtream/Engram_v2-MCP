@@ -1,6 +1,23 @@
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
+
+fn get_compiled_regex<'a>(
+    lock: &'a OnceLock<Regex>,
+    pattern: &str,
+    label: &str,
+) -> Option<&'a Regex> {
+    if let Some(re) = lock.get() {
+        return Some(re);
+    }
+    match Regex::new(pattern) {
+        Ok(re) => Some(lock.get_or_init(|| re)),
+        Err(err) => {
+            tracing::error!("failed to compile {label} regex: {err}");
+            None
+        }
+    }
+}
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -243,8 +260,18 @@ impl DreamingEngine {
     /// Deterministic, local "dream" summarizer — always available as fallback.
     pub fn deterministic_summarize(&self, context_blobs: &[String]) -> DreamInsight {
         static TOKEN_RE: OnceLock<Regex> = OnceLock::new();
-        let re = TOKEN_RE
-            .get_or_init(|| Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("Invalid token regex"));
+        let Some(re) = get_compiled_regex(&TOKEN_RE, r"[A-Za-z_][A-Za-z0-9_]{2,}", "dream_token")
+        else {
+            return DreamInsight {
+                title: "Insight".into(),
+                summary:
+                    "Unable to compute deterministic summary due to regex initialization failure."
+                        .into(),
+                actions: Vec::new(),
+                confidence: 0.0,
+                key_terms: Vec::new(),
+            };
+        };
         let mut counts: HashMap<String, usize> = HashMap::new();
 
         for blob in context_blobs {

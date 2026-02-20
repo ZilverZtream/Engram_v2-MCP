@@ -23,10 +23,19 @@ pub fn contains_word(haystack: &str, needle: &str) -> bool {
 
 pub fn stacktrace_to_query(stack: &str) -> String {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let re = RE.get_or_init(|| {
-        regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}|[A-Za-z0-9_\-/\\]+\.(rs|py|js|ts|go|java|cs)")
-            .expect("Invalid regex")
-    });
+    let re = if let Some(re) = RE.get() {
+        re
+    } else {
+        match regex::Regex::new(
+            r"[A-Za-z_][A-Za-z0-9_]{2,}|[A-Za-z0-9_\-/\\]+\.(rs|py|js|ts|go|java|cs)",
+        ) {
+            Ok(compiled) => RE.get_or_init(|| compiled),
+            Err(err) => {
+                tracing::error!("failed to compile stacktrace regex: {err}");
+                return String::new();
+            }
+        }
+    };
     let mut terms: Vec<String> = Vec::new();
     for m in re.find_iter(stack).take(60) {
         let t = m.as_str();
@@ -40,8 +49,17 @@ pub fn stacktrace_to_query(stack: &str) -> String {
 
 pub fn code_to_query(code: &str) -> String {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let re =
-        RE.get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("Invalid regex"));
+    let re = if let Some(re) = RE.get() {
+        re
+    } else {
+        match regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}") {
+            Ok(compiled) => RE.get_or_init(|| compiled),
+            Err(err) => {
+                tracing::error!("failed to compile code token regex: {err}");
+                return String::new();
+            }
+        }
+    };
     let mut terms: Vec<String> = Vec::new();
     for m in re.find_iter(code).take(30) {
         let t = m.as_str();
