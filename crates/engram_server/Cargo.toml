@@ -32,6 +32,7 @@ regex.workspace = true
 git2.workspace = true
 notify.workspace = true
 zip = "2.2"
+reqwest.workspace = true
 
 [dev-dependencies]
 tempfile = "3"

@@ -99,7 +99,7 @@ impl HybridSearchEngine {
 
         #[cfg(feature = "vector")]
         let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
-            "openai" | "remote" => Arc::new(engram_ml::embed::RemoteEmbedder),
+            "openai" | "remote" => build_embedder_for_backend(embedding_backend.as_str()),
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
             _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
                 crate::vector::VECTOR_DIM,
@@ -1436,4 +1436,41 @@ pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
         bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap_or(0);
     }
     u64::from_le_bytes(bytes)
+}
+
+// ---------------------------------------------------------------------------
+// Embedder factory (for HybridSearchEngine::new)
+// ---------------------------------------------------------------------------
+
+/// Build an embedder from the embedding_backend string.
+/// Falls back to ProjectionEmbedder for unknown backends.
+/// For "ollama" and "openai" backends, reads config from environment variables.
+#[cfg(feature = "vector")]
+fn build_embedder_for_backend(backend: &str) -> Arc<dyn engram_ml::Embedder> {
+    match backend {
+        "openai" | "remote" => {
+            let api_key = std::env::var("OPENAI_API_KEY")
+                .or_else(|_| std::env::var("ENGRAM_OPENAI_API_KEY"))
+                .unwrap_or_default();
+            let api_base = std::env::var("OPENAI_API_BASE")
+                .unwrap_or_else(|_| "https://api.openai.com/v1".into());
+            let model = std::env::var("ENGRAM_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "text-embedding-3-small".into());
+            Arc::new(engram_ml::embed::RemoteEmbedder::openai(
+                model, api_key, api_base, 1536,
+            ))
+        }
+        "ollama" => {
+            let url = std::env::var("OLLAMA_URL")
+                .or_else(|_| std::env::var("ENGRAM_OLLAMA_URL"))
+                .unwrap_or_else(|_| "http://localhost:11434".into());
+            let model = std::env::var("ENGRAM_EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "nomic-embed-text".into());
+            Arc::new(engram_ml::embed::RemoteEmbedder::ollama(model, url, 768))
+        }
+        "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
+        _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
+            crate::vector::VECTOR_DIM,
+        )),
+    }
 }

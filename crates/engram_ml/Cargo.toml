@@ -20,4 +20,6 @@ tree-sitter.workspace = true
 tree-sitter-rust.workspace = true
 tree-sitter-python.workspace = true
 streaming-iterator = "0.1"
+reqwest.workspace = true
 
+serde_json.workspace = true

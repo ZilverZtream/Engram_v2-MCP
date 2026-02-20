@@ -18,14 +18,38 @@ pub struct Config {
     pub max_project_bytes: Option<u64>,
 
     // Embeddings (keep this flexible - local model, Ollama, OpenAI, etc.)
+    /// "local" (default, trigram projection), "ollama", or "openai"
     #[serde(default)]
     pub embedding_backend: String,
+    /// Model name for local or remote embedding (e.g. "nomic-embed-text")
     #[serde(default)]
     pub embedding_model: Option<String>,
+    /// Base URL for Ollama server (default: http://localhost:11434)
     #[serde(default)]
     pub ollama_url: Option<String>,
+    /// API key for OpenAI-compatible embedding endpoint
     #[serde(default)]
     pub openai_api_key: Option<String>,
+    /// Base URL for OpenAI-compatible API (default: https://api.openai.com/v1)
+    #[serde(default)]
+    pub openai_api_base: Option<String>,
+
+    // LLM / Text generation (for dreaming insights and style analysis)
+    /// "none" (deterministic fallback), "ollama", or "openai"
+    #[serde(default)]
+    pub llm_backend: String,
+    /// Model name for LLM generation (e.g. "llama3.2", "gpt-4o-mini")
+    #[serde(default)]
+    pub llm_model: Option<String>,
+    /// Ollama URL for LLM (falls back to ollama_url if not set)
+    #[serde(default)]
+    pub llm_ollama_url: Option<String>,
+    /// API key for OpenAI-compatible LLM endpoint (falls back to openai_api_key if not set)
+    #[serde(default)]
+    pub llm_openai_api_key: Option<String>,
+    /// Base URL for OpenAI-compatible LLM API (falls back to openai_api_base if not set)
+    #[serde(default)]
+    pub llm_openai_api_base: Option<String>,
 
     #[serde(default = "default_max_concurrent_jobs")]
     pub max_concurrent_jobs: usize,
@@ -64,6 +88,12 @@ impl Default for Config {
             embedding_model: None,
             ollama_url: None,
             openai_api_key: None,
+            openai_api_base: None,
+            llm_backend: String::new(),
+            llm_model: None,
+            llm_ollama_url: None,
+            llm_openai_api_key: None,
+            llm_openai_api_base: None,
             max_concurrent_jobs: default_max_concurrent_jobs(),
             max_chunks_per_file: default_max_chunks_per_file(),
             max_commits_per_watch: default_max_commits_per_watch(),
@@ -100,6 +130,9 @@ impl Config {
         }
         if cfg.embedding_backend.trim().is_empty() {
             cfg.embedding_backend = "local".into();
+        }
+        if cfg.llm_backend.trim().is_empty() {
+            cfg.llm_backend = "none".into();
         }
         Ok(cfg)
     }

@@ -108,6 +108,7 @@ impl AppState {
         // the `Lagged` error starts dropping co-occurrence data.  If the dreamer
         // stalls (e.g., long PageRank), excess events are silently discarded, but
         // this only affects search analytics quality, not correctness.
+        let dreaming = DreamingEngine::with_config(&cfg);
         let (events_tx, events_rx) = broadcast::channel(4096);
 
         Ok((
@@ -116,7 +117,7 @@ impl AppState {
                 paths: Arc::new(paths),
                 registry: Arc::new(registry),
                 graph: Arc::new(graph),
-                dreaming: Arc::new(DreamingEngine::new()),
+                dreaming: Arc::new(dreaming),
                 mimicry: Arc::new(StyleMimicryEngine::new()),
                 immune: Arc::new(ImmuneEngine::default()),
                 projects: Arc::new(RwLock::new(HashMap::new())),

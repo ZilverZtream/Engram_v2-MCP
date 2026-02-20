@@ -30,6 +30,7 @@ async fn main() -> anyhow::Result<()> {
         state.events_tx.subscribe(),
     ));
     tokio::spawn(actors::gc::run_gc_scheduler(state.clone()));
+    tokio::spawn(actors::immune::run_immune_actor(state.clone()));
 
     tools::run_stdio(state).await?;
     Ok(())
