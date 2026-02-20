@@ -17,16 +17,34 @@ fn default_exts() -> Vec<&'static str> {
 ///   - `.config` / `.xml` / `.rdlc` — configuration and report definitions
 ///   - `.sql`   — stored procedures and DDL scripts
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
-    match project_type.to_lowercase().as_str() {
-        "dotnetwebformscs" | "dotnet_webforms_cs" | "webforms_cs" | "webformscs" => vec![
+    if [
+        "dotnetwebformscs",
+        "dotnet_webforms_cs",
+        "webforms_cs",
+        "webformscs",
+    ]
+    .iter()
+    .any(|v| project_type.eq_ignore_ascii_case(v))
+    {
+        vec![
             "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
             "csproj", "sql", "rdlc", "md", "json",
-        ],
-        "dotnetwebformsvb" | "dotnet_webforms_vb" | "webforms_vb" | "webformsvb" => vec![
+        ]
+    } else if [
+        "dotnetwebformsvb",
+        "dotnet_webforms_vb",
+        "webforms_vb",
+        "webformsvb",
+    ]
+    .iter()
+    .any(|v| project_type.eq_ignore_ascii_case(v))
+    {
+        vec![
             "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
             "vbproj", "sql", "rdlc", "md", "json",
-        ],
-        _ => default_exts(),
+        ]
+    } else {
+        default_exts()
     }
 }
 
@@ -44,6 +62,13 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
     let text = file_path.replace('\\', "/");
     let pat = pattern.trim().replace('\\', "/");
 
+    // Guardrail against pathological O(m*n) input that can starve worker threads.
+    const MAX_PATTERN_CHARS: usize = 2_048;
+    const MAX_TEXT_CHARS: usize = 8_192;
+    if pat.chars().count() > MAX_PATTERN_CHARS || text.chars().count() > MAX_TEXT_CHARS {
+        return false;
+    }
+
     let text_chars: Vec<char> = text.chars().collect();
     let mut tokens = Vec::new();
     let mut escaped = false;
@@ -56,6 +81,10 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
         if c == '\\' {
             escaped = true;
         } else {
+            // Collapse adjacent `*` tokens to avoid needless DP state growth.
+            if c == '*' && tokens.last().copied() == Some(('*', true)) {
+                continue;
+            }
             tokens.push((c, true));
         }
     }
@@ -92,7 +121,7 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::pattern_match;
+    use super::{exts_for_project_type, pattern_match};
 
     #[test]
     fn matches_glob_wildcards() {
@@ -110,5 +139,18 @@ mod tests {
     fn escaped_meta_chars_are_literal() {
         assert!(pattern_match("foo*bar.txt", r"foo\*bar.txt"));
         assert!(!pattern_match("fooxbar.txt", r"foo\*bar.txt"));
+    }
+
+    #[test]
+    fn project_type_match_is_case_insensitive() {
+        let exts = exts_for_project_type("DotNet_WebForms_CS");
+        assert!(exts.contains(&"csproj"));
+        assert!(exts.contains(&"aspx"));
+    }
+
+    #[test]
+    fn rejects_pathological_pattern_lengths() {
+        let huge_pat = "*".repeat(4_096);
+        assert!(!pattern_match("src/file.rs", &huge_pat));
     }
 }

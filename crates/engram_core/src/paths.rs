@@ -10,14 +10,43 @@ pub struct RelPath(String);
 impl RelPath {
     /// Create a new RelPath from a string, normalizing separators to `/` and trimming leading/trailing slashes.
     pub fn new(path: &str) -> Self {
+        // Security hardening:
+        // - force slash separators
+        // - strip accidental absolute prefixes
+        // - collapse empty / `.` segments
+        // - prevent parent-traversal (`..`) from escaping virtual root
+        // - drop NUL/control chars that can poison downstream stores/logs
         let normalized = path.replace('\\', "/");
-        let trimmed = normalized.trim_matches(|c| c == '/' || c == '\\');
-        Self(trimmed.to_string())
+        let trimmed = normalized.trim_matches('/');
+
+        let mut parts: Vec<&str> = Vec::new();
+        for raw in trimmed.split('/') {
+            let seg = raw.trim();
+            if seg.is_empty() || seg == "." {
+                continue;
+            }
+            if seg == ".." {
+                parts.pop();
+                continue;
+            }
+            if seg.contains('\0') || seg.chars().any(|c| c.is_control()) {
+                continue;
+            }
+            parts.push(seg);
+        }
+
+        Self(parts.join("/"))
     }
 
     /// Create a RelPath from an absolute path relative to a root.
     pub fn from_relative(root: &Path, path: &Path) -> Option<Self> {
         let rel = path.strip_prefix(root).ok()?;
+        if rel
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            return None;
+        }
         Some(Self::new(&rel.to_string_lossy()))
     }
 
@@ -86,5 +115,16 @@ mod tests {
     fn test_empty_rel_path() {
         assert_eq!(RelPath::new("/").as_str(), "");
         assert!(RelPath::new("/").is_empty());
+    }
+
+    #[test]
+    fn test_rel_path_traversal_normalized() {
+        assert_eq!(RelPath::new("src/../lib.rs").as_str(), "lib.rs");
+        assert_eq!(RelPath::new("../../etc/passwd").as_str(), "etc/passwd");
+    }
+
+    #[test]
+    fn test_rel_path_drops_control_chars() {
+        assert_eq!(RelPath::new("foo/\u{0000}bar/baz").as_str(), "foo/baz");
     }
 }
