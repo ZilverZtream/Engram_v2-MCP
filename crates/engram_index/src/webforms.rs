@@ -95,11 +95,21 @@ fn get_compiled_regex<'a>(
     }
 }
 
+fn codebehind_language(cb_path: &str) -> &'static str {
+    if cb_path.to_ascii_lowercase().ends_with(".vb") {
+        "vb"
+    } else {
+        "csharp"
+    }
+}
+
 /// A registered user control prefix from `<%@ Register %>` directives.
 #[derive(Debug)]
 struct RegisterEntry {
     tag_prefix: String,
     tag_name: String,
+    /// Source line where the register directive appears.
+    line: u32,
     /// Resolved project-relative path to the .ascx file (if Src-based).
     src_rel_path: Option<String>,
     /// Assembly-based registration (TagPrefix + Namespace + Assembly).
@@ -144,6 +154,7 @@ pub fn extract_webforms(
         .file_name()
         .unwrap_or_else(|| rel_path.as_str())
         .to_string();
+    let source_file = rel_path.as_str().to_string();
 
     // ── 0. Find Inherits FQN (Pass 0) ──────────────────────────────────────────
     // Match: <%@ (Page|Control|Master) ... %>
@@ -231,15 +242,11 @@ pub fn extract_webforms(
             meta.insert("relative_path".into(), cb_path.clone());
 
             // Detect language from extension (.cs or .vb).
-            let cb_lang = if cb_path.to_lowercase().ends_with(".vb") {
-                "vb"
-            } else {
-                "csharp"
-            };
+            let cb_lang = codebehind_language(cb_path);
             meta.insert("language".into(), cb_lang.into());
 
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.clone(),
                 source_kind: "page".into(),
                 source_start_line: line,
                 source_language: "aspx".into(),
@@ -264,7 +271,7 @@ pub fn extract_webforms(
 
             // ── Edge 2: markup → codebehind class (codebehind_class) ────────────────
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.clone(),
                 source_kind: "page".into(),
                 source_start_line: line,
                 source_language: "aspx".into(),
@@ -279,11 +286,12 @@ pub fn extract_webforms(
             // This edge lets graph traversal go from the file node to the class
             // node without going through the markup.
             if let Some(ref cb_path) = cb_rel_path {
+                let cb_lang = codebehind_language(cb_path);
                 edges.push(ExtractedEdge {
                     source_name: cb_path.clone(),
                     source_kind: "file".into(),
-                    source_start_line: 0,
-                    source_language: "aspx".into(),
+                    source_start_line: line,
+                    source_language: cb_lang.into(),
                     target_name: simple_name,
                     target_kind: Some("class".into()),
                     target_start_line: None,
@@ -310,6 +318,7 @@ pub fn extract_webforms(
         rel_path,
         source,
         &file_name,
+        &source_file,
         &codebehind_re,
         &char_to_line,
         &mut page_inherits_fqn,
@@ -412,7 +421,6 @@ pub fn extract_webforms(
     let register_table = extract_register_directives(project_root, rel_path, source, &char_to_line);
     for entry in &register_table {
         if let Some(ref src_path) = entry.src_rel_path {
-            let line = 0u32; // Register directives are typically at the top
             let mut meta = HashMap::new();
             meta.insert("tag_prefix".into(), entry.tag_prefix.clone());
             meta.insert("tag_name".into(), entry.tag_name.clone());
@@ -420,9 +428,9 @@ pub fn extract_webforms(
 
             // Edge: page → user control file (registers_control)
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.clone(),
                 source_kind: "page".into(),
-                source_start_line: line,
+                source_start_line: entry.line,
                 source_language: "aspx".into(),
                 target_name: src_path.clone(),
                 target_kind: Some("file".into()),
@@ -434,7 +442,13 @@ pub fn extract_webforms(
     }
 
     // ── 4. User control tags resolved against Register table ────────────────────
-    extract_user_control_tags(source, &register_table, rel_path, &char_to_line, &mut edges);
+    extract_user_control_tags(
+        source,
+        &register_table,
+        &source_file,
+        &char_to_line,
+        &mut edges,
+    );
 
     // ── 5. DataSource controls ──────────────────────────────────────────────────
     extract_datasource_controls(
@@ -449,14 +463,21 @@ pub fn extract_webforms(
     // ── 6. Data-binding expressions: <%# Eval("...") %> and <%# Bind("...") %> ─
     extract_data_binding_expressions(
         source,
-        rel_path,
+        &source_file,
         page_inherits_fqn.as_deref(),
         &char_to_line,
         &mut edges,
     );
 
     // ── 7. Server-Side Includes: <!--#include virtual="..." --> or file="..." ──
-    extract_server_side_includes(source, project_root, rel_path, &char_to_line, &mut edges);
+    extract_server_side_includes(
+        source,
+        project_root,
+        rel_path,
+        &source_file,
+        &char_to_line,
+        &mut edges,
+    );
 
     // ── 8. Deep Layout Extraction: container hierarchy, label proximity, grid ──
     let (layout_syms, layout_edges) =
@@ -514,6 +535,7 @@ fn extract_service_directives(
     rel_path: &RelPath,
     source: &str,
     file_name: &str,
+    source_file: &str,
     codebehind_re: &Regex,
     char_to_line: &dyn Fn(usize) -> u32,
     page_inherits_fqn: &mut Option<String>,
@@ -619,15 +641,11 @@ fn extract_service_directives(
             meta.insert("relative_path".into(), cb_path.clone());
             meta.insert("directive_type".into(), directive_type.clone());
 
-            let cb_lang = if cb_path.to_lowercase().ends_with(".vb") {
-                "vb"
-            } else {
-                "csharp"
-            };
+            let cb_lang = codebehind_language(cb_path);
             meta.insert("language".into(), cb_lang.into());
 
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.to_string(),
                 source_kind: symbol_kind.into(),
                 source_start_line: line,
                 source_language: "aspx".into(),
@@ -648,7 +666,7 @@ fn extract_service_directives(
             meta.insert("directive_type".into(), directive_type.clone());
 
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.to_string(),
                 source_kind: symbol_kind.into(),
                 source_start_line: line,
                 source_language: "aspx".into(),
@@ -661,11 +679,12 @@ fn extract_service_directives(
 
             // ── Edge: code-behind file → backing class (cb_defines) ──────────
             if let Some(ref cb_path) = cb_rel_path {
+                let cb_lang = codebehind_language(cb_path);
                 edges.push(ExtractedEdge {
                     source_name: cb_path.clone(),
                     source_kind: "file".into(),
-                    source_start_line: 0,
-                    source_language: "aspx".into(),
+                    source_start_line: line,
+                    source_language: cb_lang.into(),
                     target_name: simple_name,
                     target_kind: Some("class".into()),
                     target_start_line: None,
@@ -690,7 +709,7 @@ fn extract_service_directives(
                 meta.insert("role".into(), "factory".into());
 
                 edges.push(ExtractedEdge {
-                    source_name: "file".into(),
+                    source_name: source_file.to_string(),
                     source_kind: symbol_kind.into(),
                     source_start_line: line,
                     source_language: "aspx".into(),
@@ -789,12 +808,11 @@ fn extract_register_directives(
         return Vec::new();
     };
 
-    let _ = char_to_line; // currently unused directly here; kept for future line-level tracking
-
     let mut entries = Vec::new();
 
     for m in register_re.find_iter(source) {
         let attrs = m.as_str();
+        let line = char_to_line(m.start());
 
         let tag_prefix = tagprefix_re
             .captures(attrs)
@@ -820,6 +838,7 @@ fn extract_register_directives(
         entries.push(RegisterEntry {
             tag_prefix,
             tag_name,
+            line,
             src_rel_path,
             assembly,
             namespace,
@@ -868,7 +887,7 @@ fn resolve_aspnet_path(
 fn extract_user_control_tags(
     source: &str,
     register_table: &[RegisterEntry],
-    _rel_path: &RelPath,
+    source_file: &str,
     char_to_line: &dyn Fn(usize) -> u32,
     edges: &mut Vec<ExtractedEdge>,
 ) {
@@ -945,7 +964,7 @@ fn extract_user_control_tags(
                 meta.insert("src_path".into(), src.clone());
 
                 edges.push(ExtractedEdge {
-                    source_name: "file".into(),
+                    source_name: source_file.to_string(),
                     source_kind: "page".into(),
                     source_start_line: line,
                     source_language: "aspx".into(),
@@ -1239,7 +1258,7 @@ fn truncate_sql(sql: &str) -> String {
 /// creating a graph edge from the UI markup directly to the model/schema field.
 fn extract_data_binding_expressions(
     source: &str,
-    _rel_path: &RelPath,
+    source_file: &str,
     page_inherits_fqn: Option<&str>,
     char_to_line: &dyn Fn(usize) -> u32,
     edges: &mut Vec<ExtractedEdge>,
@@ -1284,7 +1303,7 @@ fn extract_data_binding_expressions(
         }
 
         edges.push(ExtractedEdge {
-            source_name: "file".into(),
+            source_name: source_file.to_string(),
             source_kind: "page".into(),
             source_start_line: line,
             source_language: "aspx".into(),
@@ -1315,6 +1334,7 @@ fn extract_server_side_includes(
     source: &str,
     project_root: &Path,
     rel_path: &RelPath,
+    source_file: &str,
     char_to_line: &dyn Fn(usize) -> u32,
     edges: &mut Vec<ExtractedEdge>,
 ) {
@@ -1374,7 +1394,7 @@ fn extract_server_side_includes(
             }
 
             edges.push(ExtractedEdge {
-                source_name: "file".into(),
+                source_name: source_file.to_string(),
                 source_kind: "page".into(),
                 source_start_line: line,
                 source_language: "aspx".into(),
