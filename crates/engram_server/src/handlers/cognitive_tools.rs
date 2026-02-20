@@ -53,4 +53,20 @@ impl Engram {
         cognitive_service::find_temporal_couplings(&self.state, project_id, min_frequency, limit)
             .await
     }
+
+    /// Suggest microservice/bounded-context migration boundaries.
+    pub(crate) async fn cognitive_suggest_boundaries(
+        &self,
+        project_id: &str,
+        min_frequency: u32,
+        max_clusters: usize,
+    ) -> anyhow::Result<Vec<engram_ml::MigrationBoundary>> {
+        cognitive_service::suggest_migration_boundaries(
+            &self.state,
+            project_id,
+            min_frequency,
+            max_clusters,
+        )
+        .await
+    }
 }

@@ -28,6 +28,30 @@ pub struct ExtractedEdge {
 /// Built during Pass 1 of two-pass call graph extraction.
 type FqnTable = std::collections::HashMap<String, String>;
 
+/// Check if a function name matches a WebForms page lifecycle method.
+/// Returns `(lifecycle_stage, sequence_number)` if it matches.
+fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
+    match name.to_lowercase().as_str() {
+        "page_preinit" => Some(("PreInit", 1)),
+        "page_init" => Some(("Init", 2)),
+        "page_initcomplete" => Some(("InitComplete", 3)),
+        "page_preload" => Some(("PreLoad", 4)),
+        "page_load" => Some(("Load", 5)),
+        "page_loadcomplete" => Some(("LoadComplete", 6)),
+        "page_prerender" => Some(("PreRender", 7)),
+        "page_prerendercomplete" => Some(("PreRenderComplete", 8)),
+        "page_savestatecomplete" => Some(("SaveStateComplete", 9)),
+        "page_render" | "render" => Some(("Render", 10)),
+        "page_unload" => Some(("Unload", 11)),
+        // Override forms: OnInit, OnLoad, OnPreRender, OnUnload
+        "oninit" => Some(("Init", 2)),
+        "onload" => Some(("Load", 5)),
+        "onprerender" => Some(("PreRender", 7)),
+        "onunload" => Some(("Unload", 11)),
+        _ => None,
+    }
+}
+
 pub struct SymbolExtractor {
     rust_query: Option<Query>,
     python_query: Option<Query>,
@@ -540,6 +564,14 @@ impl SymbolExtractor {
                 }
                 if is_designer && kind == "control_ref" {
                     meta.insert("is_designer".into(), "true".into());
+                }
+
+                // Tag WebForms lifecycle methods with stage + sequence metadata.
+                if kind == "function" {
+                    if let Some((stage, seq)) = webforms_lifecycle_info(&name) {
+                        meta.insert("lifecycle_stage".into(), stage.into());
+                        meta.insert("lifecycle_sequence".into(), seq.to_string());
+                    }
                 }
 
                 symbols.push(ExtractedSymbol {

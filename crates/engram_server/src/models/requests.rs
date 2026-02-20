@@ -60,6 +60,12 @@ pub fn default_max_depth_10() -> u8 {
 pub fn default_diff_limit() -> usize {
     10
 }
+pub fn default_max_clusters() -> usize {
+    8
+}
+pub fn default_min_freq_3() -> u32 {
+    3
+}
 
 pub const MAX_SEARCH_RESULTS: usize = 200;
 pub const MAX_CONTENT_CHARS_PER_RESULT: usize = 20_000;
@@ -376,6 +382,17 @@ pub struct AnalyzeFileCodingStyleRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct SuggestMigrationBoundariesRequest {
+    pub project_id: String,
+    /// Minimum co-change frequency to include a coupling edge (default 3).
+    #[serde(default = "default_min_freq_3")]
+    pub min_frequency: u32,
+    /// Maximum number of bounded-context clusters to return (default 8).
+    #[serde(default = "default_max_clusters")]
+    pub max_clusters: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ImmuneCheckRequest {
     pub project_id: String,
     pub code: String,
@@ -495,6 +512,15 @@ impl ImmuneCheckRequest {
 impl AntiPatternGuardRequest {
     pub fn sanitized_limit(&self) -> usize {
         self.limit.clamp(1, MAX_IMMUNE_TOP_K)
+    }
+}
+
+impl SuggestMigrationBoundariesRequest {
+    pub fn sanitized_min_frequency(&self) -> u32 {
+        self.min_frequency.clamp(1, 1000)
+    }
+    pub fn sanitized_max_clusters(&self) -> usize {
+        self.max_clusters.clamp(1, 50)
     }
 }
 

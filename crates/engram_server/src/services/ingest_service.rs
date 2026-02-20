@@ -484,6 +484,12 @@ pub async fn process_ingest_stats(
             "exposes_wcf_service" => engram_graph::EdgeKind::ExposesWcfService,
             "contains_ui" => engram_graph::EdgeKind::ContainsUi,
             "ui_layout_neighbor" => engram_graph::EdgeKind::UiLayoutNeighbor,
+            "reads_column" => engram_graph::EdgeKind::ReadsColumn,
+            "registers_module" => engram_graph::EdgeKind::RegistersModule,
+            "registers_handler" => engram_graph::EdgeKind::RegistersHandler,
+            "manipulates_dom" => engram_graph::EdgeKind::ManipulatesDom,
+            "triggers_postback" => engram_graph::EdgeKind::TriggersPostback,
+            "api_call" => engram_graph::EdgeKind::ApiCall,
             _ => engram_graph::EdgeKind::Dependency,
         };
 

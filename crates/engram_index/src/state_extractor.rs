@@ -7,6 +7,8 @@
 ///   - `Cache["Key"]` / `Cache("Key")`
 ///   - `HttpContext.Current.Items["Key"]`
 ///   - `HttpContext.Current.Session["Key"]`
+///   - `Request.Cookies["Key"]` / `Request.Cookies("Key")`
+///   - `Response.Cookies["Key"]` / `Response.Cookies("Key")`
 ///
 /// Supports both string literal keys and identifier/constant references:
 ///   - `Session["UserId"]` — literal key "UserId"
@@ -23,6 +25,7 @@
 /// Write vs Read determination:
 ///   If the state access is on the LHS of an assignment (i.e. followed by `= <non-equals>`
 ///   on the same line), it is a **write**; otherwise a **read**.
+///   Exception: `Request.Cookies` is always a **read**; `Response.Cookies` is always a **write**.
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
 use engram_core::RelPath;
 use regex::Regex;
@@ -50,6 +53,12 @@ static CS_CONST_RE: OnceLock<Regex> = OnceLock::new();
 
 /// VB.NET constant declaration: `Const Key As String = "Value"`
 static VB_CONST_RE: OnceLock<Regex> = OnceLock::new();
+
+/// C# cookie access: Request.Cookies["Key"] or Response.Cookies["Key"]
+static CS_COOKIE_RE: OnceLock<Regex> = OnceLock::new();
+
+/// VB.NET cookie access: Request.Cookies("Key") or Response.Cookies("Key")
+static VB_COOKIE_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -228,6 +237,121 @@ pub fn extract_state_accesses(
         }
     }
 
+    // ── Second pass: Cookie access detection ──────────────────────────────
+    let cookie_re = match language {
+        "csharp" => cs_cookie_regex(),
+        "vbnet" => vb_cookie_regex(),
+        _ => None,
+    };
+
+    if let Some(cookie_re) = cookie_re {
+        for (line_idx, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("//") || trimmed.starts_with("'") || trimmed.starts_with("<!--")
+            {
+                continue;
+            }
+
+            for cap in cookie_re.captures_iter(line) {
+                let direction_raw = cap.get(1).map_or("", |m| m.as_str());
+                let literal_key = cap.get(2).map_or("", |m| m.as_str());
+                let ident_key = cap.get(3).map_or("", |m| m.as_str());
+
+                let (key, is_unresolved) = if !literal_key.is_empty() {
+                    (literal_key.to_string(), false)
+                } else if !ident_key.is_empty() {
+                    let lookup_name = if language == "vbnet" {
+                        ident_key.to_lowercase()
+                    } else {
+                        ident_key.to_string()
+                    };
+                    if let Some(resolved) = const_table.get(&lookup_name) {
+                        (resolved.clone(), false)
+                    } else {
+                        (ident_key.to_string(), true)
+                    }
+                } else {
+                    continue;
+                };
+
+                if key.is_empty() {
+                    continue;
+                }
+
+                // Request.Cookies → always a read, Response.Cookies → always a write.
+                let is_request = direction_raw.eq_ignore_ascii_case("Request");
+                let is_write = !is_request;
+
+                let state_type = "Cookies".to_string();
+
+                let edge_kind = if is_unresolved {
+                    if is_write {
+                        "unresolved_state_write"
+                    } else {
+                        "unresolved_state_read"
+                    }
+                } else if is_write {
+                    "writes_state"
+                } else {
+                    "reads_state"
+                };
+
+                let enclosing = method_map
+                    .get(&line_idx)
+                    .cloned()
+                    .unwrap_or_else(|| rel_path.as_str().to_string());
+
+                let target_id = if is_unresolved {
+                    format!("unresolved_state:{}:{}", state_type, key)
+                } else {
+                    format!("state:{}:{}", state_type, key)
+                };
+
+                let mut meta = HashMap::new();
+                meta.insert("state_type".to_string(), state_type.clone());
+                meta.insert("state_key".to_string(), key.clone());
+                meta.insert(
+                    "cookie_direction".to_string(),
+                    if is_request {
+                        "Request".to_string()
+                    } else {
+                        "Response".to_string()
+                    },
+                );
+                if is_unresolved {
+                    meta.insert("unresolved".to_string(), "true".to_string());
+                    meta.insert("identifier".to_string(), ident_key.to_string());
+                }
+
+                edges.push(ExtractedEdge {
+                    source_name: enclosing,
+                    source_kind: "function".to_string(),
+                    source_start_line: line_idx as u32,
+                    source_language: language.to_string(),
+                    target_name: target_id,
+                    target_kind: Some("global_state".to_string()),
+                    target_start_line: None,
+                    kind: edge_kind.to_string(),
+                    metadata: Some(meta),
+                });
+
+                if !is_unresolved && seen_keys.insert((state_type.clone(), key.clone())) {
+                    let mut meta = HashMap::new();
+                    meta.insert("state_type".to_string(), state_type.clone());
+                    meta.insert("state_key".to_string(), key.clone());
+
+                    symbols.push(ExtractedSymbol {
+                        name: format!("{}:{}", state_type, key),
+                        kind: "global_state".to_string(),
+                        start_line: line_idx as u32,
+                        end_line: line_idx as u32,
+                        metadata: Some(meta),
+                    });
+                }
+            }
+        }
+    }
+
     (symbols, edges)
 }
 
@@ -250,6 +374,28 @@ fn vb_state_regex() -> Option<&'static Regex> {
         &VB_STATE_RE,
         r#"(?i)(Session|ViewState|Application|Cache)\s*\(\s*(?:"([^"]+)"|([A-Za-z_]\w*))\s*\)"#,
         "state_vb",
+    )
+}
+
+fn cs_cookie_regex() -> Option<&'static Regex> {
+    // Group 1: Request or Response
+    // Group 2: string literal key (if quoted)
+    // Group 3: bare identifier key (if unquoted)
+    get_compiled_regex(
+        &CS_COOKIE_RE,
+        r#"(?i)(Request|Response)\.Cookies\s*\[\s*(?:"([^"]+)"|([A-Za-z_]\w*))\s*\]"#,
+        "cookie_cs",
+    )
+}
+
+fn vb_cookie_regex() -> Option<&'static Regex> {
+    // Group 1: Request or Response
+    // Group 2: string literal key (if quoted)
+    // Group 3: bare identifier key (if unquoted)
+    get_compiled_regex(
+        &VB_COOKIE_RE,
+        r#"(?i)(Request|Response)\.Cookies\s*\(\s*(?:"([^"]+)"|([A-Za-z_]\w*))\s*\)"#,
+        "cookie_vb",
     )
 }
 
@@ -678,5 +824,95 @@ Const NumberKey As Integer = 42
             !table.contains_key("numberkey"),
             "Integer const should not match"
         );
+    }
+
+    // ── Cookie access tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_csharp_request_cookie_read() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var sessionId = Request.Cookies["SessionId"];
+    var theme = Request.Cookies["Theme"];
+}
+"#;
+        let rel = RelPath::new("Page.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 2, "Should find 2 unique cookie keys");
+
+        let reads: Vec<_> = edges.iter().filter(|e| e.kind == "reads_state").collect();
+        assert_eq!(reads.len(), 2, "Request.Cookies are always reads");
+
+        for e in &reads {
+            let meta = e.metadata.as_ref().unwrap();
+            assert_eq!(meta["state_type"], "Cookies");
+            assert_eq!(meta["cookie_direction"], "Request");
+        }
+    }
+
+    #[test]
+    fn test_csharp_response_cookie_write() {
+        let code = r#"
+protected void SetCookie() {
+    Response.Cookies["Theme"] = "dark";
+    Response.Cookies["Lang"] = "en";
+}
+"#;
+        let rel = RelPath::new("Settings.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 2);
+
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(writes.len(), 2, "Response.Cookies are always writes");
+
+        for e in &writes {
+            let meta = e.metadata.as_ref().unwrap();
+            assert_eq!(meta["state_type"], "Cookies");
+            assert_eq!(meta["cookie_direction"], "Response");
+        }
+    }
+
+    #[test]
+    fn test_vbnet_cookie_access() {
+        let code = r#"
+Public Sub Page_Load(sender As Object, e As EventArgs)
+    Dim pref = Request.Cookies("UserPref")
+    Response.Cookies("Theme") = "dark"
+End Sub
+"#;
+        let rel = RelPath::new("Default.aspx.vb");
+        let (syms, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 2);
+
+        let reads: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "reads_state" && e.target_name.contains("Cookies"))
+            .collect();
+        let writes: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "writes_state" && e.target_name.contains("Cookies"))
+            .collect();
+        assert_eq!(reads.len(), 1, "Request.Cookies is a read");
+        assert_eq!(writes.len(), 1, "Response.Cookies is a write");
+    }
+
+    #[test]
+    fn test_cookie_identifier_resolution() {
+        let code = r#"
+const string CookieKey = "AUTH_TOKEN";
+var token = Request.Cookies[CookieKey];
+"#;
+        let rel = RelPath::new("Auth.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Cookies:AUTH_TOKEN");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "reads_state");
+        assert!(edges[0].target_name.contains("Cookies:AUTH_TOKEN"));
     }
 }

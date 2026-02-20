@@ -5,7 +5,7 @@ pub mod embed;
 pub mod immune;
 pub mod mimicry;
 
-pub use dreaming::{DreamInsight, DreamingEngine};
+pub use dreaming::{DreamInsight, DreamingEngine, MigrationBoundary};
 pub use embed::{
     Embedder, Embedding, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder,
     RemoteEmbedder, build_embedder,

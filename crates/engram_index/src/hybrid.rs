@@ -724,6 +724,8 @@ impl HybridSearchEngine {
                             s.extend(layout_s);
                             e.extend(layout_e);
                             (s, e)
+                        } else if is_web_config(p) {
+                            crate::config_extractor::extract_web_config(&rel_path, &text)
                         } else if ext_lower.as_deref() == Some("sql") {
                             crate::ddl_extractor::extract_ddl(&rel_path, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
@@ -736,6 +738,15 @@ impl HybridSearchEngine {
                         }
                         for e in edges {
                             local_stats.edges.push((rel_path.clone(), e));
+                        }
+
+                        // Post-processing: extract JS→ASP.NET bridge edges (.js files).
+                        if matches!(language, "javascript") {
+                            let (_js_syms, js_edges) =
+                                crate::js_extractor::extract_js(p, &text);
+                            for e in js_edges {
+                                local_stats.edges.push((rel_path.clone(), e));
+                            }
                         }
 
                         // Post-processing: detect global state accesses in C#/VB files.
@@ -1475,6 +1486,14 @@ pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
 // ---------------------------------------------------------------------------
 // Embedder factory (for HybridSearchEngine::new)
 // ---------------------------------------------------------------------------
+
+/// Check if a file is a web.config or app.config (ASP.NET configuration).
+fn is_web_config(path: &std::path::Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.eq_ignore_ascii_case("web.config") || s.eq_ignore_ascii_case("app.config"))
+        .unwrap_or(false)
+}
 
 /// Build an embedder from the configured embedding backend.
 /// Falls back to ProjectionEmbedder for unknown backends.

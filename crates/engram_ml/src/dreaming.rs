@@ -62,6 +62,39 @@ const MAX_SNIPPETS_FOR_CLUSTER_SUMMARY: usize = 24;
 const MAX_SNIPPET_CHARS: usize = 8_000;
 const MAX_CONTEXT_BYTES_FOR_INSIGHT: usize = 16_000;
 
+const MIGRATION_BOUNDARY_PROMPT: &str = r#"You are a software architect analyzing a legacy monolithic ASP.NET WebForms application for modernization.
+
+You have been given clusters of files that frequently change together (temporal couplings) along with their shared state accesses and database dependencies.
+
+Clusters:
+{clusters}
+
+Shared State Keys (Session/ViewState/Application used across clusters):
+{shared_state}
+
+Shared Database Tables:
+{shared_tables}
+
+Task:
+1. Identify 2-5 potential bounded contexts (microservice candidates) from these clusters.
+2. For each bounded context, specify:
+   - A descriptive name
+   - The key files that belong to it
+   - The data it owns (tables, state keys)
+   - Dependencies on other bounded contexts
+   - Migration risk (LOW/MEDIUM/HIGH) based on shared state and coupling
+3. Identify any "seam" files that sit between contexts and will need refactoring.
+
+Respond in this exact format (repeat for each context, separated by ---):
+CONTEXT: <name>
+FILES: <comma-separated file paths>
+DATA: <comma-separated tables and state keys>
+DEPENDS_ON: <comma-separated context names, or NONE>
+RISK: <LOW|MEDIUM|HIGH>
+SEAM_FILES: <comma-separated files at boundaries, or NONE>
+---
+"#;
+
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
@@ -71,6 +104,17 @@ pub struct DreamInsight {
     pub title: String,
     pub summary_markdown: String,
     pub key_terms: Vec<String>,
+}
+
+/// Proposed microservice / bounded-context boundary from the Architecture Mimicry pipeline.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MigrationBoundary {
+    pub context_name: String,
+    pub files: Vec<String>,
+    pub owned_data: Vec<String>,
+    pub depends_on: Vec<String>,
+    pub risk: String,
+    pub seam_files: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -223,6 +267,49 @@ impl DreamingEngine {
             Err(_) => {
                 tracing::debug!("LLM insight generation timed out");
                 String::new()
+            }
+        }
+    }
+
+    /// Suggest microservice/bounded-context boundaries from temporal coupling clusters.
+    ///
+    /// Calls the LLM with the migration boundary prompt. Falls back to directory-based
+    /// grouping when no LLM is configured or the call fails.
+    pub async fn suggest_boundaries(
+        &self,
+        clusters_text: &str,
+        shared_state_text: &str,
+        shared_tables_text: &str,
+        max_wait: Duration,
+    ) -> Vec<MigrationBoundary> {
+        let prompt = MIGRATION_BOUNDARY_PROMPT
+            .replace("{clusters}", &truncate_for_prompt(clusters_text, 12_000))
+            .replace(
+                "{shared_state}",
+                &truncate_for_prompt(shared_state_text, 4_000),
+            )
+            .replace(
+                "{shared_tables}",
+                &truncate_for_prompt(shared_tables_text, 4_000),
+            );
+
+        match timeout(max_wait, self.call_llm(&prompt, 2048)).await {
+            Ok(Ok(raw)) => {
+                let boundaries = parse_boundary_response(&raw);
+                if boundaries.is_empty() {
+                    tracing::debug!("LLM returned unparseable boundary response, using fallback");
+                    deterministic_boundaries(clusters_text)
+                } else {
+                    boundaries
+                }
+            }
+            Ok(Err(e)) => {
+                tracing::debug!("LLM boundary suggestion failed (using fallback): {e:#}");
+                deterministic_boundaries(clusters_text)
+            }
+            Err(_) => {
+                tracing::debug!("LLM boundary suggestion timed out (using fallback)");
+                deterministic_boundaries(clusters_text)
             }
         }
     }
@@ -598,4 +685,172 @@ async fn call_openai_chat(
         }
     }
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI chat failed after retries")))
+}
+
+// ---------------------------------------------------------------------------
+// Migration Boundary parsing + deterministic fallback
+// ---------------------------------------------------------------------------
+
+/// Parse an LLM response into `MigrationBoundary` structs.
+///
+/// Expected format per boundary (separated by `---`):
+/// ```text
+/// CONTEXT: <name>
+/// FILES: <comma-separated>
+/// DATA: <comma-separated>
+/// DEPENDS_ON: <comma-separated or NONE>
+/// RISK: <LOW|MEDIUM|HIGH>
+/// SEAM_FILES: <comma-separated or NONE>
+/// ```
+fn parse_boundary_response(raw: &str) -> Vec<MigrationBoundary> {
+    let mut boundaries = Vec::new();
+
+    for block in raw.split("---") {
+        let block = block.trim();
+        if block.is_empty() {
+            continue;
+        }
+
+        let mut context_name = String::new();
+        let mut files = Vec::new();
+        let mut owned_data = Vec::new();
+        let mut depends_on = Vec::new();
+        let mut risk = String::new();
+        let mut seam_files = Vec::new();
+
+        for line in block.lines() {
+            let line = line.trim();
+            if let Some(val) = line.strip_prefix("CONTEXT:") {
+                context_name = val.trim().to_string();
+            } else if let Some(val) = line.strip_prefix("FILES:") {
+                files = split_csv(val);
+            } else if let Some(val) = line.strip_prefix("DATA:") {
+                owned_data = split_csv(val);
+            } else if let Some(val) = line.strip_prefix("DEPENDS_ON:") {
+                let items = split_csv(val);
+                depends_on = items
+                    .into_iter()
+                    .filter(|s| !s.eq_ignore_ascii_case("none"))
+                    .collect();
+            } else if let Some(val) = line.strip_prefix("RISK:") {
+                risk = val.trim().to_uppercase();
+            } else if let Some(val) = line.strip_prefix("SEAM_FILES:") {
+                let items = split_csv(val);
+                seam_files = items
+                    .into_iter()
+                    .filter(|s| !s.eq_ignore_ascii_case("none"))
+                    .collect();
+            }
+        }
+
+        if !context_name.is_empty() && !files.is_empty() {
+            boundaries.push(MigrationBoundary {
+                context_name,
+                files,
+                owned_data,
+                depends_on,
+                risk,
+                seam_files,
+            });
+        }
+    }
+
+    boundaries
+}
+
+/// Split a comma-separated string into trimmed, non-empty strings.
+fn split_csv(s: &str) -> Vec<String> {
+    s.split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// Deterministic fallback: group files by directory prefix.
+fn deterministic_boundaries(clusters_text: &str) -> Vec<MigrationBoundary> {
+    let mut dir_groups: HashMap<String, Vec<String>> = HashMap::new();
+
+    for line in clusters_text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with('-') {
+            continue;
+        }
+        // Extract file paths from the cluster text (simple heuristic).
+        for token in line.split_whitespace() {
+            let token = token.trim_matches(|c: char| c == ',' || c == '"' || c == '\'');
+            if token.contains('/') || token.contains('\\') || token.contains('.') {
+                let dir = token
+                    .rsplit_once(|c| c == '/' || c == '\\')
+                    .map(|(d, _)| d.to_string())
+                    .unwrap_or_else(|| "root".to_string());
+                dir_groups.entry(dir).or_default().push(token.to_string());
+            }
+        }
+    }
+
+    dir_groups
+        .into_iter()
+        .map(|(dir, files)| MigrationBoundary {
+            context_name: format!("{} Module", dir.split('/').last().unwrap_or(&dir)),
+            files,
+            owned_data: Vec::new(),
+            depends_on: Vec::new(),
+            risk: "MEDIUM".into(),
+            seam_files: Vec::new(),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_boundary_response() {
+        let raw = r#"
+CONTEXT: Order Management
+FILES: Orders.aspx, Orders.aspx.vb, OrderDAL.vb
+DATA: Orders table, Session:CartId
+DEPENDS_ON: Customer Management
+RISK: HIGH
+SEAM_FILES: SharedUtils.vb
+---
+CONTEXT: Customer Management
+FILES: Customers.aspx, CustomerService.vb
+DATA: Customers table
+DEPENDS_ON: NONE
+RISK: LOW
+SEAM_FILES: NONE
+---
+"#;
+        let boundaries = parse_boundary_response(raw);
+        assert_eq!(boundaries.len(), 2);
+
+        assert_eq!(boundaries[0].context_name, "Order Management");
+        assert_eq!(boundaries[0].files.len(), 3);
+        assert_eq!(boundaries[0].risk, "HIGH");
+        assert_eq!(boundaries[0].depends_on, vec!["Customer Management"]);
+        assert_eq!(boundaries[0].seam_files, vec!["SharedUtils.vb"]);
+
+        assert_eq!(boundaries[1].context_name, "Customer Management");
+        assert!(boundaries[1].depends_on.is_empty());
+        assert!(boundaries[1].seam_files.is_empty());
+    }
+
+    #[test]
+    fn test_deterministic_fallback() {
+        let clusters = r#"
+Cluster 1: Orders/OrderPage.aspx, Orders/OrderDAL.vb
+Cluster 2: Customers/CustomerPage.aspx, Customers/CustomerService.vb
+"#;
+        let boundaries = deterministic_boundaries(clusters);
+        assert!(
+            !boundaries.is_empty(),
+            "Should produce at least 1 boundary group"
+        );
+        for b in &boundaries {
+            assert!(!b.context_name.is_empty());
+            assert!(!b.files.is_empty());
+        }
+    }
 }

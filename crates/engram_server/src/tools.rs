@@ -3565,6 +3565,41 @@ End Sub
     }
 
     #[tool(
+        description = "Suggest microservice/bounded-context migration boundaries from temporal coupling clusters, shared state, and SQL table references. Uses LLM when available, falls back to directory-prefix grouping."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn suggest_migration_boundaries(
+        &self,
+        params: Parameters<SuggestMigrationBoundariesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+
+        let boundaries = self
+            .cognitive_suggest_boundaries(
+                &req.project_id,
+                req.sanitized_min_frequency(),
+                req.sanitized_max_clusters(),
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if boundaries.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No temporal coupling data found. Index git history first (index_git_history) to populate coupling edges.",
+            )]));
+        }
+
+        let json =
+            serde_json::to_string_pretty(&boundaries).unwrap_or_else(|_| format!("{boundaries:?}"));
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Migration Boundary Suggestions ({} contexts):\n\n{json}",
+            boundaries.len()
+        ))]))
+    }
+
+    #[tool(
         description = "Ingest instrumentation logs from a legacy .NET app to record runtime events and SQL calls."
     )]
     pub async fn ingest_instrumentation_logs(
