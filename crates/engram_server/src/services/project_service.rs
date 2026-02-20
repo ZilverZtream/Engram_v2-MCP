@@ -17,7 +17,7 @@ pub async fn ensure_project_record(
 
 /// Validate that `project_id` contains only safe characters to prevent directory traversal.
 /// Allowed: ASCII alphanumerics, hyphens, underscores.
-fn validate_project_id(project_id: &str) -> Result<(), EngramError> {
+pub fn validate_project_id(project_id: &str) -> Result<(), EngramError> {
     if project_id.is_empty()
         || !project_id
             .chars()
