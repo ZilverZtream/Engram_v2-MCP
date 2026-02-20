@@ -82,6 +82,18 @@ pub enum EdgeKind {
     ContainsUi,
     /// UI layout sibling adjacency: sequential controls in tab/visual order.
     UiLayoutNeighbor,
+    /// ADO.NET code reads a DB column by name (row("Col"), reader.GetOrdinal("Col")).
+    ReadsColumn,
+    /// web.config `<httpModules>` or `<system.webServer><modules>` → module class.
+    RegistersModule,
+    /// web.config `<httpHandlers>` or `<system.webServer><handlers>` → handler class.
+    RegistersHandler,
+    /// Client-side JavaScript manipulates an ASP.NET control via jQuery/DOM selector.
+    ManipulatesDom,
+    /// Client-side JavaScript triggers an ASP.NET postback via `__doPostBack`.
+    TriggersPostback,
+    /// Client-side JavaScript calls a server-side endpoint (AJAX/fetch to ASMX/ASHX/SVC/API).
+    ApiCall,
 }
 
 impl EdgeKind {
@@ -110,6 +122,12 @@ impl EdgeKind {
         EdgeKind::ExposesWcfService,
         EdgeKind::ContainsUi,
         EdgeKind::UiLayoutNeighbor,
+        EdgeKind::ReadsColumn,
+        EdgeKind::RegistersModule,
+        EdgeKind::RegistersHandler,
+        EdgeKind::ManipulatesDom,
+        EdgeKind::TriggersPostback,
+        EdgeKind::ApiCall,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -137,6 +155,12 @@ impl EdgeKind {
             EdgeKind::ExposesWcfService => "exposes_wcf_service",
             EdgeKind::ContainsUi => "contains_ui",
             EdgeKind::UiLayoutNeighbor => "ui_layout_neighbor",
+            EdgeKind::ReadsColumn => "reads_column",
+            EdgeKind::RegistersModule => "registers_module",
+            EdgeKind::RegistersHandler => "registers_handler",
+            EdgeKind::ManipulatesDom => "manipulates_dom",
+            EdgeKind::TriggersPostback => "triggers_postback",
+            EdgeKind::ApiCall => "api_call",
         }
     }
 
@@ -165,6 +189,12 @@ impl EdgeKind {
             "exposes_wcf_service" => Some(EdgeKind::ExposesWcfService),
             "contains_ui" => Some(EdgeKind::ContainsUi),
             "ui_layout_neighbor" => Some(EdgeKind::UiLayoutNeighbor),
+            "reads_column" => Some(EdgeKind::ReadsColumn),
+            "registers_module" => Some(EdgeKind::RegistersModule),
+            "registers_handler" => Some(EdgeKind::RegistersHandler),
+            "manipulates_dom" => Some(EdgeKind::ManipulatesDom),
+            "triggers_postback" => Some(EdgeKind::TriggersPostback),
+            "api_call" => Some(EdgeKind::ApiCall),
             _ => None,
         }
     }

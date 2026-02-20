@@ -2,10 +2,12 @@
 #![deny(clippy::unwrap_used)]
 
 pub mod chunking;
+pub mod config_extractor;
 pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;
 pub mod ingest;
+pub mod js_extractor;
 pub mod layout_extractor;
 pub mod parsing;
 pub mod state_extractor;

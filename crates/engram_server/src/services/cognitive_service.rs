@@ -304,3 +304,195 @@ fn collect_file_diffs(
 
     Ok(out)
 }
+
+// ---------------------------------------------------------------------------
+// Architecture Mimicry: migration boundary suggestions
+// ---------------------------------------------------------------------------
+
+/// Suggest microservice/bounded-context migration boundaries.
+///
+/// Steps:
+/// 1. Query top temporal coupling edges from the graph.
+/// 2. Group coupled files into clusters using simple union-find.
+/// 3. For each cluster, gather shared state keys and SQL table references.
+/// 4. Format text blocks and pass to LLM via DreamingEngine.
+/// 5. Return proposed boundaries.
+pub async fn suggest_migration_boundaries(
+    state: &AppState,
+    project_id: &str,
+    min_frequency: u32,
+    max_clusters: usize,
+) -> anyhow::Result<Vec<engram_ml::MigrationBoundary>> {
+    let graph = state.graph.clone();
+    let pid = project_id.to_string();
+    let min_freq = min_frequency;
+    let max_cl = max_clusters;
+
+    // Step 1-3: Gather graph data (blocking I/O).
+    let (clusters_text, state_text, tables_text) =
+        tokio::task::spawn_blocking(move || gather_boundary_data(&graph, &pid, min_freq, max_cl))
+            .await
+            .unwrap_or_else(|_| Ok(("".into(), "".into(), "".into())))?;
+
+    if clusters_text.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Step 4: Call LLM / fallback.
+    let boundaries = state
+        .dreaming
+        .suggest_boundaries(
+            &clusters_text,
+            &state_text,
+            &tables_text,
+            std::time::Duration::from_secs(120),
+        )
+        .await;
+
+    Ok(boundaries)
+}
+
+/// Gather temporal coupling clusters + state/SQL context from the graph.
+fn gather_boundary_data(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    min_frequency: u32,
+    max_clusters: usize,
+) -> anyhow::Result<(String, String, String)> {
+    use std::collections::{HashMap, HashSet};
+
+    // Step 1: Get temporal coupling edges.
+    let coupling_edges =
+        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::TemporalCoupling, 500)?;
+
+    if coupling_edges.is_empty() {
+        return Ok((String::new(), String::new(), String::new()));
+    }
+
+    // Filter by minimum frequency (weight).
+    let strong_edges: Vec<_> = coupling_edges
+        .iter()
+        .filter(|e| e.weight >= min_frequency)
+        .collect();
+
+    if strong_edges.is_empty() {
+        return Ok((String::new(), String::new(), String::new()));
+    }
+
+    // Step 2: Simple union-find grouping.
+    let mut parent: HashMap<String, String> = HashMap::new();
+
+    fn find(parent: &mut HashMap<String, String>, x: &str) -> String {
+        if !parent.contains_key(x) {
+            parent.insert(x.to_string(), x.to_string());
+            return x.to_string();
+        }
+        let p = parent[x].clone();
+        if p == x {
+            return x.to_string();
+        }
+        let root = find(parent, &p);
+        parent.insert(x.to_string(), root.clone());
+        root
+    }
+
+    fn union(parent: &mut HashMap<String, String>, a: &str, b: &str) {
+        let ra = find(parent, a);
+        let rb = find(parent, b);
+        if ra != rb {
+            parent.insert(ra, rb);
+        }
+    }
+
+    for e in &strong_edges {
+        union(&mut parent, &e.source_id, &e.target_id);
+    }
+
+    // Collect clusters.
+    let mut clusters: HashMap<String, HashSet<String>> = HashMap::new();
+    for key in parent.keys().cloned().collect::<Vec<_>>() {
+        let root = find(&mut parent, &key);
+        clusters.entry(root).or_default().insert(key);
+    }
+
+    // Sort clusters by size (largest first), limit count.
+    let mut sorted_clusters: Vec<Vec<String>> = clusters
+        .into_values()
+        .map(|s| {
+            let mut v: Vec<_> = s.into_iter().collect();
+            v.sort();
+            v
+        })
+        .collect();
+    sorted_clusters.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_clusters.truncate(max_clusters);
+
+    // Format clusters text.
+    let mut clusters_text = String::new();
+    for (i, cluster) in sorted_clusters.iter().enumerate() {
+        clusters_text.push_str(&format!(
+            "Cluster {} ({} files): {}\n",
+            i + 1,
+            cluster.len(),
+            cluster.join(", ")
+        ));
+    }
+
+    // Step 3: Gather shared state keys and SQL tables.
+    let all_files: HashSet<&str> = sorted_clusters
+        .iter()
+        .flat_map(|c| c.iter().map(|s| s.as_str()))
+        .collect();
+
+    let mut state_keys: HashSet<String> = HashSet::new();
+    let mut tables: HashSet<String> = HashSet::new();
+
+    // Query state edges.
+    if let Ok(state_edges) =
+        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::ReadsState, 200)
+    {
+        for e in &state_edges {
+            if all_files.contains(e.source_id.as_str()) {
+                state_keys.insert(e.target_id.clone());
+            }
+        }
+    }
+    if let Ok(state_edges) =
+        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::WritesState, 200)
+    {
+        for e in &state_edges {
+            if all_files.contains(e.source_id.as_str()) {
+                state_keys.insert(e.target_id.clone());
+            }
+        }
+    }
+
+    // Query SQL table references.
+    if let Ok(sql_edges) =
+        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::QueriesTable, 200)
+    {
+        for e in &sql_edges {
+            if all_files.contains(e.source_id.as_str()) {
+                tables.insert(e.target_id.clone());
+            }
+        }
+    }
+
+    let state_text = if state_keys.is_empty() {
+        "(none detected)".to_string()
+    } else {
+        let mut keys: Vec<_> = state_keys.into_iter().collect();
+        keys.sort();
+        keys.join(", ")
+    };
+
+    let tables_text = if tables.is_empty() {
+        "(none detected)".to_string()
+    } else {
+        let mut t: Vec<_> = tables.into_iter().collect();
+        t.sort();
+        t.join(", ")
+    };
+
+    Ok((clusters_text, state_text, tables_text))
+}

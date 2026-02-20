@@ -15,7 +15,7 @@
 ///         Supports `Me.Event`, `MyBase.Event`, and multi-event clauses.
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::OnceLock;
 use streaming_iterator::StreamingIterator;
@@ -52,6 +52,14 @@ static ADDHANDLER_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_NS_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_TYPE_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_MEMBER_RE: OnceLock<Regex> = OnceLock::new();
+
+// ADO.NET column access patterns
+static ADO_ROW_RE: OnceLock<Regex> = OnceLock::new();
+static ADO_ITEM_RE: OnceLock<Regex> = OnceLock::new();
+static ADO_ORDINAL_RE: OnceLock<Regex> = OnceLock::new();
+
+// Side-effect slicing regex for UI mutation detection
+static UI_MUTATION_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -164,6 +172,83 @@ fn find_best_enclosing_scope(scopes: &[ScopeEntry], pos: usize) -> (&str, &str, 
         (&s.fqn, s.kind, s.line)
     } else {
         ("file", "file", 0)
+    }
+}
+
+// ── WebForms Lifecycle Metadata ────────────────────────────────────────────
+
+/// Check if a function name matches a WebForms page lifecycle method.
+/// Returns `(lifecycle_stage, sequence_number)` if it matches.
+fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
+    match name.to_lowercase().as_str() {
+        "page_preinit" => Some(("PreInit", 1)),
+        "page_init" => Some(("Init", 2)),
+        "page_initcomplete" => Some(("InitComplete", 3)),
+        "page_preload" => Some(("PreLoad", 4)),
+        "page_load" => Some(("Load", 5)),
+        "page_loadcomplete" => Some(("LoadComplete", 6)),
+        "page_prerender" => Some(("PreRender", 7)),
+        "page_prerendercomplete" => Some(("PreRenderComplete", 8)),
+        "page_savestatecomplete" => Some(("SaveStateComplete", 9)),
+        "page_render" | "render" => Some(("Render", 10)),
+        "page_unload" => Some(("Unload", 11)),
+        // Override forms: OnInit, OnLoad, OnPreRender, OnUnload
+        "oninit" => Some(("Init", 2)),
+        "onload" => Some(("Load", 5)),
+        "onprerender" => Some(("PreRender", 7)),
+        "onunload" => Some(("Unload", 11)),
+        _ => None,
+    }
+}
+
+// ── Side-Effect Classification ─────────────────────────────────────────────
+
+/// Classify side effects in a method body for codebehind refactoring.
+///
+/// Returns a comma-separated string of side-effect categories:
+///   - `UI_Mutation`: assigns to control properties (e.g., `lblStatus.Text = "Saved"`)
+///   - `DB_Access`: contains SQL/ADO.NET patterns
+///   - `State_Access`: reads/writes Session/ViewState/Application/Cache
+fn classify_side_effects(method_body: &str) -> Option<String> {
+    let mut effects = Vec::new();
+    let src = method_body.as_bytes();
+
+    // UI_Mutation: control property assignments.
+    // Heuristic: identifier with WebForms control prefix followed by .Property =
+    // Common prefixes: btn, lbl, txt, ddl, grd, pnl, chk, rbl, rep, lst, img, hdn, lit, phd
+    let ui_re = get_compiled_regex(
+        &UI_MUTATION_RE,
+        r"(?i)\b(?:btn|lbl|txt|ddl|grd|pnl|chk|rbl|rep|lst|img|hdn|lit|phd|rpt|fv|gv|dv|lv)[A-Za-z0-9_]+\.\w+\s*=",
+        "ui_mutation",
+    );
+    if let Some(re) = ui_re {
+        if re.is_match(method_body) {
+            effects.push("UI_Mutation");
+        }
+    }
+
+    // DB_Access: reuse existing has_sql_keyword() check.
+    if has_sql_keyword(method_body) {
+        effects.push("DB_Access");
+    }
+
+    // State_Access: fast byte check for state store keywords.
+    if ci_contains_fast(src, b"Session(")
+        || ci_contains_fast(src, b"Session[")
+        || ci_contains_fast(src, b"ViewState(")
+        || ci_contains_fast(src, b"ViewState[")
+        || ci_contains_fast(src, b"Application(")
+        || ci_contains_fast(src, b"Application[")
+        || ci_contains_fast(src, b"Cache(")
+        || ci_contains_fast(src, b"Cache[")
+    {
+        effects.push("State_Access");
+    }
+
+    if effects.is_empty() {
+        None
+    } else {
+        Some(effects.join(","))
     }
 }
 
@@ -403,6 +488,25 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     meta.insert("is_designer".into(), "true".into());
                 }
 
+                // Tag WebForms lifecycle methods with stage + sequence metadata.
+                if kind == "function" {
+                    if let Some((stage, seq)) = webforms_lifecycle_info(&name) {
+                        meta.insert("lifecycle_stage".into(), stage.into());
+                        meta.insert("lifecycle_sequence".into(), seq.to_string());
+                    }
+                }
+
+                // Side-effect classification for codebehind methods.
+                if kind == "function" {
+                    if let Some(body) =
+                        source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
+                    {
+                        if let Some(effects) = classify_side_effects(body) {
+                            meta.insert("side_effects".into(), effects);
+                        }
+                    }
+                }
+
                 symbols.push(ExtractedSymbol {
                     name: name.to_string(),
                     kind: kind.to_string(),
@@ -461,6 +565,11 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             edge.source_start_line = src_line;
             edges.push(edge);
         }
+    }
+
+    // ADO.NET column access detection (reads_column → binding_field:ColumnName).
+    if has_ado_keyword(source) {
+        edges.extend(extract_ado_column_access(source, &all_scopes));
     }
 
     (symbols, edges)
@@ -528,6 +637,113 @@ fn has_sql_keyword(source: &str) -> bool {
         || ci_contains(src, b"SqlDataAdapter")
         || ci_contains(src, b"OleDbDataAdapter")
         || ci_contains(src, b"EXEC ")
+}
+
+/// Fast check for ADO.NET data access keywords (DataRow, SqlDataReader, etc.).
+#[inline]
+fn has_ado_keyword(source: &str) -> bool {
+    let src = source.as_bytes();
+    ci_contains_fast(src, b"GetOrdinal")
+        || ci_contains_fast(src, b"DataRow")
+        || ci_contains_fast(src, b"DataReader")
+        || ci_contains_fast(src, b"DataTable")
+        || ci_contains_fast(src, b"SqlDataAdapter")
+        || ci_contains_fast(src, b".Item(")
+        || ci_contains_fast(src, b".Item[")
+        || ci_contains_fast(src, b".Fields(")
+        || ci_contains_fast(src, b".Fields[")
+        || ci_contains_fast(src, b"row(\"")
+        || ci_contains_fast(src, b"dr(\"")
+        || ci_contains_fast(src, b"rdr(\"")
+}
+
+/// Extract ADO.NET column access patterns, emitting `reads_column` edges
+/// that target `binding_field:ColumnName` virtual nodes.
+///
+/// Detected patterns:
+///   - `row("CustomerName")` / `row["CustomerName"]` — DataRow indexer
+///   - `reader("ColumnName")` / `reader["ColumnName"]` — DataReader indexer
+///   - `.Item("ColumnName")` / `.Fields("ColumnName")` — explicit member access
+///   - `reader.GetString(reader.GetOrdinal("ColumnName"))` — ordinal pattern
+fn extract_ado_column_access(source: &str, all_scopes: &[ScopeEntry]) -> Vec<ExtractedEdge> {
+    let mut edges = Vec::new();
+    let mut seen: HashSet<(String, String)> = HashSet::new(); // (scope_fqn, col_name) dedup
+
+    // Build line offset → byte offset mapping for scope attribution.
+    let line_offsets: Vec<usize> = std::iter::once(0)
+        .chain(source.bytes().enumerate().filter_map(
+            |(i, b)| {
+                if b == b'\n' { Some(i + 1) } else { None }
+            },
+        ))
+        .collect();
+
+    // Pattern 1: row("Col") / row["Col"] / dr("Col") / reader("Col") etc.
+    let row_re = get_compiled_regex(
+        &ADO_ROW_RE,
+        r#"(?i)\b(?:row|dr|datarow|reader|rdr|sdr)\s*[\(\[]\s*"([^"]+)"\s*[\)\]]"#,
+        "ado_row",
+    );
+
+    // Pattern 2: .Item("Col") / .Fields("Col") / .Item["Col"]
+    let item_re = get_compiled_regex(
+        &ADO_ITEM_RE,
+        r#"(?i)\.(?:Item|Fields)\s*[\(\[]\s*"([^"]+)"\s*[\)\]]"#,
+        "ado_item",
+    );
+
+    // Pattern 3: GetOrdinal("Col")
+    let ordinal_re = get_compiled_regex(
+        &ADO_ORDINAL_RE,
+        r#"(?i)GetOrdinal\s*\(\s*"([^"]+)"\s*\)"#,
+        "ado_ordinal",
+    );
+
+    let patterns: Vec<(&str, Option<&Regex>)> = vec![
+        ("ado_row_indexer", row_re),
+        ("ado_item_member", item_re),
+        ("ado_ordinal", ordinal_re),
+    ];
+
+    for (access_pattern, re_opt) in &patterns {
+        let Some(re) = re_opt else { continue };
+        for m in re.find_iter(source) {
+            let byte_pos = m.start();
+            let Some(cap) = re.captures(&source[byte_pos..]) else {
+                continue;
+            };
+            let col_name = cap.get(1).map_or("", |c| c.as_str()).to_string();
+            if col_name.is_empty() {
+                continue;
+            }
+
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_pos);
+
+            // Deduplicate per (scope, column) pair.
+            if !seen.insert((src_name.to_string(), col_name.clone())) {
+                continue;
+            }
+
+            let mut meta = HashMap::new();
+            meta.insert("column_name".into(), col_name.clone());
+            meta.insert("access_pattern".into(), access_pattern.to_string());
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind.to_string(),
+                source_start_line: src_line,
+                source_language: "vb".into(),
+                target_name: format!("binding_field:{}", col_name),
+                target_kind: Some("binding_field".into()),
+                target_start_line: None,
+                kind: "reads_column".into(),
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    let _ = line_offsets; // reserved for future line attribution
+    edges
 }
 
 // ── Pass 1: FQN Tables ──────────────────────────────────────────────────────
@@ -1990,5 +2206,246 @@ End Namespace
         let ro_prop = symbols.iter().find(|s| s.name == "Count");
         assert!(ro_prop.is_some(), "should detect ReadOnly Property");
         assert_eq!(ro_prop.unwrap().kind, "property");
+    }
+
+    // ── Lifecycle metadata tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_lifecycle_page_load() {
+        let code = r#"
+Namespace Web
+    Public Class MyPage
+        Inherits System.Web.UI.Page
+        Protected Sub Page_Load(sender As Object, e As EventArgs)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("MyPage.aspx.vb"), code);
+        let page_load = symbols.iter().find(|s| s.name == "Page_Load").unwrap();
+        let meta = page_load.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("lifecycle_stage").unwrap(), "Load");
+        assert_eq!(meta.get("lifecycle_sequence").unwrap(), "5");
+    }
+
+    #[test]
+    fn test_lifecycle_not_tagged() {
+        let code = r#"
+Namespace Web
+    Public Class MyPage
+        Private Sub DoStuff()
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("MyPage.aspx.vb"), code);
+        let do_stuff = symbols.iter().find(|s| s.name == "DoStuff").unwrap();
+        let meta = do_stuff.metadata.as_ref().unwrap();
+        assert!(meta.get("lifecycle_stage").is_none());
+    }
+
+    #[test]
+    fn test_lifecycle_oninit_override() {
+        let code = r#"
+Namespace Web
+    Public Class MyPage
+        Protected Overrides Sub OnInit(e As EventArgs)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("MyPage.aspx.vb"), code);
+        let on_init = symbols.iter().find(|s| s.name == "OnInit").unwrap();
+        let meta = on_init.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("lifecycle_stage").unwrap(), "Init");
+        assert_eq!(meta.get("lifecycle_sequence").unwrap(), "2");
+    }
+
+    // ── ADO.NET column access tests ───────────────────────────────────────
+
+    #[test]
+    fn test_ado_row_indexer() {
+        let code = r#"
+Namespace Data
+    Public Class OrderDal
+        Public Sub LoadOrder()
+            Dim name = row("CustomerName")
+            Dim qty = dr("Quantity")
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("OrderDal.vb"), code);
+        let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
+        assert_eq!(col_edges.len(), 2, "Should find 2 column accesses");
+
+        let names: Vec<_> = col_edges.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(names.contains(&"binding_field:CustomerName"));
+        assert!(names.contains(&"binding_field:Quantity"));
+    }
+
+    #[test]
+    fn test_ado_reader_ordinal() {
+        let code = r#"
+Namespace Data
+    Public Class ReaderHelper
+        Public Sub ReadData()
+            Dim val = reader.GetString(reader.GetOrdinal("OrderDate"))
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("ReaderHelper.vb"), code);
+        let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
+        assert_eq!(col_edges.len(), 1);
+        assert_eq!(col_edges[0].target_name, "binding_field:OrderDate");
+        let meta = col_edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["access_pattern"], "ado_ordinal");
+    }
+
+    #[test]
+    fn test_ado_item_access() {
+        let code = r#"
+Namespace Data
+    Public Class ItemAccess
+        Public Sub ReadRow()
+            Dim v = dt.Rows(0).Item("ProductName")
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("ItemAccess.vb"), code);
+        let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
+        assert_eq!(col_edges.len(), 1);
+        assert_eq!(col_edges[0].target_name, "binding_field:ProductName");
+    }
+
+    #[test]
+    fn test_ado_scope_attribution() {
+        let code = r#"
+Namespace Data
+    Public Class Scoped
+        Public Sub LoadCustomer()
+            Dim name = row("CustomerName")
+        End Sub
+        Public Sub LoadOrder()
+            Dim id = row("OrderId")
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Scoped.vb"), code);
+        let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
+        assert_eq!(col_edges.len(), 2);
+
+        let cust = col_edges
+            .iter()
+            .find(|e| e.target_name == "binding_field:CustomerName")
+            .unwrap();
+        assert!(
+            cust.source_name.contains("LoadCustomer"),
+            "CustomerName should be attributed to LoadCustomer, got: {}",
+            cust.source_name
+        );
+
+        let order = col_edges
+            .iter()
+            .find(|e| e.target_name == "binding_field:OrderId")
+            .unwrap();
+        assert!(
+            order.source_name.contains("LoadOrder"),
+            "OrderId should be attributed to LoadOrder, got: {}",
+            order.source_name
+        );
+    }
+
+    // ── Side-effect classification tests ──────────────────────────────────
+
+    #[test]
+    fn test_side_effect_ui_mutation() {
+        let code = r#"
+Namespace Web
+    Public Class MyPage
+        Protected Sub UpdateLabel()
+            lblStatus.Text = "Saved"
+            lblMessage.Visible = True
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("MyPage.aspx.vb"), code);
+        let func = symbols.iter().find(|s| s.name == "UpdateLabel").unwrap();
+        let meta = func.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("side_effects").unwrap(), "UI_Mutation");
+    }
+
+    #[test]
+    fn test_side_effect_db_access() {
+        let code = r#"
+Namespace Data
+    Public Class DataAccess
+        Public Sub SaveRecord()
+            Dim cmd As New SqlCommand("INSERT INTO Orders VALUES (@id)")
+            cmd.ExecuteNonQuery()
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("DataAccess.vb"), code);
+        let func = symbols.iter().find(|s| s.name == "SaveRecord").unwrap();
+        let meta = func.metadata.as_ref().unwrap();
+        assert!(
+            meta.get("side_effects").unwrap().contains("DB_Access"),
+            "Should tag as DB_Access"
+        );
+    }
+
+    #[test]
+    fn test_side_effect_combined() {
+        let code = r#"
+Namespace Web
+    Public Class CombinedPage
+        Protected Sub SaveAndUpdate()
+            Dim cmd As New SqlCommand("UPDATE Orders SET Status = @s")
+            cmd.ExecuteNonQuery()
+            lblStatus.Text = "Saved"
+            Session("LastSave") = DateTime.Now
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("Combined.aspx.vb"), code);
+        let func = symbols.iter().find(|s| s.name == "SaveAndUpdate").unwrap();
+        let meta = func.metadata.as_ref().unwrap();
+        let effects = meta.get("side_effects").unwrap();
+        assert!(
+            effects.contains("UI_Mutation"),
+            "Should contain UI_Mutation"
+        );
+        assert!(effects.contains("DB_Access"), "Should contain DB_Access");
+        assert!(
+            effects.contains("State_Access"),
+            "Should contain State_Access"
+        );
+    }
+
+    #[test]
+    fn test_side_effect_none() {
+        let code = r#"
+Namespace Util
+    Public Class Calculator
+        Public Function Add(a As Integer, b As Integer) As Integer
+            Return a + b
+        End Function
+    End Class
+End Namespace
+"#;
+        let (symbols, _) = extract_vb(Path::new("Calculator.vb"), code);
+        let func = symbols.iter().find(|s| s.name == "Add").unwrap();
+        let meta = func.metadata.as_ref().unwrap();
+        assert!(
+            meta.get("side_effects").is_none(),
+            "Pure computation should have no side_effects"
+        );
     }
 }
