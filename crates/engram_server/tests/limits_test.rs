@@ -228,3 +228,82 @@ async fn test_incremental_update_byte_budget_enforced() {
         update_text
     );
 }
+
+#[tokio::test]
+async fn test_chunk_cap_respected_for_index_and_update() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    let project_dir = tmp.path().join("chunk_limit_project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    let initial = (0..80)
+        .map(|i| format!("fn before_{i}() {{ println!(\"before {i}\"); }}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(project_dir.join("main.rs"), initial).unwrap();
+
+    let cfg = Config {
+        data_dir: data_dir.clone(),
+        allowed_roots: vec![project_dir.clone()],
+        max_project_files: None,
+        max_project_bytes: None,
+        max_chunks_per_file: 1,
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state);
+
+    let index_res = engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: project_dir.to_string_lossy().to_string(),
+            project_name: "chunk_limit_test".into(),
+            project_type: "code".into(),
+            wait: true,
+            dedupe_by_directory: true,
+        }))
+        .await
+        .unwrap();
+    let index_text = first_text(&index_res);
+    assert!(
+        index_text.contains("chunks=1"),
+        "Expected index_project to respect max_chunks_per_file=1. Output: {}",
+        index_text
+    );
+
+    let project_id = index_text
+        .lines()
+        .find_map(|line| line.strip_prefix("✅ Indexed project_id: "))
+        .unwrap()
+        .trim()
+        .to_string();
+
+    let changed = (0..80)
+        .map(|i| format!("fn after_{i}() {{ println!(\"after {i}\"); }}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(project_dir.join("main.rs"), changed).unwrap();
+
+    let update_res = engram
+        .update_project(Parameters(engram_server::UpdateProjectRequest {
+            project_id,
+            max_commits: Some(10),
+            index_antipatterns: false,
+            wait: true,
+        }))
+        .await
+        .unwrap();
+    let update_text = first_text(&update_res);
+
+    assert!(
+        update_text.contains("chunks=1"),
+        "Expected update_project to respect max_chunks_per_file=1. Output: {}",
+        update_text
+    );
+}

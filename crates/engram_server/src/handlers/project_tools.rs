@@ -187,6 +187,7 @@ impl Engram {
                 &state_for_spawn.cfg,
             )
             .await;
+            let max_chunks = state_for_spawn.cfg.max_chunks_per_file;
 
             let res = match search_init {
                 Ok(search) => {
@@ -216,7 +217,7 @@ impl Engram {
                                     1,
                                     &directory,
                                     files,
-                                    2000,
+                                    max_chunks,
                                     &token,
                                     move |curr, total| {
                                         let pct = if total == 0 {
@@ -252,7 +253,7 @@ impl Engram {
                                 1,
                                 &directory,
                                 files,
-                                2000,
+                                max_chunks,
                                 &token,
                                 move |curr, total| {
                                     let pct = if total == 0 {
@@ -506,7 +507,7 @@ impl Engram {
                         new_gen,
                         &dir,
                         changed,
-                        2000,
+                        state.cfg.max_chunks_per_file,
                         &token,
                         move |curr, total| {
                             let pct = if total == 0 {
