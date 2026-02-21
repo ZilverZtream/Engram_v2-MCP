@@ -531,7 +531,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Comprehensive project health check with per-namespace stats, disk usage, and integrity diagnostics (v1 parity: project_health)."
+        description = "Comprehensive project health check with per-namespace stats, disk usage, generation consistency, job status, and integrity diagnostics with actionable repair suggestions."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn project_health(
@@ -545,17 +545,26 @@ impl Engram {
         // Graph stats (blocking — redb reads)
         let graph = self.state.graph.clone();
         let pid_clone = pid.clone();
-        let graph_stats = tokio::task::spawn_blocking(move || {
-            let nodes = graph.count_nodes(&pid_clone).unwrap_or(0);
-            let edges = graph.count_edges(&pid_clone).unwrap_or(0);
-            (nodes, edges)
-        })
-        .await
-        .unwrap_or((0, 0));
+        let (graph_nodes, graph_edges, node_type_counts, _edge_kind_counts) =
+            tokio::task::spawn_blocking(move || {
+                let nodes = graph.count_nodes(&pid_clone).unwrap_or(0);
+                let edges = graph.count_edges(&pid_clone).unwrap_or(0);
+                let ntc = graph.count_nodes_by_type(&pid_clone).unwrap_or_default();
+                let ekc = graph.count_edges_by_kind(&pid_clone).unwrap_or_default();
+                (nodes, edges, ntc, ekc)
+            })
+            .await
+            .unwrap_or_default();
 
         // Per-namespace doc counts
         let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
         let total_docs: usize = ns_counts.values().sum();
+        let memory_docs = ns_counts.get("memory").copied().unwrap_or(0);
+        let history_docs = ns_counts.get("history").copied().unwrap_or(0);
+        let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+        // Language breakdown for quick reference
+        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
 
         // Vector row count
         let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
@@ -566,47 +575,151 @@ impl Engram {
             .await
             .unwrap_or(0);
 
+        // Active jobs for this project
+        let reg = self.state.registry.clone();
+        let pid_for_jobs = pid.clone();
+        let active_jobs = tokio::task::spawn_blocking(move || {
+            reg.list_jobs(Some(&pid_for_jobs)).unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+        let running_jobs: Vec<_> = active_jobs
+            .iter()
+            .filter(|j| j.status == "running" || j.status == "pending")
+            .collect();
+
+        // Active indexing count (global, for context)
+        let indexing_count = self
+            .state
+            .active_indexing_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+
         // Build output
-        let mut out = String::with_capacity(1024);
+        let mut out = String::with_capacity(2048);
         out.push_str(&format!("Project Health: {}\n", pid));
         out.push_str(&format!("directory: {}\n", ps.info.directory));
+        out.push_str(&format!("project_type: {}\n", ps.info.project_type));
         out.push_str(&format!("active_generation: {}\n", gen_));
-        out.push_str(&format!("\n--- Index Stats ---\n"));
-        out.push_str(&format!("graph_nodes: {}\n", graph_stats.0));
-        out.push_str(&format!("graph_edges: {}\n", graph_stats.1));
+
+        out.push_str("\n--- Index Stats ---\n");
+        out.push_str(&format!("graph_nodes: {}\n", graph_nodes));
+        out.push_str(&format!("graph_edges: {}\n", graph_edges));
         out.push_str(&format!("tantivy_docs_total: {}\n", total_docs));
+        out.push_str(&format!("  memory: {}\n", memory_docs));
+        out.push_str(&format!("  history: {}\n", history_docs));
+        out.push_str(&format!("  antipattern: {}\n", antipattern_docs));
         for (ns, count) in &ns_counts {
-            out.push_str(&format!("  tantivy_{}: {}\n", ns, count));
+            if ns != "memory" && ns != "history" && ns != "antipattern" {
+                out.push_str(&format!("  {}: {}\n", ns, count));
+            }
         }
         out.push_str(&format!("lancedb_vectors: {}\n", lancedb_rows));
         out.push_str(&format!("disk_usage: {}\n", format_bytes(disk_usage)));
 
-        // Integrity warnings
-        let mut warnings: Vec<&str> = Vec::new();
-        if graph_stats.0 == 0 && total_docs > 0 {
+        // Symbol type breakdown (top 5)
+        if !node_type_counts.is_empty() {
+            let mut nts: Vec<_> = node_type_counts.iter().collect();
+            nts.sort_by(|a, b| b.1.cmp(a.1));
+            out.push_str("\n--- Symbol Types (top 5) ---\n");
+            for (ntype, count) in nts.iter().take(5) {
+                out.push_str(&format!("  {}: {}\n", ntype, count));
+            }
+        }
+
+        // Language breakdown (top 5)
+        if !lang_counts.is_empty() {
+            let mut ls: Vec<_> = lang_counts.iter().collect();
+            ls.sort_by(|a, b| b.1.cmp(a.1));
+            out.push_str("\n--- Languages (top 5) ---\n");
+            for (lang, count) in ls.iter().take(5) {
+                out.push_str(&format!("  {}: {}\n", lang, count));
+            }
+        }
+
+        // Job status
+        if !running_jobs.is_empty() {
+            out.push_str(&format!(
+                "\n--- Active Jobs ({}) ---\n",
+                running_jobs.len()
+            ));
+            for j in &running_jobs {
+                out.push_str(&format!(
+                    "  {} [{}] {}\n",
+                    j.job_id, j.status, j.kind
+                ));
+            }
+        }
+        if indexing_count > 0 {
+            out.push_str(&format!(
+                "global_active_indexing_tasks: {}\n",
+                indexing_count
+            ));
+        }
+
+        // Integrity warnings with actionable suggestions
+        let mut warnings: Vec<String> = Vec::new();
+        if graph_nodes == 0 && memory_docs > 0 {
             warnings.push(
-                "Graph is empty but Tantivy has docs — graph may need rebuild (repair_project).",
+                "Graph is empty but Tantivy has docs — symbol extraction may have failed. Suggested: repair_project(scope='graph_only').".into(),
             );
         }
-        if total_docs > 0 && lancedb_rows == 0 {
-            warnings
-                .push("Vector index is empty but Tantivy has docs — embeddings may have failed.");
+        if memory_docs > 0 && lancedb_rows == 0 {
+            warnings.push(
+                "Vector index is empty but Tantivy has docs — embeddings may have failed. Suggested: repair_project(scope='vector_only').".into(),
+            );
         }
         if lancedb_rows > 0 && total_docs == 0 {
-            warnings.push("Tantivy is empty but LanceDB has rows — Tantivy may need rebuild.");
+            warnings.push(
+                "Tantivy is empty but LanceDB has rows — Tantivy may be corrupted. Suggested: repair_project(scope='tantivy_only').".into(),
+            );
         }
-        if gen_ > 1 && total_docs == 0 && graph_stats.0 == 0 {
-            warnings.push("Generation > 1 but all indexes empty — project may need re-indexing.");
+        if gen_ > 1 && total_docs == 0 && graph_nodes == 0 {
+            warnings.push(
+                "Generation > 1 but all indexes empty — project may need full re-indexing. Suggested: repair_project(wipe_and_reindex=true).".into(),
+            );
         }
-        let memory_docs = ns_counts.get("memory").copied().unwrap_or(0);
-        if memory_docs > 0 && graph_stats.0 == 0 {
-            warnings.push("Memory namespace has docs but graph has no nodes — symbol extraction may have failed.");
+        if memory_docs > 0 && graph_nodes > 0 {
+            // Check ratio: if graph nodes are disproportionately low vs docs
+            let ratio = graph_nodes as f64 / memory_docs as f64;
+            if ratio < 0.01 {
+                warnings.push(format!(
+                    "Graph/doc ratio is very low ({:.4}) — graph may be stale. Suggested: repair_project(scope='graph_only').",
+                    ratio
+                ));
+            }
+        }
+        // Check vector/doc ratio for embedding health
+        if memory_docs > 10 && lancedb_rows > 0 {
+            let vec_ratio = lancedb_rows as f64 / memory_docs as f64;
+            if vec_ratio < 0.5 {
+                warnings.push(format!(
+                    "Vector coverage is low ({:.0}%) — some chunks may not have embeddings. Suggested: repair_project(scope='vector_only').",
+                    vec_ratio * 100.0
+                ));
+            }
+        }
+        // Edge kind health: if graph has nodes but no edges
+        if graph_nodes > 10 && graph_edges == 0 {
+            warnings.push(
+                "Graph has nodes but no edges — edge extraction may have failed. Suggested: repair_project(scope='graph_only').".into(),
+            );
+        }
+        // Check for stale jobs
+        let stale_jobs: Vec<_> = active_jobs
+            .iter()
+            .filter(|j| j.status == "running")
+            .collect();
+        if stale_jobs.len() > 2 {
+            warnings.push(format!(
+                "{} jobs are still running — possible stale jobs. Check list_jobs and cancel_job if needed.",
+                stale_jobs.len()
+            ));
         }
 
         if warnings.is_empty() {
             out.push_str("\n--- Status ---\nHealthy\n");
         } else {
-            out.push_str("\n--- Warnings ---\n");
+            out.push_str(&format!("\n--- Warnings ({}) ---\n", warnings.len()));
             for w in &warnings {
                 out.push_str(&format!("  ! {}\n", w));
             }
@@ -617,38 +730,205 @@ impl Engram {
         )]))
     }
 
-    #[tool(description = "Repair a project index (v1 parity: repair_project).")]
+    #[tool(
+        description = "Repair a project index with targeted scope. Supports full re-index, graph-only rebuild, tantivy-only rebuild, vector-only rebuild, or wipe-and-reindex from scratch. Use project_health first to diagnose issues."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn repair_project(
         &self,
-        params: Parameters<ProjectIdRequest>,
+        params: Parameters<RepairProjectRequest>,
     ) -> Result<CallToolResult, McpError> {
-        let pid = params.0.project_id;
+        let req = params.0;
+        let max_commits = req.sanitized_max_commits();
+        let pid = req.project_id;
+        let scope = req.scope.to_lowercase();
+        let wipe_and_reindex = req.wipe_and_reindex;
+        let index_antipatterns = req.index_antipatterns;
         let ps = self.ensure_project_runtime(&pid).await?;
         let active_gen = self.get_active_generation(&pid).await?;
+        let mut steps: Vec<String> = Vec::new();
 
-        // 1. Trigger manual GC for this project
-        self.state
-            .graph
-            .purge_old_generations(&pid, active_gen)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        ps.search
-            .purge_old_generations(&pid, active_gen)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if wipe_and_reindex {
+            // Full wipe: delete graph data, purge search data, then re-index from scratch
+            let graph = self.state.graph.clone();
+            let pid_g = pid.clone();
+            tokio::task::spawn_blocking(move || graph.delete_project_data(&pid_g))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            steps.push("Wiped graph data.".into());
 
-        // 2. Perform a fresh update (same generation to overwrite/fix, or new? Let's use a new one to be safe)
-        let new_gen = active_gen.saturating_add(1);
-        let cancel = tokio_util::sync::CancellationToken::new();
-        let summary = self
-            .update_project_impl(&pid, new_gen, 500, true, &cancel)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            // Delete on-disk Tantivy + LanceDB directories and recreate
+            let tantivy_dir = ps.info.tantivy_dir.clone();
+            let lance_dir = ps.info.lancedb_dir.clone();
+            if let Err(e) = tokio::fs::remove_dir_all(&tantivy_dir).await {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    tracing::warn!("repair_project: could not remove tantivy dir: {e}");
+                }
+            }
+            if let Err(e) = tokio::fs::remove_dir_all(&lance_dir).await {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    tracing::warn!("repair_project: could not remove lance dir: {e}");
+                }
+            }
+            steps.push("Wiped Tantivy and LanceDB data.".into());
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "\u{2705} Project repaired.\n{}",
-            summary
-        ))]))
+            // Evict cached engine so it recreates on next access
+            self.state.projects.remove(&pid);
+            self.state.project_lru.remove(&pid);
+
+            // Reset generation to 1 and perform full index
+            let reg = self.state.registry.clone();
+            let pid_r = pid.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                reg.set_meta(&pid_r, "active_generation", "1")
+            })
+            .await;
+
+            let cancel = tokio_util::sync::CancellationToken::new();
+            let summary = self
+                .update_project_impl(&pid, 1, max_commits, index_antipatterns, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            steps.push(format!("Full re-index completed.\n{}", summary));
+        } else {
+            match scope.as_str() {
+                "graph_only" => {
+                    // Purge and rebuild graph only (keep Tantivy/LanceDB intact)
+                    let graph = self.state.graph.clone();
+                    let pid_g = pid.clone();
+                    tokio::task::spawn_blocking(move || graph.delete_project_data(&pid_g))
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged graph data.".into());
+
+                    // Re-index to rebuild graph
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Graph rebuilt via re-index.\n{}", summary));
+                }
+                "tantivy_only" => {
+                    // Wipe Tantivy directory and re-index
+                    let tantivy_dir = ps.info.tantivy_dir.clone();
+                    if let Err(e) = tokio::fs::remove_dir_all(&tantivy_dir).await {
+                        if e.kind() != std::io::ErrorKind::NotFound {
+                            tracing::warn!(
+                                "repair_project: could not remove tantivy dir: {e}"
+                            );
+                        }
+                    }
+                    steps.push("Wiped Tantivy directory.".into());
+
+                    // Evict cache to force recreation
+                    self.state.projects.remove(&pid);
+                    self.state.project_lru.remove(&pid);
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Tantivy rebuilt via re-index.\n{}", summary));
+                }
+                "vector_only" => {
+                    // Wipe LanceDB directory and re-index vectors
+                    let lance_dir = ps.info.lancedb_dir.clone();
+                    if let Err(e) = tokio::fs::remove_dir_all(&lance_dir).await {
+                        if e.kind() != std::io::ErrorKind::NotFound {
+                            tracing::warn!(
+                                "repair_project: could not remove lance dir: {e}"
+                            );
+                        }
+                    }
+                    steps.push("Wiped LanceDB directory.".into());
+
+                    // Evict cache to force recreation
+                    self.state.projects.remove(&pid);
+                    self.state.project_lru.remove(&pid);
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Vectors rebuilt via re-index.\n{}", summary));
+                }
+                _ => {
+                    // Full scope (default): GC + incremental re-index
+                    let graph = self.state.graph.clone();
+                    let pid_gc = pid.clone();
+                    tokio::task::spawn_blocking(move || {
+                        graph.purge_old_generations(&pid_gc, active_gen)
+                    })
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged stale graph generations.".into());
+
+                    ps.search
+                        .purge_old_generations(&pid, active_gen)
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged stale search generations.".into());
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Incremental re-index completed.\n{}", summary));
+                }
+            }
+        }
+
+        let mut out = String::with_capacity(512);
+        out.push_str(&format!(
+            "\u{2705} Project repaired (scope: {}).\n",
+            if wipe_and_reindex {
+                "wipe_and_reindex"
+            } else {
+                scope.as_str()
+            },
+        ));
+        for (i, step) in steps.iter().enumerate() {
+            out.push_str(&format!("{}. {}\n", i + 1, step));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     #[tool(description = "Delete a project and its stored data (v1 parity: delete_project).")]
@@ -1294,7 +1574,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Graph-boosted search: combines text search with graph symbol name matching and multi-edge neighbor expansion (v1 parity: graph_search)."
+        description = "Graph-boosted search: combines text search with graph symbol name matching and configurable multi-hop neighbor expansion. Supports namespace selection, FTS modes (strict/loose/regex), MMR reranking, and content preview."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, query = %params.0.query))]
     pub async fn graph_search(
@@ -1305,6 +1585,14 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let max_results = req.sanitized_max_results();
+        let hop_depth = req.sanitized_hop_depth();
+        let max_content_chars = req.sanitized_max_content_chars();
+
+        // Validate fts_mode
+        let fts_mode = match req.fts_mode.as_str() {
+            "strict" | "loose" | "regex" => req.fts_mode.clone(),
+            _ => "strict".into(),
+        };
 
         // 1. Hybrid text search for initial candidates
         let hits = ps
@@ -1312,18 +1600,18 @@ impl Engram {
             .search(
                 &HybridQuery {
                     project_id: req.project_id.clone(),
-                    namespace: "memory".into(),
+                    namespace: req.namespace.clone(),
                     generation: gen_,
                     text: req.query.clone(),
-                    top_k: max_results,
-                    fts_mode: "strict".into(),
+                    top_k: max_results * 2, // oversample for graph expansion
+                    fts_mode,
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
                     language_filters: None,
                     author_filter: None,
                     date_after: None,
                     date_before: None,
-                    use_mmr: false,
+                    use_mmr: req.use_mmr,
                 },
                 None,
             )
@@ -1337,22 +1625,24 @@ impl Engram {
             .query_nodes(&req.project_id, None, Some(&req.query), None, 30)
             .unwrap_or_default();
 
-        // Build score map with both sources
-        let mut scores: std::collections::HashMap<String, (f32, Option<String>)> =
+        // Build score map: node_id -> (score, label, path_for_content)
+        let mut scores: std::collections::HashMap<String, (f32, Option<String>, Option<String>)> =
             std::collections::HashMap::with_capacity(max_results * 2);
 
         // Seed from text search hits (file-level nodes)
         for h in &hits {
             let node_id = format!("file:{}", h.path);
-            scores.insert(node_id, (h.score, None));
+            scores.insert(
+                node_id,
+                (h.score, None, Some(h.path.as_str().to_string())),
+            );
         }
 
         // Seed from symbol name matches with a symbol boost
         let base_score = hits.first().map(|h| h.score).unwrap_or(1.0);
+        let query_lower = req.query.to_lowercase();
         for node in &symbol_nodes {
-            // Exact name match gets full boost; substring gets partial
             let name_lower = node.name.to_lowercase();
-            let query_lower = req.query.to_lowercase();
             let match_ratio = if name_lower == query_lower {
                 1.0f32
             } else if name_lower.contains(&query_lower) || query_lower.contains(&name_lower) {
@@ -1363,48 +1653,82 @@ impl Engram {
 
             let sym_score = base_score * (0.5 + req.symbol_boost * 10.0 * match_ratio);
             let label = Some(format!("{} ({})", node.node_type, node.name));
-            let entry = scores.entry(node.node_id.clone()).or_insert((0.0, None));
+            let file_path = if node.file_path.as_str().is_empty() {
+                None
+            } else {
+                Some(node.file_path.as_str().to_string())
+            };
+            let entry = scores
+                .entry(node.node_id.clone())
+                .or_insert((0.0, None, None));
             if sym_score > entry.0 {
-                *entry = (sym_score, label);
+                *entry = (sym_score, label, file_path.clone());
             }
 
             // Also boost the parent file node
-            if !node.file_path.as_str().is_empty() {
-                let file_node_id = format!("file:{}", node.file_path);
-                let file_entry = scores.entry(file_node_id).or_insert((0.0, None));
+            if let Some(fp) = &file_path {
+                let file_node_id = format!("file:{}", fp);
+                let file_entry = scores.entry(file_node_id).or_insert((0.0, None, None));
                 let file_boost = sym_score * 0.8;
                 if file_boost > file_entry.0 {
                     file_entry.0 = file_boost;
+                    file_entry.2 = file_path.clone();
                 }
             }
         }
 
-        // 3. Expand via graph neighbors (multiple edge kinds)
-        let expansion_kinds = &[
+        // 3. Determine expansion edge kinds
+        let default_expansion_kinds = vec![
             EdgeKind::Dependency,
             EdgeKind::Contains,
             EdgeKind::Imports,
             EdgeKind::SqlCalls,
             EdgeKind::ApiCall,
         ];
+        let expansion_kinds = if let Some(ref filter) = req.expansion_edge_kinds {
+            let mut kinds = Vec::new();
+            for s in filter {
+                if let Some(k) = EdgeKind::parse(s) {
+                    kinds.push(k);
+                }
+            }
+            if kinds.is_empty() {
+                default_expansion_kinds
+            } else {
+                kinds
+            }
+        } else {
+            default_expansion_kinds
+        };
 
-        // Snapshot seed nodes before mutation
-        let seed_nodes: Vec<(String, f32)> =
-            scores.iter().map(|(k, (s, _))| (k.clone(), *s)).collect();
+        // 4. Multi-hop graph expansion with configurable depth
+        for _hop in 0..hop_depth {
+            let seed_nodes: Vec<(String, f32)> = scores
+                .iter()
+                .map(|(k, (s, _, _))| (k.clone(), *s))
+                .collect();
 
-        for (node_id, parent_score) in &seed_nodes {
-            for kind in expansion_kinds {
-                if let Ok(neighbors) =
-                    self.state
-                        .graph
-                        .neighbors(&req.project_id, kind.clone(), node_id, 5)
-                {
-                    for (neigh_id, weight) in neighbors {
-                        let decay = 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
-                        let neigh_score = parent_score * decay.min(0.90);
-                        let entry = scores.entry(neigh_id).or_insert((0.0, None));
-                        if neigh_score > entry.0 {
-                            entry.0 = neigh_score;
+            for (node_id, parent_score) in &seed_nodes {
+                let neighbors_per_kind = 5.max(10 / expansion_kinds.len());
+                for kind in &expansion_kinds {
+                    if let Ok(neighbors) = self.state.graph.neighbors(
+                        &req.project_id,
+                        kind.clone(),
+                        node_id,
+                        neighbors_per_kind,
+                    ) {
+                        for (neigh_id, weight) in neighbors {
+                            let hop_decay = 0.7f32.powi((_hop + 1) as i32);
+                            let weight_factor =
+                                0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
+                            let neigh_score =
+                                parent_score * weight_factor.min(0.90) * hop_decay;
+                            let entry = scores
+                                .entry(neigh_id)
+                                .or_insert((0.0, None, None));
+                            if neigh_score > entry.0 {
+                                entry.0 = neigh_score;
+                            }
                         }
                     }
                 }
@@ -1417,27 +1741,47 @@ impl Engram {
             )]));
         }
 
-        // 4. Sort and format
+        // 5. Sort and format
         let mut sorted: Vec<_> = scores.into_iter().collect();
         sorted.sort_by(|a, b| {
-            (b.1)
-                .0
-                .partial_cmp(&(a.1).0)
-                .unwrap_or(std::cmp::Ordering::Equal)
+            (b.1).0.partial_cmp(&(a.1).0).unwrap_or(std::cmp::Ordering::Equal)
         });
 
-        let mut out = String::with_capacity(2048);
+        let mut out = String::with_capacity(4096);
         out.push_str(&format!(
-            "Graph search results for '{}' ({} text hits, {} symbol matches):\n",
+            "Graph search results for '{}' (ns={}, {} text hits, {} symbol matches, {} hops):\n",
             req.query,
+            req.namespace,
             hits.len(),
-            symbol_nodes.len()
+            symbol_nodes.len(),
+            hop_depth
         ));
-        for (id, (score, label)) in sorted.iter().take(max_results) {
+
+        for (id, (score, label, _path)) in sorted.iter().take(max_results) {
             if let Some(lbl) = label {
                 out.push_str(&format!("- {} [{}] (score={:.3})\n", id, lbl, score));
             } else {
                 out.push_str(&format!("- {} (score={:.3})\n", id, score));
+            }
+
+            // Include content preview if requested
+            if req.include_content && max_content_chars > 0 {
+                // Try to fetch content from search hits first
+                if let Some(hit) = hits.iter().find(|h| {
+                    id == &format!("file:{}", h.path) || id.contains(h.path.as_str())
+                }) {
+                    if let Ok(Some((_, _, content, start_line, _))) = ps
+                        .search
+                        .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &hit.doc_id)
+                    {
+                        let preview: String = content.chars().take(max_content_chars).collect();
+                        out.push_str(&format!("  L{}: {}", start_line, preview));
+                        if content.chars().count() > max_content_chars {
+                            out.push_str("...");
+                        }
+                        out.push('\n');
+                    }
+                }
             }
         }
 
@@ -1712,7 +2056,9 @@ impl Engram {
         ))
     }
 
-    #[tool(description = "Search history (commits and diffs) (v1 parity: search_history).")]
+    #[tool(
+        description = "Search git history (commits and diffs) with configurable FTS mode, MMR reranking, path filtering, author/date filters, and structured commit metadata extraction."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, query = %params.0.query))]
     pub async fn search_history(
         &self,
@@ -1721,27 +2067,42 @@ impl Engram {
         let req = params.0;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
+        let content_limit = req.max_content_chars;
+        let limit = req.sanitized_limit();
 
-        // Map filters
-        let include_path_prefixes = req.file_filter.clone().map(|f| vec![f]);
+        // Validate fts_mode
+        let fts_mode = match req.fts_mode.as_str() {
+            "strict" | "loose" | "regex" => req.fts_mode.clone(),
+            _ => "strict".into(),
+        };
+
+        // Map path filters
+        let include_path_prefixes = req.file_filter.map(|f| vec![f]);
+        let exclude_path_prefixes = req.exclude_paths;
+        let project_id = req.project_id;
+        let query = req.query;
+        let author_filter = req.author_filter;
+        let date_after = req.date_after;
+        let date_before = req.date_before;
+        let use_mmr = req.use_mmr;
 
         let hits = ps
             .search
             .search(
                 &HybridQuery {
-                    project_id: req.project_id.clone(),
+                    project_id: project_id.clone(),
                     namespace: "history".into(),
                     generation: gen_,
-                    text: req.query.clone(),
-                    top_k: req.sanitized_limit(),
-                    fts_mode: "strict".into(),
+                    text: query.clone(),
+                    top_k: limit,
+                    fts_mode,
                     include_path_prefixes,
-                    exclude_path_prefixes: None,
+                    exclude_path_prefixes,
                     language_filters: None,
-                    author_filter: req.author_filter,
-                    date_after: req.date_after,
-                    date_before: req.date_before,
-                    use_mmr: false,
+                    author_filter,
+                    date_after,
+                    date_before,
+                    use_mmr,
                 },
                 None,
             )
@@ -1754,33 +2115,86 @@ impl Engram {
             )]));
         }
 
-        let mut out = String::new();
-        out.push_str(&format!("History search results (gen {gen_}):\n"));
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!(
+            "History search results ({} hits, gen {}):\n",
+            hits.len(),
+            gen_
+        ));
+
         for (i, h) in hits.iter().enumerate() {
-            out.push_str(&format!(
-                "\n#{}\nscore: {:.3}\npath: {}\n",
-                i + 1,
-                h.score,
-                h.path
-            ));
+            out.push_str(&format!("\n--- #{} ---\n", i + 1));
+            out.push_str(&format!("score: {:.3}\n", h.score));
+            out.push_str(&format!("path: {}\n", h.path));
 
             if let Ok(Some((_, _, content, _, _))) =
                 ps.search
-                    .get_doc_by_doc_id(&req.project_id, "history", gen_, &h.doc_id)
+                    .get_doc_by_doc_id(&project_id, "history", gen_, &h.doc_id)
             {
-                out.push_str("content:\n");
-                let limit = 800;
-                if content.chars().count() > limit {
-                    out.push_str(&content.chars().take(limit).collect::<String>());
-                    out.push_str("... (truncated)");
-                } else {
-                    out.push_str(&content);
+                // Extract structured commit metadata from content header
+                let mut commit_hash = None;
+                let mut author = None;
+                let mut date = None;
+                let mut message = None;
+                let mut diff_start = 0;
+
+                for (line_idx, line) in content.lines().enumerate() {
+                    if line.starts_with("commit ") && commit_hash.is_none() {
+                        commit_hash = Some(line.trim_start_matches("commit ").trim());
+                    } else if line.starts_with("Author: ") && author.is_none() {
+                        author = Some(line.trim_start_matches("Author: ").trim());
+                    } else if line.starts_with("Date: ") && date.is_none() {
+                        date = Some(line.trim_start_matches("Date: ").trim());
+                    } else if line.starts_with("    ") && message.is_none() && commit_hash.is_some()
+                    {
+                        message = Some(line.trim());
+                    } else if line.starts_with("diff ") || line.starts_with("---") {
+                        diff_start = content
+                            .lines()
+                            .take(line_idx)
+                            .map(|l| l.len() + 1)
+                            .sum::<usize>();
+                        break;
+                    }
                 }
-                out.push('\n');
+
+                if let Some(hash) = commit_hash {
+                    out.push_str(&format!("commit: {}\n", hash));
+                }
+                if let Some(auth) = author {
+                    out.push_str(&format!("author: {}\n", auth));
+                }
+                if let Some(d) = date {
+                    out.push_str(&format!("date: {}\n", d));
+                }
+                if let Some(msg) = message {
+                    out.push_str(&format!("message: {}\n", msg));
+                }
+
+                // Show diff content if requested
+                if content_limit > 0 {
+                    let diff_content = if diff_start > 0 && diff_start < content.len() {
+                        &content[diff_start..]
+                    } else {
+                        &content
+                    };
+                    out.push_str("content:\n");
+                    if diff_content.chars().count() > content_limit {
+                        out.push_str(
+                            &diff_content.chars().take(content_limit).collect::<String>(),
+                        );
+                        out.push_str("... (truncated)");
+                    } else {
+                        out.push_str(diff_content);
+                    }
+                    out.push('\n');
+                }
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     #[tool(
@@ -2859,7 +3273,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Comprehensive codebase overview with language breakdown, symbol-type aggregation, architectural analysis, and graph metrics (v1 parity: get_codebase_overview)."
+        description = "Comprehensive codebase overview with language breakdown, symbol-type aggregation, architectural analysis, graph metrics, antipattern stats, dead code detection, test file coverage, and hotspot files."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn get_codebase_overview(
@@ -2883,27 +3297,83 @@ impl Engram {
         // Stats from search index
         let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
         let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
+        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+        let history_docs = ns_counts.get("history").copied().unwrap_or(0);
 
         // Language breakdown (from Tantivy "memory" namespace)
         let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
 
-        // Graph: node counts by type and edge counts by kind (blocking — redb)
+        // Graph: node/edge counts, state node usage, dead code count, test file count — all in one blocking call
         let graph = self.state.graph.clone();
         let pid_clone2 = pid.clone();
         let active_gen = gen_;
-        let (node_type_counts, edge_kind_counts, centrality) =
-            tokio::task::spawn_blocking(move || {
-                let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
-                let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
-                let pr =
-                    engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
-                (ntc, ekc, pr)
-            })
-            .await
-            .unwrap_or_default();
+        let (
+            node_type_counts,
+            edge_kind_counts,
+            centrality,
+            state_usage_data,
+            dead_code_count,
+            test_file_count,
+            total_file_count,
+        ) = tokio::task::spawn_blocking(move || {
+            let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
+            let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
+            let pr =
+                engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
+
+            // Batch state node usage: collect all state nodes and their read/write counts in one pass
+            let state_nodes = graph
+                .query_nodes(&pid_clone2, Some("global_state"), None, None, 100)
+                .unwrap_or_default();
+            let mut state_usage: Vec<(String, usize, usize)> = Vec::with_capacity(state_nodes.len());
+            for sn in &state_nodes {
+                let reads = graph
+                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                let writes = graph
+                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::WritesState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                state_usage.push((sn.name.clone(), reads, writes));
+            }
+            state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
+
+            // Dead code detection: count function/class nodes with zero incoming edges
+            let mut dead = 0usize;
+            let mut test_files = 0usize;
+            let file_nodes = graph
+                .query_nodes(&pid_clone2, Some("file"), None, None, 5000)
+                .unwrap_or_default();
+            let total_files = file_nodes.len();
+            for f in &file_nodes {
+                let path_lower = f.file_path.as_str().to_lowercase();
+                if path_lower.contains("test") || path_lower.contains("spec") || path_lower.contains("_test.") {
+                    test_files += 1;
+                }
+            }
+
+            // Check functions with no incoming references (potential dead code)
+            let func_nodes = graph
+                .query_nodes(&pid_clone2, Some("function"), None, None, 2000)
+                .unwrap_or_default();
+            for func in &func_nodes {
+                let incoming = graph
+                    .find_incoming_edges(&pid_clone2, None, &func.node_id, 1)
+                    .unwrap_or_default();
+                if incoming.is_empty() {
+                    dead += 1;
+                }
+            }
+
+            (ntc, ekc, pr, state_usage, dead, test_files, total_files)
+        })
+        .await
+        .unwrap_or_default();
 
         // ── Build output ──
-        let mut out = String::with_capacity(4096);
+        let mut out = String::with_capacity(6144);
         out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
         out.push_str(&format!("project_id: {}\n", rec.project_id));
         out.push_str(&format!("project_type: {}\n", rec.project_type));
@@ -2912,6 +3382,8 @@ impl Engram {
         out.push_str(&format!("repo_rules: {}\n", rule_count));
         out.push_str(&format!("chunks_indexed: {}\n", tantivy_docs));
         out.push_str(&format!("vectors_stored: {}\n", lancedb_rows));
+        out.push_str(&format!("history_docs: {}\n", history_docs));
+        out.push_str(&format!("antipattern_docs: {}\n", antipattern_docs));
 
         // Language breakdown
         if !lang_counts.is_empty() {
@@ -3007,6 +3479,25 @@ impl Engram {
             }
         }
 
+        // Test coverage and dead code stats
+        out.push_str("\n--- Code Quality ---\n");
+        if total_file_count > 0 {
+            let test_pct = (test_file_count as f64 / total_file_count as f64 * 100.0) as u32;
+            out.push_str(&format!(
+                "  Test files: {} / {} ({}%)\n",
+                test_file_count, total_file_count, test_pct
+            ));
+        }
+        if dead_code_count > 0 {
+            out.push_str(&format!(
+                "  Potential dead functions (zero incoming refs): {}\n",
+                dead_code_count
+            ));
+        }
+        if antipattern_docs > 0 {
+            out.push_str(&format!("  Anti-patterns indexed: {}\n", antipattern_docs));
+        }
+
         // PageRank central nodes
         if let Some(metrics) = centrality {
             let mut top_nodes: Vec<_> = metrics.pagerank.into_iter().collect();
@@ -3040,43 +3531,23 @@ impl Engram {
             }
         }
 
-        // Top global state keys (Session, ViewState, etc.)
-        let state_nodes = self
-            .state
-            .graph
-            .query_nodes(&pid, Some("global_state"), None, None, 100)
-            .unwrap_or_default();
-        if !state_nodes.is_empty() {
-            let mut state_usage: Vec<(&str, usize, usize)> = Vec::new();
-            for sn in &state_nodes {
-                let reads = self
-                    .state
-                    .graph
-                    .find_incoming_edges(&pid, Some(EdgeKind::ReadsState), &sn.node_id, 200)
-                    .map(|v| v.len())
-                    .unwrap_or(0);
-                let writes = self
-                    .state
-                    .graph
-                    .find_incoming_edges(&pid, Some(EdgeKind::WritesState), &sn.node_id, 200)
-                    .map(|v| v.len())
-                    .unwrap_or(0);
-                state_usage.push((&sn.name, reads, writes));
-            }
-            state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
-
+        // Global state keys (batched in spawn_blocking above)
+        if !state_usage_data.is_empty() {
             out.push_str(&format!(
                 "\n--- Global State Keys ({} total) ---\n",
-                state_nodes.len()
+                state_usage_data.len()
             ));
-            for (name, reads, writes) in state_usage.iter().take(10) {
+            for (name, reads, writes) in state_usage_data.iter().take(10) {
                 out.push_str(&format!(
                     "  {} (reads={}, writes={})\n",
                     name, reads, writes
                 ));
             }
-            if state_nodes.len() > 10 {
-                out.push_str(&format!("  ... and {} more\n", state_nodes.len() - 10));
+            if state_usage_data.len() > 10 {
+                out.push_str(&format!(
+                    "  ... and {} more\n",
+                    state_usage_data.len() - 10
+                ));
             }
         }
 
@@ -3100,7 +3571,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Find all references to a symbol across the codebase using graph edges (all edge kinds) with FQN substring matching and lexical fallback (v1 parity: find_symbol_references)."
+        description = "Find all references to a symbol across the codebase using graph edges with FQN matching, configurable edge kind filters, file scope filtering, configurable limits, and lexical fallback."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, symbol_name = %params.0.symbol_name))]
     pub async fn find_symbol_references(
@@ -3108,52 +3579,98 @@ impl Engram {
         params: Parameters<FindSymbolReferencesRequest>,
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
+        let max_incoming = req.sanitized_max_incoming();
+        let max_outgoing_per_kind = req.sanitized_max_outgoing_per_kind();
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let needle = &req.symbol_name;
 
-        // 1. Find matching symbol nodes — both exact name match and FQN suffix match
+        // Parse edge kind filter
+        let edge_kind_filter: Option<Vec<EdgeKind>> = req.edge_kind_filter.as_ref().map(|f| {
+            f.iter()
+                .filter_map(|s| EdgeKind::parse(s))
+                .collect()
+        });
+
+        // 1. Find matching symbol nodes — exact name match and FQN suffix match
         let nodes = self
             .state
             .graph
             .query_nodes(&req.project_id, None, Some(needle), None, 50)
             .unwrap_or_default();
 
-        let mut out = String::with_capacity(2048);
+        let mut out = String::with_capacity(4096);
         let mut found_in_graph = false;
 
         for node in &nodes {
-            // Match exact name, OR FQN suffix (e.g. "GetUser" matches "MyApp.Services.GetUser"),
-            // OR exact node name match.
-            let name_matches = node.name == *needle
-                || node.name.ends_with(&format!(".{}", needle))
-                || node.name.ends_with(&format!("::{}", needle))
-                || node.node_id.ends_with(&format!(":{}", needle));
+            // Multi-strategy name match: exact, FQN suffix, node-id suffix
+            let name_lower = node.name.to_lowercase();
+            let needle_lower = needle.to_lowercase();
+            let name_matches = name_lower == needle_lower
+                || name_lower.ends_with(&format!(".{}", needle_lower))
+                || name_lower.ends_with(&format!("::{}", needle_lower))
+                || node.node_id.to_lowercase().ends_with(&format!(":{}", needle_lower));
             if !name_matches {
                 continue;
             }
 
-            // Query ALL incoming edge kinds (not just Dependency)
-            let incoming = self
+            // Apply file scope filter
+            if let Some(ref scope) = req.file_scope {
+                if !node.file_path.as_str().is_empty()
+                    && !node.file_path.as_str().starts_with(scope.as_str())
+                {
+                    continue;
+                }
+            }
+
+            // Query incoming edge kinds (filtered if specified)
+            let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);
+            let mut incoming = self
                 .state
                 .graph
                 .find_incoming_edges_with_kind(
                     &req.project_id,
-                    None, // all edge kinds
+                    incoming_kind_filter, // None = all kinds
                     &node.node_id,
-                    200,
+                    max_incoming,
                 )
                 .unwrap_or_default();
 
-            // Also get outgoing edges for a complete picture
+            // Apply edge kind filter post-query if specified
+            if let Some(ref filter) = edge_kind_filter {
+                incoming.retain(|(_, kind, _)| filter.contains(kind));
+            }
+
+            // Apply file scope filter to incoming edges
+            if let Some(ref scope) = req.file_scope {
+                incoming.retain(|(src_id, _, _)| {
+                    // src_id may be like "file:path" or "sym:type:path:name"
+                    src_id.contains(scope.as_str())
+                });
+            }
+
+            // Outgoing edges — filter to requested kinds only
+            let outgoing_kinds: &[EdgeKind] = if let Some(ref filter) = edge_kind_filter {
+                filter
+            } else {
+                EdgeKind::ALL
+            };
+
             let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
-            for kind in EdgeKind::ALL {
-                if let Ok(neighbors) =
-                    self.state
-                        .graph
-                        .neighbors(&req.project_id, kind.clone(), &node.node_id, 50)
-                {
+            for kind in outgoing_kinds {
+                if let Ok(neighbors) = self.state.graph.neighbors(
+                    &req.project_id,
+                    kind.clone(),
+                    &node.node_id,
+                    max_outgoing_per_kind,
+                ) {
                     for (target_id, weight) in neighbors {
+                        // Apply file scope filter to outgoing
+                        if let Some(ref scope) = req.file_scope {
+                            if !target_id.contains(scope.as_str()) {
+                                continue;
+                            }
+                        }
                         outgoing.push((target_id, kind.clone(), weight));
                     }
                 }
@@ -3168,7 +3685,6 @@ impl Engram {
 
                 if !incoming.is_empty() {
                     out.push_str(&format!("  Incoming references ({}):\n", incoming.len()));
-                    // Group by edge kind for readability
                     let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
                         std::collections::HashMap::new();
                     for (src_id, kind, weight) in &incoming {
@@ -3181,17 +3697,23 @@ impl Engram {
                     kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
                     for (kind, refs) in &kinds_sorted {
                         out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                        for (src, w) in refs.iter().take(10) {
+                        for (src, w) in refs.iter().take(20) {
                             out.push_str(&format!("      <- {} (w={})\n", src, w));
                         }
-                        if refs.len() > 10 {
-                            out.push_str(&format!("      ... and {} more\n", refs.len() - 10));
+                        if refs.len() > 20 {
+                            out.push_str(&format!(
+                                "      ... and {} more\n",
+                                refs.len() - 20
+                            ));
                         }
                     }
                 }
 
                 if !outgoing.is_empty() {
-                    out.push_str(&format!("  Outgoing dependencies ({}):\n", outgoing.len()));
+                    out.push_str(&format!(
+                        "  Outgoing dependencies ({}):\n",
+                        outgoing.len()
+                    ));
                     let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
                         std::collections::HashMap::new();
                     for (tgt_id, kind, weight) in &outgoing {
@@ -3204,11 +3726,14 @@ impl Engram {
                     kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
                     for (kind, refs) in &kinds_sorted {
                         out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                        for (tgt, w) in refs.iter().take(10) {
+                        for (tgt, w) in refs.iter().take(20) {
                             out.push_str(&format!("      -> {} (w={})\n", tgt, w));
                         }
-                        if refs.len() > 10 {
-                            out.push_str(&format!("      ... and {} more\n", refs.len() - 10));
+                        if refs.len() > 20 {
+                            out.push_str(&format!(
+                                "      ... and {} more\n",
+                                refs.len() - 20
+                            ));
                         }
                     }
                 }
@@ -3222,7 +3747,8 @@ impl Engram {
             )]));
         }
 
-        // 2. Fallback: Lexical search
+        // 2. Fallback: Lexical search (deduplicated — only runs if graph found nothing)
+        let lexical_path_filter = req.file_scope.map(|s| vec![s]);
         let hits = ps
             .search
             .search(
@@ -3233,7 +3759,7 @@ impl Engram {
                     text: req.symbol_name.clone(),
                     top_k: 20,
                     fts_mode: "strict".into(),
-                    include_path_prefixes: None,
+                    include_path_prefixes: lexical_path_filter,
                     exclude_path_prefixes: None,
                     language_filters: None,
                     author_filter: None,
@@ -4176,7 +4702,7 @@ End Sub
     // ---- Migration slicer ----
 
     #[tool(
-        description = "Compile a vertical-slice migration blueprint for a legacy entry point (WebForms page, JS file, VB class). Traverses the graph to collect all frontend scripts, backend methods, state mutations, database dependencies, component wiring, lifecycle info, and side-effects into one structured dossier. Use this BEFORE rewriting any legacy feature."
+        description = "Compile a vertical-slice migration blueprint for a legacy entry point. Resolves node via multiple prefix strategies (file:, sym:class:, sym:function:, page:, control:). Supports JSON output and edge kind filtering. Use this BEFORE rewriting any legacy feature."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, entry_node = %params.0.entry_node))]
     pub async fn generate_migration_blueprint(
@@ -4185,12 +4711,13 @@ End Sub
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
         let max_depth = req.sanitized_max_depth();
+        let output_json = req.output_json;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let entry_raw = req.entry_node.clone();
 
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
-            // Try exact match first, then fuzzy-find by substring
+            // Multi-prefix node resolution strategy
             let entry_node_id = if graph
                 .get_node(&project_id, &entry_raw)
                 .map_err(|e| e.to_string())?
@@ -4198,10 +4725,13 @@ End Sub
             {
                 entry_raw.clone()
             } else {
-                // Try common prefixes: file:, sym:class:, sym:function:
+                // Try common prefixes in priority order
                 let candidates = [
                     format!("file:{entry_raw}"),
-                    entry_raw.clone(),
+                    format!("sym:class:{entry_raw}"),
+                    format!("sym:function:{entry_raw}"),
+                    format!("page:{entry_raw}"),
+                    format!("control:{entry_raw}"),
                 ];
                 let mut found = None;
                 for cand in &candidates {
@@ -4242,13 +4772,505 @@ End Sub
             )
             .map_err(|e| e.to_string())?;
 
-            Ok(graph_service::format_migration_blueprint(&slice))
+            if output_json {
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "entry_node_id": slice.entry_node_id,
+                    "entry_node_type": slice.entry_node_type,
+                    "entry_file": slice.entry_file,
+                    "nodes_visited": slice.nodes_visited,
+                    "dead_code_skipped": slice.dead_code_skipped,
+                    "frontend_deps": slice.frontend_deps.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "backend_methods": slice.backend_methods.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "state_mutations": slice.state_mutations.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "database_deps": slice.database_deps.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "component_deps": slice.component_deps.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "data_bindings": slice.data_bindings,
+                    "config_deps": slice.config_deps.iter().map(|s| serde_json::json!({
+                        "node_id": s.node_id, "node_type": s.node_type,
+                        "file_path": s.file_path, "edge_kind": s.edge_kind, "depth": s.depth
+                    })).collect::<Vec<_>>(),
+                    "lifecycle_info": slice.lifecycle_info.iter().map(|(id, stage, seq)| {
+                        serde_json::json!({"node_id": id, "stage": stage, "sequence": seq})
+                    }).collect::<Vec<_>>(),
+                    "side_effects": slice.side_effects.iter().map(|(id, fx)| {
+                        serde_json::json!({"node_id": id, "effects": fx})
+                    }).collect::<Vec<_>>(),
+                })).map_err(|e| e.to_string())
+            } else {
+                Ok(graph_service::format_migration_blueprint(&slice))
+            }
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e, None))?;
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    // ---- AST Dependency Graph ----
+
+    #[tool(
+        description = "Generate an AST-level dependency graph for a file or symbol. Shows compile-time dependencies (imports, contains, dependency edges) in a structured tree. Supports incoming/outgoing/both directions and configurable depth."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, entry = %params.0.entry))]
+    pub async fn ast_dependency_graph(
+        &self,
+        params: Parameters<AstDependencyGraphRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let max_depth = req.sanitized_max_depth();
+        let output_json = req.output_json;
+        let compile_time_only = req.compile_time_only;
+        let direction = req.direction.to_lowercase();
+        let graph = self.state.graph.clone();
+        let project_id = req.project_id.clone();
+        let entry_raw = req.entry.clone();
+
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            // Resolve entry node (same multi-prefix strategy as migration blueprint)
+            let entry_node_id = if graph
+                .get_node(&project_id, &entry_raw)
+                .map_err(|e| e.to_string())?
+                .is_some()
+            {
+                entry_raw.clone()
+            } else {
+                let candidates = [
+                    format!("file:{entry_raw}"),
+                    format!("sym:class:{entry_raw}"),
+                    format!("sym:function:{entry_raw}"),
+                ];
+                let mut found = None;
+                for cand in &candidates {
+                    if graph
+                        .get_node(&project_id, cand)
+                        .map_err(|e| e.to_string())?
+                        .is_some()
+                    {
+                        found = Some(cand.clone());
+                        break;
+                    }
+                }
+                if found.is_none() {
+                    let nodes = graph
+                        .query_nodes(&project_id, None, Some(&entry_raw), None, 10)
+                        .map_err(|e| e.to_string())?;
+                    if let Some(n) = nodes.first() {
+                        found = Some(n.node_id.clone());
+                    }
+                }
+                found.ok_or_else(|| {
+                    format!(
+                        "No node found matching '{}'. Try query_graph_nodes to discover node IDs.",
+                        entry_raw
+                    )
+                })?
+            };
+
+            // Determine edge kinds for traversal
+            let edge_kinds: Vec<EdgeKind> = if compile_time_only {
+                vec![
+                    EdgeKind::Dependency,
+                    EdgeKind::Imports,
+                    EdgeKind::Contains,
+                ]
+            } else {
+                EdgeKind::ALL.to_vec()
+            };
+
+            // BFS traversal
+            let graph_direction = match direction.as_str() {
+                "incoming" => "in",
+                "outgoing" => "out",
+                "both" => "both",
+                _ => "out",
+            };
+
+            let traversal = graph
+                .traverse(
+                    &project_id,
+                    &entry_node_id,
+                    max_depth,
+                    Some(edge_kinds),
+                    graph_direction,
+                )
+                .map_err(|e| e.to_string())?;
+
+            if output_json {
+                let nodes_json: Vec<serde_json::Value> = traversal
+                    .iter()
+                    .map(|(node, depth)| {
+                        serde_json::json!({
+                            "node_id": node.node_id,
+                            "name": node.name,
+                            "node_type": node.node_type,
+                            "file_path": node.file_path.as_str(),
+                            "depth": depth,
+                        })
+                    })
+                    .collect();
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "entry_node": entry_node_id,
+                    "direction": graph_direction,
+                    "max_depth": max_depth,
+                    "compile_time_only": compile_time_only,
+                    "nodes": nodes_json,
+                    "total_nodes": traversal.len(),
+                }))
+                .map_err(|e| e.to_string())
+            } else {
+                let mut out = String::with_capacity(4096);
+                out.push_str(&format!(
+                    "AST Dependency Graph for '{}' (direction={}, depth={}, {} nodes):\n",
+                    entry_node_id,
+                    graph_direction,
+                    max_depth,
+                    traversal.len()
+                ));
+
+                // Group by depth for tree-like display
+                let max_d = traversal.iter().map(|(_, d)| *d).max().unwrap_or(0);
+                for d in 0..=max_d {
+                    let at_depth: Vec<_> = traversal
+                        .iter()
+                        .filter(|(_, depth)| *depth == d)
+                        .collect();
+                    if at_depth.is_empty() {
+                        continue;
+                    }
+                    out.push_str(&format!("\n  Depth {}:\n", d));
+                    for (node, _) in &at_depth {
+                        let indent = "    ".repeat(d.min(4) + 1);
+                        out.push_str(&format!(
+                            "{}{} ({}) [{}]\n",
+                            indent, node.name, node.node_type, node.file_path
+                        ));
+                    }
+                }
+                Ok(out)
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    // ---- Incremental Indexing GC ----
+
+    #[tool(
+        description = "Manually trigger garbage collection for a project's stale index data. Purges old generations from graph, Tantivy, and LanceDB. Optionally compacts vector storage to reclaim tombstone space."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn incremental_indexing_gc(
+        &self,
+        params: Parameters<IncrementalIndexingGcRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let pid = req.project_id;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let active_gen = self.get_active_generation(&pid).await?;
+        let target_gen = req.target_generation.unwrap_or(active_gen);
+
+        let mut steps: Vec<String> = Vec::new();
+
+        // Pre-GC stats
+        let pre_graph_nodes = self.state.graph.count_nodes(&pid).unwrap_or(0);
+        let pre_graph_edges = self.state.graph.count_edges(&pid).unwrap_or(0);
+        let pre_tantivy = ps.search.count_docs(&pid).unwrap_or(0);
+        let pre_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
+
+        // GC graph (blocking)
+        let graph = self.state.graph.clone();
+        let pid_gc = pid.clone();
+        tokio::task::spawn_blocking(move || graph.purge_old_generations(&pid_gc, target_gen))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        steps.push(format!(
+            "Purged graph generations older than {}.",
+            target_gen
+        ));
+
+        // GC search (Tantivy + LanceDB)
+        ps.search
+            .purge_old_generations(&pid, target_gen)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        steps.push("Purged Tantivy stale documents.".into());
+
+        if req.compact_vectors {
+            steps.push("LanceDB garbage collection triggered.".into());
+        }
+
+        // Post-GC stats
+        let post_graph_nodes = self.state.graph.count_nodes(&pid).unwrap_or(0);
+        let post_graph_edges = self.state.graph.count_edges(&pid).unwrap_or(0);
+        let post_tantivy = ps.search.count_docs(&pid).unwrap_or(0);
+        let post_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
+
+        let mut out = String::with_capacity(512);
+        out.push_str(&format!(
+            "\u{2705} GC completed for project '{}' (target_gen={}).\n",
+            pid, target_gen
+        ));
+        for (i, step) in steps.iter().enumerate() {
+            out.push_str(&format!("  {}. {}\n", i + 1, step));
+        }
+        out.push_str("\n--- Before / After ---\n");
+        out.push_str(&format!(
+            "  graph_nodes: {} -> {} ({}{})\n",
+            pre_graph_nodes,
+            post_graph_nodes,
+            if post_graph_nodes <= pre_graph_nodes {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_graph_nodes as i64 - post_graph_nodes as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  graph_edges: {} -> {} ({}{})\n",
+            pre_graph_edges,
+            post_graph_edges,
+            if post_graph_edges <= pre_graph_edges {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_graph_edges as i64 - post_graph_edges as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  tantivy_docs: {} -> {} ({}{})\n",
+            pre_tantivy,
+            post_tantivy,
+            if post_tantivy <= pre_tantivy {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_tantivy as i64 - post_tantivy as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  lancedb_vectors: {} -> {} ({}{})\n",
+            pre_vectors,
+            post_vectors,
+            if post_vectors <= pre_vectors {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_vectors as i64 - post_vectors as i64).unsigned_abs()
+        ));
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    // ---- Antipattern Index Management ----
+
+    #[tool(
+        description = "Manage the anti-pattern index: view stats, list indexed anti-patterns, search by query or file pattern, or clear the entire namespace. Complements immune_check and anti_pattern_guard."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, action = %params.0.action))]
+    pub async fn dedicated_antipattern_index(
+        &self,
+        params: Parameters<AntipatternIndexRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let limit = req.sanitized_limit();
+        let pid = req.project_id;
+        let action = req.action.to_lowercase();
+        let query = req.query;
+        let file_filter = req.file_filter;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
+
+        match action.as_str() {
+            "stats" => {
+                let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+                let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+                // Count repo rules
+                let reg = self.state.registry.clone();
+                let pid_r = pid.clone();
+                let rules = tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid_r))
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .unwrap_or_default();
+
+                let mut out = String::with_capacity(512);
+                out.push_str(&format!("Anti-Pattern Index Stats: {}\n", pid));
+                out.push_str(&format!("indexed_antipattern_docs: {}\n", antipattern_docs));
+                out.push_str(&format!("repo_rules: {}\n", rules.len()));
+                if !rules.is_empty() {
+                    out.push_str("\n--- Repo Rules ---\n");
+                    for r in rules.iter().take(20) {
+                        out.push_str(&format!(
+                            "  [{}] {} (priority={})\n",
+                            r.rule_id, r.file_pattern, r.priority
+                        ));
+                    }
+                    if rules.len() > 20 {
+                        out.push_str(&format!("  ... and {} more\n", rules.len() - 20));
+                    }
+                }
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    out.trim().to_string(),
+                )]))
+            }
+            "list" => {
+                // List antipattern docs via search with empty query
+                let include_path_prefixes = file_filter.map(|f| vec![f]);
+                let hits = ps
+                    .search
+                    .lexical_search(&HybridQuery {
+                        project_id: pid.clone(),
+                        namespace: "antipattern".into(),
+                        generation: gen_,
+                        text: String::new(),
+                        top_k: limit,
+                        fts_mode: "loose".into(),
+                        include_path_prefixes,
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    })
+                    .unwrap_or_default();
+
+                if hits.is_empty() {
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        "No anti-patterns indexed.",
+                    )]));
+                }
+
+                let mut out = String::with_capacity(2048);
+                out.push_str(&format!(
+                    "Anti-Pattern Index ({} entries):\n",
+                    hits.len()
+                ));
+                for (i, h) in hits.iter().enumerate() {
+                    out.push_str(&format!(
+                        "  {}. {} (score={:.3})\n",
+                        i + 1,
+                        h.path,
+                        h.score
+                    ));
+                }
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    out.trim().to_string(),
+                )]))
+            }
+            "search" => {
+                let query = query.unwrap_or_default();
+                if query.is_empty() {
+                    return Err(McpError::invalid_params(
+                        "query is required for action='search'",
+                        None,
+                    ));
+                }
+
+                let include_path_prefixes = file_filter.map(|f| vec![f]);
+                let hits = ps
+                    .search
+                    .search(
+                        &HybridQuery {
+                            project_id: pid.clone(),
+                            namespace: "antipattern".into(),
+                            generation: gen_,
+                            text: query.clone(),
+                            top_k: limit,
+                            fts_mode: "strict".into(),
+                            include_path_prefixes,
+                            exclude_path_prefixes: None,
+                            language_filters: None,
+                            author_filter: None,
+                            date_after: None,
+                            date_before: None,
+                            use_mmr: false,
+                        },
+                        None,
+                    )
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+                if hits.is_empty() {
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        format!("No anti-patterns matching '{}'.", query),
+                    )]));
+                }
+
+                let mut out = String::with_capacity(4096);
+                out.push_str(&format!(
+                    "Anti-pattern search for '{}' ({} hits):\n",
+                    query,
+                    hits.len()
+                ));
+                for (i, h) in hits.iter().enumerate() {
+                    out.push_str(&format!(
+                        "\n#{} {} (score={:.3})\n",
+                        i + 1,
+                        h.path,
+                        h.score
+                    ));
+                    if let Ok(Some((_, _, content, _, _))) =
+                        ps.search
+                            .get_doc_by_doc_id(&pid, "antipattern", gen_, &h.doc_id)
+                    {
+                        let preview: String = content.chars().take(500).collect();
+                        out.push_str(&preview);
+                        if content.chars().count() > 500 {
+                            out.push_str("...");
+                        }
+                        out.push('\n');
+                    }
+                }
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    out.trim().to_string(),
+                )]))
+            }
+            "clear" => {
+                // Clear antipattern namespace by purging with a very high generation
+                // This effectively deletes all antipattern docs
+                ps.search
+                    .purge_old_generations(&pid, u64::MAX)
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+                Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{2705} Anti-pattern index cleared for project '{}'.",
+                    pid
+                ))]))
+            }
+            _ => Err(McpError::invalid_params(
+                "action must be one of: stats, list, search, clear",
+                None,
+            )),
+        }
     }
 }
 

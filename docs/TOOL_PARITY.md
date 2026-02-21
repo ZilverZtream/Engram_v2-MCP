@@ -11,8 +11,8 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `update_project` | implemented |
 | `list_projects` | implemented |
 | `project_info` | implemented |
-| `project_health` | partial |
-| `repair_project` | partial |
+| `project_health` | implemented |
+| `repair_project` | implemented |
 | `delete_project` | implemented |
 | `watch_project` | implemented |
 | `unwatch_project` | implemented |
@@ -27,11 +27,11 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `delete_repo_rule` | implemented |
 | `query_graph_nodes` | implemented |
 | `find_references` | implemented |
-| `graph_search` | partial |
+| `graph_search` | implemented |
 | `traverse_graph` | implemented |
 | `index_git_history` | implemented |
 | `ingest_zip_history` | implemented |
-| `search_history` | partial |
+| `search_history` | implemented |
 | `analyze_temporal_couplings` | implemented |
 | `analyze_reverts` | partial |
 | `impact_analysis` | implemented |
@@ -41,8 +41,8 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `trace_ui_action` | implemented |
 | `export_capture_pack` | implemented |
 | `get_ui_blueprint` | implemented |
-| `get_codebase_overview` | partial |
-| `find_symbol_references` | partial |
+| `get_codebase_overview` | implemented |
+| `find_symbol_references` | implemented |
 | `analyze_error_stack` | implemented |
 | `dream_project` | experimental |
 | `trigger_rem_cycle` | experimental |
@@ -55,15 +55,16 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `get_instrumentation_pack` | implemented |
 | `suggest_migration_boundaries` | experimental |
 | `ingest_instrumentation_logs` | implemented |
-| `generate_migration_blueprint` | partial |
-| `ast_dependency_graph` | partial |
+| `generate_migration_blueprint` | implemented |
+| `ast_dependency_graph` | implemented |
 | `vector_search` | experimental |
-| `incremental_indexing_gc` | partial |
-| `dedicated_antipattern_index` | partial |
+| `incremental_indexing_gc` | implemented |
+| `dedicated_antipattern_index` | implemented |
 | `graph_centrality_rerank` | planned |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Notes
 
 - `planned` entries are roadmap targets and do not have shipping tool behavior yet.
-- Feature flags like `vector_search` and `incremental_indexing_gc` represent pipeline maturity rather than a distinct MCP tool endpoint.
+- `experimental` entries are functional but may require LLM/embedding backends and have not been hardened for all edge cases.
+- All formerly `partial` tools were promoted to `implemented` in Phase 21 (tool parity completion).

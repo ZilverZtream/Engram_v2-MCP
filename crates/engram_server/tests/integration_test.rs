@@ -978,8 +978,12 @@ async fn test_project_repair() {
 
     // Call repair
     let repair_res = engram
-        .repair_project(Parameters(engram_server::ProjectIdRequest {
+        .repair_project(Parameters(engram_server::RepairProjectRequest {
             project_id: project_id.to_string(),
+            scope: "full".into(),
+            wipe_and_reindex: false,
+            max_commits: 500,
+            index_antipatterns: true,
         }))
         .await
         .unwrap();
@@ -1860,6 +1864,13 @@ async fn test_graph_search() {
             query: "logic".into(),
             max_results: 5,
             symbol_boost: 0.1,
+            namespace: "memory".into(),
+            fts_mode: "strict".into(),
+            use_mmr: false,
+            hop_depth: 1,
+            include_content: false,
+            max_content_chars: 400,
+            expansion_edge_kinds: None,
         }))
         .await
         .unwrap();
@@ -1906,6 +1917,13 @@ async fn test_graph_search() {
             query: "logic".into(),
             max_results: 5,
             symbol_boost: 0.1,
+            namespace: "memory".into(),
+            fts_mode: "strict".into(),
+            use_mmr: false,
+            hop_depth: 1,
+            include_content: false,
+            max_content_chars: 400,
+            expansion_edge_kinds: None,
         }))
         .await
         .unwrap();
@@ -2023,10 +2041,14 @@ async fn test_search_history() {
             project_id: project_id.to_string(),
             query: "feature".into(),
             file_filter: None,
+            exclude_paths: None,
             author_filter: None,
             date_after: None,
             date_before: None,
             limit: 5,
+            fts_mode: "strict".into(),
+            use_mmr: false,
+            max_content_chars: 800,
         }))
         .await
         .unwrap();
@@ -2047,10 +2069,14 @@ async fn test_search_history() {
             project_id: project_id.to_string(),
             query: "fix".into(),
             file_filter: None,
+            exclude_paths: None,
             author_filter: Some(sig.name().unwrap().to_string()),
             date_after: None,
             date_before: None,
             limit: 5,
+            fts_mode: "strict".into(),
+            use_mmr: false,
+            max_content_chars: 800,
         }))
         .await
         .unwrap();
@@ -3131,6 +3157,10 @@ async fn test_find_symbol_references() {
         .find_symbol_references(Parameters(engram_server::FindSymbolReferencesRequest {
             project_id: project_id.to_string(),
             symbol_name: "MySymbol".into(),
+            max_incoming: 200,
+            max_outgoing_per_kind: 50,
+            edge_kind_filter: None,
+            file_scope: None,
         }))
         .await
         .unwrap();

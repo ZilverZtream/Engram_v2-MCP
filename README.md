@@ -212,9 +212,9 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `update_project` | Incremental re-index of changed files. Parameters: `project_id`, `wait`, `max_commits`, `index_antipatterns` |
 | `list_projects` | List all indexed projects |
 | `project_info` | Detailed project metadata |
-| `project_health` | Comprehensive health check: per-namespace doc counts, graph/vector stats, disk usage, integrity warnings |
+| `project_health` | Comprehensive health check: per-namespace doc counts, graph/vector stats, disk usage, language/symbol breakdown, integrity warnings with actionable repair suggestions |
 | `delete_project` | Delete a project and all its stored data |
-| `repair_project` | Rebuild index from registry (GC + defrag) |
+| `repair_project` | Targeted index repair with scoped rebuild (`full`, `graph_only`, `tantivy_only`, `vector_only`), optional full wipe-and-reindex |
 
 ### Search
 
@@ -222,9 +222,9 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 |------|-------------|
 | `search_memory` | Hybrid FTS + vector search. Parameters: `query`, `project_id`, `namespace`, `max_results`, `use_mmr`, `fts_mode`, `include_content`, `max_content_chars_per_result`, language/path filters |
 | `get_chunk` | Fetch full content for a specific chunk by ID, with optional repo rule injection |
-| `graph_search` | Hybrid text + graph symbol name matching with multi-edge neighbor expansion and configurable symbol boost |
-| `find_symbol_references` | All-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, lexical fallback |
-| `get_codebase_overview` | Language breakdown, symbol-type aggregation, edge-kind distribution, architectural layers, PageRank, DB tables, state keys, temporal couplings |
+| `graph_search` | Hybrid text + graph symbol name matching with multi-edge neighbor expansion, configurable FTS modes (strict/loose/regex), MMR diversity, content preview, and edge-kind-filtered expansion |
+| `find_symbol_references` | All-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, configurable limits, edge kind and file scope filters, lexical fallback |
+| `get_codebase_overview` | Language breakdown, symbol-type aggregation, edge-kind distribution, architectural layers, PageRank, DB tables, state keys, temporal couplings, dead code detection, test coverage stats |
 | `analyze_error_stack` | Multi-language structured stacktrace parser (Python, .NET, Java, Node.js, Rust, Go, PHP, Ruby, ASP.NET) with frame-boosted search and graph centrality |
 
 ### Knowledge Graph
@@ -242,7 +242,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 |------|-------------|
 | `index_git_history` | Index commit history for temporal coupling + anti-patterns |
 | `ingest_zip_history` | Ingest a folder of zip snapshots as pseudo git history |
-| `search_history` | Search commit messages and diffs |
+| `search_history` | Search commit messages and diffs with structured metadata extraction, configurable FTS modes, MMR, path exclusions, and content preview |
 | `analyze_temporal_couplings` | Detect files that frequently change together |
 | `analyze_reverts` | Detect reverted commits, generate LLM-powered descriptive anti-pattern rules, and index reverted diffs |
 
@@ -255,6 +255,21 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `analyze_file_coding_style` | Analyze a file's git history and produce a style guide |
 | `immune_check` | Score a code draft against the anti-pattern index |
 | `anti_pattern_guard` | Score code with remediation suggestions |
+| `suggest_migration_boundaries` | LLM + deterministic migration boundary suggestion using union-find clustering |
+| `generate_migration_blueprint` | BFS context compilation from an entry node into a 9-section Markdown dossier or structured JSON, with configurable depth and edge kind filters |
+
+### Knowledge Graph (Advanced)
+
+| Tool | Description |
+|------|-------------|
+| `ast_dependency_graph` | BFS graph traversal from an entry node with configurable direction (outgoing/incoming/both), compile-time edge filtering (Dependency+Imports+Contains), depth up to 12 hops, and JSON or text tree output |
+
+### Index Maintenance
+
+| Tool | Description |
+|------|-------------|
+| `incremental_indexing_gc` | Manual GC trigger with pre/post delta reporting for graph nodes, edges, tantivy docs, and lance vectors; optional vector compaction |
+| `dedicated_antipattern_index` | Manage the antipattern namespace: `stats` (doc count + repo rules), `list` (browse), `search` (hybrid search with content preview), `clear` (purge namespace) |
 
 ### Database & Schema
 
