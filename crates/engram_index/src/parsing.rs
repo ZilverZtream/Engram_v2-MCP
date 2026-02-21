@@ -173,7 +173,11 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         ) @sql.assign
         "#,
     )
-    .expect("Invalid C# query");
+    .map_err(|e| {
+        tracing::error!(error = %e, "failed to compile C# Tree-sitter query; disabling C# parsing patterns");
+        e
+    })
+    .ok();
 
     let c = Query::new(
         &c_lang,
