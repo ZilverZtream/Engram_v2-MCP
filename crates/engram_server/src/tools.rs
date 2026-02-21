@@ -2963,6 +2963,7 @@ impl Engram {
         // If the start_id doesn't exist, try to find a candidate page if only path was given
         let mut trace_used_fallback = false;
         let mut trace_candidate_count: usize = 0;
+        let mut unresolved_candidates: Vec<String> = Vec::new();
         if self
             .state
             .graph
@@ -2978,6 +2979,8 @@ impl Engram {
         {
             trace_used_fallback = true;
             trace_candidate_count = candidates.len();
+            // Record all candidate node IDs for provenance
+            unresolved_candidates = candidates.iter().map(|n| n.node_id.clone()).collect();
             start_id = candidates[0].node_id.clone();
         }
 
@@ -3000,25 +3003,43 @@ impl Engram {
             ))]));
         }
 
-        // 3. Format output
+        // 3. Format output with ambiguity provenance
         let mut out = format!("Found {} path(s) to SQL:\n", paths.len());
 
-        // Emit ambiguity metadata if fallback resolution was used
+        // Ambiguity provenance block (structured for machine parsing)
+        let confidence_penalty = if trace_used_fallback {
+            (trace_candidate_count as f64 * 0.2).min(0.8)
+        } else {
+            0.0
+        };
+
+        out.push_str("\n## Trace Provenance\n");
+        out.push_str(&format!("trace_used_fallback: {}\n", trace_used_fallback));
+        out.push_str(&format!("trace_candidate_count: {}\n", trace_candidate_count));
+        out.push_str(&format!("trace_confidence_penalty: {:.2}\n", confidence_penalty));
+        out.push_str(&format!("selected_start_node: {}\n", start_id));
+
         if trace_used_fallback {
             out.push_str(&format!(
-                "\n⚠ TRACE AMBIGUITY: Control lookup used fallback candidate matching \
-                 ({} candidates found). Confidence penalty applied.\n\
-                 trace_used_fallback: true\n\
-                 trace_candidate_count: {}\n\
-                 trace_confidence_penalty: {:.2}\n",
-                trace_candidate_count,
-                trace_candidate_count,
-                (trace_candidate_count as f64 * 0.2).min(0.8)
+                "\n### Ambiguity Warning\n\
+                 Control lookup used fallback candidate matching ({} candidates found).\n\
+                 Penalty reason: {} candidate(s) matched control ID filter; first-match selected.\n\
+                 Risk: Incorrect handler resolution may lead to wrong trace path.\n",
+                trace_candidate_count, trace_candidate_count
             ));
+            out.push_str("\n### Unresolved Candidates\n");
+            for (i, cand) in unresolved_candidates.iter().enumerate() {
+                let selected = if i == 0 { " ← SELECTED" } else { "" };
+                out.push_str(&format!("  {}. {}{}\n", i + 1, cand, selected));
+            }
+            out.push_str("\n### Follow-up Probes\n");
+            out.push_str("- Provide explicit `handler_fqn` to disambiguate\n");
+            out.push_str("- Verify control ID uniqueness across master/user controls\n");
+            out.push_str("- Check code-behind inheritance chain for handler shadowing\n");
         }
 
         for (i, path) in paths.iter().enumerate() {
-            out.push_str(&format!("\nPath #{}:\n", i + 1));
+            out.push_str(&format!("\n## Path #{}\n", i + 1));
             for (step, node) in path.iter().enumerate() {
                 let label = match node.node_type.as_str() {
                     "page" => "ASPX Page",
@@ -3030,26 +3051,36 @@ impl Engram {
                 };
 
                 let justification = if step == 0 {
-                    "Starting point"
+                    "Starting point".to_string()
                 } else {
                     let prev = &path[step - 1];
                     match (prev.node_type.as_str(), node.node_type.as_str()) {
-                        ("page", "class") => "Inherits class",
-                        ("control", "function") => "Event wiring (OnClick/Handles)",
-                        ("function", "function") => "Method call",
-                        (_, "inline_sql") | (_, "stored_proc") => "Executes SQL",
-                        _ => "Dependency",
+                        ("page", "class") => "Inherits class".to_string(),
+                        ("control", "function") => "Event wiring (OnClick/Handles)".to_string(),
+                        ("function", "function") => "Method call".to_string(),
+                        (_, "inline_sql") | (_, "stored_proc") => "Executes SQL".to_string(),
+                        _ => "Dependency".to_string(),
                     }
                 };
 
+                // Per-hop source evidence
+                let evidence = format!(
+                    "node_type={}, file={}, lines={}-{}",
+                    node.node_type,
+                    node.file_path.as_str(),
+                    node.start_line,
+                    node.end_line
+                );
+
                 let indent = "  ".repeat(step);
                 out.push_str(&format!(
-                    "{indent}Step {}: {} [{}] ({}) - {}\n",
+                    "{indent}Step {}: {} [{}] ({}) - {} | evidence: {}\n",
                     step + 1,
                     node.name,
                     label,
                     node.node_id,
-                    justification
+                    justification,
+                    evidence
                 ));
             }
         }

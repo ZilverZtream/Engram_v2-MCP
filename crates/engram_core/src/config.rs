@@ -178,6 +178,17 @@ pub struct Config {
     /// Maximum blast radius score (1–10) allowed for auto-apply.
     #[serde(default = "default_adp_max_blast_radius")]
     pub adp_max_blast_radius: u8,
+
+    // --- ADP Rollout Policy ---
+    /// Rollout phase: "shadow" (log only), "advisory" (warn but allow),
+    /// "guarded" (require mandatory review), "autonomous" (selective auto-apply).
+    #[serde(default = "default_adp_rollout_phase")]
+    pub adp_rollout_phase: String,
+
+    /// ADP kill-switch: when true, ALL autonomous decisions are forced to deny.
+    /// Overrides all other ADP settings. Use for emergency halt.
+    #[serde(default)]
+    pub adp_kill_switch: bool,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -279,6 +290,10 @@ fn default_adp_max_blast_radius() -> u8 {
     6
 }
 
+fn default_adp_rollout_phase() -> String {
+    "shadow".into()
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -323,6 +338,8 @@ impl Default for Config {
             adp_enabled: false,
             adp_min_extraction_confidence: default_adp_min_extraction_confidence(),
             adp_max_blast_radius: default_adp_max_blast_radius(),
+            adp_rollout_phase: default_adp_rollout_phase(),
+            adp_kill_switch: false,
         }
     }
 }
