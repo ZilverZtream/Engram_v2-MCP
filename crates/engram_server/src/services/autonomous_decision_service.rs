@@ -657,7 +657,9 @@ pub fn apply_rollout_policy(
             confidence: 0.0,
             reasons: vec!["ADP kill-switch is active — all autonomous decisions are denied".into()],
             failed_gates: vec!["kill_switch".into()],
-            required_followups: vec!["Deactivate kill-switch in configuration to resume ADP".into()],
+            required_followups: vec![
+                "Deactivate kill-switch in configuration to resume ADP".into(),
+            ],
             gate_results: decision.gate_results.clone(),
         };
     }
@@ -835,7 +837,10 @@ pub fn build_decision_report(
 pub fn replay_from_scenario(
     scenario_input: &engram_core::benchmark::AdpScenarioInput,
 ) -> AdpDecision {
-    let safety_decision = match (scenario_input.safety_allowed, scenario_input.safety_confidence) {
+    let safety_decision = match (
+        scenario_input.safety_allowed,
+        scenario_input.safety_confidence,
+    ) {
         (Some(allowed), Some(confidence)) => Some(PolicyDecision {
             allowed,
             risk_level: if allowed {
@@ -855,15 +860,17 @@ pub fn replay_from_scenario(
         _ => None,
     };
 
-    let blast_radius_band = scenario_input.blast_radius_band.as_deref().and_then(|b| {
-        match b.to_lowercase().as_str() {
-            "low" => Some(RiskBand::Low),
-            "medium" => Some(RiskBand::Medium),
-            "high" => Some(RiskBand::High),
-            "critical" => Some(RiskBand::Critical),
-            _ => None,
-        }
-    });
+    let blast_radius_band =
+        scenario_input
+            .blast_radius_band
+            .as_deref()
+            .and_then(|b| match b.to_lowercase().as_str() {
+                "low" => Some(RiskBand::Low),
+                "medium" => Some(RiskBand::Medium),
+                "high" => Some(RiskBand::High),
+                "critical" => Some(RiskBand::Critical),
+                _ => None,
+            });
 
     let input = AdpInput {
         extraction_confidence: scenario_input.extraction_confidence,
@@ -891,9 +898,7 @@ pub fn replay_from_scenario(
 }
 
 /// Run a full ADP corpus and return per-scenario results with pass/fail.
-pub fn run_corpus(
-    corpus: &engram_core::benchmark::AdpCorpus,
-) -> Vec<AdpCorpusResult> {
+pub fn run_corpus(corpus: &engram_core::benchmark::AdpCorpus) -> Vec<AdpCorpusResult> {
     corpus
         .scenarios
         .iter()
@@ -902,8 +907,11 @@ pub fn run_corpus(
             let actual_verdict = decision.verdict.to_string();
             let verdict_matches = actual_verdict == scenario.expected_verdict;
 
-            let expected_gates_set: std::collections::HashSet<&str> =
-                scenario.expected_failed_gates.iter().map(|s| s.as_str()).collect();
+            let expected_gates_set: std::collections::HashSet<&str> = scenario
+                .expected_failed_gates
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
             let actual_gates_set: std::collections::HashSet<&str> =
                 decision.failed_gates.iter().map(|s| s.as_str()).collect();
             let gates_match = expected_gates_set == actual_gates_set;
@@ -1406,7 +1414,10 @@ mod tests {
         assert_eq!(matrix.true_abstain, 1);
         assert_eq!(matrix.false_allow, 0);
         assert_eq!(matrix.false_deny, 0);
-        assert!(matrix.false_allow_rate() < 0.01, "false-allow rate must be < 1%");
+        assert!(
+            matrix.false_allow_rate() < 0.01,
+            "false-allow rate must be < 1%"
+        );
     }
 
     // ── Rollout policy and kill-switch tests (Ticket 10) ────────────────
@@ -1499,7 +1510,10 @@ mod tests {
         assert_eq!(RolloutPhase::from_str("shadow"), RolloutPhase::Shadow);
         assert_eq!(RolloutPhase::from_str("advisory"), RolloutPhase::Advisory);
         assert_eq!(RolloutPhase::from_str("guarded"), RolloutPhase::Guarded);
-        assert_eq!(RolloutPhase::from_str("autonomous"), RolloutPhase::Autonomous);
+        assert_eq!(
+            RolloutPhase::from_str("autonomous"),
+            RolloutPhase::Autonomous
+        );
         assert_eq!(RolloutPhase::from_str("SHADOW"), RolloutPhase::Shadow);
         assert_eq!(RolloutPhase::from_str("unknown"), RolloutPhase::Shadow); // Default
     }

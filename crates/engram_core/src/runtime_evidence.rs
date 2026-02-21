@@ -156,10 +156,7 @@ pub fn validate_batch(batch: &RuntimeEvidenceBatch) -> Vec<ValidationError> {
         if !(0.0..=1.0).contains(&event.trust_weight) {
             errors.push(ValidationError {
                 field: format!("events[{i}].trust_weight"),
-                message: format!(
-                    "trust_weight must be 0.0–1.0, got {}",
-                    event.trust_weight
-                ),
+                message: format!("trust_weight must be 0.0–1.0, got {}", event.trust_weight),
             });
         }
     }
@@ -206,7 +203,11 @@ mod tests {
     #[test]
     fn valid_batch_passes_validation() {
         let errors = validate_batch(&valid_batch());
-        assert!(errors.is_empty(), "Valid batch should have no errors: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "Valid batch should have no errors: {:?}",
+            errors
+        );
     }
 
     #[test]
@@ -248,7 +249,10 @@ mod tests {
         let decoded: RuntimeEvidenceBatch = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.events.len(), 1);
         assert_eq!(decoded.events[0].event_id, "evt001");
-        assert_eq!(decoded.events[0].event_type, RuntimeEventType::ControlInteraction);
+        assert_eq!(
+            decoded.events[0].event_type,
+            RuntimeEventType::ControlInteraction
+        );
     }
 
     #[test]
@@ -290,9 +294,7 @@ mod tests {
                     source_function: None,
                     source_line: None,
                     target: Some("Session[\"UserProfile\"]".into()),
-                    context: [("operation".into(), "write".into())]
-                        .into_iter()
-                        .collect(),
+                    context: [("operation".into(), "write".into())].into_iter().collect(),
                     trust_weight: 0.7,
                 },
                 RuntimeEvent {
@@ -303,9 +305,7 @@ mod tests {
                     source_function: None,
                     source_line: None,
                     target: Some("/api/orders".into()),
-                    context: [("method".into(), "POST".into())]
-                        .into_iter()
-                        .collect(),
+                    context: [("method".into(), "POST".into())].into_iter().collect(),
                     trust_weight: 0.6,
                 },
             ],

@@ -46,7 +46,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `analyze_error_stack` | implemented |
 | `dream_project` | implemented |
 | `trigger_rem_cycle` | implemented |
-| `analyze_file_coding_style` | experimental |
+| `analyze_file_coding_style` | implemented |
 | `list_jobs` | implemented |
 | `cancel_job` | implemented |
 | `get_job_status` | implemented |
@@ -71,7 +71,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `compute_blast_radius` | implemented |
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
-| `graph_centrality_rerank` | planned |
+| `graph_centrality_rerank` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Notes

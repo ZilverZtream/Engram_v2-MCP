@@ -5,19 +5,19 @@ pub mod checkpoint;
 pub mod config;
 // Note: runtime_evidence is pub but not re-exported at top level yet.
 // Use engram_core::runtime_evidence::* directly.
-pub mod runtime_evidence;
 pub mod ids;
 pub mod memory;
 pub mod metrics;
 pub mod namespaces;
 pub mod paths;
 pub mod registry;
+pub mod runtime_evidence;
 pub mod security;
 pub mod types;
 
 pub use benchmark::{
-    AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry,
-    BenchmarkReport, BenchmarkThresholds, DriftReport, TraceScenario, TraceScenarioLibrary,
+    AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry, BenchmarkReport,
+    BenchmarkThresholds, DriftReport, TraceScenario, TraceScenarioLibrary,
 };
 pub use checkpoint::{Checkpoint, CheckpointStore, JobPhase};
 pub use config::Config;

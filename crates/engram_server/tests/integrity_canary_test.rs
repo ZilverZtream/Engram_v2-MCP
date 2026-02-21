@@ -24,7 +24,10 @@ fn canary_no_drift_when_stores_aligned() {
     ];
 
     let result = build_test_mismatches(3, 3, 3, &tantivy_docs, &docstore_docs);
-    assert!(result.is_empty(), "Aligned stores should have zero mismatches");
+    assert!(
+        result.is_empty(),
+        "Aligned stores should have zero mismatches"
+    );
 }
 
 /// Canary 2: Single Tantivy orphan — detects accurately.
@@ -42,20 +45,17 @@ fn canary_detects_single_tantivy_orphan() {
 
     let result = build_test_mismatches(3, 2, 2, &tantivy_docs, &docstore_docs);
 
-    let tantivy_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::TantivyOrphan));
-    assert!(
-        tantivy_orphan.is_some(),
-        "Should detect Tantivy orphan"
-    );
+    let tantivy_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::TantivyOrphan));
+    assert!(tantivy_orphan.is_some(), "Should detect Tantivy orphan");
     assert_eq!(tantivy_orphan.unwrap().actual, 1);
 }
 
 /// Canary 3: Single docstore orphan.
 #[test]
 fn canary_detects_single_docstore_orphan() {
-    let tantivy_docs = vec![
-        search_doc("memory", "doc1", "src/a.cs"),
-    ];
+    let tantivy_docs = vec![search_doc("memory", "doc1", "src/a.cs")];
     let docstore_docs = vec![
         docstore_doc("memory", "doc1", "src/a.cs"),
         docstore_doc("memory", "orphan1", "src/orphan.cs"),
@@ -63,31 +63,25 @@ fn canary_detects_single_docstore_orphan() {
 
     let result = build_test_mismatches(1, 2, 1, &tantivy_docs, &docstore_docs);
 
-    let docstore_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::DocstoreOrphan));
-    assert!(
-        docstore_orphan.is_some(),
-        "Should detect Docstore orphan"
-    );
+    let docstore_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::DocstoreOrphan));
+    assert!(docstore_orphan.is_some(), "Should detect Docstore orphan");
 }
 
 /// Canary 4: Vector store bloat (vectors > tantivy docs).
 #[test]
 fn canary_detects_vector_bloat() {
-    let tantivy_docs = vec![
-        search_doc("memory", "doc1", "src/a.cs"),
-    ];
-    let docstore_docs = vec![
-        docstore_doc("memory", "doc1", "src/a.cs"),
-    ];
+    let tantivy_docs = vec![search_doc("memory", "doc1", "src/a.cs")];
+    let docstore_docs = vec![docstore_doc("memory", "doc1", "src/a.cs")];
 
     // vector_count=200 >> tantivy_count=1 (threshold is +100)
     let result = build_test_mismatches(1, 1, 200, &tantivy_docs, &docstore_docs);
 
-    let vector_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::VectorOrphan));
-    assert!(
-        vector_orphan.is_some(),
-        "Should detect vector orphan bloat"
-    );
+    let vector_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::VectorOrphan));
+    assert!(vector_orphan.is_some(), "Should detect vector orphan bloat");
 }
 
 /// Canary 5: Count divergence beyond 5% threshold.
@@ -103,7 +97,9 @@ fn canary_detects_count_divergence() {
 
     let result = build_test_mismatches(20, 10, 10, &tantivy_docs, &docstore_docs);
 
-    let divergence = result.iter().find(|m| matches!(m.kind, MismatchKind::CountDivergence));
+    let divergence = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::CountDivergence));
     assert!(
         divergence.is_some(),
         "Should detect count divergence (20 vs 10, diff > 5%)"
@@ -113,17 +109,15 @@ fn canary_detects_count_divergence() {
 /// Canary 6: No false alarms when vector count is slightly under tantivy + tolerance.
 #[test]
 fn canary_no_false_alarm_vector_within_tolerance() {
-    let tantivy_docs = vec![
-        search_doc("memory", "doc1", "src/a.cs"),
-    ];
-    let docstore_docs = vec![
-        docstore_doc("memory", "doc1", "src/a.cs"),
-    ];
+    let tantivy_docs = vec![search_doc("memory", "doc1", "src/a.cs")];
+    let docstore_docs = vec![docstore_doc("memory", "doc1", "src/a.cs")];
 
     // vector_count=50 < tantivy_count(1)+100 → no VectorOrphan
     let result = build_test_mismatches(1, 1, 50, &tantivy_docs, &docstore_docs);
 
-    let vector_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::VectorOrphan));
+    let vector_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::VectorOrphan));
     assert!(
         vector_orphan.is_none(),
         "Vector count within tolerance should not trigger VectorOrphan"
@@ -133,9 +127,7 @@ fn canary_no_false_alarm_vector_within_tolerance() {
 /// Canary 7: Namespace skew — same doc_id in different namespaces.
 #[test]
 fn canary_namespace_skew_detected_as_orphan() {
-    let tantivy_docs = vec![
-        search_doc("memory", "doc1", "src/a.cs"),
-    ];
+    let tantivy_docs = vec![search_doc("memory", "doc1", "src/a.cs")];
     let docstore_docs = vec![
         docstore_doc("code", "doc1", "src/a.cs"), // Different namespace!
     ];
@@ -143,8 +135,12 @@ fn canary_namespace_skew_detected_as_orphan() {
     let result = build_test_mismatches(1, 1, 0, &tantivy_docs, &docstore_docs);
 
     // Both should be orphans in their respective stores
-    let tantivy_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::TantivyOrphan));
-    let docstore_orphan = result.iter().find(|m| matches!(m.kind, MismatchKind::DocstoreOrphan));
+    let tantivy_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::TantivyOrphan));
+    let docstore_orphan = result
+        .iter()
+        .find(|m| matches!(m.kind, MismatchKind::DocstoreOrphan));
     assert!(
         tantivy_orphan.is_some() || docstore_orphan.is_some(),
         "Namespace skew should be detected as orphan(s)"
@@ -155,7 +151,10 @@ fn canary_namespace_skew_detected_as_orphan() {
 #[test]
 fn canary_empty_stores_no_mismatches() {
     let result = build_test_mismatches(0, 0, 0, &[], &[]);
-    assert!(result.is_empty(), "Empty stores should produce no mismatches");
+    assert!(
+        result.is_empty(),
+        "Empty stores should produce no mismatches"
+    );
 }
 
 /// Canary 9: Repair policy override logic.
@@ -219,7 +218,10 @@ fn build_test_mismatches(
     if !tantivy_orphans.is_empty() {
         mismatches.push(IntegrityMismatch {
             kind: MismatchKind::TantivyOrphan,
-            description: format!("Tantivy has {} docs missing from docstore", tantivy_orphans.len()),
+            description: format!(
+                "Tantivy has {} docs missing from docstore",
+                tantivy_orphans.len()
+            ),
             expected: 0,
             actual: tantivy_orphans.len() as u64,
         });
@@ -233,7 +235,10 @@ fn build_test_mismatches(
     if !docstore_orphans.is_empty() {
         mismatches.push(IntegrityMismatch {
             kind: MismatchKind::DocstoreOrphan,
-            description: format!("Docstore has {} docs missing from Tantivy", docstore_orphans.len()),
+            description: format!(
+                "Docstore has {} docs missing from Tantivy",
+                docstore_orphans.len()
+            ),
             expected: 0,
             actual: docstore_orphans.len() as u64,
         });
