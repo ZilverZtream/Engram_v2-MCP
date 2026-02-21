@@ -2,7 +2,15 @@ use engram_core::Config;
 use engram_server::Engram;
 use engram_server::state::AppState;
 use rmcp::handler::server::tool::Parameters;
+use rmcp::model::RawContent;
 use tempfile::tempdir;
+
+fn first_text(res: &rmcp::model::CallToolResult) -> &str {
+    match &res.content[0].raw {
+        RawContent::Text(t) => &t.text,
+        _ => panic!("Expected text content"),
+    }
+}
 
 #[tokio::test]
 async fn test_max_files_limit() {
@@ -42,10 +50,7 @@ async fn test_max_files_limit() {
     };
 
     let res = engram.index_project(Parameters(index_req)).await.unwrap();
-    let text = match &res.content[0].raw {
-        rmcp::model::RawContent::Text(t) => &t.text,
-        _ => panic!("Expected text content"),
-    };
+    let text = first_text(&res);
 
     assert!(
         text.contains("Too many files"),
@@ -101,10 +106,7 @@ async fn test_binary_file_skip() {
     };
 
     let res = engram.index_project(Parameters(index_req)).await.unwrap();
-    let text = match &res.content[0].raw {
-        rmcp::model::RawContent::Text(t) => &t.text,
-        _ => panic!("Expected text content"),
-    };
+    let text = first_text(&res);
 
     // Should process 1 file (main.rs). bin.rs and large.rs skipped.
     // stats.files counts scanned files, so it will be 3.
@@ -113,5 +115,116 @@ async fn test_binary_file_skip() {
         text.contains("chunks=1"),
         "Should index 1 valid chunk. Output: {}",
         text
+    );
+}
+
+#[tokio::test]
+async fn test_initial_index_byte_budget_enforced() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    let project_dir = tmp.path().join("byte_limit_project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    std::fs::write(project_dir.join("a.rs"), "fn a() { println!(\"aaaa\"); }\n").unwrap();
+    std::fs::write(project_dir.join("b.rs"), "fn b() { println!(\"bbbb\"); }\n").unwrap();
+
+    let cfg = Config {
+        data_dir: data_dir.clone(),
+        allowed_roots: vec![project_dir.clone()],
+        max_project_files: None,
+        max_project_bytes: Some(10),
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state);
+
+    let res = engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: project_dir.to_string_lossy().to_string(),
+            project_name: "byte_limit_test".into(),
+            project_type: "code".into(),
+            wait: true,
+            dedupe_by_directory: true,
+        }))
+        .await
+        .unwrap();
+    let text = first_text(&res);
+
+    assert!(
+        text.contains("Project byte budget exceeded"),
+        "Expected byte-limit failure. Output: {}",
+        text
+    );
+}
+
+#[tokio::test]
+async fn test_incremental_update_byte_budget_enforced() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    let project_dir = tmp.path().join("update_byte_limit_project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    std::fs::write(project_dir.join("main.rs"), "fn main() {}\n").unwrap();
+
+    let cfg = Config {
+        data_dir: data_dir.clone(),
+        allowed_roots: vec![project_dir.clone()],
+        max_project_files: None,
+        max_project_bytes: Some(128),
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state);
+
+    let index_res = engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: project_dir.to_string_lossy().to_string(),
+            project_name: "update_byte_limit_test".into(),
+            project_type: "code".into(),
+            wait: true,
+            dedupe_by_directory: true,
+        }))
+        .await
+        .unwrap();
+    let index_text = first_text(&index_res);
+    assert!(index_text.contains("✅ Indexed project_id:"));
+    let project_id = index_text
+        .lines()
+        .find_map(|line| line.strip_prefix("✅ Indexed project_id: "))
+        .unwrap()
+        .trim()
+        .to_string();
+
+    std::fs::write(project_dir.join("main.rs"), "x".repeat(2048)).unwrap();
+
+    let update_res = engram
+        .update_project(Parameters(engram_server::UpdateProjectRequest {
+            project_id,
+            max_commits: Some(10),
+            index_antipatterns: false,
+            wait: true,
+        }))
+        .await
+        .unwrap();
+    let update_text = first_text(&update_res);
+
+    assert!(
+        update_text.contains("Project byte budget exceeded"),
+        "Expected byte-limit failure during update. Output: {}",
+        update_text
     );
 }
