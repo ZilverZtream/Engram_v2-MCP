@@ -70,6 +70,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `get_memory_budget` | implemented |
 | `compute_blast_radius` | implemented |
 | `detect_design_patterns` | implemented |
+| `autonomous_decision_gate` | implemented |
 | `graph_centrality_rerank` | planned |
 <!-- CAPABILITIES_MATRIX:END -->
 
