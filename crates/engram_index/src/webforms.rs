@@ -78,6 +78,20 @@ static SERVICE_ATTR_RE: OnceLock<Regex> = OnceLock::new();
 /// `Factory="Namespace.FactoryClass"` — used by WCF ServiceHost directives.
 static FACTORY_ATTR_RE: OnceLock<Regex> = OnceLock::new();
 
+// ── Fix: BoundField DataField extraction (P24.1) ────────────────────────────
+/// Matches GridView, DetailsView, FormView, ListView opening tags to capture parent IDs.
+static GRID_CONTAINER_RE: OnceLock<Regex> = OnceLock::new();
+/// Matches BoundField-type column controls: BoundField, CheckBoxField, ImageField, etc.
+static BOUND_FIELD_RE: OnceLock<Regex> = OnceLock::new();
+/// Extracts DataField/DataTextField/DataImageUrlField/DataNavigateUrlFields attributes.
+static DATA_FIELD_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+
+// ── Fix: SqlDataSource parameter binding extraction (P24.2) ──────────────────
+/// Matches parameter elements within SqlDataSource bodies.
+static PARAM_TAG_RE: OnceLock<Regex> = OnceLock::new();
+/// Generic attribute extractor for Name, ControlID, QueryStringField, etc.
+static GENERIC_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -468,6 +482,18 @@ pub fn extract_webforms(
         &char_to_line,
         &mut edges,
     );
+
+    // ── 6b. BoundField columns: <asp:BoundField DataField="..." /> ─────────────
+    extract_bound_field_columns(
+        source,
+        &source_file,
+        page_inherits_fqn.as_deref(),
+        &char_to_line,
+        &mut edges,
+    );
+
+    // ── 6c. SqlDataSource parameter bindings: <asp:ControlParameter ... /> ──────
+    extract_datasource_parameters(source, &source_file, &char_to_line, &mut edges);
 
     // ── 7. Server-Side Includes: <!--#include virtual="..." --> or file="..." ──
     extract_server_side_includes(
@@ -1311,6 +1337,300 @@ fn extract_data_binding_expressions(
             target_kind: Some("binding_field"),
             target_start_line: None,
             kind: "data_binding",
+            metadata: Some(meta),
+        });
+    }
+}
+
+// ── 6b. BoundField DataField Extraction ──────────────────────────────────────
+
+/// Extract `DataField="ColumnName"` from `<asp:BoundField>`, `<asp:CheckBoxField>`,
+/// `<asp:ImageField>`, `<asp:ButtonField>`, and `<asp:HyperLinkField>` controls.
+///
+/// These column-bound controls appear inside `<asp:GridView>`, `<asp:DetailsView>`,
+/// `<asp:FormView>`, and `<asp:ListView>` column definitions. The extractor emits
+/// `data_binding` edges from the enclosing grid control to `binding_field:ColumnName`,
+/// mirroring the existing `<%# Eval("...") %>` extraction.
+fn extract_bound_field_columns(
+    source: &str,
+    source_file: &str,
+    page_inherits_fqn: Option<&str>,
+    char_to_line: &dyn Fn(usize) -> u32,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let Some(grid_re) = get_compiled_regex(
+        &GRID_CONTAINER_RE,
+        r#"(?is)<asp:(GridView|DetailsView|FormView|ListView)\b((?:"[^"]*"|'[^']*'|[^>])*)>"#,
+        "webforms_grid_container",
+    ) else {
+        return;
+    };
+    let Some(bound_re) = get_compiled_regex(
+        &BOUND_FIELD_RE,
+        r#"(?is)<asp:(BoundField|CheckBoxField|ImageField|ButtonField|HyperLinkField)\b((?:"[^"]*"|'[^']*'|[^>])*)/?>"#,
+        "webforms_bound_field",
+    ) else {
+        return;
+    };
+    let Some(data_field_re) = get_compiled_regex(
+        &DATA_FIELD_ATTR_RE,
+        r#"(?i)\b(DataField|DataTextField|DataImageUrlField|DataNavigateUrlFields|DataUrlFields)\s*=\s*"([^"]*)""#,
+        "webforms_data_field_attr",
+    ) else {
+        return;
+    };
+    let Some(id_re) = get_compiled_regex(&ID_RE, r#"(?i)\bID\s*=\s*"([^"]+)""#, "webforms_id_bf")
+    else {
+        return;
+    };
+
+    // Pass 1: collect grid containers with positions and IDs.
+    struct GridInfo {
+        start: usize,
+        id: String,
+    }
+    let mut grids: Vec<GridInfo> = Vec::new();
+    for cap in grid_re.captures_iter(source) {
+        let attrs = &cap[2];
+        let start = cap.get(0).map_or(0, |m| m.start());
+        let grid_id = id_re
+            .captures(attrs)
+            .map(|c| c[1].trim().to_string())
+            .unwrap_or_else(|| format!("anon_grid_{}", char_to_line(start)));
+        grids.push(GridInfo { start, id: grid_id });
+    }
+
+    // Pass 2: find BoundField elements and associate with nearest preceding grid.
+    let mut seen_fields: HashMap<(String, String), bool> = HashMap::new();
+
+    for cap in bound_re.captures_iter(source) {
+        let field_type = cap[1].to_string();
+        let attrs = &cap[2];
+        let field_pos = cap.get(0).map_or(0, |m| m.start());
+        let line = char_to_line(field_pos);
+
+        // Find the nearest grid container that starts before this field.
+        let parent_id = grids
+            .iter()
+            .rev()
+            .find(|g| g.start < field_pos)
+            .map(|g| g.id.clone())
+            .unwrap_or_else(|| source_file.to_string());
+        let parent_kind = if parent_id == source_file {
+            "page"
+        } else {
+            "control"
+        };
+
+        // Extract all DataField-type attributes from the tag.
+        for attr_cap in data_field_re.captures_iter(attrs) {
+            let attr_name = &attr_cap[1];
+            let raw_value = attr_cap[2].trim();
+            if raw_value.is_empty() {
+                continue;
+            }
+
+            // DataNavigateUrlFields and DataUrlFields can be comma-separated.
+            let field_names: Vec<&str> = if attr_name.eq_ignore_ascii_case("DataNavigateUrlFields")
+                || attr_name.eq_ignore_ascii_case("DataUrlFields")
+            {
+                raw_value.split(',').map(|s| s.trim()).collect()
+            } else {
+                vec![raw_value]
+            };
+
+            for field_name in field_names {
+                if field_name.is_empty() {
+                    continue;
+                }
+
+                // Deduplicate: same (parent, field) pair only once.
+                let key = (parent_id.clone(), field_name.to_string());
+                if seen_fields.contains_key(&key) {
+                    continue;
+                }
+                seen_fields.insert(key, true);
+
+                let target_name = format!("binding_field:{}", field_name);
+                let mut meta = HashMap::new();
+                meta.insert("field_name".into(), field_name.to_string());
+                meta.insert("binding_type".into(), field_type.clone());
+                meta.insert("attribute".into(), attr_name.to_string());
+                meta.insert("parent_control".into(), parent_id.clone());
+                if let Some(ifqn) = page_inherits_fqn {
+                    meta.insert("page_fqn".into(), ifqn.to_string());
+                }
+
+                edges.push(ExtractedEdge {
+                    source_name: parent_id.clone(),
+                    source_kind: parent_kind,
+                    source_start_line: line,
+                    source_language: "aspx",
+                    target_name,
+                    target_kind: Some("binding_field"),
+                    target_start_line: None,
+                    kind: "data_binding",
+                    metadata: Some(meta),
+                });
+            }
+        }
+    }
+}
+
+// ── 6c. SqlDataSource Parameter Binding Extraction ───────────────────────────
+
+/// Extract `<asp:ControlParameter>`, `<asp:QueryStringParameter>`,
+/// `<asp:SessionParameter>`, `<asp:CookieParameter>`, `<asp:FormParameter>`,
+/// and `<asp:ProfileParameter>` from within SqlDataSource bodies.
+///
+/// Emits `parameter_binding` edges connecting the SQL parameter to the UI control
+/// or state source. For `<asp:ControlParameter ControlID="ddlRegions" Name="Region">`,
+/// this produces an edge from control `ddlRegions` to parameter `@Region`.
+fn extract_datasource_parameters(
+    source: &str,
+    _source_file: &str,
+    char_to_line: &dyn Fn(usize) -> u32,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let Some(param_re) = get_compiled_regex(
+        &PARAM_TAG_RE,
+        r#"(?is)<asp:(ControlParameter|QueryStringParameter|SessionParameter|CookieParameter|FormParameter|ProfileParameter)\b((?:"[^"]*"|'[^']*'|[^>])*)/?>"#,
+        "webforms_param_tag",
+    ) else {
+        return;
+    };
+    let Some(attr_re) = get_compiled_regex(
+        &GENERIC_ATTR_RE,
+        r#"(?i)\b(\w+)\s*=\s*"([^"]*)""#,
+        "generic_attr",
+    ) else {
+        return;
+    };
+
+    // We need to know which SqlDataSource each parameter belongs to.
+    // Strategy: find all SqlDataSource IDs with positions, then associate
+    // each parameter with the nearest preceding datasource.
+    struct DsInfo {
+        start: usize,
+        id: String,
+    }
+    let ds_id_re = get_compiled_regex(
+        &DATASOURCE_RE,
+        r#"(?is)<asp:(SqlDataSource|ObjectDataSource|LinqDataSource|EntityDataSource)\b((?:"[^"]*"|'[^']*'|[^>])*)/?>"#,
+        "webforms_datasource_p",
+    );
+    let id_re_inner = get_compiled_regex(&ID_RE, r#"(?i)\bID\s*=\s*"([^"]+)""#, "webforms_id_p");
+
+    let mut ds_list: Vec<DsInfo> = Vec::new();
+    if let (Some(ds_re), Some(id_re)) = (ds_id_re, id_re_inner) {
+        for cap in ds_re.captures_iter(source) {
+            let attrs = &cap[2];
+            let start = cap.get(0).map_or(0, |m| m.start());
+            let ds_id = id_re
+                .captures(attrs)
+                .map(|c| c[1].trim().to_string())
+                .unwrap_or_default();
+            if !ds_id.is_empty() {
+                ds_list.push(DsInfo { start, id: ds_id });
+            }
+        }
+    }
+
+    for cap in param_re.captures_iter(source) {
+        let param_type = cap[1].to_string();
+        let attrs_text = &cap[2];
+        let param_pos = cap.get(0).map_or(0, |m| m.start());
+        let line = char_to_line(param_pos);
+
+        // Parse all attributes from the parameter tag.
+        let attrs: HashMap<String, String> = attr_re
+            .captures_iter(attrs_text)
+            .map(|c| (c[1].to_lowercase(), c[2].trim().to_string()))
+            .collect();
+
+        let param_name = match attrs.get("name") {
+            Some(n) if !n.is_empty() => n.clone(),
+            _ => continue, // Parameter without a Name is meaningless.
+        };
+
+        // Determine the source control/field based on parameter type.
+        let (source_name, source_kind) = match param_type.as_str() {
+            "ControlParameter" => {
+                let ctrl_id = attrs.get("controlid").cloned().unwrap_or_default();
+                if ctrl_id.is_empty() {
+                    continue;
+                }
+                (ctrl_id, "control")
+            }
+            "QueryStringParameter" => {
+                let field = attrs
+                    .get("querystringfield")
+                    .cloned()
+                    .unwrap_or_else(|| param_name.clone());
+                (format!("qs:{}", field), "query_string")
+            }
+            "SessionParameter" => {
+                let field = attrs
+                    .get("sessionfield")
+                    .cloned()
+                    .unwrap_or_else(|| param_name.clone());
+                (format!("session:{}", field), "session_state")
+            }
+            "CookieParameter" => {
+                let field = attrs
+                    .get("cookiename")
+                    .cloned()
+                    .unwrap_or_else(|| param_name.clone());
+                (format!("cookie:{}", field), "cookie")
+            }
+            "FormParameter" => {
+                let field = attrs
+                    .get("formfield")
+                    .cloned()
+                    .unwrap_or_else(|| param_name.clone());
+                (format!("form:{}", field), "form_field")
+            }
+            "ProfileParameter" => {
+                let field = attrs
+                    .get("propertyname")
+                    .cloned()
+                    .unwrap_or_else(|| param_name.clone());
+                (format!("profile:{}", field), "profile")
+            }
+            _ => continue,
+        };
+
+        // Find the nearest preceding datasource.
+        let ds_id = ds_list
+            .iter()
+            .rev()
+            .find(|d| d.start < param_pos)
+            .map(|d| d.id.clone())
+            .unwrap_or_default();
+
+        let target_name = format!("@{}", param_name);
+        let mut meta = HashMap::new();
+        meta.insert("parameter_name".into(), param_name);
+        meta.insert("parameter_type".into(), param_type);
+        if !ds_id.is_empty() {
+            meta.insert("datasource_id".into(), ds_id);
+        }
+        // Include the source field/key for richer context.
+        if let Some(prop) = attrs.get("propertyname") {
+            if !prop.is_empty() {
+                meta.insert("property_name".into(), prop.clone());
+            }
+        }
+
+        edges.push(ExtractedEdge {
+            source_name,
+            source_kind,
+            source_start_line: line,
+            source_language: "aspx",
+            target_name,
+            target_kind: Some("sql_parameter"),
+            target_start_line: None,
+            kind: "parameter_binding",
             metadata: Some(meta),
         });
     }

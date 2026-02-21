@@ -79,6 +79,7 @@ pub enum EdgeKind {
     ManipulatesDom,
     TriggersPostback,
     ApiCall,
+    ParameterBinding,
 }
 
 impl EdgeKind {
@@ -112,6 +113,7 @@ impl EdgeKind {
         EdgeKind::ManipulatesDom,
         EdgeKind::TriggersPostback,
         EdgeKind::ApiCall,
+        EdgeKind::ParameterBinding,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -145,6 +147,7 @@ impl EdgeKind {
             EdgeKind::ManipulatesDom => "manipulates_dom",
             EdgeKind::TriggersPostback => "triggers_postback",
             EdgeKind::ApiCall => "api_call",
+            EdgeKind::ParameterBinding => "parameter_binding",
         }
     }
 
@@ -179,6 +182,7 @@ impl EdgeKind {
             "manipulates_dom" => Some(EdgeKind::ManipulatesDom),
             "triggers_postback" => Some(EdgeKind::TriggersPostback),
             "api_call" => Some(EdgeKind::ApiCall),
+            "parameter_binding" => Some(EdgeKind::ParameterBinding),
             _ => None,
         }
     }
@@ -1884,7 +1888,8 @@ mod tests {
                 | EdgeKind::RegistersHandler
                 | EdgeKind::ManipulatesDom
                 | EdgeKind::TriggersPostback
-                | EdgeKind::ApiCall => all_set.contains(&ek),
+                | EdgeKind::ApiCall
+                | EdgeKind::ParameterBinding => all_set.contains(&ek),
             }
         };
 
@@ -1896,7 +1901,7 @@ mod tests {
             );
         }
 
-        let variant_count = 29;
+        let variant_count = 30;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,
