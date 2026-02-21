@@ -1,5 +1,6 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
+use engram_core::memory::{AllocationGuard, Subsystem};
 
 fn is_safe_project_relative_path(path: &str) -> bool {
     let p = std::path::Path::new(path);
@@ -38,6 +39,16 @@ pub async fn process_ingest_stats(
     generation: u64,
     stats: &engram_index::IngestStats,
 ) -> anyhow::Result<()> {
+    let graph_estimate_bytes = ((stats.symbols.len() + stats.edges.len() + stats.all_files.len())
+        as u64)
+        .saturating_mul(512);
+    let _graph_build_guard = AllocationGuard::try_new(
+        state.memory_budget.as_ref(),
+        graph_estimate_bytes.max(1),
+        Subsystem::Graph,
+        "graph build phase",
+    )?;
+
     let mut nodes = Vec::with_capacity(stats.symbols.len() + stats.all_files.len());
 
     let fp_map: std::collections::HashMap<_, _> = stats

@@ -196,6 +196,59 @@ pub enum Subsystem {
     Misc,
 }
 
+/// RAII guard for memory allocations tracked by `MemoryBudget`.
+///
+/// Automatically releases the reserved bytes when dropped, ensuring cleanup on
+/// success, error, or cancellation paths.
+pub struct AllocationGuard {
+    budget: MemoryBudget,
+    bytes: u64,
+    subsystem: Subsystem,
+}
+
+impl AllocationGuard {
+    /// Attempt to reserve bytes and return a guard that will release on drop.
+    pub fn try_new(
+        budget: &MemoryBudget,
+        bytes: u64,
+        subsystem: Subsystem,
+        operation: &str,
+    ) -> anyhow::Result<Self> {
+        match budget.try_allocate(bytes, subsystem) {
+            MemoryDecision::Rejected => anyhow::bail!(
+                "memory budget exceeded for {operation}: requested={}B, used={}B, budget={}B, subsystem={:?}",
+                bytes,
+                budget.used(),
+                budget.budget(),
+                subsystem
+            ),
+            MemoryDecision::SoftPressure => {
+                tracing::warn!(
+                    operation,
+                    requested_bytes = bytes,
+                    used_bytes = budget.used(),
+                    budget_bytes = budget.budget(),
+                    subsystem = ?subsystem,
+                    "memory soft pressure while reserving bytes"
+                );
+            }
+            MemoryDecision::Allowed => {}
+        }
+
+        Ok(Self {
+            budget: budget.clone(),
+            bytes,
+            subsystem,
+        })
+    }
+}
+
+impl Drop for AllocationGuard {
+    fn drop(&mut self) {
+        self.budget.release(self.bytes, self.subsystem);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryBreakdown {
     pub total_used: u64,
