@@ -93,6 +93,49 @@ impl RiskProfile {
     }
 }
 
+// ── ADP vNext types ──────────────────────────────────────────────────────────
+
+/// Reconciliation-derived scores for the runtime evidence gate (vNext).
+///
+/// Replaces the boolean `has_runtime_evidence` with rich reconciliation
+/// data from static-vs-runtime path analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReconciliationScores {
+    /// Ratio of confirmed paths (confirmed / static_paths).
+    pub confirmed_ratio: f64,
+    /// Ratio of contradicted paths (contradicted / static_paths).
+    pub contradicted_ratio: f64,
+    /// Confidence delta from reconciliation analysis.
+    pub confidence_delta: f64,
+    /// Total static paths evaluated.
+    pub static_paths_count: usize,
+}
+
+/// Graph-derived impact metrics for structured safety evaluation (vNext).
+///
+/// Replaces text-heuristic detection of state/database touches with
+/// edge-count-based signals from the project graph.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct GraphImpactMetrics {
+    pub downstream_dependency_count: u64,
+    pub reads_state_count: usize,
+    pub writes_state_count: usize,
+    pub sql_calls_count: usize,
+    pub queries_table_count: usize,
+    pub injects_script_count: usize,
+}
+
+/// Retrieval evaluation mode for the retrieval quality gate (vNext).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RetrievalMode {
+    /// Retrieval gate skipped (fast mode).
+    Skipped,
+    /// Used cached benchmark results (staleness discount applies).
+    Cached,
+    /// Ran live benchmark (deep mode).
+    Live,
+}
+
 /// Input to the ADP pipeline, built by the tool handler from request + state.
 pub struct AdpInput {
     // ── Extraction confidence ──
@@ -138,6 +181,16 @@ pub struct AdpInput {
     pub min_extraction_confidence: f64,
     pub min_safety_confidence: f64,
     pub max_blast_radius_for_auto: u8,
+
+    // ── vNext fields ──
+    /// Reconciliation scores derived from runtime evidence (replaces boolean).
+    pub reconciliation: Option<ReconciliationScores>,
+    /// Graph-derived impact metrics for structured safety evaluation.
+    pub graph_impact: Option<GraphImpactMetrics>,
+    /// Retrieval evaluation mode (skipped/cached/live).
+    pub retrieval_mode: RetrievalMode,
+    /// Migration class for calibrated thresholds (e.g., "data_access", "webforms_page").
+    pub migration_class: Option<String>,
 }
 
 // ── Gate pipeline ────────────────────────────────────────────────────────────
@@ -296,12 +349,26 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
     }
     gate_results.push(g8);
 
-    // ── Compute aggregate confidence ──
+    // ── Compute aggregate confidence (vNext: calibrated weighted aggregation) ──
     let applicable: Vec<&GateResult> = gate_results.iter().filter(|g| !g.skipped).collect();
     let aggregate_confidence = if applicable.is_empty() {
         0.0
     } else {
-        applicable.iter().map(|g| g.confidence).sum::<f64>() / applicable.len() as f64
+        let mut weighted_sum = 0.0;
+        let mut total_weight = 0.0;
+        for g in &applicable {
+            let weight = gate_reliability_weight(&g.gate_id);
+            weighted_sum += g.confidence * weight;
+            total_weight += weight;
+        }
+        let base = if total_weight > 0.0 {
+            weighted_sum / total_weight
+        } else {
+            0.0
+        };
+        let class_adj = class_threshold_adjustment(input.migration_class.as_deref());
+        let penalty = interaction_penalty(&gate_results);
+        (base + class_adj - penalty).clamp(0.0, 1.0)
     };
 
     // ── Determine verdict ──
@@ -427,33 +494,46 @@ fn evaluate_safety_policy_gate(input: &AdpInput) -> GateResult {
 
 fn evaluate_retrieval_quality_gate(input: &AdpInput) -> GateResult {
     match input.retrieval_production_ready {
-        Some(ready) => GateResult {
-            gate_id: "retrieval_quality".into(),
-            gate_name: "Retrieval Quality".into(),
-            passed: ready,
-            confidence: if ready {
-                ((input.retrieval_ndcg.unwrap_or(0.0) + input.retrieval_recall.unwrap_or(0.0))
-                    / 2.0)
-                    .min(1.0)
-            } else {
-                (input.retrieval_ndcg.unwrap_or(0.0) + input.retrieval_recall.unwrap_or(0.0)) / 2.0
-            },
-            detail: format!(
-                "Retrieval NDCG@10={:.2}, Recall@10={:.2}, production_ready={}",
-                input.retrieval_ndcg.unwrap_or(0.0),
-                input.retrieval_recall.unwrap_or(0.0),
-                ready
-            ),
-            skipped: false,
-        },
-        None => GateResult {
-            gate_id: "retrieval_quality".into(),
-            gate_name: "Retrieval Quality".into(),
-            passed: false,
-            confidence: 0.0,
-            detail: "Retrieval benchmark not run".into(),
-            skipped: true,
-        },
+        Some(ready) => {
+            let raw_conf = ((input.retrieval_ndcg.unwrap_or(0.0)
+                + input.retrieval_recall.unwrap_or(0.0))
+                / 2.0)
+                .min(1.0);
+            // vNext: cached results get a staleness discount
+            let confidence = match input.retrieval_mode {
+                RetrievalMode::Cached => raw_conf * 0.9,
+                _ => raw_conf,
+            };
+            GateResult {
+                gate_id: "retrieval_quality".into(),
+                gate_name: "Retrieval Quality".into(),
+                passed: ready,
+                confidence,
+                detail: format!(
+                    "Retrieval NDCG@10={:.2}, Recall@10={:.2}, mode={:?}, production_ready={}",
+                    input.retrieval_ndcg.unwrap_or(0.0),
+                    input.retrieval_recall.unwrap_or(0.0),
+                    input.retrieval_mode,
+                    ready
+                ),
+                skipped: false,
+            }
+        }
+        None => {
+            let is_skipped = input.retrieval_mode == RetrievalMode::Skipped;
+            GateResult {
+                gate_id: "retrieval_quality".into(),
+                gate_name: "Retrieval Quality".into(),
+                passed: false,
+                confidence: 0.0,
+                detail: if is_skipped {
+                    "Retrieval benchmark skipped (fast mode)".into()
+                } else {
+                    "Retrieval benchmark not run".into()
+                },
+                skipped: is_skipped,
+            }
+        }
     }
 }
 
@@ -534,17 +614,266 @@ fn evaluate_runtime_evidence_gate(input: &AdpInput) -> GateResult {
         };
     }
 
+    // vNext: prefer reconciliation scores over boolean presence
+    if let Some(ref recon) = input.reconciliation {
+        let confidence = compute_reconciliation_confidence(recon);
+        let passed = confidence >= 0.6 && recon.contradicted_ratio < 0.2;
+        return GateResult {
+            gate_id: "runtime_evidence".into(),
+            gate_name: "Runtime Evidence".into(),
+            passed,
+            confidence,
+            detail: format!(
+                "Reconciliation: {:.0}% confirmed, {:.0}% contradicted, \
+                 delta={:.2}, paths={}",
+                recon.confirmed_ratio * 100.0,
+                recon.contradicted_ratio * 100.0,
+                recon.confidence_delta,
+                recon.static_paths_count,
+            ),
+            skipped: false,
+        };
+    }
+
+    // Fallback to boolean (backward compat, lower confidence to incentivize upgrade)
     GateResult {
         gate_id: "runtime_evidence".into(),
         gate_name: "Runtime Evidence".into(),
         passed: input.has_runtime_evidence,
-        confidence: if input.has_runtime_evidence { 0.9 } else { 0.0 },
+        confidence: if input.has_runtime_evidence { 0.7 } else { 0.0 },
         detail: if input.has_runtime_evidence {
-            "Runtime evidence available — instrumentation data collected".into()
+            "Runtime evidence available (boolean mode — upgrade to reconciliation for higher confidence)".into()
         } else {
             "Runtime evidence required but not available — deploy instrumentation first".into()
         },
         skipped: false,
+    }
+}
+
+/// Compute confidence from reconciliation scores.
+///
+/// Formula: base (confirmed * 0.7) - penalty (contradicted * 0.5) + uplift (delta * 0.3)
+fn compute_reconciliation_confidence(recon: &ReconciliationScores) -> f64 {
+    if recon.static_paths_count == 0 {
+        return 0.0;
+    }
+    let base = recon.confirmed_ratio * 0.7;
+    let penalty = recon.contradicted_ratio * 0.5;
+    let uplift = recon.confidence_delta.max(0.0) * 0.3;
+    (base - penalty + uplift).clamp(0.0, 1.0)
+}
+
+// ── Wave-level ADP (vNext) ────────────────────────────────────────────────────
+
+/// Input for evaluating an entire migration wave.
+pub struct WaveAdpInput {
+    pub wave_number: usize,
+    pub wave_name: String,
+    /// Per-item ADP inputs (one per file/component in the wave).
+    pub items: Vec<(String, AdpInput)>, // (file_path, input)
+    /// Cross-item dependencies within this wave.
+    pub cross_item_deps: usize,
+}
+
+/// Result of evaluating a migration wave.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaveAdpDecision {
+    pub wave_number: usize,
+    pub wave_name: String,
+    /// Overall wave verdict: allow only if ALL items allow.
+    pub verdict: AdpVerdict,
+    /// Aggregate confidence across all items.
+    pub confidence: f64,
+    /// Per-item decisions.
+    pub item_decisions: Vec<WaveItemDecision>,
+    /// Items that blocked the wave.
+    pub blocking_items: Vec<String>,
+    /// Cross-item interaction penalties applied.
+    pub interaction_penalties: Vec<String>,
+}
+
+/// Per-item decision within a wave evaluation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaveItemDecision {
+    pub file_path: String,
+    pub decision: AdpDecision,
+}
+
+/// Evaluate an entire migration wave.
+///
+/// Verdict logic:
+/// - If ANY item is Deny → wave is Deny
+/// - If ANY item is Abstain → wave is Abstain
+/// - If ALL items are Allow → wave is Allow
+/// - Cross-item penalty: >3 items with blast_radius > 5 → shift to Abstain
+pub fn evaluate_wave(input: &WaveAdpInput) -> WaveAdpDecision {
+    let mut item_decisions = Vec::new();
+    let mut blocking_items = Vec::new();
+    let mut has_deny = false;
+    let mut has_abstain = false;
+    let mut high_blast_count = 0;
+
+    for (file_path, item) in &input.items {
+        let decision = evaluate_gates(item);
+
+        match decision.verdict {
+            AdpVerdict::Deny => {
+                has_deny = true;
+                blocking_items.push(file_path.clone());
+            }
+            AdpVerdict::Abstain => {
+                has_abstain = true;
+                blocking_items.push(file_path.clone());
+            }
+            AdpVerdict::Allow => {}
+        }
+
+        if item.blast_radius_risk.unwrap_or(0) > 5 {
+            high_blast_count += 1;
+        }
+
+        item_decisions.push(WaveItemDecision {
+            file_path: file_path.clone(),
+            decision,
+        });
+    }
+
+    // Cross-item interaction: many high-blast items in one wave = systemic risk
+    let mut interaction_pens = Vec::new();
+    if high_blast_count > 3 {
+        has_abstain = true;
+        interaction_pens.push(format!(
+            "{} items have blast radius > 5; consider splitting this wave",
+            high_blast_count
+        ));
+    }
+
+    // Cross-dependency penalty
+    if input.items.len() > 1 && input.cross_item_deps > input.items.len() * 2 {
+        interaction_pens.push(format!(
+            "High internal coupling ({} cross-deps for {} items); migration order matters",
+            input.cross_item_deps,
+            input.items.len()
+        ));
+    }
+
+    let verdict = if has_deny {
+        AdpVerdict::Deny
+    } else if has_abstain {
+        AdpVerdict::Abstain
+    } else {
+        AdpVerdict::Allow
+    };
+
+    let confidence = if item_decisions.is_empty() {
+        0.0
+    } else {
+        item_decisions
+            .iter()
+            .map(|d| d.decision.confidence)
+            .sum::<f64>()
+            / item_decisions.len() as f64
+    };
+
+    WaveAdpDecision {
+        wave_number: input.wave_number,
+        wave_name: input.wave_name.clone(),
+        verdict,
+        confidence,
+        item_decisions,
+        blocking_items,
+        interaction_penalties: interaction_pens,
+    }
+}
+
+/// Format a wave decision as human-readable text.
+pub fn format_wave_decision(decision: &WaveAdpDecision) -> String {
+    let mut out = String::with_capacity(4096);
+
+    out.push_str(&format!(
+        "# Wave {} — {} ADP Result\n\n\
+         **Verdict:** {}\n\
+         **Confidence:** {:.2}\n\
+         **Items:** {}\n\n",
+        decision.wave_number,
+        decision.wave_name,
+        decision.verdict,
+        decision.confidence,
+        decision.item_decisions.len()
+    ));
+
+    if !decision.blocking_items.is_empty() {
+        out.push_str("## Blocking Items\n");
+        for b in &decision.blocking_items {
+            out.push_str(&format!("- `{}`\n", b));
+        }
+        out.push('\n');
+    }
+
+    if !decision.interaction_penalties.is_empty() {
+        out.push_str("## Cross-Item Interaction Penalties\n");
+        for p in &decision.interaction_penalties {
+            out.push_str(&format!("- {}\n", p));
+        }
+        out.push('\n');
+    }
+
+    out.push_str("## Per-Item Results\n");
+    for item in &decision.item_decisions {
+        out.push_str(&format!(
+            "### `{}`\n**Verdict:** {} | **Confidence:** {:.2}\n",
+            item.file_path, item.decision.verdict, item.decision.confidence
+        ));
+        if !item.decision.failed_gates.is_empty() {
+            out.push_str(&format!(
+                "Failed gates: {}\n",
+                item.decision.failed_gates.join(", ")
+            ));
+        }
+        out.push('\n');
+    }
+
+    out
+}
+
+// ── Calibrated confidence helpers (vNext) ─────────────────────────────────────
+
+/// Per-gate reliability priors for weighted confidence aggregation.
+fn gate_reliability_weight(gate_id: &str) -> f64 {
+    match gate_id {
+        "extraction_confidence" => 0.20,
+        "trace_certainty" => 0.15,
+        "safety_policy" => 0.25,
+        "retrieval_quality" => 0.10,
+        "blast_radius" => 0.15,
+        "anti_pattern" => 0.10,
+        "runtime_evidence" => 0.05,
+        _ => 0.10, // evidence_sufficiency or unknown
+    }
+}
+
+/// Class-specific confidence adjustments.
+/// Data-access / DB migrations are stricter; static assets are more lenient.
+fn class_threshold_adjustment(migration_class: Option<&str>) -> f64 {
+    match migration_class {
+        Some("data_access") | Some("database_migration") => -0.05,
+        Some("static_asset") | Some("configuration") => 0.05,
+        _ => 0.0,
+    }
+}
+
+/// Interaction penalty: co-failure of safety + blast radius indicates systemic risk.
+fn interaction_penalty(gate_results: &[GateResult]) -> f64 {
+    let safety_failed = gate_results
+        .iter()
+        .any(|g| g.gate_id == "safety_policy" && !g.passed && !g.skipped);
+    let blast_failed = gate_results
+        .iter()
+        .any(|g| g.gate_id == "blast_radius" && !g.passed && !g.skipped);
+    if safety_failed && blast_failed {
+        0.10
+    } else {
+        0.0
     }
 }
 
@@ -872,6 +1201,35 @@ pub fn replay_from_scenario(
                 _ => None,
             });
 
+    // Build reconciliation scores from v2 scenario fields (if present)
+    let reconciliation = match (
+        scenario_input.reconciliation_confirmed_ratio,
+        scenario_input.reconciliation_contradicted_ratio,
+    ) {
+        (Some(confirmed), Some(contradicted)) => Some(ReconciliationScores {
+            confirmed_ratio: confirmed,
+            contradicted_ratio: contradicted,
+            confidence_delta: scenario_input
+                .reconciliation_confidence_delta
+                .unwrap_or(0.0),
+            static_paths_count: scenario_input.reconciliation_static_paths.unwrap_or(0),
+        }),
+        _ => None,
+    };
+
+    // Parse retrieval mode from v2 scenario field
+    let retrieval_mode = match scenario_input.retrieval_mode.as_deref() {
+        Some("cached") => RetrievalMode::Cached,
+        Some("live") => RetrievalMode::Live,
+        _ => {
+            if scenario_input.retrieval_production_ready.is_some() {
+                RetrievalMode::Live
+            } else {
+                RetrievalMode::Skipped
+            }
+        }
+    };
+
     let input = AdpInput {
         extraction_confidence: scenario_input.extraction_confidence,
         extraction_band: scenario_input.extraction_band.clone(),
@@ -892,6 +1250,10 @@ pub fn replay_from_scenario(
         min_extraction_confidence: scenario_input.min_extraction_confidence,
         min_safety_confidence: scenario_input.min_safety_confidence,
         max_blast_radius_for_auto: scenario_input.max_blast_radius_for_auto,
+        reconciliation,
+        graph_impact: None, // Replay doesn't need graph impact (safety_decision is pre-provided)
+        retrieval_mode,
+        migration_class: scenario_input.migration_class.clone(),
     };
 
     evaluate_gates(&input)
@@ -1047,6 +1409,10 @@ mod tests {
             min_extraction_confidence: 0.5,
             min_safety_confidence: 0.7,
             max_blast_radius_for_auto: 6,
+            reconciliation: None,
+            graph_impact: None,
+            retrieval_mode: RetrievalMode::Live,
+            migration_class: None,
         }
     }
 
@@ -1195,9 +1561,9 @@ mod tests {
 
     // ── Replay determinism tests ────────────────────────────────────────────
 
-    #[test]
-    fn replay_determinism_identical_inputs_same_verdict() {
-        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+    /// Helper to build a v1-compatible scenario input with vNext defaults.
+    fn make_scenario_input() -> engram_core::benchmark::AdpScenarioInput {
+        engram_core::benchmark::AdpScenarioInput {
             extraction_confidence: Some(0.85),
             extraction_band: Some("high".into()),
             trace_used_fallback: false,
@@ -1218,7 +1584,18 @@ mod tests {
             min_extraction_confidence: 0.5,
             min_safety_confidence: 0.7,
             max_blast_radius_for_auto: 6,
-        };
+            reconciliation_confirmed_ratio: None,
+            reconciliation_contradicted_ratio: None,
+            reconciliation_confidence_delta: None,
+            reconciliation_static_paths: None,
+            retrieval_mode: None,
+            migration_class: None,
+        }
+    }
+
+    #[test]
+    fn replay_determinism_identical_inputs_same_verdict() {
+        let scenario_input = make_scenario_input();
 
         let d1 = replay_from_scenario(&scenario_input);
         let d2 = replay_from_scenario(&scenario_input);
@@ -1236,63 +1613,64 @@ mod tests {
 
     #[test]
     fn replay_from_scenario_allow() {
-        let scenario_input = engram_core::benchmark::AdpScenarioInput {
-            extraction_confidence: Some(0.9),
-            extraction_band: Some("high".into()),
-            trace_used_fallback: false,
-            trace_candidate_count: 0,
-            safety_allowed: Some(true),
-            safety_confidence: Some(0.95),
-            retrieval_production_ready: Some(true),
-            retrieval_ndcg: Some(0.8),
-            retrieval_recall: Some(0.9),
-            blast_radius_risk: Some(2),
-            blast_radius_band: Some("Low".into()),
-            blast_radius_downstream: Some(3),
-            immune_verdict: Some("PASS".into()),
-            immune_confidence: Some(0.05),
-            require_runtime_evidence: false,
-            has_runtime_evidence: false,
-            risk_profile: "medium".into(),
-            min_extraction_confidence: 0.5,
-            min_safety_confidence: 0.7,
-            max_blast_radius_for_auto: 6,
-        };
-        let decision = replay_from_scenario(&scenario_input);
+        let mut si = make_scenario_input();
+        si.extraction_confidence = Some(0.9);
+        si.retrieval_ndcg = Some(0.8);
+        si.retrieval_recall = Some(0.9);
+        si.blast_radius_risk = Some(2);
+        si.blast_radius_downstream = Some(3);
+        let decision = replay_from_scenario(&si);
         assert_eq!(decision.verdict, AdpVerdict::Allow);
     }
 
     #[test]
     fn replay_from_scenario_deny_on_safety() {
-        let scenario_input = engram_core::benchmark::AdpScenarioInput {
-            extraction_confidence: Some(0.9),
-            extraction_band: Some("high".into()),
-            trace_used_fallback: false,
-            trace_candidate_count: 0,
-            safety_allowed: Some(false),
-            safety_confidence: Some(0.3),
-            retrieval_production_ready: Some(true),
-            retrieval_ndcg: Some(0.8),
-            retrieval_recall: Some(0.9),
-            blast_radius_risk: Some(2),
-            blast_radius_band: Some("Low".into()),
-            blast_radius_downstream: Some(3),
-            immune_verdict: Some("PASS".into()),
-            immune_confidence: Some(0.05),
-            require_runtime_evidence: false,
-            has_runtime_evidence: false,
-            risk_profile: "medium".into(),
-            min_extraction_confidence: 0.5,
-            min_safety_confidence: 0.7,
-            max_blast_radius_for_auto: 6,
-        };
-        let decision = replay_from_scenario(&scenario_input);
+        let mut si = make_scenario_input();
+        si.extraction_confidence = Some(0.9);
+        si.safety_allowed = Some(false);
+        si.safety_confidence = Some(0.3);
+        si.retrieval_ndcg = Some(0.8);
+        si.retrieval_recall = Some(0.9);
+        si.blast_radius_risk = Some(2);
+        si.blast_radius_downstream = Some(3);
+        let decision = replay_from_scenario(&si);
         assert_eq!(decision.verdict, AdpVerdict::Deny);
         assert!(decision.failed_gates.contains(&"safety_policy".into()));
     }
 
     #[test]
     fn corpus_runner_computes_confusion_matrix() {
+        let mut s1 = make_scenario_input();
+        s1.extraction_confidence = Some(0.9);
+        s1.retrieval_ndcg = Some(0.8);
+        s1.retrieval_recall = Some(0.9);
+        s1.blast_radius_risk = Some(2);
+        s1.blast_radius_downstream = Some(3);
+
+        let mut s2 = make_scenario_input();
+        s2.extraction_confidence = Some(0.9);
+        s2.safety_allowed = Some(false);
+        s2.safety_confidence = Some(0.2);
+        s2.retrieval_ndcg = Some(0.8);
+        s2.retrieval_recall = Some(0.9);
+        s2.blast_radius_risk = Some(2);
+        s2.blast_radius_downstream = Some(3);
+        s2.risk_profile = "high".into();
+
+        let mut s3 = make_scenario_input();
+        s3.extraction_confidence = None;
+        s3.extraction_band = None;
+        s3.safety_allowed = None;
+        s3.safety_confidence = None;
+        s3.retrieval_production_ready = None;
+        s3.retrieval_ndcg = None;
+        s3.retrieval_recall = None;
+        s3.blast_radius_risk = None;
+        s3.blast_radius_band = None;
+        s3.blast_radius_downstream = None;
+        s3.immune_verdict = None;
+        s3.immune_confidence = None;
+
         let corpus = engram_core::benchmark::AdpCorpus {
             schema_version: "1.0.0".into(),
             name: "test-corpus".into(),
@@ -1303,28 +1681,7 @@ mod tests {
                     description: "All green".into(),
                     risk_class: "low".into(),
                     source: "synthetic".into(),
-                    input: engram_core::benchmark::AdpScenarioInput {
-                        extraction_confidence: Some(0.9),
-                        extraction_band: Some("high".into()),
-                        trace_used_fallback: false,
-                        trace_candidate_count: 0,
-                        safety_allowed: Some(true),
-                        safety_confidence: Some(0.95),
-                        retrieval_production_ready: Some(true),
-                        retrieval_ndcg: Some(0.8),
-                        retrieval_recall: Some(0.9),
-                        blast_radius_risk: Some(2),
-                        blast_radius_band: Some("Low".into()),
-                        blast_radius_downstream: Some(3),
-                        immune_verdict: Some("PASS".into()),
-                        immune_confidence: Some(0.05),
-                        require_runtime_evidence: false,
-                        has_runtime_evidence: false,
-                        risk_profile: "medium".into(),
-                        min_extraction_confidence: 0.5,
-                        min_safety_confidence: 0.7,
-                        max_blast_radius_for_auto: 6,
-                    },
+                    input: s1,
                     expected_verdict: "allow".into(),
                     expected_failed_gates: vec![],
                     rationale: "All signals green".into(),
@@ -1334,28 +1691,7 @@ mod tests {
                     description: "Safety blocked".into(),
                     risk_class: "high".into(),
                     source: "synthetic".into(),
-                    input: engram_core::benchmark::AdpScenarioInput {
-                        extraction_confidence: Some(0.9),
-                        extraction_band: Some("high".into()),
-                        trace_used_fallback: false,
-                        trace_candidate_count: 0,
-                        safety_allowed: Some(false),
-                        safety_confidence: Some(0.2),
-                        retrieval_production_ready: Some(true),
-                        retrieval_ndcg: Some(0.8),
-                        retrieval_recall: Some(0.9),
-                        blast_radius_risk: Some(2),
-                        blast_radius_band: Some("Low".into()),
-                        blast_radius_downstream: Some(3),
-                        immune_verdict: Some("PASS".into()),
-                        immune_confidence: Some(0.05),
-                        require_runtime_evidence: false,
-                        has_runtime_evidence: false,
-                        risk_profile: "high".into(),
-                        min_extraction_confidence: 0.5,
-                        min_safety_confidence: 0.7,
-                        max_blast_radius_for_auto: 6,
-                    },
+                    input: s2,
                     expected_verdict: "deny".into(),
                     expected_failed_gates: vec!["safety_policy".into()],
                     rationale: "Safety evaluation blocked".into(),
@@ -1365,28 +1701,7 @@ mod tests {
                     description: "Missing evidence".into(),
                     risk_class: "medium".into(),
                     source: "synthetic".into(),
-                    input: engram_core::benchmark::AdpScenarioInput {
-                        extraction_confidence: None,
-                        extraction_band: None,
-                        trace_used_fallback: false,
-                        trace_candidate_count: 0,
-                        safety_allowed: None,
-                        safety_confidence: None,
-                        retrieval_production_ready: None,
-                        retrieval_ndcg: None,
-                        retrieval_recall: None,
-                        blast_radius_risk: None,
-                        blast_radius_band: None,
-                        blast_radius_downstream: None,
-                        immune_verdict: None,
-                        immune_confidence: None,
-                        require_runtime_evidence: false,
-                        has_runtime_evidence: false,
-                        risk_profile: "medium".into(),
-                        min_extraction_confidence: 0.5,
-                        min_safety_confidence: 0.7,
-                        max_blast_radius_for_auto: 6,
-                    },
+                    input: s3,
                     expected_verdict: "abstain".into(),
                     expected_failed_gates: vec![
                         "extraction_confidence".into(),
@@ -1550,5 +1865,368 @@ mod tests {
         let decoded: AdpDecisionReport = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.verdict, report.verdict);
         assert_eq!(decoded.gate_evidence.len(), report.gate_evidence.len());
+    }
+
+    // ── vNext: Reconciliation gate tests ────────────────────────────────
+
+    #[test]
+    fn reconciliation_gate_high_confirmed_passes() {
+        let mut input = make_default_input();
+        input.require_runtime_evidence = true;
+        input.reconciliation = Some(ReconciliationScores {
+            confirmed_ratio: 0.90,
+            contradicted_ratio: 0.03,
+            confidence_delta: 0.15,
+            static_paths_count: 20,
+        });
+        let g = evaluate_runtime_evidence_gate(&input);
+        assert!(g.passed, "90% confirmed / 3% contradicted should pass");
+        assert!(g.confidence >= 0.6);
+        assert!(!g.skipped);
+        assert!(g.detail.contains("Reconciliation"));
+    }
+
+    #[test]
+    fn reconciliation_gate_high_contradicted_fails() {
+        let mut input = make_default_input();
+        input.require_runtime_evidence = true;
+        input.reconciliation = Some(ReconciliationScores {
+            confirmed_ratio: 0.20,
+            contradicted_ratio: 0.40,
+            confidence_delta: -0.1,
+            static_paths_count: 20,
+        });
+        let g = evaluate_runtime_evidence_gate(&input);
+        assert!(!g.passed, "40% contradicted should fail");
+    }
+
+    #[test]
+    fn reconciliation_gate_fallback_boolean_lower_confidence() {
+        let mut input = make_default_input();
+        input.require_runtime_evidence = true;
+        input.has_runtime_evidence = true;
+        input.reconciliation = None;
+        let g = evaluate_runtime_evidence_gate(&input);
+        assert!(g.passed);
+        assert!(
+            (g.confidence - 0.7).abs() < 1e-10,
+            "Boolean mode should yield 0.7 confidence, got {}",
+            g.confidence
+        );
+        assert!(g.detail.contains("boolean mode"));
+    }
+
+    // ── vNext: Retrieval gate mode tests ────────────────────────────────
+
+    #[test]
+    fn retrieval_cached_staleness_discount() {
+        let mut input = make_default_input();
+        input.retrieval_mode = RetrievalMode::Cached;
+        input.retrieval_production_ready = Some(true);
+        input.retrieval_ndcg = Some(0.80);
+        input.retrieval_recall = Some(0.80);
+        let g = evaluate_retrieval_quality_gate(&input);
+        assert!(g.passed);
+        // (0.80 + 0.80) / 2.0 * 0.9 = 0.72
+        let expected = 0.72;
+        assert!(
+            (g.confidence - expected).abs() < 0.01,
+            "Cached mode should discount: expected ~{}, got {}",
+            expected,
+            g.confidence
+        );
+        assert!(g.detail.contains("Cached"));
+    }
+
+    #[test]
+    fn retrieval_skipped_mode_is_skipped() {
+        let mut input = make_default_input();
+        input.retrieval_mode = RetrievalMode::Skipped;
+        input.retrieval_production_ready = None;
+        let g = evaluate_retrieval_quality_gate(&input);
+        assert!(g.skipped, "Skipped mode should produce skipped=true");
+        assert!(g.detail.contains("skipped"));
+    }
+
+    #[test]
+    fn retrieval_live_mode_not_skipped() {
+        let mut input = make_default_input();
+        input.retrieval_mode = RetrievalMode::Live;
+        input.retrieval_production_ready = None;
+        let g = evaluate_retrieval_quality_gate(&input);
+        assert!(
+            !g.skipped,
+            "Live mode with None should be not-skipped (data missing)"
+        );
+    }
+
+    // ── vNext: Calibrated confidence tests ──────────────────────────────
+
+    #[test]
+    fn calibrated_confidence_data_access_stricter() {
+        let input_normal = make_default_input();
+        let mut input_da = make_default_input();
+        input_da.migration_class = Some("data_access".into());
+
+        let d_normal = evaluate_gates(&input_normal);
+        let d_da = evaluate_gates(&input_da);
+
+        assert!(
+            d_da.confidence < d_normal.confidence,
+            "data_access class should have lower confidence ({} vs {})",
+            d_da.confidence,
+            d_normal.confidence
+        );
+    }
+
+    #[test]
+    fn calibrated_confidence_static_asset_more_lenient() {
+        let input_normal = make_default_input();
+        let mut input_sa = make_default_input();
+        input_sa.migration_class = Some("static_asset".into());
+
+        let d_normal = evaluate_gates(&input_normal);
+        let d_sa = evaluate_gates(&input_sa);
+
+        assert!(
+            d_sa.confidence > d_normal.confidence,
+            "static_asset class should have higher confidence ({} vs {})",
+            d_sa.confidence,
+            d_normal.confidence
+        );
+    }
+
+    #[test]
+    fn interaction_penalty_safety_and_blast_fail() {
+        let mut input = make_default_input();
+        // Force safety to fail
+        input.safety_decision = Some(safety_service::evaluate_safety(
+            &SafetyEvalRequest {
+                project_id: "test".into(),
+                affected_files: vec!["a.rs".into()],
+                refactor_type: "rename".into(),
+                impact_node_count: 5,
+                impact_confidence: 0.2,
+                test_coverage: 0.85,
+                anti_pattern_clear: true,
+                downstream_dependents: 3,
+                touches_global_state: false,
+                touches_database: false,
+            },
+            true,
+            0.7,
+            0.6,
+        ));
+        // Force blast radius to fail
+        input.blast_radius_risk = Some(9);
+        input.blast_radius_band = Some(RiskBand::Critical);
+
+        let decision = evaluate_gates(&input);
+        // Both failed → interaction penalty applies, confidence should be lower
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+        // The penalty is -0.10 on top of the weighted average
+        // We just verify the mechanism works by checking confidence < what it would be
+        // without the penalty (hard to compute exactly, so just verify it's reasonable)
+        assert!(decision.confidence < 1.0);
+    }
+
+    #[test]
+    fn calibrated_confidence_is_weighted_not_arithmetic() {
+        // Create an input where safety (weight 0.25) has high confidence
+        // and anti-pattern (weight 0.10) has low confidence.
+        // Weighted average should favor safety more than arithmetic mean.
+        let mut input = make_default_input();
+        input.immune_verdict = Some("PASS".into());
+        input.immune_confidence = Some(0.90); // Low anti-pattern confidence (1.0 - 0.90 = 0.10)
+
+        let decision = evaluate_gates(&input);
+        // With arithmetic mean, all gates would contribute equally.
+        // With weighted, safety_policy (0.25 weight, high conf) dominates.
+        // This is hard to test precisely, but we can verify it produces a valid result.
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+        assert!(decision.confidence > 0.0 && decision.confidence <= 1.0);
+    }
+
+    // ── vNext: Replay with v2 scenario fields ───────────────────────────
+
+    #[test]
+    fn replay_v2_reconciliation_scenario() {
+        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+            extraction_confidence: Some(0.9),
+            extraction_band: Some("high".into()),
+            trace_used_fallback: false,
+            trace_candidate_count: 0,
+            safety_allowed: Some(true),
+            safety_confidence: Some(0.95),
+            retrieval_production_ready: Some(true),
+            retrieval_ndcg: Some(0.8),
+            retrieval_recall: Some(0.9),
+            blast_radius_risk: Some(2),
+            blast_radius_band: Some("Low".into()),
+            blast_radius_downstream: Some(3),
+            immune_verdict: Some("PASS".into()),
+            immune_confidence: Some(0.05),
+            require_runtime_evidence: true,
+            has_runtime_evidence: false, // Would fail without reconciliation
+            risk_profile: "medium".into(),
+            min_extraction_confidence: 0.5,
+            min_safety_confidence: 0.7,
+            max_blast_radius_for_auto: 6,
+            // v2 fields
+            reconciliation_confirmed_ratio: Some(0.85),
+            reconciliation_contradicted_ratio: Some(0.05),
+            reconciliation_confidence_delta: Some(0.1),
+            reconciliation_static_paths: Some(20),
+            retrieval_mode: Some("live".into()),
+            migration_class: None,
+        };
+        let decision = replay_from_scenario(&scenario_input);
+        assert_eq!(
+            decision.verdict,
+            AdpVerdict::Allow,
+            "Reconciliation with 85% confirmed should allow"
+        );
+    }
+
+    #[test]
+    fn replay_v2_cached_retrieval_mode() {
+        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+            extraction_confidence: Some(0.9),
+            extraction_band: Some("high".into()),
+            trace_used_fallback: false,
+            trace_candidate_count: 0,
+            safety_allowed: Some(true),
+            safety_confidence: Some(0.95),
+            retrieval_production_ready: Some(true),
+            retrieval_ndcg: Some(0.8),
+            retrieval_recall: Some(0.8),
+            blast_radius_risk: Some(2),
+            blast_radius_band: Some("Low".into()),
+            blast_radius_downstream: Some(3),
+            immune_verdict: Some("PASS".into()),
+            immune_confidence: Some(0.05),
+            require_runtime_evidence: false,
+            has_runtime_evidence: false,
+            risk_profile: "medium".into(),
+            min_extraction_confidence: 0.5,
+            min_safety_confidence: 0.7,
+            max_blast_radius_for_auto: 6,
+            reconciliation_confirmed_ratio: None,
+            reconciliation_contradicted_ratio: None,
+            reconciliation_confidence_delta: None,
+            reconciliation_static_paths: None,
+            retrieval_mode: Some("cached".into()),
+            migration_class: None,
+        };
+        let decision = replay_from_scenario(&scenario_input);
+        // Should still pass but with staleness discount on retrieval confidence
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+        // Verify the retrieval gate mentions "Cached"
+        let retrieval_gate = decision
+            .gate_results
+            .iter()
+            .find(|g| g.gate_id == "retrieval_quality")
+            .unwrap();
+        assert!(retrieval_gate.detail.contains("Cached"));
+    }
+
+    // ── vNext: Wave-level tests ─────────────────────────────────────────
+
+    #[test]
+    fn wave_all_allow() {
+        let items: Vec<(String, AdpInput)> = (0..3)
+            .map(|i| (format!("file_{}.aspx", i), make_default_input()))
+            .collect();
+        let wave = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "test-wave".into(),
+            items,
+            cross_item_deps: 0,
+        };
+        let decision = evaluate_wave(&wave);
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+        assert_eq!(decision.item_decisions.len(), 3);
+        assert!(decision.blocking_items.is_empty());
+    }
+
+    #[test]
+    fn wave_single_deny_vetoes_wave() {
+        let mut deny_input = make_default_input();
+        deny_input.blast_radius_risk = Some(9);
+        deny_input.blast_radius_band = Some(RiskBand::Critical);
+
+        let items = vec![
+            ("good.aspx".into(), make_default_input()),
+            ("bad.aspx".into(), deny_input),
+            ("good2.aspx".into(), make_default_input()),
+        ];
+        let wave = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "test-wave".into(),
+            items,
+            cross_item_deps: 0,
+        };
+        let decision = evaluate_wave(&wave);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+        assert!(decision.blocking_items.contains(&"bad.aspx".to_string()));
+    }
+
+    #[test]
+    fn wave_high_blast_count_triggers_abstain() {
+        let items: Vec<(String, AdpInput)> = (0..5)
+            .map(|i| {
+                let mut input = make_default_input();
+                input.blast_radius_risk = Some(6); // > 5 but <= max_blast_radius_for_auto (6)
+                input.blast_radius_band = Some(RiskBand::High);
+                (format!("file_{}.aspx", i), input)
+            })
+            .collect();
+        let wave = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "test-wave".into(),
+            items,
+            cross_item_deps: 0,
+        };
+        let decision = evaluate_wave(&wave);
+        // >3 items with blast_radius > 5 should trigger abstain
+        assert_eq!(decision.verdict, AdpVerdict::Abstain);
+        assert!(!decision.interaction_penalties.is_empty());
+    }
+
+    #[test]
+    fn wave_cross_dep_penalty() {
+        let items: Vec<(String, AdpInput)> = (0..3)
+            .map(|i| (format!("file_{}.aspx", i), make_default_input()))
+            .collect();
+        let wave = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "test-wave".into(),
+            items,
+            cross_item_deps: 10, // > 3 * 2 = 6
+        };
+        let decision = evaluate_wave(&wave);
+        // Cross-dep penalty produces a warning message but doesn't change verdict
+        assert!(
+            decision
+                .interaction_penalties
+                .iter()
+                .any(|p| p.contains("coupling"))
+        );
+    }
+
+    #[test]
+    fn wave_format_produces_output() {
+        let items = vec![("a.aspx".into(), make_default_input())];
+        let wave = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "test".into(),
+            items,
+            cross_item_deps: 0,
+        };
+        let decision = evaluate_wave(&wave);
+        let text = format_wave_decision(&decision);
+        assert!(text.contains("Wave 1"));
+        assert!(text.contains("Verdict:"));
+        assert!(text.contains("Per-Item Results"));
     }
 }

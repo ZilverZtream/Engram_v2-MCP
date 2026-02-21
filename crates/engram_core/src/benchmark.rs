@@ -121,6 +121,28 @@ pub struct AdpScenarioInput {
     pub min_extraction_confidence: f64,
     pub min_safety_confidence: f64,
     pub max_blast_radius_for_auto: u8,
+
+    // ── vNext fields (all serde(default) for backward compat) ──
+    /// Reconciliation confirmed ratio (0.0–1.0). If present, used instead of has_runtime_evidence.
+    #[serde(default)]
+    pub reconciliation_confirmed_ratio: Option<f64>,
+    /// Reconciliation contradicted ratio (0.0–1.0).
+    #[serde(default)]
+    pub reconciliation_contradicted_ratio: Option<f64>,
+    /// Reconciliation confidence delta.
+    #[serde(default)]
+    pub reconciliation_confidence_delta: Option<f64>,
+    /// Number of static paths in reconciliation.
+    #[serde(default)]
+    pub reconciliation_static_paths: Option<usize>,
+
+    /// Retrieval evaluation mode: "skipped", "cached", "live".
+    #[serde(default)]
+    pub retrieval_mode: Option<String>,
+
+    /// Migration class for calibrated thresholds (e.g., "data_access", "webforms_page").
+    #[serde(default)]
+    pub migration_class: Option<String>,
 }
 
 // ── Trace Scenario Library (WebForms) ───────────────────────────────────────
@@ -485,6 +507,12 @@ mod tests {
                     min_extraction_confidence: 0.5,
                     min_safety_confidence: 0.7,
                     max_blast_radius_for_auto: 6,
+                    reconciliation_confirmed_ratio: None,
+                    reconciliation_contradicted_ratio: None,
+                    reconciliation_confidence_delta: None,
+                    reconciliation_static_paths: None,
+                    retrieval_mode: None,
+                    migration_class: None,
                 },
                 expected_verdict: "allow".into(),
                 expected_failed_gates: vec![],
