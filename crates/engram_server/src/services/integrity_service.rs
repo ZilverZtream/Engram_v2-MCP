@@ -74,10 +74,34 @@ pub struct RepairOutcome {
     pub items_repaired: u64,
 }
 
+/// Resolve whether repairs should run for this integrity check.
+///
+/// Request override semantics:
+/// - `Some(true)`  => force repairs on
+/// - `Some(false)` => force repairs off
+/// - `None`        => follow config
+pub fn resolve_auto_repair(config_auto_repair: bool, request_auto_repair: Option<bool>) -> bool {
+    request_auto_repair.unwrap_or(config_auto_repair)
+}
+
 /// Run a full integrity check for a project.
 pub async fn check_project_integrity(
     state: &AppState,
     project_id: &str,
+) -> anyhow::Result<IntegrityCheckResult> {
+    check_project_integrity_with_policy(
+        state,
+        project_id,
+        resolve_auto_repair(state.cfg.integrity_auto_repair, None),
+    )
+    .await
+}
+
+/// Run a full integrity check for a project with explicit repair policy.
+pub async fn check_project_integrity_with_policy(
+    state: &AppState,
+    project_id: &str,
+    auto_repair: bool,
 ) -> anyhow::Result<IntegrityCheckResult> {
     metrics::metrics().integrity_checks_run.inc();
 
@@ -160,9 +184,9 @@ pub async fn check_project_integrity(
             .add(mismatches.len() as u64);
     }
 
-    // Attempt auto-repair if configured
+    // Single pass behavior: detect all mismatches first, then apply scoped repairs.
     let mut repairs = Vec::new();
-    if state.cfg.integrity_auto_repair && !mismatches.is_empty() {
+    if auto_repair && !mismatches.is_empty() {
         for mm in &mismatches {
             let repair = attempt_repair(state, project_id, mm).await;
             repairs.push(repair);
@@ -341,6 +365,24 @@ mod tests {
             .expect("expected docstore orphan mismatch");
         assert_eq!(mm.actual, 1);
         assert!(mm.description.contains("memory:z@src/z.rs"));
+    }
+
+    #[test]
+    fn resolve_auto_repair_uses_config_when_request_unset() {
+        assert!(resolve_auto_repair(true, None));
+        assert!(!resolve_auto_repair(false, None));
+    }
+
+    #[test]
+    fn resolve_auto_repair_request_true_overrides_config() {
+        assert!(resolve_auto_repair(true, Some(true)));
+        assert!(resolve_auto_repair(false, Some(true)));
+    }
+
+    #[test]
+    fn resolve_auto_repair_request_false_overrides_config() {
+        assert!(!resolve_auto_repair(true, Some(false)));
+        assert!(!resolve_auto_repair(false, Some(false)));
     }
 }
 
