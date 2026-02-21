@@ -1,9 +1,11 @@
 #![deny(clippy::print_stdout)]
 #![deny(clippy::unwrap_used)]
 
+pub mod asp_classic_extractor;
 pub mod chunking;
 pub mod confidence;
 pub mod config_extractor;
+pub mod control_mapping;
 pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;
@@ -11,6 +13,7 @@ pub mod ingest;
 pub mod js_extractor;
 pub mod layout_extractor;
 pub mod parsing;
+pub mod report_extractor;
 pub mod state_extractor;
 pub mod tantivy_index;
 pub mod vb_extractor;

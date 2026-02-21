@@ -1140,3 +1140,75 @@ pub struct DetectDesignPatternsRequest {
     #[serde(default = "default_limit_50")]
     pub limit: usize,
 }
+
+// -------------------- Phase 30: Migration Engine --------------------
+
+fn default_target_stack() -> String {
+    "blazor".into()
+}
+fn default_output_format() -> String {
+    "full".into()
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateMigrationScaffoldRequest {
+    pub project_id: String,
+    /// Path of the legacy file to scaffold from.
+    pub file_path: String,
+    /// Target stack: "blazor", "react", or "angular". Default: "blazor".
+    #[serde(default = "default_target_stack")]
+    pub target_stack: String,
+    /// Also generate a test scaffold. Default: false.
+    #[serde(default)]
+    pub include_test_scaffold: bool,
+    /// "full" (default) or "diff" (shows what maps to what).
+    #[serde(default = "default_output_format")]
+    pub output_format: String,
+}
+
+fn default_instrument_language() -> String {
+    "csharp".into()
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateInstrumentationCodeRequest {
+    pub project_id: String,
+    /// Files to instrument (empty = all files with relevant edges).
+    #[serde(default)]
+    pub target_files: Vec<String>,
+    /// Language: "csharp" or "vb". Default: "csharp".
+    #[serde(default = "default_instrument_language")]
+    pub language: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ReconcileRuntimeEvidenceRequest {
+    pub project_id: String,
+    /// JSON-serialized RuntimeEvidenceBatch.
+    pub evidence_json: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct SuggestStateMigrationRequest {
+    pub project_id: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+fn default_test_framework() -> String {
+    "nunit".into()
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateCharacterizationTestsRequest {
+    pub project_id: String,
+    /// File path to generate tests for.
+    pub file_path: String,
+    /// Test framework: "nunit", "xunit", or "mstest". Default: "nunit".
+    #[serde(default = "default_test_framework")]
+    pub framework: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}

@@ -980,6 +980,10 @@ impl HybridSearchEngine {
                             crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
+                        } else if ext_lower.as_deref() == Some("asp") {
+                            crate::asp_classic_extractor::extract_classic_asp(&arc_rel, &text)
+                        } else if matches!(ext_lower.as_deref(), Some("rdlc" | "rdl")) {
+                            crate::report_extractor::extract_ssrs_report(&arc_rel, &text)
                         } else {
                             extractor.extract(p, &text)
                         };
@@ -1004,6 +1008,32 @@ impl HybridSearchEngine {
                                 for e in js_edges {
                                     local_stats.edges.push((arc_rel.clone(), e));
                                 }
+                            }
+                        }
+
+                        // Post-processing: detect Crystal Reports usage in C#/VB/ASPX files.
+                        if matches!(language, "csharp" | "vbnet") {
+                            let (cr_syms, cr_edges) =
+                                crate::report_extractor::extract_crystal_reports_usage(
+                                    &arc_rel, &text, language,
+                                );
+                            for s in &cr_syms {
+                                local_stats.symbols.push((arc_rel.clone(), s.clone()));
+                            }
+                            for e in cr_edges {
+                                local_stats.edges.push((arc_rel.clone(), e));
+                            }
+                        }
+                        if crate::webforms::is_webforms_markup(p) {
+                            let (cr_syms, cr_edges) =
+                                crate::report_extractor::extract_crystal_reports_in_markup(
+                                    &arc_rel, &text,
+                                );
+                            for s in &cr_syms {
+                                local_stats.symbols.push((arc_rel.clone(), s.clone()));
+                            }
+                            for e in cr_edges {
+                                local_stats.edges.push((arc_rel.clone(), e));
                             }
                         }
 

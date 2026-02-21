@@ -214,6 +214,28 @@ pub struct Config {
     /// Maximum items per wave before ADP forces wave splitting.
     #[serde(default = "default_adp_max_wave_items")]
     pub adp_max_wave_items: usize,
+
+    // ── Phase 30: Migration Engine ──────────────────────────────────────
+
+    /// Default target stack for scaffold generation. "blazor", "react", or "angular".
+    #[serde(default = "default_scaffold_target_stack")]
+    pub scaffold_default_target_stack: String,
+
+    /// Whether scaffold generation includes test scaffolds by default.
+    #[serde(default = "default_true")]
+    pub scaffold_include_tests: bool,
+
+    /// Enable classic ASP (.asp) file extraction during indexing.
+    #[serde(default)]
+    pub enable_classic_asp_extraction: bool,
+
+    /// Enable report file (.rdl/.rdlc) extraction during indexing.
+    #[serde(default)]
+    pub enable_report_extraction: bool,
+
+    /// Default test framework for characterization test generation.
+    #[serde(default = "default_characterization_test_framework")]
+    pub characterization_test_framework: String,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -343,6 +365,18 @@ fn default_adp_max_wave_items() -> usize {
     20
 }
 
+fn default_scaffold_target_stack() -> String {
+    "blazor".into()
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_characterization_test_framework() -> String {
+    "nunit".into()
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -395,6 +429,11 @@ impl Default for Config {
             adp_min_reconciliation_confirmed: default_adp_min_reconciliation_confirmed(),
             adp_max_reconciliation_contradicted: default_adp_max_reconciliation_contradicted(),
             adp_max_wave_items: default_adp_max_wave_items(),
+            scaffold_default_target_stack: default_scaffold_target_stack(),
+            scaffold_include_tests: default_true(),
+            enable_classic_asp_extraction: false,
+            enable_report_extraction: false,
+            characterization_test_framework: default_characterization_test_framework(),
         }
     }
 }

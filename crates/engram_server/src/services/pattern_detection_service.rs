@@ -309,7 +309,106 @@ pub fn detect_design_antipatterns(
         });
     }
 
+    // 6. Phase 30 Gap 8c: Windows Service / Background Job detection
+    // Look for function/class nodes with metadata indicating background service patterns
+    let all_nodes_by_type = graph.count_nodes_by_type(project_id)?;
+    if all_nodes_by_type.contains_key("background_service") {
+        // background_service nodes were emitted by extractors
+        let dep_edges_all = graph.list_edges_by_kind(project_id, EdgeKind::Dependency, 10_000)?;
+        for e in &dep_edges_all {
+            if let Some(node) = graph.get_node(project_id, &e.source_id)? {
+                if node.node_type == "background_service" {
+                    patterns.push(DesignAntiPattern {
+                        pattern_name: "Windows Service".into(),
+                        description: format!(
+                            "{} is a Windows Service or background job. \
+                             These require special migration strategies.",
+                            node.name
+                        ),
+                        severity: AntiPatternSeverity::Moderate,
+                        affected_nodes: vec![e.source_id.clone()],
+                        evidence: vec![format!("Node type: background_service in {}", node.file_path.as_str())],
+                        modern_target: "ASP.NET Core BackgroundService / IHostedService, \
+                                        Hangfire, or Azure Functions"
+                            .into(),
+                        refactoring_steps: vec![
+                            "Identify timer intervals and trigger conditions".into(),
+                            "Create IHostedService or BackgroundService implementation".into(),
+                            "Migrate OnStart/OnStop to StartAsync/StopAsync".into(),
+                            "Register in Program.cs via builder.Services.AddHostedService<T>()".into(),
+                        ],
+                    });
+                }
+            }
+        }
+    }
+
     Ok(patterns)
+}
+
+/// A detected background service pattern in source code.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DetectedServicePattern {
+    pub pattern: String,
+    pub file_path: String,
+    pub modern_equivalent: String,
+    pub evidence: String,
+}
+
+/// Detect Windows Service, Quartz.NET, Hangfire, and Timer-based patterns in source code.
+/// Returns detected patterns for background service/job identification.
+pub fn detect_background_service_patterns(
+    source: &str,
+    file_path: &str,
+    language: &str,
+) -> Vec<DetectedServicePattern> {
+    let mut results = Vec::new();
+    let src_lower = source.to_lowercase();
+
+    // ServiceBase inheritance
+    if src_lower.contains("servicebase") || src_lower.contains("inherits servicebase") {
+        results.push(DetectedServicePattern {
+            pattern: "windows_service".to_string(),
+            file_path: file_path.to_string(),
+            modern_equivalent: "ASP.NET Core BackgroundService / IHostedService".to_string(),
+            evidence: "Inherits from System.ServiceProcess.ServiceBase".to_string(),
+        });
+    }
+
+    // Quartz.NET
+    if src_lower.contains("ijob") && src_lower.contains("execute") && src_lower.contains("quartz") {
+        results.push(DetectedServicePattern {
+            pattern: "quartz_scheduled_job".to_string(),
+            file_path: file_path.to_string(),
+            modern_equivalent: "Quartz.NET on ASP.NET Core, or Hangfire".to_string(),
+            evidence: "Implements Quartz.NET IJob interface".to_string(),
+        });
+    }
+
+    // Hangfire
+    if src_lower.contains("backgroundjob.enqueue") || src_lower.contains("recurringjob.addorupdate") {
+        results.push(DetectedServicePattern {
+            pattern: "hangfire_job".to_string(),
+            file_path: file_path.to_string(),
+            modern_equivalent: "Hangfire on ASP.NET Core (compatible)".to_string(),
+            evidence: "Uses Hangfire BackgroundJob/RecurringJob API".to_string(),
+        });
+    }
+
+    // System.Timers.Timer or System.Threading.Timer in service context
+    if (src_lower.contains("system.timers.timer") || src_lower.contains("system.threading.timer"))
+        && (src_lower.contains("servicebase") || src_lower.contains("onstart"))
+    {
+        results.push(DetectedServicePattern {
+            pattern: "timer_service".to_string(),
+            file_path: file_path.to_string(),
+            modern_equivalent: "PeriodicTimer in BackgroundService".to_string(),
+            evidence: "Timer usage in service context".to_string(),
+        });
+    }
+
+    let _ = language; // reserved for future language-specific patterns
+    results
 }
 
 #[cfg(test)]

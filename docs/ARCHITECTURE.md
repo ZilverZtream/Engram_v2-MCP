@@ -129,3 +129,29 @@ The replay subsystem enables reproducible ADP testing:
 - Tantivy orphans, docstore orphans, vector bloat, count divergence
 - Namespace skew, empty stores, tolerance boundaries
 - Repair policy override verification
+
+## End-to-End Migration Engine (Phase 30)
+
+Phase 30 closes 8 structural gaps between legacy code comprehension and autonomous migration. The architecture extends across three crates:
+
+### engram_index (extraction layer)
+- `control_mapping.rs`: Static lookup table of 50 WebForms controls mapped to Blazor/React/Angular targets with accessibility and data binding metadata
+- `asp_classic_extractor.rs`: Regex-based Classic ASP extraction (COM, ADO, state, SQL, navigation, includes, inline functions)
+- `report_extractor.rs`: SSRS/Crystal Reports detection via regex pattern matching on markup and code-behind content
+
+### engram_server (service layer)
+Five new services follow the established pure-function + Serialize pattern:
+- `scaffold_service.rs`: Reads graph context (controls, functions, SQL edges, state edges) and generates framework-specific component code
+- `db_strategy_service.rs`: Classifies `DataAccessPattern` from edge metadata, generates repository interfaces, scores SQL injection risk
+- `instrumentation_service.rs`: Generates C#/VB.NET `IHttpModule` code with configurable tracing categories; reconciliation engine compares static graph paths against `RuntimeEvidenceBatch` events
+- `state_migration_service.rs`: Classifies state stores from graph node targets, analyzes access patterns, recommends modern equivalents
+- `characterization_test_service.rs`: Collects graph edges by category and generates framework-specific test methods
+
+### Data flow
+```
+Graph (Redb) ──→ Service (pure fn) ──→ Tool handler ──→ MCP response
+                     ↑                      ↑
+              Config defaults          Request params
+```
+
+All services take `&Arc<GraphStore>` and project ID, query graph edges/nodes in `spawn_blocking`, and produce serializable result structs. Tool handlers format results as Markdown or JSON depending on request parameters.

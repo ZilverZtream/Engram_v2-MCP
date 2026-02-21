@@ -50,6 +50,25 @@ static GIS_ZOOM_RE: OnceLock<Regex> = OnceLock::new();
 static GIS_CENTER_RE: OnceLock<Regex> = OnceLock::new();
 static CTL00_ID_RE: OnceLock<Regex> = OnceLock::new();
 
+// Phase 30 Gap 7: GIS deep extraction patterns
+#[allow(dead_code)]
+static LEAFLET_TILE_LAYER_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_WMS_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_GEOJSON_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_MARKER_CLUSTER_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_DRAW_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_CRS_RE: OnceLock<Regex> = OnceLock::new();
+static OL_PROJ_RE: OnceLock<Regex> = OnceLock::new();
+static OL_DRAW_RE: OnceLock<Regex> = OnceLock::new();
+static GMAPS_GEOCODER_RE: OnceLock<Regex> = OnceLock::new();
+static GMAPS_DRAWING_RE: OnceLock<Regex> = OnceLock::new();
+static GEOCODE_URL_RE: OnceLock<Regex> = OnceLock::new();
+static ESRI_AMD_RE: OnceLock<Regex> = OnceLock::new();
+static ESRI_ES_RE: OnceLock<Regex> = OnceLock::new();
+static ESRI_REST_RE: OnceLock<Regex> = OnceLock::new();
+static ESRI_DOJO_RE: OnceLock<Regex> = OnceLock::new();
+static TILE_URL_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -205,6 +224,10 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     extract_openlayers(source, &line_starts, &file_name, &mut edges);
     extract_gis_configs(source, &line_starts, &file_name, &mut edges, &mut syms);
     extract_ctl00_references(source, &line_starts, &file_name, &mut edges);
+
+    // Phase 30 Gap 7: GIS deep extraction
+    extract_gis_layer_inventory(source, &line_starts, &file_name, &mut edges, &mut syms);
+    extract_esri_arcgis(source, &line_starts, &file_name, &mut edges, &mut syms);
 
     // Deduplicate: same (source, target, kind) triple should only appear once.
     dedup_edges(&mut edges);
@@ -886,6 +909,497 @@ fn extract_ctl00_references(
             target_kind: Some("control"),
             target_start_line: None,
             kind: "manipulates_dom",
+            metadata: Some(meta),
+        });
+    }
+}
+
+// ── Phase 30 Gap 7: GIS Deep Extraction ─────────────────────────────────────
+
+/// Deep GIS layer inventory: detects tile layers, WMS, GeoJSON, marker clustering,
+/// drawing tools, coordinate systems, and geocoding across Leaflet/Google Maps/OpenLayers.
+/// Emits a `gis_inventory` insight symbol with structured metadata.
+fn extract_gis_layer_inventory(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+    syms: &mut Vec<ExtractedSymbol>,
+) {
+    let src_lower = source.to_lowercase();
+
+    // Detect which libraries are present
+    let has_leaflet = src_lower.contains("l.map") || src_lower.contains("l.tilelayer");
+    let has_gmaps = src_lower.contains("google.maps");
+    let has_ol = src_lower.contains("ol.map") || src_lower.contains("new ol.");
+
+    if !has_leaflet && !has_gmaps && !has_ol {
+        return;
+    }
+
+    let mut layers: Vec<String> = Vec::new();
+    let mut tile_sources: Vec<String> = Vec::new();
+    let mut has_drawing = false;
+    let mut has_geocoding = false;
+    let mut has_clustering = false;
+    let mut has_geojson = false;
+    let mut has_wms = false;
+    let mut coordinate_system = "EPSG:4326"; // default WGS84
+    let mut api_keys_detected: usize = 0;
+
+    // --- Tile layers & sources ---
+    let re_tile = get_compiled_regex(
+        &TILE_URL_RE,
+        r#"(?i)(?:tileLayer|TileLayer)\s*\(\s*['"](?P<url>[^'"]+)['"]"#,
+        "tile_url",
+    );
+    if let Some(re) = re_tile {
+        for cap in re.captures_iter(source) {
+            let url = cap.name("url").map_or("", |m| m.as_str());
+            layers.push("tile".to_string());
+            if url.contains("openstreetmap") {
+                tile_sources.push("openstreetmap".to_string());
+            } else if url.contains("mapbox") {
+                tile_sources.push("mapbox".to_string());
+            } else if url.contains("stamen") || url.contains("stadia") {
+                tile_sources.push("stamen".to_string());
+            } else if url.contains("thunderforest") {
+                tile_sources.push("thunderforest".to_string());
+            } else if url.contains("here.com") || url.contains("heremaps") {
+                tile_sources.push("here".to_string());
+            } else {
+                tile_sources.push("custom".to_string());
+            }
+        }
+    }
+
+    // --- WMS layers ---
+    let re_wms = get_compiled_regex(
+        &LEAFLET_WMS_RE,
+        r#"(?i)(?:tileLayer\.wms|TileWMS)\s*\(\s*['"](?P<url>[^'"]+)['"]"#,
+        "wms_layer",
+    );
+    if let Some(re) = re_wms {
+        for cap in re.captures_iter(source) {
+            has_wms = true;
+            layers.push("wms".to_string());
+            let url = cap.name("url").map_or("", |m| m.as_str());
+            let m = cap.get(0).unwrap();
+            let line = line_of(line_starts, m.start());
+
+            let mut meta = HashMap::with_capacity(2);
+            meta.insert("wms_endpoint".into(), url.to_string());
+            meta.insert("layer_type".into(), "wms".into());
+
+            edges.push(ExtractedEdge {
+                source_name: file_name.to_string(),
+                source_kind: "file",
+                source_start_line: line,
+                source_language: "javascript",
+                target_name: format!("gis_layer:wms:{}", url),
+                target_kind: Some("insight"),
+                target_start_line: None,
+                kind: "spatial_call",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // --- GeoJSON layers ---
+    let re_geojson = get_compiled_regex(
+        &LEAFLET_GEOJSON_RE,
+        r"(?i)\b(?:L\.geoJSON|L\.geoJson|GeoJSON|geojson)\s*\(",
+        "geojson_layer",
+    );
+    if let Some(re) = re_geojson {
+        if re.is_match(source) {
+            has_geojson = true;
+            layers.push("geojson".to_string());
+        }
+    }
+
+    // --- Marker clustering ---
+    let re_cluster = get_compiled_regex(
+        &LEAFLET_MARKER_CLUSTER_RE,
+        r"(?i)\b(?:markerClusterGroup|MarkerClusterer|Cluster)\s*\(",
+        "marker_cluster",
+    );
+    if let Some(re) = re_cluster {
+        if re.is_match(source) {
+            has_clustering = true;
+            layers.push("marker_cluster".to_string());
+        }
+    }
+
+    // --- Drawing tools ---
+    let re_ldraw = get_compiled_regex(
+        &LEAFLET_DRAW_RE,
+        r"(?i)\b(?:L\.Control\.Draw|L\.Draw|DrawingManager|ol\.interaction\.Draw)\s*\(",
+        "drawing_tools",
+    );
+    if let Some(re) = re_ldraw {
+        if re.is_match(source) {
+            has_drawing = true;
+        }
+    }
+    // Google Maps DrawingManager
+    let re_gdraw = get_compiled_regex(
+        &GMAPS_DRAWING_RE,
+        r"(?i)\bgoogle\.maps\.drawing\.DrawingManager\s*\(",
+        "gmaps_drawing",
+    );
+    if let Some(re) = re_gdraw {
+        if re.is_match(source) {
+            has_drawing = true;
+        }
+    }
+    // OpenLayers Draw interaction
+    let re_oldraw = get_compiled_regex(
+        &OL_DRAW_RE,
+        r"(?i)\bnew\s+ol\.interaction\.Draw\s*\(",
+        "ol_draw",
+    );
+    if let Some(re) = re_oldraw {
+        if re.is_match(source) {
+            has_drawing = true;
+        }
+    }
+
+    // --- Coordinate system detection ---
+    let re_ol_proj = get_compiled_regex(
+        &OL_PROJ_RE,
+        r"(?i)\bol\.proj\.(?:fromLonLat|toLonLat|transform)\s*\(",
+        "ol_proj",
+    );
+    if let Some(re) = re_ol_proj {
+        if re.is_match(source) {
+            coordinate_system = "EPSG:3857 (from EPSG:4326)";
+        }
+    }
+    let re_crs = get_compiled_regex(
+        &LEAFLET_CRS_RE,
+        r"(?i)\bL\.CRS\.(?P<crs>\w+)",
+        "leaflet_crs",
+    );
+    if let Some(re) = re_crs {
+        if let Some(cap) = re.captures(source) {
+            let crs = cap.name("crs").map_or("", |m| m.as_str());
+            coordinate_system = match crs.to_lowercase().as_str() {
+                "epsg3857" => "EPSG:3857",
+                "epsg4326" => "EPSG:4326",
+                "simple" => "Simple (non-geographic)",
+                _ => "Custom CRS",
+            };
+        }
+    }
+
+    // --- Geocoding detection ---
+    let re_geocoder = get_compiled_regex(
+        &GMAPS_GEOCODER_RE,
+        r"(?i)\b(?:google\.maps\.Geocoder|Geocoder|geocoder)\s*\(",
+        "geocoder",
+    );
+    if let Some(re) = re_geocoder {
+        if re.is_match(source) {
+            has_geocoding = true;
+        }
+    }
+    let re_geocode_url = get_compiled_regex(
+        &GEOCODE_URL_RE,
+        r"(?i)(?:geocode|geocoding|nominatim)",
+        "geocode_url",
+    );
+    if let Some(re) = re_geocode_url {
+        if re.is_match(source) {
+            has_geocoding = true;
+        }
+    }
+
+    // --- API key count (from existing GIS_API_KEY_RE) ---
+    let re_apikey = get_compiled_regex(
+        &GIS_API_KEY_RE,
+        r#"(?i)(?:key|apiKey|api_key|apikey)\s*[:=]\s*['"](?P<key>[A-Za-z0-9_\-]{20,})['"]"#,
+        "gis_api_key_count",
+    );
+    if let Some(re) = re_apikey {
+        api_keys_detected = re.find_iter(source).count();
+    }
+
+    // Check for marker layers
+    if src_lower.contains("l.marker") || src_lower.contains("new google.maps.marker") {
+        if !layers.contains(&"marker".to_string()) {
+            layers.push("marker".to_string());
+        }
+    }
+
+    // Determine library and version hint
+    let library = if has_leaflet {
+        "leaflet"
+    } else if has_gmaps {
+        "google_maps"
+    } else {
+        "openlayers"
+    };
+
+    let version_hint = if has_leaflet && src_lower.contains("mapcontainer") {
+        "1.9+ (react-leaflet v4)"
+    } else if has_leaflet {
+        "1.7+"
+    } else if has_gmaps && src_lower.contains("@googlemaps") {
+        "Google Maps JS API v3 (modern)"
+    } else if has_gmaps {
+        "Google Maps JS API v3"
+    } else if src_lower.contains("ol/map") {
+        "OpenLayers 6+"
+    } else {
+        "unknown"
+    };
+
+    // Deduplicate layers and tile sources
+    layers.sort();
+    layers.dedup();
+    tile_sources.sort();
+    tile_sources.dedup();
+
+    // Modern target recommendations
+    let modern_react = match library {
+        "leaflet" => "react-leaflet + @react-leaflet/core",
+        "google_maps" => "@react-google-maps/api",
+        "openlayers" => "rlayers or ol + react wrapper",
+        _ => "Manual migration analysis required",
+    };
+    let modern_blazor = match library {
+        "leaflet" => "BlazorLeaflet or Leaflet.Blazor",
+        "google_maps" => "BlazorGoogleMaps",
+        "openlayers" => "Custom Blazor JS interop with OpenLayers",
+        _ => "Manual migration analysis required",
+    };
+    let modern_angular = match library {
+        "leaflet" => "ngx-leaflet",
+        "google_maps" => "@angular/google-maps",
+        "openlayers" => "ngx-openlayers",
+        _ => "Manual migration analysis required",
+    };
+
+    // Emit gis_inventory insight symbol
+    let mut meta = HashMap::with_capacity(12);
+    meta.insert("library".into(), library.into());
+    meta.insert("version_hint".into(), version_hint.into());
+    meta.insert("tile_sources".into(), tile_sources.join(", "));
+    meta.insert("layers".into(), layers.join(", "));
+    meta.insert("has_drawing_tools".into(), has_drawing.to_string());
+    meta.insert("has_geocoding".into(), has_geocoding.to_string());
+    meta.insert("has_clustering".into(), has_clustering.to_string());
+    meta.insert("has_geojson".into(), has_geojson.to_string());
+    meta.insert("has_wms".into(), has_wms.to_string());
+    meta.insert("coordinate_system".into(), coordinate_system.into());
+    meta.insert("api_keys_detected".into(), api_keys_detected.to_string());
+    meta.insert("modern_target_react".into(), modern_react.into());
+    meta.insert("modern_target_blazor".into(), modern_blazor.into());
+    meta.insert("modern_target_angular".into(), modern_angular.into());
+
+    syms.push(ExtractedSymbol {
+        name: format!("gis_inventory:{}", file_name),
+        kind: "insight",
+        start_line: 0,
+        end_line: 0,
+        metadata: Some(meta),
+    });
+}
+
+/// Detect Esri/ArcGIS JavaScript API usage (AMD, ES modules, REST API, Dojo).
+/// Emits `spatial_call` edges and `insight` symbols for ArcGIS patterns.
+fn extract_esri_arcgis(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+    syms: &mut Vec<ExtractedSymbol>,
+) {
+    let src_lower = source.to_lowercase();
+
+    // Quick check: skip if no Esri/ArcGIS patterns
+    if !src_lower.contains("esri")
+        && !src_lower.contains("arcgis")
+        && !src_lower.contains("dojo.require")
+    {
+        return;
+    }
+
+    let mut esri_classes: Vec<(String, u32)> = Vec::new();
+    let mut has_rest_api = false;
+    let mut has_feature_layer = false;
+    let mut has_map_view = false;
+
+    // --- AMD module loading: require(["esri/Map", "esri/views/MapView", ...]) ---
+    let re_amd = get_compiled_regex(
+        &ESRI_AMD_RE,
+        r#"(?i)["']esri/(?P<module>[A-Za-z0-9_/]+)["']"#,
+        "esri_amd",
+    );
+    if let Some(re) = re_amd {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let module = cap.name("module").map_or("", |m| m.as_str());
+            let line = line_of(line_starts, m.start());
+            esri_classes.push((module.to_string(), line));
+
+            if module.to_lowercase().contains("featurelayer") {
+                has_feature_layer = true;
+            }
+            if module.to_lowercase().contains("mapview") {
+                has_map_view = true;
+            }
+
+            emit_spatial_edge(file_name, line, "arcgis", module, edges);
+        }
+    }
+
+    // --- ES module style: new Map(), new MapView(), new FeatureLayer() ---
+    let re_es = get_compiled_regex(
+        &ESRI_ES_RE,
+        r"(?i)\bnew\s+(?P<cls>Map|MapView|SceneView|FeatureLayer|GraphicsLayer|TileLayer|VectorTileLayer|ImageryLayer|Graphic|Point|Polyline|Polygon|Extent|SpatialReference)\s*\(",
+        "esri_es",
+    );
+    if let Some(re) = re_es {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let cls = cap.name("cls").map_or("", |m| m.as_str());
+            let line = line_of(line_starts, m.start());
+            esri_classes.push((cls.to_string(), line));
+
+            if cls.eq_ignore_ascii_case("FeatureLayer") {
+                has_feature_layer = true;
+            }
+            if cls.eq_ignore_ascii_case("MapView") || cls.eq_ignore_ascii_case("SceneView") {
+                has_map_view = true;
+            }
+
+            emit_spatial_edge(file_name, line, "arcgis", cls, edges);
+        }
+    }
+
+    // --- ArcGIS REST API endpoint detection ---
+    let re_rest = get_compiled_regex(
+        &ESRI_REST_RE,
+        r#"(?i)/arcgis/rest/services/(?P<service>[A-Za-z0-9_/]+)"#,
+        "esri_rest",
+    );
+    if let Some(re) = re_rest {
+        for cap in re.captures_iter(source) {
+            has_rest_api = true;
+            let m = cap.get(0).unwrap();
+            let service = cap.name("service").map_or("", |m| m.as_str());
+            let line = line_of(line_starts, m.start());
+
+            let mut meta = HashMap::with_capacity(3);
+            meta.insert("gis_library".into(), "arcgis_rest".into());
+            meta.insert("rest_service".into(), service.into());
+            meta.insert(
+                "modern_equivalent".into(),
+                "ArcGIS REST JS (@esri/arcgis-rest-request)".into(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: file_name.to_string(),
+                source_kind: "file",
+                source_start_line: line,
+                source_language: "javascript",
+                target_name: format!("gis:arcgis_rest:{}", service),
+                target_kind: Some("insight"),
+                target_start_line: None,
+                kind: "spatial_call",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // --- Dojo-style legacy ArcGIS API ---
+    let re_dojo = get_compiled_regex(
+        &ESRI_DOJO_RE,
+        r#"(?i)dojo\.require\s*\(\s*['"]esri\.(?P<module>[A-Za-z0-9_.]+)['"]"#,
+        "esri_dojo",
+    );
+    if let Some(re) = re_dojo {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let module = cap.name("module").map_or("", |m| m.as_str());
+            let line = line_of(line_starts, m.start());
+            esri_classes.push((format!("dojo:{}", module), line));
+
+            let mut meta = HashMap::with_capacity(3);
+            meta.insert("gis_library".into(), "arcgis_dojo".into());
+            meta.insert("dojo_module".into(), module.into());
+            meta.insert(
+                "modern_equivalent".into(),
+                "Migrate to @arcgis/core ES modules".into(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: file_name.to_string(),
+                source_kind: "file",
+                source_start_line: line,
+                source_language: "javascript",
+                target_name: format!("gis:arcgis_dojo:{}", module),
+                target_kind: Some("insight"),
+                target_start_line: None,
+                kind: "spatial_call",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Emit summary insight if any ArcGIS patterns found
+    if !esri_classes.is_empty() {
+        let api_style = if re_dojo
+            .and_then(|re| re.find(source))
+            .is_some()
+        {
+            "dojo_legacy"
+        } else if re_amd
+            .and_then(|re| re.find(source))
+            .is_some()
+        {
+            "amd"
+        } else {
+            "es_modules"
+        };
+
+        let modern_equiv = match api_style {
+            "dojo_legacy" => "Migrate to @arcgis/core 4.x ES modules (major rewrite)",
+            "amd" => "Migrate to @arcgis/core 4.x ES modules",
+            _ => "Already modern - ensure @arcgis/core 4.x",
+        };
+
+        let mut meta = HashMap::with_capacity(8);
+        meta.insert("library".into(), "arcgis".into());
+        meta.insert("api_style".into(), api_style.into());
+        meta.insert("has_feature_layer".into(), has_feature_layer.to_string());
+        meta.insert("has_map_view".into(), has_map_view.to_string());
+        meta.insert("has_rest_api".into(), has_rest_api.to_string());
+        meta.insert(
+            "esri_class_count".into(),
+            esri_classes.len().to_string(),
+        );
+        meta.insert("modern_equivalent".into(), modern_equiv.into());
+        meta.insert(
+            "modern_target_react".into(),
+            "@arcgis/core + react wrapper".into(),
+        );
+        meta.insert(
+            "modern_target_blazor".into(),
+            "Blazor JS interop with @arcgis/core".into(),
+        );
+        meta.insert(
+            "modern_target_angular".into(),
+            "@arcgis/core + angular-esri-components".into(),
+        );
+
+        syms.push(ExtractedSymbol {
+            name: format!("esri_arcgis_inventory:{}", file_name),
+            kind: "insight",
+            start_line: esri_classes.first().map_or(0, |(_, l)| *l),
+            end_line: esri_classes.last().map_or(0, |(_, l)| *l),
             metadata: Some(meta),
         });
     }

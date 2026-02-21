@@ -28,7 +28,7 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     {
         vec![
             "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-            "csproj", "sql", "rdlc", "md", "json",
+            "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
         ]
     } else if [
         "dotnetwebformsvb",
@@ -41,7 +41,7 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     {
         vec![
             "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-            "vbproj", "sql", "rdlc", "md", "json",
+            "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
         ]
     } else {
         default_exts()
