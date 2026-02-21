@@ -8,7 +8,10 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::metrics;
+use engram_index::docstore::{DocStore, DocSummary};
+use engram_index::hybrid::SearchDocSummary;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Result of a single cross-store consistency check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,24 +96,34 @@ pub async fn check_project_integrity(
     })
     .await??;
 
-    // Collect counts from each store
+    // Collect counts and lightweight doc metadata from each store
     let search = ps.search.clone();
     let pid2 = project_id.to_string();
 
-    // Tantivy count (sync/blocking)
     let search_t = search.clone();
     let pid_tantivy = pid2.clone();
-    let tantivy_count: u64 = tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
-        let ns_counts = search_t.count_docs_by_namespace(&pid_tantivy)?;
-        Ok(ns_counts.values().map(|&v| v as u64).sum())
-    })
-    .await??;
+    let tantivy_docs: Vec<SearchDocSummary> =
+        tokio::task::spawn_blocking(move || search_t.list_docs_for_project(&pid_tantivy)).await??;
+    let tantivy_count = tantivy_docs.len() as u64;
+
+    let docstore_path = state
+        .cfg
+        .data_dir
+        .join("projects")
+        .join(project_id)
+        .join("docs.redb");
+    let pid_docstore = project_id.to_string();
+    let (docstore_count, docstore_docs): (u64, Vec<DocSummary>) =
+        tokio::task::spawn_blocking(move || -> anyhow::Result<(u64, Vec<DocSummary>)> {
+            let store = DocStore::open(&docstore_path)?;
+            let count = store.count_docs_for_project(&pid_docstore)? as u64;
+            let docs = store.list_doc_summaries_for_project(&pid_docstore)?;
+            Ok((count, docs))
+        })
+        .await??;
 
     // Vector count (async)
     let vector_count: u64 = search.count_vectors(&pid2).await.unwrap_or(0) as u64;
-
-    // Use tantivy count as docstore proxy (docstore mirrors tantivy)
-    let docstore_count = tantivy_count;
 
     let graph = state.graph.clone();
     let pid3 = project_id.to_string();
@@ -133,35 +146,13 @@ pub async fn check_project_integrity(
     metrics::metrics().graph_edge_count.set(edge_count as i64);
 
     // Detect mismatches
-    let mut mismatches = Vec::new();
-
-    // Check: Tantivy vs docstore count divergence (allow 5% tolerance)
-    if docstore_count > 0 {
-        let diff = tantivy_count.abs_diff(docstore_count);
-        let threshold = (docstore_count as f64 * 0.05).max(5.0) as u64;
-        if diff > threshold {
-            mismatches.push(IntegrityMismatch {
-                kind: MismatchKind::CountDivergence,
-                description: format!(
-                    "Tantivy doc count ({tantivy_count}) diverges from docstore ({docstore_count}) by {diff}"
-                ),
-                expected: docstore_count,
-                actual: tantivy_count,
-            });
-        }
-    }
-
-    // Check: Vector store should have <= tantivy docs (some docs may lack embeddings)
-    if vector_count > tantivy_count + 100 {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::VectorOrphan,
-            description: format!(
-                "Vector store has {vector_count} entries but Tantivy only has {tantivy_count} docs"
-            ),
-            expected: tantivy_count,
-            actual: vector_count,
-        });
-    }
+    let mismatches = build_integrity_mismatches(
+        tantivy_count,
+        docstore_count,
+        vector_count,
+        &tantivy_docs,
+        &docstore_docs,
+    );
 
     if !mismatches.is_empty() {
         metrics::metrics()
@@ -193,6 +184,164 @@ pub async fn check_project_integrity(
         repairs_attempted: repairs,
         overall_healthy,
     })
+}
+
+fn summarize_samples<K: AsRef<str>>(samples: impl IntoIterator<Item = (K, String)>) -> String {
+    samples
+        .into_iter()
+        .map(|(id, path)| format!("{}@{}", id.as_ref(), path))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn build_integrity_mismatches(
+    tantivy_count: u64,
+    docstore_count: u64,
+    vector_count: u64,
+    tantivy_docs: &[SearchDocSummary],
+    docstore_docs: &[DocSummary],
+) -> Vec<IntegrityMismatch> {
+    const SAMPLE_LIMIT: usize = 5;
+    let mut mismatches = Vec::new();
+
+    let tantivy_map: HashMap<String, String> = tantivy_docs
+        .iter()
+        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
+        .collect();
+    let docstore_map: HashMap<String, String> = docstore_docs
+        .iter()
+        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
+        .collect();
+
+    let tantivy_orphans: Vec<(String, String)> = tantivy_map
+        .iter()
+        .filter(|(id, _)| !docstore_map.contains_key(*id))
+        .map(|(id, path)| (id.clone(), path.clone()))
+        .collect();
+    if !tantivy_orphans.is_empty() {
+        mismatches.push(IntegrityMismatch {
+            kind: MismatchKind::TantivyOrphan,
+            description: format!(
+                "Tantivy has {} docs missing from docstore (sample: [{}])",
+                tantivy_orphans.len(),
+                summarize_samples(tantivy_orphans.iter().take(SAMPLE_LIMIT).cloned())
+            ),
+            expected: 0,
+            actual: tantivy_orphans.len() as u64,
+        });
+    }
+
+    let docstore_orphans: Vec<(String, String)> = docstore_map
+        .iter()
+        .filter(|(id, _)| !tantivy_map.contains_key(*id))
+        .map(|(id, path)| (id.clone(), path.clone()))
+        .collect();
+    if !docstore_orphans.is_empty() {
+        mismatches.push(IntegrityMismatch {
+            kind: MismatchKind::DocstoreOrphan,
+            description: format!(
+                "Docstore has {} docs missing from Tantivy (sample: [{}])",
+                docstore_orphans.len(),
+                summarize_samples(docstore_orphans.iter().take(SAMPLE_LIMIT).cloned())
+            ),
+            expected: 0,
+            actual: docstore_orphans.len() as u64,
+        });
+    }
+
+    if docstore_count > 0 {
+        let diff = tantivy_count.abs_diff(docstore_count);
+        let threshold = (docstore_count as f64 * 0.05).max(5.0) as u64;
+        if diff > threshold {
+            mismatches.push(IntegrityMismatch {
+                kind: MismatchKind::CountDivergence,
+                description: format!(
+                    "Tantivy doc count ({tantivy_count}) diverges from docstore ({docstore_count}) by {diff}; tantivy_only_sample=[{}]; docstore_only_sample=[{}]",
+                    summarize_samples(tantivy_orphans.iter().take(SAMPLE_LIMIT).cloned()),
+                    summarize_samples(docstore_orphans.iter().take(SAMPLE_LIMIT).cloned())
+                ),
+                expected: docstore_count,
+                actual: tantivy_count,
+            });
+        }
+    }
+
+    // Check: Vector store should have <= tantivy docs (some docs may lack embeddings)
+    if vector_count > tantivy_count + 100 {
+        mismatches.push(IntegrityMismatch {
+            kind: MismatchKind::VectorOrphan,
+            description: format!(
+                "Vector store has {vector_count} entries but Tantivy only has {tantivy_count} docs"
+            ),
+            expected: tantivy_count,
+            actual: vector_count,
+        });
+    }
+
+    mismatches
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tdoc(namespace: &str, doc_id: &str, path: &str) -> SearchDocSummary {
+        SearchDocSummary {
+            namespace: namespace.to_string(),
+            doc_id: doc_id.to_string(),
+            path: path.to_string(),
+        }
+    }
+
+    fn ddoc(namespace: &str, doc_id: &str, path: &str) -> DocSummary {
+        DocSummary {
+            namespace: namespace.to_string(),
+            doc_id: doc_id.to_string(),
+            path: path.to_string(),
+        }
+    }
+
+    #[test]
+    fn detects_tantivy_orphans_with_debug_samples() {
+        let mismatches = build_integrity_mismatches(
+            2,
+            1,
+            0,
+            &[
+                tdoc("memory", "a", "src/a.rs"),
+                tdoc("memory", "b", "src/b.rs"),
+            ],
+            &[ddoc("memory", "a", "src/a.rs")],
+        );
+
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::TantivyOrphan)
+            .expect("expected tantivy orphan mismatch");
+        assert_eq!(mm.actual, 1);
+        assert!(mm.description.contains("memory:b@src/b.rs"));
+    }
+
+    #[test]
+    fn detects_docstore_orphans_with_debug_samples() {
+        let mismatches = build_integrity_mismatches(
+            1,
+            2,
+            0,
+            &[tdoc("memory", "a", "src/a.rs")],
+            &[
+                ddoc("memory", "a", "src/a.rs"),
+                ddoc("memory", "z", "src/z.rs"),
+            ],
+        );
+
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
+            .expect("expected docstore orphan mismatch");
+        assert_eq!(mm.actual, 1);
+        assert!(mm.description.contains("memory:z@src/z.rs"));
+    }
 }
 
 /// Attempt to repair a specific mismatch.
