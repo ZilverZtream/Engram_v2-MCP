@@ -75,6 +75,12 @@ pub struct Config {
     /// candidates but cost more compute. Default 5.
     #[serde(default = "default_mmr_oversampling")]
     pub mmr_oversampling: usize,
+
+    /// Maximum concurrent parse/chunk blocking tasks.
+    /// Defaults to the number of physical CPU cores (capped at 16).
+    /// Set lower (2-4) on memory-constrained systems, higher (8-16) on beefy machines.
+    #[serde(default = "default_max_parse_concurrency")]
+    pub max_parse_concurrency: usize,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -95,6 +101,13 @@ fn default_tantivy_writer_memory() -> usize {
 
 fn default_mmr_oversampling() -> usize {
     5
+}
+
+fn default_max_parse_concurrency() -> usize {
+    // Scale to hardware: use physical CPU count, capped to avoid memory pressure.
+    std::thread::available_parallelism()
+        .map(|n| n.get().min(16))
+        .unwrap_or(4)
 }
 
 impl Default for Config {
@@ -119,6 +132,7 @@ impl Default for Config {
             max_commits_per_watch: default_max_commits_per_watch(),
             tantivy_writer_memory: default_tantivy_writer_memory(),
             mmr_oversampling: default_mmr_oversampling(),
+            max_parse_concurrency: default_max_parse_concurrency(),
         }
     }
 }

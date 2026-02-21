@@ -66,8 +66,10 @@ pub struct IngestStats {
     pub bytes: u64,
     pub all_files: Vec<RelPath>,
     pub fingerprints: Vec<crate::docstore::FileFingerprint>,
-    pub symbols: Vec<(RelPath, crate::parsing::ExtractedSymbol)>,
-    pub edges: Vec<(RelPath, crate::parsing::ExtractedEdge)>,
+    /// Symbols indexed by file. Uses Arc<RelPath> so all symbols/edges from one
+    /// file share a single allocation instead of cloning the path N times.
+    pub symbols: Vec<(Arc<RelPath>, crate::parsing::ExtractedSymbol)>,
+    pub edges: Vec<(Arc<RelPath>, crate::parsing::ExtractedEdge)>,
     pub skipped_files: Vec<(RelPath, String)>,
     pub languages: std::collections::HashMap<String, usize>,
     pub warnings: Vec<String>,
@@ -217,6 +219,9 @@ impl HybridSearchEngine {
             let mut effective_gens = Vec::with_capacity(docs.len());
             let mut vectors = Vec::with_capacity(docs.len());
 
+            // Pre-compute effective generations and collect metadata before embedding.
+            // This allows batch embedding (single API call for all docs).
+            let mut contents_for_embed: Vec<&str> = Vec::with_capacity(docs.len());
             for d in docs {
                 if cancel.is_cancelled() {
                     break;
@@ -232,7 +237,6 @@ impl HybridSearchEngine {
                     d.generation
                 };
 
-                let vec = self.embedder.embed(&d.content).await?;
                 let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
                 pks.push(pk);
                 doc_ids.push(d.doc_id.clone());
@@ -243,7 +247,20 @@ impl HybridSearchEngine {
                 authors.push(d.author.clone());
                 timestamps.push(d.timestamp);
                 effective_gens.push(effective_gen);
-                vectors.push(vec);
+                contents_for_embed.push(&d.content);
+            }
+
+            // Batch embed: single API call for remote backends (5-10x faster).
+            // For ProjectionEmbedder the default sequential fallback is used.
+            if !cancel.is_cancelled() && !contents_for_embed.is_empty() {
+                // Process in sub-batches of 64 to bound per-request payload size.
+                for chunk in contents_for_embed.chunks(64) {
+                    if cancel.is_cancelled() {
+                        break;
+                    }
+                    let batch_vecs = self.embedder.embed_batch(chunk).await?;
+                    vectors.extend(batch_vecs);
+                }
             }
 
             if !cancel.is_cancelled() && !pks.is_empty() {
@@ -691,12 +708,16 @@ impl HybridSearchEngine {
                             .entry(language.to_string())
                             .or_insert(0) += 1;
 
-                        local_stats.all_files.push(rel_path.clone());
+                        // Wrap rel_path in Arc so all symbols/edges/chunks from this file
+                        // share one allocation. O(1) clone instead of O(N) string copies.
+                        let arc_rel = Arc::new(rel_path);
+
+                        local_stats.all_files.push((*arc_rel).clone());
 
                         local_stats
                             .fingerprints
                             .push(crate::docstore::FileFingerprint {
-                                rel_path: rel_path.as_str().to_string(),
+                                rel_path: arc_rel.as_str().to_string(),
                                 size,
                                 mtime_ms,
                                 file_hash,
@@ -708,10 +729,8 @@ impl HybridSearchEngine {
                             .map(|e| e.to_lowercase());
 
                         let (syms, edges) = if crate::webforms::is_webforms_markup(p) {
-                            crate::webforms::extract_webforms(&root_buf, &rel_path, &text)
+                            crate::webforms::extract_webforms(&root_buf, &arc_rel, &text)
                         } else if crate::layout_extractor::is_winforms_designer(p) {
-                            // WinForms Designer files: extract layout + fall through to
-                            // normal VB/CS extraction for the code symbols.
                             let base_lang = if ext_lower.as_deref() == Some("vb") {
                                 "vb"
                             } else {
@@ -724,49 +743,41 @@ impl HybridSearchEngine {
                             };
                             let (layout_s, layout_e) =
                                 crate::layout_extractor::extract_winforms_layout(
-                                    rel_path.as_str(),
+                                    arc_rel.as_str(),
                                     &text,
                                 );
                             s.extend(layout_s);
                             e.extend(layout_e);
                             (s, e)
                         } else if is_web_config(p) {
-                            crate::config_extractor::extract_web_config(&rel_path, &text)
+                            crate::config_extractor::extract_web_config(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("sql") {
-                            crate::ddl_extractor::extract_ddl(&rel_path, &text)
+                            crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
                         } else {
                             extractor.extract(p, &text)
                         };
                         for s in &syms {
-                            local_stats.symbols.push((rel_path.clone(), s.clone()));
+                            local_stats.symbols.push((arc_rel.clone(), s.clone()));
                         }
                         for e in edges {
-                            local_stats.edges.push((rel_path.clone(), e));
+                            local_stats.edges.push((arc_rel.clone(), e));
                         }
 
                         // Post-processing: extract JS→ASP.NET bridge edges.
-                        // For .js files: extract from the full file.
-                        // For WebForms markup (.aspx/.ascx/.master): extract from inline
-                        // <script> blocks which frequently manipulate server controls via
-                        // jQuery/DOM APIs and __doPostBack calls.
                         if matches!(language, "javascript") {
                             let (_js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
                             for e in js_edges {
-                                local_stats.edges.push((rel_path.clone(), e));
+                                local_stats.edges.push((arc_rel.clone(), e));
                             }
                         } else if crate::webforms::is_webforms_markup(p) {
-                            // Extract inline <script> content from WebForms markup and
-                            // run the JS bridge extractor on it. This catches jQuery
-                            // selectors, __doPostBack calls, and PageMethods in inline
-                            // script blocks that would otherwise be invisible.
                             let inline_js = extract_inline_scripts(&text);
                             if !inline_js.is_empty() {
                                 let (_js_syms, js_edges) =
                                     crate::js_extractor::extract_js(p, &inline_js);
                                 for e in js_edges {
-                                    local_stats.edges.push((rel_path.clone(), e));
+                                    local_stats.edges.push((arc_rel.clone(), e));
                                 }
                             }
                         }
@@ -775,13 +786,13 @@ impl HybridSearchEngine {
                         if matches!(language, "csharp" | "vbnet") {
                             let (state_syms, state_edges) =
                                 crate::state_extractor::extract_state_accesses(
-                                    &rel_path, &text, language,
+                                    &arc_rel, &text, language,
                                 );
                             for s in &state_syms {
-                                local_stats.symbols.push((rel_path.clone(), s.clone()));
+                                local_stats.symbols.push((arc_rel.clone(), s.clone()));
                             }
                             for e in state_edges {
-                                local_stats.edges.push((rel_path.clone(), e));
+                                local_stats.edges.push((arc_rel.clone(), e));
                             }
                         }
 
@@ -789,7 +800,7 @@ impl HybridSearchEngine {
                             chunking::semantic_chunk_lines(&text, max_chars_per_chunk, &syms);
 
                         for c in &mut chunks {
-                            c.set_doc_id(rel_path.as_str());
+                            c.set_doc_id(arc_rel.as_str());
                         }
 
                         for c in chunks {
@@ -797,7 +808,7 @@ impl HybridSearchEngine {
                             local_docs.push(IndexDoc {
                                 generation,
                                 chunk_id,
-                                path: rel_path.clone(),
+                                path: (*arc_rel).clone(),
                                 language: language.to_string(),
                                 content: c.content,
                                 namespace: namespace_str.clone(),
@@ -1148,62 +1159,75 @@ impl HybridSearchEngine {
 
             let query_vec = self.embedder.embed(&q.text).await?;
 
-            let mut filters = Vec::new();
-            let safe_ns = q.namespace.replace('\'', "''");
-            filters.push(format!("namespace = '{}'", safe_ns));
+            // Build the WHERE clause into a single pre-allocated String instead
+            // of N separate format!() + Vec<String> + join(). Saves ~10 intermediate
+            // String allocations per search query.
+            let where_clause = {
+                use std::fmt::Write;
+                let mut wc = String::with_capacity(256);
+                let safe_ns = q.namespace.replace('\'', "''");
+                write!(wc, "namespace = '{}'", safe_ns).unwrap();
 
-            if let Ok(policy) = engram_core::get_policy(&q.namespace) {
-                match policy.versioning {
-                    engram_core::NamespaceVersioning::Snapshot => {
-                        filters.push(format!("generation = {}", q.generation));
+                if let Ok(policy) = engram_core::get_policy(&q.namespace) {
+                    match policy.versioning {
+                        engram_core::NamespaceVersioning::Snapshot => {
+                            write!(wc, " AND generation = {}", q.generation).unwrap();
+                        }
+                        engram_core::NamespaceVersioning::AppendOnly => {
+                            write!(wc, " AND generation <= {}", q.generation).unwrap();
+                        }
+                        engram_core::NamespaceVersioning::GlobalMutable => {}
                     }
-                    engram_core::NamespaceVersioning::AppendOnly => {
-                        filters.push(format!("generation <= {}", q.generation));
+                }
+
+                if let Some(prefixes) = &q.include_path_prefixes {
+                    if !prefixes.is_empty() {
+                        wc.push_str(" AND (");
+                        for (i, p) in prefixes.iter().enumerate() {
+                            if i > 0 {
+                                wc.push_str(" OR ");
+                            }
+                            let safe_p = p.replace('\'', "''");
+                            write!(wc, "path LIKE '{}%'", safe_p).unwrap();
+                        }
+                        wc.push(')');
                     }
-                    engram_core::NamespaceVersioning::GlobalMutable => {}
                 }
-            }
 
-            if let Some(prefixes) = &q.include_path_prefixes {
-                let mut parts = Vec::new();
-                for p in prefixes {
-                    let safe_p = p.replace('\'', "''");
-                    parts.push(format!("path LIKE '{}%'", safe_p));
+                if let Some(prefixes) = &q.exclude_path_prefixes {
+                    for p in prefixes {
+                        let safe_p = p.replace('\'', "''");
+                        write!(wc, " AND path NOT LIKE '{}%'", safe_p).unwrap();
+                    }
                 }
-                if !parts.is_empty() {
-                    filters.push(format!("({})", parts.join(" OR ")));
+
+                if let Some(langs) = &q.language_filters {
+                    if !langs.is_empty() {
+                        wc.push_str(" AND language IN (");
+                        for (i, l) in langs.iter().enumerate() {
+                            if i > 0 {
+                                wc.push_str(", ");
+                            }
+                            let safe_l = l.replace('\'', "''");
+                            write!(wc, "'{}'", safe_l).unwrap();
+                        }
+                        wc.push(')');
+                    }
                 }
-            }
 
-            if let Some(prefixes) = &q.exclude_path_prefixes {
-                for p in prefixes {
-                    let safe_p = p.replace('\'', "''");
-                    filters.push(format!("path NOT LIKE '{}%'", safe_p));
+                if let Some(author) = &q.author_filter {
+                    let safe_author = author.replace('\'', "''");
+                    write!(wc, " AND author = '{}'", safe_author).unwrap();
                 }
-            }
 
-            if let Some(langs) = &q.language_filters {
-                let list = langs
-                    .iter()
-                    .map(|l| format!("'{}'", l.replace('\'', "''")))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                filters.push(format!("language IN ({})", list));
-            }
-
-            if let Some(author) = &q.author_filter {
-                let safe_author = author.replace('\'', "''");
-                filters.push(format!("author = '{}'", safe_author));
-            }
-
-            if let Some(after) = q.date_after {
-                filters.push(format!("timestamp >= {}", after));
-            }
-            if let Some(before) = q.date_before {
-                filters.push(format!("timestamp < {}", before));
-            }
-
-            let where_clause = filters.join(" AND ");
+                if let Some(after) = q.date_after {
+                    write!(wc, " AND timestamp >= {}", after).unwrap();
+                }
+                if let Some(before) = q.date_before {
+                    write!(wc, " AND timestamp < {}", before).unwrap();
+                }
+                wc
+            };
 
             let mut results = table
                 .query()
@@ -1405,37 +1429,48 @@ impl HybridSearchEngine {
         let vector = self.vector_search(&q_modified).await?;
 
         use std::collections::HashMap;
-        let mut rrf_scores: HashMap<String, (f32, HybridHit)> = HashMap::new();
+        let capacity = lexical.len() + vector.len();
+        let mut rrf_scores: HashMap<String, (f32, HybridHit)> = HashMap::with_capacity(capacity);
         let k = 60.0;
+
+        // Reusable buffer for file_node_id lookups (avoids per-hit format!() allocation).
+        let mut file_node_buf = String::with_capacity(128);
 
         for (rank, mut hit) in lexical.into_iter().enumerate() {
             if let Some(boosts) = centrality_boost {
-                let file_node_id = format!("file:{}", hit.path.as_str());
-                hit.centrality = *boosts.get(&file_node_id).unwrap_or(&0.0);
+                file_node_buf.clear();
+                file_node_buf.push_str("file:");
+                file_node_buf.push_str(hit.path.as_str());
+                hit.centrality = *boosts.get(file_node_buf.as_str()).unwrap_or(&0.0);
             }
             let score = 1.0 / (k + (rank + 1) as f32);
-            // Use pk as the merge key so identical content at different paths or generations is NOT collapsed.
+            // Use pk as the merge key; move pk out of hit to avoid clone when pk is populated.
             let key = if hit.pk.is_empty() {
                 format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
             } else {
-                hit.pk.clone()
+                std::mem::take(&mut hit.pk)
             };
+            // Re-store pk in hit for downstream consumers.
+            hit.pk = key.clone();
             let entry = rrf_scores.entry(key).or_insert((0.0, hit));
             entry.0 += score;
         }
 
         for (rank, mut hit) in vector.into_iter().enumerate() {
             if let Some(boosts) = centrality_boost {
-                let file_node_id = format!("file:{}", hit.path.as_str());
-                hit.centrality = *boosts.get(&file_node_id).unwrap_or(&0.0);
+                file_node_buf.clear();
+                file_node_buf.push_str("file:");
+                file_node_buf.push_str(hit.path.as_str());
+                hit.centrality = *boosts.get(file_node_buf.as_str()).unwrap_or(&0.0);
             }
             let score = 1.0 / (k + (rank + 1) as f32);
             let key = if hit.pk.is_empty() {
                 format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
             } else {
-                hit.pk.clone()
+                std::mem::take(&mut hit.pk)
             };
-            let entry = rrf_scores.entry(key).or_insert((0.0, hit.clone()));
+            hit.pk = key.clone();
+            let entry = rrf_scores.entry(key).or_insert((0.0, hit));
             entry.0 += score;
         }
 

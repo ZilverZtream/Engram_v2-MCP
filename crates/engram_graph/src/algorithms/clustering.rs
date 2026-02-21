@@ -1,5 +1,5 @@
 use crate::store::{EdgeKind, GraphStore};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct Cluster {
@@ -9,11 +9,19 @@ pub struct Cluster {
 
 impl Cluster {
     pub fn fingerprint(&self) -> String {
+        // Sort in-place on a clone for deterministic hashing.
+        // Use with_capacity to hint the join buffer size.
         let mut sorted = self.node_ids.clone();
-        sorted.sort();
-        let data = sorted.join("\0");
-        let hash = blake3::hash(data.as_bytes());
-        hash.to_string()
+        sorted.sort_unstable();
+        let estimated_len: usize = sorted.iter().map(|s| s.len() + 1).sum();
+        let mut data = String::with_capacity(estimated_len);
+        for (i, s) in sorted.iter().enumerate() {
+            if i > 0 {
+                data.push('\0');
+            }
+            data.push_str(s);
+        }
+        blake3::hash(data.as_bytes()).to_string()
     }
 }
 
@@ -85,7 +93,9 @@ pub fn find_cooccurrence_clusters(
         community_map.entry(label).or_default().push(node_id);
     }
 
-    // 4. Convert to Cluster objects and score
+    // 4. Convert to Cluster objects and score.
+    // Build a HashSet per cluster for O(1) membership checks during scoring
+    // (was O(N) Vec::contains, quadratic for large clusters).
     let mut clusters = Vec::new();
     for members in community_map.into_values() {
         if members.len() < min_size {
@@ -97,12 +107,14 @@ pub fn find_cooccurrence_clusters(
             continue;
         }
 
-        // Score = internal density or sum of weights
+        // Score = internal density or sum of weights.
+        // HashSet lookup is O(1) vs O(N) for Vec::contains.
+        let member_set: HashSet<&str> = members.iter().map(|s| s.as_str()).collect();
         let mut score: u64 = 0;
         for m in &members {
             if let Ok(neigh) = store.neighbors(project_id, EdgeKind::CoOccurrence, m, 128) {
                 for (target, w) in neigh {
-                    if members.contains(&target) {
+                    if member_set.contains(target.as_str()) {
                         score += w as u64;
                     }
                 }

@@ -413,10 +413,7 @@ impl SymbolExtractor {
         let static_ext = ext_to_static(ext);
         let (lang, query_opt): (tree_sitter::Language, Option<&Query>) = match ext {
             "rs" => (tree_sitter_rust::LANGUAGE.into(), QUERIES.rust.as_ref()),
-            "py" => (
-                tree_sitter_python::LANGUAGE.into(),
-                QUERIES.python.as_ref(),
-            ),
+            "py" => (tree_sitter_python::LANGUAGE.into(), QUERIES.python.as_ref()),
             "go" => (tree_sitter_go::LANGUAGE.into(), QUERIES.go.as_ref()),
             "java" => (tree_sitter_java::LANGUAGE.into(), QUERIES.java.as_ref()),
             "ts" | "tsx" | "js" | "jsx" => (

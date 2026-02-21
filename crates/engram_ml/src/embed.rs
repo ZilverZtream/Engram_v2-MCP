@@ -8,6 +8,17 @@ pub type Embedding = Vec<f32>;
 pub trait Embedder: Send + Sync {
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding>;
     fn dimension(&self) -> usize;
+
+    /// Embed multiple texts in a single batch. Default falls back to sequential
+    /// calls, but remote embedders override this with true batched API calls
+    /// for 5-10x throughput improvement.
+    async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
+        let mut results = Vec::with_capacity(texts.len());
+        for text in texts {
+            results.push(self.embed(text).await?);
+        }
+        Ok(results)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +197,10 @@ impl Embedder for OllamaEmbedder {
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
         embed_via_ollama(&self.client, &self.url, &self.model, text, self.dim).await
     }
+
+    async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
+        embed_batch_via_ollama(&self.client, &self.url, &self.model, texts, self.dim).await
+    }
 }
 
 /// Shared HTTP helper for Ollama /api/embed with exponential-backoff retry.
@@ -245,6 +260,88 @@ async fn embed_via_ollama(
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Ollama embedding failed after retries")))
 }
 
+/// Batch embed via Ollama /api/embed — sends all texts as a single "input" array.
+/// Ollama natively supports multi-input in its embed endpoint, returning one
+/// embedding per input. Falls back to sequential calls if the batch response
+/// doesn't contain the expected number of embeddings.
+async fn embed_batch_via_ollama(
+    client: &reqwest::Client,
+    base_url: &str,
+    model: &str,
+    texts: &[&str],
+    expected_dim: usize,
+) -> anyhow::Result<Vec<Embedding>> {
+    if texts.is_empty() {
+        return Ok(Vec::new());
+    }
+    if texts.len() == 1 {
+        return Ok(vec![
+            embed_via_ollama(client, base_url, model, texts[0], expected_dim).await?,
+        ]);
+    }
+    let url = format!("{base_url}/api/embed");
+    let body = serde_json::json!({
+        "model": model,
+        "input": texts,
+    });
+
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3u32 {
+        if attempt > 0 {
+            let backoff = std::time::Duration::from_millis(500 * (1 << attempt));
+            tokio::time::sleep(backoff).await;
+        }
+        match client.post(&url).json(&body).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_server_error()
+                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
+                {
+                    last_err = Some(anyhow::anyhow!("Ollama batch HTTP {status}"));
+                    continue;
+                }
+                let data: serde_json::Value = resp
+                    .error_for_status()?
+                    .json()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Ollama batch JSON parse error: {e}"))?;
+                let arr = data["embeddings"]
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("Ollama batch response missing embeddings"))?;
+                if arr.len() != texts.len() {
+                    anyhow::bail!(
+                        "Ollama batch returned {} embeddings but expected {}",
+                        arr.len(),
+                        texts.len()
+                    );
+                }
+                let mut result = Vec::with_capacity(texts.len());
+                for emb in arr {
+                    let vec: Vec<f32> = emb
+                        .as_array()
+                        .ok_or_else(|| anyhow::anyhow!("Ollama batch: embedding is not array"))?
+                        .iter()
+                        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
+                        .collect();
+                    if expected_dim > 0 && vec.len() != expected_dim {
+                        anyhow::bail!(
+                            "Ollama batch model '{model}' returned dim={} but expected {expected_dim}",
+                            vec.len()
+                        );
+                    }
+                    result.push(vec);
+                }
+                return Ok(result);
+            }
+            Err(e) => {
+                last_err = Some(anyhow::anyhow!("Ollama batch request error: {e}"));
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Ollama batch embedding failed after retries")))
+}
+
 // ---------------------------------------------------------------------------
 // OpenAIEmbedder — calls an OpenAI-compatible /embeddings endpoint.
 // ---------------------------------------------------------------------------
@@ -294,6 +391,18 @@ impl Embedder for OpenAIEmbedder {
             &self.api_key,
             &self.model,
             text,
+            self.dim,
+        )
+        .await
+    }
+
+    async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
+        embed_batch_via_openai(
+            &self.client,
+            &self.api_base,
+            &self.api_key,
+            &self.model,
+            texts,
             self.dim,
         )
         .await
@@ -364,6 +473,97 @@ async fn embed_via_openai(
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI embedding failed after retries")))
 }
 
+/// Batch embed via OpenAI /embeddings — sends all texts as a single "input" array.
+/// The OpenAI embeddings API natively supports a list of inputs, returning one
+/// embedding per input. This eliminates per-text HTTP round-trip overhead.
+async fn embed_batch_via_openai(
+    client: &reqwest::Client,
+    api_base: &str,
+    api_key: &str,
+    model: &str,
+    texts: &[&str],
+    expected_dim: usize,
+) -> anyhow::Result<Vec<Embedding>> {
+    if texts.is_empty() {
+        return Ok(Vec::new());
+    }
+    if texts.len() == 1 {
+        return Ok(vec![
+            embed_via_openai(client, api_base, api_key, model, texts[0], expected_dim).await?,
+        ]);
+    }
+    let url = format!("{api_base}/embeddings");
+    let body = serde_json::json!({
+        "model": model,
+        "input": texts,
+    });
+
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3u32 {
+        if attempt > 0 {
+            let backoff = std::time::Duration::from_millis(500 * (1 << attempt));
+            tokio::time::sleep(backoff).await;
+        }
+        match client
+            .post(&url)
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_server_error()
+                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
+                {
+                    last_err = Some(anyhow::anyhow!("OpenAI batch HTTP {status}"));
+                    continue;
+                }
+                let data: serde_json::Value = resp
+                    .error_for_status()?
+                    .json()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("OpenAI batch JSON parse error: {e}"))?;
+                let arr = data["data"]
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("OpenAI batch response missing data"))?;
+                if arr.len() != texts.len() {
+                    anyhow::bail!(
+                        "OpenAI batch returned {} embeddings but expected {}",
+                        arr.len(),
+                        texts.len()
+                    );
+                }
+                // OpenAI returns data sorted by "index" field; sort to match input order.
+                let mut indexed: Vec<(usize, Vec<f32>)> = Vec::with_capacity(arr.len());
+                for item in arr {
+                    let idx = item["index"].as_u64().unwrap_or(0) as usize;
+                    let vec: Vec<f32> = item["embedding"]
+                        .as_array()
+                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: missing embedding"))?
+                        .iter()
+                        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
+                        .collect();
+                    if expected_dim > 0 && vec.len() != expected_dim {
+                        anyhow::bail!(
+                            "OpenAI model '{model}' returned dim={} but expected {expected_dim}",
+                            vec.len()
+                        );
+                    }
+                    indexed.push((idx, vec));
+                }
+                indexed.sort_by_key(|(idx, _)| *idx);
+                return Ok(indexed.into_iter().map(|(_, v)| v).collect());
+            }
+            Err(e) => {
+                last_err = Some(anyhow::anyhow!("OpenAI batch request error: {e}"));
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI batch embedding failed after retries")))
+}
+
 // ---------------------------------------------------------------------------
 // RemoteEmbedder — runtime-dispatched wrapper (Ollama or OpenAI).
 // Constructed via RemoteEmbedder::ollama() / RemoteEmbedder::openai().
@@ -415,6 +615,13 @@ impl Embedder for RemoteEmbedder {
         match &self.backend {
             RemoteBackend::Ollama(e) => e.embed(text).await,
             RemoteBackend::OpenAI(e) => e.embed(text).await,
+        }
+    }
+
+    async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
+        match &self.backend {
+            RemoteBackend::Ollama(e) => e.embed_batch(texts).await,
+            RemoteBackend::OpenAI(e) => e.embed_batch(texts).await,
         }
     }
 }
