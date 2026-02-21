@@ -1,30 +1,27 @@
-# Roadmap (suggested)
+# Roadmap (status-aligned)
 
-## Phase 0: Scaffold (done here)
-- Workspace compiles
-- v1 tool names exist
-- registry + generation semantics
-- dreamer actor skeleton
+Status labels: `implemented`, `partial`, `experimental`, `planned`.
 
-## Phase 1: Incremental indexing
-- file watcher (notify)
-- maintain “changed files” queue
-- per-file reindex into next generation
-- GC for old generations
+## Platform baseline
+- Core tool surface and v1 parity coverage: **implemented**
+- Capability matrix/code-flag reconciliation checks: **implemented**
+
+## Phase 1: Incremental indexing hardening
+- Watcher + debounce + auto-update loop: **implemented**
+- Changed-file targeting quality improvements: **partial**
+- Old-generation GC + reclaim policy: **planned**
 
 ## Phase 2: Graph enrichment
-- tree-sitter AST extraction
-- symbol nodes (function/type/module)
-- dependency edges + reference edges
-- centrality + pagerank cache
+- Existing graph node/reference traversal: **implemented**
+- AST-derived dependency/symbol graph depth: **partial**
+- Background centrality/PageRank cache and ranking usage: **planned**
 
 ## Phase 3: Hybrid semantic search
-- Candle embeddings for chunks
-- LanceDB vector store keyed by chunk_id
-- RRF fusion (lexical + vector)
-- graph-aware reranking (centrality boost)
+- Lexical + vector query pipeline: **experimental**
+- RRF fusion quality tuning: **partial**
+- Graph-aware reranking boost: **planned**
 
 ## Phase 4: Immune system
-- reliable revert detection
-- dedicated anti-pattern index
-- similarity thresholding + “block/warn”
+- Revert harvesting + anti-pattern capture: **partial**
+- Dedicated anti-pattern indexing/ranking hardening: **partial**
+- Strict block/warn policy thresholds and confidence gating: **experimental**

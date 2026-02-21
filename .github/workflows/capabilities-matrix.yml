@@ -1,0 +1,15 @@
+name: capabilities-matrix
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  doc-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check capabilities matrix parity
+        run: python3 scripts/check_capabilities_matrix.py
