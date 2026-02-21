@@ -2,76 +2,99 @@
 
 This repo is a Rust workspace for Engram MCP v2: a developer tool that combines code search, graph reasoning, git history analysis, and cognitive helper tools.
 
-Canonical capability status labels are tracked in code (`crates/engram_server/src/capabilities.rs`) and mirrored in `docs/TOOL_PARITY.md`.
+Canonical capability status labels are tracked in code (`crates/engram_server/src/capabilities.rs`) and mirrored in docs through the generated matrix below.
 
 - `implemented`: production-ready behavior in-tree
 - `partial`: available but missing notable parity/quality pieces
 - `experimental`: usable but intentionally iterative/tunable
 - `planned`: design target only
 
----
+## Workspace layout
 
-## 1) Workspace layout
-
-```
+```text
 engram-v2/
 ├── Cargo.toml
 ├── crates/
-│   ├── engram_core/     # shared types, config, security boundary, registry
-│   ├── engram_index/    # Tantivy + LanceDB-backed hybrid index
-│   ├── engram_graph/    # Redb graph store + coupling/clustering algorithms
-│   ├── engram_git/      # libgit2 walker, temporal coupling, revert harvesting
-│   ├── engram_ml/       # dreaming summarizer, style mimicry, immune helpers
-│   └── engram_server/   # MCP server (rmcp), actors, tool router
+│   ├── engram_core/
+│   ├── engram_index/
+│   ├── engram_graph/
+│   ├── engram_git/
+│   ├── engram_ml/
+│   └── engram_server/
 └── docs/
 ```
 
----
+## Core invariants
 
-## 2) Core invariants
+1. Filesystem access is gated by `allowed_roots` via `PathContext::resolve_path`.
+2. `engram_core::Registry` is the source of truth for projects, jobs, watches, rules, and memory-bank records.
+3. Generational indexing (`active_generation`) prevents duplicate/legacy result leakage.
+4. Namespaces: `memory`, `memory_bank`, `history`, `antipattern`.
 
-### 2.1 Security boundary (allowed_roots)
-All filesystem access flows through `engram_core::PathContext::resolve_path`. Tools receiving directory/file paths reject paths outside `allowed_roots`.
+## Capabilities matrix (generated)
 
-### 2.2 Project registry is the source of truth
-`engram_core::Registry` stores projects, generation metadata, memory bank sections, repo rules, watches, and jobs.
+<!-- CAPABILITIES_MATRIX:START -->
+| Tool / Feature | Status |
+| :--- | :--- |
+| `index_project` | implemented |
+| `update_project` | implemented |
+| `list_projects` | implemented |
+| `project_info` | implemented |
+| `project_health` | partial |
+| `repair_project` | partial |
+| `delete_project` | implemented |
+| `watch_project` | implemented |
+| `unwatch_project` | implemented |
+| `search_memory` | implemented |
+| `get_chunk` | implemented |
+| `update_memory_bank` | implemented |
+| `list_memory_bank` | implemented |
+| `read_memory_bank` | implemented |
+| `delete_memory_bank` | implemented |
+| `add_repo_rule` | implemented |
+| `list_repo_rules` | implemented |
+| `delete_repo_rule` | implemented |
+| `query_graph_nodes` | implemented |
+| `find_references` | implemented |
+| `graph_search` | partial |
+| `traverse_graph` | implemented |
+| `index_git_history` | implemented |
+| `ingest_zip_history` | implemented |
+| `search_history` | partial |
+| `analyze_temporal_couplings` | implemented |
+| `analyze_reverts` | partial |
+| `impact_analysis` | implemented |
+| `get_table_schema` | implemented |
+| `trace_state_usage` | implemented |
+| `trace_ui_event` | implemented |
+| `trace_ui_action` | implemented |
+| `export_capture_pack` | implemented |
+| `get_ui_blueprint` | implemented |
+| `get_codebase_overview` | partial |
+| `find_symbol_references` | partial |
+| `analyze_error_stack` | implemented |
+| `dream_project` | experimental |
+| `trigger_rem_cycle` | experimental |
+| `analyze_file_coding_style` | experimental |
+| `list_jobs` | implemented |
+| `cancel_job` | implemented |
+| `get_job_status` | implemented |
+| `immune_check` | experimental |
+| `anti_pattern_guard` | experimental |
+| `get_instrumentation_pack` | implemented |
+| `suggest_migration_boundaries` | experimental |
+| `ingest_instrumentation_logs` | implemented |
+| `generate_migration_blueprint` | partial |
+| `ast_dependency_graph` | partial |
+| `vector_search` | experimental |
+| `incremental_indexing_gc` | partial |
+| `dedicated_antipattern_index` | partial |
+| `graph_centrality_rerank` | planned |
+<!-- CAPABILITIES_MATRIX:END -->
 
-### 2.3 Generations prevent duplicate indexing
-Each indexed document is tagged with `generation`, and search queries filter to `active_generation`.
-
-### 2.4 Namespaces
-- `memory`: repository content
-- `memory_bank`: user-managed notes/rules context
-- `history`: commit/diff history docs
-- `antipattern`: revert-derived anti-pattern docs
-
----
-
-## 3) Capability reconciliation (current)
-
-### 3.1 Search and indexing
-- Core indexing/search tools are **implemented**.
-- Incremental watcher-driven updates are **implemented**, but old-generation GC is **partial**.
-- Vector search is available and enabled by feature defaults, but still **experimental** for ranking quality/perf tuning.
-
-### 3.2 Graph and references
-- Graph query/reference primitives are **implemented**.
-- Symbol/reference intelligence using richer AST graph semantics is **partial**.
-- Graph centrality-aware reranking remains **planned**.
-
-### 3.3 Git intelligence
-- Git history indexing and temporal couplings are **implemented**.
-- Revert analysis and anti-pattern enforcement are **partial** to **experimental**, depending on tool path.
-
-### 3.4 Cognitive features
-- Dreaming and style mimicry are present but **experimental**.
-- Immune checks are **experimental**, with quality and thresholding still under active iteration.
-
----
-
-## 4) Source-of-truth sync rule
+## Source-of-truth sync rule
 
 When changing feature maturity:
 1. Update `crates/engram_server/src/capabilities.rs`.
-2. Update the corresponding row(s) in `docs/TOOL_PARITY.md`.
-3. Ensure `scripts/check_capabilities_matrix.py` passes locally and in CI.
+2. Run `python3 scripts/check_capabilities_matrix.py --write`.
+3. Ensure `python3 scripts/check_capabilities_matrix.py` passes locally and in CI.
