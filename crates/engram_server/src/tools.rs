@@ -161,8 +161,9 @@ impl Engram {
             }
 
             let max_chunks = self.state.cfg.max_chunks_per_file;
-            let stats = search
-                .index_files(
+            let stats = self
+                .index_files_with_parse_guard(
+                    &search,
                     &project_id,
                     "memory",
                     1,
@@ -348,15 +349,10 @@ impl Engram {
             }
         }
 
-        // Acquire parse semaphore to bound concurrent parse/chunk blocking threads.
-        let _parse_permit =
-            self.state.parse_semaphore.acquire().await.map_err(|e| {
-                McpError::internal_error(format!("Parse semaphore closed: {e}"), None)
-            })?;
         let max_chunks = self.state.cfg.max_chunks_per_file;
-        let stats = ps
-            .search
-            .index_files(
+        let stats = self
+            .index_files_with_parse_guard(
+                &ps.search,
                 &pid,
                 "memory",
                 new_gen,
@@ -367,7 +363,6 @@ impl Engram {
                 |_, _| {},
             )
             .await?;
-        drop(_parse_permit);
 
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
