@@ -1033,6 +1033,67 @@ fn default_risk_profile() -> String {
     "medium".to_string()
 }
 
+// -------------------- Graph Centrality Rerank --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GraphCentralityRerankRequest {
+    pub project_id: String,
+    /// Search query to run before reranking. If provided, results are searched then reranked.
+    /// If omitted, returns top-N most central nodes without search.
+    #[serde(default)]
+    pub query: Option<String>,
+    /// Specific node IDs to score. If provided, only these nodes are scored (no search).
+    #[serde(default)]
+    pub node_ids: Option<Vec<String>>,
+    /// Number of results to return. Default: 10.
+    #[serde(default = "default_top_k")]
+    pub top_k: usize,
+    /// Centrality algorithm blend weights.
+    /// Weights for: PageRank (default 0.5), degree (default 0.3), betweenness (default 0.2).
+    #[serde(default = "default_pr_weight")]
+    pub pagerank_weight: f32,
+    #[serde(default = "default_degree_weight")]
+    pub degree_weight: f32,
+    #[serde(default = "default_betweenness_weight")]
+    pub betweenness_weight: f32,
+    /// Number of pivot nodes for betweenness approximation (default 50, max 500).
+    #[serde(default = "default_betweenness_samples")]
+    pub betweenness_samples: usize,
+    /// Namespace for search (default "memory"). Only used if query is provided.
+    #[serde(default = "default_namespace_memory")]
+    pub namespace: String,
+    /// Include node metadata (type, file_path, name) in output. Default: true.
+    #[serde(default = "default_true")]
+    pub include_metadata: bool,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+fn default_pr_weight() -> f32 {
+    0.5
+}
+fn default_degree_weight() -> f32 {
+    0.3
+}
+fn default_betweenness_weight() -> f32 {
+    0.2
+}
+fn default_betweenness_samples() -> usize {
+    50
+}
+
+pub const MAX_BETWEENNESS_SAMPLES: usize = 500;
+
+impl GraphCentralityRerankRequest {
+    pub fn sanitized_top_k(&self) -> usize {
+        self.top_k.clamp(1, MAX_SEARCH_RESULTS)
+    }
+    pub fn sanitized_betweenness_samples(&self) -> usize {
+        self.betweenness_samples.clamp(10, MAX_BETWEENNESS_SAMPLES)
+    }
+}
+
 // -------------------- Detect Design Patterns --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

@@ -3015,8 +3015,14 @@ impl Engram {
 
         out.push_str("\n## Trace Provenance\n");
         out.push_str(&format!("trace_used_fallback: {}\n", trace_used_fallback));
-        out.push_str(&format!("trace_candidate_count: {}\n", trace_candidate_count));
-        out.push_str(&format!("trace_confidence_penalty: {:.2}\n", confidence_penalty));
+        out.push_str(&format!(
+            "trace_candidate_count: {}\n",
+            trace_candidate_count
+        ));
+        out.push_str(&format!(
+            "trace_confidence_penalty: {:.2}\n",
+            confidence_penalty
+        ));
         out.push_str(&format!("selected_start_node: {}\n", start_id));
 
         if trace_used_fallback {
@@ -6553,6 +6559,300 @@ End Sub
         } else {
             let text = crate::services::autonomous_decision_service::format_decision(&decision);
             Ok(CallToolResult::success(vec![Content::text(text)]))
+        }
+    }
+
+    // ---- Graph Centrality Rerank ----
+
+    #[tool(
+        description = "Compute multi-algorithm graph centrality (PageRank + degree + betweenness) and optionally rerank search results by structural importance. Three modes: (1) query mode - search then rerank by centrality, (2) node_ids mode - score specific nodes, (3) top-N mode - return the most central nodes in the project."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn graph_centrality_rerank(
+        &self,
+        params: Parameters<GraphCentralityRerankRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let top_k = req.sanitized_top_k();
+        let samples = req.sanitized_betweenness_samples();
+
+        // Compute multi-centrality in blocking task
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let active_gen = gen_;
+        let centrality: engram_graph::analysis::MultiCentrality =
+            tokio::task::spawn_blocking(move || {
+                engram_graph::analysis::compute_multi_centrality(&graph, &pid, active_gen, samples)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let pr_w = req.pagerank_weight;
+        let deg_w = req.degree_weight;
+        let bt_w = req.betweenness_weight;
+
+        // Determine mode and build scored results
+        #[derive(serde::Serialize)]
+        struct ScoredNode {
+            node_id: String,
+            blended_score: f32,
+            pagerank: f32,
+            in_degree: u32,
+            out_degree: u32,
+            betweenness: f32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            search_score: Option<f32>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            node_type: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            name: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            file_path: Option<String>,
+        }
+
+        let mut scored: Vec<ScoredNode> = Vec::new();
+
+        if let Some(query) = &req.query {
+            // Mode 1: Search then rerank
+            let hits = ps
+                .search
+                .search(
+                    &HybridQuery {
+                        project_id: req.project_id.clone(),
+                        namespace: req.namespace.clone(),
+                        generation: gen_,
+                        text: query.clone(),
+                        top_k: top_k * 3, // oversample for reranking
+                        fts_mode: "strict".to_string(),
+                        include_path_prefixes: None,
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    },
+                    Some(&centrality.pagerank),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for hit in &hits {
+                let file_node_id = format!("file:{}", hit.path.as_str());
+                let blended = centrality.blended_score(&file_node_id, pr_w, deg_w, bt_w);
+                // Combine search score + centrality blend (70% search, 30% centrality)
+                let combined = hit.score * 0.7 + blended * 0.3;
+
+                let (node_type, name, file_path) = if req.include_metadata {
+                    (
+                        Some("file".to_string()),
+                        Some(hit.path.as_str().to_string()),
+                        Some(hit.path.as_str().to_string()),
+                    )
+                } else {
+                    (None, None, None)
+                };
+
+                scored.push(ScoredNode {
+                    node_id: file_node_id.clone(),
+                    blended_score: combined,
+                    pagerank: centrality
+                        .pagerank
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0.0),
+                    in_degree: centrality
+                        .in_degree
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0),
+                    out_degree: centrality
+                        .out_degree
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0),
+                    betweenness: centrality
+                        .betweenness
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0.0),
+                    search_score: Some(hit.score),
+                    node_type,
+                    name,
+                    file_path,
+                });
+            }
+
+            // Sort by combined score descending
+            scored.sort_by(|a, b| {
+                b.blended_score
+                    .partial_cmp(&a.blended_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        } else if let Some(node_ids) = &req.node_ids {
+            // Mode 2: Score specific nodes
+            let graph_store = self.state.graph.clone();
+            let pid2 = req.project_id.clone();
+            let node_ids_clone = node_ids.clone();
+            let include_meta = req.include_metadata;
+
+            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+                tokio::task::spawn_blocking(
+                    move || -> Vec<(String, Option<String>, Option<String>, Option<String>)> {
+                        let mut result = Vec::new();
+                        for nid in &node_ids_clone {
+                            let meta = if include_meta {
+                                graph_store.get_node(&pid2, nid).ok().flatten().map(|n| {
+                                    (n.node_type, n.name, n.file_path.as_str().to_string())
+                                })
+                            } else {
+                                None
+                            };
+                            let (nt, nm, fp) = meta
+                                .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                                .unwrap_or((None, None, None));
+                            result.push((nid.clone(), nt, nm, fp));
+                        }
+                        result
+                    },
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for (nid, nt, nm, fp) in nodes_meta {
+                let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
+                scored.push(ScoredNode {
+                    node_id: nid.clone(),
+                    blended_score: blended,
+                    pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
+                    in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
+                    out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
+                    betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
+                    search_score: None,
+                    node_type: nt,
+                    name: nm,
+                    file_path: fp,
+                });
+            }
+
+            scored.sort_by(|a, b| {
+                b.blended_score
+                    .partial_cmp(&a.blended_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+        } else {
+            // Mode 3: Top-N most central nodes
+            let graph_store = self.state.graph.clone();
+            let pid3 = req.project_id.clone();
+            let include_meta = req.include_metadata;
+
+            // Build blended scores for all nodes
+            let mut all_scores: Vec<(String, f32)> = centrality
+                .pagerank
+                .keys()
+                .map(|nid| {
+                    let blended = centrality.blended_score(nid, pr_w, deg_w, bt_w);
+                    (nid.clone(), blended)
+                })
+                .collect();
+            all_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            all_scores.truncate(top_k);
+
+            let top_ids: Vec<String> = all_scores.iter().map(|(id, _score)| id.clone()).collect();
+            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+                tokio::task::spawn_blocking(
+                    move || -> Vec<(String, Option<String>, Option<String>, Option<String>)> {
+                        let mut result = Vec::new();
+                        for nid in &top_ids {
+                            let meta = if include_meta {
+                                graph_store.get_node(&pid3, nid).ok().flatten().map(|n| {
+                                    (n.node_type, n.name, n.file_path.as_str().to_string())
+                                })
+                            } else {
+                                None
+                            };
+                            let (nt, nm, fp) = meta
+                                .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                                .unwrap_or((None, None, None));
+                            result.push((nid.clone(), nt, nm, fp));
+                        }
+                        result
+                    },
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for (nid, nt, nm, fp) in nodes_meta {
+                let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
+                scored.push(ScoredNode {
+                    node_id: nid.clone(),
+                    blended_score: blended,
+                    pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
+                    in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
+                    out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
+                    betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
+                    search_score: None,
+                    node_type: nt,
+                    name: nm,
+                    file_path: fp,
+                });
+            }
+        }
+
+        scored.truncate(top_k);
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&scored)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let mode = if req.query.is_some() {
+                "search+rerank"
+            } else if req.node_ids.is_some() {
+                "node scoring"
+            } else {
+                "top-N centrality"
+            };
+            let mut out = format!(
+                "Graph Centrality Rerank ({mode})\n\
+                 Weights: PR={pr_w:.2}, Degree={deg_w:.2}, Betweenness={bt_w:.2}\n\
+                 Results: {}\n\n",
+                scored.len()
+            );
+
+            for (i, node) in scored.iter().enumerate() {
+                out.push_str(&format!(
+                    "{}. {} (blended={:.4})\n",
+                    i + 1,
+                    node.node_id,
+                    node.blended_score
+                ));
+                out.push_str(&format!(
+                    "   PR={:.6}  in_deg={}  out_deg={}  betw={:.4}",
+                    node.pagerank, node.in_degree, node.out_degree, node.betweenness
+                ));
+                if let Some(ss) = node.search_score {
+                    out.push_str(&format!("  search={ss:.4}"));
+                }
+                out.push('\n');
+                if let Some(ref nt) = node.node_type {
+                    out.push_str(&format!("   type={nt}"));
+                }
+                if let Some(ref nm) = node.name {
+                    out.push_str(&format!("  name={nm}"));
+                }
+                if let Some(ref fp) = node.file_path {
+                    out.push_str(&format!("  path={fp}"));
+                }
+                if node.node_type.is_some() || node.name.is_some() || node.file_path.is_some() {
+                    out.push('\n');
+                }
+            }
+
+            Ok(CallToolResult::success(vec![Content::text(out)]))
         }
     }
 }

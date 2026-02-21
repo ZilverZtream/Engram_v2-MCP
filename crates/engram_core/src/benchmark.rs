@@ -303,7 +303,8 @@ impl BenchmarkPack {
                         "Profile.aspx.cs".into(),
                         "App_Code/SessionHelper.cs".into(),
                     ],
-                    rationale: "Session[\"UserProfile\"] accessed across login, profile, helper".into(),
+                    rationale: "Session[\"UserProfile\"] accessed across login, profile, helper"
+                        .into(),
                     language: Some("csharp".into()),
                 },
                 BenchmarkQueryEntry {
@@ -322,21 +323,16 @@ impl BenchmarkPack {
                     query_id: "q005_gridview_datasource".into(),
                     query: "GridView DataSource binding and data access".into(),
                     query_class: "data_binding".into(),
-                    relevant_paths: vec![
-                        "Orders.aspx".into(),
-                        "Orders.aspx.cs".into(),
-                    ],
-                    rationale: "GridView bound via ObjectDataSource or code-behind DataBind()".into(),
+                    relevant_paths: vec!["Orders.aspx".into(), "Orders.aspx.cs".into()],
+                    rationale: "GridView bound via ObjectDataSource or code-behind DataBind()"
+                        .into(),
                     language: Some("csharp".into()),
                 },
                 BenchmarkQueryEntry {
                     query_id: "q006_master_page_layout".into(),
                     query: "master page layout and content placeholders".into(),
                     query_class: "ui_layout".into(),
-                    relevant_paths: vec![
-                        "Site.Master".into(),
-                        "Site.Master.cs".into(),
-                    ],
+                    relevant_paths: vec!["Site.Master".into(), "Site.Master.cs".into()],
                     rationale: "Master page defines layout structure for all pages".into(),
                     language: Some("csharp".into()),
                 },
@@ -344,10 +340,7 @@ impl BenchmarkPack {
                     query_id: "q007_ajax_update_panel".into(),
                     query: "AJAX UpdatePanel and partial postback handlers".into(),
                     query_class: "async_postback".into(),
-                    relevant_paths: vec![
-                        "Dashboard.aspx".into(),
-                        "Dashboard.aspx.cs".into(),
-                    ],
+                    relevant_paths: vec!["Dashboard.aspx".into(), "Dashboard.aspx.cs".into()],
                     rationale: "UpdatePanel async postback with ScriptManager".into(),
                     language: Some("csharp".into()),
                 },
@@ -367,9 +360,7 @@ impl BenchmarkPack {
                     query_id: "q009_vb_handles_clause".into(),
                     query: "VB.NET Handles clause event wiring for button click".into(),
                     query_class: "event_wiring".into(),
-                    relevant_paths: vec![
-                        "Order.aspx.vb".into(),
-                    ],
+                    relevant_paths: vec!["Order.aspx.vb".into()],
                     rationale: "VB uses Handles keyword instead of OnClick attribute".into(),
                     language: Some("vb".into()),
                 },
@@ -421,7 +412,10 @@ mod tests {
         for q in &pack.queries {
             assert!(!q.query_id.is_empty(), "query_id must not be empty");
             assert!(!q.query_class.is_empty(), "query_class must not be empty");
-            assert!(!q.relevant_paths.is_empty(), "relevant_paths must not be empty");
+            assert!(
+                !q.relevant_paths.is_empty(),
+                "relevant_paths must not be empty"
+            );
         }
     }
 
@@ -515,7 +509,9 @@ mod tests {
                 category: "onclick".into(),
                 fixtures: vec![TraceFixtureFile {
                     path: "Order.aspx".into(),
-                    content: "<asp:Button ID=\"btnSave\" runat=\"server\" OnClick=\"btnSave_Click\" />".into(),
+                    content:
+                        "<asp:Button ID=\"btnSave\" runat=\"server\" OnClick=\"btnSave_Click\" />"
+                            .into(),
                 }],
                 trace_input: TraceInput {
                     page_path: "Order.aspx".into(),

@@ -171,7 +171,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "analyze_file_coding_style",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "list_jobs",
@@ -271,6 +271,6 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "graph_centrality_rerank",
-        status: CapabilityStatus::Planned,
+        status: CapabilityStatus::Implemented,
     },
 ];

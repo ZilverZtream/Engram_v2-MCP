@@ -139,7 +139,10 @@ fn mutation_inherits_mismatch_still_emits_class_edge() {
     assert!(
         class_ref.is_some(),
         "Should emit an edge referencing the declared Inherits value, got edges: {:?}",
-        edges.iter().map(|e| (&e.kind, &e.target_name)).collect::<Vec<_>>()
+        edges
+            .iter()
+            .map(|e| (&e.kind, &e.target_name))
+            .collect::<Vec<_>>()
     );
 }
 

@@ -75,7 +75,7 @@ engram-v2/
 | `analyze_error_stack` | implemented |
 | `dream_project` | implemented |
 | `trigger_rem_cycle` | implemented |
-| `analyze_file_coding_style` | experimental |
+| `analyze_file_coding_style` | implemented |
 | `list_jobs` | implemented |
 | `cancel_job` | implemented |
 | `get_job_status` | implemented |
@@ -100,7 +100,7 @@ engram-v2/
 | `compute_blast_radius` | implemented |
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
-| `graph_centrality_rerank` | planned |
+| `graph_centrality_rerank` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Phase 27: Gold Standard Hardening
@@ -149,6 +149,46 @@ New APIs added to the existing ADP service:
 ### CI workflow
 
 `.github/workflows/benchmark-ci.yml`: Runs benchmark unit tests, ADP corpus replay, WebForms mutations, and reproducibility tests on every PR and push to main. Generates artifacts with 90-day retention.
+
+## Phase 28: Tool Graduation
+
+Promoted `analyze_file_coding_style` from experimental to implemented and `graph_centrality_rerank` from planned to implemented.
+
+### Modified files
+
+| File | Changes |
+|------|---------|
+| `crates/engram_ml/src/mimicry.rs` | Language detection and coding style analysis upgrades |
+| `crates/engram_graph/src/analysis.rs` | Graph centrality algorithms |
+| `crates/engram_server/src/tools.rs` | Tool handler wiring for graduated tools |
+| `crates/engram_server/src/models/requests.rs` | New `GraphCentralityRerankRequest` struct |
+| `crates/engram_server/src/capabilities.rs` | Status promotions: experimental/planned → implemented |
+| `crates/engram_ml/Cargo.toml` | Added tree-sitter grammar dependencies |
+
+### New APIs
+
+| API | Module | Description |
+|-----|--------|-------------|
+| `compute_multi_centrality` | `engram_graph::analysis` | Computes multiple centrality measures (degree, betweenness, closeness) in a single pass |
+| `MultiCentrality` | `engram_graph::analysis` | Struct holding combined centrality scores per node |
+| `blended_score` | `engram_graph::analysis` | Weighted combination of centrality measures for reranking |
+| `DetectedLanguage` | `engram_ml::mimicry` | Enum/struct for language detection results used by coding style analysis |
+| `approximate_betweenness` | `engram_graph::analysis` | Sampling-based betweenness centrality for large graphs |
+
+### New request struct
+
+| Struct | Crate | Description |
+|--------|-------|-------------|
+| `GraphCentralityRerankRequest` | `engram_server` | Request parameters for `graph_centrality_rerank` tool: query, node IDs, centrality weights, top-k |
+
+### New tree-sitter grammars
+
+| Grammar | Purpose |
+|---------|---------|
+| `tree-sitter-c-sharp` | C# parsing for coding style analysis |
+| `tree-sitter-typescript` | TypeScript parsing for coding style analysis |
+| `tree-sitter-java` | Java parsing for coding style analysis |
+| `tree-sitter-go` | Go parsing for coding style analysis |
 
 ## Source-of-truth sync rule
 

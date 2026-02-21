@@ -46,7 +46,7 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `analyze_error_stack` | implemented |
 | `dream_project` | implemented |
 | `trigger_rem_cycle` | implemented |
-| `analyze_file_coding_style` | experimental |
+| `analyze_file_coding_style` | implemented |
 | `list_jobs` | implemented |
 | `cancel_job` | implemented |
 | `get_job_status` | implemented |
@@ -71,14 +71,14 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `compute_blast_radius` | implemented |
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
-| `graph_centrality_rerank` | planned |
+| `graph_centrality_rerank` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Focus areas
 
-- **Graduate `experimental`**: `analyze_file_coding_style` is the sole remaining experimental tool — path to `implemented` requires edge-case hardening across more language/git-history combinations.
-- **Implement `planned`**: `graph_centrality_rerank` is the only planned item; baseline behavior requires integrating PageRank scores into hybrid search re-ranking at query time.
-- **No `partial` entries remain** — all formerly partial tools were fully promoted across Phases 21–25.
+- **All tools at `implemented` status** — no `experimental`, `partial`, or `planned` entries remain. The final two tools were promoted in Phase 28:
+  - `analyze_file_coding_style`: multi-language AST support (C#, TypeScript, Java, Go + existing Rust, Python), improved confidence calibration, edge-case hardening (parse error detection), line length + async pattern detection.
+  - `graph_centrality_rerank`: multi-algorithm centrality (PageRank + degree + betweenness approximation), 3 modes (search+rerank, node scoring, top-N), configurable algorithm weights, Brandes k-pivot betweenness.
 
 ## Changelog
 
