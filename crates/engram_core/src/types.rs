@@ -56,7 +56,9 @@ pub fn guess_language(path: &std::path::Path) -> &'static str {
         "sln" => "text",
         "csproj" | "vbproj" => "xml",
         "sql" => "sql",
-        "rdlc" => "xml",
+        "rdlc" | "rdl" => "xml",
+        "asp" => "asp_classic",
+        "rpt" => "text",
         _ => "text",
     }
 }

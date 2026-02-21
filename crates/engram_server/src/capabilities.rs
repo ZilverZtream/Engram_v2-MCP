@@ -273,4 +273,25 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "graph_centrality_rerank",
         status: CapabilityStatus::Implemented,
     },
+    // ── Phase 30: Migration Engine ──────────────────────────────────────
+    CapabilityFlag {
+        key: "generate_migration_scaffold",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "generate_instrumentation_code",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "reconcile_runtime_evidence",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "suggest_state_migration",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "generate_characterization_tests",
+        status: CapabilityStatus::Implemented,
+    },
 ];

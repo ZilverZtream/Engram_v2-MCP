@@ -72,6 +72,11 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
 | `graph_centrality_rerank` | implemented |
+| `generate_migration_scaffold` | implemented |
+| `generate_instrumentation_code` | implemented |
+| `reconcile_runtime_evidence` | implemented |
+| `suggest_state_migration` | implemented |
+| `generate_characterization_tests` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Focus areas
@@ -81,6 +86,22 @@ The matrix below is generated from capability flags and acts as the roadmap base
   - `graph_centrality_rerank`: multi-algorithm centrality (PageRank + degree + betweenness approximation), 3 modes (search+rerank, node scoring, top-N), configurable algorithm weights, Brandes k-pivot betweenness.
 
 ## Changelog
+
+### Phase 30: End-to-End Migration Engine (8 gaps)
+- **5 new tools**: `generate_migration_scaffold`, `generate_instrumentation_code`, `reconcile_runtime_evidence`, `suggest_state_migration`, `generate_characterization_tests`
+- **Control mapping catalog** (`engram_index::control_mapping`): 50-entry WebForms → Blazor/React/Angular control mappings with accessibility, data binding, and event equivalents
+- **Scaffold service** (`scaffold_service.rs`): Blazor/React/Angular component generator with repository interfaces, DTOs, test scaffolds, and state key mapping
+- **DB strategy service** (`db_strategy_service.rs`): Data access pattern classifier (8 patterns), repository interface generator, SQL injection risk scorer
+- **Instrumentation service** (`instrumentation_service.rs`): C#/VB.NET HttpModule generator with route/session/SQL/postback/error tracing, plus static-vs-runtime reconciliation
+- **State migration service** (`state_migration_service.rs`): Per-key migration recommendations with access pattern analysis, ViewState lifecycle classification, and affinity grouping
+- **Characterization test service** (`characterization_test_service.rs`): NUnit/xUnit/MSTest test generator covering 5 categories from graph analysis
+- **VB.NET deep extraction**: On Error/Resume Next, With blocks, late-binding, My. namespace, ReDim Preserve
+- **GIS deep extraction**: Leaflet/Esri/ArcGIS layer inventory, spatial API call detection
+- **Classic ASP extractor** (`asp_classic_extractor.rs`): 7 detection categories with 31 tests
+- **Report extractor** (`report_extractor.rs`): SSRS and Crystal Reports detection with 16 tests
+- **Windows Service detection**: ServiceBase/TopShelf/BackgroundService recognition in pattern detection service
+- **Config fields**: `scaffold_default_target_stack`, `scaffold_include_tests`, `enable_classic_asp_extraction`, `enable_report_extraction`, `characterization_test_framework`
+- **121 new tests** across all Phase 30 modules
 
 ### Phase 27: Gold Standard Hardening (10 tickets)
 - **Benchmark schemas** (`engram_core::benchmark`): `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, `DriftReport` with versioned schemas, per-class thresholds, and drift detection

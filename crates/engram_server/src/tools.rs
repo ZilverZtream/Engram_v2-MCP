@@ -6356,6 +6356,60 @@ End Sub
 
         patterns.truncate(limit);
 
+        // Detect background service patterns by scanning class/file nodes
+        {
+            let graph2 = self.state.graph.clone();
+            let reg = self.state.registry.clone();
+            let pid2 = req.project_id.clone();
+            let project_root = reg
+                .get_project(&pid2)
+                .ok()
+                .flatten()
+                .map(|p| p.directory.clone());
+            if let Some(root) = project_root {
+                let svc_patterns = tokio::task::spawn_blocking(move || {
+                    let mut results = Vec::new();
+                    if let Ok(class_nodes) =
+                        graph2.query_nodes(&pid2, Some("class"), None, None, 500)
+                    {
+                        for node in &class_nodes {
+                            let fp = node.file_path.as_str();
+                            let full_path = std::path::Path::new(&root).join(fp);
+                            if let Ok(source) = std::fs::read_to_string(&full_path) {
+                                let lang = if fp.ends_with(".vb") { "vb" } else { "cs" };
+                                let hits =
+                                    crate::services::pattern_detection_service::detect_background_service_patterns(
+                                        &source, fp, lang,
+                                    );
+                                results.extend(hits);
+                            }
+                        }
+                    }
+                    results
+                })
+                .await
+                .unwrap_or_default();
+
+                for svc in &svc_patterns {
+                    patterns.push(
+                        crate::services::pattern_detection_service::DesignAntiPattern {
+                            pattern_name: format!("Background Service: {}", svc.pattern),
+                            description: svc.evidence.clone(),
+                            severity:
+                                crate::services::pattern_detection_service::AntiPatternSeverity::Moderate,
+                            affected_nodes: vec![svc.file_path.clone()],
+                            evidence: vec![svc.evidence.clone()],
+                            modern_target: svc.modern_equivalent.clone(),
+                            refactoring_steps: vec![
+                                format!("Migrate to {}", svc.modern_equivalent),
+                                "Register as IHostedService in Program.cs".to_string(),
+                            ],
+                        },
+                    );
+                }
+            }
+        }
+
         if patterns.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No design anti-patterns detected in the project graph.".to_string(),
@@ -6874,6 +6928,369 @@ End Sub
 
             Ok(CallToolResult::success(vec![Content::text(out)]))
         }
+    }
+
+    // ── Phase 30: Migration Engine Tools ────────────────────────────────────
+
+    /// Generate a migration scaffold for a legacy file targeting Blazor, React, or Angular.
+    #[tool(
+        name = "generate_migration_scaffold",
+        description = "Generate a compilable target-stack skeleton (Blazor/React/Angular) from a legacy WebForms file's extraction data. Produces component code, repository interfaces, DTOs, and optional test scaffolds."
+    )]
+    pub async fn generate_migration_scaffold(
+        &self,
+        params: Parameters<GenerateMigrationScaffoldRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+        let target = req.target_stack.clone();
+        let include_tests = req.include_test_scaffold;
+        let format = req.output_format.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::scaffold_service::generate_scaffold(
+                &graph,
+                &pid,
+                &file_path,
+                &target,
+                include_tests,
+                &format,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = format!("# Migration Scaffold ({})\n\n", result.target_stack);
+        out.push_str("## Component Code\n```\n");
+        out.push_str(&result.component_code);
+        out.push_str("```\n\n");
+
+        if let Some(ref repo) = result.repository_interface {
+            out.push_str("## Repository Interface\n```csharp\n");
+            out.push_str(repo);
+            out.push_str("```\n\n");
+        }
+        if let Some(ref dto) = result.dto_classes {
+            out.push_str("## DTO Classes\n```csharp\n");
+            out.push_str(dto);
+            out.push_str("```\n\n");
+        }
+        if let Some(ref test) = result.test_scaffold {
+            out.push_str("## Test Scaffold\n```\n");
+            out.push_str(test);
+            out.push_str("```\n\n");
+        }
+
+        if !result.mapping_report.is_empty() {
+            out.push_str("## Mapping Report\n");
+            for entry in &result.mapping_report {
+                out.push_str(&format!(
+                    "- **{}** → {} [{}] {}\n",
+                    entry.legacy_element, entry.modern_element, entry.category, entry.notes
+                ));
+            }
+        }
+
+        if !result.warnings.is_empty() {
+            out.push_str("\n## Warnings\n");
+            for w in &result.warnings {
+                out.push_str(&format!("- {w}\n"));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Generate runtime instrumentation code for a legacy ASP.NET application.
+    #[tool(
+        name = "generate_instrumentation_code",
+        description = "Generate injectable C# or VB.NET HttpModule code that captures route events, session access, SQL execution, control interactions, and errors from a running legacy application."
+    )]
+    pub async fn generate_instrumentation_code(
+        &self,
+        params: Parameters<GenerateInstrumentationCodeRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let files = req.target_files.clone();
+        let lang = req.language.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::instrumentation_service::generate_instrumentation_code(
+                &graph, &pid, &files, &lang,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = String::from("# Runtime Instrumentation Package\n\n");
+
+        out.push_str("## C# Module\n```csharp\n");
+        out.push_str(&result.csharp_module);
+        out.push_str("```\n\n");
+
+        out.push_str("## VB.NET Module\n```vbnet\n");
+        out.push_str(&result.vb_module);
+        out.push_str("```\n\n");
+
+        out.push_str("## web.config Entries\n```xml\n");
+        out.push_str(&result.webconfig_entries);
+        out.push_str("```\n\n");
+
+        out.push_str("## Captured Events\n");
+        for evt in &result.captured_events {
+            out.push_str(&format!("- {evt}\n"));
+        }
+
+        out.push_str("\n## Installation Steps\n");
+        for step in &result.installation_steps {
+            out.push_str(&format!("{step}\n"));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Reconcile static analysis with runtime evidence.
+    #[tool(
+        name = "reconcile_runtime_evidence",
+        description = "Compare static analysis paths (from graph edges) with runtime behavior (from ingested RuntimeEvidenceBatch). Classifies each path as confirmed, contradicted, or inconclusive."
+    )]
+    pub async fn reconcile_runtime_evidence(
+        &self,
+        params: Parameters<ReconcileRuntimeEvidenceRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+
+        let batch: engram_core::runtime_evidence::RuntimeEvidenceBatch =
+            serde_json::from_str(&req.evidence_json)
+                .map_err(|e| McpError::invalid_params(format!("Invalid evidence JSON: {e}"), None))?;
+
+        let report = tokio::task::spawn_blocking(move || {
+            crate::services::instrumentation_service::reconcile_runtime_evidence(
+                &graph, &pid, &batch,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let s = &report.summary;
+        let mut out = format!(
+            "# Reconciliation Report\n\n\
+             **Total static paths**: {}\n\
+             **Confirmed**: {} ({:.1}%)\n\
+             **Contradicted**: {} ({:.1}%)\n\
+             **Inconclusive**: {} ({:.1}%)\n\
+             **Confidence delta**: {:.3}\n\n",
+            s.total_static_paths,
+            s.confirmed_count,
+            s.confirmed_ratio * 100.0,
+            s.contradicted_count,
+            s.contradicted_ratio * 100.0,
+            s.inconclusive_count,
+            (1.0 - s.confirmed_ratio - s.contradicted_ratio) * 100.0,
+            s.confidence_delta,
+        );
+
+        if !report.contradicted_paths.is_empty() {
+            out.push_str("## Contradicted Paths (Dead Code Candidates)\n");
+            for p in &report.contradicted_paths {
+                out.push_str(&format!(
+                    "- {} → {} [{}]\n",
+                    p.source, p.target, p.edge_kind
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !report.confirmed_paths.is_empty() {
+            out.push_str(&format!(
+                "## Confirmed Paths ({} total, first 20 shown)\n",
+                report.confirmed_paths.len()
+            ));
+            for p in report.confirmed_paths.iter().take(20) {
+                out.push_str(&format!(
+                    "- {} → {} [{}]: {}\n",
+                    p.source,
+                    p.target,
+                    p.edge_kind,
+                    p.runtime_evidence.as_deref().unwrap_or("confirmed")
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Analyze state management and suggest migration strategies.
+    #[tool(
+        name = "suggest_state_migration",
+        description = "Analyze all Session, ViewState, Application, Cache, and Cookie access in a project and produce per-key migration recommendations with code hints."
+    )]
+    pub async fn suggest_state_migration(
+        &self,
+        params: Parameters<SuggestStateMigrationRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+
+        let report = tokio::task::spawn_blocking(move || {
+            crate::services::state_migration_service::analyze_state_migration(&graph, &pid)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let s = &report.summary;
+        let mut out = format!(
+            "# State Migration Report\n\n**Total state keys**: {}\n\n",
+            s.total_state_keys
+        );
+
+        if !s.by_store.is_empty() {
+            out.push_str("## By Store Type\n");
+            for (store, count) in &s.by_store {
+                out.push_str(&format!("- {store}: {count}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !s.by_target.is_empty() {
+            out.push_str("## By Migration Target\n");
+            for (target, count) in &s.by_target {
+                out.push_str(&format!("- {target}: {count}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !s.high_risk_keys.is_empty() {
+            out.push_str("## High-Risk Keys\n");
+            for k in &s.high_risk_keys {
+                out.push_str(&format!("- {k}\n"));
+            }
+            out.push('\n');
+        }
+
+        out.push_str("## Recommendations\n\n");
+        for rec in &report.recommendations {
+            out.push_str(&format!("### {}\n", rec.state_key));
+            out.push_str(&format!("- **Store**: {:?}\n", rec.store_type));
+            out.push_str(&format!("- **Pattern**: {:?}\n", rec.access_pattern));
+            out.push_str(&format!("- **Type inference**: {}\n", rec.data_type_inference));
+            out.push_str(&format!(
+                "- **Readers**: {} | **Writers**: {}\n",
+                rec.readers.len(),
+                rec.writers.len()
+            ));
+            out.push_str(&format!("- **Target**: {}\n", rec.recommended_target));
+            out.push_str(&format!("- **Reasoning**: {}\n", rec.reasoning));
+            out.push_str(&format!("- **Code hint**: `{}`\n\n", rec.migration_code_hint));
+        }
+
+        if let Some(ref vs) = report.viewstate_report {
+            out.push_str(&format!(
+                "## ViewState Elimination Report\n\
+                 **Total ViewState keys**: {}\n\
+                 **Estimated payload**: ~{} bytes\n\n",
+                vs.total_viewstate_keys, vs.estimated_payload_bytes
+            ));
+            for page in &vs.pages {
+                out.push_str(&format!("### {}\n", page.file_path));
+                for key in &page.keys {
+                    out.push_str(&format!(
+                        "- **{}** [{:?}]: {}{}\n",
+                        key.key,
+                        key.lifecycle,
+                        key.elimination_strategy,
+                        if key.is_url_state_crutch {
+                            " ⚠ URL state crutch"
+                        } else {
+                            ""
+                        }
+                    ));
+                }
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Generate characterization tests from extraction data.
+    #[tool(
+        name = "generate_characterization_tests",
+        description = "Generate test skeletons (NUnit/xUnit/MSTest) from extraction data covering event handlers, data flows, state transitions, navigation paths, and API contracts."
+    )]
+    pub async fn generate_characterization_tests(
+        &self,
+        params: Parameters<GenerateCharacterizationTestsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+        let framework = req.framework.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::characterization_test_service::generate_characterization_tests(
+                &graph,
+                &pid,
+                &file_path,
+                &framework,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Characterization Tests ({} tests, {})\n\n",
+            result.test_count, result.framework
+        );
+
+        out.push_str("## Generated Test Code\n```csharp\n");
+        out.push_str(&result.test_code);
+        out.push_str("```\n\n");
+
+        if !result.coverage_map.is_empty() {
+            out.push_str("## Coverage Map\n");
+            for entry in &result.coverage_map {
+                out.push_str(&format!(
+                    "- **{}** [{:?}]: {} edges covered\n",
+                    entry.test_name,
+                    entry.category,
+                    entry.covered_edges.len()
+                ));
+            }
+        }
+
+        if !result.warnings.is_empty() {
+            out.push_str("\n## Warnings\n");
+            for w in &result.warnings {
+                out.push_str(&format!("- {w}\n"));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 }
 

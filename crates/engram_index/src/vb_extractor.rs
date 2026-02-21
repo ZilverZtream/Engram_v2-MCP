@@ -72,6 +72,23 @@ static SCRIPT_MANAGER_RE: OnceLock<Regex> = OnceLock::new();
 // Extracts function names from injected JS strings
 static JS_FUNCTION_IN_SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
 
+// Phase 30 Gap 2: VB.NET semantic deep extraction
+static ON_ERROR_RESUME_NEXT_RE: OnceLock<Regex> = OnceLock::new();
+static ON_ERROR_GOTO_RE: OnceLock<Regex> = OnceLock::new();
+static ERR_OBJECT_RE: OnceLock<Regex> = OnceLock::new();
+static WITH_BLOCK_RE: OnceLock<Regex> = OnceLock::new();
+static WITH_MEMBER_RE: OnceLock<Regex> = OnceLock::new();
+static CREATEOBJECT_RE: OnceLock<Regex> = OnceLock::new();
+static GETOBJECT_RE: OnceLock<Regex> = OnceLock::new();
+static CALLBYNAME_RE: OnceLock<Regex> = OnceLock::new();
+static LATE_BOUND_OBJECT_RE: OnceLock<Regex> = OnceLock::new();
+static MY_SETTINGS_RE: OnceLock<Regex> = OnceLock::new();
+static MY_COMPUTER_RE: OnceLock<Regex> = OnceLock::new();
+static MY_APPLICATION_RE: OnceLock<Regex> = OnceLock::new();
+static MY_USER_RE: OnceLock<Regex> = OnceLock::new();
+static MY_RESOURCES_RE: OnceLock<Regex> = OnceLock::new();
+static REDIM_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -662,6 +679,39 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         edges.extend(extract_script_injections(source, &all_scopes));
     }
 
+    // Phase 30 Gap 2: VB.NET semantic deep extraction
+
+    // On Error Resume Next / GoTo pattern detection
+    if has_on_error_keyword(source) {
+        let (on_err_syms, on_err_edges) = extract_on_error_patterns(source, &all_scopes);
+        symbols.extend(on_err_syms);
+        edges.extend(on_err_edges);
+    }
+
+    // With ... End With block detection
+    if has_with_block_keyword(source) {
+        edges.extend(extract_with_blocks(source, &all_scopes));
+    }
+
+    // COM interop / late binding detection (CreateObject, GetObject, CallByName)
+    if has_late_binding_keyword(source) {
+        let (lb_syms, lb_edges) = extract_late_binding(source, &all_scopes);
+        symbols.extend(lb_syms);
+        edges.extend(lb_edges);
+    }
+
+    // My. namespace access detection
+    if has_my_namespace_keyword(source) {
+        let (my_syms, my_edges) = extract_my_namespace(source, &all_scopes);
+        symbols.extend(my_syms);
+        edges.extend(my_edges);
+    }
+
+    // ReDim / ReDim Preserve detection
+    if has_redim_keyword(source) {
+        edges.extend(extract_redim_usage(source, &all_scopes));
+    }
+
     (symbols, edges)
 }
 
@@ -754,6 +804,725 @@ fn has_script_injection_keyword(source: &str) -> bool {
     ci_contains_fast(src, b"RegisterStartupScript")
         || ci_contains_fast(src, b"RegisterClientScript")
         || ci_contains_fast(src, b"ScriptManager")
+}
+
+// ── Phase 30 Gap 2: keyword checks ──────────────────────────────────────────
+
+/// Fast check for `On Error` usage.
+#[inline]
+fn has_on_error_keyword(source: &str) -> bool {
+    ci_contains_fast(source.as_bytes(), b"On Error")
+}
+
+/// Fast check for `With ... End With` blocks.
+#[inline]
+fn has_with_block_keyword(source: &str) -> bool {
+    ci_contains_fast(source.as_bytes(), b"End With")
+}
+
+/// Fast check for `CreateObject` / `GetObject` / late binding patterns.
+#[inline]
+fn has_late_binding_keyword(source: &str) -> bool {
+    let src = source.as_bytes();
+    ci_contains_fast(src, b"CreateObject")
+        || ci_contains_fast(src, b"GetObject")
+        || ci_contains_fast(src, b"CallByName")
+}
+
+/// Fast check for VB.NET `My.` namespace access.
+#[inline]
+fn has_my_namespace_keyword(source: &str) -> bool {
+    ci_contains_fast(source.as_bytes(), b"My.")
+}
+
+/// Fast check for `ReDim` usage.
+#[inline]
+fn has_redim_keyword(source: &str) -> bool {
+    ci_contains_fast(source.as_bytes(), b"ReDim")
+}
+
+// ── Phase 30 Gap 2: extraction functions ────────────────────────────────────
+
+/// Detect `On Error Resume Next` / `On Error GoTo` patterns and `Err` object usage.
+/// Emits `anti_pattern` edges + `insight` nodes for unstructured error handling.
+fn extract_on_error_patterns(
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let mut symbols = Vec::new();
+    let mut edges = Vec::new();
+    let line_idx = LineIndex::new(source);
+
+    // On Error Resume Next
+    let re_resume = get_compiled_regex(
+        &ON_ERROR_RESUME_NEXT_RE,
+        r"(?i)^\s*On\s+Error\s+Resume\s+Next",
+        "on_error_resume_next",
+    );
+    // On Error GoTo <label|0|-1>
+    let re_goto = get_compiled_regex(
+        &ON_ERROR_GOTO_RE,
+        r"(?i)^\s*On\s+Error\s+GoTo\s+(\w+|-?\d+)",
+        "on_error_goto",
+    );
+    // Err.Number, Err.Description, Err.Clear, Err.Raise, Err.Source
+    let re_err = get_compiled_regex(
+        &ERR_OBJECT_RE,
+        r"(?i)\bErr\s*\.\s*(Number|Description|Clear|Raise|Source|GetException|HelpContext)\b",
+        "err_object",
+    );
+
+    // Track on-error regions: start → (pattern, scope_fqn)
+    let mut resume_next_regions: Vec<(u32, u32, String)> = Vec::new();
+    let mut current_resume_start: Option<(u32, usize)> = None;
+
+    for (byte_offset, line_text) in source
+        .lines()
+        .scan(0usize, |offset, line| {
+            let start = *offset;
+            *offset += line.len() + 1; // +1 for newline
+            Some((start, line))
+        })
+    {
+        let line_num = line_idx.line_of(byte_offset);
+
+        // Detect On Error Resume Next
+        if let Some(re) = re_resume {
+            if re.is_match(line_text) {
+                current_resume_start = Some((line_num, byte_offset));
+                let (src_name, src_kind, src_line) =
+                    find_best_enclosing_scope(all_scopes, byte_offset);
+
+                let mut meta = HashMap::new();
+                meta.insert("pattern".to_string(), "on_error_resume_next".to_string());
+                meta.insert("line".to_string(), line_num.to_string());
+                meta.insert(
+                    "modern_equivalent".to_string(),
+                    "try/catch with specific exception types".to_string(),
+                );
+
+                edges.push(ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: "unstructured_error_handling".to_string(),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                });
+            }
+        }
+
+        // Detect On Error GoTo
+        if let Some(re) = re_goto {
+            if let Some(cap) = re.captures(line_text) {
+                let label = cap.get(1).map_or("0", |m| m.as_str());
+
+                // On Error GoTo 0 ends resume-next region
+                if label == "0" || label == "-1" {
+                    if let Some((start_line, _)) = current_resume_start.take() {
+                        let (src_name, _, _) =
+                            find_best_enclosing_scope(all_scopes, byte_offset);
+                        resume_next_regions.push((
+                            start_line,
+                            line_num,
+                            src_name.to_string(),
+                        ));
+                    }
+                } else {
+                    let (src_name, src_kind, src_line) =
+                        find_best_enclosing_scope(all_scopes, byte_offset);
+
+                    let mut meta = HashMap::new();
+                    meta.insert("pattern".to_string(), "on_error_goto".to_string());
+                    meta.insert("goto_label".to_string(), label.to_string());
+                    meta.insert("line".to_string(), line_num.to_string());
+                    meta.insert(
+                        "modern_equivalent".to_string(),
+                        "try/catch with specific exception types".to_string(),
+                    );
+
+                    edges.push(ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name: "unstructured_error_handling".to_string(),
+                        target_kind: Some("insight"),
+                        target_start_line: Some(line_num),
+                        kind: "anti_pattern",
+                        metadata: Some(meta),
+                    });
+                }
+            }
+        }
+    }
+
+    // Count Err object accesses
+    let err_count = if let Some(re) = re_err {
+        re.find_iter(source).count()
+    } else {
+        0
+    };
+
+    // Emit insight symbol if any on-error pattern was found
+    if !edges.is_empty() {
+        let mut meta = HashMap::new();
+        meta.insert("err_object_accesses".to_string(), err_count.to_string());
+        meta.insert(
+            "resume_next_regions".to_string(),
+            resume_next_regions.len().to_string(),
+        );
+        meta.insert(
+            "modern_equivalent".to_string(),
+            "try/catch with specific exception types".to_string(),
+        );
+
+        symbols.push(ExtractedSymbol {
+            name: "unstructured_error_handling".to_string(),
+            kind: "insight",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+    }
+
+    (symbols, edges)
+}
+
+/// Detect `With ... End With` blocks and resolve `.Property` member accesses.
+/// Emits `reads_state`/`writes_state`/`data_binding` edges from the With target.
+fn extract_with_blocks(
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> Vec<ExtractedEdge> {
+    let mut edges = Vec::new();
+    let line_idx = LineIndex::new(source);
+
+    // Match "With <target>" line
+    let re_with = get_compiled_regex(
+        &WITH_BLOCK_RE,
+        r"(?i)^\s*With\s+(\S+)",
+        "with_block",
+    );
+    // Match ".<member>" access inside a with block (assignment or read)
+    let re_member = get_compiled_regex(
+        &WITH_MEMBER_RE,
+        r"(?i)^\s*\.(\w+)\s*(?:=\s*(.+)|$)",
+        "with_member",
+    );
+
+    let re_with = match re_with {
+        Some(r) => r,
+        None => return edges,
+    };
+    let re_member = match re_member {
+        Some(r) => r,
+        None => return edges,
+    };
+
+    let mut in_with = false;
+    let mut with_target = String::new();
+    let mut with_start_line: u32 = 0;
+    let mut byte_offset: usize = 0;
+
+    for line_text in source.lines() {
+        let line_num = line_idx.line_of(byte_offset);
+
+        let trimmed = line_text.trim();
+
+        // Detect End With
+        if in_with && trimmed.eq_ignore_ascii_case("End With") {
+            in_with = false;
+            with_target.clear();
+            byte_offset += line_text.len() + 1;
+            continue;
+        }
+
+        // Detect With <target>
+        if let Some(cap) = re_with.captures(line_text) {
+            in_with = true;
+            with_target = cap.get(1).map_or("", |m| m.as_str()).to_string();
+            with_start_line = line_num;
+            byte_offset += line_text.len() + 1;
+            continue;
+        }
+
+        // Inside a With block, detect .Member accesses
+        if in_with {
+            if let Some(cap) = re_member.captures(trimmed) {
+                let member = cap.get(1).map_or("", |m| m.as_str());
+                let is_write = cap.get(2).is_some();
+
+                let (src_name, src_kind, src_line) =
+                    find_best_enclosing_scope(all_scopes, byte_offset);
+
+                let target_name =
+                    format!("{}.{}", with_target, member);
+
+                let edge_kind = if is_write {
+                    "writes_state"
+                } else {
+                    "reads_state"
+                };
+
+                let mut meta = HashMap::new();
+                meta.insert("with_target".to_string(), with_target.clone());
+                meta.insert("member".to_string(), member.to_string());
+                meta.insert(
+                    "with_block_start".to_string(),
+                    with_start_line.to_string(),
+                );
+
+                edges.push(ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name,
+                    target_kind: Some("global_state"),
+                    target_start_line: Some(line_num),
+                    kind: edge_kind,
+                    metadata: Some(meta),
+                });
+            }
+        }
+
+        byte_offset += line_text.len() + 1;
+    }
+
+    edges
+}
+
+/// Detect `CreateObject()`, `GetObject()`, and `CallByName()` as COM interop / late binding.
+/// Emits `anti_pattern` edges + `insight` nodes.
+fn extract_late_binding(
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let mut symbols = Vec::new();
+    let mut edges = Vec::new();
+    let line_idx = LineIndex::new(source);
+
+    let re_create = get_compiled_regex(
+        &CREATEOBJECT_RE,
+        r#"(?i)\bCreateObject\s*\(\s*"([^"]+)"\s*\)"#,
+        "createobject",
+    );
+    let re_get = get_compiled_regex(
+        &GETOBJECT_RE,
+        r#"(?i)\bGetObject\s*\(\s*"([^"]*)"(?:\s*,\s*"([^"]+)")?\s*\)"#,
+        "getobject",
+    );
+    let re_callbyname = get_compiled_regex(
+        &CALLBYNAME_RE,
+        r"(?i)\bCallByName\s*\(",
+        "callbyname",
+    );
+    let re_late_bound = get_compiled_regex(
+        &LATE_BOUND_OBJECT_RE,
+        r"(?i)\bDim\s+(\w+)\s+As\s+Object\b",
+        "late_bound_object",
+    );
+
+    let mut prog_ids_seen: HashSet<String> = HashSet::new();
+
+    // Scan for CreateObject
+    if let Some(re) = re_create {
+        for cap in re.captures_iter(source) {
+            let full_match = cap.get(0).expect("full match always exists");
+            let prog_id = cap.get(1).map_or("", |m| m.as_str());
+            let byte_offset = full_match.start();
+            let line_num = line_idx.line_of(byte_offset);
+
+            let (src_name, src_kind, src_line) =
+                find_best_enclosing_scope(all_scopes, byte_offset);
+
+            // Determine modern equivalent based on ProgId
+            let modern_eq = match prog_id.to_lowercase().as_str() {
+                s if s.contains("excel") => {
+                    "EPPlus or ClosedXML NuGet package"
+                }
+                s if s.contains("word") => {
+                    "Open XML SDK or DocX NuGet package"
+                }
+                s if s.contains("outlook") || s.contains("mapi") => {
+                    "Microsoft Graph API"
+                }
+                s if s.contains("adodb") => {
+                    "ADO.NET SqlConnection/SqlCommand"
+                }
+                s if s.contains("scripting.filesystemobject") => {
+                    "System.IO namespace"
+                }
+                s if s.contains("msxml") || s.contains("xmlhttp") => {
+                    "HttpClient or XDocument"
+                }
+                s if s.contains("wscript") || s.contains("shell") => {
+                    "System.Diagnostics.Process"
+                }
+                s if s.contains("cdo") => {
+                    "System.Net.Mail.SmtpClient"
+                }
+                _ => "Find appropriate .NET NuGet package replacement",
+            };
+
+            let mut meta = HashMap::new();
+            meta.insert("prog_id".to_string(), prog_id.to_string());
+            meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
+            meta.insert("pattern".to_string(), "com_interop_createobject".to_string());
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("com_interop:{}", prog_id),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            });
+
+            if prog_ids_seen.insert(prog_id.to_lowercase()) {
+                let mut sym_meta = HashMap::new();
+                sym_meta.insert("prog_id".to_string(), prog_id.to_string());
+                sym_meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
+
+                symbols.push(ExtractedSymbol {
+                    name: format!("com_interop_usage:{}", prog_id),
+                    kind: "insight",
+                    start_line: line_num,
+                    end_line: line_num,
+                    metadata: Some(sym_meta),
+                });
+            }
+        }
+    }
+
+    // Scan for GetObject
+    if let Some(re) = re_get {
+        for cap in re.captures_iter(source) {
+            let full_match = cap.get(0).expect("full match always exists");
+            let path_or_empty = cap.get(1).map_or("", |m| m.as_str());
+            let prog_id = cap
+                .get(2)
+                .map_or(path_or_empty, |m| m.as_str());
+            let byte_offset = full_match.start();
+            let line_num = line_idx.line_of(byte_offset);
+
+            let (src_name, src_kind, src_line) =
+                find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let mut meta = HashMap::new();
+            meta.insert("prog_id".to_string(), prog_id.to_string());
+            meta.insert("pattern".to_string(), "com_interop_getobject".to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                "Find appropriate .NET NuGet package replacement".to_string(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("com_interop:{}", prog_id),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Scan for CallByName
+    if let Some(re) = re_callbyname {
+        for mat in re.find_iter(source) {
+            let byte_offset = mat.start();
+            let line_num = line_idx.line_of(byte_offset);
+
+            let (src_name, src_kind, src_line) =
+                find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let mut meta = HashMap::new();
+            meta.insert("pattern".to_string(), "late_binding_callbyname".to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                "Use strongly-typed interface or dynamic keyword".to_string(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: "late_binding:CallByName".to_string(),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Scan for Dim x As Object (late-bound variable declarations)
+    if let Some(re) = re_late_bound {
+        for cap in re.captures_iter(source) {
+            let full_match = cap.get(0).expect("full match always exists");
+            let var_name = cap.get(1).map_or("", |m| m.as_str());
+            let byte_offset = full_match.start();
+            let line_num = line_idx.line_of(byte_offset);
+
+            let (src_name, src_kind, src_line) =
+                find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let mut meta = HashMap::new();
+            meta.insert("variable".to_string(), var_name.to_string());
+            meta.insert("pattern".to_string(), "late_bound_variable".to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                "Use specific type or interface".to_string(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("late_binding:Object_{}", var_name),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    (symbols, edges)
+}
+
+/// Detect VB.NET `My.` namespace access patterns.
+/// Emits `reads_state` edges for My.Settings, and `insight` nodes for other My.* usage.
+fn extract_my_namespace(
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let mut symbols = Vec::new();
+    let mut edges = Vec::new();
+    let line_idx = LineIndex::new(source);
+
+    let re_settings = get_compiled_regex(
+        &MY_SETTINGS_RE,
+        r"(?i)\bMy\.Settings\.(\w+)",
+        "my_settings",
+    );
+    let re_computer = get_compiled_regex(
+        &MY_COMPUTER_RE,
+        r"(?i)\bMy\.Computer\.(\w+(?:\.\w+)*)",
+        "my_computer",
+    );
+    let re_application = get_compiled_regex(
+        &MY_APPLICATION_RE,
+        r"(?i)\bMy\.Application\.(\w+(?:\.\w+)*)",
+        "my_application",
+    );
+    let re_user = get_compiled_regex(
+        &MY_USER_RE,
+        r"(?i)\bMy\.User\.(\w+)",
+        "my_user",
+    );
+    let re_resources = get_compiled_regex(
+        &MY_RESOURCES_RE,
+        r"(?i)\bMy\.Resources\.(\w+)",
+        "my_resources",
+    );
+
+    let mut seen_insights: HashSet<String> = HashSet::new();
+
+    // My.Settings → reads_state (maps to ConfigurationManager.AppSettings)
+    if let Some(re) = re_settings {
+        for cap in re.captures_iter(source) {
+            let full_match = cap.get(0).expect("full match always exists");
+            let setting_name = cap.get(1).map_or("", |m| m.as_str());
+            let byte_offset = full_match.start();
+            let line_num = line_idx.line_of(byte_offset);
+
+            let (src_name, src_kind, src_line) =
+                find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let mut meta = HashMap::new();
+            meta.insert("state_type".to_string(), "My.Settings".to_string());
+            meta.insert("setting_name".to_string(), setting_name.to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                "IConfiguration / IOptions<T>".to_string(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("AppSetting:{}", setting_name),
+                target_kind: Some("app_setting"),
+                target_start_line: Some(line_num),
+                kind: "reads_state",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Helper macro for My.Computer/Application/User/Resources
+    struct MyPattern<'a> {
+        regex: Option<&'a Regex>,
+        category: &'static str,
+        insight_name: &'static str,
+        modern_equivalent: &'static str,
+    }
+
+    let patterns = [
+        MyPattern {
+            regex: re_computer,
+            category: "My.Computer",
+            insight_name: "my_computer_usage",
+            modern_equivalent: "System.IO / System.Environment / System.Net",
+        },
+        MyPattern {
+            regex: re_application,
+            category: "My.Application",
+            insight_name: "my_application_usage",
+            modern_equivalent: "ILogger / IHostApplicationLifetime",
+        },
+        MyPattern {
+            regex: re_user,
+            category: "My.User",
+            insight_name: "my_user_usage",
+            modern_equivalent: "ClaimsPrincipal / IHttpContextAccessor.User",
+        },
+        MyPattern {
+            regex: re_resources,
+            category: "My.Resources",
+            insight_name: "my_resources_usage",
+            modern_equivalent: "IStringLocalizer / embedded resource management",
+        },
+    ];
+
+    for pat in &patterns {
+        if let Some(re) = pat.regex {
+            for cap in re.captures_iter(source) {
+                let full_match = cap.get(0).expect("full match always exists");
+                let member = cap.get(1).map_or("", |m| m.as_str());
+                let byte_offset = full_match.start();
+                let line_num = line_idx.line_of(byte_offset);
+
+                let (src_name, src_kind, src_line) =
+                    find_best_enclosing_scope(all_scopes, byte_offset);
+
+                let mut meta = HashMap::new();
+                meta.insert("category".to_string(), pat.category.to_string());
+                meta.insert("member".to_string(), member.to_string());
+                meta.insert(
+                    "modern_equivalent".to_string(),
+                    pat.modern_equivalent.to_string(),
+                );
+
+                edges.push(ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("{}:{}", pat.category, member),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "reads_state",
+                    metadata: Some(meta),
+                });
+
+                if seen_insights.insert(pat.insight_name.to_string()) {
+                    let mut sym_meta = HashMap::new();
+                    sym_meta.insert(
+                        "modern_equivalent".to_string(),
+                        pat.modern_equivalent.to_string(),
+                    );
+
+                    symbols.push(ExtractedSymbol {
+                        name: pat.insight_name.to_string(),
+                        kind: "insight",
+                        start_line: line_num,
+                        end_line: line_num,
+                        metadata: Some(sym_meta),
+                    });
+                }
+            }
+        }
+    }
+
+    (symbols, edges)
+}
+
+/// Detect `ReDim` / `ReDim Preserve` as an anti-pattern.
+/// Emits `anti_pattern` edges suggesting List(Of T) usage.
+fn extract_redim_usage(
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> Vec<ExtractedEdge> {
+    let mut edges = Vec::new();
+    let line_idx = LineIndex::new(source);
+
+    let re = get_compiled_regex(
+        &REDIM_RE,
+        r"(?i)\bReDim\s+(Preserve\s+)?(\w+)\s*\(",
+        "redim",
+    );
+
+    let re = match re {
+        Some(r) => r,
+        None => return edges,
+    };
+
+    for cap in re.captures_iter(source) {
+        let full_match = cap.get(0).expect("full match always exists");
+        let is_preserve = cap.get(1).is_some();
+        let array_name = cap.get(2).map_or("", |m| m.as_str());
+        let byte_offset = full_match.start();
+        let line_num = line_idx.line_of(byte_offset);
+
+        let (src_name, src_kind, src_line) =
+            find_best_enclosing_scope(all_scopes, byte_offset);
+
+        let mut meta = HashMap::new();
+        meta.insert(
+            "pattern".to_string(),
+            if is_preserve {
+                "redim_preserve".to_string()
+            } else {
+                "redim".to_string()
+            },
+        );
+        meta.insert("array_name".to_string(), array_name.to_string());
+        meta.insert("severity".to_string(), "minor".to_string());
+        meta.insert(
+            "modern_equivalent".to_string(),
+            "Use List(Of T) or ImmutableArray<T>".to_string(),
+        );
+
+        edges.push(ExtractedEdge {
+            source_name: src_name.to_string(),
+            source_kind: src_kind,
+            source_start_line: src_line,
+            source_language: "vb",
+            target_name: format!("dynamic_array_resize:{}", array_name),
+            target_kind: Some("insight"),
+            target_start_line: Some(line_num),
+            kind: "anti_pattern",
+            metadata: Some(meta),
+        });
+    }
+
+    edges
 }
 
 /// Detect server-to-client script injection via `ClientScript.RegisterStartupScript`,

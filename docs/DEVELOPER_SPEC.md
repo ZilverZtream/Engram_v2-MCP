@@ -101,6 +101,11 @@ engram-v2/
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
 | `graph_centrality_rerank` | implemented |
+| `generate_migration_scaffold` | implemented |
+| `generate_instrumentation_code` | implemented |
+| `reconcile_runtime_evidence` | implemented |
+| `suggest_state_migration` | implemented |
+| `generate_characterization_tests` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Phase 27: Gold Standard Hardening
@@ -189,6 +194,71 @@ Promoted `analyze_file_coding_style` from experimental to implemented and `graph
 | `tree-sitter-typescript` | TypeScript parsing for coding style analysis |
 | `tree-sitter-java` | Java parsing for coding style analysis |
 | `tree-sitter-go` | Go parsing for coding style analysis |
+
+## Phase 30: End-to-End Migration Engine
+
+Closes 8 structural gaps between legacy code comprehension and autonomous migration.
+
+### New modules
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `control_mapping.rs` | `engram_index` | 50-entry WebForms → Blazor/React/Angular control mapping catalog |
+| `asp_classic_extractor.rs` | `engram_index` | Classic ASP (.asp) extraction: COM objects, ADO, state, SQL, navigation, includes |
+| `report_extractor.rs` | `engram_index` | SSRS (.rdlc/.rdl) and Crystal Reports detection and parameter/dataset extraction |
+| `scaffold_service.rs` | `engram_server` | Migration scaffold generator (Blazor/React/Angular components, repos, DTOs, tests) |
+| `db_strategy_service.rs` | `engram_server` | Data access pattern classifier, repository interface generator, SQL injection scorer |
+| `instrumentation_service.rs` | `engram_server` | C#/VB.NET HttpModule instrumentation generator + static-vs-runtime reconciliation |
+| `state_migration_service.rs` | `engram_server` | Per-key state migration recommendations with ViewState lifecycle analysis |
+| `characterization_test_service.rs` | `engram_server` | NUnit/xUnit/MSTest characterization test generator from graph analysis |
+
+### Modified modules
+
+| Module | Changes |
+|--------|---------|
+| `vb_extractor.rs` (engram_index) | 5 new VB.NET extraction functions: On Error, With blocks, late binding, My. namespace, ReDim |
+| `js_extractor.rs` (engram_index) | GIS deep extraction: Leaflet/Esri/ArcGIS layer inventory, spatial API detection |
+| `pattern_detection_service.rs` (engram_server) | Windows Service detection (ServiceBase, TopShelf, BackgroundService) |
+| `tools.rs` (engram_server) | 5 new tool handlers |
+| `requests.rs` (engram_server) | 5 new request structs |
+| `capabilities.rs` (engram_server) | 5 new capability flags |
+| `config.rs` (engram_core) | 5 new config fields |
+
+### New config fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `scaffold_default_target_stack` | String | `"blazor"` | Default target stack for scaffold generation |
+| `scaffold_include_tests` | bool | `true` | Include test scaffolds by default |
+| `enable_classic_asp_extraction` | bool | `false` | Enable Classic ASP (.asp) extraction |
+| `enable_report_extraction` | bool | `false` | Enable SSRS/Crystal Reports extraction |
+| `characterization_test_framework` | String | `"nunit"` | Default test framework for characterization tests |
+
+### New request structs
+
+| Struct | Parameters |
+|--------|------------|
+| `GenerateMigrationScaffoldRequest` | project_id, file_path, target_stack, include_test_scaffold, output_format |
+| `GenerateInstrumentationCodeRequest` | project_id, target_files, language |
+| `ReconcileRuntimeEvidenceRequest` | project_id, evidence_json |
+| `SuggestStateMigrationRequest` | project_id, output_json |
+| `GenerateCharacterizationTestsRequest` | project_id, file_path, framework, output_json |
+
+### Test coverage: 121 new tests
+
+| Module | Tests |
+|--------|-------|
+| `control_mapping` | 11 |
+| `asp_classic_extractor` | 31 |
+| `report_extractor` | 16 |
+| `scaffold_service` | 9 |
+| `db_strategy_service` | 13 |
+| `instrumentation_service` | 11 |
+| `state_migration_service` | 15 |
+| `characterization_test_service` | 6 |
+| `pattern_detection_service` | 3 (includes Windows Service) |
+| doc tests | 2 (control_mapping) |
+| **Total** | **121** |
 
 ## Source-of-truth sync rule
 

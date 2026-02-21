@@ -44,6 +44,8 @@ Tree-sitter parsers for: **Rust, Python, Go, Java, C#, TypeScript, JavaScript, C
 
 Special handling for **ASP.NET WebForms** (ASPX, ASCX, Master pages): control ID extraction, event wiring, code-behind `Inherits` tracing, UI-to-SQL path tracing.
 
+Special handling for **Classic ASP** (.asp): COM object detection, ADO connection/recordset, Session/Application/Request/Response access, inline SQL, Server.Transfer, Response.Redirect, SSI include files.
+
 ### Database Analysis
 - SQL DDL extraction (tables, columns, foreign keys)
 - Cross-references SQL identifiers to application code
@@ -124,6 +126,20 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **Rollout Policy Engine**: Four-phase progressive rollout (shadow → advisory → guarded → autonomous) with emergency kill-switch
 - **JSON Audit Reports**: Immutable `AdpDecisionReport` with gate-by-gate evidence, config snapshots, and input replay data
 - **Benchmark CI**: GitHub Actions workflow running benchmark, ADP corpus, mutation, and reproducibility tests with 90-day artifact retention
+
+### End-to-End Migration Engine (Phase 30)
+
+- **Control Mapping Catalog**: 50-entry WebForms → modern UI control mapping with Blazor, React, and Angular targets, accessibility attributes, data binding patterns, and event equivalents
+- **Migration Scaffold Generator**: Produces full component skeletons for Blazor/React/Angular from graph context, including repository interfaces, DTOs, test scaffolds, and state key mapping
+- **Database Strategy Advisor**: Classifies data access patterns (inline SQL, stored proc, DataSet, DataReader, Entity Framework, LINQ-to-SQL), generates repository interfaces, and scores SQL injection risk
+- **Runtime Instrumentation Pipeline**: Generates injectable C# and VB.NET HttpModule code for runtime tracing (routes, session, SQL, postbacks, errors) with web.config entries, plus reconciliation of static graph paths against runtime evidence
+- **State Migration Advisor**: Per-key state migration recommendations (Session, ViewState, Application, Cache, Cookie, QueryString, HiddenField) with access pattern analysis, ViewState lifecycle classification, and affinity grouping
+- **Characterization Test Generator**: Produces NUnit/xUnit/MSTest test classes covering event handlers, data flows, state transitions, navigation, and API contracts from graph analysis
+- **VB.NET Deep Extraction**: On Error/Resume Next, With blocks, late-binding CreateObject, My. namespace, ReDim Preserve
+- **GIS Deep Extraction**: Leaflet/Esri/ArcGIS layer inventory (WMS, GeoJSON, MarkerCluster, Draw, CRS), spatial API call detection
+- **Classic ASP Extractor**: 7 detection categories (COM objects, ADO, state access, SQL, navigation, includes, inline functions) with 31 tests
+- **Report Extractor**: SSRS (.rdlc/.rdl) and Crystal Reports detection with parameter, dataset, subreport, and table reference extraction
+- **Windows Service Detection**: ServiceBase/TopShelf/BackgroundService pattern recognition in graph topology
 
 ---
 
@@ -370,6 +386,11 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `get_extraction_confidence` | Score WebForms extraction confidence (event wiring, SQL trace, control binding) with signal-weighted breakdown |
 | `generate_migration_plan` | Executable migration plan with dependency-ordered waves, seams, contract tests, adapters, and rollback playbooks |
 | `autonomous_decision_gate` | Mandatory 8-gate verification pipeline for autonomous code changes. Runs extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, and evidence sufficiency gates. Returns allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups |
+| `generate_migration_scaffold` | Generate Blazor/React/Angular component skeletons from a legacy WebForms file's graph context, with repository interfaces, DTOs, and test scaffolds |
+| `generate_instrumentation_code` | Produce injectable C# and VB.NET HttpModule instrumentation code for runtime tracing, with web.config entries |
+| `reconcile_runtime_evidence` | Compare static graph paths (SQL calls, state access, dependencies, postbacks) against a runtime evidence batch and produce confirmed/contradicted/inconclusive report |
+| `suggest_state_migration` | Analyze state usage (Session, ViewState, Application, Cache, Cookie, QueryString) and produce per-key migration recommendations with ViewState lifecycle report |
+| `generate_characterization_tests` | Generate NUnit/xUnit/MSTest characterization test classes covering event handlers, data flows, state transitions, navigation, and API contracts |
 
 ### Utilities
 

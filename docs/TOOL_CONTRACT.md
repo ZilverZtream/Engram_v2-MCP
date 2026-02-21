@@ -88,6 +88,13 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `cancel_job(job_id)`
 - `get_job_status(job_id)`
 
+## End-to-End Migration Engine (Phase 30)
+- `generate_migration_scaffold(project_id, file_path, target_stack="blazor", include_test_scaffold=false, output_format="markdown")` — scaffold generator producing Blazor/React/Angular component skeletons with repository interfaces, DTOs, test stubs, and state key mapping
+- `generate_instrumentation_code(project_id, target_files=[], language="csharp")` — runtime instrumentation code generator (C#/VB.NET HttpModule, web.config entries) with route/session/SQL/postback/error tracing
+- `reconcile_runtime_evidence(project_id, evidence_json)` — compares static graph paths (SQL calls, state reads/writes, dependencies, postbacks) against a `RuntimeEvidenceBatch` JSON blob; returns confirmed/contradicted/inconclusive paths with confidence ratio
+- `suggest_state_migration(project_id, output_json=false)` — per-key state migration recommendations (Session → distributed cache, ViewState → URL/component state, etc.) with access pattern analysis, ViewState lifecycle classification, and affinity grouping
+- `generate_characterization_tests(project_id, file_path, framework="nunit", output_json=false)` — NUnit/xUnit/MSTest characterization test generator covering event handlers, data flows, state transitions, navigation, and API contracts
+
 ## ADP Infrastructure (Phase 27)
 
 The `autonomous_decision_gate` tool is backed by production hardening infrastructure:

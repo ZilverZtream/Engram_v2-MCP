@@ -72,6 +72,11 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `detect_design_patterns` | implemented |
 | `autonomous_decision_gate` | implemented |
 | `graph_centrality_rerank` | implemented |
+| `generate_migration_scaffold` | implemented |
+| `generate_instrumentation_code` | implemented |
+| `reconcile_runtime_evidence` | implemented |
+| `suggest_state_migration` | implemented |
+| `generate_characterization_tests` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Notes
