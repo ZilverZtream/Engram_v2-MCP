@@ -5576,28 +5576,18 @@ End Sub
         // Ensure project is cached
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
 
-        // Temporarily override auto_repair if specified
-        let original_auto_repair = self.state.cfg.integrity_auto_repair;
-        // Note: Config is immutable behind Arc — we rely on the service checking the
-        // mismatch list + config. If the caller explicitly passes auto_repair, we
-        // run repair manually after the check.
-        let result = crate::services::integrity_service::check_project_integrity(
+        let auto_repair = crate::services::integrity_service::resolve_auto_repair(
+            self.state.cfg.integrity_auto_repair,
+            req.auto_repair,
+        );
+
+        let result = crate::services::integrity_service::check_project_integrity_with_policy(
             &self.state,
             &req.project_id,
+            auto_repair,
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        // If caller wants auto-repair but config has it disabled, run repair manually
-        if let Some(true) = req.auto_repair {
-            if !original_auto_repair && !result.mismatches.is_empty() {
-                // Repairs were already skipped during check — we'd need to re-trigger
-                // For now, report that auto_repair was requested but not yet applied
-                tracing::info!(
-                    "auto_repair requested by caller but config has it disabled — mismatches reported"
-                );
-            }
-        }
 
         let json = serde_json::to_string_pretty(&result)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
