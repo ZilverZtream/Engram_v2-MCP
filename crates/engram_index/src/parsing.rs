@@ -63,7 +63,7 @@ struct CompiledQueries {
     go: Option<Query>,
     java: Option<Query>,
     ts: Option<Query>,
-    cs: Query,
+    cs: Option<Query>,
     c: Option<Query>,
     cpp: Option<Query>,
     /// Pass-1 namespace query for C#.
@@ -424,7 +424,7 @@ impl SymbolExtractor {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
                 QUERIES.ts.as_ref(),
             ),
-            "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), Some(&QUERIES.cs)),
+            "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
             "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
             "cpp" | "hpp" | "cc" | "cxx" | "hh" => {
                 (tree_sitter_cpp::LANGUAGE.into(), QUERIES.cpp.as_ref())

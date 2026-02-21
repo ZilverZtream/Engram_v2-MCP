@@ -266,6 +266,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "autonomous_decision_gate",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "graph_centrality_rerank",
         status: CapabilityStatus::Planned,
     },

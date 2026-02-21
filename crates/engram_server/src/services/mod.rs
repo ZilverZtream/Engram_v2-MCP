@@ -1,3 +1,4 @@
+pub mod autonomous_decision_service;
 pub mod benchmark_service;
 pub mod blast_radius_service;
 pub mod cognitive_service;

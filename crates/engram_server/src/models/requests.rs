@@ -987,6 +987,52 @@ pub struct ComputeBlastRadiusRequest {
     pub include_guidance: bool,
 }
 
+// -------------------- Autonomous Decision Gate --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AutonomousDecisionGateRequest {
+    pub project_id: String,
+    /// Diff or code snippet representing the proposed change.
+    pub proposed_change: String,
+    /// Target files affected by the change.
+    #[serde(default)]
+    pub target_files: Vec<String>,
+    /// Risk profile: "low", "medium", or "high". Default: "medium".
+    #[serde(default = "default_risk_profile")]
+    pub risk_profile: String,
+    /// Whether runtime evidence (instrumentation logs) is required. Default: false.
+    #[serde(default)]
+    pub require_runtime_evidence: bool,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+    /// Pre-computed extraction confidence score (0.0–1.0). If not provided, skipped.
+    #[serde(default)]
+    pub extraction_confidence: Option<f64>,
+    /// Extraction type that was scored (e.g., "event_wiring", "sql_trace").
+    #[serde(default)]
+    pub extraction_type: Option<String>,
+    /// Pre-computed immune check verdict ("PASS", "WARN", "BLOCK"). If not provided, skipped.
+    #[serde(default)]
+    pub immune_verdict: Option<String>,
+    /// Immune similarity score (0.0–1.0).
+    #[serde(default)]
+    pub immune_confidence: Option<f32>,
+    /// Whether the trace for this change used a fallback candidate resolution.
+    #[serde(default)]
+    pub trace_used_fallback: bool,
+    /// Number of ambiguous candidates found during trace resolution.
+    #[serde(default)]
+    pub trace_candidate_count: usize,
+    /// Whether runtime instrumentation evidence has been collected.
+    #[serde(default)]
+    pub has_runtime_evidence: bool,
+}
+
+fn default_risk_profile() -> String {
+    "medium".to_string()
+}
+
 // -------------------- Detect Design Patterns --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
