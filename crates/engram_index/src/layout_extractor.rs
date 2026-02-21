@@ -31,7 +31,7 @@
 /// Groups controls by spatial proximity and emits the same edge types.
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
 use regex::Regex;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 // ── Static Regex Definitions ────────────────────────────────────────────────
@@ -78,6 +78,12 @@ static CSS_CLASS_RE: OnceLock<Regex> = OnceLock::new();
 /// GroupingField attribute extraction.
 static GROUPING_FIELD_RE: OnceLock<Regex> = OnceLock::new();
 
+/// WinForms declaration extraction from `WithEvents` and assignment statements.
+static WINFORMS_DECL_RE: OnceLock<Regex> = OnceLock::new();
+
+/// WinForms root `Controls.Add(...)` from form/user-control itself.
+static WINFORMS_ROOT_ADD_RE: OnceLock<Regex> = OnceLock::new();
+
 /// WinForms: `Me.pnlFoo.Controls.Add(Me.txtBar)` or `this.pnlFoo.Controls.Add(this.txtBar)`
 static WINFORMS_CONTROLS_ADD_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -108,6 +114,17 @@ fn get_compiled_regex<'a>(
             None
         }
     }
+}
+
+fn extract_attr(attrs: &str, name: &str) -> Option<String> {
+    let pattern = format!(
+        r#"(?i)\b{}\s*=\s*([\"'])((?:(?!\1).)*)\1"#,
+        regex::escape(name)
+    );
+    let re = Regex::new(&pattern).ok()?;
+    re.captures(attrs)
+        .and_then(|c| c.get(2).map(|m| m.as_str().trim().to_string()))
+        .filter(|v| !v.is_empty())
 }
 
 // ── Data Structures ─────────────────────────────────────────────────────────
@@ -232,31 +249,6 @@ pub fn extract_webforms_layout(
     ) else {
         return (symbols, edges);
     };
-    let Some(id_re) = get_compiled_regex(&ID_ATTR_RE, r#"(?i)\bID\s*=\s*"([^"]+)""#, "dle_id_attr")
-    else {
-        return (symbols, edges);
-    };
-    let Some(_text_re) = get_compiled_regex(
-        &TEXT_ATTR_RE,
-        r#"(?i)\bText\s*=\s*"([^"]*?)""#,
-        "dle_text_attr",
-    ) else {
-        return (symbols, edges);
-    };
-    let Some(css_class_re) = get_compiled_regex(
-        &CSS_CLASS_RE,
-        r#"(?i)\bCssClass\s*=\s*"([^"]+)""#,
-        "dle_css_class",
-    ) else {
-        return (symbols, edges);
-    };
-    let Some(_grouping_field_re) = get_compiled_regex(
-        &GROUPING_FIELD_RE,
-        r#"(?i)\bGroupingText\s*=\s*"([^"]+)""#,
-        "dle_grouping_field",
-    ) else {
-        return (symbols, edges);
-    };
     let Some(tr_open_re) = get_compiled_regex(&TR_OPEN_RE, r"(?i)<tr\b[^>]*>", "dle_tr_open")
     else {
         return (symbols, edges);
@@ -278,11 +270,8 @@ pub fn extract_webforms_layout(
     // Maps byte offset → label text for proximity matching.
     let mut label_positions: Vec<(usize, String)> = Vec::new();
     for m in label_re.find_iter(source) {
-        if let Some(cap) = label_re.captures(m.as_str()) {
-            let text = cap[2].trim().to_string();
-            if !text.is_empty() {
-                label_positions.push((m.end(), text));
-            }
+        if let Some(text) = extract_attr(m.as_str(), "Text") {
+            label_positions.push((m.end(), text));
         }
     }
 
@@ -379,7 +368,9 @@ pub fn extract_webforms_layout(
     let mut events: Vec<LayoutEvent> = Vec::new();
 
     for cap in container_open_re.captures_iter(source) {
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         events.push(LayoutEvent::ContainerOpen {
             offset: m.start(),
             tag_type: cap[1].to_string(),
@@ -387,14 +378,18 @@ pub fn extract_webforms_layout(
         });
     }
     for cap in container_close_re.captures_iter(source) {
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         events.push(LayoutEvent::ContainerClose {
             offset: m.start(),
             tag_type: cap[1].to_string(),
         });
     }
     for cap in container_self_close_re.captures_iter(source) {
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         events.push(LayoutEvent::ContainerSelfClose {
             offset: m.start(),
             tag_type: cap[1].to_string(),
@@ -402,7 +397,9 @@ pub fn extract_webforms_layout(
         });
     }
     for cap in input_re.captures_iter(source) {
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         events.push(LayoutEvent::InputControl {
             offset: m.start(),
             tag_type: cap[1].to_string(),
@@ -441,20 +438,15 @@ pub fn extract_webforms_layout(
                     continue;
                 }
 
-                let container_id = id_re
-                    .captures(attrs)
-                    .map(|c| c[1].trim().to_string())
-                    .unwrap_or_else(|| {
-                        anon_counter += 1;
-                        format!(
-                            "__anon_{}_{}",
-                            tag_type.replace("asp:", "").to_lowercase(),
-                            anon_counter
-                        )
-                    });
-                let css_class = css_class_re
-                    .captures(attrs)
-                    .map(|c| c[1].trim().to_string());
+                let container_id = extract_attr(attrs, "id").unwrap_or_else(|| {
+                    anon_counter += 1;
+                    format!(
+                        "__anon_{}_{}",
+                        tag_type.replace("asp:", "").to_lowercase(),
+                        anon_counter
+                    )
+                });
+                let css_class = extract_attr(attrs, "cssclass");
 
                 let info = ContainerInfo {
                     id: container_id,
@@ -481,20 +473,15 @@ pub fn extract_webforms_layout(
                 tag_type,
                 attrs,
             } => {
-                let container_id = id_re
-                    .captures(attrs)
-                    .map(|c| c[1].trim().to_string())
-                    .unwrap_or_else(|| {
-                        anon_counter += 1;
-                        format!(
-                            "__anon_{}_{}",
-                            tag_type.replace("asp:", "").to_lowercase(),
-                            anon_counter
-                        )
-                    });
-                let css_class = css_class_re
-                    .captures(attrs)
-                    .map(|c| c[1].trim().to_string());
+                let container_id = extract_attr(attrs, "id").unwrap_or_else(|| {
+                    anon_counter += 1;
+                    format!(
+                        "__anon_{}_{}",
+                        tag_type.replace("asp:", "").to_lowercase(),
+                        anon_counter
+                    )
+                });
+                let css_class = extract_attr(attrs, "cssclass");
 
                 let info = ContainerInfo {
                     id: container_id,
@@ -511,10 +498,9 @@ pub fn extract_webforms_layout(
                 tag_type,
                 attrs,
             } => {
-                let Some(id_cap) = id_re.captures(attrs) else {
+                let Some(ctrl_id) = extract_attr(attrs, "id") else {
                     continue;
                 };
-                let ctrl_id = id_cap[1].trim().to_string();
                 let line = char_to_line(*offset);
 
                 // ── Label proximity heuristic ───────────────────────────
@@ -582,6 +568,7 @@ pub fn extract_webforms_layout(
     }
 
     // ── Phase 5: Emit contains_ui edges ─────────────────────────────────────
+    let mut seen_contains_edges: HashSet<(String, String)> = HashSet::new();
     for child in &all_children {
         if let Some(ref parent_id) = child.parent_container_id {
             let mut meta = HashMap::new();
@@ -599,6 +586,10 @@ pub fn extract_webforms_layout(
             // Naming convention inference on the child
             if let Some(ref grouping) = infer_logical_grouping(&child.id) {
                 meta.insert("logical_grouping".into(), grouping.clone());
+            }
+
+            if !seen_contains_edges.insert((parent_id.clone(), child.id.clone())) {
+                continue;
             }
 
             edges.push(ExtractedEdge {
@@ -627,6 +618,7 @@ pub fn extract_webforms_layout(
         }
     }
 
+    let mut seen_neighbor_edges: HashSet<(String, String)> = HashSet::new();
     for (_parent_id, children) in &children_by_parent {
         // Children are already sorted by offset (events were sorted).
         let mut sorted: Vec<&&ChildControl> = children.iter().collect();
@@ -644,6 +636,10 @@ pub fn extract_webforms_layout(
             if let (Some(nr), Some(nc)) = (next.table_row, next.table_col) {
                 meta.insert("to_row".into(), nr.to_string());
                 meta.insert("to_col".into(), nc.to_string());
+            }
+
+            if !seen_neighbor_edges.insert((prev.id.clone(), next.id.clone())) {
+                continue;
             }
 
             edges.push(ExtractedEdge {
@@ -691,6 +687,20 @@ pub fn extract_webforms_layout(
             });
         }
     }
+
+    symbols.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.start_line.cmp(&b.start_line))
+    });
+    edges.sort_by(|a, b| {
+        a.source_name
+            .cmp(&b.source_name)
+            .then_with(|| a.target_name.cmp(&b.target_name))
+            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.source_start_line.cmp(&b.source_start_line))
+    });
 
     (symbols, edges)
 }
@@ -744,6 +754,20 @@ pub fn extract_winforms_layout(
     ) else {
         return (symbols, edges);
     };
+    let Some(root_add_re) = get_compiled_regex(
+        &WINFORMS_ROOT_ADD_RE,
+        r#"(?i)(?:Me|this)\s*\.\s*Controls\s*\.\s*Add\s*\(\s*(?:Me|this)\s*\.\s*(\w+)\s*\)"#,
+        "dle_winforms_root_add",
+    ) else {
+        return (symbols, edges);
+    };
+    let Some(decl_re) = get_compiled_regex(
+        &WINFORMS_DECL_RE,
+        r#"(?im)(?:^\s*(?:Friend|Private|Public|Protected)?\s*(?:WithEvents\s+)?(\w+)\s+(?:As\s+[\w\.]+|:\s*[\w\.<>]+))|(?:^\s*(?:Me|this)\s*\.\s*(\w+)\s*=\s*(?:new|New)\b)"#,
+        "dle_winforms_decl",
+    ) else {
+        return (symbols, edges);
+    };
     let Some(location_re) = get_compiled_regex(
         &WINFORMS_LOCATION_RE,
         r#"(?i)(?:Me|this)\s*\.\s*(\w+)\s*\.\s*Location\s*=\s*[Nn]ew\s+(?:System\.Drawing\.)?Point\s*\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"#,
@@ -776,12 +800,38 @@ pub fn extract_winforms_layout(
     // ── Phase 1: Collect control properties ─────────────────────────────────
     let mut controls: HashMap<String, WinFormsControl> = HashMap::new();
 
+    // Seed known controls from field declarations and constructor assignments.
+    for cap in decl_re.captures_iter(source) {
+        let control_name = cap
+            .get(1)
+            .or_else(|| cap.get(2))
+            .map(|m| m.as_str().to_string());
+        let Some(name) = control_name else {
+            continue;
+        };
+        controls
+            .entry(name.clone())
+            .or_insert_with(|| WinFormsControl {
+                name,
+                parent: None,
+                x: None,
+                y: None,
+                width: None,
+                height: None,
+                tab_index: None,
+                text: None,
+                line: 0,
+            });
+    }
+
     // Controls.Add relationships
     let mut parent_child: Vec<(String, String, u32)> = Vec::new();
     for cap in controls_add_re.captures_iter(source) {
         let parent = cap[1].to_string();
         let child = cap[2].to_string();
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         let line = char_to_line(m.start());
         parent_child.push((parent.clone(), child.clone(), line));
 
@@ -814,12 +864,53 @@ pub fn extract_winforms_layout(
             });
     }
 
+    for cap in root_add_re.captures_iter(source) {
+        let Some(child_match) = cap.get(1) else {
+            continue;
+        };
+        let child = child_match.as_str().to_string();
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
+        let line = char_to_line(m.start());
+        let root_name = "__winforms_root".to_string();
+        parent_child.push((root_name.clone(), child.clone(), line));
+
+        controls
+            .entry(root_name.clone())
+            .or_insert_with(|| WinFormsControl {
+                name: root_name.clone(),
+                parent: None,
+                x: Some(0),
+                y: Some(0),
+                width: None,
+                height: None,
+                tab_index: None,
+                text: None,
+                line,
+            });
+        controls
+            .entry(child.clone())
+            .or_insert_with(|| WinFormsControl {
+                name: child,
+                parent: Some(root_name),
+                x: None,
+                y: None,
+                width: None,
+                height: None,
+                tab_index: None,
+                text: None,
+                line,
+            });
+    }
     // Location properties
     for cap in location_re.captures_iter(source) {
         let name = cap[1].to_string();
         let x: i32 = cap[2].parse().unwrap_or(0);
         let y: i32 = cap[3].parse().unwrap_or(0);
-        let m = cap.get(0).expect("full match");
+        let Some(m) = cap.get(0) else {
+            continue;
+        };
         let line = char_to_line(m.start());
         let ctrl = controls
             .entry(name.clone())
@@ -941,6 +1032,7 @@ pub fn extract_winforms_layout(
     }
 
     // ── Phase 3: Emit contains_ui edges ─────────────────────────────────────
+    let mut seen_contains_edges: HashSet<(String, String)> = HashSet::new();
     for (parent, child, line) in &parent_child {
         let mut meta = HashMap::new();
         if let Some(ctrl) = controls.get(child) {
@@ -956,6 +1048,10 @@ pub fn extract_winforms_layout(
             }
         }
 
+        if !seen_contains_edges.insert((parent.clone(), child.clone())) {
+            continue;
+        }
+
         edges.push(ExtractedEdge {
             source_name: parent.clone(),
             source_kind: "ui_container".into(),
@@ -963,7 +1059,7 @@ pub fn extract_winforms_layout(
             source_language: "designer".into(),
             target_name: child.clone(),
             target_kind: Some("control".into()),
-            target_start_line: None,
+            target_start_line: controls.get(child).map(|c| c.line),
             kind: "contains_ui".into(),
             metadata: if meta.is_empty() { None } else { Some(meta) },
         });
@@ -981,6 +1077,7 @@ pub fn extract_winforms_layout(
         }
     }
 
+    let mut seen_neighbor_edges: HashSet<(String, String)> = HashSet::new();
     for (_parent, children) in &mut children_by_parent {
         // Sort by tab_index first, then by (y, x) position and declaration line for stability.
         children.sort_by(|a, b| {
@@ -1014,6 +1111,10 @@ pub fn extract_winforms_layout(
             }
             if let Some(ti) = next.tab_index {
                 meta.insert("to_tab_index".into(), ti.to_string());
+            }
+
+            if !seen_neighbor_edges.insert((prev.name.clone(), next.name.clone())) {
+                continue;
             }
 
             edges.push(ExtractedEdge {
@@ -1063,6 +1164,20 @@ pub fn extract_winforms_layout(
             metadata: Some(meta),
         });
     }
+
+    symbols.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.start_line.cmp(&b.start_line))
+    });
+    edges.sort_by(|a, b| {
+        a.source_name
+            .cmp(&b.source_name)
+            .then_with(|| a.target_name.cmp(&b.target_name))
+            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.source_start_line.cmp(&b.source_start_line))
+    });
 
     (symbols, edges)
 }
@@ -1120,11 +1235,20 @@ fn infer_logical_grouping(control_id: &str) -> Option<String> {
     static GROUP_PREFIX_RE: OnceLock<Regex> = OnceLock::new();
     if let Some(re) = get_compiled_regex(
         &GROUP_PREFIX_RE,
-        r"^(?:pnl|grp|grb|panel|group)([A-Z]\w+)",
+        r"^(?:pnl|grp|grb|panel|group)_?([A-Za-z][A-Za-z0-9_]*)",
         "dle_group_prefix",
     ) {
         if let Some(cap) = re.captures(id) {
-            return Some(cap[1].to_string());
+            let raw = cap[1].trim_matches('_');
+            if raw.is_empty() {
+                return None;
+            }
+            let mut chars = raw.chars();
+            if let Some(first) = chars.next() {
+                let mut normalized = first.to_uppercase().to_string();
+                normalized.push_str(chars.as_str());
+                return Some(normalized);
+            }
         }
     }
 
