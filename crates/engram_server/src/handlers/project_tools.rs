@@ -66,6 +66,51 @@ impl Engram {
         project_service::inject_repo_rules(&self.state, project_id, file_path, content).await
     }
 
+    pub(crate) async fn enforce_project_byte_budget(
+        &self,
+        files: &[PathBuf],
+    ) -> anyhow::Result<()> {
+        let Some(limit) = self.state.cfg.max_project_bytes else {
+            return Ok(());
+        };
+
+        let files_owned = files.to_vec();
+        let total_bytes = tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
+            let mut total = 0_u64;
+            for path in files_owned {
+                match std::fs::metadata(&path) {
+                    Ok(metadata) => {
+                        total = total
+                            .checked_add(metadata.len())
+                            .ok_or_else(|| anyhow::anyhow!("File size total overflowed u64"))?;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        // File may disappear between discovery and indexing.
+                    }
+                    Err(e) => {
+                        return Err(anyhow::anyhow!(
+                            "Failed to stat candidate file {}: {}",
+                            path.display(),
+                            e
+                        ));
+                    }
+                }
+            }
+            Ok(total)
+        })
+        .await??;
+
+        if total_bytes > limit {
+            anyhow::bail!(
+                "Project byte budget exceeded: candidate files total {} bytes > limit {} bytes",
+                total_bytes,
+                limit
+            );
+        }
+
+        Ok(())
+    }
+
     pub(crate) async fn spawn_job_index_directory(
         &self,
         project_id: String,
@@ -150,7 +195,12 @@ impl Engram {
                     let reg_for_cb = reg2.clone();
                     let files = engram_index::ingest::iter_files(&directory, &exts);
 
-                    if let Some(limit) = state_for_spawn.cfg.max_project_files {
+                    if let Err(e) = Engram::new(state_for_spawn.clone())
+                        .enforce_project_byte_budget(&files)
+                        .await
+                    {
+                        Err(e)
+                    } else if let Some(limit) = state_for_spawn.cfg.max_project_files {
                         if files.len() as u64 > limit {
                             Err(anyhow::anyhow!(
                                 "Too many files: {} > limit {}",
@@ -436,6 +486,7 @@ impl Engram {
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await
                     .map_err(|e| anyhow::anyhow!(e))?;
+                engram.enforce_project_byte_budget(&changed).await?;
 
                 if !deleted.is_empty() {
                     ps.search

@@ -145,6 +145,11 @@ impl Engram {
             let cancel = tokio_util::sync::CancellationToken::new();
 
             let files = engram_index::ingest::iter_files(&dir, &exts);
+            if let Err(e) = self.enforce_project_byte_budget(&files).await {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{274C} {e}"
+                ))]));
+            }
             if let Some(limit) = self.state.cfg.max_project_files
                 && files.len() as u64 > limit
             {
@@ -289,6 +294,8 @@ impl Engram {
             .get_incremental_changes(project_id, &dir, &exts)
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
+
+        self.enforce_project_byte_budget(&changed).await?;
 
         // For Snapshot namespaces (memory): use copy-forward.
         // For GlobalMutable/AppendOnly: use delete-then-reindex.
