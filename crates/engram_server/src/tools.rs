@@ -2961,6 +2961,8 @@ impl Engram {
         };
 
         // If the start_id doesn't exist, try to find a candidate page if only path was given
+        let mut trace_used_fallback = false;
+        let mut trace_candidate_count: usize = 0;
         if self
             .state
             .graph
@@ -2971,9 +2973,11 @@ impl Engram {
             && let Ok(candidates) =
                 self.state
                     .graph
-                    .query_nodes(&req.project_id, Some("control"), Some(ctrl), None, 1)
+                    .query_nodes(&req.project_id, Some("control"), Some(ctrl), None, 10)
             && !candidates.is_empty()
         {
+            trace_used_fallback = true;
+            trace_candidate_count = candidates.len();
             start_id = candidates[0].node_id.clone();
         }
 
@@ -2998,6 +3002,21 @@ impl Engram {
 
         // 3. Format output
         let mut out = format!("Found {} path(s) to SQL:\n", paths.len());
+
+        // Emit ambiguity metadata if fallback resolution was used
+        if trace_used_fallback {
+            out.push_str(&format!(
+                "\n⚠ TRACE AMBIGUITY: Control lookup used fallback candidate matching \
+                 ({} candidates found). Confidence penalty applied.\n\
+                 trace_used_fallback: true\n\
+                 trace_candidate_count: {}\n\
+                 trace_confidence_penalty: {:.2}\n",
+                trace_candidate_count,
+                trace_candidate_count,
+                (trace_candidate_count as f64 * 0.2).min(0.8)
+            ));
+        }
+
         for (i, path) in paths.iter().enumerate() {
             out.push_str(&format!("\nPath #{}:\n", i + 1));
             for (step, node) in path.iter().enumerate() {
@@ -6334,6 +6353,176 @@ End Sub
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
+    }
+
+    // ---- Autonomous Decision Gate ----
+
+    #[tool(
+        description = "Mandatory autonomous decision gate. Runs an ordered pipeline of verification gates \
+        (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, \
+        anti-pattern, runtime evidence) and returns allow/deny/abstain verdict with machine-readable \
+        reasons. Must pass before any auto-applied change."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn autonomous_decision_gate(
+        &self,
+        params: Parameters<AutonomousDecisionGateRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        // ── Build safety evaluation if target files are provided ──
+        let safety_decision = if !req.target_files.is_empty() {
+            // Compute a lightweight safety eval from available data
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let files = req.target_files.clone();
+
+            let downstream = tokio::task::spawn_blocking({
+                let graph = graph.clone();
+                let pid = pid.clone();
+                let files = files.clone();
+                move || {
+                    let mut total = 0u64;
+                    for f in &files {
+                        let target_id = format!("file:{}", f);
+                        if let Ok(neighbors) = graph.neighbors(
+                            &pid,
+                            engram_graph::EdgeKind::Dependency,
+                            &target_id,
+                            500,
+                        ) {
+                            total += neighbors.len() as u64;
+                        }
+                    }
+                    total
+                }
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            // Detect state/database touches from proposed change content
+            let change_lower = req.proposed_change.to_lowercase();
+            let touches_global_state = change_lower.contains("session[")
+                || change_lower.contains("application[")
+                || change_lower.contains("viewstate[")
+                || change_lower.contains("httpcontext");
+            let touches_database = change_lower.contains("sqlcommand")
+                || change_lower.contains("sqlconnection")
+                || change_lower.contains("executenonquery")
+                || change_lower.contains("executereader")
+                || change_lower.contains("insert into")
+                || change_lower.contains("update ")
+                || change_lower.contains("delete from");
+
+            let eval_req = crate::services::safety_service::SafetyEvalRequest {
+                project_id: pid,
+                affected_files: files,
+                refactor_type: "autonomous_change".into(),
+                impact_node_count: downstream,
+                impact_confidence: req.extraction_confidence.unwrap_or(0.5),
+                test_coverage: -1.0, // unknown
+                anti_pattern_clear: req.immune_verdict.as_deref() == Some("PASS")
+                    || req.immune_verdict.is_none(),
+                downstream_dependents: downstream,
+                touches_global_state,
+                touches_database,
+            };
+            Some(crate::services::safety_service::evaluate_safety(
+                &eval_req,
+                self.state.cfg.safety_policy_enabled,
+                self.state.cfg.safety_min_confidence,
+                self.state.cfg.safety_min_coverage,
+            ))
+        } else {
+            None
+        };
+
+        // ── Compute blast radius for first target file if available ──
+        let (blast_risk, blast_band, blast_downstream) =
+            if let Some(ref fp) = req.target_files.first() {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let target_id = format!("file:{}", fp);
+                let gen_ = self.get_active_generation(&req.project_id).await?;
+                match tokio::task::spawn_blocking(move || {
+                    crate::services::blast_radius_service::compute_blast_radius(
+                        &graph, &pid, &target_id, gen_, false,
+                    )
+                })
+                .await
+                {
+                    Ok(Ok(report)) => (
+                        Some(report.migration_risk),
+                        Some(report.risk_band),
+                        Some(report.total_downstream),
+                    ),
+                    _ => (None, None, None),
+                }
+            } else {
+                (None, None, None)
+            };
+
+        // ── Determine extraction band from confidence ──
+        let extraction_band = req.extraction_confidence.map(|c| {
+            if c >= 0.8 {
+                "high".to_string()
+            } else if c >= 0.5 {
+                "medium".to_string()
+            } else {
+                "low".to_string()
+            }
+        });
+
+        // ── Build ADP input ──
+        let adp_input = crate::services::autonomous_decision_service::AdpInput {
+            extraction_confidence: req.extraction_confidence,
+            extraction_band,
+            trace_used_fallback: req.trace_used_fallback,
+            trace_candidate_count: req.trace_candidate_count,
+            safety_decision,
+            retrieval_production_ready: None, // Not run inline — too expensive
+            retrieval_ndcg: None,
+            retrieval_recall: None,
+            blast_radius_risk: blast_risk,
+            blast_radius_band: blast_band,
+            blast_radius_downstream: blast_downstream,
+            immune_verdict: req.immune_verdict,
+            immune_confidence: req.immune_confidence,
+            require_runtime_evidence: req.require_runtime_evidence,
+            has_runtime_evidence: req.has_runtime_evidence,
+            risk_profile: crate::services::autonomous_decision_service::RiskProfile::from_str(
+                &req.risk_profile,
+            ),
+            min_extraction_confidence: self.state.cfg.adp_min_extraction_confidence,
+            min_safety_confidence: self.state.cfg.safety_min_confidence,
+            max_blast_radius_for_auto: self.state.cfg.adp_max_blast_radius,
+        };
+
+        // ── Run gate pipeline ──
+        let decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
+
+        // ── Record metrics ──
+        match decision.verdict {
+            crate::services::autonomous_decision_service::AdpVerdict::Allow => {
+                engram_core::metrics::metrics().refactors_approved.inc();
+            }
+            crate::services::autonomous_decision_service::AdpVerdict::Deny => {
+                engram_core::metrics::metrics().refactors_blocked.inc();
+            }
+            crate::services::autonomous_decision_service::AdpVerdict::Abstain => {
+                // Abstain is logged but not counted as blocked or approved
+            }
+        }
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&decision)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let text = crate::services::autonomous_decision_service::format_decision(&decision);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        }
     }
 }
 

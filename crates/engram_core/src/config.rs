@@ -164,6 +164,20 @@ pub struct Config {
     /// injected into tool responses to alert agents of potentially incomplete results.
     #[serde(default = "default_confidence_warning_threshold")]
     pub confidence_warning_threshold: f64,
+
+    // --- Autonomous Decision Protocol (ADP) ---
+    /// Enable the autonomous decision gate pipeline. When enabled, auto-apply
+    /// changes require all mandatory gates to pass.
+    #[serde(default)]
+    pub adp_enabled: bool,
+
+    /// Minimum extraction confidence for the ADP extraction gate (0.0–1.0).
+    #[serde(default = "default_adp_min_extraction_confidence")]
+    pub adp_min_extraction_confidence: f64,
+
+    /// Maximum blast radius score (1–10) allowed for auto-apply.
+    #[serde(default = "default_adp_max_blast_radius")]
+    pub adp_max_blast_radius: u8,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -257,6 +271,14 @@ fn default_confidence_warning_threshold() -> f64 {
     0.5
 }
 
+fn default_adp_min_extraction_confidence() -> f64 {
+    0.5
+}
+
+fn default_adp_max_blast_radius() -> u8 {
+    6
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -298,6 +320,9 @@ impl Default for Config {
             retrieval_min_ndcg: default_retrieval_min_ndcg(),
             retrieval_min_recall: default_retrieval_min_recall(),
             confidence_warning_threshold: default_confidence_warning_threshold(),
+            adp_enabled: false,
+            adp_min_extraction_confidence: default_adp_min_extraction_confidence(),
+            adp_max_blast_radius: default_adp_max_blast_radius(),
         }
     }
 }
@@ -358,6 +383,16 @@ impl Config {
             "confidence_warning_threshold",
             self.confidence_warning_threshold,
         )?;
+        Self::validate_unit_interval(
+            "adp_min_extraction_confidence",
+            self.adp_min_extraction_confidence,
+        )?;
+        if self.adp_max_blast_radius == 0 || self.adp_max_blast_radius > 10 {
+            return Err(EngramError::Config(format!(
+                "adp_max_blast_radius must be 1–10, got {}",
+                self.adp_max_blast_radius
+            )));
+        }
 
         Ok(())
     }
