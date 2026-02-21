@@ -2,6 +2,7 @@
 #![deny(clippy::unwrap_used)]
 
 pub mod chunking;
+pub mod confidence;
 pub mod config_extractor;
 pub mod ddl_extractor;
 pub mod docstore;
@@ -17,6 +18,10 @@ pub mod vb_extractor;
 pub mod vector;
 pub mod webforms;
 
+pub use confidence::{
+    ConfidenceBand, ConfidenceSignal, ExtractionConfidence, score_control_binding,
+    score_event_wiring, score_sql_trace,
+};
 pub use docstore::{DocRecord, DocStore, FileFingerprint};
 pub use hybrid::{
     HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats, chunk_id_from_content_hash,

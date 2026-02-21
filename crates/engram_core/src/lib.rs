@@ -1,15 +1,21 @@
 #![deny(clippy::print_stdout)]
 
+pub mod checkpoint;
 pub mod config;
 pub mod ids;
+pub mod memory;
+pub mod metrics;
 pub mod namespaces;
 pub mod paths;
 pub mod registry;
 pub mod security;
 pub mod types;
 
+pub use checkpoint::{Checkpoint, CheckpointStore, JobPhase};
 pub use config::Config;
 pub use ids::{ChunkId, ContentHash, DocId, DocIdStr, NodeId, ProjectId, build_pk};
+pub use memory::{BoundedQueue, MemoryBudget, MemoryDecision, Subsystem};
+pub use metrics::{MetricsRegistry, metrics, start_timer};
 pub use namespaces::{
     KNOWN_NAMESPACES, NamespacePolicy, NamespaceRetention, NamespaceScope, NamespaceVersioning,
     get_namespace_scope, get_policy,

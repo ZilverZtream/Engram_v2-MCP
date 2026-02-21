@@ -32,6 +32,9 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(actors::gc::run_gc_scheduler(state.clone()));
     tokio::spawn(actors::immune::run_immune_actor(state.clone()));
 
+    // Data integrity sentinel (periodic cross-store consistency checks).
+    tokio::spawn(engram_server::services::integrity_service::run_integrity_checker(state.clone()));
+
     tools::run_stdio(state).await?;
     Ok(())
 }

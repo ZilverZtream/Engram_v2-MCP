@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use engram_core::{Config, PathContext, Registry};
+use engram_core::{CheckpointStore, Config, MemoryBudget, PathContext, Registry};
 use engram_graph::GraphStore;
 use engram_index::HybridSearchEngine;
 use engram_ml::{DreamingEngine, ImmuneEngine, StyleMimicryEngine};
@@ -95,6 +95,12 @@ pub struct AppState {
 
     /// Send events to background actors.
     pub events_tx: broadcast::Sender<AppEvent>,
+
+    /// Memory budget tracker for OOM prevention.
+    pub memory_budget: Arc<MemoryBudget>,
+
+    /// Durable checkpoint store for crash-safe job resume.
+    pub checkpoints: Arc<CheckpointStore>,
 }
 
 impl AppState {
@@ -119,6 +125,13 @@ impl AppState {
         let immune_warn = cfg.immune_warn_threshold;
         let immune_block = cfg.immune_block_threshold;
 
+        // Memory budget
+        let memory_budget = MemoryBudget::new(cfg.memory_budget_bytes);
+
+        // Checkpoint store for crash-safe job resume
+        let checkpoint_path = cfg.data_dir.join("checkpoints").join("checkpoints.redb");
+        let checkpoints = CheckpointStore::open(&checkpoint_path)?;
+
         Ok((
             Self {
                 cfg: Arc::new(cfg),
@@ -136,6 +149,8 @@ impl AppState {
                 parse_semaphore: Arc::new(Semaphore::new(parse_concurrency)),
                 project_update_locks: Arc::new(RwLock::new(HashMap::new())),
                 events_tx,
+                memory_budget: Arc::new(memory_budget),
+                checkpoints: Arc::new(checkpoints),
             },
             events_rx,
         ))
