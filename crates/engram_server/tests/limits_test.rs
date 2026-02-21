@@ -3,6 +3,8 @@ use engram_server::Engram;
 use engram_server::state::AppState;
 use rmcp::handler::server::tool::Parameters;
 use rmcp::model::RawContent;
+use std::sync::Arc;
+use std::time::Duration;
 use tempfile::tempdir;
 
 fn first_text(res: &rmcp::model::CallToolResult) -> &str {
@@ -10,6 +12,12 @@ fn first_text(res: &rmcp::model::CallToolResult) -> &str {
         RawContent::Text(t) => &t.text,
         _ => panic!("Expected text content"),
     }
+}
+
+fn extract_field<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+    text.lines()
+        .find_map(|line| line.strip_prefix(prefix))
+        .map(str::trim)
 }
 
 #[tokio::test]
@@ -214,7 +222,7 @@ async fn test_incremental_update_byte_budget_enforced() {
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             project_id,
-            max_commits: Some(10),
+            max_commits: 10,
             index_antipatterns: false,
             wait: true,
         }))
@@ -293,7 +301,7 @@ async fn test_chunk_cap_respected_for_index_and_update() {
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             project_id,
-            max_commits: Some(10),
+            max_commits: 10,
             index_antipatterns: false,
             wait: true,
         }))
@@ -306,4 +314,96 @@ async fn test_chunk_cap_respected_for_index_and_update() {
         "Expected update_project to respect max_chunks_per_file=1. Output: {}",
         update_text
     );
+}
+
+#[tokio::test]
+async fn test_background_index_jobs_respect_shared_parse_guard_under_load() {
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    std::fs::create_dir_all(&data_dir).unwrap();
+
+    let mut projects = Vec::new();
+    for p in 0..4 {
+        let project_dir = tmp.path().join(format!("stress_project_{p}"));
+        std::fs::create_dir_all(&project_dir).unwrap();
+        for i in 0..30 {
+            let content = (0..100)
+                .map(|n| format!("fn f_{p}_{i}_{n}() {{ println!(\"{n}\"); }}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            std::fs::write(project_dir.join(format!("file_{i}.rs")), content).unwrap();
+        }
+        projects.push(project_dir);
+    }
+
+    let cfg = Config {
+        data_dir: data_dir.clone(),
+        allowed_roots: projects.clone(),
+        max_project_files: None,
+        max_project_bytes: None,
+        max_parse_concurrency: 1,
+        max_concurrent_jobs: 8,
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Arc::new(Engram::new(state));
+
+    let mut tasks = Vec::new();
+    for (idx, project_dir) in projects.iter().enumerate() {
+        let engram = engram.clone();
+        let directory = project_dir.to_string_lossy().to_string();
+        tasks.push(tokio::spawn(async move {
+            engram
+                .index_project(Parameters(engram_server::IndexProjectRequest {
+                    directory,
+                    project_name: format!("stress_{idx}"),
+                    project_type: "code".into(),
+                    wait: false,
+                    dedupe_by_directory: true,
+                }))
+                .await
+                .unwrap()
+        }));
+    }
+
+    let mut job_ids = Vec::new();
+    for task in tasks {
+        let res = task.await.unwrap();
+        let text = first_text(&res).to_string();
+        let job_id = extract_field(&text, "job_id: ").expect("job_id in response");
+        job_ids.push(job_id.to_string());
+    }
+    assert_eq!(job_ids.len(), projects.len());
+
+    for _ in 0..120 {
+        let mut done = 0;
+        for job_id in &job_ids {
+            let status_res = engram
+                .get_job_status(Parameters(engram_server::CancelJobRequest {
+                    job_id: job_id.clone(),
+                }))
+                .await
+                .unwrap();
+            let status_text = first_text(&status_res);
+            if status_text.contains("status: done") {
+                done += 1;
+                continue;
+            }
+            assert!(
+                !status_text.contains("status: failed"),
+                "background index job failed: {status_text}"
+            );
+        }
+        if done == job_ids.len() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+
+    panic!("Timed out waiting for background indexing jobs to complete");
 }
