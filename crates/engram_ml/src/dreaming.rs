@@ -271,6 +271,22 @@ impl DreamingEngine {
         }
     }
 
+    /// Send a free-form prompt to the configured LLM backend and return the response.
+    /// Returns an empty string if no LLM is configured, the call fails, or it times out.
+    pub async fn generate_text(&self, prompt: &str, max_tokens: u32, max_wait: Duration) -> String {
+        match timeout(max_wait, self.call_llm(prompt, max_tokens)).await {
+            Ok(Ok(text)) => text.trim().to_string(),
+            Ok(Err(e)) => {
+                tracing::debug!("LLM text generation failed: {e:#}");
+                String::new()
+            }
+            Err(_) => {
+                tracing::debug!("LLM text generation timed out");
+                String::new()
+            }
+        }
+    }
+
     /// Suggest microservice/bounded-context boundaries from temporal coupling clusters.
     ///
     /// Calls the LLM with the migration boundary prompt. Falls back to directory-based

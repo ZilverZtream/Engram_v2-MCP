@@ -590,6 +590,91 @@ impl HybridSearchEngine {
         Ok(count)
     }
 
+    /// Count docs per namespace for a project (memory, history, antipattern, etc.).
+    pub fn count_docs_by_namespace(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<std::collections::HashMap<String, usize>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let mut counts = std::collections::HashMap::new();
+        for ns in &["memory", "history", "antipattern", "vfs"] {
+            let q = BooleanQuery::new(vec![
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.project_id, project_id),
+                        IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>,
+                ),
+                (
+                    Occur::Must,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.namespace, ns),
+                        IndexRecordOption::Basic,
+                    )),
+                ),
+            ]);
+            let c = searcher.search(&q, &tantivy::collector::Count)?;
+            if c > 0 {
+                counts.insert(ns.to_string(), c);
+            }
+        }
+        Ok(counts)
+    }
+
+    /// Count docs per language for a project (within "memory" namespace).
+    pub fn count_docs_by_language(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<std::collections::HashMap<String, usize>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let mut counts = std::collections::HashMap::new();
+        // Enumerate all segments and collect unique language values
+        for segment_reader in searcher.segment_readers() {
+            let inverted_index = segment_reader.inverted_index(self.fields.language)?;
+            let dict = inverted_index.terms();
+            let mut stream = dict.stream()?;
+            while let Some((term_bytes, _)) = stream.next() {
+                if let Ok(lang) = std::str::from_utf8(term_bytes) {
+                    if !lang.is_empty() && !counts.contains_key(lang) {
+                        // Now count docs matching (project_id AND namespace=memory AND language=lang)
+                        let q = BooleanQuery::new(vec![
+                            (
+                                Occur::Must,
+                                Box::new(TermQuery::new(
+                                    Term::from_field_text(self.fields.project_id, project_id),
+                                    IndexRecordOption::Basic,
+                                ))
+                                    as Box<dyn tantivy::query::Query>,
+                            ),
+                            (
+                                Occur::Must,
+                                Box::new(TermQuery::new(
+                                    Term::from_field_text(self.fields.namespace, "memory"),
+                                    IndexRecordOption::Basic,
+                                )),
+                            ),
+                            (
+                                Occur::Must,
+                                Box::new(TermQuery::new(
+                                    Term::from_field_text(self.fields.language, lang),
+                                    IndexRecordOption::Basic,
+                                )),
+                            ),
+                        ]);
+                        let c = searcher.search(&q, &tantivy::collector::Count)?;
+                        if c > 0 {
+                            counts.insert(lang.to_string(), c);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(counts)
+    }
+
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
         #[cfg(feature = "vector")]
         {
