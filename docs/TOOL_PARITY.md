@@ -1,41 +1,48 @@
 # Tool Parity Matrix (v1 vs v2)
 
-| Tool Name (v1) | Inputs (v1) | Behavior Notes | v2 Status | Action Needed |
-| :--- | :--- | :--- | :--- | :--- |
-| `index_project` | `directory`, `name`, `type`, `wait`, `dedupe` | Chunks files, indexes FTS + Vector, registers in DB. | Implemented | None. |
-| `update_project` | `project_id`, `wait` | Incremental re-index of changed files. | Implemented | Ensure real incremental diff logic works. |
-| `list_projects` | None | Queries DB for all projects. | Implemented | None. |
-| `project_info` | `project_id` | Queries DB for specific project. | Implemented | None. |
-| `project_health` | `project_id` | Checks index sync, file existence, counts. | Implemented (Scaffold) | Add real Tantivy/LanceDB/Graph stats. |
-| `repair_project` | `project_id`, `wait` | Rebuilds index from DB. | Implemented (Scaffold) | Implement actual generation-based GC/rebuild. |
-| `delete_project` | `project_id` | Deletes DB records and on-disk index files. | Implemented | None. |
-| `watch_project` | `project_id` | Starts `notify`-based watcher. | Implemented (Scaffold) | Wire up actual `notify` crate watcher. |
-| `unwatch_project` | `project_id` | Stops watcher. | Implemented (Scaffold) | Wire up actual `notify` crate watcher. |
-| `search_memory` | `query`, `project_id`, `max_results`, ... | Hybrid search (FTS + Vector) + RRF + MMR. | Implemented | Ensure RRF/MMR parity; wire up LanceDB vectors. |
-| `get_chunk` | `project_id`, `chunk_id`, `include_content` | Fetches specific chunk. | Implemented | Ensure repo-rule injection works. |
-| `update_memory_bank` | `project_id`, `section`, `content` | Saves virtual file to DB + Index. | Implemented | None. |
-| `list_memory_bank` | `project_id` | Queries DB for VFS files. | Implemented | None. |
-| `read_memory_bank` | `project_id`, `section` | Fetches virtual file content. | Implemented | None. |
-| `delete_memory_bank` | `project_id`, `section` | Deletes virtual file. | Implemented | None. |
-| `add_repo_rule` | `project_id`, `file_pattern`, `rule_text`, ... | Saves rule to DB. | Implemented | None. |
-| `list_repo_rules` | `project_id` | Queries DB for rules. | Implemented | None. |
-| `delete_repo_rule` | `rule_id` | Deletes rule. | Implemented | None. |
-| `get_codebase_overview`| `project_id` | AST stats + top files. | Implemented (Scaffold) | Implement real AST summary logic. |
-| `find_symbol_references`| `symbol_name`, `project_id` | Queries AST index / Graph. | Implemented | Currently uses lexical search; needs real graph lookup. |
-| `analyze_error_stack` | `traceback`, `project_id` | Parses trace, finds files/lines. | Implemented | Improve traceback parsing for more languages. |
-| `dream_project` | `project_id`, `wait`, `max_pairs` | Co-occurrence clustering -> Insights. | Implemented | Wire up `engram_ml` clusters + LLM. |
-| `trigger_rem_cycle` | `project_id` | Alias for `dream_project`. | Implemented | None. |
-| `analyze_file_coding_style`| `project_id`, `file_path`, `limit` | Git diffs -> LLM summarization. | Implemented | Wire up `engram_ml` style extraction. |
-| `list_jobs` | None | Queries DB for jobs. | Implemented | None. |
-| `cancel_job` | `job_id` | Aborts task + updates status. | Implemented | Ensure cooperative cancellation works. |
-| `query_graph_nodes` | `project_id`, `node_type`, ...| Queries Graph store. | Implemented | None. |
-| `find_references` | `project_id`, `node_id` | Queries Graph store. | Implemented | None. |
-| `graph_search` | `project_id`, `query`, `max_results` | FTS + Graph symbol boost. | Implemented | Implement symbol boosting. |
-| `index_git_history` | `project_id`, `limit`, `branch`, `wait` | Walks git, indexes commits + diffs. | Implemented | Ensure diff indexing is efficient. |
-| `search_history` | `query`, `project_id`, ... | Hybrid search in history namespace. | Implemented (Scaffold) | Index history commits. |
-| `analyze_temporal_couplings`| `project_id`, ... | Graph edge analysis. | Implemented | None. |
-| `analyze_reverts` | `project_id` | Immune system: reverts -> anti-patterns. | Implemented | Implement auto-rule generation from reverts. |
-| `immune_check` (new v2) | `project_id`, `code` | Checks draft against anti-patterns. | Implemented | None. |
+Status legend: `implemented`, `partial`, `experimental`, `planned`.
+
+| Tool / Feature | v2 Status | Notes |
+| :--- | :--- | :--- |
+| `index_project` | implemented | Indexes project files into search/graph stores; covered by integration tests. |
+| `update_project` | implemented | Runs generation bump + incremental update flow. |
+| `list_projects` | implemented | Registry-backed listing. |
+| `project_info` | implemented | Registry-backed project lookup. |
+| `project_health` | partial | Basic checks exist; deeper backend diagnostics are still limited. |
+| `repair_project` | partial | Recovery flow exists, but full generation GC/rebuild semantics are incomplete. |
+| `delete_project` | implemented | Removes project metadata and indexed content. |
+| `watch_project` | implemented | `notify` watcher actor is wired with debounce + cancellation. |
+| `unwatch_project` | implemented | Disables active watch + pending updates. |
+| `search_memory` | implemented | Hybrid lexical/vector search path is available. |
+| `get_chunk` | implemented | Fetches indexed chunk by id. |
+| `update_memory_bank` | implemented | Writes/updates memory-bank virtual docs. |
+| `list_memory_bank` | implemented | Lists memory-bank sections. |
+| `read_memory_bank` | implemented | Reads memory-bank section content. |
+| `delete_memory_bank` | implemented | Deletes memory-bank section content. |
+| `add_repo_rule` | implemented | Creates persisted repository rule entries. |
+| `list_repo_rules` | implemented | Lists repository rules from registry. |
+| `delete_repo_rule` | implemented | Deletes a repository rule by id. |
+| `get_codebase_overview` | partial | Produces lightweight overview; richer AST/centrality output remains in progress. |
+| `find_symbol_references` | partial | Graph + lexical fallback exists; full symbol-graph fidelity is still evolving. |
+| `analyze_error_stack` | implemented | Parses stack traces and maps likely code locations. |
+| `dream_project` | experimental | Works with deterministic clustering/summarization, still iterative. |
+| `trigger_rem_cycle` | experimental | Alias for dream pipeline; same maturity level. |
+| `analyze_file_coding_style` | experimental | Current style extraction is deterministic and still maturing. |
+| `list_jobs` | implemented | Lists background jobs from job manager. |
+| `cancel_job` | implemented | Cooperative cancellation path exists. |
+| `query_graph_nodes` | implemented | Graph node query by filters/substrings. |
+| `find_references` | implemented | Traverses graph references for a node. |
+| `graph_search` | partial | Search works; centrality/symbol boosting is not fully integrated. |
+| `index_git_history` | implemented | Walks git history and indexes commit/diff docs. |
+| `search_history` | partial | History search exists; depends on indexed commit/diff coverage quality. |
+| `analyze_temporal_couplings` | implemented | Reads temporal coupling edges from graph store. |
+| `analyze_reverts` | partial | Revert harvesting and rule insertion exists; anti-pattern quality still iterative. |
+| `immune_check` | experimental | Anti-pattern matching flow exists, but thresholding/quality are still maturing. |
+| `ast_dependency_graph` | partial | AST extraction exists for several languages; full dependency graph remains incomplete. |
+| `vector_search` | experimental | Vector path is enabled by feature flags; quality/perf tuning ongoing. |
+| `incremental_indexing_gc` | partial | Incremental watcher updates exist; old-generation GC remains incomplete. |
+| `dedicated_antipattern_index` | partial | Anti-pattern namespace exists; dedicated mature indexing/ranking is still in progress. |
+| `graph_centrality_rerank` | planned | Targeted roadmap item; not yet integrated into ranking pipeline. |
 
 ## JSON Request/Response Schemas
 
