@@ -145,6 +145,11 @@ impl Engram {
             let cancel = tokio_util::sync::CancellationToken::new();
 
             let files = engram_index::ingest::iter_files(&dir, &exts);
+            if let Err(e) = self.enforce_project_byte_budget(&files).await {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{274C} {e}"
+                ))]));
+            }
             if let Some(limit) = self.state.cfg.max_project_files
                 && files.len() as u64 > limit
             {
@@ -156,8 +161,9 @@ impl Engram {
             }
 
             let max_chunks = self.state.cfg.max_chunks_per_file;
-            let stats = search
-                .index_files(
+            let stats = self
+                .index_files_with_parse_guard(
+                    &search,
                     &project_id,
                     "memory",
                     1,
@@ -290,6 +296,8 @@ impl Engram {
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
 
+        self.enforce_project_byte_budget(&changed).await?;
+
         // For Snapshot namespaces (memory): use copy-forward.
         // For GlobalMutable/AppendOnly: use delete-then-reindex.
         let memory_policy = engram_core::get_policy("memory")
@@ -341,25 +349,20 @@ impl Engram {
             }
         }
 
-        // Acquire parse semaphore to bound concurrent parse/chunk blocking threads.
-        let _parse_permit =
-            self.state.parse_semaphore.acquire().await.map_err(|e| {
-                McpError::internal_error(format!("Parse semaphore closed: {e}"), None)
-            })?;
-        let stats = ps
-            .search
-            .index_files(
+        let max_chunks = self.state.cfg.max_chunks_per_file;
+        let stats = self
+            .index_files_with_parse_guard(
+                &ps.search,
                 &pid,
                 "memory",
                 new_gen,
                 &dir,
                 changed,
-                2000,
+                max_chunks,
                 cancel,
                 |_, _| {},
             )
             .await?;
-        drop(_parse_permit);
 
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
