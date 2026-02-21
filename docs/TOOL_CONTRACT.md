@@ -43,6 +43,7 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `anti_pattern_guard(project_id, code, limit=5)`
 - `suggest_migration_boundaries(project_id)` — LLM+deterministic migration boundary suggestion
 - `generate_migration_blueprint(project_id, entry_node, max_depth=5, output_json=false, include_edge_kinds=null, exclude_dead_code=true)` — BFS context compilation from entry node with 9-section Markdown dossier or structured JSON output
+- `autonomous_decision_gate(project_id, proposed_change, target_files, risk_profile="medium", require_runtime_evidence=false, output_json=false, extraction_confidence=null, immune_verdict=null, trace_used_fallback=false, trace_candidate_count=0, has_runtime_evidence=false)` — mandatory 8-gate verification pipeline (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, evidence sufficiency) returning allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups
 
 ## Index Maintenance
 - `incremental_indexing_gc(project_id, target_generation=null, compact_vectors=false)` — manual GC trigger with pre/post delta reporting for graph nodes, edges, tantivy docs, and lance vectors
@@ -66,6 +67,21 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `get_instrumentation_pack(project_id)`
 - `ingest_instrumentation_logs(project_id, log_data)`
 - `export_capture_pack(project_id)`
+
+## Safety & Autonomous Decision
+- `evaluate_safety(project_id, affected_files, refactor_type, impact_node_count, impact_confidence, test_coverage, anti_pattern_clear, downstream_dependents, touches_global_state, touches_database)` — policy gate that blocks high-risk refactors unless confidence/coverage thresholds are met; returns go/no-go decision with risk level, individual check results, and suggested mitigations
+- `get_extraction_confidence(project_id, extraction_type, source_content, codebehind_content=null)` — WebForms extraction confidence scoring for event_wiring / sql_trace / control_binding; returns 0.0–1.0 score with individual signal breakdown
+- `compute_blast_radius(project_id, file_path=null, symbol_fqn=null, include_guidance=true)` — migration complexity score (1–10) with event wiring, SQL, PageRank, state coupling, GIS, and script injection sub-scores; returns seam candidates and agentic guidance
+- `detect_design_patterns(project_id, pattern_filter=[], limit=50)` — detects God Object, Spaghetti Code, Session Soup and other anti-patterns using graph topology
+- `autonomous_decision_gate(project_id, proposed_change, target_files, risk_profile="medium", require_runtime_evidence=false, output_json=false, extraction_confidence=null, immune_verdict=null, trace_used_fallback=false, trace_candidate_count=0, has_runtime_evidence=false)` — mandatory 8-gate verification pipeline (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, evidence sufficiency) returning allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups
+
+## Observability & Operations
+- `get_metrics(output_json=false)` — global atomic counters (docs indexed, searches, refactors approved/blocked, extractions by confidence band)
+- `get_memory_budget(output_json=false)` — per-subsystem memory breakdown (tantivy, lancedb, graph, docstore, parse_buffer) with pressure detection
+- `get_checkpoint_status(project_id=null, job_id=null)` — crash-safe job resume via Redb-backed checkpoint store
+- `check_integrity(project_id=null, auto_repair=false)` — background integrity checker for index/graph/docstore consistency
+- `benchmark_retrieval(project_id, custom_queries=null, output_json=false)` — NDCG@10 + recall@10 + MRR with configurable ground-truth queries; returns production-ready gate decision
+- `generate_migration_plan(project_id, output_json=false)` — builds PlanInput from graph nodes and outputs wave-based migration plan with rollback playbook
 
 ## Jobs
 - `list_jobs(project_id?)`

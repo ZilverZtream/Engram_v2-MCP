@@ -70,6 +70,7 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `get_memory_budget` | implemented |
 | `compute_blast_radius` | implemented |
 | `detect_design_patterns` | implemented |
+| `autonomous_decision_gate` | implemented |
 | `graph_centrality_rerank` | planned |
 <!-- CAPABILITIES_MATRIX:END -->
 
@@ -78,3 +79,13 @@ The matrix below is generated from capability flags and acts as the roadmap base
 - **Graduate `experimental`**: `analyze_file_coding_style` is the sole remaining experimental tool — path to `implemented` requires edge-case hardening across more language/git-history combinations.
 - **Implement `planned`**: `graph_centrality_rerank` is the only planned item; baseline behavior requires integrating PageRank scores into hybrid search re-ranking at query time.
 - **No `partial` entries remain** — all formerly partial tools were fully promoted across Phases 21–25.
+
+## Changelog
+
+### Phase 26: Autonomous Decision Protocol (ADP v1)
+- **New tool**: `autonomous_decision_gate` — mandatory 8-gate verification pipeline for autonomous code changes (allow/deny/abstain verdicts)
+- **Gate pipeline**: extraction confidence → trace certainty → safety policy → retrieval quality → blast radius → anti-pattern → runtime evidence → evidence sufficiency
+- **Trace ambiguity fix**: `trace_ui_event` now emits fallback candidate metadata and confidence penalties instead of silently resolving to first match
+- **Config fields**: `adp_enabled`, `adp_min_extraction_confidence`, `adp_max_blast_radius`
+- **Service**: `autonomous_decision_service.rs` with 11 unit tests covering all acceptance criteria
+- **Bugfix**: Fixed pre-existing `cs: Query` vs `Option<Query>` type mismatch in `engram_index/src/parsing.rs`

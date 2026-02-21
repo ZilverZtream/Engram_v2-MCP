@@ -54,6 +54,14 @@ Special handling for **ASP.NET WebForms** (ASPX, ASCX, Master pages): control ID
 - Per-project **memory bank**: structured notes the agent writes and reads across sessions (architectural decisions, constraints, known issues)
 - **Repo rules**: file-pattern-matched constraints injected into chunk retrieval (e.g., "all files matching `*Repository.cs` must use the Unit of Work pattern")
 
+### Autonomous Decision Protocol (ADP)
+- **Mandatory gate pipeline** for auto-applied changes: 8 ordered verification gates that must all pass before an agent can modify code autonomously
+- Gates: extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, evidence sufficiency
+- Three verdicts: `allow` (all gates pass), `deny` (hard failure), `abstain` (insufficient evidence — agent must gather more data)
+- Machine-readable output with per-gate results, failed gate IDs, and required follow-up actions
+- Configurable thresholds: `adp_min_extraction_confidence`, `adp_max_blast_radius`, safety thresholds
+- Trace ambiguity scoring: `trace_ui_event` emits fallback candidate metadata and confidence penalties when control lookup is ambiguous
+
 ### Incremental Indexing & Watching
 - Blake3 file fingerprinting for change detection; unchanged files are copy-forwarded without re-parsing
 - Generation-based append-only model: queries always filter to the active generation
@@ -154,6 +162,14 @@ max_project_bytes: 5368709120         # 5 GB
 max_chunks_per_file: 2000
 max_concurrent_jobs: 2
 max_commits_per_watch: 50
+
+# Safety & Autonomous Decision Protocol (ADP)
+safety_policy_enabled: true           # Enable safety gates for automated edits
+safety_min_confidence: 0.7            # Minimum impact confidence to allow edits
+safety_min_coverage: 0.6              # Minimum test coverage to allow edits
+adp_enabled: true                     # Enable mandatory ADP gate pipeline
+adp_min_extraction_confidence: 0.5    # Minimum extraction confidence for ADP
+adp_max_blast_radius: 6               # Max blast radius score (1-10) for auto-apply
 ```
 
 Set the config path via environment variable:
@@ -335,6 +351,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `benchmark_retrieval` | NDCG@10, Recall@10, MRR benchmarking against known-relevant queries. Gates vector_search for production readiness |
 | `get_extraction_confidence` | Score WebForms extraction confidence (event wiring, SQL trace, control binding) with signal-weighted breakdown |
 | `generate_migration_plan` | Executable migration plan with dependency-ordered waves, seams, contract tests, adapters, and rollback playbooks |
+| `autonomous_decision_gate` | Mandatory 8-gate verification pipeline for autonomous code changes. Runs extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, and evidence sufficiency gates. Returns allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups |
 
 ### Utilities
 
