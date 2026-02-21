@@ -1027,6 +1027,39 @@ pub struct AutonomousDecisionGateRequest {
     /// Whether runtime instrumentation evidence has been collected.
     #[serde(default)]
     pub has_runtime_evidence: bool,
+
+    // ── vNext fields ──
+    /// Evidence depth: "fast", "standard", or "deep". Default: "standard".
+    /// Controls how much evidence ADP gathers itself via the Evidence Orchestration Engine.
+    #[serde(default = "default_evidence_depth")]
+    pub evidence_depth: String,
+    /// Runtime evidence batch JSON for reconciliation scoring.
+    /// If provided, replaces the boolean `has_runtime_evidence` with rich reconciliation data.
+    #[serde(default)]
+    pub runtime_evidence_batch: Option<serde_json::Value>,
+    /// Migration class for calibrated thresholds (e.g., "data_access", "webforms_page").
+    #[serde(default)]
+    pub migration_class: Option<String>,
+    /// Wave items for plan-level evaluation. If provided, evaluates an entire
+    /// migration wave instead of a single patch.
+    #[serde(default)]
+    pub wave_items: Option<Vec<WaveItemInput>>,
+}
+
+/// A single item in a migration wave for plan-level ADP evaluation.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct WaveItemInput {
+    /// File path for this wave item.
+    pub file_path: String,
+    /// Description of the change for this item.
+    pub change_description: String,
+    /// Risk profile for this item. Default: "medium".
+    #[serde(default = "default_risk_profile")]
+    pub risk_profile: String,
+}
+
+fn default_evidence_depth() -> String {
+    "standard".to_string()
 }
 
 fn default_risk_profile() -> String {

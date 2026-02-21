@@ -2,6 +2,7 @@ pub mod autonomous_decision_service;
 pub mod benchmark_service;
 pub mod blast_radius_service;
 pub mod cognitive_service;
+pub mod evidence_orchestration;
 pub mod git_service;
 pub mod graph_service;
 pub mod ingest_service;

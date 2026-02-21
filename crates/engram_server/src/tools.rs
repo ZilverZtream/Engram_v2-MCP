@@ -6395,10 +6395,12 @@ End Sub
     // ---- Autonomous Decision Gate ----
 
     #[tool(
-        description = "Mandatory autonomous decision gate. Runs an ordered pipeline of verification gates \
-        (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, \
-        anti-pattern, runtime evidence) and returns allow/deny/abstain verdict with machine-readable \
-        reasons. Must pass before any auto-applied change."
+        description = "Mandatory autonomous decision gate (ADP vNext). Runs an 8-gate verification pipeline \
+        with evidence orchestration: extraction confidence, trace certainty, safety policy, retrieval quality, \
+        blast radius, anti-pattern, runtime evidence (with reconciliation scoring), and evidence sufficiency. \
+        Supports three evidence depths (fast/standard/deep), calibrated confidence aggregation, migration class \
+        thresholds, and wave-level evaluation for entire migration plans. Returns allow/deny/abstain verdict \
+        with machine-readable reasons. Must pass before any auto-applied change."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn autonomous_decision_gate(
@@ -6407,134 +6409,69 @@ End Sub
     ) -> Result<CallToolResult, McpError> {
         let req = params.0;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        // ── Build safety evaluation if target files are provided ──
-        let safety_decision = if !req.target_files.is_empty() {
-            // Compute a lightweight safety eval from available data
-            let graph = self.state.graph.clone();
-            let pid = req.project_id.clone();
-            let files = req.target_files.clone();
+        // ── Wave-level evaluation branch ──
+        if let Some(wave_items) = req.wave_items {
+            return self
+                .evaluate_wave_decision(
+                    &req.project_id,
+                    &req.risk_profile,
+                    wave_items,
+                    gen_,
+                    req.require_runtime_evidence,
+                    &req.evidence_depth,
+                    req.output_json,
+                )
+                .await;
+        }
 
-            let downstream = tokio::task::spawn_blocking({
-                let graph = graph.clone();
-                let pid = pid.clone();
-                let files = files.clone();
-                move || {
-                    let mut total = 0u64;
-                    for f in &files {
-                        let target_id = format!("file:{}", f);
-                        if let Ok(neighbors) = graph.neighbors(
-                            &pid,
-                            engram_graph::EdgeKind::Dependency,
-                            &target_id,
-                            500,
-                        ) {
-                            total += neighbors.len() as u64;
-                        }
-                    }
-                    total
-                }
-            })
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-            // Detect state/database touches from proposed change content
-            let change_lower = req.proposed_change.to_lowercase();
-            let touches_global_state = change_lower.contains("session[")
-                || change_lower.contains("application[")
-                || change_lower.contains("viewstate[")
-                || change_lower.contains("httpcontext");
-            let touches_database = change_lower.contains("sqlcommand")
-                || change_lower.contains("sqlconnection")
-                || change_lower.contains("executenonquery")
-                || change_lower.contains("executereader")
-                || change_lower.contains("insert into")
-                || change_lower.contains("update ")
-                || change_lower.contains("delete from");
-
-            let eval_req = crate::services::safety_service::SafetyEvalRequest {
-                project_id: pid,
-                affected_files: files,
-                refactor_type: "autonomous_change".into(),
-                impact_node_count: downstream,
-                impact_confidence: req.extraction_confidence.unwrap_or(0.5),
-                test_coverage: -1.0, // unknown
-                anti_pattern_clear: req.immune_verdict.as_deref() == Some("PASS")
-                    || req.immune_verdict.is_none(),
-                downstream_dependents: downstream,
-                touches_global_state,
-                touches_database,
-            };
-            Some(crate::services::safety_service::evaluate_safety(
-                &eval_req,
-                self.state.cfg.safety_policy_enabled,
-                self.state.cfg.safety_min_confidence,
-                self.state.cfg.safety_min_coverage,
-            ))
-        } else {
-            None
-        };
-
-        // ── Compute blast radius for first target file if available ──
-        let (blast_risk, blast_band, blast_downstream) =
-            if let Some(ref fp) = req.target_files.first() {
-                let graph = self.state.graph.clone();
-                let pid = req.project_id.clone();
-                let target_id = format!("file:{}", fp);
-                let gen_ = self.get_active_generation(&req.project_id).await?;
-                match tokio::task::spawn_blocking(move || {
-                    crate::services::blast_radius_service::compute_blast_radius(
-                        &graph, &pid, &target_id, gen_, false,
-                    )
-                })
-                .await
-                {
-                    Ok(Ok(report)) => (
-                        Some(report.migration_risk),
-                        Some(report.risk_band),
-                        Some(report.total_downstream),
-                    ),
-                    _ => (None, None, None),
-                }
-            } else {
-                (None, None, None)
-            };
-
-        // ── Determine extraction band from confidence ──
-        let extraction_band = req.extraction_confidence.map(|c| {
-            if c >= 0.8 {
-                "high".to_string()
-            } else if c >= 0.5 {
-                "medium".to_string()
-            } else {
-                "low".to_string()
-            }
-        });
-
-        // ── Build ADP input ──
-        let adp_input = crate::services::autonomous_decision_service::AdpInput {
+        // ── Build evidence overrides from caller-supplied fields (backward compat) ──
+        let overrides = crate::services::evidence_orchestration::EvidenceOverrides {
             extraction_confidence: req.extraction_confidence,
-            extraction_band,
-            trace_used_fallback: req.trace_used_fallback,
-            trace_candidate_count: req.trace_candidate_count,
-            safety_decision,
-            retrieval_production_ready: None, // Not run inline — too expensive
-            retrieval_ndcg: None,
-            retrieval_recall: None,
-            blast_radius_risk: blast_risk,
-            blast_radius_band: blast_band,
-            blast_radius_downstream: blast_downstream,
+            extraction_type: req.extraction_type,
+            trace_used_fallback: if req.trace_used_fallback {
+                Some(true)
+            } else {
+                None
+            },
+            trace_candidate_count: if req.trace_candidate_count > 0 {
+                Some(req.trace_candidate_count)
+            } else {
+                None
+            },
             immune_verdict: req.immune_verdict,
             immune_confidence: req.immune_confidence,
-            require_runtime_evidence: req.require_runtime_evidence,
-            has_runtime_evidence: req.has_runtime_evidence,
-            risk_profile: crate::services::autonomous_decision_service::RiskProfile::from_str(
-                &req.risk_profile,
-            ),
-            min_extraction_confidence: self.state.cfg.adp_min_extraction_confidence,
-            min_safety_confidence: self.state.cfg.safety_min_confidence,
-            max_blast_radius_for_auto: self.state.cfg.adp_max_blast_radius,
+            has_runtime_evidence: if req.has_runtime_evidence {
+                Some(true)
+            } else {
+                None
+            },
+            reconciliation: None, // Reconciliation comes from runtime_evidence_batch below
+            safety_decision: None,
+            retrieval_production_ready: None,
+            retrieval_ndcg: None,
+            retrieval_recall: None,
+            migration_class: req.migration_class,
         };
+
+        let depth =
+            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth);
+
+        // ── Gather evidence via the Evidence Orchestration Engine ──
+        let adp_input = crate::services::evidence_orchestration::gather_evidence(
+            &self.state,
+            &req.project_id,
+            &req.target_files,
+            &req.proposed_change,
+            crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile),
+            depth,
+            &overrides,
+            req.require_runtime_evidence,
+            gen_,
+        )
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // ── Run gate pipeline ──
         let decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
@@ -6558,6 +6495,89 @@ End Sub
             Ok(CallToolResult::success(vec![Content::text(json)]))
         } else {
             let text = crate::services::autonomous_decision_service::format_decision(&decision);
+            Ok(CallToolResult::success(vec![Content::text(text)]))
+        }
+    }
+
+    /// Evaluate a migration wave using plan-level ADP (vNext).
+    async fn evaluate_wave_decision(
+        &self,
+        project_id: &str,
+        _default_risk_profile: &str,
+        wave_items: Vec<crate::models::requests::WaveItemInput>,
+        generation: u64,
+        require_runtime_evidence: bool,
+        evidence_depth: &str,
+        output_json: bool,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::services::autonomous_decision_service::{
+            WaveAdpInput, evaluate_wave, format_wave_decision,
+        };
+        use crate::services::evidence_orchestration::{EvidenceDepth, EvidenceOverrides};
+
+        let depth = EvidenceDepth::from_str(evidence_depth);
+        let mut items = Vec::with_capacity(wave_items.len());
+
+        // Gather evidence for each wave item
+        for item in &wave_items {
+            let overrides = EvidenceOverrides::default();
+            let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(
+                &item.risk_profile,
+            );
+
+            match crate::services::evidence_orchestration::gather_evidence(
+                &self.state,
+                project_id,
+                &[item.file_path.clone()],
+                &item.change_description,
+                risk_profile,
+                depth,
+                &overrides,
+                require_runtime_evidence,
+                generation,
+            )
+            .await
+            {
+                Ok(adp_input) => {
+                    items.push((item.file_path.clone(), adp_input));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        file = %item.file_path,
+                        error = %e,
+                        "Failed to gather evidence for wave item"
+                    );
+                    // Skip items we can't evaluate — they'll be missing from the wave
+                }
+            }
+        }
+
+        let wave_input = WaveAdpInput {
+            wave_number: 1,
+            wave_name: format!("{} wave", project_id),
+            items,
+            cross_item_deps: 0, // TODO: compute from graph cross-references
+        };
+
+        let wave_decision = evaluate_wave(&wave_input);
+
+        // Record aggregate metrics
+        match wave_decision.verdict {
+            crate::services::autonomous_decision_service::AdpVerdict::Allow => {
+                engram_core::metrics::metrics().refactors_approved.inc();
+            }
+            crate::services::autonomous_decision_service::AdpVerdict::Deny => {
+                engram_core::metrics::metrics().refactors_blocked.inc();
+            }
+            crate::services::autonomous_decision_service::AdpVerdict::Abstain => {}
+        }
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&wave_decision)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let text = format_wave_decision(&wave_decision);
             Ok(CallToolResult::success(vec![Content::text(text)]))
         }
     }

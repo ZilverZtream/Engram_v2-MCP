@@ -189,6 +189,31 @@ pub struct Config {
     /// Overrides all other ADP settings. Use for emergency halt.
     #[serde(default)]
     pub adp_kill_switch: bool,
+
+    // --- ADP vNext ---
+    /// Default evidence depth: "fast", "standard", or "deep". Default: "standard".
+    #[serde(default = "default_adp_evidence_depth")]
+    pub adp_default_evidence_depth: String,
+
+    /// Whether to cache benchmark results for the retrieval gate.
+    #[serde(default = "default_adp_cache_retrieval")]
+    pub adp_cache_retrieval: bool,
+
+    /// Timeout in milliseconds for evidence orchestration.
+    #[serde(default = "default_adp_evidence_timeout_ms")]
+    pub adp_evidence_timeout_ms: u64,
+
+    /// Minimum reconciliation confirmed ratio to pass runtime gate (0.0–1.0).
+    #[serde(default = "default_adp_min_reconciliation_confirmed")]
+    pub adp_min_reconciliation_confirmed: f64,
+
+    /// Maximum reconciliation contradicted ratio to pass runtime gate (0.0–1.0).
+    #[serde(default = "default_adp_max_reconciliation_contradicted")]
+    pub adp_max_reconciliation_contradicted: f64,
+
+    /// Maximum items per wave before ADP forces wave splitting.
+    #[serde(default = "default_adp_max_wave_items")]
+    pub adp_max_wave_items: usize,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -294,6 +319,30 @@ fn default_adp_rollout_phase() -> String {
     "shadow".into()
 }
 
+fn default_adp_evidence_depth() -> String {
+    "standard".into()
+}
+
+fn default_adp_cache_retrieval() -> bool {
+    true
+}
+
+fn default_adp_evidence_timeout_ms() -> u64 {
+    30_000
+}
+
+fn default_adp_min_reconciliation_confirmed() -> f64 {
+    0.6
+}
+
+fn default_adp_max_reconciliation_contradicted() -> f64 {
+    0.2
+}
+
+fn default_adp_max_wave_items() -> usize {
+    20
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -340,6 +389,12 @@ impl Default for Config {
             adp_max_blast_radius: default_adp_max_blast_radius(),
             adp_rollout_phase: default_adp_rollout_phase(),
             adp_kill_switch: false,
+            adp_default_evidence_depth: default_adp_evidence_depth(),
+            adp_cache_retrieval: default_adp_cache_retrieval(),
+            adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),
+            adp_min_reconciliation_confirmed: default_adp_min_reconciliation_confirmed(),
+            adp_max_reconciliation_contradicted: default_adp_max_reconciliation_contradicted(),
+            adp_max_wave_items: default_adp_max_wave_items(),
         }
     }
 }
@@ -409,6 +464,21 @@ impl Config {
                 "adp_max_blast_radius must be 1–10, got {}",
                 self.adp_max_blast_radius
             )));
+        }
+
+        // ADP vNext validation
+        Self::validate_unit_interval(
+            "adp_min_reconciliation_confirmed",
+            self.adp_min_reconciliation_confirmed,
+        )?;
+        Self::validate_unit_interval(
+            "adp_max_reconciliation_contradicted",
+            self.adp_max_reconciliation_contradicted,
+        )?;
+        if self.adp_evidence_timeout_ms == 0 {
+            return Err(EngramError::Config(
+                "adp_evidence_timeout_ms must be > 0".into(),
+            ));
         }
 
         Ok(())
