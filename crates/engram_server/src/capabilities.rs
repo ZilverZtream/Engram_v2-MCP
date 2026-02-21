@@ -31,11 +31,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "project_health",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "repair_project",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "delete_project",
@@ -95,7 +95,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "graph_search",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "traverse_graph",
@@ -111,7 +111,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "search_history",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "analyze_temporal_couplings",
@@ -151,11 +151,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "get_codebase_overview",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "find_symbol_references",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "analyze_error_stack",
@@ -207,11 +207,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "generate_migration_blueprint",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "ast_dependency_graph",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "vector_search",
@@ -219,11 +219,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "incremental_indexing_gc",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "dedicated_antipattern_index",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "graph_centrality_rerank",

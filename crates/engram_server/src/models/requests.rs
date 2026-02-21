@@ -66,6 +66,30 @@ pub fn default_max_clusters() -> usize {
 pub fn default_min_freq_3() -> u32 {
     3
 }
+pub fn default_graph_hop_depth_1() -> usize {
+    1
+}
+pub fn default_content_preview_chars() -> usize {
+    400
+}
+pub fn default_content_preview_800() -> usize {
+    800
+}
+pub fn default_limit_200() -> usize {
+    200
+}
+pub fn default_repair_scope() -> String {
+    "full".to_string()
+}
+pub fn default_repair_max_commits() -> usize {
+    500
+}
+pub fn default_direction_outgoing() -> String {
+    "outgoing".to_string()
+}
+pub fn default_antipattern_action() -> String {
+    "stats".to_string()
+}
 
 pub const MAX_SEARCH_RESULTS: usize = 200;
 pub const MAX_CONTENT_CHARS_PER_RESULT: usize = 20_000;
@@ -76,6 +100,9 @@ pub const MAX_TEMPORAL_MIN_FREQUENCY: usize = 1_000;
 pub const MAX_DREAM_PAIRS: usize = 500;
 pub const MAX_DIFF_LIMIT: usize = 200;
 pub const MAX_IMMUNE_TOP_K: usize = 200;
+pub const MAX_SYMBOL_REFS: usize = 500;
+pub const MAX_AST_DEPTH: usize = 12;
+pub const MAX_ANTIPATTERN_RESULTS: usize = 200;
 
 // -------------------- Project lifecycle --------------------
 
@@ -111,6 +138,25 @@ pub struct WatchProjectRequest {
     pub project_id: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
+}
+
+// -------------------- Repair --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct RepairProjectRequest {
+    pub project_id: String,
+    /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only".
+    #[serde(default = "default_repair_scope")]
+    pub scope: String,
+    /// Wipe all data and re-index from scratch. Default: false.
+    #[serde(default)]
+    pub wipe_and_reindex: bool,
+    /// Max git commits to replay during re-index (for history). Default: 500.
+    #[serde(default = "default_repair_max_commits")]
+    pub max_commits: usize,
+    /// Index antipatterns during repair. Default: true.
+    #[serde(default = "default_true")]
+    pub index_antipatterns: bool,
 }
 
 // -------------------- Search --------------------
@@ -160,12 +206,45 @@ pub struct GraphSearchRequest {
     pub max_results: usize,
     #[serde(default = "default_symbol_boost")]
     pub symbol_boost: f32,
+    /// Namespace to search ("memory", "history", "antipattern"). Default: "memory".
+    #[serde(default = "default_namespace_memory")]
+    pub namespace: String,
+    /// Full-text search mode: "strict" (exact phrase), "loose" (any token), "regex". Default: "strict".
+    #[serde(default = "default_fts_strict")]
+    pub fts_mode: String,
+    /// Enable MMR reranking for diversity. Default: false.
+    #[serde(default)]
+    pub use_mmr: bool,
+    /// Graph neighbor expansion depth (1-4). Default: 1.
+    #[serde(default = "default_graph_hop_depth_1")]
+    pub hop_depth: usize,
+    /// Include content snippet preview in results. Default: false.
+    #[serde(default)]
+    pub include_content: bool,
+    /// Max characters per content preview. Default: 400.
+    #[serde(default = "default_content_preview_chars")]
+    pub max_content_chars: usize,
+    /// Filter by edge kinds for graph expansion (e.g. ["dependency", "imports"]). Default: all expansion kinds.
+    #[serde(default)]
+    pub expansion_edge_kinds: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct FindSymbolReferencesRequest {
     pub symbol_name: String,
     pub project_id: String,
+    /// Maximum number of incoming references to return per symbol. Default: 200.
+    #[serde(default = "default_limit_200")]
+    pub max_incoming: usize,
+    /// Maximum number of outgoing dependencies to return per edge kind. Default: 50.
+    #[serde(default = "default_limit_50")]
+    pub max_outgoing_per_kind: usize,
+    /// Filter by specific edge kinds (e.g. ["dependency", "imports"]). Default: all kinds.
+    #[serde(default)]
+    pub edge_kind_filter: Option<Vec<String>>,
+    /// Filter references to files under this path prefix.
+    #[serde(default)]
+    pub file_scope: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -325,6 +404,8 @@ pub struct SearchHistoryRequest {
     #[serde(default)]
     pub file_filter: Option<String>,
     #[serde(default)]
+    pub exclude_paths: Option<Vec<String>>,
+    #[serde(default)]
     pub author_filter: Option<String>,
     #[serde(default)]
     pub date_after: Option<u64>,
@@ -332,6 +413,15 @@ pub struct SearchHistoryRequest {
     pub date_before: Option<u64>,
     #[serde(default = "default_limit_5")]
     pub limit: usize,
+    /// Full-text search mode: "strict", "loose", "regex". Default: "strict".
+    #[serde(default = "default_fts_strict")]
+    pub fts_mode: String,
+    /// Enable MMR reranking for diversity. Default: false.
+    #[serde(default)]
+    pub use_mmr: bool,
+    /// Max characters per content preview (0 = no content). Default: 800.
+    #[serde(default = "default_content_preview_800")]
+    pub max_content_chars: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -417,9 +507,71 @@ pub struct GenerateMigrationBlueprintRequest {
     /// or a symbol like "sym:class:MapPage"). Partial matches are attempted
     /// if an exact node is not found.
     pub entry_node: String,
-    /// Maximum BFS depth from the entry node (default 3, max 5).
+    /// Maximum BFS depth from the entry node (default 3, max 8).
     #[serde(default = "default_max_depth_3")]
     pub max_depth: u8,
+    /// Return JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+    /// Filter BFS to specific edge kinds (e.g. ["dependency", "sql_calls"]). Default: all.
+    #[serde(default)]
+    pub include_edge_kinds: Option<Vec<String>>,
+    /// Skip dead code nodes during BFS. Default: true.
+    #[serde(default = "default_true")]
+    pub exclude_dead_code: bool,
+}
+
+// -------------------- AST Dependency Graph --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AstDependencyGraphRequest {
+    pub project_id: String,
+    /// File path (project-relative) or node ID to root the dependency tree from.
+    pub entry: String,
+    /// Maximum depth of dependency traversal. Default: 3, max: 12.
+    #[serde(default = "default_max_depth_3")]
+    pub max_depth: u8,
+    /// Direction: "outgoing" (what this depends on), "incoming" (what depends on this), "both". Default: "outgoing".
+    #[serde(default = "default_direction_outgoing")]
+    pub direction: String,
+    /// Only include compile-time dependencies (Dependency, Imports, Contains). Default: true.
+    #[serde(default = "default_true")]
+    pub compile_time_only: bool,
+    /// Return JSON output instead of text tree. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// -------------------- Incremental Indexing GC --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct IncrementalIndexingGcRequest {
+    pub project_id: String,
+    /// Target generation to GC up to (exclusive). If omitted, uses active_generation.
+    #[serde(default)]
+    pub target_generation: Option<u64>,
+    /// Also compact LanceDB (reclaim tombstone space). Default: true.
+    #[serde(default = "default_true")]
+    pub compact_vectors: bool,
+}
+
+// -------------------- Antipattern Index Management --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AntipatternIndexRequest {
+    pub project_id: String,
+    /// Action: "stats" (default), "list", "search", "clear".
+    #[serde(default = "default_antipattern_action")]
+    pub action: String,
+    /// Search query (required if action="search").
+    #[serde(default)]
+    pub query: Option<String>,
+    /// Filter by file pattern (substring match on paths).
+    #[serde(default)]
+    pub file_filter: Option<String>,
+    /// Max results for list/search. Default: 50.
+    #[serde(default = "default_limit_50")]
+    pub limit: usize,
 }
 
 // -------------------- Jobs --------------------
@@ -462,12 +614,6 @@ impl SearchMemoryRequest {
     pub fn sanitized_max_content_chars_per_result(&self) -> usize {
         self.max_content_chars_per_result
             .clamp(1, MAX_CONTENT_CHARS_PER_RESULT)
-    }
-}
-
-impl GraphSearchRequest {
-    pub fn sanitized_max_results(&self) -> usize {
-        self.max_results.clamp(1, MAX_SEARCH_RESULTS)
     }
 }
 
@@ -529,12 +675,6 @@ impl AntiPatternGuardRequest {
     }
 }
 
-impl GenerateMigrationBlueprintRequest {
-    pub fn sanitized_max_depth(&self) -> usize {
-        (self.max_depth as usize).clamp(1, 5)
-    }
-}
-
 impl SuggestMigrationBoundariesRequest {
     pub fn sanitized_min_frequency(&self) -> u32 {
         self.min_frequency.clamp(1, 1000)
@@ -547,5 +687,50 @@ impl SuggestMigrationBoundariesRequest {
 impl UpdateProjectRequest {
     pub fn sanitized_max_commits(&self) -> usize {
         self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
+}
+
+impl GraphSearchRequest {
+    pub fn sanitized_max_results(&self) -> usize {
+        self.max_results.clamp(1, MAX_SEARCH_RESULTS)
+    }
+    pub fn sanitized_hop_depth(&self) -> usize {
+        self.hop_depth.clamp(1, 4)
+    }
+    pub fn sanitized_max_content_chars(&self) -> usize {
+        self.max_content_chars.clamp(0, MAX_CONTENT_CHARS_PER_RESULT)
+    }
+}
+
+impl FindSymbolReferencesRequest {
+    pub fn sanitized_max_incoming(&self) -> usize {
+        self.max_incoming.clamp(1, MAX_SYMBOL_REFS)
+    }
+    pub fn sanitized_max_outgoing_per_kind(&self) -> usize {
+        self.max_outgoing_per_kind.clamp(1, MAX_SYMBOL_REFS)
+    }
+}
+
+impl RepairProjectRequest {
+    pub fn sanitized_max_commits(&self) -> usize {
+        self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
+}
+
+impl AstDependencyGraphRequest {
+    pub fn sanitized_max_depth(&self) -> usize {
+        (self.max_depth as usize).clamp(1, MAX_AST_DEPTH)
+    }
+}
+
+impl AntipatternIndexRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_ANTIPATTERN_RESULTS)
+    }
+}
+
+impl GenerateMigrationBlueprintRequest {
+    pub fn sanitized_max_depth(&self) -> usize {
+        (self.max_depth as usize).clamp(1, 8)
     }
 }
