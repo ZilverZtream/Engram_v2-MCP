@@ -5,7 +5,6 @@ use arrow_array::{
 use arrow_schema::{DataType, Field, Schema};
 use lance_arrow::FixedSizeListArrayExt;
 use lancedb::{Connection, Table};
-use rayon::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -209,27 +208,26 @@ pub fn create_record_batch_with_gens(
     let schema = vector_schema(dim);
     let n = pks.len();
 
-    let pk_arr = StringArray::from(pks.to_vec());
-    let doc_id_arr = StringArray::from(doc_ids.to_vec());
-    let content_hash_arr = StringArray::from(content_hashes.to_vec());
+    // Build Arrow arrays from borrowed slices — avoid .to_vec() on already-owned Vecs.
+    // StringArray::from accepts &[&str] which avoids cloning String→String.
+    let pk_refs: Vec<&str> = pks.iter().map(|s| s.as_str()).collect();
+    let pk_arr = StringArray::from(pk_refs);
+    let did_refs: Vec<&str> = doc_ids.iter().map(|s| s.as_str()).collect();
+    let doc_id_arr = StringArray::from(did_refs);
+    let ch_refs: Vec<&str> = content_hashes.iter().map(|s| s.as_str()).collect();
+    let content_hash_arr = StringArray::from(ch_refs);
     let chunk_id_arr = UInt64Array::from(chunk_ids.to_vec());
     let project_id_arr = StringArray::from(vec![project_id; n]);
     let namespace_arr = StringArray::from(vec![namespace; n]);
     let generation_arr = UInt64Array::from(generations.to_vec());
-    let path_arr = StringArray::from(paths.to_vec());
-    let language_arr = StringArray::from(languages.to_vec());
-    let author_arr = StringArray::from(
-        authors
-            .iter()
-            .map(|a| a.as_deref().unwrap_or(""))
-            .collect::<Vec<_>>(),
-    );
-    let timestamp_arr = UInt64Array::from(
-        timestamps
-            .iter()
-            .map(|t| t.unwrap_or(0))
-            .collect::<Vec<_>>(),
-    );
+    let path_refs: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
+    let path_arr = StringArray::from(path_refs);
+    let lang_refs: Vec<&str> = languages.iter().map(|s| s.as_str()).collect();
+    let language_arr = StringArray::from(lang_refs);
+    let author_refs: Vec<&str> = authors.iter().map(|a| a.as_deref().unwrap_or("")).collect();
+    let author_arr = StringArray::from(author_refs);
+    let ts_vals: Vec<u64> = timestamps.iter().map(|t| t.unwrap_or(0)).collect();
+    let timestamp_arr = UInt64Array::from(ts_vals);
 
     // Validate that all vectors match the expected dimension. Log a warning for
     // any mismatches (which get silently padded/truncated to `dim`). A persistent
@@ -248,15 +246,15 @@ pub fn create_record_batch_with_gens(
         );
     }
 
-    // Parallelize vector flattening; truncate/pad to `dim` to match the schema.
-    let flat_vectors: Vec<f32> = vectors
-        .par_iter()
-        .flat_map(|v| {
-            let mut v_resized = v.clone();
-            v_resized.resize(dim, 0.0);
-            v_resized
-        })
-        .collect();
+    // Zero-copy vector flattening: pre-allocate exact buffer and copy slices
+    // directly. Avoids per-vector clone() + resize() which allocated ~150MB for
+    // a 10K × 1536-dim batch.
+    let mut flat_vectors = vec![0.0f32; vectors.len() * dim];
+    for (i, v) in vectors.iter().enumerate() {
+        let copy_len = v.len().min(dim);
+        flat_vectors[i * dim..i * dim + copy_len].copy_from_slice(&v[..copy_len]);
+        // Remaining slots stay 0.0 (zero-padded from vec! initialization).
+    }
 
     let vector_values = Float32Array::from(flat_vectors);
     let vector_arr = FixedSizeListArray::try_new_from_values(vector_values, dim as i32)?;
@@ -283,13 +281,27 @@ pub fn create_record_batch_with_gens(
 
 /// Build a SQL-safe pk IN (...) filter fragment for the given pks.
 /// Single quotes in pk values are escaped as '' (standard SQL).
+/// Uses a single pre-allocated String buffer instead of per-pk format!() + join().
 pub fn build_pk_filter(pks: &[String]) -> String {
-    let pk_list = pks
-        .iter()
-        .map(|pk| format!("'{}'", pk.replace('\'', "''")))
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!("pk IN ({})", pk_list)
+    // Estimate: "pk IN (" = 7, per pk ~avg 60 chars + "', '" = 4, trailing ")"
+    let mut buf = String::with_capacity(7 + pks.len() * 64 + 1);
+    buf.push_str("pk IN (");
+    for (i, pk) in pks.iter().enumerate() {
+        if i > 0 {
+            buf.push_str(", ");
+        }
+        buf.push('\'');
+        for c in pk.chars() {
+            if c == '\'' {
+                buf.push_str("''");
+            } else {
+                buf.push(c);
+            }
+        }
+        buf.push('\'');
+    }
+    buf.push(')');
+    buf
 }
 
 #[cfg(test)]

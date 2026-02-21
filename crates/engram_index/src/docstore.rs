@@ -9,6 +9,23 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
 
+/// Serialize a value to bincode (compact binary, ~3-5x smaller than JSON for
+/// typical DocRecords). Falls back gracefully on deserialization — if bincode
+/// decode fails we try JSON, enabling rolling migration from the previous
+/// JSON-only format without a manual data wipe.
+fn ser_bincode<T: Serialize>(val: &T) -> anyhow::Result<Vec<u8>> {
+    bincode::serialize(val).map_err(|e| anyhow::anyhow!("bincode serialize: {e}"))
+}
+
+fn de_bincode_or_json<T: serde::de::DeserializeOwned>(data: &[u8]) -> anyhow::Result<T> {
+    // Fast path: bincode (new format)
+    if let Ok(v) = bincode::deserialize::<T>(data) {
+        return Ok(v);
+    }
+    // Fallback: JSON (legacy format from before Phase 20)
+    serde_json::from_slice(data).map_err(|e| anyhow::anyhow!("deserialize: {e}"))
+}
+
 // Fix #4: key components must not contain the delimiter bytes used for
 // composite key construction ('\0' for field separator, '\n' for list items).
 // Reject such values early so they can never silently corrupt the database.
@@ -91,7 +108,7 @@ impl DocStore {
         validate_key_component(&rec.namespace, "namespace")?;
         validate_key_component(&rec.doc_id, "doc_id")?;
         let key = format!("{}\0{}\0{}", project_id, rec.namespace, rec.doc_id);
-        let val = serde_json::to_vec(rec)?;
+        let val = ser_bincode(rec)?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(DOC_BY_ID)?;
@@ -114,7 +131,7 @@ impl DocStore {
                 validate_key_component(&rec.namespace, "namespace")?;
                 validate_key_component(&rec.doc_id, "doc_id")?;
                 let key = format!("{}\0{}\0{}", project_id, rec.namespace, rec.doc_id);
-                let val = serde_json::to_vec(rec)?;
+                let val = ser_bincode(rec)?;
                 t.insert(key.as_str(), val.as_slice())?;
             }
         }
@@ -135,7 +152,7 @@ impl DocStore {
         let Some(v) = t.get(key.as_str())? else {
             return Ok(None);
         };
-        Ok(Some(serde_json::from_slice(v.value())?))
+        Ok(Some(de_bincode_or_json(v.value())?))
     }
 
     /// Update the file-to-docs mapping for a given file.
@@ -205,7 +222,7 @@ impl DocStore {
         validate_key_component(project_id, "project_id")?;
         validate_key_component(&fp.rel_path, "rel_path")?;
         let key = format!("{}\0{}", project_id, fp.rel_path);
-        let val = serde_json::to_vec(fp)?;
+        let val = ser_bincode(fp)?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(FILE_FINGERPRINT)?;
@@ -227,7 +244,7 @@ impl DocStore {
         let Some(v) = t.get(key.as_str())? else {
             return Ok(None);
         };
-        Ok(Some(serde_json::from_slice(v.value())?))
+        Ok(Some(de_bincode_or_json(v.value())?))
     }
 
     /// Batch-store fingerprints.
@@ -246,7 +263,7 @@ impl DocStore {
             for fp in fps {
                 validate_key_component(&fp.rel_path, "rel_path")?;
                 let key = format!("{}\0{}", project_id, fp.rel_path);
-                let val = serde_json::to_vec(fp)?;
+                let val = ser_bincode(fp)?;
                 t.insert(key.as_str(), val.as_slice())?;
             }
         }

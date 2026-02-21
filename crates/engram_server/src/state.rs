@@ -9,8 +9,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, Semaphore, broadcast};
 use tokio_util::sync::CancellationToken;
 
-/// Maximum concurrent parse/chunk blocking tasks.
-const MAX_PARSE_CONCURRENCY: usize = 4;
+// MAX_PARSE_CONCURRENCY now comes from Config.max_parse_concurrency
+// (defaults to num_cpus, capped at 16). See engram_core::config.
 
 /// Maximum number of project search engines cached in memory simultaneously.
 /// Beyond this limit, the least recently inserted project is evicted.
@@ -115,6 +115,7 @@ impl AppState {
         // that simultaneously trigger many search sessions.
         let dreaming = DreamingEngine::with_config(&cfg);
         let (events_tx, events_rx) = broadcast::channel(16_384);
+        let parse_concurrency = cfg.max_parse_concurrency;
 
         Ok((
             Self {
@@ -130,7 +131,7 @@ impl AppState {
                 active_jobs: Arc::new(RwLock::new(HashMap::new())),
                 cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
                 active_indexing_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-                parse_semaphore: Arc::new(Semaphore::new(MAX_PARSE_CONCURRENCY)),
+                parse_semaphore: Arc::new(Semaphore::new(parse_concurrency)),
                 project_update_locks: Arc::new(RwLock::new(HashMap::new())),
                 events_tx,
             },

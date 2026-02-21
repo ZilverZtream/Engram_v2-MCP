@@ -1863,6 +1863,7 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-schema",
+ "bincode",
  "blake3",
  "engram_core",
  "engram_ml",

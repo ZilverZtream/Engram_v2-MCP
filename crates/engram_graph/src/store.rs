@@ -480,16 +480,10 @@ impl GraphStore {
             // O(1) point-insert adjacency entries (no list deserialization).
             let adj_val = encode_adj_value(new_weight, now);
             let out_prefix = adj_key(project_id, &kind, source_id);
-            adj_out_t.insert(
-                (out_prefix.as_str(), target_id),
-                adj_val.as_slice(),
-            )?;
+            adj_out_t.insert((out_prefix.as_str(), target_id), adj_val.as_slice())?;
 
             let in_prefix = adj_key(project_id, &kind, target_id);
-            adj_in_t.insert(
-                (in_prefix.as_str(), source_id),
-                adj_val.as_slice(),
-            )?;
+            adj_in_t.insert((in_prefix.as_str(), source_id), adj_val.as_slice())?;
         }
         wtx.commit()?;
         Ok(new_weight)
@@ -590,10 +584,7 @@ impl GraphStore {
                 )?;
 
                 let in_prefix = adj_key(project_id, kind, target_id);
-                adj_in_t.insert(
-                    (in_prefix.as_str(), source_id.as_str()),
-                    adj_val.as_slice(),
-                )?;
+                adj_in_t.insert((in_prefix.as_str(), source_id.as_str()), adj_val.as_slice())?;
             }
         }
         wtx.commit()?;
@@ -1658,8 +1649,7 @@ impl GraphStore {
                     let old_target = old_parts[3];
 
                     // Remove old adjacency entries (O(1) point deletes).
-                    let out_prefix =
-                        adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
+                    let out_prefix = adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
                     adj_out_t.remove((out_prefix.as_str(), old_target))?;
 
                     let old_in_prefix = adj_key(project_id, &new_edge.edge_kind, old_target);
@@ -1752,14 +1742,12 @@ fn contains_case_insensitive_path(haystack: &str, needle: &str) -> bool {
     if needle_bytes.len() > haystack_bytes.len() {
         return false;
     }
-    haystack_bytes
-        .windows(needle_bytes.len())
-        .any(|window| {
-            window.iter().zip(needle_bytes.iter()).all(|(&h, &n)| {
-                let h_norm = if h == b'\\' { b'/' } else { h };
-                h_norm.eq_ignore_ascii_case(&n)
-            })
+    haystack_bytes.windows(needle_bytes.len()).any(|window| {
+        window.iter().zip(needle_bytes.iter()).all(|(&h, &n)| {
+            let h_norm = if h == b'\\' { b'/' } else { h };
+            h_norm.eq_ignore_ascii_case(&n)
         })
+    })
 }
 
 // ─── BFS helpers for find_ui_paths ───────────────────────────────────────────
@@ -1912,9 +1900,18 @@ mod tests {
 
     #[test]
     fn case_insensitive_path_normalizes_backslash() {
-        assert!(contains_case_insensitive_path("src\\main\\App.cs", "src/main"));
-        assert!(contains_case_insensitive_path("src/main/App.cs", "src/main"));
-        assert!(contains_case_insensitive_path("SRC\\Main\\APP.CS", "src/main/app.cs"));
+        assert!(contains_case_insensitive_path(
+            "src\\main\\App.cs",
+            "src/main"
+        ));
+        assert!(contains_case_insensitive_path(
+            "src/main/App.cs",
+            "src/main"
+        ));
+        assert!(contains_case_insensitive_path(
+            "SRC\\Main\\APP.CS",
+            "src/main/app.cs"
+        ));
     }
 
     #[test]
