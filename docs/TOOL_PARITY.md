@@ -1,47 +1,53 @@
 # Tool Parity Matrix (v1 vs v2)
 
-| Tool Name (v1) | Inputs (v1) | Behavior Notes | v2 Status | Action Needed |
-| :--- | :--- | :--- | :--- | :--- |
-| `index_project` | `directory`, `name`, `type`, `wait`, `dedupe` | Chunks files, indexes FTS + Vector, registers in DB. | Implemented | None. |
-| `update_project` | `project_id`, `wait` | Incremental re-index of changed files. | Implemented | None. |
-| `list_projects` | None | Queries DB for all projects. | Implemented | None. |
-| `project_info` | `project_id` | Queries DB for specific project. | Implemented | None. |
-| `project_health` | `project_id` | Per-namespace stats, disk usage, graph/vector/FTS counts, integrity warnings. | Implemented | None. |
-| `repair_project` | `project_id`, `wait` | Generation-based GC + forced full re-index. | Implemented | None. |
-| `delete_project` | `project_id` | Deletes DB records and on-disk index files. | Implemented | None. |
-| `watch_project` | `project_id` | `notify`-based file watcher with debounce and registry persistence. | Implemented | None. |
-| `unwatch_project` | `project_id` | Stops watcher and persists disabled state. | Implemented | None. |
-| `search_memory` | `query`, `project_id`, `max_results`, ... | Hybrid search (FTS + Vector) + RRF + MMR. | Implemented | None. |
-| `get_chunk` | `project_id`, `chunk_id`, `include_content` | Fetches specific chunk with repo-rule injection. | Implemented | None. |
-| `update_memory_bank` | `project_id`, `section`, `content` | Saves virtual file to DB + Index. | Implemented | None. |
-| `list_memory_bank` | `project_id` | Queries DB for VFS files. | Implemented | None. |
-| `read_memory_bank` | `project_id`, `section` | Fetches virtual file content. | Implemented | None. |
-| `delete_memory_bank` | `project_id`, `section` | Deletes virtual file. | Implemented | None. |
-| `add_repo_rule` | `project_id`, `file_pattern`, `rule_text`, ... | Saves rule to DB. | Implemented | None. |
-| `list_repo_rules` | `project_id` | Queries DB for rules. | Implemented | None. |
-| `delete_repo_rule` | `rule_id` | Deletes rule. | Implemented | None. |
-| `get_codebase_overview`| `project_id` | Language breakdown, symbol-type aggregation, edge-kind stats, architectural layers, PageRank, DB tables, state keys, temporal couplings. | Implemented | None. |
-| `find_symbol_references`| `symbol_name`, `project_id` | All-edge-kind graph lookup with FQN suffix matching, grouped by edge kind, with outgoing deps + lexical fallback. | Implemented | None. |
-| `analyze_error_stack` | `traceback`, `project_id` | Multi-language structured parser (Python, .NET, Java, Node.js, Rust, Go, PHP, Ruby, ASP.NET, generic) with frame-boosted search + graph centrality. | Implemented | None. |
-| `dream_project` | `project_id`, `wait`, `max_pairs` | Co-occurrence clustering + LLM insights with deterministic fallback. | Implemented | None. |
-| `trigger_rem_cycle` | `project_id` | Alias for `dream_project`. | Implemented | None. |
-| `analyze_file_coding_style`| `project_id`, `file_path`, `limit` | Git diffs + LLM style summarization. | Implemented | None. |
-| `list_jobs` | None | Queries DB for jobs. | Implemented | None. |
-| `cancel_job` | `job_id` | Cooperative cancellation with token-based abort. | Implemented | None. |
-| `query_graph_nodes` | `project_id`, `node_type`, ...| Queries Graph store. | Implemented | None. |
-| `find_references` | `project_id`, `node_id` | Queries Graph store. | Implemented | None. |
-| `graph_search` | `project_id`, `query`, `max_results` | Hybrid text search + graph symbol name matching + multi-edge neighbor expansion (Dependency, Contains, Imports, SqlCalls, ApiCall). | Implemented | None. |
-| `index_git_history` | `project_id`, `limit`, `branch`, `wait` | Walks git, indexes commits + diffs with streaming batches. | Implemented | None. |
-| `search_history` | `query`, `project_id`, ... | Hybrid search in "history" namespace with author/date/file filters. | Implemented | None. |
-| `analyze_temporal_couplings`| `project_id`, ... | Graph edge analysis. | Implemented | None. |
-| `analyze_reverts` | `project_id` | Immune system: detects reverts, generates LLM-powered descriptive anti-pattern rules with deterministic fallback, indexes reverted diffs. | Implemented | None. |
-| `immune_check` (new v2) | `project_id`, `code` | Checks draft code against indexed anti-patterns. | Implemented | None. |
+Status legend: `implemented`, `partial`, `experimental`, `planned`.
+
+| Tool Name (v1) | v2 Status | Behavior / Parity Notes |
+| :--- | :--- | :--- |
+| `index_project` | implemented | Chunks files, indexes FTS + Vector, registers in DB; covered by integration tests. |
+| `update_project` | implemented | Incremental re-index of changed files; runs generation bump flow. |
+| `list_projects` | implemented | Queries DB for all projects; registry-backed. |
+| `project_info` | implemented | Queries DB for specific project; registry-backed. |
+| `project_health` | partial | Per-namespace stats and disk usage; deeper backend diagnostics still limited. |
+| `repair_project` | partial | Recovery flow exists; full generation-based GC / rebuild semantics incomplete. |
+| `delete_project` | implemented | Deletes DB records and on-disk index files. |
+| `watch_project` | implemented | `notify`-based file watcher with debounce; wired to actor system. |
+| `unwatch_project` | implemented | Stops watcher and persists disabled state. |
+| `search_memory` | implemented | Hybrid search (FTS + Vector) + RRF + MMR. |
+| `get_chunk` | implemented | Fetches specific chunk with repo-rule injection. |
+| `update_memory_bank` | implemented | Saves virtual file to DB + Index. |
+| `list_memory_bank` | implemented | Queries DB for VFS files. |
+| `read_memory_bank` | implemented | Fetches virtual file content. |
+| `delete_memory_bank` | implemented | Deletes virtual file. |
+| `add_repo_rule` | implemented | Saves rule to DB; creates persisted entries. |
+| `list_repo_rules` | implemented | Queries DB for rules. |
+| `delete_repo_rule` | implemented | Deletes rule by ID. |
+| `get_codebase_overview`| partial | Language breakdown and symbol aggregation; richer AST/centrality in progress. |
+| `find_symbol_references`| partial | Graph lookup with FQN matching; full symbol-graph fidelity still evolving. |
+| `analyze_error_stack` | implemented | Multi-lang parser (Rust, Node, etc.) with frame-boosted search + graph centrality. |
+| `dream_project` | experimental | Co-occurrence clustering + LLM insights; still iterative. |
+| `trigger_rem_cycle` | experimental | Alias for `dream_project`; same maturity level. |
+| `analyze_file_coding_style`| experimental | Git diffs + LLM style summarization; currently maturing. |
+| `list_jobs` | implemented | Queries DB for background jobs. |
+| `cancel_job` | implemented | Cooperative cancellation with token-based abort. |
+| `query_graph_nodes` | implemented | Queries Graph store by filters/substrings. |
+| `find_references` | implemented | Traverses graph references for a node. |
+| `graph_search` | partial | Hybrid search + neighbor expansion; centrality boosting not fully integrated. |
+| `index_git_history` | implemented | Walks git, indexes commits + diffs with streaming batches. |
+| `search_history` | partial | Hybrid search in "history" namespace; depends on index coverage quality. |
+| `analyze_temporal_couplings`| implemented | Graph edge analysis; reads temporal coupling edges. |
+| `analyze_reverts` | partial | Detects reverts, generates LLM anti-pattern rules; anti-pattern quality iterative. |
+| `immune_check` | experimental | Checks draft code against indexed anti-patterns; thresholding maturing. |
+| `ast_dependency_graph` | partial | AST extraction exists for several languages; full graph incomplete. |
+| `vector_search` | experimental | Vector path enabled by feature flags; tuning ongoing. |
+| `incremental_indexing_gc` | partial | Watcher updates exist; old-generation GC remains incomplete. |
+| `dedicated_antipattern_index` | partial | Dedicated mature ranking/indexing still in progress. |
+| `graph_centrality_rerank` | planned | Targeted roadmap item; not yet integrated into pipeline. |
 
 ## JSON Request/Response Schemas
 
 ### `index_project`
 **Request (v1/v2 Parity):**
-```json
 {
   "directory": "string",
   "project_name": "string",
@@ -49,7 +55,7 @@
   "wait": "boolean (default: true)",
   "dedupe_by_directory": "boolean (default: true)"
 }
-```
+
 **Response (v2):**
 - Text summary of files indexed and `project_id`.
 
@@ -57,14 +63,13 @@
 
 ### `update_project`
 **Request (v1/v2 Parity):**
-```json
 {
   "project_id": "string",
   "wait": "boolean (default: true)",
   "max_commits": "integer (default: 200)",
   "index_antipatterns": "boolean (default: false)"
 }
-```
+
 **Response (v2):**
 - Text summary of changes and git update status.
 
@@ -72,7 +77,6 @@
 
 ### `search_memory`
 **Request (v1):**
-```json
 {
   "query": "string",
   "project_id": "string",
@@ -83,9 +87,8 @@
   "max_content_chars_per_result": "integer (default: 1200)",
   "metadata_filter": "object (optional)"
 }
-```
+
 **Request (v2):**
-```json
 {
   "query": "string",
   "project_id": "string",
@@ -97,9 +100,8 @@
   "max_content_chars_per_result": "integer (default: 1200)",
   "metadata_filter": "object (optional)"
 }
-```
+
 **Response (v1 - JSON):**
-```json
 {
   "results": [
     {
@@ -110,7 +112,7 @@
     }
   ]
 }
-```
+
 **Response (v2 - Text):**
 - Formatted text list of matches with scores and snippets.
 
@@ -118,13 +120,12 @@
 
 ### `get_chunk`
 **Request (v1/v2 Parity):**
-```json
 {
   "project_id": "string",
-  "chunk_id": "string (v1) / integer (v2)",
-  "namespace": "string (v2 default: 'memory')"
+  "chunk_id": "integer",
+  "namespace": "string"
 }
-```
+
 **Response (v2):**
 - Full content of the chunk with path and generation info.
 
@@ -132,102 +133,77 @@
 
 ### `project_health`
 **Request:**
-```json
 {
   "project_id": "string"
 }
-```
+
 **Response (v2):**
-- Per-namespace Tantivy doc counts (memory, history, antipattern, vfs).
+- Per-namespace Tantivy doc counts.
 - LanceDB vector count.
 - Graph node + edge counts.
 - Disk usage (human-readable).
-- Integrity warnings (empty graph with non-empty index, missing vectors, etc.).
 
 ---
 
 ### `get_codebase_overview`
-**Request (v1/v2 Parity):**
-```json
+**Request:**
 {
   "project_id": "string"
 }
-```
+
 **Response (v2):**
-- Language breakdown with percentage per language.
-- Symbol-type aggregation (classes, functions, interfaces, files, controls, etc.).
-- Edge-type distribution (dependency, imports, sql_calls, api_call, etc.).
-- Architectural summary (source files, types, UI controls, service endpoints, DB tables, config).
-- Top PageRank central nodes.
-- Database tables list.
-- Global state keys ranked by read/write frequency.
-- Top temporal couplings.
+- Language breakdown.
+- Symbol-type aggregation.
+- Architectural summary.
 
 ---
 
 ### `find_symbol_references`
 **Request:**
-```json
 {
   "symbol_name": "string",
   "project_id": "string"
 }
-```
+
 **Response (v2):**
-- Graph-based references across all edge kinds (not just Dependency).
-- FQN suffix matching (e.g., "GetUser" matches "MyApp.Services.GetUser").
-- Incoming references grouped by edge kind with source IDs and weights.
-- Outgoing dependencies grouped by edge kind.
-- Falls back to lexical search if no graph symbol found.
+- Graph-based references.
+- Incoming/Outgoing dependencies.
 
 ---
 
 ### `analyze_error_stack`
-**Request (v1/v2 Parity):**
-```json
+**Request:**
 {
   "traceback": "string",
   "project_id": "string"
 }
-```
+
 **Response (v2):**
-- Structured frame extraction summary (file, line, function, FQN).
-- Supported languages: Python, .NET/C#, Java, Node.js, Rust, Go, PHP, Ruby, ASP.NET (.aspx/.ascx/.vb/.cs), and generic file:line patterns.
-- Frame-boosted search results (files matching stack frames get score boost).
-- Graph centrality labels (Hub, Utility).
-- Function-level matching against graph nodes in each result file.
+- Structured frame extraction.
+- Frame-boosted search results.
 
 ---
 
 ### `graph_search`
 **Request:**
-```json
 {
   "project_id": "string",
-  "query": "string",
-  "max_results": "integer (default: 10)",
-  "symbol_boost": "float (default: 0.03)"
+  "query": "string"
 }
-```
+
 **Response (v2):**
-- Combined text search hits + graph symbol name matches.
-- Symbol nodes matched by name get boosted scores (exact match > substring).
-- Parent file nodes of matched symbols get secondary boost.
-- Multi-edge neighbor expansion: Dependency, Contains, Imports, SqlCalls, ApiCall.
-- Results show node type labels for symbol matches.
+- Combined text search + graph matches.
 
 ---
 
 ### `analyze_reverts`
 **Request:**
-```json
 {
-  "project_id": "string",
-  "max_commits": "integer (default: 200)"
+  "project_id": "string"
 }
-```
+
 **Response (v2):**
-- LLM-generated descriptive rule text explaining why each reverted pattern should be avoided.
+- LLM-generated descriptive anti-pattern rules.
 - Deterministic fallback when no LLM is configured.
 - Anti-pattern diffs indexed into "antipattern" namespace for `immune_check` queries.
 - Repo rules persisted for file-level pattern matching.

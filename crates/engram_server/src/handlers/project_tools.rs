@@ -66,6 +66,89 @@ impl Engram {
         project_service::inject_repo_rules(&self.state, project_id, file_path, content).await
     }
 
+    pub(crate) async fn enforce_project_byte_budget(
+        &self,
+        files: &[PathBuf],
+    ) -> anyhow::Result<()> {
+        let Some(limit) = self.state.cfg.max_project_bytes else {
+            return Ok(());
+        };
+
+        let files_owned = files.to_vec();
+        let total_bytes = tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
+            let mut total = 0_u64;
+            for path in files_owned {
+                match std::fs::metadata(&path) {
+                    Ok(metadata) => {
+                        total = total
+                            .checked_add(metadata.len())
+                            .ok_or_else(|| anyhow::anyhow!("File size total overflowed u64"))?;
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                        // File may disappear between discovery and indexing.
+                    }
+                    Err(e) => {
+                        return Err(anyhow::anyhow!(
+                            "Failed to stat candidate file {}: {}",
+                            path.display(),
+                            e
+                        ));
+                    }
+                }
+            }
+            Ok(total)
+        })
+        .await??;
+
+        if total_bytes > limit {
+            anyhow::bail!(
+                "Project byte budget exceeded: candidate files total {} bytes > limit {} bytes",
+                total_bytes,
+                limit
+            );
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn index_files_with_parse_guard<F>(
+        &self,
+        search: &engram_index::HybridSearchEngine,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+        root: &Path,
+        files: Vec<PathBuf>,
+        max_chunks_per_file: usize,
+        cancel: &tokio_util::sync::CancellationToken,
+        progress_cb: F,
+    ) -> anyhow::Result<engram_index::IngestStats>
+    where
+        F: FnMut(usize, usize) + Send,
+    {
+        // Single admission point for parse/chunking. This bounds spawn_blocking +
+        // Rayon fan-out inside engram_index::HybridSearchEngine::index_files.
+        let _parse_permit = self
+            .state
+            .parse_semaphore
+            .acquire()
+            .await
+            .map_err(|e| anyhow::anyhow!("Parse semaphore closed: {e}"))?;
+
+        search
+            .index_files(
+                project_id,
+                namespace,
+                generation,
+                root,
+                files,
+                max_chunks_per_file,
+                cancel,
+                progress_cb,
+            )
+            .await
+    }
+
     pub(crate) async fn spawn_job_index_directory(
         &self,
         project_id: String,
@@ -142,6 +225,7 @@ impl Engram {
                 &state_for_spawn.cfg,
             )
             .await;
+            let max_chunks = state_for_spawn.cfg.max_chunks_per_file;
 
             let res = match search_init {
                 Ok(search) => {
@@ -150,7 +234,12 @@ impl Engram {
                     let reg_for_cb = reg2.clone();
                     let files = engram_index::ingest::iter_files(&directory, &exts);
 
-                    if let Some(limit) = state_for_spawn.cfg.max_project_files {
+                    if let Err(e) = Engram::new(state_for_spawn.clone())
+                        .enforce_project_byte_budget(&files)
+                        .await
+                    {
+                        Err(e)
+                    } else if let Some(limit) = state_for_spawn.cfg.max_project_files {
                         if files.len() as u64 > limit {
                             Err(anyhow::anyhow!(
                                 "Too many files: {} > limit {}",
@@ -159,14 +248,15 @@ impl Engram {
                             ))
                         } else {
                             let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                            search
-                                .index_files(
+                            Engram::new(state_for_spawn.clone())
+                                .index_files_with_parse_guard(
+                                    &search,
                                     &project_id_for_job,
                                     "memory",
                                     1,
                                     &directory,
                                     files,
-                                    2000,
+                                    max_chunks,
                                     &token,
                                     move |curr, total| {
                                         let pct = if total == 0 {
@@ -195,14 +285,15 @@ impl Engram {
                         }
                     } else {
                         let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                        search
-                            .index_files(
+                        Engram::new(state_for_spawn.clone())
+                            .index_files_with_parse_guard(
+                                &search,
                                 &project_id_for_job,
                                 "memory",
                                 1,
                                 &directory,
                                 files,
-                                2000,
+                                max_chunks,
                                 &token,
                                 move |curr, total| {
                                     let pct = if total == 0 {
@@ -436,6 +527,7 @@ impl Engram {
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await
                     .map_err(|e| anyhow::anyhow!(e))?;
+                engram.enforce_project_byte_budget(&changed).await?;
 
                 if !deleted.is_empty() {
                     ps.search
@@ -447,15 +539,15 @@ impl Engram {
                 let reg_for_progress = reg_for_cb.clone();
                 let job_id_for_progress = job_id_for_cb.clone();
                 let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                let stats = ps
-                    .search
-                    .index_files(
+                let stats = Engram::new(state.clone())
+                    .index_files_with_parse_guard(
+                        &ps.search,
                         &project_id_for_job,
                         "memory",
                         new_gen,
                         &dir,
                         changed,
-                        2000,
+                        state.cfg.max_chunks_per_file,
                         &token,
                         move |curr, total| {
                             let pct = if total == 0 {
