@@ -115,6 +115,10 @@ pub struct MigrationBoundary {
     pub depends_on: Vec<String>,
     pub risk: String,
     pub seam_files: Vec<String>,
+    /// Other context names that share state or data tables with this boundary.
+    /// Populated by cross-cluster dependency analysis.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub shared_across: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -314,18 +318,30 @@ impl DreamingEngine {
                 let boundaries = parse_boundary_response(&raw);
                 if boundaries.is_empty() {
                     tracing::debug!("LLM returned unparseable boundary response, using fallback");
-                    deterministic_boundaries(clusters_text)
+                    deterministic_boundaries_with_data(
+                        clusters_text,
+                        shared_state_text,
+                        shared_tables_text,
+                    )
                 } else {
                     boundaries
                 }
             }
             Ok(Err(e)) => {
                 tracing::debug!("LLM boundary suggestion failed (using fallback): {e:#}");
-                deterministic_boundaries(clusters_text)
+                deterministic_boundaries_with_data(
+                    clusters_text,
+                    shared_state_text,
+                    shared_tables_text,
+                )
             }
             Err(_) => {
                 tracing::debug!("LLM boundary suggestion timed out (using fallback)");
-                deterministic_boundaries(clusters_text)
+                deterministic_boundaries_with_data(
+                    clusters_text,
+                    shared_state_text,
+                    shared_tables_text,
+                )
             }
         }
     }
@@ -720,6 +736,7 @@ async fn call_openai_chat(
 /// ```
 fn parse_boundary_response(raw: &str) -> Vec<MigrationBoundary> {
     let mut boundaries = Vec::new();
+    let mut seen_names = std::collections::HashSet::new();
 
     for block in raw.split("---") {
         let block = block.trim();
@@ -759,7 +776,14 @@ fn parse_boundary_response(raw: &str) -> Vec<MigrationBoundary> {
             }
         }
 
-        if !context_name.is_empty() && !files.is_empty() {
+        // Validate RISK: must be LOW/MEDIUM/HIGH; default to MEDIUM on garbage.
+        if !matches!(risk.as_str(), "LOW" | "MEDIUM" | "HIGH") {
+            risk = "MEDIUM".into();
+        }
+
+        // Deduplicate context names: skip if we've already seen this name.
+        if !context_name.is_empty() && !files.is_empty() && seen_names.insert(context_name.clone())
+        {
             boundaries.push(MigrationBoundary {
                 context_name,
                 files,
@@ -767,6 +791,7 @@ fn parse_boundary_response(raw: &str) -> Vec<MigrationBoundary> {
                 depends_on,
                 risk,
                 seam_files,
+                shared_across: Vec::new(),
             });
         }
     }
@@ -783,7 +808,20 @@ fn split_csv(s: &str) -> Vec<String> {
 }
 
 /// Deterministic fallback: group files by directory prefix.
-fn deterministic_boundaries(clusters_text: &str) -> Vec<MigrationBoundary> {
+///
+/// When `state_text` and `tables_text` are provided (non-empty, not "(none detected)"),
+/// the function tries to assign data ownership to clusters and detects cross-cluster
+/// data sharing to set appropriate risk levels.
+pub fn deterministic_boundaries(clusters_text: &str) -> Vec<MigrationBoundary> {
+    deterministic_boundaries_with_data(clusters_text, "", "")
+}
+
+/// Extended deterministic fallback that incorporates state/table data for smarter ownership.
+pub fn deterministic_boundaries_with_data(
+    clusters_text: &str,
+    state_text: &str,
+    tables_text: &str,
+) -> Vec<MigrationBoundary> {
     let mut dir_groups: HashMap<String, Vec<String>> = HashMap::new();
 
     for line in clusters_text.lines() {
@@ -804,17 +842,101 @@ fn deterministic_boundaries(clusters_text: &str) -> Vec<MigrationBoundary> {
         }
     }
 
-    dir_groups
+    // Parse data references to assign ownership.
+    let state_keys: Vec<&str> =
+        if state_text.is_empty() || state_text == "(none detected)" || state_text == "(none)" {
+            Vec::new()
+        } else {
+            state_text
+                .split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+
+    let table_refs: Vec<&str> =
+        if tables_text.is_empty() || tables_text == "(none detected)" || tables_text == "(none)" {
+            Vec::new()
+        } else {
+            tables_text
+                .split(',')
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect()
+        };
+
+    let has_data = !state_keys.is_empty() || !table_refs.is_empty();
+
+    let mut boundaries: Vec<MigrationBoundary> = dir_groups
         .into_iter()
-        .map(|(dir, files)| MigrationBoundary {
-            context_name: format!("{} Module", dir.split('/').last().unwrap_or(&dir)),
-            files,
-            owned_data: Vec::new(),
-            depends_on: Vec::new(),
-            risk: "MEDIUM".into(),
-            seam_files: Vec::new(),
+        .map(|(dir, files)| {
+            let mut owned_data = Vec::new();
+            if has_data {
+                // Assign data to this cluster if any of its files are in a matching dir.
+                let dir_lower = dir.to_lowercase();
+                for key in &state_keys {
+                    if key.to_lowercase().contains(&dir_lower)
+                        || dir_lower.contains(&key.to_lowercase())
+                    {
+                        owned_data.push(format!("state:{key}"));
+                    }
+                }
+                for table in &table_refs {
+                    if table.to_lowercase().contains(&dir_lower)
+                        || dir_lower.contains(&table.to_lowercase())
+                    {
+                        owned_data.push(format!("table:{table}"));
+                    }
+                }
+            }
+            MigrationBoundary {
+                context_name: format!("{} Module", dir.split('/').last().unwrap_or(&dir)),
+                files,
+                owned_data,
+                depends_on: Vec::new(),
+                risk: "MEDIUM".into(),
+                seam_files: Vec::new(),
+                shared_across: Vec::new(),
+            }
         })
-        .collect()
+        .collect();
+
+    // Detect cross-cluster data sharing: if any data item appears in 2+ clusters,
+    // mark risk as HIGH and populate shared_across.
+    if has_data && boundaries.len() > 1 {
+        // Build map: data_item -> list of context_names that own it.
+        let mut data_owners: HashMap<String, Vec<String>> = HashMap::new();
+        for b in &boundaries {
+            for d in &b.owned_data {
+                data_owners
+                    .entry(d.clone())
+                    .or_default()
+                    .push(b.context_name.clone());
+            }
+        }
+        // Mark boundaries that share data.
+        for b in &mut boundaries {
+            let mut shared: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for d in &b.owned_data {
+                if let Some(owners) = data_owners.get(d) {
+                    if owners.len() > 1 {
+                        for o in owners {
+                            if o != &b.context_name {
+                                shared.insert(o.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            if !shared.is_empty() {
+                b.risk = "HIGH".into();
+                b.shared_across = shared.into_iter().collect();
+                b.shared_across.sort();
+            }
+        }
+    }
+
+    boundaries
 }
 
 #[cfg(test)]

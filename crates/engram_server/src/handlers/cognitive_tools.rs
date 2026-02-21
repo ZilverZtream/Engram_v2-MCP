@@ -60,12 +60,16 @@ impl Engram {
         project_id: &str,
         min_frequency: u32,
         max_clusters: usize,
+        timeout_secs: u64,
+        include_cross_cluster_deps: bool,
     ) -> anyhow::Result<Vec<engram_ml::MigrationBoundary>> {
         cognitive_service::suggest_migration_boundaries(
             &self.state,
             project_id,
             min_frequency,
             max_clusters,
+            timeout_secs,
+            include_cross_cluster_deps,
         )
         .await
     }

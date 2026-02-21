@@ -8,12 +8,12 @@ use tokio::sync::broadcast::Receiver;
 pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>) {
     let mut last_event = Instant::now();
 
-    // Defaults; override via config fields later.
-    let idle_after = Duration::from_secs(20);
-    let tick = Duration::from_secs(2);
-    let min_edge_weight = 2u32;
-    let min_cluster_size = 3usize;
-    let max_clusters = 2usize;
+    // Config-driven defaults.
+    let idle_after = Duration::from_secs(state.cfg.dream_idle_after_secs);
+    let tick = Duration::from_secs(state.cfg.dream_tick_secs.max(1));
+    let min_edge_weight = state.cfg.dream_default_min_edge_weight;
+    let min_cluster_size = state.cfg.dream_default_min_cluster_size;
+    let max_clusters = state.cfg.dream_default_max_clusters;
 
     let mut interval = tokio::time::interval(tick);
 
@@ -340,26 +340,12 @@ pub async fn dream_once(
             .await;
         let mut summary = insight.summary_markdown;
         if is_antipattern {
-            summary = format!("{}\n\n---\n{}", anti_msg, summary);
+            summary = format!("ANTIPATTERN DETECTED\n\n{}\n\n---\n{}", anti_msg, summary);
         }
 
         let insight_id = format!("insight:{}", uuid::Uuid::new_v4());
 
-        // Store first 3 context snippets as evidence.
-        let evidence = ctx.iter().take(3).cloned().collect();
-
-        state.graph.create_insight(
-            project_id,
-            &insight_id,
-            &insight.title,
-            &summary,
-            &src_nodes,
-            Some(evidence),
-            Some(fingerprint),
-            active_generation,
-        )?;
-
-        // Also index the insight text so it is searchable.
+        // Build the insight content first so we can compute proper content-based IDs.
         let namespace = engram_core::namespaces::NAMESPACE_INSIGHTS;
         let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
             if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
@@ -375,12 +361,22 @@ pub async fn dream_once(
         let content_hash = engram_core::ContentHash::compute(insight_content.as_bytes());
         let insight_path = format!("__insights/{insight_id}.md");
         let doc_id = engram_core::DocIdStr::compute(&insight_path, 0, 0, &content_hash);
-        let chunk_id = {
-            let h = blake3::hash(insight_id.as_bytes());
-            let mut b = [0u8; 8];
-            b.copy_from_slice(&h.as_bytes()[..8]);
-            u64::from_le_bytes(b)
-        };
+        let chunk_id = engram_index::chunk_id_from_content_hash(&content_hash);
+
+        // Store first 3 context snippets as evidence.
+        let evidence = ctx.iter().take(3).cloned().collect();
+
+        // Create the graph insight node and index in one consistent flow.
+        state.graph.create_insight(
+            project_id,
+            &insight_id,
+            &insight.title,
+            &summary,
+            &src_nodes,
+            Some(evidence),
+            Some(fingerprint),
+            active_generation,
+        )?;
 
         let cancel = tokio_util::sync::CancellationToken::new();
         let doc = IndexDoc {

@@ -221,6 +221,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | Tool | Description |
 |------|-------------|
 | `search_memory` | Hybrid FTS + vector search. Parameters: `query`, `project_id`, `namespace`, `max_results`, `use_mmr`, `fts_mode`, `include_content`, `max_content_chars_per_result`, language/path filters |
+| `vector_search` | Standalone pure vector (semantic) search with 3x oversampling, configurable timeout, MMR reranking, path/language filters, and content preview |
 | `get_chunk` | Fetch full content for a specific chunk by ID, with optional repo rule injection |
 | `graph_search` | Hybrid text + graph symbol name matching with multi-edge neighbor expansion, configurable FTS modes (strict/loose/regex), MMR diversity, content preview, and edge-kind-filtered expansion |
 | `find_symbol_references` | All-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, configurable limits, edge kind and file scope filters, lexical fallback |
@@ -250,12 +251,13 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 
 | Tool | Description |
 |------|-------------|
-| `dream_project` | Cluster co-occurrence patterns and generate insight nodes |
-| `trigger_rem_cycle` | Alias for `dream_project` |
+| `vector_search` | Standalone semantic vector search with configurable top-k, 3x oversampling, MMR reranking, path/language filters, and per-query timeout |
+| `dream_project` | Cluster co-occurrence patterns and generate insight nodes. Configurable clustering params (min_edge_weight, min_cluster_size, max_clusters), per-call timeout, config-driven defaults |
+| `trigger_rem_cycle` | Alias for `dream_project` with the same configurable parameters |
 | `analyze_file_coding_style` | Analyze a file's git history and produce a style guide |
-| `immune_check` | Score a code draft against the anti-pattern index |
-| `anti_pattern_guard` | Score code with remediation suggestions |
-| `suggest_migration_boundaries` | LLM + deterministic migration boundary suggestion using union-find clustering |
+| `immune_check` | Hybrid FTS + vector search against the anti-pattern index with configurable thresholds, structured verdict/severity/confidence output, and empty-index detection |
+| `anti_pattern_guard` | Score code against anti-patterns with regex-based revert commit extraction, hybrid search, single-fetch content retrieval, and structured remediation guidance |
+| `suggest_migration_boundaries` | LLM + deterministic migration boundary suggestion using iterative union-find with rank heuristic, cross-cluster dependency analysis, shared data ownership detection, configurable timeout, and JSON output option |
 | `generate_migration_blueprint` | BFS context compilation from an entry node into a 9-section Markdown dossier or structured JSON, with configurable depth and edge kind filters |
 
 ### Knowledge Graph (Advanced)

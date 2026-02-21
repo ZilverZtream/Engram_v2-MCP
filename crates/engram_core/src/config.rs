@@ -81,6 +81,46 @@ pub struct Config {
     /// Set lower (2-4) on memory-constrained systems, higher (8-16) on beefy machines.
     #[serde(default = "default_max_parse_concurrency")]
     pub max_parse_concurrency: usize,
+
+    // --- Dream (REM cycle) configuration ---
+    /// Seconds of idle time before the dreamer actor triggers an auto-dream cycle.
+    #[serde(default = "default_dream_idle_after_secs")]
+    pub dream_idle_after_secs: u64,
+
+    /// Tick interval in seconds for the dreamer actor's idle check.
+    #[serde(default = "default_dream_tick_secs")]
+    pub dream_tick_secs: u64,
+
+    /// Default max co-occurrence clusters to process per dream cycle.
+    #[serde(default = "default_dream_max_clusters")]
+    pub dream_default_max_clusters: usize,
+
+    /// Default minimum edge weight to include in co-occurrence clustering.
+    #[serde(default = "default_dream_min_edge_weight")]
+    pub dream_default_min_edge_weight: u32,
+
+    /// Default minimum cluster size for insight generation.
+    #[serde(default = "default_dream_min_cluster_size")]
+    pub dream_default_min_cluster_size: usize,
+
+    // --- Vector search configuration ---
+    /// Timeout in milliseconds for a single vector search query.
+    #[serde(default = "default_vector_search_timeout_ms")]
+    pub vector_search_timeout_ms: u64,
+
+    // --- Immune system configuration ---
+    /// Default similarity threshold for WARN decisions.
+    #[serde(default = "default_immune_warn_threshold")]
+    pub immune_warn_threshold: f32,
+
+    /// Default similarity threshold for BLOCK decisions.
+    #[serde(default = "default_immune_block_threshold")]
+    pub immune_block_threshold: f32,
+
+    // --- Migration boundary configuration ---
+    /// Timeout in seconds for LLM-based boundary suggestion.
+    #[serde(default = "default_boundary_suggestion_timeout_secs")]
+    pub boundary_suggestion_timeout_secs: u64,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -110,6 +150,42 @@ fn default_max_parse_concurrency() -> usize {
         .unwrap_or(4)
 }
 
+fn default_dream_idle_after_secs() -> u64 {
+    20
+}
+
+fn default_dream_tick_secs() -> u64 {
+    2
+}
+
+fn default_dream_max_clusters() -> usize {
+    5
+}
+
+fn default_dream_min_edge_weight() -> u32 {
+    2
+}
+
+fn default_dream_min_cluster_size() -> usize {
+    3
+}
+
+fn default_vector_search_timeout_ms() -> u64 {
+    5000
+}
+
+fn default_immune_warn_threshold() -> f32 {
+    0.15
+}
+
+fn default_immune_block_threshold() -> f32 {
+    0.45
+}
+
+fn default_boundary_suggestion_timeout_secs() -> u64 {
+    120
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -133,6 +209,15 @@ impl Default for Config {
             tantivy_writer_memory: default_tantivy_writer_memory(),
             mmr_oversampling: default_mmr_oversampling(),
             max_parse_concurrency: default_max_parse_concurrency(),
+            dream_idle_after_secs: default_dream_idle_after_secs(),
+            dream_tick_secs: default_dream_tick_secs(),
+            dream_default_max_clusters: default_dream_max_clusters(),
+            dream_default_min_edge_weight: default_dream_min_edge_weight(),
+            dream_default_min_cluster_size: default_dream_min_cluster_size(),
+            vector_search_timeout_ms: default_vector_search_timeout_ms(),
+            immune_warn_threshold: default_immune_warn_threshold(),
+            immune_block_threshold: default_immune_block_threshold(),
+            boundary_suggestion_timeout_secs: default_boundary_suggestion_timeout_secs(),
         }
     }
 }

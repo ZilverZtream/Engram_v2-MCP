@@ -638,15 +638,9 @@ impl Engram {
 
         // Job status
         if !running_jobs.is_empty() {
-            out.push_str(&format!(
-                "\n--- Active Jobs ({}) ---\n",
-                running_jobs.len()
-            ));
+            out.push_str(&format!("\n--- Active Jobs ({}) ---\n", running_jobs.len()));
             for j in &running_jobs {
-                out.push_str(&format!(
-                    "  {} [{}] {}\n",
-                    j.job_id, j.status, j.kind
-                ));
+                out.push_str(&format!("  {} [{}] {}\n", j.job_id, j.status, j.kind));
             }
         }
         if indexing_count > 0 {
@@ -780,10 +774,9 @@ impl Engram {
             // Reset generation to 1 and perform full index
             let reg = self.state.registry.clone();
             let pid_r = pid.clone();
-            let _ = tokio::task::spawn_blocking(move || {
-                reg.set_meta(&pid_r, "active_generation", "1")
-            })
-            .await;
+            let _ =
+                tokio::task::spawn_blocking(move || reg.set_meta(&pid_r, "active_generation", "1"))
+                    .await;
 
             let cancel = tokio_util::sync::CancellationToken::new();
             let summary = self
@@ -823,9 +816,7 @@ impl Engram {
                     let tantivy_dir = ps.info.tantivy_dir.clone();
                     if let Err(e) = tokio::fs::remove_dir_all(&tantivy_dir).await {
                         if e.kind() != std::io::ErrorKind::NotFound {
-                            tracing::warn!(
-                                "repair_project: could not remove tantivy dir: {e}"
-                            );
+                            tracing::warn!("repair_project: could not remove tantivy dir: {e}");
                         }
                     }
                     steps.push("Wiped Tantivy directory.".into());
@@ -853,9 +844,7 @@ impl Engram {
                     let lance_dir = ps.info.lancedb_dir.clone();
                     if let Err(e) = tokio::fs::remove_dir_all(&lance_dir).await {
                         if e.kind() != std::io::ErrorKind::NotFound {
-                            tracing::warn!(
-                                "repair_project: could not remove lance dir: {e}"
-                            );
+                            tracing::warn!("repair_project: could not remove lance dir: {e}");
                         }
                     }
                     steps.push("Wiped LanceDB directory.".into());
@@ -1165,6 +1154,82 @@ impl Engram {
                 out.push_str("snippet:\n");
                 out.push_str(sn);
                 out.push('\n');
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    // ---- Vector Search (pure semantic vector search) ----
+
+    #[tool(
+        description = "Pure semantic vector search using embedding similarity. Faster and more semantically focused than hybrid search_memory. Supports MMR diversity reranking, path/language filtering, and optional content retrieval."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn vector_search(
+        &self,
+        params: Parameters<VectorSearchRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let top_k = req.sanitized_top_k();
+        let max_chars = req.sanitized_max_content_chars();
+        let timeout_ms = self.state.cfg.vector_search_timeout_ms;
+
+        let q = HybridQuery {
+            project_id: req.project_id.clone(),
+            namespace: req.namespace.clone(),
+            generation: gen_,
+            text: req.query.clone(),
+            top_k,
+            fts_mode: String::new(), // unused by vector path
+            include_path_prefixes: req.include_path_prefixes.clone(),
+            exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+            language_filters: req.language_filters.clone(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            use_mmr: req.use_mmr,
+        };
+
+        let hits = ps
+            .search
+            .pure_vector_search(&q, timeout_ms)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if hits.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No vector search results. Ensure the project is indexed with a vector-capable embedding backend (not fts_only).",
+            )]));
+        }
+
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!(
+            "Vector search results (namespace={}, top_k={}, mmr={}):\n\n",
+            req.namespace, top_k, req.use_mmr
+        ));
+
+        for (i, h) in hits.iter().enumerate() {
+            out.push_str(&format!(
+                "[{}] similarity={:.4} path={} chunk_id={}\n",
+                i + 1,
+                h.score,
+                h.path,
+                h.chunk_id
+            ));
+
+            if req.include_content {
+                if let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) {
+                    if content.chars().count() > max_chars {
+                        out.push_str(&content.chars().take(max_chars).collect::<String>());
+                        out.push_str("... (truncated)\n");
+                    } else {
+                        out.push_str(&content);
+                        out.push('\n');
+                    }
+                }
             }
         }
 
@@ -1632,10 +1697,7 @@ impl Engram {
         // Seed from text search hits (file-level nodes)
         for h in &hits {
             let node_id = format!("file:{}", h.path);
-            scores.insert(
-                node_id,
-                (h.score, None, Some(h.path.as_str().to_string())),
-            );
+            scores.insert(node_id, (h.score, None, Some(h.path.as_str().to_string())));
         }
 
         // Seed from symbol name matches with a symbol boost
@@ -1721,11 +1783,8 @@ impl Engram {
                             let hop_decay = 0.7f32.powi((_hop + 1) as i32);
                             let weight_factor =
                                 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
-                            let neigh_score =
-                                parent_score * weight_factor.min(0.90) * hop_decay;
-                            let entry = scores
-                                .entry(neigh_id)
-                                .or_insert((0.0, None, None));
+                            let neigh_score = parent_score * weight_factor.min(0.90) * hop_decay;
+                            let entry = scores.entry(neigh_id).or_insert((0.0, None, None));
                             if neigh_score > entry.0 {
                                 entry.0 = neigh_score;
                             }
@@ -1744,7 +1803,10 @@ impl Engram {
         // 5. Sort and format
         let mut sorted: Vec<_> = scores.into_iter().collect();
         sorted.sort_by(|a, b| {
-            (b.1).0.partial_cmp(&(a.1).0).unwrap_or(std::cmp::Ordering::Equal)
+            (b.1)
+                .0
+                .partial_cmp(&(a.1).0)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let mut out = String::with_capacity(4096);
@@ -1767,13 +1829,16 @@ impl Engram {
             // Include content preview if requested
             if req.include_content && max_content_chars > 0 {
                 // Try to fetch content from search hits first
-                if let Some(hit) = hits.iter().find(|h| {
-                    id == &format!("file:{}", h.path) || id.contains(h.path.as_str())
-                }) {
-                    if let Ok(Some((_, _, content, start_line, _))) = ps
-                        .search
-                        .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &hit.doc_id)
-                    {
+                if let Some(hit) = hits
+                    .iter()
+                    .find(|h| id == &format!("file:{}", h.path) || id.contains(h.path.as_str()))
+                {
+                    if let Ok(Some((_, _, content, start_line, _))) = ps.search.get_doc_by_doc_id(
+                        &req.project_id,
+                        &req.namespace,
+                        gen_,
+                        &hit.doc_id,
+                    ) {
                         let preview: String = content.chars().take(max_content_chars).collect();
                         out.push_str(&format!("  L{}: {}", start_line, preview));
                         if content.chars().count() > max_content_chars {
@@ -2180,9 +2245,7 @@ impl Engram {
                     };
                     out.push_str("content:\n");
                     if diff_content.chars().count() > content_limit {
-                        out.push_str(
-                            &diff_content.chars().take(content_limit).collect::<String>(),
-                        );
+                        out.push_str(&diff_content.chars().take(content_limit).collect::<String>());
                         out.push_str("... (truncated)");
                     } else {
                         out.push_str(diff_content);
@@ -3319,14 +3382,14 @@ impl Engram {
         ) = tokio::task::spawn_blocking(move || {
             let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
             let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
-            let pr =
-                engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
+            let pr = engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
 
             // Batch state node usage: collect all state nodes and their read/write counts in one pass
             let state_nodes = graph
                 .query_nodes(&pid_clone2, Some("global_state"), None, None, 100)
                 .unwrap_or_default();
-            let mut state_usage: Vec<(String, usize, usize)> = Vec::with_capacity(state_nodes.len());
+            let mut state_usage: Vec<(String, usize, usize)> =
+                Vec::with_capacity(state_nodes.len());
             for sn in &state_nodes {
                 let reads = graph
                     .find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200)
@@ -3349,7 +3412,10 @@ impl Engram {
             let total_files = file_nodes.len();
             for f in &file_nodes {
                 let path_lower = f.file_path.as_str().to_lowercase();
-                if path_lower.contains("test") || path_lower.contains("spec") || path_lower.contains("_test.") {
+                if path_lower.contains("test")
+                    || path_lower.contains("spec")
+                    || path_lower.contains("_test.")
+                {
                     test_files += 1;
                 }
             }
@@ -3544,10 +3610,7 @@ impl Engram {
                 ));
             }
             if state_usage_data.len() > 10 {
-                out.push_str(&format!(
-                    "  ... and {} more\n",
-                    state_usage_data.len() - 10
-                ));
+                out.push_str(&format!("  ... and {} more\n", state_usage_data.len() - 10));
             }
         }
 
@@ -3586,11 +3649,10 @@ impl Engram {
         let needle = &req.symbol_name;
 
         // Parse edge kind filter
-        let edge_kind_filter: Option<Vec<EdgeKind>> = req.edge_kind_filter.as_ref().map(|f| {
-            f.iter()
-                .filter_map(|s| EdgeKind::parse(s))
-                .collect()
-        });
+        let edge_kind_filter: Option<Vec<EdgeKind>> = req
+            .edge_kind_filter
+            .as_ref()
+            .map(|f| f.iter().filter_map(|s| EdgeKind::parse(s)).collect());
 
         // 1. Find matching symbol nodes — exact name match and FQN suffix match
         let nodes = self
@@ -3609,7 +3671,10 @@ impl Engram {
             let name_matches = name_lower == needle_lower
                 || name_lower.ends_with(&format!(".{}", needle_lower))
                 || name_lower.ends_with(&format!("::{}", needle_lower))
-                || node.node_id.to_lowercase().ends_with(&format!(":{}", needle_lower));
+                || node
+                    .node_id
+                    .to_lowercase()
+                    .ends_with(&format!(":{}", needle_lower));
             if !name_matches {
                 continue;
             }
@@ -3701,19 +3766,13 @@ impl Engram {
                             out.push_str(&format!("      <- {} (w={})\n", src, w));
                         }
                         if refs.len() > 20 {
-                            out.push_str(&format!(
-                                "      ... and {} more\n",
-                                refs.len() - 20
-                            ));
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
                         }
                     }
                 }
 
                 if !outgoing.is_empty() {
-                    out.push_str(&format!(
-                        "  Outgoing dependencies ({}):\n",
-                        outgoing.len()
-                    ));
+                    out.push_str(&format!("  Outgoing dependencies ({}):\n", outgoing.len()));
                     let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
                         std::collections::HashMap::new();
                     for (tgt_id, kind, weight) in &outgoing {
@@ -3730,10 +3789,7 @@ impl Engram {
                             out.push_str(&format!("      -> {} (w={})\n", tgt, w));
                         }
                         if refs.len() > 20 {
-                            out.push_str(&format!(
-                                "      ... and {} more\n",
-                                refs.len() - 20
-                            ));
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
                         }
                     }
                 }
@@ -3991,7 +4047,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Dream: generate insights from co-occurrence clusters (v1 parity: dream_project)."
+        description = "Generate insights from co-occurrence clusters via dreaming. Clusters search co-occurrence patterns into insight nodes that surface non-obvious relationships. Configurable clustering parameters and timeout."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn dream_project(
@@ -4002,20 +4058,40 @@ impl Engram {
         let pid = req.project_id.clone();
         let _ = self.ensure_project_record(&pid).await?;
 
-        if req.wait {
-            let insights = crate::actors::dreamer::dream_once(
-                &self.state,
-                &pid,
-                2, // min_edge_weight
-                3, // min_cluster_size
-                req.sanitized_max_pairs(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let min_edge_weight = req.sanitized_min_edge_weight();
+        let min_cluster_size = req.sanitized_min_cluster_size();
+        let max_clusters = req.sanitized_max_clusters();
 
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ðŸ§  Dream completed for project_id: {pid}\ninsights_generated: {insights}"
-            ))]));
+        if req.wait {
+            let timeout_dur = std::time::Duration::from_secs(req.sanitized_timeout_secs());
+
+            let result = tokio::time::timeout(
+                timeout_dur,
+                crate::actors::dreamer::dream_once(
+                    &self.state,
+                    &pid,
+                    min_edge_weight,
+                    min_cluster_size,
+                    max_clusters,
+                ),
+            )
+            .await;
+
+            return match result {
+                Ok(Ok(insights)) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Dream completed for project_id: {pid}\n\
+                     insights_generated: {insights}\n\
+                     parameters: max_clusters={max_clusters}, \
+                     min_edge_weight={min_edge_weight}, \
+                     min_cluster_size={min_cluster_size}"
+                ))])),
+                Ok(Err(e)) => Err(McpError::internal_error(e.to_string(), None)),
+                Err(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Dream timed out after {}s for project_id: {pid}. \
+                     Try increasing timeout_secs or reducing max_clusters.",
+                    req.sanitized_timeout_secs()
+                ))])),
+            };
         }
 
         if let Err(e) = self.state.events_tx.send(AppEvent::TriggerDream {
@@ -4025,8 +4101,8 @@ impl Engram {
         }
 
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "ðŸ§  Dream requested for project_id: {pid} (max_pairs={})",
-            req.max_pairs
+            "Dream requested (async) for project_id: {pid}
+             parameters: max_clusters={max_clusters},              min_edge_weight={min_edge_weight},              min_cluster_size={min_cluster_size}"
         ))]))
     }
 
@@ -4289,10 +4365,10 @@ impl Engram {
         ))]))
     }
 
-    // ---- Immune system (v2 extra) ----
+    // ---- Immune system ----
 
     #[tool(
-        description = "Immune system check: compare a draft against anti-pattern index (v2 extra: immune_check)."
+        description = "Immune system check: compare a code draft against the anti-pattern index using hybrid search (FTS + vector). Returns a structured verdict (PASS/WARN/BLOCK) with severity, confidence, and matched patterns."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn immune_check(
@@ -4303,8 +4379,16 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        // For now: lexical search in namespace "antipattern".
+        // Check if antipattern index is populated.
+        let ns_counts = ps
+            .search
+            .count_docs_by_namespace(&req.project_id)
+            .unwrap_or_default();
+        let ap_count = ns_counts.get("antipattern").copied().unwrap_or(0);
+
         let q = code_to_query(&req.code);
+        let fts_mode = if req.use_vector { "loose" } else { "strict" };
+
         let hits = ps
             .search
             .search(
@@ -4314,7 +4398,7 @@ impl Engram {
                     generation: gen_,
                     text: q,
                     top_k: req.sanitized_top_k(),
-                    fts_mode: "strict".into(),
+                    fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
                     language_filters: None,
@@ -4328,13 +4412,7 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let (similarity, snippet) = if let Some(best) = hits.first() {
-            (best.score, best.snippet.clone())
-        } else {
-            (0.0, None)
-        };
-
-        // Tunable thresholds from meta
+        // Tunable thresholds from project meta, falling back to config defaults.
         let warn_t = self
             .state
             .registry
@@ -4352,37 +4430,59 @@ impl Engram {
             .and_then(|s| s.parse::<f32>().ok())
             .unwrap_or(self.state.immune.block_threshold);
 
+        let (similarity, snippet) = if let Some(best) = hits.first() {
+            let sn = if req.include_content {
+                if let Ok(Some((_, _, content, _, _))) =
+                    ps.search
+                        .get_doc_by_doc_id(&req.project_id, "antipattern", gen_, &best.doc_id)
+                {
+                    Some(content)
+                } else {
+                    best.snippet.clone()
+                }
+            } else {
+                best.snippet.clone()
+            };
+            (best.score, sn)
+        } else {
+            (0.0, None)
+        };
+
         let engine = engram_ml::ImmuneEngine::new(warn_t, block_t);
         let decision = engine.decide(similarity, snippet.as_deref());
-        let mut out = String::new();
-        match decision {
-            engram_ml::ImmuneDecision::Allow => {
-                out.push_str("\u{2705} ALLOW\n");
-            }
-            engram_ml::ImmuneDecision::Warn {
-                message,
-                confidence,
-            } => {
-                out.push_str(&format!(
-                    "\u{26A0}\u{FE0F} WARN (confidence={confidence:.2})\n{message}\n"
-                ));
-            }
-            engram_ml::ImmuneDecision::Block {
-                message,
-                confidence,
-            } => {
-                out.push_str(&format!(
-                    "\u{26D4} BLOCK (confidence={confidence:.2})\n{message}\n"
-                ));
-            }
+
+        let mut out = String::with_capacity(2048);
+
+        // Distinguish between "no antipatterns indexed" and "no matches found".
+        if ap_count == 0 && hits.is_empty() {
+            out.push_str("verdict: PASS\n");
+            out.push_str("severity: none\n");
+            out.push_str("note: No anti-patterns indexed for this project. ");
+            out.push_str("Run analyze_reverts first to populate the anti-pattern index.\n");
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
+        }
+
+        out.push_str(&format!("verdict: {}\n", decision.verdict()));
+        out.push_str(&format!("severity: {}\n", decision.severity()));
+        out.push_str(&format!("confidence: {:.3}\n", similarity));
+        out.push_str(&format!("antipattern_index_size: {}\n", ap_count));
+        out.push_str(&format!("matches_found: {}\n", hits.len()));
+
+        if let engram_ml::ImmuneDecision::Warn { message, .. }
+        | engram_ml::ImmuneDecision::Block { message, .. } = &decision
+        {
+            out.push_str(&format!("\n{message}\n"));
         }
 
         if !hits.is_empty() {
             out.push_str("\nTop anti-pattern matches:\n");
-            for h in hits.iter().take(5) {
+            for (i, h) in hits.iter().take(5).enumerate() {
                 out.push_str(&format!(
-                    "- score={:.3} path={} chunk_id={}\n",
-                    h.score, h.path, h.chunk_id
+                    "  {}. score={:.3} path={} chunk_id={}\n",
+                    i + 1,
+                    h.score,
+                    h.path,
+                    h.chunk_id
                 ));
             }
         }
@@ -4391,19 +4491,40 @@ impl Engram {
     }
 
     #[tool(
-        description = "Anti-pattern guard: score a code snippet against the anti-pattern index and suggest alternatives."
+        description = "Anti-pattern guard: score a code snippet against the anti-pattern index with remediation guidance. Uses hybrid search (FTS + vector) and extracts revert commit metadata for actionable suggestions."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn anti_pattern_guard(
         &self,
         params: Parameters<AntiPatternGuardRequest>,
     ) -> Result<CallToolResult, McpError> {
+        static COMMIT_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r"Reverted in Commit:\s*([a-fA-F0-9]{7,40})").unwrap()
+        });
+
         let req = params.0;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        // Use strict FTS for deterministic signature matching
+        // Check if antipattern index is populated.
+        let ns_counts = ps
+            .search
+            .count_docs_by_namespace(&req.project_id)
+            .unwrap_or_default();
+        let ap_count = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+        if ap_count == 0 {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "verdict: PASS\n\
+                 note: No anti-patterns indexed for this project. \
+                 Run analyze_reverts first to populate the anti-pattern index.",
+            )]));
+        }
+
         let q = code_to_query(&req.code);
+        let fts_mode = if req.use_vector { "loose" } else { "strict" };
+        let display_limit = req.sanitized_limit().min(10);
+
         let hits = ps
             .search
             .search(
@@ -4413,7 +4534,7 @@ impl Engram {
                     generation: gen_,
                     text: q,
                     top_k: req.sanitized_limit(),
-                    fts_mode: "strict".into(),
+                    fts_mode: fts_mode.into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
                     language_filters: None,
@@ -4429,14 +4550,14 @@ impl Engram {
 
         if hits.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "✅ No matching anti-patterns found. The code snippet looks safe based on history.",
+                "verdict: PASS\nmatches_found: 0\n\
+                 No matching anti-patterns found. The code snippet looks safe based on history.",
             )]));
         }
 
-        let mut out = String::new();
         let best = &hits[0];
 
-        // Tunable thresholds from meta
+        // Tunable thresholds from project meta.
         let warn_t = self
             .state
             .registry
@@ -4455,63 +4576,83 @@ impl Engram {
             .unwrap_or(self.state.immune.block_threshold);
 
         let engine = engram_ml::ImmuneEngine::new(warn_t, block_t);
-        // Fetch full content for better context
-        let snippet = if let Ok(Some((_, _, content, _, _))) =
-            ps.search
-                .get_doc_by_doc_id(&req.project_id, "antipattern", gen_, &best.doc_id)
-        {
-            Some(content)
+
+        // Fetch full content for the top match only (not in a loop).
+        let full_content = if req.include_content {
+            if let Ok(Some((_, _, content, _, _))) =
+                ps.search
+                    .get_doc_by_doc_id(&req.project_id, "antipattern", gen_, &best.doc_id)
+            {
+                Some(content)
+            } else {
+                best.snippet.clone()
+            }
         } else {
             best.snippet.clone()
         };
 
-        let decision = engine.decide(best.score, snippet.as_deref());
-        match decision {
-            engram_ml::ImmuneDecision::Allow => {
-                out.push_str("✅ ALLOW\n");
-            }
-            engram_ml::ImmuneDecision::Warn {
-                message,
-                confidence,
-            } => {
-                out.push_str(&format!(
-                    "⚠️ WARN (confidence={confidence:.2})\n{message}\n"
-                ));
-            }
-            engram_ml::ImmuneDecision::Block {
-                message,
-                confidence,
-            } => {
-                out.push_str(&format!(
-                    "🚫 BLOCK (confidence={confidence:.2})\n{message}\n"
-                ));
-            }
-        }
+        let decision = engine.decide(best.score, full_content.as_deref());
 
-        out.push_str("\nWhy it's risky:\n");
-        out.push_str("This code snippet matches a pattern that was previously reverted in the project's history. Reverted code usually indicates bugs, performance issues, or architectural violations that were later corrected.");
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!("verdict: {}\n", decision.verdict()));
+        out.push_str(&format!("severity: {}\n", decision.severity()));
+        out.push_str(&format!("confidence: {:.3}\n", best.score));
+        out.push_str(&format!("matches_found: {}\n", hits.len()));
 
-        out.push_str("\n\nSuggested safer alternative pattern:\n");
-        if let Some(sn) = &snippet {
-            if sn.contains("Reverted in Commit: ") {
-                if let Some(line) = sn.lines().find(|l| l.contains("Reverted in Commit: ")) {
-                    let commit = line.split(':').nth(1).unwrap_or("unknown").trim();
-                    out.push_str(&format!("Review the changes in commit {} to see how this pattern was corrected or replaced. Usually, the correct approach is the inverse of the reverted diff or following the pattern established in the reverting commit.", commit));
-                }
+        // Risk explanation.
+        out.push_str("\nRisk explanation:\n");
+        out.push_str(
+            "This code snippet matches a pattern that was previously reverted in the \
+             project's history. Reverted code usually indicates bugs, performance issues, \
+             or architectural violations that were later corrected.\n",
+        );
+
+        // Extract commit metadata using robust regex.
+        out.push_str("\nRemediation guidance:\n");
+        if let Some(ref content) = full_content {
+            if let Some(caps) = COMMIT_RE.captures(content) {
+                let commit_hash = &caps[1];
+                out.push_str(&format!(
+                    "Review the reverting commit {} to understand why this pattern was \
+                     rejected. The correct approach is typically the inverse of the \
+                     reverted diff or the pattern established in the reverting commit.\n",
+                    commit_hash
+                ));
             } else {
-                out.push_str("Review the project's history for similar files to identify the current best practices. Avoid the logic shown in the matched snippet.");
+                out.push_str(
+                    "Review the project's history for similar files to identify the \
+                     current best practices. Avoid the logic shown in the matched snippet.\n",
+                );
             }
         } else {
-            out.push_str("Consult the project's documentation or lead engineers to identify the preferred pattern for this functionality.");
+            out.push_str(
+                "Consult the project's documentation or lead engineers to identify the \
+                 preferred pattern for this functionality.\n",
+            );
         }
 
-        if !hits.is_empty() {
-            out.push_str("\n\nTop anti-pattern matches:\n");
-            for h in hits.iter().take(req.sanitized_limit()) {
-                out.push_str(&format!(
-                    "- score={:.3} path={} chunk_id={}\n",
-                    h.score, h.path, h.chunk_id
-                ));
+        // Matched patterns.
+        out.push_str("\nTop anti-pattern matches:\n");
+        for (i, h) in hits.iter().take(display_limit).enumerate() {
+            out.push_str(&format!(
+                "  {}. score={:.3} path={} chunk_id={}\n",
+                i + 1,
+                h.score,
+                h.path,
+                h.chunk_id
+            ));
+        }
+
+        // Include content of the best match if requested.
+        if req.include_content {
+            if let Some(ref content) = full_content {
+                out.push_str("\nBest match content:\n");
+                let truncated: String = content.chars().take(2000).collect();
+                out.push_str(&truncated);
+                if content.chars().count() > 2000 {
+                    out.push_str("\n... (truncated)");
+                }
+                out.push('\n');
             }
         }
 
@@ -4575,7 +4716,7 @@ End Sub
     }
 
     #[tool(
-        description = "Suggest microservice/bounded-context migration boundaries from temporal coupling clusters, shared state, and SQL table references. Uses LLM when available, falls back to directory-prefix grouping."
+        description = "Suggest microservice/bounded-context migration boundaries from temporal coupling clusters, shared state, and SQL table references. Includes cross-cluster dependency analysis and data ownership. Uses LLM when available, falls back to directory-prefix grouping with graph-driven data assignment."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn suggest_migration_boundaries(
@@ -4590,23 +4731,65 @@ End Sub
                 &req.project_id,
                 req.sanitized_min_frequency(),
                 req.sanitized_max_clusters(),
+                req.sanitized_timeout_secs(),
+                req.include_cross_cluster_deps,
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if boundaries.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "No temporal coupling data found. Index git history first (index_git_history) to populate coupling edges.",
+                "No temporal coupling data found. Index git history first \
+                 (index_git_history) to populate coupling edges.",
             )]));
         }
 
-        let json =
-            serde_json::to_string_pretty(&boundaries).unwrap_or_else(|_| format!("{boundaries:?}"));
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&boundaries)
+                .unwrap_or_else(|_| format!("{boundaries:?}"));
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Migration Boundary Suggestions ({} contexts):\n\n{json}",
+        // Structured human-readable output.
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!(
+            "Migration Boundary Suggestions ({} contexts)\n",
             boundaries.len()
-        ))]))
+        ));
+        out.push_str(&format!(
+            "parameters: min_frequency={}, max_clusters={}, timeout={}s\n\n",
+            req.sanitized_min_frequency(),
+            req.sanitized_max_clusters(),
+            req.sanitized_timeout_secs(),
+        ));
+
+        for (i, b) in boundaries.iter().enumerate() {
+            out.push_str(&format!("--- Context {}: {} ---\n", i + 1, b.context_name));
+            out.push_str(&format!("  risk: {}\n", b.risk));
+            out.push_str(&format!(
+                "  files ({}): {}\n",
+                b.files.len(),
+                b.files.join(", ")
+            ));
+            if !b.owned_data.is_empty() {
+                out.push_str(&format!("  owned_data: {}\n", b.owned_data.join(", ")));
+            }
+            if !b.depends_on.is_empty() {
+                out.push_str(&format!("  depends_on: {}\n", b.depends_on.join(", ")));
+            }
+            if !b.seam_files.is_empty() {
+                out.push_str(&format!("  seam_files: {}\n", b.seam_files.join(", ")));
+            }
+            if !b.shared_across.is_empty() {
+                out.push_str(&format!(
+                    "  shared_data_with: {}\n",
+                    b.shared_across.join(", ")
+                ));
+            }
+            out.push('\n');
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     #[tool(
@@ -4884,11 +5067,7 @@ End Sub
 
             // Determine edge kinds for traversal
             let edge_kinds: Vec<EdgeKind> = if compile_time_only {
-                vec![
-                    EdgeKind::Dependency,
-                    EdgeKind::Imports,
-                    EdgeKind::Contains,
-                ]
+                vec![EdgeKind::Dependency, EdgeKind::Imports, EdgeKind::Contains]
             } else {
                 EdgeKind::ALL.to_vec()
             };
@@ -4946,10 +5125,8 @@ End Sub
                 // Group by depth for tree-like display
                 let max_d = traversal.iter().map(|(_, d)| *d).max().unwrap_or(0);
                 for d in 0..=max_d {
-                    let at_depth: Vec<_> = traversal
-                        .iter()
-                        .filter(|(_, depth)| *depth == d)
-                        .collect();
+                    let at_depth: Vec<_> =
+                        traversal.iter().filter(|(_, depth)| *depth == d).collect();
                     if at_depth.is_empty() {
                         continue;
                     }
@@ -5167,17 +5344,9 @@ End Sub
                 }
 
                 let mut out = String::with_capacity(2048);
-                out.push_str(&format!(
-                    "Anti-Pattern Index ({} entries):\n",
-                    hits.len()
-                ));
+                out.push_str(&format!("Anti-Pattern Index ({} entries):\n", hits.len()));
                 for (i, h) in hits.iter().enumerate() {
-                    out.push_str(&format!(
-                        "  {}. {} (score={:.3})\n",
-                        i + 1,
-                        h.path,
-                        h.score
-                    ));
+                    out.push_str(&format!("  {}. {} (score={:.3})\n", i + 1, h.path, h.score));
                 }
 
                 Ok(CallToolResult::success(vec![Content::text(
@@ -5218,9 +5387,10 @@ End Sub
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
                 if hits.is_empty() {
-                    return Ok(CallToolResult::success(vec![Content::text(
-                        format!("No anti-patterns matching '{}'.", query),
-                    )]));
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "No anti-patterns matching '{}'.",
+                        query
+                    ))]));
                 }
 
                 let mut out = String::with_capacity(4096);
@@ -5230,12 +5400,7 @@ End Sub
                     hits.len()
                 ));
                 for (i, h) in hits.iter().enumerate() {
-                    out.push_str(&format!(
-                        "\n#{} {} (score={:.3})\n",
-                        i + 1,
-                        h.path,
-                        h.score
-                    ));
+                    out.push_str(&format!("\n#{} {} (score={:.3})\n", i + 1, h.path, h.score));
                     if let Ok(Some((_, _, content, _, _))) =
                         ps.search
                             .get_doc_by_doc_id(&pid, "antipattern", gen_, &h.doc_id)

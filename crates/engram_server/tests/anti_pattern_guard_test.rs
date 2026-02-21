@@ -122,6 +122,8 @@ async fn test_anti_pattern_guard_smoke() {
             project_id: project_id.clone(),
             code: "critical_bug = 1/0".to_string(),
             limit: 5,
+            use_vector: false,
+            include_content: true,
         }))
         .await
         .unwrap();
