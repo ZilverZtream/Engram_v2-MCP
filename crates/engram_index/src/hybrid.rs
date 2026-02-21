@@ -75,6 +75,22 @@ pub struct IngestStats {
     pub warnings: Vec<String>,
 }
 
+/// Escape SQL LIKE wildcards (`%`, `_`) and single quotes in a string
+/// so it can be safely used in a `LIKE '...' ESCAPE '\'` clause.
+fn escape_like(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 4);
+    for c in s.chars() {
+        match c {
+            '\'' => out.push_str("''"),
+            '%' => out.push_str("\\%"),
+            '_' => out.push_str("\\_"),
+            '\\' => out.push_str("\\\\"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 pub struct HybridSearchEngine {
     tantivy_index: tantivy::Index,
     fields: Fields,
@@ -1272,8 +1288,8 @@ impl HybridSearchEngine {
                             if i > 0 {
                                 wc.push_str(" OR ");
                             }
-                            let safe_p = p.replace('\'', "''");
-                            write!(wc, "path LIKE '{}%'", safe_p).unwrap();
+                            let safe_p = escape_like(p);
+                            write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p).unwrap();
                         }
                         wc.push(')');
                     }
@@ -1281,8 +1297,8 @@ impl HybridSearchEngine {
 
                 if let Some(prefixes) = &q.exclude_path_prefixes {
                     for p in prefixes {
-                        let safe_p = p.replace('\'', "''");
-                        write!(wc, " AND path NOT LIKE '{}%'", safe_p).unwrap();
+                        let safe_p = escape_like(p);
+                        write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p).unwrap();
                     }
                 }
 
@@ -1369,6 +1385,53 @@ impl HybridSearchEngine {
             let _ = q;
             Ok(Vec::new())
         }
+    }
+
+    /// Pure vector search with oversampling and optional MMR reranking.
+    ///
+    /// Unlike `vector_search()` (which is called as one half of hybrid search),
+    /// this method oversamples by 3x the requested `top_k` to compensate for
+    /// post-filter loss, wraps execution in a configurable timeout, and
+    /// optionally applies MMR diversity reranking.
+    pub async fn pure_vector_search(
+        &self,
+        q: &HybridQuery,
+        timeout_ms: u64,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        let oversample_factor = if q.use_mmr {
+            self.mmr_oversampling.max(3)
+        } else {
+            3
+        };
+        let mut q_oversampled = q.clone();
+        q_oversampled.top_k = q.top_k * oversample_factor;
+
+        let timeout_dur = std::time::Duration::from_millis(timeout_ms);
+        let mut hits =
+            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled)).await {
+                Ok(result) => result?,
+                Err(_) => {
+                    tracing::warn!(
+                        timeout_ms = timeout_ms,
+                        "vector search timed out after {}ms",
+                        timeout_ms
+                    );
+                    return Ok(Vec::new());
+                }
+            };
+
+        #[cfg(feature = "vector")]
+        if q.use_mmr && hits.len() > q.top_k {
+            let chunk_ids: Vec<u64> = hits.iter().map(|h| h.chunk_id).collect();
+            let vectors = self
+                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
+                .await
+                .unwrap_or_default();
+            hits = self.mmr_rerank(hits, &vectors, q.top_k, 0.7);
+        }
+
+        hits.truncate(q.top_k);
+        Ok(hits)
     }
 
     pub async fn get_vectors_by_chunk_ids(

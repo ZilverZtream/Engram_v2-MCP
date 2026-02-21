@@ -313,15 +313,18 @@ fn collect_file_diffs(
 ///
 /// Steps:
 /// 1. Query top temporal coupling edges from the graph.
-/// 2. Group coupled files into clusters using simple union-find.
+/// 2. Group coupled files into clusters using iterative union-find with rank heuristic.
 /// 3. For each cluster, gather shared state keys and SQL table references.
-/// 4. Format text blocks and pass to LLM via DreamingEngine.
-/// 5. Return proposed boundaries.
+/// 4. Perform cross-cluster dependency analysis.
+/// 5. Format text blocks and pass to LLM via DreamingEngine.
+/// 6. Return proposed boundaries with cross-cluster annotations.
 pub async fn suggest_migration_boundaries(
     state: &AppState,
     project_id: &str,
     min_frequency: u32,
     max_clusters: usize,
+    timeout_secs: u64,
+    include_cross_cluster_deps: bool,
 ) -> anyhow::Result<Vec<engram_ml::MigrationBoundary>> {
     let graph = state.graph.clone();
     let pid = project_id.to_string();
@@ -329,27 +332,198 @@ pub async fn suggest_migration_boundaries(
     let max_cl = max_clusters;
 
     // Step 1-3: Gather graph data (blocking I/O).
-    let (clusters_text, state_text, tables_text) =
+    let boundary_data =
         tokio::task::spawn_blocking(move || gather_boundary_data(&graph, &pid, min_freq, max_cl))
             .await
-            .unwrap_or_else(|_| Ok(("".into(), "".into(), "".into())))?;
+            .unwrap_or_else(|_| Ok(BoundaryData::empty()))?;
 
-    if clusters_text.is_empty() {
+    if boundary_data.clusters_text.is_empty() {
         return Ok(Vec::new());
     }
 
-    // Step 4: Call LLM / fallback.
-    let boundaries = state
+    // Step 4-5: Call LLM / fallback with configurable timeout.
+    let mut boundaries = state
         .dreaming
         .suggest_boundaries(
-            &clusters_text,
-            &state_text,
-            &tables_text,
-            std::time::Duration::from_secs(120),
+            &boundary_data.clusters_text,
+            &boundary_data.state_text,
+            &boundary_data.tables_text,
+            Duration::from_secs(timeout_secs),
         )
         .await;
 
+    // Step 6: Cross-cluster dependency annotation.
+    if include_cross_cluster_deps && boundaries.len() > 1 {
+        annotate_cross_cluster_deps(&mut boundaries, &boundary_data);
+    }
+
     Ok(boundaries)
+}
+
+/// Internal data gathered from the graph for boundary analysis.
+struct BoundaryData {
+    clusters_text: String,
+    state_text: String,
+    tables_text: String,
+    /// file -> set of state keys it touches.
+    file_state_keys: std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// file -> set of SQL tables it references.
+    file_table_refs: std::collections::HashMap<String, std::collections::HashSet<String>>,
+}
+
+impl BoundaryData {
+    fn empty() -> Self {
+        Self {
+            clusters_text: String::new(),
+            state_text: String::new(),
+            tables_text: String::new(),
+            file_state_keys: std::collections::HashMap::new(),
+            file_table_refs: std::collections::HashMap::new(),
+        }
+    }
+}
+
+/// Annotate boundaries with cross-cluster shared state/table dependencies.
+fn annotate_cross_cluster_deps(
+    boundaries: &mut [engram_ml::MigrationBoundary],
+    data: &BoundaryData,
+) {
+    use std::collections::{HashMap, HashSet};
+
+    // Build map: data_key -> set of context indices that reference it.
+    let mut data_owners: HashMap<String, HashSet<usize>> = HashMap::new();
+
+    for (idx, boundary) in boundaries.iter().enumerate() {
+        let boundary_files: HashSet<&str> = boundary.files.iter().map(|s| s.as_str()).collect();
+        // Check which state keys files in this boundary touch.
+        for f in &boundary_files {
+            if let Some(keys) = data.file_state_keys.get(*f) {
+                for k in keys {
+                    data_owners
+                        .entry(format!("state:{k}"))
+                        .or_default()
+                        .insert(idx);
+                }
+            }
+            if let Some(tables) = data.file_table_refs.get(*f) {
+                for t in tables {
+                    data_owners
+                        .entry(format!("table:{t}"))
+                        .or_default()
+                        .insert(idx);
+                }
+            }
+        }
+    }
+
+    // For each boundary, find which other boundaries share its data.
+    let names: Vec<String> = boundaries.iter().map(|b| b.context_name.clone()).collect();
+    for (idx, boundary) in boundaries.iter_mut().enumerate() {
+        let mut shared: HashSet<String> = HashSet::new();
+        let boundary_files: HashSet<&str> = boundary.files.iter().map(|s| s.as_str()).collect();
+        for f in &boundary_files {
+            if let Some(keys) = data.file_state_keys.get(*f) {
+                for k in keys {
+                    if let Some(owners) = data_owners.get(&format!("state:{k}")) {
+                        for &o in owners {
+                            if o != idx {
+                                shared.insert(names[o].clone());
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(tables) = data.file_table_refs.get(*f) {
+                for t in tables {
+                    if let Some(owners) = data_owners.get(&format!("table:{t}")) {
+                        for &o in owners {
+                            if o != idx {
+                                shared.insert(names[o].clone());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if !shared.is_empty() {
+            boundary.shared_across = shared.into_iter().collect();
+            boundary.shared_across.sort();
+            // Elevate risk if data is shared across boundaries.
+            if boundary.risk != "HIGH" {
+                boundary.risk = "HIGH".into();
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Iterative union-find with rank heuristic (no stack overflow risk)
+// ---------------------------------------------------------------------------
+
+struct UnionFind {
+    parent: std::collections::HashMap<String, String>,
+    rank: std::collections::HashMap<String, usize>,
+}
+
+impl UnionFind {
+    fn new() -> Self {
+        Self {
+            parent: std::collections::HashMap::new(),
+            rank: std::collections::HashMap::new(),
+        }
+    }
+
+    fn make_set(&mut self, x: &str) {
+        if !self.parent.contains_key(x) {
+            self.parent.insert(x.to_string(), x.to_string());
+            self.rank.insert(x.to_string(), 0);
+        }
+    }
+
+    /// Iterative find with path compression — O(alpha(n)) amortized, no stack overflow.
+    fn find(&mut self, x: &str) -> String {
+        self.make_set(x);
+
+        // Walk to root.
+        let mut current = x.to_string();
+        while self.parent[&current] != current {
+            current = self.parent[&current].clone();
+        }
+        let root = current;
+
+        // Path compression: re-walk and point everything to root.
+        let mut current = x.to_string();
+        while current != root {
+            let next = self.parent[&current].clone();
+            self.parent.insert(current, root.clone());
+            current = next;
+        }
+
+        root
+    }
+
+    /// Union by rank: attach smaller tree under larger tree.
+    fn union(&mut self, a: &str, b: &str) {
+        let ra = self.find(a);
+        let rb = self.find(b);
+        if ra == rb {
+            return;
+        }
+        let rank_a = self.rank[&ra];
+        let rank_b = self.rank[&rb];
+        if rank_a < rank_b {
+            self.parent.insert(ra, rb);
+        } else if rank_a > rank_b {
+            self.parent.insert(rb, ra);
+        } else {
+            self.parent.insert(rb, ra.clone());
+            *self.rank.entry(ra).or_insert(0) += 1;
+        }
+    }
+
+    fn keys(&self) -> Vec<String> {
+        self.parent.keys().cloned().collect()
+    }
 }
 
 /// Gather temporal coupling clusters + state/SQL context from the graph.
@@ -358,7 +532,7 @@ fn gather_boundary_data(
     project_id: &str,
     min_frequency: u32,
     max_clusters: usize,
-) -> anyhow::Result<(String, String, String)> {
+) -> anyhow::Result<BoundaryData> {
     use std::collections::{HashMap, HashSet};
 
     // Step 1: Get temporal coupling edges.
@@ -366,7 +540,7 @@ fn gather_boundary_data(
         graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::TemporalCoupling, 500)?;
 
     if coupling_edges.is_empty() {
-        return Ok((String::new(), String::new(), String::new()));
+        return Ok(BoundaryData::empty());
     }
 
     // Filter by minimum frequency (weight).
@@ -376,42 +550,19 @@ fn gather_boundary_data(
         .collect();
 
     if strong_edges.is_empty() {
-        return Ok((String::new(), String::new(), String::new()));
+        return Ok(BoundaryData::empty());
     }
 
-    // Step 2: Simple union-find grouping.
-    let mut parent: HashMap<String, String> = HashMap::new();
-
-    fn find(parent: &mut HashMap<String, String>, x: &str) -> String {
-        if !parent.contains_key(x) {
-            parent.insert(x.to_string(), x.to_string());
-            return x.to_string();
-        }
-        let p = parent[x].clone();
-        if p == x {
-            return x.to_string();
-        }
-        let root = find(parent, &p);
-        parent.insert(x.to_string(), root.clone());
-        root
-    }
-
-    fn union(parent: &mut HashMap<String, String>, a: &str, b: &str) {
-        let ra = find(parent, a);
-        let rb = find(parent, b);
-        if ra != rb {
-            parent.insert(ra, rb);
-        }
-    }
-
+    // Step 2: Iterative union-find with rank heuristic.
+    let mut uf = UnionFind::new();
     for e in &strong_edges {
-        union(&mut parent, &e.source_id, &e.target_id);
+        uf.union(&e.source_id, &e.target_id);
     }
 
     // Collect clusters.
     let mut clusters: HashMap<String, HashSet<String>> = HashMap::new();
-    for key in parent.keys().cloned().collect::<Vec<_>>() {
-        let root = find(&mut parent, &key);
+    for key in uf.keys() {
+        let root = uf.find(&key);
         clusters.entry(root).or_default().insert(key);
     }
 
@@ -438,31 +589,31 @@ fn gather_boundary_data(
         ));
     }
 
-    // Step 3: Gather shared state keys and SQL tables.
+    // Step 3: Gather shared state keys and SQL tables (per-file granularity for cross-cluster).
     let all_files: HashSet<&str> = sorted_clusters
         .iter()
         .flat_map(|c| c.iter().map(|s| s.as_str()))
         .collect();
 
-    let mut state_keys: HashSet<String> = HashSet::new();
-    let mut tables: HashSet<String> = HashSet::new();
+    let mut global_state_keys: HashSet<String> = HashSet::new();
+    let mut global_tables: HashSet<String> = HashSet::new();
+    let mut file_state_keys: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut file_table_refs: HashMap<String, HashSet<String>> = HashMap::new();
 
     // Query state edges.
-    if let Ok(state_edges) =
-        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::ReadsState, 200)
-    {
-        for e in &state_edges {
-            if all_files.contains(e.source_id.as_str()) {
-                state_keys.insert(e.target_id.clone());
-            }
-        }
-    }
-    if let Ok(state_edges) =
-        graph.list_edges_by_kind(project_id, engram_graph::EdgeKind::WritesState, 200)
-    {
-        for e in &state_edges {
-            if all_files.contains(e.source_id.as_str()) {
-                state_keys.insert(e.target_id.clone());
+    for kind in &[
+        engram_graph::EdgeKind::ReadsState,
+        engram_graph::EdgeKind::WritesState,
+    ] {
+        if let Ok(state_edges) = graph.list_edges_by_kind(project_id, kind.clone(), 200) {
+            for e in &state_edges {
+                if all_files.contains(e.source_id.as_str()) {
+                    global_state_keys.insert(e.target_id.clone());
+                    file_state_keys
+                        .entry(e.source_id.clone())
+                        .or_default()
+                        .insert(e.target_id.clone());
+                }
             }
         }
     }
@@ -473,26 +624,40 @@ fn gather_boundary_data(
     {
         for e in &sql_edges {
             if all_files.contains(e.source_id.as_str()) {
-                tables.insert(e.target_id.clone());
+                global_tables.insert(e.target_id.clone());
+                file_table_refs
+                    .entry(e.source_id.clone())
+                    .or_default()
+                    .insert(e.target_id.clone());
             }
         }
     }
 
-    let state_text = if state_keys.is_empty() {
+    let state_text = if global_state_keys.is_empty() {
         "(none detected)".to_string()
     } else {
-        let mut keys: Vec<_> = state_keys.into_iter().collect();
+        let mut keys: Vec<_> = global_state_keys.into_iter().collect();
         keys.sort();
         keys.join(", ")
     };
 
-    let tables_text = if tables.is_empty() {
+    let tables_text = if global_tables.is_empty() {
         "(none detected)".to_string()
     } else {
-        let mut t: Vec<_> = tables.into_iter().collect();
+        let mut t: Vec<_> = global_tables.into_iter().collect();
         t.sort();
         t.join(", ")
     };
 
-    Ok((clusters_text, state_text, tables_text))
+    // sorted_clusters is consumed into clusters_text; per-file maps are used
+    // for cross-cluster dependency analysis.
+    let _ = sorted_clusters;
+
+    Ok(BoundaryData {
+        clusters_text,
+        state_text,
+        tables_text,
+        file_state_keys,
+        file_table_refs,
+    })
 }

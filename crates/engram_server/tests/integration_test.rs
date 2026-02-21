@@ -2392,7 +2392,10 @@ async fn test_dream_project() {
         .dream_project(Parameters(engram_server::DreamProjectRequest {
             project_id: project_id.to_string(),
             wait: true,
-            max_pairs: 10,
+            max_clusters: 10,
+            min_edge_weight: 2,
+            min_cluster_size: 3,
+            timeout_secs: 60,
         }))
         .await
         .unwrap();
@@ -2766,6 +2769,8 @@ async fn test_immune_system_end_to_end() {
             project_id: project_id.to_string(),
             code: draft_code.into(),
             top_k: 1,
+            use_vector: false,
+            include_content: false,
         }))
         .await
         .unwrap();
@@ -3048,7 +3053,10 @@ async fn test_dream_immune_integration() {
         .dream_project(Parameters(engram_server::DreamProjectRequest {
             project_id: project_id.to_string(),
             wait: true,
-            max_pairs: 10,
+            max_clusters: 10,
+            min_edge_weight: 2,
+            min_cluster_size: 3,
+            timeout_secs: 60,
         }))
         .await
         .unwrap();

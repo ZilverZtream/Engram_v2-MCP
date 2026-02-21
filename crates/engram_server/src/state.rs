@@ -116,6 +116,8 @@ impl AppState {
         let dreaming = DreamingEngine::with_config(&cfg);
         let (events_tx, events_rx) = broadcast::channel(16_384);
         let parse_concurrency = cfg.max_parse_concurrency;
+        let immune_warn = cfg.immune_warn_threshold;
+        let immune_block = cfg.immune_block_threshold;
 
         Ok((
             Self {
@@ -125,7 +127,7 @@ impl AppState {
                 graph: Arc::new(graph),
                 dreaming: Arc::new(dreaming),
                 mimicry: Arc::new(StyleMimicryEngine::new()),
-                immune: Arc::new(ImmuneEngine::default()),
+                immune: Arc::new(ImmuneEngine::new(immune_warn, immune_block)),
                 projects: Arc::new(DashMap::new()),
                 project_lru: Arc::new(DashMap::new()),
                 active_jobs: Arc::new(RwLock::new(HashMap::new())),

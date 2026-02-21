@@ -66,6 +66,9 @@ pub fn default_max_clusters() -> usize {
 pub fn default_min_freq_3() -> u32 {
     3
 }
+pub fn default_boundary_timeout_secs() -> u64 {
+    120
+}
 pub fn default_graph_hop_depth_1() -> usize {
     1
 }
@@ -89,6 +92,18 @@ pub fn default_direction_outgoing() -> String {
 }
 pub fn default_antipattern_action() -> String {
     "stats".to_string()
+}
+pub fn default_dream_max_clusters() -> usize {
+    5
+}
+pub fn default_dream_min_edge_weight() -> u32 {
+    2
+}
+pub fn default_dream_min_cluster_size() -> usize {
+    3
+}
+pub fn default_dream_timeout_secs() -> u64 {
+    60
 }
 
 pub const MAX_SEARCH_RESULTS: usize = 200;
@@ -457,10 +472,22 @@ pub struct IngestZipHistoryRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct DreamProjectRequest {
     pub project_id: String,
+    /// If true, block until the dream cycle completes and return insight count.
     #[serde(default)]
     pub wait: bool,
-    #[serde(default = "default_max_pairs")]
-    pub max_pairs: usize,
+    /// Maximum co-occurrence clusters to process (default 5, max 500).
+    /// Backward-compatible alias: `max_pairs` is also accepted.
+    #[serde(default = "default_dream_max_clusters", alias = "max_pairs")]
+    pub max_clusters: usize,
+    /// Minimum edge weight for co-occurrence clustering (default 2, max 100).
+    #[serde(default = "default_dream_min_edge_weight")]
+    pub min_edge_weight: u32,
+    /// Minimum nodes in a cluster for insight generation (default 3, max 50).
+    #[serde(default = "default_dream_min_cluster_size")]
+    pub min_cluster_size: usize,
+    /// Timeout in seconds for the dream cycle when wait=true (default 60, max 300).
+    #[serde(default = "default_dream_timeout_secs")]
+    pub timeout_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -480,22 +507,47 @@ pub struct SuggestMigrationBoundariesRequest {
     /// Maximum number of bounded-context clusters to return (default 8).
     #[serde(default = "default_max_clusters")]
     pub max_clusters: usize,
+    /// Return machine-readable JSON output instead of human-readable text (default false).
+    #[serde(default)]
+    pub output_json: bool,
+    /// Include cross-cluster dependency analysis showing shared state/tables (default true).
+    #[serde(default = "default_true")]
+    pub include_cross_cluster_deps: bool,
+    /// Timeout in seconds for LLM boundary suggestion (default 120, max 300).
+    #[serde(default = "default_boundary_timeout_secs")]
+    pub timeout_secs: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct ImmuneCheckRequest {
     pub project_id: String,
+    /// Code snippet to check against the anti-pattern index.
     pub code: String,
+    /// Number of results to consider (default 10, max 200).
     #[serde(default = "default_top_k")]
     pub top_k: usize,
+    /// Use hybrid search (FTS + vector) instead of FTS-only (default true).
+    #[serde(default = "default_true")]
+    pub use_vector: bool,
+    /// Include matched anti-pattern content in output (default false).
+    #[serde(default)]
+    pub include_content: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct AntiPatternGuardRequest {
     pub project_id: String,
+    /// Code snippet to check for anti-pattern matches.
     pub code: String,
-    #[serde(default = "default_top_k")]
+    /// Maximum anti-pattern matches to return (default 5, max 200).
+    #[serde(default = "default_limit_5")]
     pub limit: usize,
+    /// Use hybrid search (FTS + vector) instead of FTS-only (default true).
+    #[serde(default = "default_true")]
+    pub use_vector: bool,
+    /// Include matched anti-pattern content in output (default true).
+    #[serde(default = "default_true")]
+    pub include_content: bool,
 }
 
 // -------------------- Migration slicer --------------------
@@ -572,6 +624,39 @@ pub struct AntipatternIndexRequest {
     /// Max results for list/search. Default: 50.
     #[serde(default = "default_limit_50")]
     pub limit: usize,
+}
+
+// -------------------- Vector Search --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct VectorSearchRequest {
+    pub project_id: String,
+    /// The text to embed and search for semantically.
+    pub query: String,
+    /// Namespace to search within (default "memory").
+    #[serde(default = "default_namespace_memory")]
+    pub namespace: String,
+    /// Number of results to return (default 10, max 200).
+    #[serde(default = "default_top_k")]
+    pub top_k: usize,
+    /// Use MMR (Maximal Marginal Relevance) for diverse results (default false).
+    #[serde(default)]
+    pub use_mmr: bool,
+    /// Only include results whose path starts with one of these prefixes.
+    #[serde(default)]
+    pub include_path_prefixes: Option<Vec<String>>,
+    /// Exclude results whose path starts with any of these prefixes.
+    #[serde(default)]
+    pub exclude_path_prefixes: Option<Vec<String>>,
+    /// Filter to specific programming languages.
+    #[serde(default)]
+    pub language_filters: Option<Vec<String>>,
+    /// Include full chunk content in results (default false).
+    #[serde(default)]
+    pub include_content: bool,
+    /// Max characters of content to include per result (default 1200, max 20000).
+    #[serde(default = "default_max_content_chars")]
+    pub max_content_chars: usize,
 }
 
 // -------------------- Jobs --------------------
@@ -652,8 +737,17 @@ impl AnalyzeTemporalCouplingsRequest {
 }
 
 impl DreamProjectRequest {
-    pub fn sanitized_max_pairs(&self) -> usize {
-        self.max_pairs.clamp(1, MAX_DREAM_PAIRS)
+    pub fn sanitized_max_clusters(&self) -> usize {
+        self.max_clusters.clamp(1, MAX_DREAM_PAIRS)
+    }
+    pub fn sanitized_min_edge_weight(&self) -> u32 {
+        self.min_edge_weight.clamp(1, 100)
+    }
+    pub fn sanitized_min_cluster_size(&self) -> usize {
+        self.min_cluster_size.clamp(2, 50)
+    }
+    pub fn sanitized_timeout_secs(&self) -> u64 {
+        self.timeout_secs.clamp(5, 300)
     }
 }
 
@@ -682,6 +776,9 @@ impl SuggestMigrationBoundariesRequest {
     pub fn sanitized_max_clusters(&self) -> usize {
         self.max_clusters.clamp(1, 50)
     }
+    pub fn sanitized_timeout_secs(&self) -> u64 {
+        self.timeout_secs.clamp(10, 300)
+    }
 }
 
 impl UpdateProjectRequest {
@@ -698,7 +795,8 @@ impl GraphSearchRequest {
         self.hop_depth.clamp(1, 4)
     }
     pub fn sanitized_max_content_chars(&self) -> usize {
-        self.max_content_chars.clamp(0, MAX_CONTENT_CHARS_PER_RESULT)
+        self.max_content_chars
+            .clamp(0, MAX_CONTENT_CHARS_PER_RESULT)
     }
 }
 
@@ -732,5 +830,15 @@ impl AntipatternIndexRequest {
 impl GenerateMigrationBlueprintRequest {
     pub fn sanitized_max_depth(&self) -> usize {
         (self.max_depth as usize).clamp(1, 8)
+    }
+}
+
+impl VectorSearchRequest {
+    pub fn sanitized_top_k(&self) -> usize {
+        self.top_k.clamp(1, MAX_SEARCH_RESULTS)
+    }
+    pub fn sanitized_max_content_chars(&self) -> usize {
+        self.max_content_chars
+            .clamp(0, MAX_CONTENT_CHARS_PER_RESULT)
     }
 }

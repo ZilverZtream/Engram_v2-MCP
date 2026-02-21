@@ -5,6 +5,43 @@ pub enum ImmuneDecision {
     Block { message: String, confidence: f32 },
 }
 
+impl ImmuneDecision {
+    /// Returns a severity label: "none", "low", "medium", "high", "critical".
+    pub fn severity(&self) -> &'static str {
+        match self {
+            ImmuneDecision::Allow => "none",
+            ImmuneDecision::Warn { confidence, .. } => {
+                if *confidence >= 0.35 {
+                    "medium"
+                } else {
+                    "low"
+                }
+            }
+            ImmuneDecision::Block { confidence, .. } => {
+                if *confidence >= 0.75 {
+                    "critical"
+                } else {
+                    "high"
+                }
+            }
+        }
+    }
+
+    /// Returns a short verdict label for structured output.
+    pub fn verdict(&self) -> &'static str {
+        match self {
+            ImmuneDecision::Allow => "PASS",
+            ImmuneDecision::Warn { .. } => "WARN",
+            ImmuneDecision::Block { .. } => "BLOCK",
+        }
+    }
+
+    /// Whether the caller should take action (true for Warn and Block).
+    pub fn action_required(&self) -> bool {
+        !matches!(self, ImmuneDecision::Allow)
+    }
+}
+
 #[derive(Clone)]
 pub struct ImmuneEngine {
     pub warn_threshold: f32,
@@ -14,8 +51,8 @@ pub struct ImmuneEngine {
 impl Default for ImmuneEngine {
     fn default() -> Self {
         Self {
-            warn_threshold: 0.01,
-            block_threshold: 0.03,
+            warn_threshold: 0.15,
+            block_threshold: 0.45,
         }
     }
 }

@@ -163,11 +163,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "dream_project",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "trigger_rem_cycle",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "analyze_file_coding_style",
@@ -187,11 +187,11 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "immune_check",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "anti_pattern_guard",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "get_instrumentation_pack",
@@ -199,7 +199,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "suggest_migration_boundaries",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "ingest_instrumentation_logs",
@@ -215,7 +215,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "vector_search",
-        status: CapabilityStatus::Experimental,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "incremental_indexing_gc",
