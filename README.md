@@ -419,4 +419,10 @@ not directly instantiate DbContext — use the injected IUnitOfWork instead.
 
 ## License
 
-Apache-2.0
+This project is licensed under the **Business Source License 1.1 (BUSL-1.1)**.
+
+- Non-commercial use (personal, educational, internal evaluation) is allowed.
+- Production/commercial use is restricted until the Change Date.
+- On the Change Date, this code transitions to Apache-2.0.
+
+See [`LICENSE`](LICENSE) for the full terms, including the Additional Use Grant and Change Date.
