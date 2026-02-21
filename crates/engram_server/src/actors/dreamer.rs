@@ -101,9 +101,13 @@ async fn load_project_runtime(
     std::fs::create_dir_all(&tantivy_dir).ok();
     std::fs::create_dir_all(&lancedb_dir).ok();
 
-    let search =
-        engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir.clone(), &state.cfg)
-            .await?;
+    let search = engram_index::HybridSearchEngine::new_with_budget(
+        tantivy_dir.clone(),
+        lancedb_dir.clone(),
+        &state.cfg,
+        Some(state.memory_budget.clone()),
+    )
+    .await?;
     let ps = crate::state::ProjectState {
         info: crate::state::ProjectInfo {
             project_id: project_id.to_string(),

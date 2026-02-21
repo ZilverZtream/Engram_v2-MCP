@@ -113,9 +113,13 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
             std::fs::create_dir_all(&tantivy_dir).ok();
             std::fs::create_dir_all(&lancedb_dir).ok();
 
-            let search =
-                engram_index::HybridSearchEngine::new(tantivy_dir.clone(), lancedb_dir, &state.cfg)
-                    .await?;
+            let search = engram_index::HybridSearchEngine::new_with_budget(
+                tantivy_dir.clone(),
+                lancedb_dir,
+                &state.cfg,
+                Some(state.memory_budget.clone()),
+            )
+            .await?;
 
             let ps = crate::state::ProjectState {
                 info: crate::state::ProjectInfo {

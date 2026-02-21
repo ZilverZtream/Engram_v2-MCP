@@ -115,10 +115,11 @@ impl Engram {
         tokio::fs::create_dir_all(&tantivy_dir).await.ok();
         tokio::fs::create_dir_all(&lancedb_dir).await.ok();
 
-        let search = engram_index::HybridSearchEngine::new(
+        let search = engram_index::HybridSearchEngine::new_with_budget(
             tantivy_dir.clone(),
             lancedb_dir.clone(),
             &self.state.cfg,
+            Some(self.state.memory_budget.clone()),
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
