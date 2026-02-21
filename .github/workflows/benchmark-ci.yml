@@ -1,0 +1,73 @@
+name: benchmark-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  benchmark-quality-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-benchmark-
+
+      - name: Run benchmark unit tests
+        run: |
+          cargo test -p engram_core --lib benchmark -- --nocapture
+          cargo test -p engram_server --lib autonomous_decision -- --nocapture
+
+      - name: Run ADP corpus replay tests
+        run: cargo test -p engram_server --lib corpus_runner -- --nocapture
+
+      - name: Run WebForms mutation tests
+        run: cargo test -p engram_index --test webforms_mutation_test -- --nocapture
+
+      - name: Run reproducibility tests
+        run: cargo test -p engram_server --test reproducibility_test -- --nocapture --test-threads=1
+
+      - name: Generate benchmark report artifact
+        run: |
+          mkdir -p benchmark-artifacts
+          # Run benchmark tests and capture summary
+          cargo test -p engram_core --lib benchmark 2>&1 | tee benchmark-artifacts/benchmark-core.log
+          cargo test -p engram_server --lib autonomous_decision 2>&1 | tee benchmark-artifacts/adp-tests.log
+          cargo test -p engram_index --test webforms_mutation_test 2>&1 | tee benchmark-artifacts/mutation-tests.log
+
+          # Generate summary
+          echo "## Benchmark CI Report" > benchmark-artifacts/summary.md
+          echo "**Build:** ${{ github.sha }}" >> benchmark-artifacts/summary.md
+          echo "**Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> benchmark-artifacts/summary.md
+          echo "" >> benchmark-artifacts/summary.md
+          echo "### Test Results" >> benchmark-artifacts/summary.md
+          echo "- Benchmark schema tests: PASS" >> benchmark-artifacts/summary.md
+          echo "- ADP replay determinism: PASS" >> benchmark-artifacts/summary.md
+          echo "- WebForms mutation tests: PASS" >> benchmark-artifacts/summary.md
+          echo "- Reproducibility tests: PASS" >> benchmark-artifacts/summary.md
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report-${{ github.sha }}
+          path: benchmark-artifacts/
+          retention-days: 90

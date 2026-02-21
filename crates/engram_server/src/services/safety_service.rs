@@ -382,4 +382,211 @@ mod tests {
         let decision = evaluate_safety(&req, true, 0.7, 0.6);
         assert!(!decision.allowed);
     }
+
+    // ── False-allow/false-deny calibration tests (Ticket 6) ─────────────
+
+    /// Labeled safety scenario for calibration.
+    struct SafetyScenario {
+        name: &'static str,
+        request: SafetyEvalRequest,
+        expected_allowed: bool,
+        risk_class: &'static str,
+    }
+
+    fn calibration_corpus() -> Vec<SafetyScenario> {
+        vec![
+            // ── True-allow scenarios ──
+            SafetyScenario {
+                name: "safe_rename_single_file",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["a.cs".into()],
+                    refactor_type: "rename".into(),
+                    impact_node_count: 3,
+                    impact_confidence: 0.95,
+                    test_coverage: 0.9,
+                    anti_pattern_clear: true,
+                    downstream_dependents: 2,
+                    touches_global_state: false,
+                    touches_database: false,
+                },
+                expected_allowed: true,
+                risk_class: "low",
+            },
+            SafetyScenario {
+                name: "safe_add_method_high_coverage",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["svc.cs".into()],
+                    refactor_type: "add_method".into(),
+                    impact_node_count: 1,
+                    impact_confidence: 0.99,
+                    test_coverage: 0.95,
+                    anti_pattern_clear: true,
+                    downstream_dependents: 0,
+                    touches_global_state: false,
+                    touches_database: false,
+                },
+                expected_allowed: true,
+                risk_class: "low",
+            },
+            // ── True-deny scenarios (high risk) ──
+            SafetyScenario {
+                name: "dangerous_global_state_low_confidence",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["Global.asax.cs".into()],
+                    refactor_type: "modify_state".into(),
+                    impact_node_count: 50,
+                    impact_confidence: 0.4,
+                    test_coverage: 0.3,
+                    anti_pattern_clear: false,
+                    downstream_dependents: 80,
+                    touches_global_state: true,
+                    touches_database: true,
+                },
+                expected_allowed: false,
+                risk_class: "high",
+            },
+            SafetyScenario {
+                name: "database_migration_no_tests",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: (0..15).map(|i| format!("file{i}.cs")).collect(),
+                    refactor_type: "schema_migration".into(),
+                    impact_node_count: 200,
+                    impact_confidence: 0.6,
+                    test_coverage: 0.2,
+                    anti_pattern_clear: true,
+                    downstream_dependents: 60,
+                    touches_global_state: false,
+                    touches_database: true,
+                },
+                expected_allowed: false,
+                risk_class: "high",
+            },
+            SafetyScenario {
+                name: "anti_pattern_flagged",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["spaghetti.cs".into()],
+                    refactor_type: "refactor".into(),
+                    impact_node_count: 10,
+                    impact_confidence: 0.85,
+                    test_coverage: 0.7,
+                    anti_pattern_clear: false,
+                    downstream_dependents: 5,
+                    touches_global_state: false,
+                    touches_database: false,
+                },
+                expected_allowed: false,
+                risk_class: "medium",
+            },
+            // ── Edge cases ──
+            SafetyScenario {
+                name: "borderline_confidence_passes",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["b.cs".into()],
+                    refactor_type: "rename".into(),
+                    impact_node_count: 5,
+                    impact_confidence: 0.7, // Exactly at threshold
+                    test_coverage: 0.6,     // Exactly at threshold
+                    anti_pattern_clear: true,
+                    downstream_dependents: 10,
+                    touches_global_state: false,
+                    touches_database: false,
+                },
+                expected_allowed: true,
+                risk_class: "low",
+            },
+            SafetyScenario {
+                name: "borderline_confidence_fails",
+                request: SafetyEvalRequest {
+                    project_id: "cal".into(),
+                    affected_files: vec!["c.cs".into()],
+                    refactor_type: "rename".into(),
+                    impact_node_count: 5,
+                    impact_confidence: 0.69, // Just below threshold
+                    test_coverage: 0.85,
+                    anti_pattern_clear: true,
+                    downstream_dependents: 5,
+                    touches_global_state: false,
+                    touches_database: false,
+                },
+                expected_allowed: false,
+                risk_class: "medium",
+            },
+        ]
+    }
+
+    /// Confusion matrix for safety calibration.
+    #[derive(Debug, Default)]
+    struct SafetyConfusionMatrix {
+        true_allow: usize,
+        true_deny: usize,
+        false_allow: usize,
+        false_deny: usize,
+    }
+
+    #[test]
+    fn safety_calibration_corpus_no_false_allows_on_high_risk() {
+        let scenarios = calibration_corpus();
+        let mut matrix = SafetyConfusionMatrix::default();
+
+        for s in &scenarios {
+            let decision = evaluate_safety(&s.request, true, 0.7, 0.6);
+            match (s.expected_allowed, decision.allowed) {
+                (true, true) => matrix.true_allow += 1,
+                (false, false) => matrix.true_deny += 1,
+                (false, true) => {
+                    matrix.false_allow += 1;
+                    panic!(
+                        "FALSE ALLOW on high-risk scenario '{}' (risk_class={}): {:?}",
+                        s.name, s.risk_class, decision.summary
+                    );
+                }
+                (true, false) => matrix.false_deny += 1,
+            }
+        }
+
+        // Report
+        let total = scenarios.len();
+        let false_allow_rate = matrix.false_allow as f64 / total as f64;
+        let false_deny_rate = matrix.false_deny as f64 / total as f64;
+
+        assert!(
+            false_allow_rate <= 0.01,
+            "False-allow rate {:.2}% exceeds 1% threshold",
+            false_allow_rate * 100.0
+        );
+
+        // False-deny is acceptable (conservative) but track it
+        eprintln!(
+            "Safety calibration: total={}, true_allow={}, true_deny={}, \
+             false_allow={} ({:.1}%), false_deny={} ({:.1}%)",
+            total,
+            matrix.true_allow,
+            matrix.true_deny,
+            matrix.false_allow,
+            false_allow_rate * 100.0,
+            matrix.false_deny,
+            false_deny_rate * 100.0,
+        );
+    }
+
+    #[test]
+    fn every_deny_has_mitigations() {
+        let scenarios = calibration_corpus();
+        for s in &scenarios {
+            let decision = evaluate_safety(&s.request, true, 0.7, 0.6);
+            if !decision.allowed {
+                assert!(
+                    !decision.mitigations.is_empty(),
+                    "Deny verdict for '{}' must include mitigations",
+                    s.name
+                );
+            }
+        }
+    }
 }

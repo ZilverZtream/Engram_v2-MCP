@@ -1,7 +1,11 @@
 #![deny(clippy::print_stdout)]
 
+pub mod benchmark;
 pub mod checkpoint;
 pub mod config;
+// Note: runtime_evidence is pub but not re-exported at top level yet.
+// Use engram_core::runtime_evidence::* directly.
+pub mod runtime_evidence;
 pub mod ids;
 pub mod memory;
 pub mod metrics;
@@ -11,6 +15,10 @@ pub mod registry;
 pub mod security;
 pub mod types;
 
+pub use benchmark::{
+    AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry,
+    BenchmarkReport, BenchmarkThresholds, DriftReport, TraceScenario, TraceScenarioLibrary,
+};
 pub use checkpoint::{Checkpoint, CheckpointStore, JobPhase};
 pub use config::Config;
 pub use ids::{ChunkId, ContentHash, DocId, DocIdStr, NodeId, ProjectId, build_pk};

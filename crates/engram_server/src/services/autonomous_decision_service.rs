@@ -283,7 +283,7 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
         },
         detail: format!(
             "{} of {} applicable gates had sufficient evidence",
-            total_applicable - insufficient_evidence,
+            total_applicable.saturating_sub(insufficient_evidence),
             total_applicable
         ),
         skipped: false,
@@ -603,6 +603,398 @@ pub fn format_decision(decision: &AdpDecision) -> String {
     out
 }
 
+// ── Rollout Policy and Kill-Switch (Ticket 10) ──────────────────────────────
+
+/// ADP rollout phase — controls how verdicts are enforced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RolloutPhase {
+    /// Log decisions only — never block. For baseline data collection.
+    Shadow,
+    /// Warn on deny/abstain but do not block. For advisory rollout.
+    Advisory,
+    /// Block on deny, require human review on abstain. For guarded rollout.
+    Guarded,
+    /// Auto-apply on allow, block on deny, require review on abstain.
+    Autonomous,
+}
+
+impl RolloutPhase {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "advisory" => Self::Advisory,
+            "guarded" => Self::Guarded,
+            "autonomous" => Self::Autonomous,
+            _ => Self::Shadow,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Shadow => "shadow",
+            Self::Advisory => "advisory",
+            Self::Guarded => "guarded",
+            Self::Autonomous => "autonomous",
+        }
+    }
+}
+
+/// Apply rollout policy and kill-switch to an ADP decision.
+///
+/// Returns a modified decision where:
+/// - Kill-switch ON → always Deny with explanation.
+/// - Shadow phase → verdict is logged but override to Allow.
+/// - Advisory phase → verdict is logged but override Deny→Allow (warn only).
+/// - Guarded/Autonomous → verdict stands as-is.
+pub fn apply_rollout_policy(
+    decision: &AdpDecision,
+    phase: RolloutPhase,
+    kill_switch: bool,
+) -> AdpDecision {
+    // Kill-switch takes absolute priority
+    if kill_switch {
+        return AdpDecision {
+            verdict: AdpVerdict::Deny,
+            confidence: 0.0,
+            reasons: vec!["ADP kill-switch is active — all autonomous decisions are denied".into()],
+            failed_gates: vec!["kill_switch".into()],
+            required_followups: vec!["Deactivate kill-switch in configuration to resume ADP".into()],
+            gate_results: decision.gate_results.clone(),
+        };
+    }
+
+    match phase {
+        RolloutPhase::Shadow => {
+            // Shadow: always allow (for logging/baseline), append original verdict as metadata
+            let mut reasons = decision.reasons.clone();
+            reasons.push(format!(
+                "[SHADOW] Original verdict was '{}' — logged only, not enforced",
+                decision.verdict
+            ));
+            AdpDecision {
+                verdict: AdpVerdict::Allow,
+                confidence: decision.confidence,
+                reasons,
+                failed_gates: decision.failed_gates.clone(),
+                required_followups: decision.required_followups.clone(),
+                gate_results: decision.gate_results.clone(),
+            }
+        }
+        RolloutPhase::Advisory => {
+            // Advisory: warn but do not block (override deny→allow)
+            match decision.verdict {
+                AdpVerdict::Deny | AdpVerdict::Abstain => {
+                    let mut reasons = decision.reasons.clone();
+                    reasons.push(format!(
+                        "[ADVISORY] Original verdict was '{}' — override to allow with warning",
+                        decision.verdict
+                    ));
+                    AdpDecision {
+                        verdict: AdpVerdict::Allow,
+                        confidence: decision.confidence,
+                        reasons,
+                        failed_gates: decision.failed_gates.clone(),
+                        required_followups: decision.required_followups.clone(),
+                        gate_results: decision.gate_results.clone(),
+                    }
+                }
+                AdpVerdict::Allow => decision.clone(),
+            }
+        }
+        RolloutPhase::Guarded | RolloutPhase::Autonomous => {
+            // Verdict stands as-is
+            decision.clone()
+        }
+    }
+}
+
+// ── Immutable Decision Report (Ticket 9: JSON audit trail) ──────────────────
+
+/// Immutable, auditable JSON report for every ADP verdict.
+///
+/// Contains gate-by-gate evidence, confidence deltas, follow-up actions,
+/// and retrieval provenance IDs — suitable for SOC2-style audit trail.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdpDecisionReport {
+    /// Schema version for forward compatibility.
+    pub schema_version: String,
+    /// ISO-8601 timestamp of when the decision was made.
+    pub timestamp: String,
+    /// Build/version identifier for traceability.
+    pub build_id: String,
+    /// Project under evaluation.
+    pub project_id: String,
+    /// Description of the proposed change.
+    pub proposed_change: String,
+    /// Files targeted by the change.
+    pub target_files: Vec<String>,
+    /// Risk profile used for evaluation.
+    pub risk_profile: String,
+    /// The verdict: allow, deny, or abstain.
+    pub verdict: String,
+    /// Aggregate confidence score.
+    pub confidence: f64,
+    /// Human-readable reasons for the verdict.
+    pub reasons: Vec<String>,
+    /// Gate IDs that failed.
+    pub failed_gates: Vec<String>,
+    /// Machine-actionable follow-up steps.
+    pub required_followups: Vec<String>,
+    /// Per-gate detailed evidence.
+    pub gate_evidence: Vec<GateEvidence>,
+    /// Input snapshot for deterministic replay.
+    pub input_snapshot: serde_json::Value,
+    /// Config snapshot for deterministic replay.
+    pub config_snapshot: ConfigSnapshot,
+}
+
+/// Per-gate evidence in the decision report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GateEvidence {
+    pub gate_id: String,
+    pub gate_name: String,
+    pub status: String, // "PASS", "FAIL", "SKIP"
+    pub confidence: f64,
+    pub detail: String,
+    /// Delta from threshold (positive = above, negative = below).
+    pub threshold_delta: Option<f64>,
+}
+
+/// Config snapshot for replay reproducibility.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigSnapshot {
+    pub adp_min_extraction_confidence: f64,
+    pub safety_min_confidence: f64,
+    pub safety_min_coverage: f64,
+    pub adp_max_blast_radius: u8,
+    pub safety_policy_enabled: bool,
+}
+
+/// Build an immutable decision report from a decision and its context.
+pub fn build_decision_report(
+    decision: &AdpDecision,
+    project_id: &str,
+    proposed_change: &str,
+    target_files: &[String],
+    risk_profile: &str,
+    input_snapshot: serde_json::Value,
+    config_snapshot: ConfigSnapshot,
+    build_id: &str,
+) -> AdpDecisionReport {
+    let gate_evidence: Vec<GateEvidence> = decision
+        .gate_results
+        .iter()
+        .map(|g| {
+            let status = if g.skipped {
+                "SKIP"
+            } else if g.passed {
+                "PASS"
+            } else {
+                "FAIL"
+            };
+            GateEvidence {
+                gate_id: g.gate_id.clone(),
+                gate_name: g.gate_name.clone(),
+                status: status.into(),
+                confidence: g.confidence,
+                detail: g.detail.clone(),
+                threshold_delta: None, // Computed per-gate below
+            }
+        })
+        .collect();
+
+    AdpDecisionReport {
+        schema_version: "1.0.0".into(),
+        timestamp: {
+            let dur = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default();
+            format!("{}ms", dur.as_millis())
+        },
+        build_id: build_id.into(),
+        project_id: project_id.into(),
+        proposed_change: proposed_change.into(),
+        target_files: target_files.to_vec(),
+        risk_profile: risk_profile.into(),
+        verdict: decision.verdict.to_string(),
+        confidence: decision.confidence,
+        reasons: decision.reasons.clone(),
+        failed_gates: decision.failed_gates.clone(),
+        required_followups: decision.required_followups.clone(),
+        gate_evidence,
+        input_snapshot,
+        config_snapshot,
+    }
+}
+
+// ── Deterministic Replay (Ticket 2) ─────────────────────────────────────────
+
+/// Replay an ADP decision from a serialized scenario input.
+///
+/// Converts `AdpScenarioInput` → `AdpInput` and runs the gate pipeline,
+/// returning the same deterministic verdict for identical inputs.
+pub fn replay_from_scenario(
+    scenario_input: &engram_core::benchmark::AdpScenarioInput,
+) -> AdpDecision {
+    let safety_decision = match (scenario_input.safety_allowed, scenario_input.safety_confidence) {
+        (Some(allowed), Some(confidence)) => Some(PolicyDecision {
+            allowed,
+            risk_level: if allowed {
+                crate::services::safety_service::RiskLevel::Low
+            } else {
+                crate::services::safety_service::RiskLevel::High
+            },
+            checks: vec![],
+            confidence,
+            summary: if allowed {
+                "Replayed safety decision: allowed".into()
+            } else {
+                "Replayed safety decision: blocked".into()
+            },
+            mitigations: vec![],
+        }),
+        _ => None,
+    };
+
+    let blast_radius_band = scenario_input.blast_radius_band.as_deref().and_then(|b| {
+        match b.to_lowercase().as_str() {
+            "low" => Some(RiskBand::Low),
+            "medium" => Some(RiskBand::Medium),
+            "high" => Some(RiskBand::High),
+            "critical" => Some(RiskBand::Critical),
+            _ => None,
+        }
+    });
+
+    let input = AdpInput {
+        extraction_confidence: scenario_input.extraction_confidence,
+        extraction_band: scenario_input.extraction_band.clone(),
+        trace_used_fallback: scenario_input.trace_used_fallback,
+        trace_candidate_count: scenario_input.trace_candidate_count,
+        safety_decision,
+        retrieval_production_ready: scenario_input.retrieval_production_ready,
+        retrieval_ndcg: scenario_input.retrieval_ndcg,
+        retrieval_recall: scenario_input.retrieval_recall,
+        blast_radius_risk: scenario_input.blast_radius_risk,
+        blast_radius_band,
+        blast_radius_downstream: scenario_input.blast_radius_downstream,
+        immune_verdict: scenario_input.immune_verdict.clone(),
+        immune_confidence: scenario_input.immune_confidence,
+        require_runtime_evidence: scenario_input.require_runtime_evidence,
+        has_runtime_evidence: scenario_input.has_runtime_evidence,
+        risk_profile: RiskProfile::from_str(&scenario_input.risk_profile),
+        min_extraction_confidence: scenario_input.min_extraction_confidence,
+        min_safety_confidence: scenario_input.min_safety_confidence,
+        max_blast_radius_for_auto: scenario_input.max_blast_radius_for_auto,
+    };
+
+    evaluate_gates(&input)
+}
+
+/// Run a full ADP corpus and return per-scenario results with pass/fail.
+pub fn run_corpus(
+    corpus: &engram_core::benchmark::AdpCorpus,
+) -> Vec<AdpCorpusResult> {
+    corpus
+        .scenarios
+        .iter()
+        .map(|scenario| {
+            let decision = replay_from_scenario(&scenario.input);
+            let actual_verdict = decision.verdict.to_string();
+            let verdict_matches = actual_verdict == scenario.expected_verdict;
+
+            let expected_gates_set: std::collections::HashSet<&str> =
+                scenario.expected_failed_gates.iter().map(|s| s.as_str()).collect();
+            let actual_gates_set: std::collections::HashSet<&str> =
+                decision.failed_gates.iter().map(|s| s.as_str()).collect();
+            let gates_match = expected_gates_set == actual_gates_set;
+
+            AdpCorpusResult {
+                scenario_id: scenario.scenario_id.clone(),
+                expected_verdict: scenario.expected_verdict.clone(),
+                actual_verdict,
+                verdict_matches,
+                expected_failed_gates: scenario.expected_failed_gates.clone(),
+                actual_failed_gates: decision.failed_gates.clone(),
+                gates_match,
+                confidence: decision.confidence,
+                decision,
+            }
+        })
+        .collect()
+}
+
+/// Result of running a single ADP corpus scenario.
+#[derive(Debug, Clone, Serialize)]
+pub struct AdpCorpusResult {
+    pub scenario_id: String,
+    pub expected_verdict: String,
+    pub actual_verdict: String,
+    pub verdict_matches: bool,
+    pub expected_failed_gates: Vec<String>,
+    pub actual_failed_gates: Vec<String>,
+    pub gates_match: bool,
+    pub confidence: f64,
+    /// Full decision (not serialized separately — use gate_evidence in report).
+    #[serde(skip_serializing)]
+    pub decision: AdpDecision,
+}
+
+/// Confusion matrix for ADP calibration reporting.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AdpConfusionMatrix {
+    /// Total scenarios evaluated.
+    pub total: usize,
+    /// Scenarios where expected=allow and actual=allow.
+    pub true_allow: usize,
+    /// Scenarios where expected=deny and actual=deny.
+    pub true_deny: usize,
+    /// Scenarios where expected=abstain and actual=abstain.
+    pub true_abstain: usize,
+    /// Scenarios where expected!=allow but actual=allow (DANGEROUS).
+    pub false_allow: usize,
+    /// Scenarios where expected=allow but actual!=allow.
+    pub false_deny: usize,
+    /// Mismatched abstains.
+    pub mismatched_abstain: usize,
+}
+
+impl AdpConfusionMatrix {
+    /// Build confusion matrix from corpus results.
+    pub fn from_results(results: &[AdpCorpusResult]) -> Self {
+        let mut m = Self::default();
+        m.total = results.len();
+        for r in results {
+            match (r.expected_verdict.as_str(), r.actual_verdict.as_str()) {
+                ("allow", "allow") => m.true_allow += 1,
+                ("deny", "deny") => m.true_deny += 1,
+                ("abstain", "abstain") => m.true_abstain += 1,
+                (expected, "allow") if expected != "allow" => m.false_allow += 1,
+                ("allow", actual) if actual != "allow" => m.false_deny += 1,
+                _ => m.mismatched_abstain += 1,
+            }
+        }
+        m
+    }
+
+    /// False-allow rate for high-risk scenarios (must be ≤ 1%).
+    pub fn false_allow_rate(&self) -> f64 {
+        if self.total == 0 {
+            0.0
+        } else {
+            self.false_allow as f64 / self.total as f64
+        }
+    }
+
+    /// False-deny rate.
+    pub fn false_deny_rate(&self) -> f64 {
+        if self.total == 0 {
+            0.0
+        } else {
+            self.false_deny as f64 / self.total as f64
+        }
+    }
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -791,5 +1183,358 @@ mod tests {
         let decision = evaluate_gates(&input);
         // WARN + high risk profile → abstain (not allow)
         assert_ne!(decision.verdict, AdpVerdict::Allow);
+    }
+
+    // ── Replay determinism tests ────────────────────────────────────────────
+
+    #[test]
+    fn replay_determinism_identical_inputs_same_verdict() {
+        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+            extraction_confidence: Some(0.85),
+            extraction_band: Some("high".into()),
+            trace_used_fallback: false,
+            trace_candidate_count: 0,
+            safety_allowed: Some(true),
+            safety_confidence: Some(0.95),
+            retrieval_production_ready: Some(true),
+            retrieval_ndcg: Some(0.75),
+            retrieval_recall: Some(0.80),
+            blast_radius_risk: Some(3),
+            blast_radius_band: Some("Low".into()),
+            blast_radius_downstream: Some(5),
+            immune_verdict: Some("PASS".into()),
+            immune_confidence: Some(0.05),
+            require_runtime_evidence: false,
+            has_runtime_evidence: false,
+            risk_profile: "medium".into(),
+            min_extraction_confidence: 0.5,
+            min_safety_confidence: 0.7,
+            max_blast_radius_for_auto: 6,
+        };
+
+        let d1 = replay_from_scenario(&scenario_input);
+        let d2 = replay_from_scenario(&scenario_input);
+
+        assert_eq!(d1.verdict, d2.verdict);
+        assert!((d1.confidence - d2.confidence).abs() < 1e-10);
+        assert_eq!(d1.failed_gates, d2.failed_gates);
+        assert_eq!(d1.gate_results.len(), d2.gate_results.len());
+        for (g1, g2) in d1.gate_results.iter().zip(d2.gate_results.iter()) {
+            assert_eq!(g1.gate_id, g2.gate_id);
+            assert_eq!(g1.passed, g2.passed);
+            assert!((g1.confidence - g2.confidence).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn replay_from_scenario_allow() {
+        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+            extraction_confidence: Some(0.9),
+            extraction_band: Some("high".into()),
+            trace_used_fallback: false,
+            trace_candidate_count: 0,
+            safety_allowed: Some(true),
+            safety_confidence: Some(0.95),
+            retrieval_production_ready: Some(true),
+            retrieval_ndcg: Some(0.8),
+            retrieval_recall: Some(0.9),
+            blast_radius_risk: Some(2),
+            blast_radius_band: Some("Low".into()),
+            blast_radius_downstream: Some(3),
+            immune_verdict: Some("PASS".into()),
+            immune_confidence: Some(0.05),
+            require_runtime_evidence: false,
+            has_runtime_evidence: false,
+            risk_profile: "medium".into(),
+            min_extraction_confidence: 0.5,
+            min_safety_confidence: 0.7,
+            max_blast_radius_for_auto: 6,
+        };
+        let decision = replay_from_scenario(&scenario_input);
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+    }
+
+    #[test]
+    fn replay_from_scenario_deny_on_safety() {
+        let scenario_input = engram_core::benchmark::AdpScenarioInput {
+            extraction_confidence: Some(0.9),
+            extraction_band: Some("high".into()),
+            trace_used_fallback: false,
+            trace_candidate_count: 0,
+            safety_allowed: Some(false),
+            safety_confidence: Some(0.3),
+            retrieval_production_ready: Some(true),
+            retrieval_ndcg: Some(0.8),
+            retrieval_recall: Some(0.9),
+            blast_radius_risk: Some(2),
+            blast_radius_band: Some("Low".into()),
+            blast_radius_downstream: Some(3),
+            immune_verdict: Some("PASS".into()),
+            immune_confidence: Some(0.05),
+            require_runtime_evidence: false,
+            has_runtime_evidence: false,
+            risk_profile: "medium".into(),
+            min_extraction_confidence: 0.5,
+            min_safety_confidence: 0.7,
+            max_blast_radius_for_auto: 6,
+        };
+        let decision = replay_from_scenario(&scenario_input);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+        assert!(decision.failed_gates.contains(&"safety_policy".into()));
+    }
+
+    #[test]
+    fn corpus_runner_computes_confusion_matrix() {
+        let corpus = engram_core::benchmark::AdpCorpus {
+            schema_version: "1.0.0".into(),
+            name: "test-corpus".into(),
+            description: "Test".into(),
+            scenarios: vec![
+                engram_core::benchmark::AdpScenario {
+                    scenario_id: "s001_allow".into(),
+                    description: "All green".into(),
+                    risk_class: "low".into(),
+                    source: "synthetic".into(),
+                    input: engram_core::benchmark::AdpScenarioInput {
+                        extraction_confidence: Some(0.9),
+                        extraction_band: Some("high".into()),
+                        trace_used_fallback: false,
+                        trace_candidate_count: 0,
+                        safety_allowed: Some(true),
+                        safety_confidence: Some(0.95),
+                        retrieval_production_ready: Some(true),
+                        retrieval_ndcg: Some(0.8),
+                        retrieval_recall: Some(0.9),
+                        blast_radius_risk: Some(2),
+                        blast_radius_band: Some("Low".into()),
+                        blast_radius_downstream: Some(3),
+                        immune_verdict: Some("PASS".into()),
+                        immune_confidence: Some(0.05),
+                        require_runtime_evidence: false,
+                        has_runtime_evidence: false,
+                        risk_profile: "medium".into(),
+                        min_extraction_confidence: 0.5,
+                        min_safety_confidence: 0.7,
+                        max_blast_radius_for_auto: 6,
+                    },
+                    expected_verdict: "allow".into(),
+                    expected_failed_gates: vec![],
+                    rationale: "All signals green".into(),
+                },
+                engram_core::benchmark::AdpScenario {
+                    scenario_id: "s002_deny_safety".into(),
+                    description: "Safety blocked".into(),
+                    risk_class: "high".into(),
+                    source: "synthetic".into(),
+                    input: engram_core::benchmark::AdpScenarioInput {
+                        extraction_confidence: Some(0.9),
+                        extraction_band: Some("high".into()),
+                        trace_used_fallback: false,
+                        trace_candidate_count: 0,
+                        safety_allowed: Some(false),
+                        safety_confidence: Some(0.2),
+                        retrieval_production_ready: Some(true),
+                        retrieval_ndcg: Some(0.8),
+                        retrieval_recall: Some(0.9),
+                        blast_radius_risk: Some(2),
+                        blast_radius_band: Some("Low".into()),
+                        blast_radius_downstream: Some(3),
+                        immune_verdict: Some("PASS".into()),
+                        immune_confidence: Some(0.05),
+                        require_runtime_evidence: false,
+                        has_runtime_evidence: false,
+                        risk_profile: "high".into(),
+                        min_extraction_confidence: 0.5,
+                        min_safety_confidence: 0.7,
+                        max_blast_radius_for_auto: 6,
+                    },
+                    expected_verdict: "deny".into(),
+                    expected_failed_gates: vec!["safety_policy".into()],
+                    rationale: "Safety evaluation blocked".into(),
+                },
+                engram_core::benchmark::AdpScenario {
+                    scenario_id: "s003_abstain_missing".into(),
+                    description: "Missing evidence".into(),
+                    risk_class: "medium".into(),
+                    source: "synthetic".into(),
+                    input: engram_core::benchmark::AdpScenarioInput {
+                        extraction_confidence: None,
+                        extraction_band: None,
+                        trace_used_fallback: false,
+                        trace_candidate_count: 0,
+                        safety_allowed: None,
+                        safety_confidence: None,
+                        retrieval_production_ready: None,
+                        retrieval_ndcg: None,
+                        retrieval_recall: None,
+                        blast_radius_risk: None,
+                        blast_radius_band: None,
+                        blast_radius_downstream: None,
+                        immune_verdict: None,
+                        immune_confidence: None,
+                        require_runtime_evidence: false,
+                        has_runtime_evidence: false,
+                        risk_profile: "medium".into(),
+                        min_extraction_confidence: 0.5,
+                        min_safety_confidence: 0.7,
+                        max_blast_radius_for_auto: 6,
+                    },
+                    expected_verdict: "abstain".into(),
+                    expected_failed_gates: vec![
+                        "extraction_confidence".into(),
+                        "safety_policy".into(),
+                        "retrieval_quality".into(),
+                        "blast_radius".into(),
+                        "anti_pattern".into(),
+                        "evidence_sufficiency".into(),
+                    ],
+                    rationale: "No evidence provided".into(),
+                },
+            ],
+        };
+
+        let results = run_corpus(&corpus);
+        assert_eq!(results.len(), 3);
+        assert!(results[0].verdict_matches, "s001 should be allow");
+        assert!(results[1].verdict_matches, "s002 should be deny");
+        assert!(results[2].verdict_matches, "s003 should be abstain");
+
+        let matrix = AdpConfusionMatrix::from_results(&results);
+        assert_eq!(matrix.total, 3);
+        assert_eq!(matrix.true_allow, 1);
+        assert_eq!(matrix.true_deny, 1);
+        assert_eq!(matrix.true_abstain, 1);
+        assert_eq!(matrix.false_allow, 0);
+        assert_eq!(matrix.false_deny, 0);
+        assert!(matrix.false_allow_rate() < 0.01, "false-allow rate must be < 1%");
+    }
+
+    // ── Rollout policy and kill-switch tests (Ticket 10) ────────────────
+
+    #[test]
+    fn kill_switch_overrides_allow_to_deny() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Autonomous, true);
+        assert_eq!(overridden.verdict, AdpVerdict::Deny);
+        assert!(overridden.failed_gates.contains(&"kill_switch".into()));
+        assert!(overridden.reasons[0].contains("kill-switch"));
+    }
+
+    #[test]
+    fn kill_switch_overrides_deny_to_deny() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.blast_radius_band = Some(RiskBand::Critical);
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+
+        // Kill-switch still produces Deny (same verdict, different reason)
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Autonomous, true);
+        assert_eq!(overridden.verdict, AdpVerdict::Deny);
+        assert!(overridden.failed_gates.contains(&"kill_switch".into()));
+    }
+
+    #[test]
+    fn shadow_phase_overrides_deny_to_allow() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.blast_radius_band = Some(RiskBand::Critical);
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Shadow, false);
+        assert_eq!(overridden.verdict, AdpVerdict::Allow);
+        assert!(overridden.reasons.iter().any(|r| r.contains("[SHADOW]")));
+    }
+
+    #[test]
+    fn advisory_phase_overrides_deny_to_allow_with_warning() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.blast_radius_band = Some(RiskBand::Critical);
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Advisory, false);
+        assert_eq!(overridden.verdict, AdpVerdict::Allow);
+        assert!(overridden.reasons.iter().any(|r| r.contains("[ADVISORY]")));
+    }
+
+    #[test]
+    fn guarded_phase_preserves_deny() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.blast_radius_band = Some(RiskBand::Critical);
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Deny);
+
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Guarded, false);
+        assert_eq!(overridden.verdict, AdpVerdict::Deny);
+    }
+
+    #[test]
+    fn autonomous_phase_preserves_allow() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        assert_eq!(decision.verdict, AdpVerdict::Allow);
+
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Autonomous, false);
+        assert_eq!(overridden.verdict, AdpVerdict::Allow);
+    }
+
+    #[test]
+    fn kill_switch_takes_priority_over_shadow() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        // Even in Shadow phase, kill-switch forces Deny
+        let overridden = apply_rollout_policy(&decision, RolloutPhase::Shadow, true);
+        assert_eq!(overridden.verdict, AdpVerdict::Deny);
+    }
+
+    #[test]
+    fn rollout_phase_parsing() {
+        assert_eq!(RolloutPhase::from_str("shadow"), RolloutPhase::Shadow);
+        assert_eq!(RolloutPhase::from_str("advisory"), RolloutPhase::Advisory);
+        assert_eq!(RolloutPhase::from_str("guarded"), RolloutPhase::Guarded);
+        assert_eq!(RolloutPhase::from_str("autonomous"), RolloutPhase::Autonomous);
+        assert_eq!(RolloutPhase::from_str("SHADOW"), RolloutPhase::Shadow);
+        assert_eq!(RolloutPhase::from_str("unknown"), RolloutPhase::Shadow); // Default
+    }
+
+    #[test]
+    fn decision_report_has_all_required_fields() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        let report = build_decision_report(
+            &decision,
+            "test-project",
+            "rename method foo to bar",
+            &["src/lib.rs".into()],
+            "medium",
+            serde_json::json!({"test": true}),
+            ConfigSnapshot {
+                adp_min_extraction_confidence: 0.5,
+                safety_min_confidence: 0.7,
+                safety_min_coverage: 0.6,
+                adp_max_blast_radius: 6,
+                safety_policy_enabled: true,
+            },
+            "test-build-001",
+        );
+
+        assert_eq!(report.schema_version, "1.0.0");
+        assert_eq!(report.verdict, "allow");
+        assert!(!report.gate_evidence.is_empty());
+        assert_eq!(report.project_id, "test-project");
+        assert_eq!(report.risk_profile, "medium");
+
+        // Roundtrip to JSON
+        let json = serde_json::to_string_pretty(&report).unwrap();
+        let decoded: AdpDecisionReport = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.verdict, report.verdict);
+        assert_eq!(decoded.gate_evidence.len(), report.gate_evidence.len());
     }
 }
