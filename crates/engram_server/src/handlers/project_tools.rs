@@ -4,10 +4,33 @@ use crate::state::{ProjectInfo, ProjectState};
 use crate::tools::Engram;
 use crate::utils::files::exts_for_project_type;
 use crate::utils::now_ms;
-use engram_core::{JobRecord, ProjectRecord};
+use engram_core::{Checkpoint, JobPhase, JobRecord, ProjectRecord};
 use rmcp::{ErrorData as McpError, handler::server::tool::Parameters};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct PhaseResumeState {
+    pending_files: Vec<String>,
+    processed_files: Vec<String>,
+    processed_chunk_ids: Vec<u64>,
+}
+
+fn to_rel_paths(root: &Path, files: &[PathBuf]) -> Vec<String> {
+    files
+        .iter()
+        .map(|p| {
+            engram_core::RelPath::from_relative(root, p)
+                .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()))
+                .to_string()
+        })
+        .collect()
+}
+
+fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
+    rels.iter().map(|r| root.join(r)).collect()
+}
 
 /// Project lifecycle helper methods on Engram.
 impl Engram {
@@ -111,6 +134,60 @@ impl Engram {
         Ok(())
     }
 
+    async fn write_checkpoint(
+        &self,
+        job_id: &str,
+        project_id: &str,
+        generation: u64,
+        directory: &Path,
+        phase: JobPhase,
+        items_processed: u64,
+        items_total: u64,
+        resume_state: Option<PhaseResumeState>,
+    ) {
+        let store = self.state.checkpoints.clone();
+        let cp = Checkpoint {
+            job_id: job_id.to_string(),
+            project_id: project_id.to_string(),
+            phase,
+            items_processed,
+            items_total,
+            generation,
+            idempotency_key: Checkpoint::compute_idempotency_key(
+                project_id,
+                &directory.to_string_lossy(),
+                generation,
+            ),
+            resume_state: resume_state.and_then(|s| serde_json::to_string(&s).ok()),
+            updated_at_ms: now_ms(),
+            error: None,
+        };
+        let _ = tokio::task::spawn_blocking(move || store.put(&cp)).await;
+    }
+
+    async fn resumable_checkpoint(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> Option<(Checkpoint, PhaseResumeState)> {
+        let store = self.state.checkpoints.clone();
+        let cp = {
+            let project_id = project_id.to_string();
+            tokio::task::spawn_blocking(move || store.find_resumable(&project_id))
+        }
+        .await
+        .ok()
+        .and_then(|r| r.ok().flatten())?;
+        if cp.generation != generation {
+            return None;
+        }
+        let state = cp
+            .resume_state
+            .as_deref()
+            .and_then(|raw| serde_json::from_str::<PhaseResumeState>(raw).ok())
+            .unwrap_or_default();
+        Some((cp, state))
+    }
     pub(crate) async fn index_files_with_parse_guard<F>(
         &self,
         search: &engram_index::HybridSearchEngine,
@@ -233,30 +310,67 @@ impl Engram {
                     let exts = exts_for_project_type(&project_type);
                     let job_id_for_cb = job_id_for_job.clone();
                     let reg_for_cb = reg2.clone();
+                    let engram = Engram::new(state_for_spawn.clone());
                     let files = engram_index::ingest::iter_files(&directory, &exts);
+                    let resume = engram.resumable_checkpoint(&project_id_for_job, 1).await;
+                    let (resume_cp, resume_state) = resume.unwrap_or((
+                        Checkpoint {
+                            job_id: job_id_for_job.clone(),
+                            project_id: project_id_for_job.clone(),
+                            phase: JobPhase::Scanning,
+                            items_processed: 0,
+                            items_total: 0,
+                            generation: 1,
+                            idempotency_key: String::new(),
+                            resume_state: None,
+                            updated_at_ms: 0,
+                            error: None,
+                        },
+                        PhaseResumeState::default(),
+                    ));
+                    let pending = if !resume_state.pending_files.is_empty() {
+                        from_rel_paths(&directory, &resume_state.pending_files)
+                    } else {
+                        files.clone()
+                    };
+                    if resume_cp.updated_at_ms > 0 {
+                        engram_core::metrics::metrics().checkpoints_resumed.inc();
+                    }
+                    engram
+                        .write_checkpoint(
+                            &job_id_for_job,
+                            &project_id_for_job,
+                            1,
+                            &directory,
+                            JobPhase::Scanning,
+                            0,
+                            files.len() as u64,
+                            Some(PhaseResumeState {
+                                pending_files: to_rel_paths(&directory, &pending),
+                                ..PhaseResumeState::default()
+                            }),
+                        )
+                        .await;
 
-                    if let Err(e) = Engram::new(state_for_spawn.clone())
-                        .enforce_project_byte_budget(&files)
-                        .await
-                    {
+                    if let Err(e) = engram.enforce_project_byte_budget(&pending).await {
                         Err(e)
                     } else if let Some(limit) = state_for_spawn.cfg.max_project_files {
-                        if files.len() as u64 > limit {
+                        if pending.len() as u64 > limit {
                             Err(anyhow::anyhow!(
                                 "Too many files: {} > limit {}",
-                                files.len(),
+                                pending.len(),
                                 limit
                             ))
                         } else {
                             let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                            Engram::new(state_for_spawn.clone())
+                            engram
                                 .index_files_with_parse_guard(
                                     &search,
                                     &project_id_for_job,
                                     "memory",
                                     1,
                                     &directory,
-                                    files,
+                                    pending,
                                     max_chunks,
                                     &token,
                                     move |curr, total| {
@@ -332,19 +446,59 @@ impl Engram {
             let mut msg = "completed".to_string();
             let mut progress = 100;
 
+            let engram = Engram::new(state_for_spawn.clone());
             if token.is_cancelled() {
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        1,
+                        &directory,
+                        JobPhase::Failed,
+                        0,
+                        0,
+                        None,
+                    )
+                    .await;
                 status = "cancelled";
                 msg = "cancelled by user".to_string();
                 progress = 0;
             } else if let Ok(stats) = &res {
-                let engram = Engram::new(state_for_spawn.clone());
                 let pid = project_id_for_job.clone();
+
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        1,
+                        &directory,
+                        JobPhase::VectorIndexing,
+                        stats.chunks as u64,
+                        stats.chunks as u64,
+                        Some(PhaseResumeState {
+                            processed_chunk_ids: (0..stats.chunks as u64).collect(),
+                            ..PhaseResumeState::default()
+                        }),
+                    )
+                    .await;
 
                 if let Err(e) = engram.process_ingest_stats(&pid, 1, stats).await {
                     status = "failed";
                     msg = format!("Graph processing failed: {}", e);
                     progress = 0;
                 } else {
+                    engram
+                        .write_checkpoint(
+                            &job_id_for_job,
+                            &project_id_for_job,
+                            1,
+                            &directory,
+                            JobPhase::GraphBuilding,
+                            stats.symbols.len() as u64,
+                            stats.symbols.len() as u64,
+                            None,
+                        )
+                        .await;
                     let _ = crate::services::graph_service::resolve_app_code_globals(
                         &engram.state.graph,
                         &pid,
@@ -367,14 +521,62 @@ impl Engram {
                         }))
                         .await;
 
+                    engram
+                        .write_checkpoint(
+                            &job_id_for_job,
+                            &project_id_for_job,
+                            1,
+                            &directory,
+                            JobPhase::GraphBuilding,
+                            stats.symbols.len() as u64,
+                            stats.symbols.len() as u64,
+                            None,
+                        )
+                        .await;
+                    engram
+                        .write_checkpoint(
+                            &job_id_for_job,
+                            &project_id_for_job,
+                            1,
+                            &directory,
+                            JobPhase::PostProcessing,
+                            1,
+                            1,
+                            None,
+                        )
+                        .await;
                     status = "done";
                 }
             } else if let Err(e) = res {
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        1,
+                        &directory,
+                        JobPhase::Failed,
+                        0,
+                        0,
+                        None,
+                    )
+                    .await;
                 status = "failed";
                 msg = e.to_string();
                 progress = 0;
             }
 
+            engram
+                .write_checkpoint(
+                    &job_id_for_job,
+                    &project_id_for_job,
+                    1,
+                    &directory,
+                    JobPhase::Completed,
+                    1,
+                    1,
+                    None,
+                )
+                .await;
             let now = now_ms();
             let jr = JobRecord {
                 job_id: job_id_for_job.clone(),
@@ -529,6 +731,34 @@ impl Engram {
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await
                     .map_err(|e| anyhow::anyhow!(e))?;
+                let resume = engram
+                    .resumable_checkpoint(&project_id_for_job, new_gen)
+                    .await;
+                let changed = if let Some((_cp, rs)) = resume {
+                    if !rs.pending_files.is_empty() {
+                        engram_core::metrics::metrics().checkpoints_resumed.inc();
+                        from_rel_paths(&dir, &rs.pending_files)
+                    } else {
+                        changed
+                    }
+                } else {
+                    changed
+                };
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &dir,
+                        JobPhase::Scanning,
+                        0,
+                        changed.len() as u64,
+                        Some(PhaseResumeState {
+                            pending_files: to_rel_paths(&dir, &changed),
+                            ..PhaseResumeState::default()
+                        }),
+                    )
+                    .await;
                 engram.enforce_project_byte_budget(&changed).await?;
 
                 if !deleted.is_empty() {
@@ -578,6 +808,21 @@ impl Engram {
                     return Ok(());
                 }
 
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &dir,
+                        JobPhase::VectorIndexing,
+                        stats.chunks as u64,
+                        stats.chunks as u64,
+                        Some(PhaseResumeState {
+                            processed_chunk_ids: (0..stats.chunks as u64).collect(),
+                            ..PhaseResumeState::default()
+                        }),
+                    )
+                    .await;
                 if let Err(e) = engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await
@@ -608,6 +853,18 @@ impl Engram {
                     new_gen,
                 );
                 let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &dir,
+                        JobPhase::PostProcessing,
+                        1,
+                        1,
+                        None,
+                    )
+                    .await;
 
                 let reg_for_git = state.registry.clone();
                 let jid_for_git = job_id_for_job.clone();
@@ -638,6 +895,27 @@ impl Engram {
             .await;
 
             if token.is_cancelled() {
+                let engram = Engram::new(state.clone());
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &PathBuf::from(
+                            state
+                                .registry
+                                .get_project(&project_id_for_job)
+                                .ok()
+                                .flatten()
+                                .map(|p| p.directory)
+                                .unwrap_or_default(),
+                        ),
+                        JobPhase::Failed,
+                        0,
+                        0,
+                        None,
+                    )
+                    .await;
                 status = "cancelled";
                 msg = "cancelled by user".to_string();
                 progress = 0;
@@ -646,6 +924,27 @@ impl Engram {
                 msg = e.to_string();
                 progress = 0;
             } else {
+                let engram = Engram::new(state.clone());
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &PathBuf::from(
+                            state
+                                .registry
+                                .get_project(&project_id_for_job)
+                                .ok()
+                                .flatten()
+                                .map(|p| p.directory)
+                                .unwrap_or_default(),
+                        ),
+                        JobPhase::Completed,
+                        1,
+                        1,
+                        None,
+                    )
+                    .await;
                 let _ = state.registry.set_meta(
                     &project_id_for_job,
                     "active_generation",
