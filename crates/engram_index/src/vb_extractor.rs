@@ -60,6 +60,10 @@ static ADO_ORDINAL_RE: OnceLock<Regex> = OnceLock::new();
 
 // Side-effect slicing regex for UI mutation detection
 static UI_MUTATION_RE: OnceLock<Regex> = OnceLock::new();
+// Field-based UI mutation detection (matches identifier.Property = ...)
+static FIELD_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+// Tree-sitter enhanced CommandText assignment detection
+static CMD_TEXT_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -89,6 +93,9 @@ pub struct FqnMaps {
     pub by_name: HashMap<String, String>,
     /// `short_name_lowered → FQN` for VB case-insensitive call resolution.
     pub by_name_ci: HashMap<String, String>,
+    /// Lowercased field names from the current file, used for UI mutation detection.
+    /// Includes both regular fields and control_ref fields from designer files.
+    pub field_names: HashSet<String>,
 }
 
 impl FqnMaps {
@@ -97,6 +104,7 @@ impl FqnMaps {
             by_node: HashMap::with_capacity(cap),
             by_name: HashMap::with_capacity(cap),
             by_name_ci: HashMap::with_capacity(cap),
+            field_names: HashSet::with_capacity(cap / 4),
         }
     }
 
@@ -209,12 +217,16 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
 ///   - `UI_Mutation`: assigns to control properties (e.g., `lblStatus.Text = "Saved"`)
 ///   - `DB_Access`: contains SQL/ADO.NET patterns
 ///   - `State_Access`: reads/writes Session/ViewState/Application/Cache
-fn classify_side_effects(method_body: &str) -> Option<String> {
+///
+/// `known_fields` contains lowercased field names from the current file's
+/// tree-sitter pass. This enables UI mutation detection for controls that
+/// don't follow Hungarian notation (e.g., `searchBox` instead of `txtSearch`).
+fn classify_side_effects(method_body: &str, known_fields: &HashSet<String>) -> Option<String> {
     let mut effects = Vec::new();
     let src = method_body.as_bytes();
 
     // UI_Mutation: control property assignments.
-    // Heuristic: identifier with WebForms control prefix followed by .Property =
+    // Heuristic 1: identifier with WebForms control prefix followed by .Property =
     // Common prefixes: btn, lbl, txt, ddl, grd, pnl, chk, rbl, rep, lst, img, hdn, lit, phd
     let ui_re = get_compiled_regex(
         &UI_MUTATION_RE,
@@ -224,6 +236,45 @@ fn classify_side_effects(method_body: &str) -> Option<String> {
     if let Some(re) = ui_re {
         if re.is_match(method_body) {
             effects.push("UI_Mutation");
+        }
+    }
+
+    // Heuristic 2: cross-reference assignments against known class fields.
+    // Any `fieldName.Property = value` where fieldName is a known field in the
+    // class is potentially a UI mutation (controls are declared as fields in
+    // designer partial classes or WithEvents declarations).
+    if !effects.contains(&"UI_Mutation") && !known_fields.is_empty() {
+        let field_re = get_compiled_regex(
+            &FIELD_ASSIGN_RE,
+            r"(?i)\b([A-Za-z_][A-Za-z0-9_]*)\.\w+\s*=",
+            "field_assign",
+        );
+        if let Some(re) = field_re {
+            for cap in re.captures_iter(method_body) {
+                let ident = &cap[1];
+                // Skip common non-control identifiers: Me, MyBase, Response, Request, etc.
+                let lower = ident.to_lowercase();
+                if matches!(
+                    lower.as_str(),
+                    "me" | "mybase"
+                        | "myclass"
+                        | "response"
+                        | "request"
+                        | "server"
+                        | "session"
+                        | "application"
+                        | "cache"
+                        | "viewstate"
+                        | "page"
+                        | "context"
+                ) {
+                    continue;
+                }
+                if known_fields.contains(&lower) {
+                    effects.push("UI_Mutation");
+                    break;
+                }
+            }
         }
     }
 
@@ -501,7 +552,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     if let Some(body) =
                         source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
                     {
-                        if let Some(effects) = classify_side_effects(body) {
+                        if let Some(effects) = classify_side_effects(body, &fqn_maps.field_names) {
                             meta.insert("side_effects".into(), effects);
                         }
                     }
@@ -555,8 +606,35 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     if ci_contains_fast(source.as_bytes(), b"AddHandler") {
         edges.extend(extract_addhandler(&fqn_maps, source));
     }
+    // Tree-sitter enhanced SQL extraction: captures full concatenated
+    // CommandText assignments (e.g., "SELECT ... " & variable & " ...").
+    let ts_sql_results = extract_ts_command_text(&tree, source);
+    let ts_cmd_positions: Vec<usize> = ts_sql_results.iter().map(|(_, pos)| *pos).collect();
+    for (sql_text, pos) in &ts_sql_results {
+        let (src_name, src_kind, src_line) = find_best_enclosing_scope(&all_scopes, *pos);
+        let (target_id, target_kind_str) = classify_sql(sql_text);
+        let snippet: String = sql_text.chars().take(SQL_SNIPPET_MAX_LEN).collect();
+        let meta = HashMap::from([
+            ("sql_snippet".into(), snippet),
+            ("extraction".into(), "tree_sitter_concat".into()),
+        ]);
+        edges.push(ExtractedEdge {
+            source_name: src_name.to_string(),
+            source_kind: src_kind,
+            source_start_line: src_line,
+            source_language: "vb",
+            target_name: target_id,
+            target_kind: Some(target_kind_str),
+            target_start_line: None,
+            kind: "sql_calls",
+            metadata: Some(meta),
+        });
+    }
+
+    // Regex SQL extraction: handles SqlCommand constructors, EXEC, DataAdapter,
+    // and simple CommandText assignments not covered by tree-sitter.
     if has_sql_keyword(source) {
-        let sql_results = regex_extract_sql(source);
+        let sql_results = regex_extract_sql(source, &ts_cmd_positions);
         for (mut edge, pos) in sql_results {
             // Attribute to enclosing scope if possible
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(&all_scopes, pos);
@@ -842,13 +920,17 @@ fn build_fqn_tables(query: &Query, tree: &tree_sitter::Tree, source: &str) -> Fq
                         }
                         maps.insert_name(text, fqn);
                     } else {
-                        // Method/Sub/Function/Property
+                        // Method/Sub/Function/Property/Field
                         let current_class =
                             class_stack.last().map(|(c, _)| c.as_str()).unwrap_or("");
                         let fqn = make_fqn(&current_ns, current_class, text);
                         if let Some(parent) = cap.node.parent() {
                             maps.insert_node(parent.start_byte(), fqn.clone());
                             maps.insert_node(cap.node.start_byte(), fqn.clone());
+                        }
+                        // Track field names for UI mutation detection (Fix #4).
+                        if node_kind_tag == "field" {
+                            maps.field_names.insert(text.to_lowercase());
                         }
                         maps.insert_name(text, fqn);
                     }
@@ -1189,9 +1271,215 @@ fn join_logical_lines(source: &str) -> Vec<String> {
     result
 }
 
-// ── P0.4 SQL Extraction (Regex) ─────────────────────────────────────────────
+// ── P0.4a Tree-sitter Enhanced CommandText Extraction ─────────────────────────
 
-fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
+/// Extract full `CommandText` assignment expressions using the tree-sitter parse tree.
+///
+/// Finds `.CommandText = <expression>` assignments and extracts the complete RHS,
+/// including string concatenations. This captures dynamic SQL that the regex
+/// fallback (which stops at the first closing quote) would miss.
+///
+/// Example:
+///   `cmd.CommandText = "SELECT * FROM Users WHERE id = " & userId.ToString()`
+/// Produces: `SELECT * FROM Users WHERE id = {dynamic}`
+///
+/// Returns `Vec<(sql_text, byte_position)>`.
+fn extract_ts_command_text(tree: &tree_sitter::Tree, source: &str) -> Vec<(String, usize)> {
+    let mut results = Vec::new();
+
+    let Some(re) = get_compiled_regex(
+        &CMD_TEXT_ASSIGN_RE,
+        r"(?i)\.\s*CommandText\s*=\s*",
+        "vb_command_text_assign",
+    ) else {
+        return results;
+    };
+
+    for m in re.find_iter(source) {
+        let rhs_start = m.end();
+        if rhs_start >= source.len() {
+            continue;
+        }
+
+        // Use tree-sitter to find the extent of the RHS expression.
+        let rhs_end = find_assignment_rhs_end(tree, rhs_start, m.start());
+
+        let Some(rhs_text) = source.get(rhs_start..rhs_end) else {
+            continue;
+        };
+        let rhs_text = rhs_text.trim();
+        if rhs_text.is_empty() {
+            continue;
+        }
+
+        // Extract SQL from the potentially concatenated expression.
+        let sql = extract_sql_from_concat_expr(rhs_text);
+        if !sql.trim().is_empty() {
+            results.push((sql, m.start()));
+        }
+    }
+
+    results
+}
+
+/// Walk up the tree-sitter AST from a byte position to find the end of the
+/// enclosing statement. This gives us the full extent of the RHS expression,
+/// including string concatenations that span the rest of the statement.
+///
+/// Safety: caps the extent at 2000 bytes from `match_start` to prevent
+/// runaway extraction in malformed trees.
+fn find_assignment_rhs_end(
+    tree: &tree_sitter::Tree,
+    rhs_start: usize,
+    match_start: usize,
+) -> usize {
+    let max_end = match_start + 2000;
+
+    let Some(node) = tree
+        .root_node()
+        .named_descendant_for_byte_range(rhs_start, rhs_start)
+    else {
+        // Fallback: scan forward to end of logical line.
+        return rhs_start;
+    };
+
+    let mut current = node;
+
+    loop {
+        if current.end_byte() > max_end {
+            break;
+        }
+
+        let kind = current.kind();
+        // Statement-level nodes: stop here.
+        if kind.contains("statement") || kind.contains("assignment") {
+            return current.end_byte().min(max_end);
+        }
+
+        match current.parent() {
+            Some(parent) => {
+                let pk = parent.kind();
+                // If parent is a block, body, or compilation unit, current IS the statement.
+                if pk.contains("block")
+                    || pk.contains("body")
+                    || pk == "compilation_unit"
+                    || pk == "program"
+                {
+                    return current.end_byte().min(max_end);
+                }
+                current = parent;
+            }
+            None => break,
+        }
+    }
+
+    current.end_byte().min(max_end)
+}
+
+/// Extract SQL from a potentially concatenated VB.NET expression.
+///
+/// Parses string literals and replaces non-literal parts with `{dynamic}`.
+///
+/// Example: `"SELECT * FROM Users WHERE id = " & userId.ToString()`
+/// becomes: `SELECT * FROM Users WHERE id = {dynamic}`
+fn extract_sql_from_concat_expr(expr: &str) -> String {
+    let parts = split_concat_parts(expr);
+    let mut sql = String::new();
+
+    for part in parts {
+        let trimmed = part.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if trimmed.starts_with('"') {
+            // String literal — extract content.
+            if let Some(content) = extract_vb_string_literal(trimmed) {
+                sql.push_str(&content);
+            } else {
+                sql.push_str("{dynamic}");
+            }
+        } else {
+            // Non-literal part (variable, function call, etc.)
+            sql.push_str("{dynamic}");
+        }
+    }
+
+    sql
+}
+
+/// Split a VB expression by concatenation operators (`&` and `+`).
+/// Respects string literal boundaries so `"a & b"` is not split.
+fn split_concat_parts(expr: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let bytes = expr.as_bytes();
+    let mut start = 0;
+    let mut in_string = false;
+    let mut paren_depth: i32 = 0;
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'"' {
+            in_string = !in_string;
+        } else if !in_string {
+            if b == b'(' {
+                paren_depth += 1;
+            } else if b == b')' {
+                paren_depth -= 1;
+            } else if paren_depth == 0 && b == b'&' {
+                parts.push(&expr[start..i]);
+                start = i + 1;
+            }
+        }
+        i += 1;
+    }
+
+    if start < expr.len() {
+        parts.push(&expr[start..]);
+    }
+
+    parts
+}
+
+/// Extract the content of a VB.NET string literal.
+/// Handles doubled quotes (`""`) as escaped quotes.
+fn extract_vb_string_literal(s: &str) -> Option<String> {
+    let trimmed = s.trim();
+    if !trimmed.starts_with('"') {
+        return None;
+    }
+
+    let mut content = String::new();
+    let bytes = trimmed.as_bytes();
+    let mut i = 1; // Skip opening quote
+    while i < bytes.len() {
+        if bytes[i] == b'"' {
+            if i + 1 < bytes.len() && bytes[i + 1] == b'"' {
+                // Doubled quote → literal quote
+                content.push('"');
+                i += 2;
+            } else {
+                // Closing quote
+                return Some(content);
+            }
+        } else {
+            content.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    // No closing quote found — return what we have if non-empty.
+    if !content.is_empty() {
+        Some(content)
+    } else {
+        None
+    }
+}
+
+// ── P0.4b SQL Extraction (Regex) ────────────────────────────────────────────
+
+fn regex_extract_sql(source: &str, ts_cmd_text_positions: &[usize]) -> Vec<(ExtractedEdge, usize)> {
     let mut results = Vec::new();
 
     let Some(sql_cmd_re) = get_compiled_regex(
@@ -1312,6 +1600,17 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         let Some(anchor) = cap.get(0) else {
             continue;
         };
+        // Skip if tree-sitter already handled this CommandText assignment.
+        // The ts positions are the start of `.CommandText =` matches; regex
+        // matches start at the variable name before `.CommandText`. A 100-byte
+        // window handles the offset difference.
+        let pos = anchor.start();
+        if ts_cmd_text_positions
+            .iter()
+            .any(|&ts_pos| pos.abs_diff(ts_pos) < 100)
+        {
+            continue;
+        }
         let var = cap
             .name("var")
             .map(|m| m.as_str().to_lowercase())
@@ -1509,7 +1808,7 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     }
 
     if has_sql_keyword(source) {
-        let sql_results = regex_extract_sql(source);
+        let sql_results = regex_extract_sql(source, &[]);
         for (edge, _) in sql_results {
             edges.push(edge);
         }
@@ -1673,7 +1972,7 @@ End Namespace
     #[test]
     fn test_sql_inline_detection() {
         let code = r#"cmd.CommandText = "SELECT * FROM Orders WHERE id = @id""#;
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         assert_eq!(edges.iter().filter(|e| e.kind == "sql_calls").count(), 1);
         let e = &edges[0];
@@ -1684,7 +1983,7 @@ End Namespace
     #[test]
     fn test_sql_exec_detection() {
         let code = r#"Dim cmd As New SqlCommand("EXEC sp_UpdateOrders @id, @status")"#;
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         let proc = edges
             .iter()
@@ -1696,7 +1995,7 @@ End Namespace
     #[test]
     fn test_sql_execute_nonquery_detection() {
         let code = "cmd.ExecuteNonQuery()";
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         let exec_edge = edges.iter().find(|e| e.kind == "sql_exec").unwrap();
         assert_eq!(exec_edge.target_name, "cmd.ExecuteNonQuery");
@@ -1708,7 +2007,7 @@ End Namespace
 Dim cmd1 As New SqlCommand("sp_GetOrders")
 Dim cmd2 As New SqlCommand("sp_GetOrders")
 "#;
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
         assert_eq!(sql_edges.len(), 1, "duplicate SQL should be deduplicated");
@@ -1720,7 +2019,7 @@ Dim cmd2 As New SqlCommand("sp_GetOrders")
 Dim cmd1 As New SqlCommand("SP_GETORDERS")
 Dim cmd2 As New SqlCommand("sp_GetOrders")
 "#;
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
         assert_eq!(sql_edges.len(), 1, "case-different SQL should deduplicate");
@@ -1735,7 +2034,7 @@ Dim cmd2 As New SqlCommand("sp_GetOrders")
             cmd.ExecuteReader()
             Dim cmd2 As New SqlCommand() With {.CommandText = "SELECT 1"}
         "#;
-        let results = regex_extract_sql(code);
+        let results = regex_extract_sql(code, &[]);
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
 
         // 1. SqlDataAdapter

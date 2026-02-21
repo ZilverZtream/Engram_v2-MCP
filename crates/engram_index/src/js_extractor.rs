@@ -115,7 +115,7 @@ fn split_service_url(raw_url: &str) -> (String, Option<String>) {
     let url = url.strip_prefix('/').unwrap_or(url);
 
     // Known service extensions that can have a /MethodName suffix
-    let service_exts = [".asmx", ".svc", ".ashx"];
+    let service_exts = [".asmx", ".aspx", ".svc", ".ashx"];
     let lower = url.to_lowercase();
 
     for ext in &service_exts {
