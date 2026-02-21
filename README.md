@@ -61,6 +61,10 @@ Special handling for **ASP.NET WebForms** (ASPX, ASCX, Master pages): control ID
 - Machine-readable output with per-gate results, failed gate IDs, and required follow-up actions
 - Configurable thresholds: `adp_min_extraction_confidence`, `adp_max_blast_radius`, safety thresholds
 - Trace ambiguity scoring: `trace_ui_event` emits fallback candidate metadata and confidence penalties when control lookup is ambiguous
+- **Trace provenance**: structured provenance block in `trace_ui_event` with unresolved candidates, per-hop evidence, follow-up probes, and disambiguation guidance
+- **Rollout policy engine**: four-phase rollout (shadow → advisory → guarded → autonomous) with emergency kill-switch that forces all verdicts to `deny`
+- **JSON decision reports**: immutable per-verdict audit reports with gate-by-gate evidence, config snapshots, and input replay data via `build_decision_report()`
+- **Deterministic ADP replay**: `replay_from_scenario()` and batch `run_corpus()` with confusion matrix calibration (false-allow rate ≤ 1%)
 
 ### Incremental Indexing & Watching
 - Blake3 file fingerprinting for change detection; unchanged files are copy-forwarded without re-parsing
@@ -108,6 +112,18 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **Migration Execution Workflow**: Wave-ordered migration plans with topological sort, seam identification, contract test templates, compatibility adapter patterns, and per-wave rollback playbooks
 - **Complete Revert Pipeline**: `analyze_reverts` promoted to Implemented with LLM-powered descriptive anti-pattern rules, graph edge creation, and metrics recording
 - **Deterministic Reproducibility**: Golden-repo fixture tests verifying stable chunk IDs, graph edges, and search results across clean vs incremental indexing
+
+### Gold Standard Hardening (Phase 27)
+
+- **Benchmark Schemas**: Versioned `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, and `DriftReport` types with per-class thresholds and regression detection
+- **ADP Replay & Calibration**: Deterministic scenario replay with `AdpConfusionMatrix` for false-allow/false-deny calibration, 7-scenario safety corpus with ≤ 1% false-allow assertion
+- **Runtime Evidence Schemas**: Normalized `RuntimeEvent` format for control interactions, SQL execution, state mutations, and routes, with batch validation and reconciliation
+- **Trace Provenance**: Enhanced `trace_ui_event` with structured provenance blocks, unresolved candidates, per-hop evidence, confidence penalties, and follow-up probes
+- **WebForms Mutation Tests**: 12 mutation tests validating extraction robustness against renamed handlers, duplicate IDs, malformed directives, and edge cases
+- **Integrity Canary Tests**: 9 canary tests with synthetic drift injection for Tantivy, docstore, and vector store orphan detection
+- **Rollout Policy Engine**: Four-phase progressive rollout (shadow → advisory → guarded → autonomous) with emergency kill-switch
+- **JSON Audit Reports**: Immutable `AdpDecisionReport` with gate-by-gate evidence, config snapshots, and input replay data
+- **Benchmark CI**: GitHub Actions workflow running benchmark, ADP corpus, mutation, and reproducibility tests with 90-day artifact retention
 
 ---
 
@@ -170,6 +186,8 @@ safety_min_coverage: 0.6              # Minimum test coverage to allow edits
 adp_enabled: true                     # Enable mandatory ADP gate pipeline
 adp_min_extraction_confidence: 0.5    # Minimum extraction confidence for ADP
 adp_max_blast_radius: 6               # Max blast radius score (1-10) for auto-apply
+adp_rollout_phase: shadow             # Rollout phase: shadow|advisory|guarded|autonomous
+adp_kill_switch: false                # Emergency kill-switch — forces all ADP verdicts to Deny
 ```
 
 Set the config path via environment variable:

@@ -61,7 +61,7 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 ## UI & Schema Tracing
 - `get_table_schema(project_id, table_name)`
 - `trace_state_usage(project_id, state_key)`
-- `trace_ui_event(project_id, page, control_id)`
+- `trace_ui_event(project_id, page, control_id)` — traces ASPX page + control to SQL; now emits structured **Trace Provenance** block with `trace_used_fallback`, `trace_candidate_count`, `trace_confidence_penalty`, unresolved candidate list, per-hop evidence (node_type, file, line range), ambiguity warnings, and follow-up probes for disambiguation
 - `trace_ui_action(project_id, page, control_id)`
 - `get_ui_blueprint(project_id, page)`
 - `get_instrumentation_pack(project_id)`
@@ -87,6 +87,36 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `list_jobs(project_id?)`
 - `cancel_job(job_id)`
 - `get_job_status(job_id)`
+
+## ADP Infrastructure (Phase 27)
+
+The `autonomous_decision_gate` tool is backed by production hardening infrastructure:
+
+### Rollout Policy Engine
+ADP verdicts pass through `apply_rollout_policy()` which applies phase-specific behavior:
+- **Shadow**: Log verdict, always return Allow (no enforcement)
+- **Advisory**: Log verdict, return Allow but include warning annotation
+- **Guarded**: Enforce verdict — Allow, Deny, Abstain applied as-is
+- **Autonomous**: Enforce verdict — identical to Guarded (full autonomous operation)
+- **Kill-switch override**: When `adp_kill_switch=true`, ALL verdicts forced to Deny regardless of rollout phase
+
+Config fields: `adp_rollout_phase` (default: `"shadow"`), `adp_kill_switch` (default: `false`)
+
+### Deterministic Replay
+- `replay_from_scenario(scenario)` — converts serialized `AdpScenarioInput` into `AdpInput` for reproducible verdict computation
+- `run_corpus(corpus)` — batch-runs a labeled corpus and produces `AdpConfusionMatrix` with false-allow/false-deny rates
+
+### JSON Decision Reports
+- `build_decision_report(input, decision)` — generates `AdpDecisionReport` with:
+  - Per-gate `GateEvidence` (gate_id, passed, score, detail)
+  - `ConfigSnapshot` (rollout_phase, kill_switch, min_extraction_confidence, max_blast_radius)
+  - Full `AdpScenarioInput` for replay
+  - ISO 8601 timestamps, verdict, failed gate IDs
+
+### Runtime Evidence Schemas
+- `RuntimeEvent` — typed event: `ControlInteraction`, `Route`, `SqlExecution`, `StateMutation`
+- `RuntimeEvidenceBatch` — collection of events with `validate_batch()` schema validation
+- `ReconciliationResult` — per-path reconciliation with `Confirmed`/`Contradicted`/`Unmatched` statuses
 
 ### Notes
 - All tools are fully implemented and compile. See `capabilities.rs` for the status matrix.
