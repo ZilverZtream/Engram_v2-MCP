@@ -66,17 +66,10 @@ static TD_OPEN_RE: OnceLock<Regex> = OnceLock::new();
 /// Matches `</td>` closing tags.
 static TD_CLOSE_RE: OnceLock<Regex> = OnceLock::new();
 
-/// ID attribute extraction.
-static ID_ATTR_RE: OnceLock<Regex> = OnceLock::new();
-
-/// Text attribute extraction.
-static TEXT_ATTR_RE: OnceLock<Regex> = OnceLock::new();
-
-/// CssClass attribute extraction.
-static CSS_CLASS_RE: OnceLock<Regex> = OnceLock::new();
-
-/// GroupingField attribute extraction.
-static GROUPING_FIELD_RE: OnceLock<Regex> = OnceLock::new();
+// The following statics were part of the original design for attribute extraction
+// via pre-compiled regexes, but `extract_attr()` now uses dynamically-built patterns
+// (see the rewrite that fixes the unsupported lookahead issue). Kept as reserved
+// slots in case future callers need pre-compiled attribute patterns.
 
 /// WinForms declaration extraction from `WithEvents` and assignment statements.
 static WINFORMS_DECL_RE: OnceLock<Regex> = OnceLock::new();
@@ -116,15 +109,33 @@ fn get_compiled_regex<'a>(
     }
 }
 
+/// Extract the value of an HTML/ASP.NET attribute from an attribute string.
+///
+/// Supports both single and double-quoted values (case-insensitive attribute names).
+/// Uses two separate patterns instead of backreferences (which the `regex` crate
+/// does not support via `\1` lookahead).
 fn extract_attr(attrs: &str, name: &str) -> Option<String> {
-    let pattern = format!(
-        r#"(?i)\b{}\s*=\s*([\"'])((?:(?!\1).)*)\1"#,
-        regex::escape(name)
-    );
-    let re = Regex::new(&pattern).ok()?;
-    re.captures(attrs)
-        .and_then(|c| c.get(2).map(|m| m.as_str().trim().to_string()))
-        .filter(|v| !v.is_empty())
+    let esc = regex::escape(name);
+    // Try double-quoted first, then single-quoted.
+    let dq_pattern = format!(r#"(?i)\b{}\s*=\s*"([^"]*)""#, esc);
+    if let Ok(re) = Regex::new(&dq_pattern) {
+        if let Some(caps) = re.captures(attrs) {
+            let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
+            if !val.is_empty() {
+                return Some(val);
+            }
+        }
+    }
+    let sq_pattern = format!(r"(?i)\b{}\s*=\s*'([^']*)'", esc);
+    if let Ok(re) = Regex::new(&sq_pattern) {
+        if let Some(caps) = re.captures(attrs) {
+            let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
+            if !val.is_empty() {
+                return Some(val);
+            }
+        }
+    }
+    None
 }
 
 // ── Data Structures ─────────────────────────────────────────────────────────
@@ -560,7 +571,7 @@ pub fn extract_webforms_layout(
 
         symbols.push(ExtractedSymbol {
             name: container.id.clone(),
-            kind: "ui_container".into(),
+            kind: "ui_container",
             start_line: container.start_line,
             end_line: container.start_line,
             metadata: Some(meta),
@@ -594,13 +605,13 @@ pub fn extract_webforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: parent_id.clone(),
-                source_kind: "ui_container".into(),
+                source_kind: "ui_container",
                 source_start_line: child.line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: child.id.clone(),
-                target_kind: Some("control".into()),
+                target_kind: Some("control"),
                 target_start_line: Some(child.line),
-                kind: "contains_ui".into(),
+                kind: "contains_ui",
                 metadata: Some(meta),
             });
         }
@@ -644,13 +655,13 @@ pub fn extract_webforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: prev.id.clone(),
-                source_kind: "control".into(),
+                source_kind: "control",
                 source_start_line: prev.line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: next.id.clone(),
-                target_kind: Some("control".into()),
+                target_kind: Some("control"),
                 target_start_line: Some(next.line),
-                kind: "ui_layout_neighbor".into(),
+                kind: "ui_layout_neighbor",
                 metadata: Some(meta),
             });
         }
@@ -680,7 +691,7 @@ pub fn extract_webforms_layout(
             // Emit as "control_layout" so it doesn't clash with the existing "control" symbol.
             symbols.push(ExtractedSymbol {
                 name: child.id.clone(),
-                kind: "control_layout".into(),
+                kind: "control_layout",
                 start_line: child.line,
                 end_line: child.line,
                 metadata: Some(meta),
@@ -1023,7 +1034,7 @@ pub fn extract_winforms_layout(
 
             symbols.push(ExtractedSymbol {
                 name: name.clone(),
-                kind: "ui_container".into(),
+                kind: "ui_container",
                 start_line: ctrl.line,
                 end_line: ctrl.line,
                 metadata: Some(meta),
@@ -1054,13 +1065,13 @@ pub fn extract_winforms_layout(
 
         edges.push(ExtractedEdge {
             source_name: parent.clone(),
-            source_kind: "ui_container".into(),
+            source_kind: "ui_container",
             source_start_line: *line,
-            source_language: "designer".into(),
+            source_language: "designer",
             target_name: child.clone(),
-            target_kind: Some("control".into()),
+            target_kind: Some("control"),
             target_start_line: controls.get(child).map(|c| c.line),
-            kind: "contains_ui".into(),
+            kind: "contains_ui",
             metadata: if meta.is_empty() { None } else { Some(meta) },
         });
     }
@@ -1119,13 +1130,13 @@ pub fn extract_winforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: prev.name.clone(),
-                source_kind: "control".into(),
+                source_kind: "control",
                 source_start_line: prev.line,
-                source_language: "designer".into(),
+                source_language: "designer",
                 target_name: next.name.clone(),
-                target_kind: Some("control".into()),
+                target_kind: Some("control"),
                 target_start_line: Some(next.line),
-                kind: "ui_layout_neighbor".into(),
+                kind: "ui_layout_neighbor",
                 metadata: Some(meta),
             });
         }
@@ -1158,7 +1169,7 @@ pub fn extract_winforms_layout(
 
         symbols.push(ExtractedSymbol {
             name: name.clone(),
-            kind: "control_layout".into(),
+            kind: "control_layout",
             start_line: ctrl.line,
             end_line: ctrl.line,
             metadata: Some(meta),
@@ -1261,6 +1272,45 @@ fn infer_logical_grouping(control_id: &str) -> Option<String> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_extract_attr_basic() {
+        // Double-quoted
+        assert_eq!(
+            extract_attr(r#" ID="pnlTest" runat="server""#, "id"),
+            Some("pnlTest".into())
+        );
+        assert_eq!(
+            extract_attr(r#" ID="pnlTest" runat="server""#, "ID"),
+            Some("pnlTest".into())
+        );
+        // Single-quoted
+        assert_eq!(
+            extract_attr(r#" ID='pnlTest' runat='server'"#, "id"),
+            Some("pnlTest".into())
+        );
+        // CssClass
+        assert_eq!(
+            extract_attr(r#" CssClass="myClass" ID="x""#, "cssclass"),
+            Some("myClass".into())
+        );
+        // Missing attribute
+        assert_eq!(extract_attr(r#" runat="server""#, "id"), None);
+        // Empty value
+        assert_eq!(extract_attr(r#" ID="" runat="server""#, "id"), None);
+    }
+
+    #[test]
+    fn test_extract_webforms_layout_simple() {
+        let markup = r#"<asp:Panel ID="pnlTest" runat="server">inner</asp:Panel>"#;
+        let (syms, _edges) = extract_webforms_layout("test.aspx", markup);
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "pnlTest"),
+            "pnlTest not found among: {:?}",
+            syms.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
+        );
+    }
 
     #[test]
     fn test_webforms_container_hierarchy() {

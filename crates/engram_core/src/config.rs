@@ -63,6 +63,18 @@ pub struct Config {
     /// Previously hardcoded to 50. Set in engram_mcp.yaml to override.
     #[serde(default = "default_max_commits_per_watch")]
     pub max_commits_per_watch: usize,
+
+    /// Tantivy IndexWriter heap budget in bytes.
+    /// Controls segment merge frequency — larger values reduce merges for big repos.
+    /// Default 50 MB. Set higher (150_000_000) for repos with 100k+ files.
+    #[serde(default = "default_tantivy_writer_memory")]
+    pub tantivy_writer_memory: usize,
+
+    /// MMR oversampling multiplier for hybrid search.
+    /// fetch_k = top_k * this value. Higher values give MMR more diversity
+    /// candidates but cost more compute. Default 5.
+    #[serde(default = "default_mmr_oversampling")]
+    pub mmr_oversampling: usize,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -75,6 +87,14 @@ fn default_max_chunks_per_file() -> usize {
 
 fn default_max_commits_per_watch() -> usize {
     50
+}
+
+fn default_tantivy_writer_memory() -> usize {
+    50_000_000 // 50 MB
+}
+
+fn default_mmr_oversampling() -> usize {
+    5
 }
 
 impl Default for Config {
@@ -97,6 +117,8 @@ impl Default for Config {
             max_concurrent_jobs: default_max_concurrent_jobs(),
             max_chunks_per_file: default_max_chunks_per_file(),
             max_commits_per_watch: default_max_commits_per_watch(),
+            tantivy_writer_memory: default_tantivy_writer_memory(),
+            mmr_oversampling: default_mmr_oversampling(),
         }
     }
 }
@@ -120,13 +142,34 @@ impl Config {
     pub fn load_from_path(path: &Path) -> Result<Self> {
         let bytes = std::fs::read(path)?;
         let mut cfg: Config = serde_yaml::from_slice(&bytes)?;
+
+        // Default allowed_roots to the current working directory if not specified.
+        // This enables ad-hoc local use without requiring explicit config while
+        // still enforcing the security boundary once the server starts.
         if cfg.allowed_roots.is_empty() {
-            return Err(EngramError::Config(
-                "allowed_roots must contain at least one directory".into(),
-            ));
+            let cwd = std::env::current_dir().map_err(|e| {
+                EngramError::Config(format!(
+                    "allowed_roots is empty and cannot determine cwd: {e}"
+                ))
+            })?;
+            tracing::warn!(
+                "allowed_roots is empty — defaulting to current directory: {}",
+                cwd.display()
+            );
+            cfg.allowed_roots.push(cwd);
         }
+
+        // Default data_dir to the platform-standard data directory if not specified.
         if cfg.data_dir.as_os_str().is_empty() {
-            return Err(EngramError::Config("data_dir must be set".into()));
+            if let Some(dirs) = ProjectDirs::from("io", "engram", "engram") {
+                cfg.data_dir = dirs.data_dir().to_path_buf();
+                tracing::warn!(
+                    "data_dir is empty — defaulting to platform data dir: {}",
+                    cfg.data_dir.display()
+                );
+            } else {
+                return Err(EngramError::Config("data_dir must be set".into()));
+            }
         }
         if cfg.embedding_backend.trim().is_empty() {
             cfg.embedding_backend = "local".into();

@@ -34,9 +34,21 @@ impl PathContext {
             // Path may not exist yet (e.g. new file in a new nested directory).
             // Walk up the ancestor chain until we find an existing directory we can
             // canonicalize, then re-append the unresolved suffix beneath it.
+            //
+            // Depth limit prevents probing top-level system directories when given
+            // a deeply nested non-existent path. 64 components is generous enough
+            // for any legitimate project layout while stopping runaway traversals.
+            const MAX_ANCESTOR_DEPTH: usize = 64;
             let mut ancestor = input;
             let mut suffix = std::path::PathBuf::new();
+            let mut depth: usize = 0;
             loop {
+                depth += 1;
+                if depth > MAX_ANCESTOR_DEPTH {
+                    break Err(EngramError::PathNotAllowed(format!(
+                        "cannot access {input:?}: ancestor walk exceeded {MAX_ANCESTOR_DEPTH} levels"
+                    )));
+                }
                 match ancestor.parent() {
                     Some(parent) => {
                         // Prepend current component to suffix before ascending.

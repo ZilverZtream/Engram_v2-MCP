@@ -100,7 +100,9 @@ pub fn semantic_chunk_lines(
         out.push(build_chunk(&lines, current_start, lines.len(), symbols));
     }
 
-    // Add overlap context: prepend last OVERLAP_LINES lines of previous chunk
+    // Add overlap context: prepend last OVERLAP_LINES lines of previous chunk.
+    // Pre-allocate the combined buffer to exact capacity to avoid repeated
+    // reallocations when concatenating prefix + existing content.
     if out.len() > 1 {
         for idx in 1..out.len() {
             let prev_end = out[idx - 1].end_line as usize; // 1-based end line
@@ -108,15 +110,21 @@ pub fn semantic_chunk_lines(
             if curr_start_0 > 0 && prev_end > 0 {
                 let overlap_start = curr_start_0.saturating_sub(OVERLAP_LINES);
                 if overlap_start < curr_start_0 {
-                    let mut prefix = String::new();
-                    for line in lines.iter().take(curr_start_0).skip(overlap_start) {
-                        prefix.push_str(line);
-                        prefix.push('\n');
-                    }
-                    if !prefix.is_empty() {
-                        prefix.push_str(&out[idx].content);
-                        out[idx].content = prefix;
-                        // Recompute hash for the overlapped content
+                    // Calculate exact prefix size for a single allocation.
+                    let prefix_len: usize = lines[overlap_start..curr_start_0]
+                        .iter()
+                        .map(|l| l.len() + 1)
+                        .sum();
+                    if prefix_len > 0 {
+                        let total = prefix_len + out[idx].content.len();
+                        let mut combined = String::with_capacity(total);
+                        for line in lines.iter().take(curr_start_0).skip(overlap_start) {
+                            combined.push_str(line);
+                            combined.push('\n');
+                        }
+                        combined.push_str(&out[idx].content);
+                        out[idx].content = combined;
+                        // Recompute hash for the overlapped content.
                         out[idx].content_hash = ContentHash::compute(out[idx].content.as_bytes());
                     }
                 }

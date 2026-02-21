@@ -94,7 +94,7 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     // Get the project's search engine (needed to index anti-pattern docs).
     let project = {
         // Try cache first, then open lazily.
-        if let Some(p) = state.get_project_cached(project_id).await {
+        if let Some(p) = state.get_project_cached(project_id) {
             p
         } else {
             // Open search engine for this project.

@@ -1,11 +1,12 @@
 use std::path::Path;
+use std::sync::LazyLock;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
 #[derive(Debug, Clone)]
 pub struct ExtractedSymbol {
     pub name: String,
-    pub kind: String, // "function" | "class" | "struct" | "impl"
+    pub kind: &'static str, // "function" | "class" | "struct" | "impl" | …
     pub start_line: u32,
     pub end_line: u32,
     pub metadata: Option<std::collections::HashMap<String, String>>,
@@ -14,13 +15,13 @@ pub struct ExtractedSymbol {
 #[derive(Debug, Clone)]
 pub struct ExtractedEdge {
     pub source_name: String,
-    pub source_kind: String,
+    pub source_kind: &'static str,
     pub source_start_line: u32,
-    pub source_language: String,
+    pub source_language: &'static str,
     pub target_name: String,
-    pub target_kind: Option<String>,
+    pub target_kind: Option<&'static str>,
     pub target_start_line: Option<u32>,
-    pub kind: String, // "calls" | "contains" | "imports"
+    pub kind: &'static str, // "calls" | "contains" | "imports" | …
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
@@ -52,24 +53,241 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
     }
 }
 
-pub struct SymbolExtractor {
-    rust_query: Option<Query>,
-    python_query: Option<Query>,
-    go_query: Option<Query>,
-    java_query: Option<Query>,
-    ts_query: Option<Query>,
-    cs_query: Option<Query>,
-    c_query: Option<Query>,
-    cpp_query: Option<Query>,
-    /// Pass-1 namespace query for C# (captures namespace + class + method names).
-    cs_ns_query: Option<Query>,
+// ──────────────────────────────────────────────────────────────────────────
+// Compiled Tree-Sitter queries — initialized once via LazyLock (Opt 8).
+// ──────────────────────────────────────────────────────────────────────────
+
+struct CompiledQueries {
+    rust: Option<Query>,
+    python: Option<Query>,
+    go: Option<Query>,
+    java: Option<Query>,
+    ts: Option<Query>,
+    cs: Query,
+    c: Option<Query>,
+    cpp: Option<Query>,
+    /// Pass-1 namespace query for C#.
+    cs_ns: Option<Query>,
     /// Pass-1 namespace query for Java.
-    java_ns_query: Option<Query>,
+    java_ns: Option<Query>,
     /// Pass-1 namespace query for Go (package declaration).
-    go_ns_query: Option<Query>,
+    go_ns: Option<Query>,
     /// Pass-1 module query for Rust (mod items).
-    rust_mod_query: Option<Query>,
-    // Note: VB.NET extraction is handled entirely by `vb_extractor::extract_vb`.
+    rust_mod: Option<Query>,
+}
+
+// SAFETY: tree_sitter::Query is Send + Sync (immutable compiled pattern data).
+unsafe impl Send for CompiledQueries {}
+unsafe impl Sync for CompiledQueries {}
+
+static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
+    let rust_lang = tree_sitter_rust::LANGUAGE.into();
+    let python_lang = tree_sitter_python::LANGUAGE.into();
+    let go_lang = tree_sitter_go::LANGUAGE.into();
+    let java_lang = tree_sitter_java::LANGUAGE.into();
+    let ts_lang = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    let cs_lang = tree_sitter_c_sharp::LANGUAGE.into();
+    let c_lang = tree_sitter_c::LANGUAGE.into();
+    let cpp_lang = tree_sitter_cpp::LANGUAGE.into();
+
+    let rust = Query::new(
+        &rust_lang,
+        r#"
+        (function_item name: (identifier) @name) @func
+        (struct_item name: (type_identifier) @name) @struct
+        (impl_item type: (type_identifier) @name) @impl
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (field_expression field: (field_identifier) @call.name))
+        "#,
+    )
+    .ok();
+
+    let python = Query::new(
+        &python_lang,
+        r#"
+        (function_definition name: (identifier) @name) @func
+        (class_definition name: (identifier) @name) @class
+        (call function: (identifier) @call.name)
+        (call function: (attribute attribute: (identifier) @call.name))
+        "#,
+    )
+    .ok();
+
+    let go = Query::new(
+        &go_lang,
+        r#"
+        (function_declaration name: (identifier) @name) @func
+        (method_declaration name: (field_identifier) @name) @func
+        (type_declaration (type_spec name: (type_identifier) @name)) @class
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (selector_expression field: (field_identifier) @call.name))
+        "#,
+    )
+    .ok();
+
+    let java = Query::new(
+        &java_lang,
+        r#"
+        (method_declaration name: (identifier) @name) @func
+        (class_declaration name: (identifier) @name) @class
+        (interface_declaration name: (identifier) @name) @class
+        (method_invocation name: (identifier) @call.name)
+        "#,
+    )
+    .ok();
+
+    let ts = Query::new(
+        &ts_lang,
+        r#"
+        (function_declaration name: (identifier) @name) @func
+        (class_declaration name: (type_identifier) @name) @class
+        (interface_declaration name: (type_identifier) @name) @class
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (member_expression property: (property_identifier) @call.name))
+        "#,
+    )
+    .ok();
+
+    let cs = Query::new(
+        &cs_lang,
+        r#"
+        (method_declaration name: (identifier) @name) @func
+        (class_declaration name: (identifier) @name) @class
+        (interface_declaration name: (identifier) @name) @class
+        (struct_declaration name: (identifier) @name) @class
+        (enum_declaration name: (identifier) @name) @class
+        (record_declaration name: (identifier) @name) @class
+        (field_declaration (variable_declaration (variable_declarator (identifier) @name))) @field
+        (invocation_expression function: (identifier) @call.name)
+        (invocation_expression function: (member_access_expression name: (identifier) @call.name))
+
+        ; SQL extraction
+        (object_creation_expression
+            type: (identifier) @type_name (#eq? @type_name "SqlCommand")
+            arguments: (argument_list (argument (string_literal) @sql.literal))
+        ) @sql.cmd
+
+        (assignment_expression
+            left: (member_access_expression name: (identifier) @prop_name (#eq? @prop_name "CommandText"))
+            right: (string_literal) @sql.literal
+        ) @sql.assign
+        "#,
+    )
+    .expect("Invalid C# query");
+
+    let c = Query::new(
+        &c_lang,
+        r#"
+        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (struct_specifier name: (type_identifier) @name) @struct
+        (call_expression function: (identifier) @call.name)
+        "#,
+    )
+    .ok();
+
+    let cpp = Query::new(
+        &cpp_lang,
+        r#"
+        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
+        (class_specifier name: (type_identifier) @name) @class
+        "#,
+    )
+    .ok();
+
+    // ── Pass-1 namespace queries ──────────────────────────────────────────
+    let cs_ns = Query::new(
+        &cs_lang,
+        r#"
+        (namespace_declaration name: (_) @ns)
+        (class_declaration name: (identifier) @class)
+        (interface_declaration name: (identifier) @class)
+        (method_declaration name: (identifier) @method)
+        "#,
+    )
+    .ok();
+
+    let java_ns = Query::new(
+        &java_lang,
+        r#"
+        (package_declaration (scoped_identifier) @ns)
+        (class_declaration name: (identifier) @class)
+        (interface_declaration name: (identifier) @class)
+        (method_declaration name: (identifier) @method)
+        "#,
+    )
+    .ok();
+
+    let go_ns = Query::new(
+        &go_lang,
+        r#"
+        (package_clause (package_identifier) @ns)
+        (type_declaration (type_spec name: (type_identifier) @class))
+        (function_declaration name: (identifier) @method)
+        (method_declaration name: (field_identifier) @method)
+        "#,
+    )
+    .ok();
+
+    let rust_mod = Query::new(
+        &rust_lang,
+        r#"
+        (mod_item name: (identifier) @ns)
+        (struct_item name: (type_identifier) @class)
+        (impl_item type: (type_identifier) @class)
+        (function_item name: (identifier) @method)
+        "#,
+    )
+    .ok();
+
+    CompiledQueries {
+        rust,
+        python,
+        go,
+        java,
+        ts,
+        cs,
+        c,
+        cpp,
+        cs_ns,
+        java_ns,
+        go_ns,
+        rust_mod,
+    }
+});
+
+/// Map a file extension to a `&'static str` for source_language fields.
+fn ext_to_static(ext: &str) -> &'static str {
+    match ext {
+        "rs" => "rs",
+        "py" => "py",
+        "go" => "go",
+        "java" => "java",
+        "ts" => "ts",
+        "tsx" => "tsx",
+        "js" => "js",
+        "jsx" => "jsx",
+        "cs" => "cs",
+        "c" => "c",
+        "h" => "h",
+        "cpp" => "cpp",
+        "hpp" => "hpp",
+        "cc" => "cc",
+        "cxx" => "cxx",
+        "hh" => "hh",
+        "vb" => "vb",
+        _ => "unknown",
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// SymbolExtractor — zero-sized; queries live in the static LazyLock.
+// ──────────────────────────────────────────────────────────────────────────
+
+pub struct SymbolExtractor {
+    // All queries live in `QUERIES` (LazyLock).  This struct is kept for API
+    // compatibility; it is zero-sized after optimisation.
+    _priv: (),
 }
 
 impl Default for SymbolExtractor {
@@ -80,180 +298,10 @@ impl Default for SymbolExtractor {
 
 impl SymbolExtractor {
     pub fn new() -> Self {
-        let rust_lang = tree_sitter_rust::LANGUAGE.into();
-        let python_lang = tree_sitter_python::LANGUAGE.into();
-        let go_lang = tree_sitter_go::LANGUAGE.into();
-        let java_lang = tree_sitter_java::LANGUAGE.into();
-        let ts_lang = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
-        let cs_lang = tree_sitter_c_sharp::LANGUAGE.into();
-        let c_lang = tree_sitter_c::LANGUAGE.into();
-        let cpp_lang = tree_sitter_cpp::LANGUAGE.into();
-        // Note: VB.NET is handled by `vb_extractor::extract_vb`; no VB lang/query here.
-
-        let rust_query = Query::new(
-            &rust_lang,
-            r#"
-            (function_item name: (identifier) @name) @func
-            (struct_item name: (type_identifier) @name) @struct
-            (impl_item type: (type_identifier) @name) @impl
-            (call_expression function: (identifier) @call.name)
-            (call_expression function: (field_expression field: (field_identifier) @call.name))
-            "#,
-        )
-        .ok();
-
-        let python_query = Query::new(
-            &python_lang,
-            r#"
-            (function_definition name: (identifier) @name) @func
-            (class_definition name: (identifier) @name) @class
-            (call function: (identifier) @call.name)
-            (call function: (attribute attribute: (identifier) @call.name))
-            "#,
-        )
-        .ok();
-
-        let go_query = Query::new(
-            &go_lang,
-            r#"
-            (function_declaration name: (identifier) @name) @func
-            (method_declaration name: (field_identifier) @name) @func
-            (type_declaration (type_spec name: (type_identifier) @name)) @class
-            (call_expression function: (identifier) @call.name)
-            (call_expression function: (selector_expression field: (field_identifier) @call.name))
-            "#,
-        )
-        .ok();
-
-        let java_query = Query::new(
-            &java_lang,
-            r#"
-            (method_declaration name: (identifier) @name) @func
-            (class_declaration name: (identifier) @name) @class
-            (interface_declaration name: (identifier) @name) @class
-            (method_invocation name: (identifier) @call.name)
-            "#,
-        )
-        .ok();
-
-        let ts_query = Query::new(
-            &ts_lang,
-            r#"
-            (function_declaration name: (identifier) @name) @func
-            (class_declaration name: (type_identifier) @name) @class
-            (interface_declaration name: (type_identifier) @name) @class
-            (call_expression function: (identifier) @call.name)
-            (call_expression function: (member_expression property: (property_identifier) @call.name))
-            "#,
-        ).ok();
-
-        let cs_query = Query::new(
-            &cs_lang,
-            r#"
-            (method_declaration name: (identifier) @name) @func
-            (class_declaration name: (identifier) @name) @class
-            (interface_declaration name: (identifier) @name) @class
-            (struct_declaration name: (identifier) @name) @class
-            (enum_declaration name: (identifier) @name) @class
-            (record_declaration name: (identifier) @name) @class
-            (field_declaration (variable_declaration (variable_declarator (identifier) @name))) @field
-            (invocation_expression function: (identifier) @call.name)
-            (invocation_expression function: (member_access_expression name: (identifier) @call.name))
-
-            ; SQL extraction
-            (object_creation_expression
-                type: (identifier) @type_name (#eq? @type_name "SqlCommand")
-                arguments: (argument_list (argument (string_literal) @sql.literal))
-            ) @sql.cmd
-
-            (assignment_expression
-                left: (member_access_expression name: (identifier) @prop_name (#eq? @prop_name "CommandText"))
-                right: (string_literal) @sql.literal
-            ) @sql.assign
-            "#,
-        ).expect("Invalid C# query");
-
-        let c_query = Query::new(
-            &c_lang,
-            r#"
-            (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
-            (struct_specifier name: (type_identifier) @name) @struct
-            (call_expression function: (identifier) @call.name)
-            "#,
-        ).ok();
-
-        let cpp_query = Query::new(
-            &cpp_lang,
-            r#"
-            (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
-            (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
-            (class_specifier name: (type_identifier) @name) @class
-            "#,
-        ).ok();
-
-        // ── Pass-1 namespace queries ──────────────────────────────────────────
-        // C#: capture the namespace name, the enclosing class name, and method names.
-        let cs_ns_query = Query::new(
-            &cs_lang,
-            r#"
-            (namespace_declaration name: (_) @ns)
-            (class_declaration name: (identifier) @class)
-            (interface_declaration name: (identifier) @class)
-            (method_declaration name: (identifier) @method)
-            "#,
-        )
-        .ok();
-
-        // Java: package declaration + class + method.
-        let java_ns_query = Query::new(
-            &java_lang,
-            r#"
-            (package_declaration (scoped_identifier) @ns)
-            (class_declaration name: (identifier) @class)
-            (interface_declaration name: (identifier) @class)
-            (method_declaration name: (identifier) @method)
-            "#,
-        )
-        .ok();
-
-        // Go: package clause + type/function names.
-        let go_ns_query = Query::new(
-            &go_lang,
-            r#"
-            (package_clause (package_identifier) @ns)
-            (type_declaration (type_spec name: (type_identifier) @class))
-            (function_declaration name: (identifier) @method)
-            (method_declaration name: (field_identifier) @method)
-            "#,
-        )
-        .ok();
-
-        // Rust: mod item + struct/impl/fn names.
-        let rust_mod_query = Query::new(
-            &rust_lang,
-            r#"
-            (mod_item name: (identifier) @ns)
-            (struct_item name: (type_identifier) @class)
-            (impl_item type: (type_identifier) @class)
-            (function_item name: (identifier) @method)
-            "#,
-        )
-        .ok();
-
-        Self {
-            rust_query,
-            python_query,
-            go_query,
-            java_query,
-            ts_query,
-            cs_query: Some(cs_query),
-            c_query,
-            cpp_query,
-            cs_ns_query,
-            java_ns_query,
-            go_ns_query,
-            rust_mod_query,
-        }
+        // Force initialisation of the lazy static on first construction so any
+        // query-compilation panic happens early rather than mid-extraction.
+        let _ = &*QUERIES;
+        Self { _priv: () }
     }
 
     /// Pass 1: Build an FQN symbol table for a source file.
@@ -262,10 +310,10 @@ impl SymbolExtractor {
     /// e.g. `"DoSomething"` → `"MyNamespace.MyClass.DoSomething"`
     fn build_fqn_table(&self, ext: &str, lang: &tree_sitter::Language, content: &str) -> FqnTable {
         let query_opt = match ext {
-            "cs" => &self.cs_ns_query,
-            "java" => &self.java_ns_query,
-            "go" => &self.go_ns_query,
-            "rs" => &self.rust_mod_query,
+            "cs" => &QUERIES.cs_ns,
+            "java" => &QUERIES.java_ns,
+            "go" => &QUERIES.go_ns,
+            "rs" => &QUERIES.rust_mod,
             _ => return FqnTable::new(),
         };
         let Some(query) = query_opt else {
@@ -299,7 +347,6 @@ impl SymbolExtractor {
 
                 match tag {
                     "ns" => {
-                        // For the namespace node, find the parent declaration's end byte
                         let end_byte = cap
                             .node
                             .parent()
@@ -309,7 +356,6 @@ impl SymbolExtractor {
                     }
                     "class" => {
                         let current_class = text.to_string();
-                        // Build full namespace from stack
                         let namespace: String = ns_stack
                             .iter()
                             .map(|(_, n)| n.as_str())
@@ -321,7 +367,6 @@ impl SymbolExtractor {
                             format!("{}.{}", namespace, current_class)
                         };
                         table.insert(current_class.clone(), fqn);
-                        // Push class scope
                         let end_byte = cap
                             .node
                             .parent()
@@ -365,19 +410,23 @@ impl SymbolExtractor {
         content: &str,
     ) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        let (lang, query_opt) = match ext {
-            "rs" => (tree_sitter_rust::LANGUAGE.into(), &self.rust_query),
-            "py" => (tree_sitter_python::LANGUAGE.into(), &self.python_query),
-            "go" => (tree_sitter_go::LANGUAGE.into(), &self.go_query),
-            "java" => (tree_sitter_java::LANGUAGE.into(), &self.java_query),
+        let static_ext = ext_to_static(ext);
+        let (lang, query_opt): (tree_sitter::Language, Option<&Query>) = match ext {
+            "rs" => (tree_sitter_rust::LANGUAGE.into(), QUERIES.rust.as_ref()),
+            "py" => (
+                tree_sitter_python::LANGUAGE.into(),
+                QUERIES.python.as_ref(),
+            ),
+            "go" => (tree_sitter_go::LANGUAGE.into(), QUERIES.go.as_ref()),
+            "java" => (tree_sitter_java::LANGUAGE.into(), QUERIES.java.as_ref()),
             "ts" | "tsx" | "js" | "jsx" => (
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-                &self.ts_query,
+                QUERIES.ts.as_ref(),
             ),
-            "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), &self.cs_query),
-            "c" | "h" => (tree_sitter_c::LANGUAGE.into(), &self.c_query),
+            "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), Some(&QUERIES.cs)),
+            "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
             "cpp" | "hpp" | "cc" | "cxx" | "hh" => {
-                (tree_sitter_cpp::LANGUAGE.into(), &self.cpp_query)
+                (tree_sitter_cpp::LANGUAGE.into(), QUERIES.cpp.as_ref())
             }
             // "vb" is handled upstream by `vb_extractor::extract_vb`; never reaches here.
             _ => return (vec![], vec![]),
@@ -414,7 +463,7 @@ impl SymbolExtractor {
         // For edge extraction, we need to know which symbol we are currently inside.
         // Simplified: find innermost symbol that encloses the call.
         // (start, end, name, kind, start_line, fqn)
-        let mut symbol_ranges: Vec<(usize, usize, String, String, u32, Option<String>)> =
+        let mut symbol_ranges: Vec<(usize, usize, String, &'static str, u32, Option<String>)> =
             Vec::new();
 
         while let Some(match_) = matches.next() {
@@ -443,22 +492,23 @@ impl SymbolExtractor {
                         })
                     {
                         let mut meta = std::collections::HashMap::new();
-                        let (target_name, target_kind) = if let Some(fqn) = callee_fqn {
-                            (fqn, Some("function".to_string()))
-                        } else {
-                            meta.insert("unresolved".into(), "true".into());
-                            (callee_short.to_string(), None)
-                        };
+                        let (target_name, target_kind): (String, Option<&'static str>) =
+                            if let Some(fqn) = callee_fqn {
+                                (fqn, Some("function"))
+                            } else {
+                                meta.insert("unresolved".into(), "true".into());
+                                (callee_short.to_string(), None)
+                            };
 
                         edges.push(ExtractedEdge {
                             source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                            source_kind: parent_kind.clone(),
+                            source_kind: *parent_kind,
                             source_start_line: *parent_line,
-                            source_language: ext.to_string(),
+                            source_language: static_ext,
                             target_name,
                             target_kind,
                             target_start_line: None,
-                            kind: "calls".into(),
+                            kind: "calls",
                             metadata: if meta.is_empty() { None } else { Some(meta) },
                         });
                     }
@@ -475,7 +525,7 @@ impl SymbolExtractor {
                     }
 
                     // Find parent symbol
-                    let (src_name, src_kind, src_line) =
+                    let (src_name, src_kind, src_line): (String, &'static str, u32) =
                         if let Some((_, _, parent_name, parent_kind, parent_line, parent_fqn)) =
                             symbol_ranges.iter().rev().find(|(s, e, _, _, _, _)| {
                                 *s <= node.start_byte() && *e >= node.end_byte()
@@ -483,11 +533,11 @@ impl SymbolExtractor {
                         {
                             (
                                 parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                                parent_kind.clone(),
+                                *parent_kind,
                                 *parent_line,
                             )
                         } else {
-                            ("file".to_string(), "file".to_string(), 0)
+                            ("file".to_string(), "file", 0)
                         };
 
                     let (target_id, target_kind) = classify_cs_sql(&sql_text);
@@ -499,11 +549,11 @@ impl SymbolExtractor {
                         source_name: src_name,
                         source_kind: src_kind,
                         source_start_line: src_line,
-                        source_language: ext.to_string(),
+                        source_language: static_ext,
                         target_name: target_id,
-                        target_kind: Some(target_kind.into()),
+                        target_kind: Some(target_kind),
                         target_start_line: None,
-                        kind: "sql_calls".into(),
+                        kind: "sql_calls",
                         metadata: Some(meta),
                     });
                     continue;
@@ -513,13 +563,13 @@ impl SymbolExtractor {
                     let imported = &content[node.start_byte()..node.end_byte()];
                     edges.push(ExtractedEdge {
                         source_name: "file".to_string(),
-                        source_kind: "file".to_string(),
+                        source_kind: "file",
                         source_start_line: 0,
-                        source_language: ext.to_string(),
+                        source_language: static_ext,
                         target_name: imported.to_string(),
                         target_kind: None,
                         target_start_line: None,
-                        kind: "imports".into(),
+                        kind: "imports",
                         metadata: None,
                     });
                     continue;
@@ -531,7 +581,7 @@ impl SymbolExtractor {
                     .map(|s| s.contains(".designer."))
                     .unwrap_or(false);
 
-                let kind = match tag {
+                let kind: &'static str = match tag {
                     "func" => "function",
                     "class" | "struct" => "class",
                     "impl" => "impl",
@@ -576,7 +626,7 @@ impl SymbolExtractor {
 
                 symbols.push(ExtractedSymbol {
                     name: name.clone(),
-                    kind: kind.to_string(),
+                    kind,
                     start_line,
                     end_line: (node.end_position().row + 1) as u32,
                     metadata: if meta.is_empty() { None } else { Some(meta) },
@@ -592,13 +642,13 @@ impl SymbolExtractor {
                     let target_fqn = fqn_table.get(&name).cloned();
                     edges.push(ExtractedEdge {
                         source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                        source_kind: parent_kind.clone(),
+                        source_kind: *parent_kind,
                         source_start_line: *parent_line,
-                        source_language: ext.to_string(),
+                        source_language: static_ext,
                         target_name: target_fqn.unwrap_or_else(|| name.clone()),
-                        target_kind: Some(kind.to_string()),
+                        target_kind: Some(kind),
                         target_start_line: Some(start_line),
-                        kind: "contains".into(),
+                        kind: "contains",
                         metadata: None,
                     });
                 }
@@ -608,7 +658,7 @@ impl SymbolExtractor {
                         node.start_byte(),
                         node.end_byte(),
                         name.clone(),
-                        kind.to_string(),
+                        kind,
                         start_line,
                         fqn_table.get(&name).cloned(),
                     ));

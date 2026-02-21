@@ -105,7 +105,7 @@ fn process_element(
 
             symbols.push(ExtractedSymbol {
                 name: name.clone(),
-                kind: "http_module".into(),
+                kind: "http_module",
                 start_line: 0,
                 end_line: 0,
                 metadata: Some(meta),
@@ -113,13 +113,13 @@ fn process_element(
 
             edges.push(ExtractedEdge {
                 source_name: rel_path.as_str().to_string(),
-                source_kind: "file".into(),
+                source_kind: "file",
                 source_start_line: 0,
-                source_language: "xml".into(),
+                source_language: "xml",
                 target_name: class_name,
-                target_kind: Some("class".into()),
+                target_kind: Some("class"),
                 target_start_line: None,
-                kind: "registers_module".into(),
+                kind: "registers_module",
                 metadata: Some(HashMap::from([("module_name".into(), name)])),
             });
         }
@@ -148,7 +148,7 @@ fn process_element(
 
             symbols.push(ExtractedSymbol {
                 name: name.clone(),
-                kind: "route_handler".into(),
+                kind: "route_handler",
                 start_line: 0,
                 end_line: 0,
                 metadata: Some(meta),
@@ -156,13 +156,13 @@ fn process_element(
 
             edges.push(ExtractedEdge {
                 source_name: rel_path.as_str().to_string(),
-                source_kind: "file".into(),
+                source_kind: "file",
                 source_start_line: 0,
-                source_language: "xml".into(),
+                source_language: "xml",
                 target_name: class_name,
-                target_kind: Some("class".into()),
+                target_kind: Some("class"),
                 target_start_line: None,
-                kind: "registers_handler".into(),
+                kind: "registers_handler",
                 metadata: Some(HashMap::from([("handler_name".into(), name)])),
             });
         }
@@ -179,7 +179,7 @@ fn process_element(
 
             symbols.push(ExtractedSymbol {
                 name: key,
-                kind: "app_setting".into(),
+                kind: "app_setting",
                 start_line: 0,
                 end_line: 0,
                 metadata: Some(meta),
@@ -201,7 +201,7 @@ fn process_element(
 
             symbols.push(ExtractedSymbol {
                 name,
-                kind: "connection_string".into(),
+                kind: "connection_string",
                 start_line: 0,
                 end_line: 0,
                 metadata: Some(meta),

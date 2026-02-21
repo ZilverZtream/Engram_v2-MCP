@@ -156,7 +156,7 @@ pub fn extract_ddl(rel_path: &RelPath, source: &str) -> (Vec<ExtractedSymbol>, V
 
         symbols.push(ExtractedSymbol {
             name: table_name.clone(),
-            kind: "db_table".to_string(),
+            kind: "db_table",
             start_line,
             end_line,
             metadata: Some(table_meta),
@@ -181,17 +181,17 @@ pub fn extract_ddl(rel_path: &RelPath, source: &str) -> (Vec<ExtractedSymbol>, V
                         table_name.to_lowercase(),
                         local_col.to_lowercase()
                     ),
-                    source_kind: "db_column".to_string(),
+                    source_kind: "db_column",
                     source_start_line: start_line,
-                    source_language: "sql".to_string(),
+                    source_language: "sql",
                     target_name: format!(
                         "column:{}:{}",
                         ref_table.to_lowercase(),
                         ref_col.to_lowercase()
                     ),
-                    target_kind: Some("db_column".to_string()),
+                    target_kind: Some("db_column"),
                     target_start_line: None,
-                    kind: "foreign_key".to_string(),
+                    kind: "foreign_key",
                     metadata: Some({
                         let mut m = HashMap::new();
                         m.insert("local_table".to_string(), table_name.clone());
@@ -236,7 +236,7 @@ pub fn extract_ddl(rel_path: &RelPath, source: &str) -> (Vec<ExtractedSymbol>, V
 
                 symbols.push(ExtractedSymbol {
                     name: col_name.clone(),
-                    kind: "db_column".to_string(),
+                    kind: "db_column",
                     start_line: col_line,
                     end_line: col_line,
                     metadata: Some(col_meta),
@@ -245,13 +245,13 @@ pub fn extract_ddl(rel_path: &RelPath, source: &str) -> (Vec<ExtractedSymbol>, V
                 // Emit has_column edge: table → column.
                 edges.push(ExtractedEdge {
                     source_name: table_name.clone(),
-                    source_kind: "db_table".to_string(),
+                    source_kind: "db_table",
                     source_start_line: start_line,
-                    source_language: "sql".to_string(),
+                    source_language: "sql",
                     target_name: col_name.clone(),
-                    target_kind: Some("db_column".to_string()),
+                    target_kind: Some("db_column"),
                     target_start_line: Some(col_line),
-                    kind: "has_column".to_string(),
+                    kind: "has_column",
                     metadata: None,
                 });
             }

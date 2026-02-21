@@ -87,7 +87,7 @@ fn get_compiled_regex<'a>(
 pub fn extract_state_accesses(
     rel_path: &RelPath,
     source: &str,
-    language: &str,
+    language: &'static str,
 ) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let mut edges: Vec<ExtractedEdge> = Vec::new();
     let mut seen_keys: HashSet<(String, String)> = HashSet::new(); // (state_type, key)
@@ -210,13 +210,13 @@ pub fn extract_state_accesses(
 
             edges.push(ExtractedEdge {
                 source_name: enclosing,
-                source_kind: "function".to_string(),
+                source_kind: "function",
                 source_start_line: line_idx as u32,
-                source_language: language.to_string(),
+                source_language: language,
                 target_name: target_id,
-                target_kind: Some("global_state".to_string()),
+                target_kind: Some("global_state"),
                 target_start_line: None,
-                kind: edge_kind.to_string(),
+                kind: edge_kind,
                 metadata: Some(meta),
             });
 
@@ -228,7 +228,7 @@ pub fn extract_state_accesses(
 
                 symbols.push(ExtractedSymbol {
                     name: format!("{}:{}", state_type, key),
-                    kind: "global_state".to_string(),
+                    kind: "global_state",
                     start_line: line_idx as u32,
                     end_line: line_idx as u32,
                     metadata: Some(meta),
@@ -325,13 +325,13 @@ pub fn extract_state_accesses(
 
                 edges.push(ExtractedEdge {
                     source_name: enclosing,
-                    source_kind: "function".to_string(),
+                    source_kind: "function",
                     source_start_line: line_idx as u32,
-                    source_language: language.to_string(),
+                    source_language: language,
                     target_name: target_id,
-                    target_kind: Some("global_state".to_string()),
+                    target_kind: Some("global_state"),
                     target_start_line: None,
-                    kind: edge_kind.to_string(),
+                    kind: edge_kind,
                     metadata: Some(meta),
                 });
 
@@ -342,7 +342,7 @@ pub fn extract_state_accesses(
 
                     symbols.push(ExtractedSymbol {
                         name: format!("{}:{}", state_type, key),
-                        kind: "global_state".to_string(),
+                        kind: "global_state",
                         start_line: line_idx as u32,
                         end_line: line_idx as u32,
                         metadata: Some(meta),

@@ -615,11 +615,9 @@ impl Engram {
             }
         }
 
-        // Remove cache entry
-        {
-            let mut map = self.state.projects.write().await;
-            map.remove(&pid);
-        }
+        // Remove cache entry (DashMap — no async lock needed)
+        self.state.projects.remove(&pid);
+        self.state.project_lru.remove(&pid);
 
         // Remove registry record + all metadata (memory bank, rules, watches, jobs, etc.)
         {
@@ -1845,7 +1843,7 @@ impl Engram {
                     {
                         table_id
                     } else if let Ok(candidates) =
-                        graph.query_nodes(&req.project_id, None, None, None, 100)
+                        graph.query_nodes(&req.project_id, None, None, None, 500)
                         && let Some(n) = candidates.iter().find(|n| {
                             n.metadata
                                 .as_ref()
@@ -1856,10 +1854,12 @@ impl Engram {
                     {
                         n.node_id.clone()
                     } else {
-                        // Fallback: search by short name with higher limit to avoid FQN truncation
+                        // Fallback: search by short name with higher limit to avoid FQN truncation.
+                        // 500 covers large codebases where many symbols share a common short name
+                        // (e.g., "Page_Load" in WebForms apps with hundreds of pages).
                         let short = fqn.split('.').next_back().unwrap_or(fqn);
                         if let Ok(candidates) =
-                            graph.query_nodes(&req.project_id, None, Some(short), None, 200)
+                            graph.query_nodes(&req.project_id, None, Some(short), None, 500)
                             && !candidates.is_empty()
                         {
                             if let Some(exact) = candidates.iter().find(|n| {
@@ -2452,92 +2452,90 @@ impl Engram {
             _ => String::new(),
         };
 
-        let graph = self.state.graph.clone();
-        let data_dir = self.state.cfg.data_dir.clone();
-        let pid_clone = pid.clone();
-        let buffer = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
-            let mut buffer = Vec::new();
-            {
-                let mut zip = zip::ZipWriter::new(std::io::Cursor::new(&mut buffer));
-                let options = zip::write::SimpleFileOptions::default()
-                    .compression_method(zip::CompressionMethod::Deflated);
-
-                // 1. overview.md
-                zip.start_file("overview.md", options)
-                    .map_err(|e| e.to_string())?;
-                std::io::Write::write_all(&mut zip, overview_text.as_bytes())
-                    .map_err(|e| e.to_string())?;
-
-                // 2. graph_topology.json
-                let all_nodes = graph
-                    .query_nodes(&pid_clone, None, None, None, 1000)
-                    .unwrap_or_default();
-                let total_node_count = graph.count_nodes(&pid_clone).unwrap_or(all_nodes.len());
-                let topo = serde_json::json!({
-                    "node_count": total_node_count,
-                    "nodes": all_nodes.iter().map(|n| {
-                        serde_json::json!({
-                            "id": n.node_id,
-                            "type": n.node_type,
-                            "name": n.name,
-                            "path": n.file_path,
-                            "language": n.language
-                        })
-                    }).collect::<Vec<_>>()
-                });
-                zip.start_file("graph_topology.json", options)
-                    .map_err(|e| e.to_string())?;
-                serde_json::to_writer_pretty(&mut zip, &topo).map_err(|e| e.to_string())?;
-
-                // 3. ui_wiring.json
-                let ui_nodes = graph
-                    .query_nodes(&pid_clone, Some("control"), None, None, 5000)
-                    .unwrap_or_default();
-                let mut wiring = Vec::new();
-                for ctrl in ui_nodes {
-                    let deps = graph
-                        .neighbors(
-                            &pid_clone,
-                            engram_graph::EdgeKind::Dependency,
-                            &ctrl.node_id,
-                            10,
-                        )
-                        .unwrap_or_default();
-                    wiring.push(serde_json::json!({
-                        "control": ctrl.node_id,
-                        "handlers": deps.iter().map(|(id, _)| id).collect::<Vec<_>>()
-                    }));
-                }
-                zip.start_file("ui_wiring.json", options)
-                    .map_err(|e| e.to_string())?;
-                serde_json::to_writer_pretty(&mut zip, &wiring).map_err(|e| e.to_string())?;
-
-                // 4. sql_map.json
-                let sql_edges = graph
-                    .list_edges_by_kind(&pid_clone, engram_graph::EdgeKind::SqlCalls, 5000)
-                    .unwrap_or_default();
-                zip.start_file("sql_map.json", options)
-                    .map_err(|e| e.to_string())?;
-                serde_json::to_writer_pretty(&mut zip, &sql_edges).map_err(|e| e.to_string())?;
-
-                zip.finish().map_err(|e| e.to_string())?;
-            }
-            Ok(buffer)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e, None))?;
-
-        // Write to disk — use tokio::fs to avoid blocking the async executor
+        // Stream the zip directly to disk instead of building a Vec<u8> in memory.
+        // This prevents OOM for large projects with thousands of graph nodes.
         let timestamp = now_ms();
+        let data_dir = self.state.cfg.data_dir.clone();
         let exports_dir = data_dir.join("exports").join(&pid);
         tokio::fs::create_dir_all(&exports_dir)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let zip_path = exports_dir.join(format!("{}.zip", timestamp));
-        tokio::fs::write(&zip_path, buffer)
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let graph = self.state.graph.clone();
+        let pid_clone = pid.clone();
+        let zip_path_clone = zip_path.clone();
+        tokio::task::spawn_blocking(move || -> Result<(), String> {
+            let file = std::fs::File::create(&zip_path_clone).map_err(|e| e.to_string())?;
+            let writer = std::io::BufWriter::new(file);
+            let mut zip = zip::ZipWriter::new(writer);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
+
+            // 1. overview.md
+            zip.start_file("overview.md", options)
+                .map_err(|e| e.to_string())?;
+            std::io::Write::write_all(&mut zip, overview_text.as_bytes())
+                .map_err(|e| e.to_string())?;
+
+            // 2. graph_topology.json — stream directly into zip via serde_json::to_writer
+            let all_nodes = graph
+                .query_nodes(&pid_clone, None, None, None, 1000)
+                .unwrap_or_default();
+            let total_node_count = graph.count_nodes(&pid_clone).unwrap_or(all_nodes.len());
+            let topo = serde_json::json!({
+                "node_count": total_node_count,
+                "nodes": all_nodes.iter().map(|n| {
+                    serde_json::json!({
+                        "id": n.node_id,
+                        "type": n.node_type,
+                        "name": n.name,
+                        "path": n.file_path,
+                        "language": n.language
+                    })
+                }).collect::<Vec<_>>()
+            });
+            zip.start_file("graph_topology.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &topo).map_err(|e| e.to_string())?;
+
+            // 3. ui_wiring.json
+            let ui_nodes = graph
+                .query_nodes(&pid_clone, Some("control"), None, None, 5000)
+                .unwrap_or_default();
+            let mut wiring = Vec::new();
+            for ctrl in ui_nodes {
+                let deps = graph
+                    .neighbors(
+                        &pid_clone,
+                        engram_graph::EdgeKind::Dependency,
+                        &ctrl.node_id,
+                        10,
+                    )
+                    .unwrap_or_default();
+                wiring.push(serde_json::json!({
+                    "control": ctrl.node_id,
+                    "handlers": deps.iter().map(|(id, _)| id).collect::<Vec<_>>()
+                }));
+            }
+            zip.start_file("ui_wiring.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &wiring).map_err(|e| e.to_string())?;
+
+            // 4. sql_map.json
+            let sql_edges = graph
+                .list_edges_by_kind(&pid_clone, engram_graph::EdgeKind::SqlCalls, 5000)
+                .unwrap_or_default();
+            zip.start_file("sql_map.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &sql_edges).map_err(|e| e.to_string())?;
+
+            zip.finish().map_err(|e| e.to_string())?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} Capture pack exported to: {}",
@@ -3645,14 +3643,22 @@ End Sub
                 let control_id = parts[3];
                 let sql_hash = parts[4];
 
-                // Normalize path (strip ~/)
-                let rel_path = path.trim_start_matches("~/").trim_start_matches('/');
+                // Normalize path: strip ASP.NET virtual path prefixes (`~/`, `/`,
+                // absolute Windows paths) and reject any traversal or unsafe chars.
+                let rel_path = path
+                    .trim_start_matches("~/")
+                    .trim_start_matches('/')
+                    .trim_start_matches('\\');
 
-                // Security: reject path traversal in telemetry data
-                if rel_path.contains("..") {
-                    tracing::warn!(path = %rel_path, "Rejecting instrumentation log line with path traversal");
+                // Security: use RelPath normalization which strips .., control chars,
+                // and NUL bytes. Also reject if the result is empty (root path) or
+                // still contains backslashes (possible Windows absolute path leak).
+                let safe = engram_core::RelPath::new(rel_path);
+                if safe.is_empty() {
+                    tracing::warn!(path = %path, "Rejecting instrumentation log line with empty normalized path");
                     continue;
                 }
+                let rel_path = safe.as_str();
 
                 let source_id = if !control_id.is_empty() {
                     engram_core::ids::NodeId::control(rel_path, control_id).0

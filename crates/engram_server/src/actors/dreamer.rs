@@ -74,7 +74,7 @@ async fn load_project_runtime(
     state: &AppState,
     project_id: &str,
 ) -> anyhow::Result<Option<crate::state::ProjectState>> {
-    if let Some(p) = state.get_project_cached(project_id).await {
+    if let Some(p) = state.get_project_cached(project_id) {
         return Ok(Some(p));
     }
     let reg = state.registry.clone();

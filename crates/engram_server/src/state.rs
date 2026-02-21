@@ -1,3 +1,4 @@
+use dashmap::DashMap;
 use engram_core::{Config, PathContext, Registry};
 use engram_graph::GraphStore;
 use engram_index::HybridSearchEngine;
@@ -69,9 +70,11 @@ pub struct AppState {
     pub immune: Arc<ImmuneEngine>,
 
     /// Runtime cache: project_id -> open HybridSearchEngine handle.
-    pub projects: Arc<RwLock<HashMap<String, ProjectState>>>,
+    /// Uses DashMap for lock-striped concurrent access — reads and writes to
+    /// different project keys never contend with each other.
+    pub projects: Arc<DashMap<String, ProjectState>>,
     /// Last-access timestamps used to implement true LRU eviction.
-    pub project_lru: Arc<RwLock<HashMap<String, std::time::Instant>>>,
+    pub project_lru: Arc<DashMap<String, std::time::Instant>>,
 
     /// Active job cancellation handles.
     pub active_jobs: Arc<RwLock<HashMap<String, tokio::task::JoinHandle<()>>>>,
@@ -104,12 +107,14 @@ impl AppState {
         let graph_path = cfg.data_dir.join("graph").join("graph.redb");
         let graph = GraphStore::open(&graph_path)?;
 
-        // Capacity 4096 gives the dreamer ample headroom to drain events before
-        // the `Lagged` error starts dropping co-occurrence data.  If the dreamer
-        // stalls (e.g., long PageRank), excess events are silently discarded, but
-        // this only affects search analytics quality, not correctness.
+        // Capacity 16384 gives the dreamer and co-occurrence actor ample headroom
+        // to drain events even during heavy concurrent searching. If a receiver
+        // stalls (e.g., long PageRank), excess events are silently discarded via
+        // `Lagged`, which only affects analytics quality, not correctness. The
+        // increased capacity (from 4096) prevents drops during burst indexing jobs
+        // that simultaneously trigger many search sessions.
         let dreaming = DreamingEngine::with_config(&cfg);
-        let (events_tx, events_rx) = broadcast::channel(4096);
+        let (events_tx, events_rx) = broadcast::channel(16_384);
 
         Ok((
             Self {
@@ -120,8 +125,8 @@ impl AppState {
                 dreaming: Arc::new(dreaming),
                 mimicry: Arc::new(StyleMimicryEngine::new()),
                 immune: Arc::new(ImmuneEngine::default()),
-                projects: Arc::new(RwLock::new(HashMap::new())),
-                project_lru: Arc::new(RwLock::new(HashMap::new())),
+                projects: Arc::new(DashMap::new()),
+                project_lru: Arc::new(DashMap::new()),
                 active_jobs: Arc::new(RwLock::new(HashMap::new())),
                 cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
                 active_indexing_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
@@ -134,35 +139,44 @@ impl AppState {
     }
 
     /// Return (or lazily create) the per-project update mutex, then acquire it.
-    /// The returned guard keeps the lock held until dropped. Callers should hold
-    /// it for the entire duration of `update_project_impl` to prevent concurrent
-    /// watcher/agent updates from corrupting the same generation.
+    ///
+    /// Uses a fast read-lock path when the mutex already exists (common case),
+    /// falling back to a write lock only for first-time creation. The `entry`
+    /// API inside the write lock prevents TOCTOU races where two callers both
+    /// see `None` from the read path and create duplicate mutexes.
     pub async fn acquire_project_update_lock(
         &self,
         project_id: &str,
     ) -> tokio::sync::OwnedMutexGuard<()> {
-        let lock = {
-            let map = self.project_update_locks.read().await;
-            map.get(project_id).cloned()
-        };
-        let lock = match lock {
-            Some(l) => l,
-            None => {
-                let mut map = self.project_update_locks.write().await;
-                map.entry(project_id.to_string())
-                    .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
-                    .clone()
-            }
-        };
+        // Fast path: read-only check (no write contention for existing projects).
+        if let Some(lock) = self
+            .project_update_locks
+            .read()
+            .await
+            .get(project_id)
+            .cloned()
+        {
+            return lock.lock_owned().await;
+        }
+        // Slow path: create the mutex. `entry` ensures only one is created even
+        // if multiple callers race past the read check above.
+        let lock = self
+            .project_update_locks
+            .write()
+            .await
+            .entry(project_id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone();
         lock.lock_owned().await
     }
 
-    pub async fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
-        let cached = self.projects.read().await.get(project_id).cloned();
+    pub fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
+        let cached = self.projects.get(project_id).map(|r| r.value().clone());
         if cached.is_some() {
+            // DashMap shard lock is released when the guard from `get()` is dropped
+            // (above, via `map`). Updating LRU is a separate, non-blocking operation
+            // on a different DashMap — no risk of cross-lock deadlocks.
             self.project_lru
-                .write()
-                .await
                 .insert(project_id.to_string(), std::time::Instant::now());
         }
         cached
@@ -172,52 +186,66 @@ impl AppState {
     /// slots were busy indexing.  Call this immediately after decrementing
     /// `active_indexing_count` so the overshoot is cleaned up promptly.
     pub async fn evict_cache_overshoot(&self) {
-        let mut map = self.projects.write().await;
-        if map.len() <= MAX_CACHED_PROJECTS {
+        if self.projects.len() <= MAX_CACHED_PROJECTS {
             return;
         }
         let active_jobs = self.active_jobs.read().await;
-        let mut lru = self.project_lru.write().await;
-        while map.len() > MAX_CACHED_PROJECTS {
-            let evict_key = map
-                .keys()
-                .filter(|k| !active_jobs.contains_key(*k))
-                .min_by_key(|k| lru.get(*k).copied().unwrap_or(std::time::Instant::now()))
-                .cloned();
-            match evict_key {
-                Some(key) => {
-                    tracing::debug!(evicted = %key, "LRU-evicting overshoot project from cache");
-                    map.remove(&key);
-                    lru.remove(&key);
-                }
-                None => break, // all remaining are still active — stop
+
+        // Collect eviction candidates: idle projects sorted by LRU timestamp.
+        let mut candidates: Vec<(String, std::time::Instant)> = self
+            .projects
+            .iter()
+            .filter(|entry| !active_jobs.contains_key(entry.key()))
+            .map(|entry| {
+                let ts = self
+                    .project_lru
+                    .get(entry.key())
+                    .map(|r| *r.value())
+                    .unwrap_or(std::time::Instant::now());
+                (entry.key().clone(), ts)
+            })
+            .collect();
+        drop(active_jobs);
+
+        candidates.sort_by_key(|(_, ts)| *ts);
+
+        for (key, _) in candidates {
+            if self.projects.len() <= MAX_CACHED_PROJECTS {
+                break;
             }
+            tracing::debug!(evicted = %key, "LRU-evicting overshoot project from cache");
+            self.projects.remove(&key);
+            self.project_lru.remove(&key);
         }
     }
 
     pub async fn put_project_cached(&self, ps: ProjectState) {
-        let mut map = self.projects.write().await;
         // Evict the least-recently-used project when at capacity, but skip
         // projects with active indexing jobs to avoid mid-index corruption.
-        if map.len() >= MAX_CACHED_PROJECTS && !map.contains_key(&ps.info.project_id) {
+        if self.projects.len() >= MAX_CACHED_PROJECTS
+            && !self.projects.contains_key(&ps.info.project_id)
+        {
             let active_jobs = self.active_jobs.read().await;
-            let lru = self.project_lru.read().await;
 
-            // Find the oldest idle project using LRU timestamps. Falls back to
-            // an arbitrary idle project if no timestamp exists (newly inserted).
-            let evict_key = map
-                .keys()
-                .filter(|k| !active_jobs.contains_key(*k))
-                .min_by_key(|k| lru.get(*k).copied().unwrap_or(std::time::Instant::now()))
-                .cloned();
+            // Collect eviction candidates: idle projects sorted by LRU timestamp.
+            let evict_key = self
+                .projects
+                .iter()
+                .filter(|entry| !active_jobs.contains_key(entry.key()))
+                .min_by_key(|entry| {
+                    self.project_lru
+                        .get(entry.key())
+                        .map(|r| *r.value())
+                        .unwrap_or(std::time::Instant::now())
+                })
+                .map(|entry| entry.key().clone());
 
-            drop(lru);
             drop(active_jobs);
 
             if let Some(key) = evict_key {
                 tracing::debug!(evicted = %key, "LRU-evicting project from cache (max={})", MAX_CACHED_PROJECTS);
-                map.remove(&key);
-                self.project_lru.write().await.remove(&key);
+                self.projects.remove(&key);
+                self.project_lru.remove(&key);
             } else {
                 // All cached projects are actively indexing — allow temporary overshoot.
                 tracing::warn!(
@@ -227,9 +255,7 @@ impl AppState {
             }
         }
         self.project_lru
-            .write()
-            .await
             .insert(ps.info.project_id.clone(), std::time::Instant::now());
-        map.insert(ps.info.project_id.clone(), ps);
+        self.projects.insert(ps.info.project_id.clone(), ps);
     }
 }
