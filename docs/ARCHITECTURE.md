@@ -54,3 +54,78 @@ Memory impact:
   `O(active_jobs × batch_working_set)`.
 - This prevents bursty background indexing from multiplying transient file-buffer/chunk
   allocations across all jobs.
+
+## Autonomous Decision Protocol (ADP) architecture
+
+### Gate pipeline
+
+The ADP pipeline in `autonomous_decision_service.rs` is an ordered chain of 8 gates. Each gate evaluates independently and produces a pass/fail/skip result:
+
+```
+extraction_confidence → trace_certainty → safety_policy → retrieval_quality
+       → blast_radius → anti_pattern → runtime_evidence → evidence_sufficiency
+```
+
+**Verdict rules**: All pass → Allow; any hard fail → Deny; insufficient evidence → Abstain.
+
+### Rollout state machine (Phase 27)
+
+```
+  Shadow ──→ Advisory ──→ Guarded ──→ Autonomous
+  (log only)  (warn)      (enforce)   (auto-apply)
+```
+
+- `apply_rollout_policy(phase, decision)` transforms the raw gate verdict according to the current phase
+- Shadow/Advisory modes always return Allow but annotate the response with what *would* have happened
+- Guarded/Autonomous modes enforce the raw verdict
+- `adp_kill_switch = true` overrides ALL phases → forces Deny
+
+### JSON audit reports
+
+`build_decision_report()` creates an immutable `AdpDecisionReport` containing:
+- Gate-by-gate `GateEvidence` (gate_id, passed, score, detail string)
+- `ConfigSnapshot` (rollout phase, kill-switch state, threshold values)
+- Full `AdpScenarioInput` for deterministic replay
+- ISO 8601 timestamp and final verdict
+
+### Deterministic replay
+
+The replay subsystem enables reproducible ADP testing:
+- `replay_from_scenario(scenario)` — deserializes a scenario fixture into `AdpInput` and re-evaluates
+- `run_corpus(corpus)` — batch-processes a labeled `AdpCorpus` and produces an `AdpConfusionMatrix`
+- Confusion matrix tracks: true_allow, true_deny, true_abstain, false_allow, false_deny
+
+## Benchmark & quality infrastructure (Phase 27)
+
+### Schemas (`engram_core::benchmark`)
+
+| Type | Purpose |
+|------|---------|
+| `BenchmarkPack` | Versioned query set with per-class thresholds (NDCG@10, Recall@10, MRR) |
+| `AdpCorpus` | Labeled ADP scenario collection for calibration |
+| `TraceScenarioLibrary` | WebForms trace fixture library for regression testing |
+| `DriftReport` | Compares two benchmark runs and flags regressions exceeding class thresholds |
+
+### Runtime evidence (`engram_core::runtime_evidence`)
+
+| Type | Purpose |
+|------|---------|
+| `RuntimeEvent` | Normalized event: ControlInteraction, Route, SqlExecution, StateMutation |
+| `RuntimeEvidenceBatch` | Collection with `validate_batch()` schema enforcement |
+| `ReconciliationResult` | Per-path matching of predictions vs. observed runtime behavior |
+
+### CI pipeline
+
+`.github/workflows/benchmark-ci.yml` runs on every PR and push to main:
+1. Benchmark unit tests (`engram_core::benchmark`)
+2. ADP corpus replay tests (`corpus_runner`)
+3. WebForms mutation tests (12 mutation scenarios)
+4. Reproducibility tests (golden fixture determinism)
+5. Artifact upload with 90-day retention
+
+### Integrity canaries
+
+9 canary tests in `integrity_canary_test.rs` inject synthetic drift:
+- Tantivy orphans, docstore orphans, vector bloat, count divergence
+- Namespace skew, empty stores, tolerance boundaries
+- Repair policy override verification

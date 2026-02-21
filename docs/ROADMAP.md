@@ -82,6 +82,20 @@ The matrix below is generated from capability flags and acts as the roadmap base
 
 ## Changelog
 
+### Phase 27: Gold Standard Hardening (10 tickets)
+- **Benchmark schemas** (`engram_core::benchmark`): `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, `DriftReport` with versioned schemas, per-class thresholds, and drift detection
+- **ADP replay**: Deterministic `replay_from_scenario()` and batch `run_corpus()` with `AdpConfusionMatrix` for false-allow/false-deny calibration reporting
+- **JSON audit reports**: `AdpDecisionReport` with `build_decision_report()` — immutable per-verdict report with gate-by-gate evidence, config snapshots, and input replay data
+- **Rollout policy engine**: `RolloutPhase` (shadow/advisory/guarded/autonomous) with `apply_rollout_policy()` — kill-switch forces all decisions to deny
+- **Runtime evidence schemas** (`engram_core::runtime_evidence`): `RuntimeEvent`, `RuntimeEvidenceBatch`, `ReconciliationResult` with `validate_batch()` schema validator
+- **Trace provenance**: `trace_ui_event` enhanced with structured provenance block, unresolved candidates, per-hop evidence, follow-up probes
+- **Safety calibration**: 7-scenario labeled corpus with false-allow rate ≤ 1% assertion
+- **WebForms mutation tests**: 12 mutation tests for extraction robustness
+- **Integrity canary tests**: 9 canary tests with synthetic drift injection
+- **Benchmark CI**: `.github/workflows/benchmark-ci.yml` with artifact upload
+- **Config fields**: `adp_rollout_phase`, `adp_kill_switch`
+- **Bugfix**: `saturating_sub` overflow in ADP evidence sufficiency gate
+
 ### Phase 26: Autonomous Decision Protocol (ADP v1)
 - **New tool**: `autonomous_decision_gate` — mandatory 8-gate verification pipeline for autonomous code changes (allow/deny/abstain verdicts)
 - **Gate pipeline**: extraction confidence → trace certainty → safety policy → retrieval quality → blast radius → anti-pattern → runtime evidence → evidence sufficiency

@@ -103,6 +103,53 @@ engram-v2/
 | `graph_centrality_rerank` | planned |
 <!-- CAPABILITIES_MATRIX:END -->
 
+## Phase 27: Gold Standard Hardening
+
+### New modules
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `benchmark.rs` | `engram_core` | Benchmark schemas: `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, `DriftReport` with versioned schemas and per-class thresholds |
+| `runtime_evidence.rs` | `engram_core` | Runtime evidence: `RuntimeEvent`, `RuntimeEvidenceBatch`, `ReconciliationResult` with `validate_batch()` schema validator |
+
+### New test files
+
+| Test file | Crate | Tests | Purpose |
+|-----------|-------|-------|---------|
+| `tests/webforms_mutation_test.rs` | `engram_index` | 12 | Mutation tests for WebForms extraction robustness (renamed handlers, duplicate IDs, malformed directives, empty control IDs, etc.) |
+| `tests/integrity_canary_test.rs` | `engram_server` | 9 | Canary tests with synthetic drift injection (Tantivy/docstore orphans, vector bloat, namespace skew, repair policy override) |
+
+### Modified service: `autonomous_decision_service.rs`
+
+New APIs added to the existing ADP service:
+- **Rollout policy**: `RolloutPhase` enum (`Shadow`, `Advisory`, `Guarded`, `Autonomous`), `apply_rollout_policy()` with kill-switch support
+- **JSON reports**: `AdpDecisionReport`, `GateEvidence`, `ConfigSnapshot`, `build_decision_report()`
+- **Replay**: `replay_from_scenario()`, `run_corpus()`, `AdpCorpusResult`, `AdpConfusionMatrix`
+- **Bugfix**: `saturating_sub` overflow in evidence sufficiency gate
+
+### Modified service: `safety_service.rs`
+
+- 7-scenario `calibration_corpus()` with labeled expected verdicts
+- `SafetyConfusionMatrix` for tracking true/false allow/deny rates
+- `false_allow_rate ≤ 1%` assertion on high-risk scenarios
+
+### Modified tool handler: `trace_ui_event`
+
+- Structured `## Trace Provenance` block with ambiguity metadata
+- Per-hop `evidence:` annotation with node type, file, line range
+- `### Follow-up Probes` section with specific disambiguation actions
+
+### New config fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `adp_rollout_phase` | String | `"shadow"` | Rollout phase: `shadow`, `advisory`, `guarded`, `autonomous` |
+| `adp_kill_switch` | bool | `false` | Emergency kill-switch — forces all ADP verdicts to Deny |
+
+### CI workflow
+
+`.github/workflows/benchmark-ci.yml`: Runs benchmark unit tests, ADP corpus replay, WebForms mutations, and reproducibility tests on every PR and push to main. Generates artifacts with 90-day retention.
+
 ## Source-of-truth sync rule
 
 When changing feature maturity:
