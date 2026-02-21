@@ -111,6 +111,44 @@ impl Engram {
         Ok(())
     }
 
+    pub(crate) async fn index_files_with_parse_guard<F>(
+        &self,
+        search: &engram_index::HybridSearchEngine,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+        root: &Path,
+        files: Vec<PathBuf>,
+        max_chunks_per_file: usize,
+        cancel: &tokio_util::sync::CancellationToken,
+        progress_cb: F,
+    ) -> anyhow::Result<engram_index::IngestStats>
+    where
+        F: FnMut(usize, usize) + Send,
+    {
+        // Single admission point for parse/chunking. This bounds spawn_blocking +
+        // Rayon fan-out inside engram_index::HybridSearchEngine::index_files.
+        let _parse_permit = self
+            .state
+            .parse_semaphore
+            .acquire()
+            .await
+            .map_err(|e| anyhow::anyhow!("Parse semaphore closed: {e}"))?;
+
+        search
+            .index_files(
+                project_id,
+                namespace,
+                generation,
+                root,
+                files,
+                max_chunks_per_file,
+                cancel,
+                progress_cb,
+            )
+            .await
+    }
+
     pub(crate) async fn spawn_job_index_directory(
         &self,
         project_id: String,
@@ -210,8 +248,9 @@ impl Engram {
                             ))
                         } else {
                             let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                            search
-                                .index_files(
+                            Engram::new(state_for_spawn.clone())
+                                .index_files_with_parse_guard(
+                                    &search,
                                     &project_id_for_job,
                                     "memory",
                                     1,
@@ -246,8 +285,9 @@ impl Engram {
                         }
                     } else {
                         let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                        search
-                            .index_files(
+                        Engram::new(state_for_spawn.clone())
+                            .index_files_with_parse_guard(
+                                &search,
                                 &project_id_for_job,
                                 "memory",
                                 1,
@@ -499,9 +539,9 @@ impl Engram {
                 let reg_for_progress = reg_for_cb.clone();
                 let job_id_for_progress = job_id_for_cb.clone();
                 let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-                let stats = ps
-                    .search
-                    .index_files(
+                let stats = Engram::new(state.clone())
+                    .index_files_with_parse_guard(
+                        &ps.search,
                         &project_id_for_job,
                         "memory",
                         new_gen,
