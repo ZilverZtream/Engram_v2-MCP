@@ -114,6 +114,7 @@ async fn test_dup_content_does_not_overwrite() {
                 doc_id: did.clone(),
                 namespace: "memory".into(),
                 inject_rules: false,
+                logical_slice: None,
             }))
             .await
             .unwrap();

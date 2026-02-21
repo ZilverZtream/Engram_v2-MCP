@@ -80,6 +80,12 @@ pub enum EdgeKind {
     TriggersPostback,
     ApiCall,
     ParameterBinding,
+    /// Links VB backend coordinate provider to frontend GIS map consumer.
+    SpatialCall,
+    /// Connects related state keys accessed by the same methods.
+    StateAffinity,
+    /// VB method injects JavaScript into the page via RegisterStartupScript et al.
+    InjectsScript,
 }
 
 impl EdgeKind {
@@ -114,6 +120,9 @@ impl EdgeKind {
         EdgeKind::TriggersPostback,
         EdgeKind::ApiCall,
         EdgeKind::ParameterBinding,
+        EdgeKind::SpatialCall,
+        EdgeKind::StateAffinity,
+        EdgeKind::InjectsScript,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -148,6 +157,9 @@ impl EdgeKind {
             EdgeKind::TriggersPostback => "triggers_postback",
             EdgeKind::ApiCall => "api_call",
             EdgeKind::ParameterBinding => "parameter_binding",
+            EdgeKind::SpatialCall => "spatial_call",
+            EdgeKind::StateAffinity => "state_affinity",
+            EdgeKind::InjectsScript => "injects_script",
         }
     }
 
@@ -183,6 +195,9 @@ impl EdgeKind {
             "triggers_postback" => Some(EdgeKind::TriggersPostback),
             "api_call" => Some(EdgeKind::ApiCall),
             "parameter_binding" => Some(EdgeKind::ParameterBinding),
+            "spatial_call" => Some(EdgeKind::SpatialCall),
+            "state_affinity" => Some(EdgeKind::StateAffinity),
+            "injects_script" => Some(EdgeKind::InjectsScript),
             _ => None,
         }
     }
@@ -1889,7 +1904,10 @@ mod tests {
                 | EdgeKind::ManipulatesDom
                 | EdgeKind::TriggersPostback
                 | EdgeKind::ApiCall
-                | EdgeKind::ParameterBinding => all_set.contains(&ek),
+                | EdgeKind::ParameterBinding
+                | EdgeKind::SpatialCall
+                | EdgeKind::StateAffinity
+                | EdgeKind::InjectsScript => all_set.contains(&ek),
             }
         };
 
@@ -1901,7 +1919,7 @@ mod tests {
             );
         }
 
-        let variant_count = 30;
+        let variant_count = 33;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,

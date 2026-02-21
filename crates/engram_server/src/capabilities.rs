@@ -258,6 +258,14 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "compute_blast_radius",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "detect_design_patterns",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "graph_centrality_rerank",
         status: CapabilityStatus::Planned,
     },

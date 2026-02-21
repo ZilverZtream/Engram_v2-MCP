@@ -509,6 +509,225 @@ fn build_method_map(lines: &[&str], language: &str) -> HashMap<usize, String> {
     map
 }
 
+// ── State Affinity Analysis ─────────────────────────────────────────────────
+
+/// Analyze state access patterns to identify state key affinities.
+///
+/// Groups state keys by the methods that access them and emits `state_affinity`
+/// edges between keys that are co-accessed within the same method. This data
+/// feeds the State-to-API transformation, where clustered state keys suggest
+/// natural API endpoint boundaries.
+///
+/// Also emits `json_schema_hint` metadata for ViewState keys (suggesting
+/// the frontend state shape needed to replace them).
+pub fn analyze_state_affinity(
+    edges: &[ExtractedEdge],
+    _rel_path: &RelPath,
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let mut affinity_edges = Vec::new();
+    let mut affinity_syms = Vec::new();
+
+    // Step 1: Build method → [state_keys] map
+    // Each edge has source_name = enclosing method, target_name = "state:Type:Key"
+    let mut method_to_keys: HashMap<String, Vec<(&str, &str)>> = HashMap::new();
+    // Track access patterns per key: which methods read/write it
+    let mut key_access_methods: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut key_access_patterns: HashMap<String, HashSet<&str>> = HashMap::new();
+
+    for edge in edges {
+        // Only consider resolved state edges (reads_state / writes_state)
+        if edge.kind != "reads_state" && edge.kind != "writes_state" {
+            continue;
+        }
+        // target_name format: "state:Session:UserId" or similar
+        if !edge.target_name.starts_with("state:") {
+            continue;
+        }
+
+        let method = &edge.source_name;
+        let state_key = edge.target_name.as_str();
+
+        method_to_keys
+            .entry(method.clone())
+            .or_default()
+            .push((state_key, edge.kind));
+
+        key_access_methods
+            .entry(state_key.to_string())
+            .or_default()
+            .insert(method.clone());
+
+        key_access_patterns
+            .entry(state_key.to_string())
+            .or_default()
+            .insert(edge.kind);
+    }
+
+    // Step 2: For each method with 2+ state keys, emit affinity edges
+    let mut affinity_counts: HashMap<(String, String), (u32, HashSet<String>)> = HashMap::new();
+
+    for (method, keys) in &method_to_keys {
+        if keys.len() < 2 {
+            continue;
+        }
+        // Deduplicate keys within this method
+        let unique_keys: Vec<&str> = {
+            let mut ks: Vec<&str> = keys.iter().map(|(k, _)| *k).collect();
+            ks.sort_unstable();
+            ks.dedup();
+            ks
+        };
+
+        for i in 0..unique_keys.len() {
+            for j in (i + 1)..unique_keys.len() {
+                let (a, b) = if unique_keys[i] < unique_keys[j] {
+                    (unique_keys[i].to_string(), unique_keys[j].to_string())
+                } else {
+                    (unique_keys[j].to_string(), unique_keys[i].to_string())
+                };
+                let entry = affinity_counts.entry((a, b)).or_default();
+                entry.0 += 1;
+                entry.1.insert(method.clone());
+            }
+        }
+    }
+
+    // Step 3: Emit affinity edges for co-accessed pairs
+    for ((key_a, key_b), (count, methods)) in &affinity_counts {
+        // Determine combined access pattern
+        let pat_a = key_access_patterns.get(key_a);
+        let pat_b = key_access_patterns.get(key_b);
+        let a_writes = pat_a.map_or(false, |p| p.contains("writes_state"));
+        let b_writes = pat_b.map_or(false, |p| p.contains("writes_state"));
+        let access_pattern = match (a_writes, b_writes) {
+            (true, true) => "write-write",
+            (true, false) | (false, true) => "read-write",
+            (false, false) => "read-read",
+        };
+
+        let mut meta = HashMap::with_capacity(3);
+        meta.insert("method_count".into(), count.to_string());
+        meta.insert("access_pattern".into(), access_pattern.into());
+        meta.insert(
+            "co_accessing_methods".into(),
+            methods
+                .iter()
+                .take(10) // cap metadata size
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+
+        affinity_edges.push(ExtractedEdge {
+            source_name: key_a.clone(),
+            source_kind: "global_state",
+            source_start_line: 0,
+            source_language: "text",
+            target_name: key_b.clone(),
+            target_kind: Some("global_state"),
+            target_start_line: None,
+            kind: "state_affinity",
+            metadata: Some(meta),
+        });
+    }
+
+    // Step 4: Emit json_schema_hint symbols for ViewState keys
+    for (key, methods) in &key_access_methods {
+        if !key.contains(":ViewState:") {
+            continue;
+        }
+        let pats = key_access_patterns.get(key);
+        let is_read_only = pats.map_or(true, |p| !p.contains("writes_state"));
+
+        let mut meta = HashMap::with_capacity(3);
+        meta.insert(
+            "json_schema_hint".into(),
+            r#"{"type":"string"}"#.into(), // conservative default
+        );
+        meta.insert(
+            "mutability".into(),
+            if is_read_only {
+                "read_only"
+            } else {
+                "read_write"
+            }
+            .into(),
+        );
+        meta.insert("accessor_count".into(), methods.len().to_string());
+
+        // Suggest API endpoint based on key name
+        let key_name = key.rsplit(':').next().unwrap_or(key);
+        let suggested_controller = format!(
+            "{}Controller",
+            key_name.chars().next().map_or(String::new(), |c| {
+                c.to_uppercase().to_string() + &key_name[c.len_utf8()..]
+            })
+        );
+        meta.insert("suggested_api_endpoint".into(), suggested_controller);
+
+        affinity_syms.push(ExtractedSymbol {
+            name: format!("viewstate_schema:{}", key_name),
+            kind: "global_state",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+    }
+
+    // Step 5: Emit endpoint suggestions for Session key clusters
+    // Group Session keys by their affinity cluster
+    let mut session_clusters: HashMap<String, Vec<String>> = HashMap::new();
+    for ((key_a, key_b), (count, _)) in &affinity_counts {
+        if *count >= 2 && (key_a.contains(":Session:") || key_b.contains(":Session:")) {
+            // Use the first key as cluster anchor
+            let anchor = key_a.clone();
+            session_clusters
+                .entry(anchor.clone())
+                .or_default()
+                .push(key_b.clone());
+            session_clusters.entry(anchor).or_default();
+        }
+    }
+
+    for (anchor, related) in &session_clusters {
+        if related.is_empty() {
+            continue;
+        }
+        let anchor_name = anchor.rsplit(':').next().unwrap_or(anchor);
+        let suggested = format!("{}Controller", capitalize_first(anchor_name));
+
+        let mut meta = HashMap::with_capacity(3);
+        meta.insert("suggested_api_endpoint".into(), suggested);
+        meta.insert("cluster_size".into(), (related.len() + 1).to_string());
+        meta.insert(
+            "cluster_keys".into(),
+            std::iter::once(anchor.as_str())
+                .chain(related.iter().map(|s| s.as_str()))
+                .take(10)
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+
+        affinity_syms.push(ExtractedSymbol {
+            name: format!("session_cluster:{}", anchor_name),
+            kind: "global_state",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+    }
+
+    (affinity_syms, affinity_edges)
+}
+
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -914,5 +1133,81 @@ var token = Request.Cookies[CookieKey];
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].kind, "reads_state");
         assert!(edges[0].target_name.contains("Cookies:AUTH_TOKEN"));
+    }
+
+    // ── State Affinity Analysis ──────────────────────────────────────────
+
+    #[test]
+    fn test_state_affinity_same_method() {
+        // Two Session keys read in the same method should produce a state_affinity edge
+        let code = r#"
+public class Dashboard : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        var user = Session["UserId"];
+        var prefs = Session["UserPrefs"];
+    }
+}
+"#;
+        let rel = RelPath::new("Dashboard.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        // Now run affinity analysis
+        let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
+
+        assert!(
+            !affinity_edges.is_empty(),
+            "expected state_affinity edges for co-accessed keys"
+        );
+        assert!(affinity_edges.iter().all(|e| e.kind == "state_affinity"));
+        let first = &affinity_edges[0];
+        let meta = first.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("method_count").unwrap(), "1");
+        assert!(meta.get("access_pattern").unwrap() == "read-read");
+    }
+
+    #[test]
+    fn test_state_affinity_viewstate_schema_hint() {
+        let code = r#"
+public class Form : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        ViewState["EditMode"] = true;
+        var mode = ViewState["EditMode"];
+    }
+}
+"#;
+        let rel = RelPath::new("Form.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (syms, _) = analyze_state_affinity(&edges, &rel);
+
+        let vs_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name.starts_with("viewstate_schema:"))
+            .collect();
+        assert!(
+            !vs_syms.is_empty(),
+            "expected ViewState schema hint symbols"
+        );
+        let meta = vs_syms[0].metadata.as_ref().unwrap();
+        assert!(meta.contains_key("json_schema_hint"));
+        assert!(meta.contains_key("mutability"));
+    }
+
+    #[test]
+    fn test_state_affinity_no_single_key() {
+        // A method with only one state key should NOT produce affinity edges
+        let code = r#"
+public class Simple : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        var user = Session["UserId"];
+    }
+}
+"#;
+        let rel = RelPath::new("Simple.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
+        assert!(
+            affinity_edges.is_empty(),
+            "single key should not produce affinity edges"
+        );
     }
 }

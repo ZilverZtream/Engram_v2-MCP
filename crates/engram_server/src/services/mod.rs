@@ -1,4 +1,5 @@
 pub mod benchmark_service;
+pub mod blast_radius_service;
 pub mod cognitive_service;
 pub mod git_service;
 pub mod graph_service;
@@ -6,6 +7,8 @@ pub mod ingest_service;
 pub mod integrity_service;
 pub mod job_service;
 pub mod migration_service;
+pub mod pattern_detection_service;
 pub mod project_service;
 pub mod safety_service;
 pub mod search_service;
+pub mod slice_service;

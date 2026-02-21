@@ -89,6 +89,56 @@ impl Engram {
         project_service::inject_repo_rules(&self.state, project_id, file_path, content).await
     }
 
+    /// Generate a confidence footer for WebForms files.
+    ///
+    /// Returns a string like `"\n---\nextraction_confidence: medium (0.65) | ..."` for
+    /// WebForms languages (aspx, vb, cs) or an empty string for non-WebForms files.
+    /// When the score is below the configured threshold, adds a warning.
+    pub(crate) fn confidence_footer(&self, path: &engram_core::RelPath, lang: &str) -> String {
+        let path_str = path.as_str();
+        let is_webforms = matches!(lang, "aspx" | "ascx" | "master" | "vb" | "cs")
+            || path_str.ends_with(".aspx")
+            || path_str.ends_with(".aspx.vb")
+            || path_str.ends_with(".aspx.cs")
+            || path_str.ends_with(".ascx")
+            || path_str.ends_with(".master");
+
+        if !is_webforms {
+            return String::new();
+        }
+
+        // Heuristic confidence based on file extension signals.
+        // We use lightweight signals here — full content-based scoring
+        // is available via the `get_extraction_confidence` tool.
+        let has_codebehind_ext = path_str.ends_with(".aspx.vb")
+            || path_str.ends_with(".aspx.cs")
+            || path_str.ends_with(".ascx.vb")
+            || path_str.ends_with(".ascx.cs");
+        let is_markup = path_str.ends_with(".aspx")
+            || path_str.ends_with(".ascx")
+            || path_str.ends_with(".master");
+
+        let score = engram_index::confidence::score_event_wiring(
+            is_markup,          // has_inherits_directive (markup files typically have it)
+            has_codebehind_ext, // has_codebehind_file
+            has_codebehind_ext, // has_matching_handler (if codebehind exists, likely)
+            true,               // handler_signature_valid (assume standard)
+            is_markup,          // control_id_explicit (markup has explicit IDs)
+        );
+
+        let threshold = self.state.cfg.confidence_warning_threshold;
+        let warning = if score.score < threshold {
+            " | WARNING: Low extraction confidence — results may be incomplete"
+        } else {
+            ""
+        };
+
+        format!(
+            "\n---\nextraction_confidence: {} ({:.2}){} | {}",
+            score.band, score.score, warning, score.rationale
+        )
+    }
+
     pub(crate) async fn enforce_project_byte_budget(
         &self,
         files: &[PathBuf],
