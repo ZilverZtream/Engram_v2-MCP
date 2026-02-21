@@ -1,27 +1,27 @@
 # Engram MCP v2 Developer Specification
 
-This repo is a **Rust workspace scaffold** for Engram MCP v2: a developer tool that unifies
+This repo is a Rust workspace for Engram MCP v2: a developer tool that combines code search, graph reasoning, git history analysis, and cognitive helper tools.
 
-- **Fast code/text search** (Tantivy, Sourcegraph-style tokenization later)
-- **Graph cognition** (Redb-backed adjacency lists + analysis)
-- **Git intelligence** (temporal coupling + reverts/anti-patterns)
-- **Cognitive features** (REM-style Dreaming, Style Mimicry, Immune System)
+Canonical capability status labels are tracked in code (`crates/engram_server/src/capabilities.rs`) and mirrored in `docs/TOOL_PARITY.md`.
 
-The goal is to keep v1 tool contracts stable while moving the implementation to a modular, crash-safe, parallel Rust stack.
+- `implemented`: production-ready behavior in-tree
+- `partial`: available but missing notable parity/quality pieces
+- `experimental`: usable but intentionally iterative/tunable
+- `planned`: design target only
 
 ---
 
 ## 1) Workspace layout
 
 ```
-engram-mcp-v2-scaffold/
+engram-v2/
 ├── Cargo.toml
 ├── crates/
 │   ├── engram_core/     # shared types, config, security boundary, registry
-│   ├── engram_index/    # Tantivy + (future) LanceDB hybrid index
-│   ├── engram_graph/    # Redb graph store + clustering/coupling algorithms
+│   ├── engram_index/    # Tantivy + LanceDB-backed hybrid index
+│   ├── engram_graph/    # Redb graph store + coupling/clustering algorithms
 │   ├── engram_git/      # libgit2 walker, temporal coupling, revert harvesting
-│   ├── engram_ml/       # dreaming summarizer, style mimicry, immune decisions
+│   ├── engram_ml/       # dreaming summarizer, style mimicry, immune helpers
 │   └── engram_server/   # MCP server (rmcp), actors, tool router
 └── docs/
 ```
@@ -31,109 +31,47 @@ engram-mcp-v2-scaffold/
 ## 2) Core invariants
 
 ### 2.1 Security boundary (allowed_roots)
-All paths that touch the filesystem must pass through `engram_core::PathContext::resolve_path`.
-Any tool that accepts `directory` must reject paths outside `allowed_roots`.
+All filesystem access flows through `engram_core::PathContext::resolve_path`. Tools receiving directory/file paths reject paths outside `allowed_roots`.
 
 ### 2.2 Project registry is the source of truth
-`engram_core::Registry` (Redb) stores:
+`engram_core::Registry` stores projects, generation metadata, memory bank sections, repo rules, watches, and jobs.
 
-- projects (project_id → directory, name, type)
-- meta (project_id + key → value): `active_generation`, `last_git_oid`, etc.
-- memory bank sections
-- repo rules
-- watches
-- jobs
-
-### 2.3 Generations prevent “duplicate indexing”
-Tantivy is append-only. To avoid duplicates on re-index:
-
-- each project has `active_generation`
-- every indexed doc has a `generation` field
-- queries filter on `generation == active_generation`
-
-**Scaffold status:** implemented in `engram_index::HybridQuery.generation` and server tools.
+### 2.3 Generations prevent duplicate indexing
+Each indexed document is tagged with `generation`, and search queries filter to `active_generation`.
 
 ### 2.4 Namespaces
-Index namespaces allow multiple “spaces” in the same search engine:
-
-- `memory` – repository code/docs
-- `memory_bank` – user-provided notes/constraints
-- `history` – (future) commit/diff summaries
-- `antipattern` – reverted patterns (immune system)
+- `memory`: repository content
+- `memory_bank`: user-managed notes/rules context
+- `history`: commit/diff history docs
+- `antipattern`: revert-derived anti-pattern docs
 
 ---
 
-## 3) Cognitive features: “v1 parity + v2 upgrade path”
+## 3) Capability reconciliation (current)
 
-### 3.1 REM-Style Dreaming
-Pipeline:
+### 3.1 Search and indexing
+- Core indexing/search tools are **implemented**.
+- Incremental watcher-driven updates are **implemented**, but old-generation GC is **partial**.
+- Vector search is available and enabled by feature defaults, but still **experimental** for ranking quality/perf tuning.
 
-1. `search_memory` emits a `SearchSession` event with hit chunk_ids.
-2. Dreamer actor records **co-occurrence edges** in `engram_graph` (EdgeKind::CoOccurrence).
-3. When idle (or via `dream_project`), the actor finds dense clusters (Leiden/Louvain later).
-4. `engram_ml::DreamingEngine` summarizes cluster context into an “Insight”.
-5. Insight is inserted into the graph as a node + edges.
+### 3.2 Graph and references
+- Graph query/reference primitives are **implemented**.
+- Symbol/reference intelligence using richer AST graph semantics is **partial**.
+- Graph centrality-aware reranking remains **planned**.
 
-**Scaffold status:** co-occurrence recording + simple clustering + deterministic summarizer.
+### 3.3 Git intelligence
+- Git history indexing and temporal couplings are **implemented**.
+- Revert analysis and anti-pattern enforcement are **partial** to **experimental**, depending on tool path.
 
-### 3.2 Temporal coupling (“hidden dependencies”)
-Streaming design:
-
-- `engram_git::GitWalker` walks commits incrementally.
-- For each commit, we add/update undirected temporal edges between changed files.
-- `analyze_temporal_couplings` reads neighbors instantly from the graph.
-
-**Scaffold status:** incremental commit walking + graph edge increments are present; needs tighter integration (single pass, exact stop_oid).
-
-### 3.3 Style mimicry (“chameleon”)
-Design:
-
-- use semantic diffs (tree-sitter later) and summarize patterns
-- output a human-usable “style guide” that can be injected into prompts
-
-**Scaffold status:** uses raw diffs and a deterministic summarizer in `engram_ml::StyleMimicryEngine`.
-
-### 3.4 Immune system (revert analysis)
-Design:
-
-- detect reverts structurally
-- index reverted diffs into `antipattern` namespace
-- block/warn generation if new code matches prior reverted patterns
-
-**Scaffold status:** revert harvesting is wired; anti-pattern indexing is a stubbed namespace (lexical for now).
+### 3.4 Cognitive features
+- Dreaming and style mimicry are present but **experimental**.
+- Immune checks are **experimental**, with quality and thresholding still under active iteration.
 
 ---
 
-## 4) Where to implement what
+## 4) Source-of-truth sync rule
 
-### engram_index
-- Add tree-sitter parsing and symbol extraction (future)
-- Add LanceDB vector search (feature-flagged)
-- Add “doc lookup by chunk_id” (already included)
-
-### engram_graph
-- Keep the store minimal: nodes + typed edges with weights
-- Algorithms live in `src/algorithms/*`
-- Keep “expensive” computations off the hot path; compute & cache centrality/PR in background
-
-### engram_git
-- Only libgit2; no shelling out
-- Stream pairs → graph temporal edges
-- Harvest reverts → anti-pattern docs
-
-### engram_server
-- Tool router (v1 parity)
-- Actors:
-  - dreamer (low priority)
-  - immune (future)
-- Job manager (spawn/track/cancel long work)
-
----
-
-## 5) Next engineering milestones
-
-1. **Dependency graph from AST** (tree-sitter → symbol graph edges)
-2. **Vector search MVP** (Candle embedder + LanceDB)
-3. **Incremental indexing** (watcher + generation + GC of old generations)
-4. **Anti-pattern index** (separate Tantivy schema + embedding space)
-5. **RRR fusion** (RRF + graph centrality boosting at ranking time)
+When changing feature maturity:
+1. Update `crates/engram_server/src/capabilities.rs`.
+2. Update the corresponding row(s) in `docs/TOOL_PARITY.md`.
+3. Ensure `scripts/check_capabilities_matrix.py` passes locally and in CI.
