@@ -121,6 +121,43 @@ pub struct Config {
     /// Timeout in seconds for LLM-based boundary suggestion.
     #[serde(default = "default_boundary_suggestion_timeout_secs")]
     pub boundary_suggestion_timeout_secs: u64,
+
+    // --- Memory budget (Issue 5) ---
+    /// Total memory budget in bytes (0 = default 2 GB).
+    /// Controls backpressure: operations are rejected when the hard limit is exceeded.
+    #[serde(default)]
+    pub memory_budget_bytes: u64,
+
+    // --- Safety rails (Issue 9) ---
+    /// Enable policy mode that blocks high-risk refactors unless confidence thresholds are met.
+    #[serde(default)]
+    pub safety_policy_enabled: bool,
+
+    /// Minimum impact-analysis confidence (0.0-1.0) required to proceed with automated edits.
+    #[serde(default = "default_safety_min_confidence")]
+    pub safety_min_confidence: f64,
+
+    /// Minimum test coverage delta threshold. Refactors reducing coverage below this are blocked.
+    #[serde(default = "default_safety_min_coverage")]
+    pub safety_min_coverage: f64,
+
+    // --- Integrity checks (Issue 6) ---
+    /// Interval in seconds between automatic integrity checks (0 = disabled).
+    #[serde(default = "default_integrity_check_interval_secs")]
+    pub integrity_check_interval_secs: u64,
+
+    /// Whether to auto-repair mismatches found during integrity checks.
+    #[serde(default = "default_integrity_auto_repair")]
+    pub integrity_auto_repair: bool,
+
+    // --- Retrieval production gates (Issue 2) ---
+    /// Minimum NDCG@10 score for vector search to be considered production-ready.
+    #[serde(default = "default_retrieval_min_ndcg")]
+    pub retrieval_min_ndcg: f64,
+
+    /// Minimum Recall@10 score for vector search to be considered production-ready.
+    #[serde(default = "default_retrieval_min_recall")]
+    pub retrieval_min_recall: f64,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -186,6 +223,30 @@ fn default_boundary_suggestion_timeout_secs() -> u64 {
     120
 }
 
+fn default_safety_min_confidence() -> f64 {
+    0.7
+}
+
+fn default_safety_min_coverage() -> f64 {
+    0.6
+}
+
+fn default_integrity_check_interval_secs() -> u64 {
+    3600 // 1 hour
+}
+
+fn default_integrity_auto_repair() -> bool {
+    true
+}
+
+fn default_retrieval_min_ndcg() -> f64 {
+    0.5
+}
+
+fn default_retrieval_min_recall() -> f64 {
+    0.6
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -218,6 +279,14 @@ impl Default for Config {
             immune_warn_threshold: default_immune_warn_threshold(),
             immune_block_threshold: default_immune_block_threshold(),
             boundary_suggestion_timeout_secs: default_boundary_suggestion_timeout_secs(),
+            memory_budget_bytes: 0,
+            safety_policy_enabled: false,
+            safety_min_confidence: default_safety_min_confidence(),
+            safety_min_coverage: default_safety_min_coverage(),
+            integrity_check_interval_secs: default_integrity_check_interval_secs(),
+            integrity_auto_repair: default_integrity_auto_repair(),
+            retrieval_min_ndcg: default_retrieval_min_ndcg(),
+            retrieval_min_recall: default_retrieval_min_recall(),
         }
     }
 }

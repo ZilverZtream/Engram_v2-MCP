@@ -294,6 +294,63 @@ pub async fn get_incremental_changes(
     Ok((changed, deleted))
 }
 
+/// Scoped repair: repair only a specific subsystem (tantivy_only, vector_only, graph_only).
+/// Used by the integrity service for targeted auto-repair.
+pub async fn repair_project_scoped(
+    state: &AppState,
+    project_id: &str,
+    scope: &str,
+) -> anyhow::Result<String> {
+    let _lock = state.acquire_project_update_lock(project_id).await;
+    let _ps = ensure_project_runtime(state, project_id).await?;
+    let generation = get_active_generation(state, project_id).await?;
+
+    match scope {
+        "tantivy_only" => {
+            tracing::info!(
+                project_id,
+                generation,
+                "Scoped repair: flagging Tantivy for re-index"
+            );
+            let reg = state.registry.clone();
+            let pid = project_id.to_string();
+            tokio::task::spawn_blocking(move || reg.set_meta(&pid, "tantivy_needs_repair", "true"))
+                .await??;
+            Ok(format!(
+                "Tantivy flagged for re-index at generation {generation}"
+            ))
+        }
+        "vector_only" => {
+            tracing::info!(
+                project_id,
+                generation,
+                "Scoped repair: flagging vectors for rebuild"
+            );
+            let reg = state.registry.clone();
+            let pid = project_id.to_string();
+            tokio::task::spawn_blocking(move || reg.set_meta(&pid, "vector_needs_repair", "true"))
+                .await??;
+            Ok(format!(
+                "Vector index flagged for rebuild at generation {generation}"
+            ))
+        }
+        "graph_only" => {
+            tracing::info!(project_id, generation, "Scoped repair: purging graph data");
+            let graph = state.graph.clone();
+            let pid = project_id.to_string();
+            tokio::task::spawn_blocking(move || graph.delete_project_data(&pid)).await??;
+            Ok(format!(
+                "Graph purged for re-indexing at generation {generation}"
+            ))
+        }
+        _ => {
+            anyhow::bail!(
+                "Unknown repair scope: {scope}. Valid: tantivy_only, vector_only, graph_only"
+            )
+        }
+    }
+}
+
 /// Inject repo rules for a file path into the content header.
 pub async fn inject_repo_rules(
     state: &AppState,

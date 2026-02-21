@@ -119,7 +119,7 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "analyze_reverts",
-        status: CapabilityStatus::Partial,
+        status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
         key: "impact_analysis",
@@ -223,6 +223,38 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     },
     CapabilityFlag {
         key: "dedicated_antipattern_index",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_metrics",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "check_integrity",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "evaluate_safety",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "generate_migration_plan",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "benchmark_retrieval",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_extraction_confidence",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_checkpoint_status",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_memory_budget",
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {

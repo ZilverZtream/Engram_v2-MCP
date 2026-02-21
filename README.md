@@ -86,6 +86,20 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **Immune Actor** — git revert harvesting → anti-pattern indexing
 - **Watcher** — directory monitoring → incremental re-index
 - **GC Scheduler** — orphaned job cleanup
+- **Integrity Sentinel** — periodic cross-store consistency checks with auto-repair
+
+### Enterprise Features (Phase 23)
+
+- **Observability**: Lock-free metrics (counters, gauges, histograms) for job latency, queue depth, index drift, cardinality, repair outcomes, memory pressure, checkpoint recovery, extraction confidence, and safety decisions
+- **Memory Budget & Backpressure**: Per-subsystem memory tracking (Tantivy, LanceDB, Graph, DocStore, ParseBuffer), soft/hard limits with CAS-based allocation, backpressure rejection for OOM prevention
+- **Crash-safe Job Orchestration**: Redb-backed durable checkpoints with phase tracking (Scanning→Parsing→TantivyIndexing→VectorIndexing→GraphBuilding→PostProcessing), idempotency keys, and resume-from-failure
+- **Data Integrity Sentinels**: Cross-store consistency verification (Tantivy vs LanceDB vs Graph vs Docstore doc counts), mismatch detection with 5% tolerance, configurable auto-repair, periodic background checker
+- **Retrieval Production Gates**: NDCG@10, Recall@10, MRR benchmarking against known-relevant query sets; configurable pass/fail thresholds for search quality gating
+- **WebForms Confidence Scoring**: Signal-weighted scoring for event wiring (5 signals), SQL trace (5 signals), and control binding (4 signals) extractions, with High/Medium/Low band classification
+- **Safety Rails**: Policy engine blocking high-risk refactors based on impact confidence, test coverage, anti-pattern clearance, blast radius, global state safety, and database safety checks
+- **Migration Execution Workflow**: Wave-ordered migration plans with topological sort, seam identification, contract test templates, compatibility adapter patterns, and per-wave rollback playbooks
+- **Complete Revert Pipeline**: `analyze_reverts` promoted to Implemented with LLM-powered descriptive anti-pattern rules, graph edge creation, and metrics recording
+- **Deterministic Reproducibility**: Golden-repo fixture tests verifying stable chunk IDs, graph edges, and search results across clean vs incremental indexing
 
 ---
 
@@ -306,6 +320,19 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 |------|-------------|
 | `watch_project` | Enable directory watching for automatic re-index on changes |
 | `unwatch_project` | Disable watching |
+
+### Observability & Operations
+
+| Tool | Description |
+|------|-------------|
+| `get_metrics` | Server-wide metrics snapshot: job latencies, queue depths, index drift, cardinality, repair outcomes, memory, checkpoints, confidence scoring, safety. JSON or human-readable output |
+| `check_integrity` | Cross-store consistency check for a project (Tantivy, LanceDB, Graph, Docstore). Detects mismatches, optionally auto-repairs |
+| `get_memory_budget` | Current memory budget status: usage, limits, per-subsystem breakdown, pressure state |
+| `get_checkpoint_status` | Crash-recovery checkpoint status for jobs. Shows resumable jobs, phase, and progress |
+| `evaluate_safety` | Safety policy evaluation for a proposed automated edit. Returns go/no-go with risk level, checks, and mitigations |
+| `benchmark_retrieval` | NDCG@10, Recall@10, MRR benchmarking against known-relevant queries. Gates vector_search for production readiness |
+| `get_extraction_confidence` | Score WebForms extraction confidence (event wiring, SQL trace, control binding) with signal-weighted breakdown |
+| `generate_migration_plan` | Executable migration plan with dependency-ordered waves, seams, contract tests, adapters, and rollback playbooks |
 
 ### Utilities
 

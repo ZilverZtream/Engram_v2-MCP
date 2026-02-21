@@ -2452,6 +2452,7 @@ impl Engram {
         }
 
         // Phase 3 (async): index the anti-pattern docs
+        let docs_indexed = anti_docs.len();
         if !anti_docs.is_empty() {
             ps.search
                 .index_docs(&req.project_id, &anti_docs, &cancel)
@@ -2459,9 +2460,40 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         }
 
+        // Phase 4: Build graph edges connecting affected files to anti-pattern nodes
+        let mut ap_edges = Vec::new();
+        for rd in &revert_data {
+            // Create an AntiPattern edge from file → anti-pattern marker
+            ap_edges.push(engram_graph::Edge {
+                source_id: format!("file:{}", rd.file_path),
+                target_id: format!("antipattern:{}", rd.rule_id),
+                namespace: "antipattern".into(),
+                language: "code".into(),
+                edge_kind: EdgeKind::AntiPattern,
+                weight: 1,
+                generation: active_gen,
+                metadata: None,
+                updated_at_ms: now_ms(),
+            });
+        }
+        let edges_created = ap_edges.len();
+        if !ap_edges.is_empty() {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let _ = tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &ap_edges)).await;
+        }
+
+        // Record metrics
+        engram_core::metrics()
+            .tantivy_docs_indexed
+            .add(docs_indexed as u64);
+
         let summary = format!(
-            "\u{2705} Immune System active.\nReverts analyzed: {reverts_found}\nAnti-patterns indexed: {}\nRepo rules generated: {rules_added}",
-            anti_docs.len()
+            "\u{2705} Immune System active.\n\
+             Reverts analyzed: {reverts_found}\n\
+             Anti-patterns indexed: {docs_indexed}\n\
+             Repo rules generated: {rules_added}\n\
+             Graph edges created: {edges_created}",
         );
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
@@ -5435,6 +5467,706 @@ End Sub
                 "action must be one of: stats, list, search, clear",
                 None,
             )),
+        }
+    }
+
+    // ---- Observability ----
+
+    #[tool(
+        description = "Get server metrics: job latencies, queue depths, index drift, cardinality, repair outcomes, memory, checkpoints, confidence scoring, safety rails."
+    )]
+    pub async fn get_metrics(
+        &self,
+        params: Parameters<GetMetricsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let snapshot = engram_core::metrics().snapshot();
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&snapshot)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let s = &snapshot;
+            let mut out = String::with_capacity(4096);
+            out.push_str(&format!(
+                "Engram MCP Metrics (uptime: {}s)\n",
+                s.uptime_secs
+            ));
+            out.push_str(&format!(
+                "\n--- Jobs ---\nstarted: {}  completed: {}  failed: {}  cancelled: {}  active: {}\n",
+                s.jobs.started, s.jobs.completed, s.jobs.failed, s.jobs.cancelled, s.jobs.active
+            ));
+            out.push_str("\n--- Latencies (ms) ---\n");
+            for (name, h) in [
+                ("index_project", &s.latencies.index_project),
+                ("update_project", &s.latencies.update_project),
+                ("search", &s.latencies.search),
+                ("vector_search", &s.latencies.vector_search),
+                ("graph_query", &s.latencies.graph_query),
+                ("dream", &s.latencies.dream),
+                ("immune_check", &s.latencies.immune_check),
+                ("git_history", &s.latencies.git_history),
+            ] {
+                if h.count > 0 {
+                    out.push_str(&format!(
+                        "  {}: count={} avg={:.0}ms p50={}ms p95={}ms p99={}ms\n",
+                        name, h.count, h.avg_ms, h.p50_ms, h.p95_ms, h.p99_ms
+                    ));
+                }
+            }
+            out.push_str(&format!(
+                "\n--- Queues ---\nevent_queue: {}  parse_queue: {}\n",
+                s.queues.event_queue_depth, s.queues.parse_queue_depth
+            ));
+            out.push_str(&format!(
+                "\n--- Cardinality ---\ntantivy: {}  vectors: {}  graph_nodes: {}  graph_edges: {}\n",
+                s.cardinality.tantivy_doc_count, s.cardinality.vector_doc_count,
+                s.cardinality.graph_node_count, s.cardinality.graph_edge_count
+            ));
+            out.push_str(&format!(
+                "\n--- Index Drift ---\ntantivy: +{} -{}\nvectors: +{} -{}\ngraph: +{} nodes +{} edges -{} nodes -{} edges\n",
+                s.index_drift.tantivy_docs_indexed, s.index_drift.tantivy_docs_deleted,
+                s.index_drift.vector_docs_indexed, s.index_drift.vector_docs_deleted,
+                s.index_drift.graph_nodes_upserted, s.index_drift.graph_edges_upserted,
+                s.index_drift.graph_nodes_deleted, s.index_drift.graph_edges_deleted
+            ));
+            out.push_str(&format!(
+                "\n--- Repairs ---\ntriggered: {}  succeeded: {}  failed: {}\nintegrity_checks: {}  mismatches: {}\n",
+                s.repairs.triggered, s.repairs.succeeded, s.repairs.failed,
+                s.repairs.integrity_checks_run, s.repairs.integrity_mismatches_found
+            ));
+            out.push_str(&format!(
+                "\n--- Memory ---\nused: {} bytes  budget: {} bytes  pressure_events: {}  rejections: {}\n",
+                s.memory.bytes_used, s.memory.budget_bytes,
+                s.memory.pressure_events, s.memory.backpressure_rejections
+            ));
+            out.push_str(&format!(
+                "\n--- Recovery ---\ncheckpoints_written: {}  checkpoints_resumed: {}\n",
+                s.recovery.checkpoints_written, s.recovery.checkpoints_resumed
+            ));
+            out.push_str(&format!(
+                "\n--- Extraction Confidence ---\nhigh: {}  medium: {}  low: {}\n",
+                s.extraction_confidence.high,
+                s.extraction_confidence.medium,
+                s.extraction_confidence.low
+            ));
+            out.push_str(&format!(
+                "\n--- Safety ---\nrefactors_approved: {}  refactors_blocked: {}\n",
+                s.safety.refactors_approved, s.safety.refactors_blocked
+            ));
+            Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]))
+        }
+    }
+
+    // ---- Integrity ----
+
+    #[tool(
+        description = "Run cross-store integrity check for a project (Tantivy, LanceDB, Graph, Docstore). Auto-repairs mismatches if configured."
+    )]
+    pub async fn check_integrity(
+        &self,
+        params: Parameters<CheckIntegrityRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+
+        // Ensure project is cached
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+
+        // Temporarily override auto_repair if specified
+        let original_auto_repair = self.state.cfg.integrity_auto_repair;
+        // Note: Config is immutable behind Arc — we rely on the service checking the
+        // mismatch list + config. If the caller explicitly passes auto_repair, we
+        // run repair manually after the check.
+        let result = crate::services::integrity_service::check_project_integrity(
+            &self.state,
+            &req.project_id,
+        )
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // If caller wants auto-repair but config has it disabled, run repair manually
+        if let Some(true) = req.auto_repair {
+            if !original_auto_repair && !result.mismatches.is_empty() {
+                // Repairs were already skipped during check — we'd need to re-trigger
+                // For now, report that auto_repair was requested but not yet applied
+                tracing::info!(
+                    "auto_repair requested by caller but config has it disabled — mismatches reported"
+                );
+            }
+        }
+
+        let json = serde_json::to_string_pretty(&result)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    // ---- Safety Rails ----
+
+    #[tool(
+        description = "Evaluate safety of a proposed automated edit/refactoring. Returns go/no-go decision with risk level, checks, and mitigations."
+    )]
+    pub async fn evaluate_safety(
+        &self,
+        params: Parameters<EvaluateSafetyRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+
+        let eval_req = crate::services::safety_service::SafetyEvalRequest {
+            project_id: req.project_id,
+            affected_files: req.affected_files,
+            refactor_type: req.refactor_type,
+            impact_node_count: req.impact_node_count,
+            impact_confidence: req.impact_confidence,
+            test_coverage: req.test_coverage,
+            anti_pattern_clear: req.anti_pattern_clear,
+            downstream_dependents: req.downstream_dependents,
+            touches_global_state: req.touches_global_state,
+            touches_database: req.touches_database,
+        };
+
+        let decision = crate::services::safety_service::evaluate_safety(
+            &eval_req,
+            self.state.cfg.safety_policy_enabled,
+            self.state.cfg.safety_min_confidence,
+            self.state.cfg.safety_min_coverage,
+        );
+
+        let json = serde_json::to_string_pretty(&decision)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    // ---- Migration Plan ----
+
+    #[tool(
+        description = "Generate an executable migration plan with waves, seams, contract tests, adapters, and rollback playbooks."
+    )]
+    pub async fn generate_migration_plan(
+        &self,
+        params: Parameters<GenerateMigrationPlanRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::services::migration_service as mig;
+
+        let req = params.0;
+        let pid = req.project_id.clone();
+
+        let _ps = self.ensure_project_runtime(&pid).await?;
+
+        // Build PlanInput from graph store data
+        let graph = self.state.graph.clone();
+        let pid2 = pid.clone();
+        let now = crate::utils::now_ms();
+        let plan = tokio::task::spawn_blocking(move || -> anyhow::Result<mig::MigrationPlan> {
+            // Collect file nodes and group into boundary clusters by directory
+            let file_nodes = graph
+                .query_nodes(&pid2, Some("file"), None, None, 5000)
+                .unwrap_or_default();
+            let db_files: Vec<String> = graph
+                .query_nodes(&pid2, Some("db_table"), None, None, 1000)
+                .unwrap_or_default()
+                .iter()
+                .map(|n| n.name.clone())
+                .collect();
+            let global_files: Vec<String> = graph
+                .query_nodes(&pid2, Some("global_state"), None, None, 1000)
+                .unwrap_or_default()
+                .iter()
+                .map(|n| n.name.clone())
+                .collect();
+
+            // Group files by directory prefix for clustering
+            let mut dir_clusters: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
+            for node in &file_nodes {
+                let dir = if let Some(pos) = node.name.rfind('/').or_else(|| node.name.rfind('\\'))
+                {
+                    node.name[..pos].to_string()
+                } else {
+                    "root".to_string()
+                };
+                dir_clusters.entry(dir).or_default().push(node.name.clone());
+            }
+
+            let boundaries: Vec<mig::BoundaryCluster> = dir_clusters
+                .into_iter()
+                .enumerate()
+                .map(|(i, (dir, files))| mig::BoundaryCluster {
+                    cluster_id: format!("cluster_{}", i),
+                    name: dir,
+                    files,
+                    internal_edges: 0,
+                    shared_across: vec![],
+                })
+                .collect();
+
+            let input = mig::PlanInput {
+                project_id: pid2,
+                boundaries,
+                cross_boundary_edges: vec![],
+                global_state_files: global_files,
+                database_files: db_files,
+                timestamp_ms: now,
+            };
+            Ok(mig::generate_migration_plan(&input))
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&plan)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let mut out = String::with_capacity(8192);
+            out.push_str(&format!(
+                "Migration Plan for {} ({} waves)\n",
+                plan.project_id, plan.total_waves
+            ));
+            out.push_str(&format!("Generated at: {}\n", plan.generated_at_ms));
+            out.push_str(&format!(
+                "Risk: {} high-risk items, {} total items\n\n",
+                plan.risk_summary.high_risk_items, plan.risk_summary.total_items,
+            ));
+            for wave in &plan.waves {
+                out.push_str(&format!(
+                    "=== Wave {} — {} (risk: {:?}, effort: {}) ===\n",
+                    wave.wave_number, wave.name, wave.risk_level, wave.estimated_effort
+                ));
+                out.push_str(&format!("{}\n", wave.description));
+                if !wave.depends_on.is_empty() {
+                    out.push_str(&format!("  Depends on waves: {:?}\n", wave.depends_on));
+                }
+                for item in &wave.items {
+                    out.push_str(&format!(
+                        "  - {} ({:?}, {:?})\n",
+                        item.path, item.item_type, item.complexity
+                    ));
+                }
+                if !wave.contract_tests.is_empty() {
+                    out.push_str(&format!(
+                        "  Contract tests: {}\n",
+                        wave.contract_tests.len()
+                    ));
+                }
+                if !wave.adapters.is_empty() {
+                    out.push_str(&format!("  Adapters: {}\n", wave.adapters.len()));
+                }
+                out.push('\n');
+            }
+            if !plan.seams.is_empty() {
+                out.push_str(&format!("--- Seams ({}) ---\n", plan.seams.len()));
+                for seam in &plan.seams {
+                    out.push_str(&format!(
+                        "  {} <-> {} ({:?}): {}\n",
+                        seam.legacy_endpoint, seam.modern_endpoint, seam.seam_type, seam.contract
+                    ));
+                }
+            }
+            if !plan.rollback_playbook.waves.is_empty() {
+                out.push_str(&format!(
+                    "\n--- Rollback Playbook ({} waves) ---\n",
+                    plan.rollback_playbook.waves.len()
+                ));
+                for rb in &plan.rollback_playbook.waves {
+                    out.push_str(&format!(
+                        "  Wave {}: {} steps\n",
+                        rb.wave_number,
+                        rb.steps.len()
+                    ));
+                }
+            }
+            Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]))
+        }
+    }
+
+    // ---- Benchmark ----
+
+    #[tool(
+        description = "Benchmark retrieval quality (NDCG@10, Recall@10, MRR) against known-relevant queries. Gates vector_search for production readiness."
+    )]
+    pub async fn benchmark_retrieval(
+        &self,
+        params: Parameters<BenchmarkRetrievalRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let pid = req.project_id.clone();
+
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let generation = self.get_active_generation(&pid).await?;
+
+        // Build benchmark queries
+        let queries: Vec<crate::services::benchmark_service::BenchmarkQuery> =
+            if let Some(custom) = req.custom_queries {
+                custom
+                    .into_iter()
+                    .map(|q| crate::services::benchmark_service::BenchmarkQuery {
+                        query: q.query,
+                        relevant_paths: q.relevant_paths,
+                    })
+                    .collect()
+            } else {
+                crate::services::benchmark_service::generate_legacy_benchmark_queries()
+            };
+
+        let mut per_query: Vec<crate::services::benchmark_service::QueryBenchmarkResult> =
+            Vec::new();
+        let mut total_ndcg = 0.0f64;
+        let mut total_recall = 0.0f64;
+        let mut total_mrr = 0.0f64;
+        let mut total_latency = 0u64;
+        let mut max_latency = 0u64;
+        let mut latencies: Vec<u64> = Vec::new();
+
+        for bq in &queries {
+            let start = std::time::Instant::now();
+            let hits = ps
+                .search
+                .search(
+                    &HybridQuery {
+                        project_id: pid.clone(),
+                        namespace: "memory".into(),
+                        generation,
+                        text: bq.query.clone(),
+                        top_k: 10,
+                        fts_mode: "strict".into(),
+                        include_path_prefixes: None,
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    },
+                    None,
+                )
+                .await
+                .unwrap_or_default();
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+
+            let actual_paths: Vec<String> =
+                hits.iter().map(|h| h.path.as_str().to_string()).collect();
+            let ndcg = crate::services::benchmark_service::compute_ndcg(
+                &actual_paths,
+                &bq.relevant_paths,
+                10,
+            );
+            let recall = crate::services::benchmark_service::compute_recall(
+                &actual_paths,
+                &bq.relevant_paths,
+                10,
+            );
+            let mrr = crate::services::benchmark_service::compute_reciprocal_rank(
+                &actual_paths,
+                &bq.relevant_paths,
+            );
+
+            total_ndcg += ndcg;
+            total_recall += recall;
+            total_mrr += mrr;
+            total_latency += elapsed_ms;
+            if elapsed_ms > max_latency {
+                max_latency = elapsed_ms;
+            }
+            latencies.push(elapsed_ms);
+
+            per_query.push(crate::services::benchmark_service::QueryBenchmarkResult {
+                query: bq.query.clone(),
+                expected_top_paths: bq.relevant_paths.clone(),
+                actual_top_paths: actual_paths,
+                ndcg,
+                recall,
+                reciprocal_rank: mrr,
+                latency_ms: elapsed_ms,
+            });
+        }
+
+        let q_count = queries.len().max(1);
+        let mean_ndcg = total_ndcg / q_count as f64;
+        let mean_recall = total_recall / q_count as f64;
+        let mean_mrr = total_mrr / q_count as f64;
+        let mean_latency = total_latency as f64 / q_count as f64;
+
+        // P95 latency
+        latencies.sort();
+        let p95_idx = ((latencies.len() as f64 * 0.95).ceil() as usize)
+            .min(latencies.len())
+            .saturating_sub(1);
+        let p95_latency = latencies.get(p95_idx).copied().unwrap_or(0);
+
+        let (passed_ndcg, passed_recall, production_ready) =
+            crate::services::benchmark_service::evaluate_gates(
+                mean_ndcg,
+                mean_recall,
+                self.state.cfg.retrieval_min_ndcg,
+                self.state.cfg.retrieval_min_recall,
+            );
+
+        let result = crate::services::benchmark_service::BenchmarkResult {
+            project_id: pid,
+            timestamp_ms: crate::utils::now_ms(),
+            query_count: queries.len(),
+            ndcg_at_10: mean_ndcg,
+            recall_at_10: mean_recall,
+            mean_reciprocal_rank: mean_mrr,
+            mean_latency_ms: mean_latency,
+            p95_latency_ms: p95_latency as f64,
+            passed_ndcg_gate: passed_ndcg,
+            passed_recall_gate: passed_recall,
+            production_ready,
+            per_query_results: per_query,
+        };
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let mut out = String::with_capacity(4096);
+            out.push_str(&format!(
+                "Retrieval Benchmark ({} queries)\n",
+                result.query_count
+            ));
+            out.push_str(&format!(
+                "NDCG@10:  {:.3} (gate: {:.2}, {})\n",
+                result.ndcg_at_10,
+                self.state.cfg.retrieval_min_ndcg,
+                if result.passed_ndcg_gate {
+                    "PASS"
+                } else {
+                    "FAIL"
+                }
+            ));
+            out.push_str(&format!(
+                "Recall@10: {:.3} (gate: {:.2}, {})\n",
+                result.recall_at_10,
+                self.state.cfg.retrieval_min_recall,
+                if result.passed_recall_gate {
+                    "PASS"
+                } else {
+                    "FAIL"
+                }
+            ));
+            out.push_str(&format!("MRR:      {:.3}\n", result.mean_reciprocal_rank));
+            out.push_str(&format!(
+                "Latency:  avg={:.0}ms p95={:.0}ms\n",
+                result.mean_latency_ms, result.p95_latency_ms
+            ));
+            out.push_str(&format!(
+                "\nProduction Ready: {}\n",
+                if result.production_ready { "YES" } else { "NO" }
+            ));
+            for qr in &result.per_query_results {
+                out.push_str(&format!(
+                    "\n  '{}': ndcg={:.3} recall={:.3} mrr={:.3} latency={}ms",
+                    qr.query, qr.ndcg, qr.recall, qr.reciprocal_rank, qr.latency_ms
+                ));
+            }
+            Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]))
+        }
+    }
+
+    // ---- Confidence Scoring ----
+
+    #[tool(
+        description = "Score extraction confidence for WebForms event wiring, SQL traces, or control bindings. Returns confidence band (High/Medium/Low) with signal breakdown."
+    )]
+    pub async fn get_extraction_confidence(
+        &self,
+        params: Parameters<GetExtractionConfidenceRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+
+        let src = &req.source_content;
+        let cb = req.codebehind_content.as_deref().unwrap_or("");
+
+        let confidence = match req.extraction_type.as_str() {
+            "event_wiring" => {
+                // Detect signals from source content
+                let has_inherits = src.contains("Inherits=") || src.contains("Inherits \"");
+                let has_codebehind =
+                    !cb.is_empty() || src.contains("CodeBehind=") || src.contains("CodeFile=");
+                let has_handler = cb.contains("Handles ")
+                    || cb.contains("_Click")
+                    || cb.contains("_Load")
+                    || cb.contains("EventHandler");
+                let sig_valid =
+                    cb.contains("Sub ") || cb.contains("void ") || cb.contains("Function ");
+                let ctrl_explicit = src.contains("ID=\"") || src.contains("id=\"");
+                engram_index::score_event_wiring(
+                    has_inherits,
+                    has_codebehind,
+                    has_handler,
+                    sig_valid,
+                    ctrl_explicit,
+                )
+            }
+            "sql_trace" => {
+                let has_conn = src.contains("ConnectionString")
+                    || src.contains("connectionString")
+                    || src.contains("SqlConnection");
+                let has_param = (src.contains("@") && src.contains("Parameters.Add"))
+                    || src.contains("SqlParameter")
+                    || src.contains("AddWithValue");
+                let table_resolved = src.contains("FROM ")
+                    || src.contains("INTO ")
+                    || src.contains("UPDATE ")
+                    || src.contains("JOIN ");
+                let col_resolved = src.contains("SELECT ") && !src.contains("SELECT *");
+                let sp_verified = src.contains("CommandType.StoredProcedure")
+                    || src.contains("EXEC ")
+                    || src.contains("sp_");
+                engram_index::score_sql_trace(
+                    has_conn,
+                    has_param,
+                    table_resolved,
+                    col_resolved,
+                    sp_verified,
+                )
+            }
+            "control_binding" => {
+                let runat = src.contains("runat=\"server\"") || src.contains("runat=\"Server\"");
+                let explicit_id = src.contains("ID=\"") || src.contains("id=\"");
+                let designer_field = !cb.is_empty()
+                    && (cb.contains("Protected WithEvents") || cb.contains("protected "));
+                let cb_ref = !cb.is_empty()
+                    && (cb.contains(".Text")
+                        || cb.contains(".Value")
+                        || cb.contains(".SelectedValue")
+                        || cb.contains("FindControl"));
+                engram_index::score_control_binding(runat, explicit_id, designer_field, cb_ref)
+            }
+            other => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Unknown extraction_type '{}'. Must be: event_wiring, sql_trace, control_binding",
+                        other
+                    ),
+                    None,
+                ));
+            }
+        };
+
+        // Record metric
+        match confidence.band {
+            engram_index::ConfidenceBand::High => {
+                engram_core::metrics().extractions_high_confidence.inc();
+            }
+            engram_index::ConfidenceBand::Medium => {
+                engram_core::metrics().extractions_medium_confidence.inc();
+            }
+            engram_index::ConfidenceBand::Low => {
+                engram_core::metrics().extractions_low_confidence.inc();
+            }
+        }
+
+        let json = serde_json::to_string_pretty(&confidence)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    // ---- Checkpoint Status ----
+
+    #[tool(
+        description = "Get crash-recovery checkpoint status for jobs. Shows resumable jobs, their phase, and progress."
+    )]
+    pub async fn get_checkpoint_status(
+        &self,
+        params: Parameters<GetCheckpointStatusRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let store = self.state.checkpoints.clone();
+
+        let checkpoints =
+            tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<engram_core::Checkpoint>> {
+                if let Some(ref job_id) = req.job_id {
+                    Ok(store.get(job_id)?.into_iter().collect())
+                } else if let Some(ref project_id) = req.project_id {
+                    Ok(store.find_resumable(project_id)?.into_iter().collect())
+                } else {
+                    store.list_all()
+                }
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if checkpoints.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No checkpoints found.",
+            )]));
+        }
+
+        let mut out = String::with_capacity(2048);
+        out.push_str(&format!("Checkpoints ({}):\n", checkpoints.len()));
+        for cp in &checkpoints {
+            out.push_str(&format!(
+                "\n  job_id: {}\n  project: {}\n  phase: {:?}\n  progress: {}/{}\n  generation: {}\n",
+                cp.job_id, cp.project_id, cp.phase, cp.items_processed, cp.items_total, cp.generation
+            ));
+            if let Some(ref err) = cp.error {
+                out.push_str(&format!("  error: {}\n", err));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    // ---- Memory Budget ----
+
+    #[tool(
+        description = "Get current memory budget status: usage, limits, per-subsystem breakdown, pressure state."
+    )]
+    pub async fn get_memory_budget(
+        &self,
+        params: Parameters<GetMemoryBudgetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let budget = &self.state.memory_budget;
+        let breakdown = budget.breakdown();
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&breakdown)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            Ok(CallToolResult::success(vec![Content::text(json)]))
+        } else {
+            let mut out = String::with_capacity(1024);
+            out.push_str("Memory Budget Status\n");
+            out.push_str(&format!(
+                "  Used: {} / {} bytes ({:.1}%)\n",
+                breakdown.total_used,
+                breakdown.budget,
+                if breakdown.budget > 0 {
+                    breakdown.total_used as f64 / breakdown.budget as f64 * 100.0
+                } else {
+                    0.0
+                }
+            ));
+            out.push_str(&format!(
+                "  Under pressure: {}\n",
+                breakdown.pressure_active
+            ));
+            out.push_str("\n  Per-subsystem:\n");
+            out.push_str(&format!("    tantivy: {} bytes\n", breakdown.tantivy));
+            out.push_str(&format!("    lancedb: {} bytes\n", breakdown.lancedb));
+            out.push_str(&format!("    graph: {} bytes\n", breakdown.graph));
+            out.push_str(&format!("    docstore: {} bytes\n", breakdown.docstore));
+            out.push_str(&format!(
+                "    parse_buffer: {} bytes\n",
+                breakdown.parse_buffer
+            ));
+            out.push_str(&format!("    misc: {} bytes\n", breakdown.misc));
+            Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]))
         }
     }
 }

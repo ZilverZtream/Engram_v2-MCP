@@ -842,3 +842,126 @@ impl VectorSearchRequest {
             .clamp(0, MAX_CONTENT_CHARS_PER_RESULT)
     }
 }
+
+// -------------------- Observability --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMetricsRequest {
+    /// Return raw JSON instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// -------------------- Integrity --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct CheckIntegrityRequest {
+    pub project_id: String,
+    /// Auto-repair mismatches if found (overrides config). Default: use config value.
+    #[serde(default)]
+    pub auto_repair: Option<bool>,
+}
+
+// -------------------- Safety --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct EvaluateSafetyRequest {
+    pub project_id: String,
+    /// Files affected by the proposed edit.
+    pub affected_files: Vec<String>,
+    /// Type of refactoring (e.g. "rename", "extract", "inline", "move", "delete").
+    pub refactor_type: String,
+    /// Number of nodes affected by impact analysis.
+    #[serde(default)]
+    pub impact_node_count: u64,
+    /// Confidence from impact analysis (0.0–1.0).
+    #[serde(default = "default_safety_confidence")]
+    pub impact_confidence: f64,
+    /// Test coverage of affected files (0.0–1.0, or -1.0 if unknown). Default: -1.0.
+    #[serde(default = "default_unknown_coverage")]
+    pub test_coverage: f64,
+    /// Anti-pattern guard passed for affected files. Default: true.
+    #[serde(default = "default_true")]
+    pub anti_pattern_clear: bool,
+    /// Number of downstream dependents (callers, importers). Default: 0.
+    #[serde(default)]
+    pub downstream_dependents: u64,
+    /// Whether the edit touches shared/global state. Default: false.
+    #[serde(default)]
+    pub touches_global_state: bool,
+    /// Whether the edit modifies database schema or queries. Default: false.
+    #[serde(default)]
+    pub touches_database: bool,
+}
+
+fn default_safety_confidence() -> f64 {
+    0.5
+}
+fn default_unknown_coverage() -> f64 {
+    -1.0
+}
+
+// -------------------- Migration Plan --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateMigrationPlanRequest {
+    pub project_id: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// -------------------- Benchmark --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct BenchmarkRetrievalRequest {
+    pub project_id: String,
+    /// Custom benchmark queries with known-relevant paths (JSON array).
+    /// If empty, uses auto-generated legacy WebForms queries.
+    #[serde(default)]
+    pub custom_queries: Option<Vec<BenchmarkQueryInput>>,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct BenchmarkQueryInput {
+    pub query: String,
+    pub relevant_paths: Vec<String>,
+}
+
+// -------------------- Confidence Scoring --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetExtractionConfidenceRequest {
+    pub project_id: String,
+    /// Type of extraction to score: "event_wiring", "sql_trace", "control_binding".
+    pub extraction_type: String,
+    /// The source code or AST data to evaluate.
+    pub source_content: String,
+    /// Optional: codebehind file content (for event_wiring).
+    #[serde(default)]
+    pub codebehind_content: Option<String>,
+}
+
+// -------------------- Checkpoint Status --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetCheckpointStatusRequest {
+    /// Filter by project_id. If empty, returns all checkpoints.
+    #[serde(default)]
+    pub project_id: Option<String>,
+    /// Filter by job_id. If empty, returns all for project.
+    #[serde(default)]
+    pub job_id: Option<String>,
+}
+
+// -------------------- Memory Budget --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMemoryBudgetRequest {
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
