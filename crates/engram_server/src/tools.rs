@@ -353,6 +353,7 @@ impl Engram {
             self.state.parse_semaphore.acquire().await.map_err(|e| {
                 McpError::internal_error(format!("Parse semaphore closed: {e}"), None)
             })?;
+        let max_chunks = self.state.cfg.max_chunks_per_file;
         let stats = ps
             .search
             .index_files(
@@ -361,7 +362,7 @@ impl Engram {
                 new_gen,
                 &dir,
                 changed,
-                2000,
+                max_chunks,
                 cancel,
                 |_, _| {},
             )
