@@ -68,6 +68,13 @@ pub struct DocRecord {
     pub generation: u64,
 }
 
+#[derive(Debug, Clone)]
+pub struct DocSummary {
+    pub namespace: String,
+    pub doc_id: String,
+    pub path: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileFingerprint {
     pub rel_path: String,
@@ -100,6 +107,52 @@ impl DocStore {
         }
         wtx.commit()?;
         Ok(Self { db: Arc::new(db) })
+    }
+
+    /// Count all docs for a project across namespaces.
+    pub fn count_docs_for_project(&self, project_id: &str) -> anyhow::Result<usize> {
+        let prefix = format!("{}\0", project_id);
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(DOC_BY_ID)?;
+        let mut count = 0usize;
+        for r in t.range(prefix.as_str()..)? {
+            let (k, _) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            count += 1;
+        }
+        Ok(count)
+    }
+
+    /// Return lightweight per-doc metadata for a project.
+    pub fn list_doc_summaries_for_project(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<Vec<DocSummary>> {
+        let prefix = format!("{}\0", project_id);
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(DOC_BY_ID)?;
+        let mut out = Vec::new();
+        for r in t.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            let key = k.value();
+            if !key.starts_with(&prefix) {
+                break;
+            }
+
+            let mut parts = key.splitn(3, '\0');
+            let _ = parts.next();
+            let namespace = parts.next().unwrap_or_default().to_string();
+            let doc_id = parts.next().unwrap_or_default().to_string();
+            let path = de_bincode_or_json::<DocRecord>(v.value())?.path;
+            out.push(DocSummary {
+                namespace,
+                doc_id,
+                path,
+            });
+        }
+        Ok(out)
     }
 
     /// Persist a DocRecord.

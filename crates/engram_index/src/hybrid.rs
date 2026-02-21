@@ -60,6 +60,13 @@ pub struct IndexDoc {
     pub content_hash: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct SearchDocSummary {
+    pub namespace: String,
+    pub doc_id: String,
+    pub path: String,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct IngestStats {
     pub files: usize,
@@ -650,6 +657,51 @@ impl HybridSearchEngine {
             }
         }
         Ok(())
+    }
+
+    /// Return lightweight metadata for all Tantivy docs in a project.
+    pub fn list_docs_for_project(&self, project_id: &str) -> anyhow::Result<Vec<SearchDocSummary>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+        let pid_term = Term::from_field_text(self.fields.project_id, project_id);
+        let pid_q = TermQuery::new(pid_term, IndexRecordOption::Basic);
+
+        const PAGE_SIZE: usize = 2000;
+        let mut offset = 0usize;
+        let mut out = Vec::new();
+        loop {
+            let page: Vec<(Score, DocAddress)> =
+                searcher.search(&pid_q, &TopDocs::with_limit(PAGE_SIZE).and_offset(offset))?;
+            if page.is_empty() {
+                break;
+            }
+
+            for (_, addr) in page.iter().copied() {
+                let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+                let namespace = doc
+                    .get_first(self.fields.namespace)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let doc_id = doc
+                    .get_first(self.fields.doc_id)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let path = doc
+                    .get_first(self.fields.path)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                out.push(SearchDocSummary {
+                    namespace,
+                    doc_id,
+                    path,
+                });
+            }
+            offset += page.len();
+        }
+        Ok(out)
     }
 
     pub fn count_docs(&self, project_id: &str) -> anyhow::Result<usize> {
