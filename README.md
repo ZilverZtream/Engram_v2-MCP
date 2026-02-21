@@ -21,7 +21,7 @@ The server communicates over **STDIO** using the MCP protocol and is designed to
 
 ### Knowledge Graph
 - Builds a typed property graph of your codebase using Tree-sitter AST parsing
-- 27 edge kinds: `CoOccurrence`, `TemporalCoupling`, `Insight`, `Dependency`, `AntiPattern`, `Contains`, `Imports`, `SqlCalls`, `HasColumn`, `ForeignKey`, `QueriesTable`, `ReadsState`, `WritesState`, `DataBinding`, `RegistersControl`, `IncludesFile`, `UnresolvedStateRead`, `UnresolvedStateWrite`, `ExposesWebService`, `ExposesHttpHandler`, `ExposesWcfService`, `ContainsUi`, `UiLayoutNeighbor`, `ReadsColumn`, `RegistersModule`, `RegistersHandler`, `ManipulatesDom`, `TriggersPostback`, `ApiCall`
+- 33 edge kinds: `CoOccurrence`, `TemporalCoupling`, `Insight`, `Dependency`, `AntiPattern`, `Contains`, `Imports`, `SqlCalls`, `HasColumn`, `ForeignKey`, `QueriesTable`, `ReadsState`, `WritesState`, `DataBinding`, `RegistersControl`, `IncludesFile`, `UnresolvedStateRead`, `UnresolvedStateWrite`, `ExposesWebService`, `ExposesHttpHandler`, `ExposesWcfService`, `ContainsUi`, `UiLayoutNeighbor`, `ReadsColumn`, `RegistersModule`, `RegistersHandler`, `ManipulatesDom`, `TriggersPostback`, `ApiCall`, `ParameterBinding`, `SpatialCall`, `StateAffinity`, `InjectsScript`
 - Node types: `function`, `class`, `interface`, `file`, `db_table`, `db_column`, `global_state`, `control`, `ui_container`, `control_layout`, `web_service`, `http_handler`, `wcf_service`, `application`, `http_module`, `route_handler`, `app_setting`, `connection_string`, `binding_field`, `insight`, `memory_bank_section`
 - O(degree) adjacency lookups via Redb-backed composite-key adjacency lists (bincode serialization)
 - PageRank scoring for codebase overview ranking
@@ -279,6 +279,8 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | Tool | Description |
 |------|-------------|
 | `ast_dependency_graph` | BFS graph traversal from an entry node with configurable direction (outgoing/incoming/both), compile-time edge filtering (Dependency+Imports+Contains), depth up to 12 hops, and JSON or text tree output |
+| `compute_blast_radius` | Multi-hop impact estimation from a node or file: propagates through graph edges to rank affected symbols by reachability and edge-weight, returns a scored blast surface with per-node risk tier |
+| `detect_design_patterns` | Structural pattern detection across the graph (Repository, Factory, Singleton, Observer, etc.) using node-type and edge-kind fingerprints, with confidence scores and file-level attribution |
 
 ### Index Maintenance
 
