@@ -2,8 +2,8 @@ use crate::models::*;
 use crate::services::{graph_service, project_service};
 use crate::state::{AppEvent, AppState, ProjectInfo, ProjectState, SearchHitLite};
 use crate::utils::files::exts_for_project_type;
-use crate::utils::now_ms;
 use crate::utils::text::{code_to_query, stacktrace_to_query};
+use crate::utils::{dir_size_bytes, format_bytes, now_ms};
 use engram_core::{MemorySection, ProjectRecord, RepoRule, WatchRecord};
 use engram_git::GitWalker;
 use engram_graph::EdgeKind;
@@ -527,7 +527,9 @@ impl Engram {
         ))]))
     }
 
-    #[tool(description = "Quick project health check (v1 parity: project_health).")]
+    #[tool(
+        description = "Comprehensive project health check with per-namespace stats, disk usage, and integrity diagnostics (v1 parity: project_health)."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn project_health(
         &self,
@@ -537,6 +539,7 @@ impl Engram {
         let ps = self.ensure_project_runtime(&pid).await?;
         let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
 
+        // Graph stats (blocking — redb reads)
         let graph = self.state.graph.clone();
         let pid_clone = pid.clone();
         let graph_stats = tokio::task::spawn_blocking(move || {
@@ -547,13 +550,68 @@ impl Engram {
         .await
         .unwrap_or((0, 0));
 
-        let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
+        // Per-namespace doc counts
+        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let total_docs: usize = ns_counts.values().sum();
+
+        // Vector row count
         let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "project_id: {}\nactive_generation: {}\ndirectory: {}\ngraph_nodes: {}\ngraph_edges: {}\ntantivy_docs: {}\nlancedb_rows: {}",
-            pid, gen_, ps.info.directory, graph_stats.0, graph_stats.1, tantivy_docs, lancedb_rows
-        ))]))
+        // Disk usage: measure project data directory
+        let data_dir = self.state.cfg.data_dir.join("projects").join(&pid);
+        let disk_usage = tokio::task::spawn_blocking(move || dir_size_bytes(&data_dir))
+            .await
+            .unwrap_or(0);
+
+        // Build output
+        let mut out = String::with_capacity(1024);
+        out.push_str(&format!("Project Health: {}\n", pid));
+        out.push_str(&format!("directory: {}\n", ps.info.directory));
+        out.push_str(&format!("active_generation: {}\n", gen_));
+        out.push_str(&format!("\n--- Index Stats ---\n"));
+        out.push_str(&format!("graph_nodes: {}\n", graph_stats.0));
+        out.push_str(&format!("graph_edges: {}\n", graph_stats.1));
+        out.push_str(&format!("tantivy_docs_total: {}\n", total_docs));
+        for (ns, count) in &ns_counts {
+            out.push_str(&format!("  tantivy_{}: {}\n", ns, count));
+        }
+        out.push_str(&format!("lancedb_vectors: {}\n", lancedb_rows));
+        out.push_str(&format!("disk_usage: {}\n", format_bytes(disk_usage)));
+
+        // Integrity warnings
+        let mut warnings: Vec<&str> = Vec::new();
+        if graph_stats.0 == 0 && total_docs > 0 {
+            warnings.push(
+                "Graph is empty but Tantivy has docs — graph may need rebuild (repair_project).",
+            );
+        }
+        if total_docs > 0 && lancedb_rows == 0 {
+            warnings
+                .push("Vector index is empty but Tantivy has docs — embeddings may have failed.");
+        }
+        if lancedb_rows > 0 && total_docs == 0 {
+            warnings.push("Tantivy is empty but LanceDB has rows — Tantivy may need rebuild.");
+        }
+        if gen_ > 1 && total_docs == 0 && graph_stats.0 == 0 {
+            warnings.push("Generation > 1 but all indexes empty — project may need re-indexing.");
+        }
+        let memory_docs = ns_counts.get("memory").copied().unwrap_or(0);
+        if memory_docs > 0 && graph_stats.0 == 0 {
+            warnings.push("Memory namespace has docs but graph has no nodes — symbol extraction may have failed.");
+        }
+
+        if warnings.is_empty() {
+            out.push_str("\n--- Status ---\nHealthy\n");
+        } else {
+            out.push_str("\n--- Warnings ---\n");
+            for w in &warnings {
+                out.push_str(&format!("  ! {}\n", w));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     #[tool(description = "Repair a project index (v1 parity: repair_project).")]
@@ -1232,7 +1290,9 @@ impl Engram {
         )]))
     }
 
-    #[tool(description = "Graph search by node name/id substring (v1 parity: graph_search).")]
+    #[tool(
+        description = "Graph-boosted search: combines text search with graph symbol name matching and multi-edge neighbor expansion (v1 parity: graph_search)."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, query = %params.0.query))]
     pub async fn graph_search(
         &self,
@@ -1241,8 +1301,9 @@ impl Engram {
         let req = params.0;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
+        let max_results = req.sanitized_max_results();
 
-        // 1. Hybrid search for initial candidates
+        // 1. Hybrid text search for initial candidates
         let hits = ps
             .search
             .search(
@@ -1251,7 +1312,7 @@ impl Engram {
                     namespace: "memory".into(),
                     generation: gen_,
                     text: req.query.clone(),
-                    top_k: req.sanitized_max_results(),
+                    top_k: max_results,
                     fts_mode: "strict".into(),
                     include_path_prefixes: None,
                     exclude_path_prefixes: None,
@@ -1266,46 +1327,115 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // 2. Expand via graph neighbors
-        let mut expanded_nodes = std::collections::HashMap::new();
+        // 2. Graph symbol name lookup: find symbol nodes whose name matches the query
+        let symbol_nodes = self
+            .state
+            .graph
+            .query_nodes(&req.project_id, None, Some(&req.query), None, 30)
+            .unwrap_or_default();
+
+        // Build score map with both sources
+        let mut scores: std::collections::HashMap<String, (f32, Option<String>)> =
+            std::collections::HashMap::with_capacity(max_results * 2);
+
+        // Seed from text search hits (file-level nodes)
         for h in &hits {
             let node_id = format!("file:{}", h.path);
-            let score = h.score;
-            expanded_nodes.insert(node_id.clone(), score);
+            scores.insert(node_id, (h.score, None));
+        }
 
-            // Fetch neighbors — neighbor score is always lower than the originating hit's score
-            // to prevent graph neighbors from outranking actual search results.
-            if let Ok(neighbors) =
-                self.state
-                    .graph
-                    .neighbors(&req.project_id, EdgeKind::Dependency, &node_id, 5)
-            {
-                for (neigh_id, weight) in neighbors {
-                    // Neighbor score decays from parent: base * boost_factor, capped at parent score
-                    let decay = 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
-                    let neigh_score = score * decay.min(0.95); // Never exceed 95% of parent
-                    let entry = expanded_nodes.entry(neigh_id).or_insert(0.0);
-                    if neigh_score > *entry {
-                        *entry = neigh_score;
+        // Seed from symbol name matches with a symbol boost
+        let base_score = hits.first().map(|h| h.score).unwrap_or(1.0);
+        for node in &symbol_nodes {
+            // Exact name match gets full boost; substring gets partial
+            let name_lower = node.name.to_lowercase();
+            let query_lower = req.query.to_lowercase();
+            let match_ratio = if name_lower == query_lower {
+                1.0f32
+            } else if name_lower.contains(&query_lower) || query_lower.contains(&name_lower) {
+                0.6
+            } else {
+                0.3
+            };
+
+            let sym_score = base_score * (0.5 + req.symbol_boost * 10.0 * match_ratio);
+            let label = Some(format!("{} ({})", node.node_type, node.name));
+            let entry = scores.entry(node.node_id.clone()).or_insert((0.0, None));
+            if sym_score > entry.0 {
+                *entry = (sym_score, label);
+            }
+
+            // Also boost the parent file node
+            if !node.file_path.as_str().is_empty() {
+                let file_node_id = format!("file:{}", node.file_path);
+                let file_entry = scores.entry(file_node_id).or_insert((0.0, None));
+                let file_boost = sym_score * 0.8;
+                if file_boost > file_entry.0 {
+                    file_entry.0 = file_boost;
+                }
+            }
+        }
+
+        // 3. Expand via graph neighbors (multiple edge kinds)
+        let expansion_kinds = &[
+            EdgeKind::Dependency,
+            EdgeKind::Contains,
+            EdgeKind::Imports,
+            EdgeKind::SqlCalls,
+            EdgeKind::ApiCall,
+        ];
+
+        // Snapshot seed nodes before mutation
+        let seed_nodes: Vec<(String, f32)> =
+            scores.iter().map(|(k, (s, _))| (k.clone(), *s)).collect();
+
+        for (node_id, parent_score) in &seed_nodes {
+            for kind in expansion_kinds {
+                if let Ok(neighbors) =
+                    self.state
+                        .graph
+                        .neighbors(&req.project_id, kind.clone(), node_id, 5)
+                {
+                    for (neigh_id, weight) in neighbors {
+                        let decay = 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
+                        let neigh_score = parent_score * decay.min(0.90);
+                        let entry = scores.entry(neigh_id).or_insert((0.0, None));
+                        if neigh_score > entry.0 {
+                            entry.0 = neigh_score;
+                        }
                     }
                 }
             }
         }
 
-        if expanded_nodes.is_empty() {
+        if scores.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No graph matches found.",
             )]));
         }
 
-        // 3. Sort and format
-        let mut sorted: Vec<_> = expanded_nodes.into_iter().collect();
-        sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        // 4. Sort and format
+        let mut sorted: Vec<_> = scores.into_iter().collect();
+        sorted.sort_by(|a, b| {
+            (b.1)
+                .0
+                .partial_cmp(&(a.1).0)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        let mut out = String::new();
-        out.push_str(&format!("Graph search results for '{}':\n", req.query));
-        for (id, score) in sorted.iter().take(req.sanitized_max_results()) {
-            out.push_str(&format!("- {} (score={:.3})\n", id, score));
+        let mut out = String::with_capacity(2048);
+        out.push_str(&format!(
+            "Graph search results for '{}' ({} text hits, {} symbol matches):\n",
+            req.query,
+            hits.len(),
+            symbol_nodes.len()
+        ));
+        for (id, (score, label)) in sorted.iter().take(max_results) {
+            if let Some(lbl) = label {
+                out.push_str(&format!("- {} [{}] (score={:.3})\n", id, lbl, score));
+            } else {
+                out.push_str(&format!("- {} (score={:.3})\n", id, score));
+            }
         }
 
         Ok(CallToolResult::success(vec![Content::text(
@@ -1707,7 +1837,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Analyze reverts (The Immune System): detects reverted commits and creates anti-pattern rules (v1 parity: analyze_reverts)."
+        description = "Analyze reverts (The Immune System): detects reverted commits, generates LLM-powered descriptive anti-pattern rules, and indexes the reverted diffs (v1 parity: analyze_reverts)."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn analyze_reverts(
@@ -1718,23 +1848,25 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
-        // Phase 1 (CPU-bound): walk commits and build anti-pattern docs in a blocking thread.
-        // We intentionally do NOT call the async index_docs here to avoid the
-        // `block_on`-inside-`spawn_blocking` anti-pattern which can deadlock under load.
+        // Phase 1 (CPU-bound): walk commits and extract revert data in a blocking thread.
         let cancel = tokio_util::sync::CancellationToken::new();
-        let (anti_docs, reverts_found, rules_added) = tokio::task::spawn_blocking({
+
+        struct RevertData {
+            rule_id: String,
+            file_pattern: String,
+            diff_text: String,
+            original_commit: String,
+            file_path: engram_core::RelPath,
+        }
+
+        let revert_data = tokio::task::spawn_blocking({
             let directory = ps.info.directory.clone();
-            let project_id = req.project_id.clone();
-            let registry = self.state.registry.clone();
             let max_commits = req.max_commits;
             let cancel_clone = cancel.clone();
 
-            move || -> anyhow::Result<(Vec<engram_index::IndexDoc>, usize, usize)> {
+            move || -> anyhow::Result<Vec<RevertData>> {
                 let repo = GitWalker::open_repo(Path::new(&directory))?;
-
-                let mut reverts_found = 0;
-                let mut rules_added = 0;
-                let mut anti_docs = Vec::new();
+                let mut data = Vec::new();
 
                 GitWalker::walk_commits_streaming(
                     &repo,
@@ -1743,56 +1875,103 @@ impl Engram {
                     engram_git::history::MergeCommitPolicy::AllParents,
                     &cancel_clone,
                     |oid, _curr, _total| {
-                    let docs = GitWalker::extract_antipatterns_from_reverts(&repo, oid, 50_000)?;
-                    if !docs.is_empty() {
-                        reverts_found += 1;
+                        let docs =
+                            GitWalker::extract_antipatterns_from_reverts(&repo, oid, 50_000)?;
                         for doc in docs {
-                            let rule_id = format!("immune_{}", doc.original_commit);
-                            let rule = RepoRule {
-                                rule_id: rule_id.clone(),
+                            data.push(RevertData {
+                                rule_id: format!("immune_{}", doc.original_commit),
                                 file_pattern: format!("**/{}", doc.file_path),
-                                rule_text: format!("AVOID: This pattern was previously reverted in commit {}. It caused issues that required a rollback.", doc.original_commit),
-                                priority: 10,
-                                updated_at_ms: now_ms(),
-                            };
-                            registry.put_repo_rule(&project_id, &rule)?;
-                            rules_added += 1;
-
-                            // Convert to IndexDoc for Tantivy
-                            let immune_content_hash = engram_core::ContentHash::compute(doc.diff_text.as_bytes());
-                            let immune_doc_id_str = engram_core::DocIdStr::compute(
-                                doc.file_path.as_str(), 0, 0,
-                                &immune_content_hash,
-                            ).0;
-
-                            anti_docs.push(engram_index::IndexDoc {
-                                generation: active_gen,
-                                chunk_id: engram_index::chunk_id_from_content_hash(&immune_content_hash),
-                                doc_id: immune_doc_id_str,
-                                content_hash: immune_content_hash.0,
-                                path: doc.file_path.clone(),
-                                language: "code".into(),
-                                content: doc.diff_text,
-                                namespace: "antipattern".into(),
-                                author: None,
-                                timestamp: None,
-                                start_line: 0,
-                                end_line: 0,
+                                diff_text: doc.diff_text,
+                                original_commit: doc.original_commit.to_string(),
+                                file_path: doc.file_path,
                             });
                         }
-                    }
-                    Ok(())
-                })?;
+                        Ok(())
+                    },
+                )?;
 
-                Ok((anti_docs, reverts_found, rules_added))
+                Ok(data)
             }
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // Phase 2 (async): index the anti-pattern docs in the outer async context,
-        // eliminating the block_on-inside-spawn_blocking deadlock risk.
+        let reverts_found = revert_data.len();
+
+        // Phase 2 (async): Generate LLM-powered descriptive rules + build IndexDocs.
+        let dreaming = self.state.dreaming.clone();
+        let mut anti_docs = Vec::with_capacity(revert_data.len());
+        let mut rules_added = 0;
+
+        for rd in &revert_data {
+            // Try LLM-based analysis of the reverted diff to produce a descriptive rule
+            let diff_snippet = if rd.diff_text.len() > 2000 {
+                &rd.diff_text[..2000]
+            } else {
+                &rd.diff_text
+            };
+
+            let prompt = format!(
+                "Analyze this reverted code diff and explain in 1-2 concise sentences why this pattern should be avoided. \
+                 Focus on the root cause — what went wrong and what developers should do instead.\n\n\
+                 File: {}\nOriginal commit: {}\n\nDiff:\n```\n{}\n```\n\n\
+                 Respond with ONLY the rule text (no preamble).",
+                rd.file_path, rd.original_commit, diff_snippet
+            );
+
+            let llm_analysis = dreaming
+                .generate_text(&prompt, 200, std::time::Duration::from_secs(15))
+                .await;
+
+            let rule_text = if llm_analysis.is_empty() {
+                // Deterministic fallback with more detail than before
+                format!(
+                    "AVOID: Pattern in {} was reverted (commit {}). The change was rolled back indicating it introduced a regression. Review carefully before reintroducing similar changes.",
+                    rd.file_path, rd.original_commit
+                )
+            } else {
+                format!(
+                    "AVOID (reverted in {}): {}",
+                    rd.original_commit, llm_analysis
+                )
+            };
+
+            let rule = RepoRule {
+                rule_id: rd.rule_id.clone(),
+                file_pattern: rd.file_pattern.clone(),
+                rule_text,
+                priority: 10,
+                updated_at_ms: now_ms(),
+            };
+            self.state
+                .registry
+                .put_repo_rule(&req.project_id, &rule)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            rules_added += 1;
+
+            // Build IndexDoc for Tantivy
+            let immune_content_hash = engram_core::ContentHash::compute(rd.diff_text.as_bytes());
+            let immune_doc_id_str =
+                engram_core::DocIdStr::compute(rd.file_path.as_str(), 0, 0, &immune_content_hash).0;
+
+            anti_docs.push(engram_index::IndexDoc {
+                generation: active_gen,
+                chunk_id: engram_index::chunk_id_from_content_hash(&immune_content_hash),
+                doc_id: immune_doc_id_str,
+                content_hash: immune_content_hash.0,
+                path: rd.file_path.clone(),
+                language: "code".into(),
+                content: rd.diff_text.clone(),
+                namespace: "antipattern".into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+            });
+        }
+
+        // Phase 3 (async): index the anti-pattern docs
         if !anti_docs.is_empty() {
             ps.search
                 .index_docs(&req.project_id, &anti_docs, &cancel)
@@ -2676,7 +2855,9 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    #[tool(description = "Get a lightweight codebase overview (v1 parity: get_codebase_overview).")]
+    #[tool(
+        description = "Comprehensive codebase overview with language breakdown, symbol-type aggregation, architectural analysis, and graph metrics (v1 parity: get_codebase_overview)."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn get_codebase_overview(
         &self,
@@ -2700,32 +2881,137 @@ impl Engram {
         let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
         let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
 
-        // Compute PageRank for the overview
+        // Language breakdown (from Tantivy "memory" namespace)
+        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
+
+        // Graph: node counts by type and edge counts by kind (blocking — redb)
         let graph = self.state.graph.clone();
         let pid_clone2 = pid.clone();
-        let active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
-        let centrality = tokio::task::spawn_blocking(move || {
-            engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen)
-        })
-        .await
-        .ok()
-        .and_then(|r| r.ok());
+        let active_gen = gen_;
+        let (node_type_counts, edge_kind_counts, centrality) =
+            tokio::task::spawn_blocking(move || {
+                let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
+                let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
+                let pr =
+                    engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
+                (ntc, ekc, pr)
+            })
+            .await
+            .unwrap_or_default();
 
-        let mut out = format!("Codebase Overview for {}\n", rec.project_name);
+        // ── Build output ──
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
         out.push_str(&format!("project_id: {}\n", rec.project_id));
+        out.push_str(&format!("project_type: {}\n", rec.project_type));
         out.push_str(&format!("directory: {}\n", rec.directory));
         out.push_str(&format!("active_generation: {}\n", gen_));
         out.push_str(&format!("repo_rules: {}\n", rule_count));
         out.push_str(&format!("chunks_indexed: {}\n", tantivy_docs));
         out.push_str(&format!("vectors_stored: {}\n", lancedb_rows));
 
+        // Language breakdown
+        if !lang_counts.is_empty() {
+            let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
+            lang_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+            out.push_str("\n--- Language Breakdown (chunks) ---\n");
+            for (lang, count) in &lang_sorted {
+                let pct = if tantivy_docs > 0 {
+                    (*count as f64 / tantivy_docs as f64 * 100.0) as u32
+                } else {
+                    0
+                };
+                out.push_str(&format!("  {}: {} ({}%)\n", lang, count, pct));
+            }
+        }
+
+        // Symbol-type breakdown from graph
+        if !node_type_counts.is_empty() {
+            let mut nts: Vec<_> = node_type_counts.iter().collect();
+            nts.sort_by(|a, b| b.1.cmp(a.1));
+            let total_nodes: usize = node_type_counts.values().sum();
+            out.push_str(&format!("\n--- Symbol Types ({} total) ---\n", total_nodes));
+            for (ntype, count) in &nts {
+                out.push_str(&format!("  {}: {}\n", ntype, count));
+            }
+        }
+
+        // Edge-kind breakdown
+        if !edge_kind_counts.is_empty() {
+            let mut eks: Vec<_> = edge_kind_counts.iter().collect();
+            eks.sort_by(|a, b| b.1.cmp(a.1));
+            let total_edges: usize = edge_kind_counts.values().sum();
+            out.push_str(&format!("\n--- Edge Types ({} total) ---\n", total_edges));
+            for (ekind, count) in eks.iter().take(15) {
+                out.push_str(&format!("  {}: {}\n", ekind, count));
+            }
+            if eks.len() > 15 {
+                out.push_str(&format!("  ... and {} more kinds\n", eks.len() - 15));
+            }
+        }
+
+        // Architectural layer inference from node types
+        {
+            let files = node_type_counts.get("file").copied().unwrap_or(0);
+            let classes = node_type_counts.get("class").copied().unwrap_or(0);
+            let functions = node_type_counts.get("function").copied().unwrap_or(0);
+            let interfaces = node_type_counts.get("interface").copied().unwrap_or(0);
+            let db_tables = node_type_counts.get("db_table").copied().unwrap_or(0);
+            let web_services = node_type_counts.get("web_service").copied().unwrap_or(0);
+            let http_handlers = node_type_counts.get("http_handler").copied().unwrap_or(0);
+            let wcf_services = node_type_counts.get("wcf_service").copied().unwrap_or(0);
+            let controls = node_type_counts.get("control").copied().unwrap_or(0);
+            let ui_containers = node_type_counts.get("ui_container").copied().unwrap_or(0);
+            let app_settings = node_type_counts.get("app_setting").copied().unwrap_or(0);
+            let conn_strings = node_type_counts
+                .get("connection_string")
+                .copied()
+                .unwrap_or(0);
+
+            out.push_str("\n--- Architecture ---\n");
+            if files > 0 {
+                out.push_str(&format!("  Source files: {}\n", files));
+            }
+            if classes > 0 || interfaces > 0 {
+                out.push_str(&format!(
+                    "  Types: {} classes, {} interfaces\n",
+                    classes, interfaces
+                ));
+            }
+            if functions > 0 {
+                out.push_str(&format!("  Functions/Methods: {}\n", functions));
+            }
+            if controls > 0 || ui_containers > 0 {
+                out.push_str(&format!(
+                    "  UI: {} controls, {} containers\n",
+                    controls, ui_containers
+                ));
+            }
+            if web_services + http_handlers + wcf_services > 0 {
+                out.push_str(&format!(
+                    "  Service endpoints: {} ASMX, {} ASHX, {} WCF\n",
+                    web_services, http_handlers, wcf_services
+                ));
+            }
+            if db_tables > 0 {
+                out.push_str(&format!("  Database tables: {}\n", db_tables));
+            }
+            if app_settings > 0 || conn_strings > 0 {
+                out.push_str(&format!(
+                    "  Config: {} app settings, {} connection strings\n",
+                    app_settings, conn_strings
+                ));
+            }
+        }
+
+        // PageRank central nodes
         if let Some(metrics) = centrality {
             let mut top_nodes: Vec<_> = metrics.pagerank.into_iter().collect();
             top_nodes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-            out.push_str("\nTop central nodes (PageRank):\n");
-            for (id, score) in top_nodes.iter().take(8) {
-                out.push_str(&format!("- {} ({:.4})\n", id, score));
+            out.push_str("\n--- Top Central Nodes (PageRank) ---\n");
+            for (id, score) in top_nodes.iter().take(10) {
+                out.push_str(&format!("  {} ({:.4})\n", id, score));
             }
         }
 
@@ -2736,17 +3022,19 @@ impl Engram {
             .query_nodes(&pid, Some("db_table"), None, None, 100)
             .unwrap_or_default();
         if !table_nodes.is_empty() {
-            out.push_str(&format!("\nDatabase Tables ({}): ", table_nodes.len()));
+            out.push_str(&format!(
+                "\n--- Database Tables ({}) ---\n",
+                table_nodes.len()
+            ));
             let names: Vec<_> = table_nodes
                 .iter()
-                .take(15)
+                .take(20)
                 .map(|n| n.name.as_str())
                 .collect();
-            out.push_str(&names.join(", "));
-            if table_nodes.len() > 15 {
-                out.push_str(&format!(" ... and {} more", table_nodes.len() - 15));
+            out.push_str(&format!("  {}\n", names.join(", ")));
+            if table_nodes.len() > 20 {
+                out.push_str(&format!("  ... and {} more\n", table_nodes.len() - 20));
             }
-            out.push('\n');
         }
 
         // Top global state keys (Session, ViewState, etc.)
@@ -2756,7 +3044,6 @@ impl Engram {
             .query_nodes(&pid, Some("global_state"), None, None, 100)
             .unwrap_or_default();
         if !state_nodes.is_empty() {
-            // Count incoming edges (reads + writes) per state node for ranking.
             let mut state_usage: Vec<(&str, usize, usize)> = Vec::new();
             for sn in &state_nodes {
                 let reads = self
@@ -2776,12 +3063,12 @@ impl Engram {
             state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
 
             out.push_str(&format!(
-                "\nGlobal State Keys ({} total):\n",
+                "\n--- Global State Keys ({} total) ---\n",
                 state_nodes.len()
             ));
             for (name, reads, writes) in state_usage.iter().take(10) {
                 out.push_str(&format!(
-                    "- {} (reads={}, writes={})\n",
+                    "  {} (reads={}, writes={})\n",
                     name, reads, writes
                 ));
             }
@@ -2790,25 +3077,27 @@ impl Engram {
             }
         }
 
-        // Also fetch some top temporal couplings if any
+        // Top temporal couplings
         let couplings =
             engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5)
                 .unwrap_or_default();
         if !couplings.is_empty() {
-            out.push_str("\nTop Temporal Couplings:\n");
+            out.push_str("\n--- Top Temporal Couplings ---\n");
             for c in couplings {
                 out.push_str(&format!(
-                    "- {} <-> {} (w={})\n",
+                    "  {} <-> {} (w={})\n",
                     c.file_node_id, c.neighbor_node_id, c.weight
                 ));
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     #[tool(
-        description = "Find symbol references using graph + lexical fallback (v1 parity: find_symbol_references)."
+        description = "Find all references to a symbol across the codebase using graph edges (all edge kinds) with FQN substring matching and lexical fallback (v1 parity: find_symbol_references)."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, symbol_name = %params.0.symbol_name))]
     pub async fn find_symbol_references(
@@ -2818,42 +3107,107 @@ impl Engram {
         let req = params.0;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
+        let needle = &req.symbol_name;
 
-        // 1. Try to find the symbol in the graph
+        // 1. Find matching symbol nodes — both exact name match and FQN suffix match
         let nodes = self
             .state
             .graph
-            .query_nodes(&req.project_id, None, Some(&req.symbol_name), None, 10)
+            .query_nodes(&req.project_id, None, Some(needle), None, 50)
             .unwrap_or_default();
 
-        let mut out = String::new();
+        let mut out = String::with_capacity(2048);
         let mut found_in_graph = false;
 
-        for node in nodes {
-            // Only consider nodes that match the name exactly (query_nodes is substring)
-            if node.name != req.symbol_name {
+        for node in &nodes {
+            // Match exact name, OR FQN suffix (e.g. "GetUser" matches "MyApp.Services.GetUser"),
+            // OR exact node name match.
+            let name_matches = node.name == *needle
+                || node.name.ends_with(&format!(".{}", needle))
+                || node.name.ends_with(&format!("::{}", needle))
+                || node.node_id.ends_with(&format!(":{}", needle));
+            if !name_matches {
                 continue;
             }
 
+            // Query ALL incoming edge kinds (not just Dependency)
             let incoming = self
                 .state
                 .graph
-                .find_incoming_edges(
+                .find_incoming_edges_with_kind(
                     &req.project_id,
-                    Some(engram_graph::EdgeKind::Dependency),
+                    None, // all edge kinds
                     &node.node_id,
-                    100,
+                    200,
                 )
                 .unwrap_or_default();
 
-            if !incoming.is_empty() {
+            // Also get outgoing edges for a complete picture
+            let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
+            for kind in EdgeKind::ALL {
+                if let Ok(neighbors) =
+                    self.state
+                        .graph
+                        .neighbors(&req.project_id, kind.clone(), &node.node_id, 50)
+                {
+                    for (target_id, weight) in neighbors {
+                        outgoing.push((target_id, kind.clone(), weight));
+                    }
+                }
+            }
+
+            if !incoming.is_empty() || !outgoing.is_empty() {
                 found_in_graph = true;
                 out.push_str(&format!(
-                    "Graph references for {} ({}, {}):\n",
-                    node.name, node.node_type, node.file_path
+                    "Symbol: {} ({}) in {}\n  node_id: {}\n",
+                    node.name, node.node_type, node.file_path, node.node_id
                 ));
-                for (src_id, weight) in incoming {
-                    out.push_str(&format!("- {} (weight={})\n", src_id, weight));
+
+                if !incoming.is_empty() {
+                    out.push_str(&format!("  Incoming references ({}):\n", incoming.len()));
+                    // Group by edge kind for readability
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (src_id, kind, weight) in &incoming {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((src_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (src, w) in refs.iter().take(10) {
+                            out.push_str(&format!("      <- {} (w={})\n", src, w));
+                        }
+                        if refs.len() > 10 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 10));
+                        }
+                    }
+                }
+
+                if !outgoing.is_empty() {
+                    out.push_str(&format!("  Outgoing dependencies ({}):\n", outgoing.len()));
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (tgt_id, kind, weight) in &outgoing {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((tgt_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (tgt, w) in refs.iter().take(10) {
+                            out.push_str(&format!("      -> {} (w={})\n", tgt, w));
+                        }
+                        if refs.len() > 10 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 10));
+                        }
+                    }
                 }
                 out.push('\n');
             }
@@ -2896,18 +3250,23 @@ impl Engram {
         }
 
         let mut out = String::new();
-        out.push_str(&format!("Lexical references to: {}\n", req.symbol_name));
+        out.push_str(&format!(
+            "No graph symbol found for '{}'; lexical references:\n",
+            req.symbol_name
+        ));
         for h in hits {
             out.push_str(&format!(
                 "- {} (chunk_id={}, score={:.3})\n",
                 h.path, h.chunk_id, h.score
             ));
         }
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     #[tool(
-        description = "Analyze an error stacktrace and suggest likely files (v1 parity: analyze_error_stack)."
+        description = "Analyze an error stacktrace with structured multi-language parsing and suggest likely source files with graph centrality context (v1 parity: analyze_error_stack)."
     )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
     pub async fn analyze_error_stack(
@@ -2918,9 +3277,11 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        let q = stacktrace_to_query(&req.traceback);
+        // 1. Structured parsing of stack frames
+        let frames = crate::utils::text::parse_stack_frames(&req.traceback);
+        let query = stacktrace_to_query(&req.traceback);
 
-        // 1. Hybrid search for initial candidates, using MMR for diversity.
+        // 2. Hybrid search for initial candidates, using MMR for diversity.
         let hits = ps
             .search
             .search(
@@ -2928,7 +3289,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     namespace: "memory".into(),
                     generation: gen_,
-                    text: q,
+                    text: query,
                     top_k: 15,
                     fts_mode: "loose".into(),
                     include_path_prefixes: None,
@@ -2944,40 +3305,151 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let mut out = String::with_capacity(4096);
+        out.push_str("Error Stacktrace Analysis\n");
+        out.push_str(&format!("Frames parsed: {}\n\n", frames.len()));
+
+        // 3. Show extracted frames summary
+        if !frames.is_empty() {
+            out.push_str("--- Extracted Frames ---\n");
+            for (i, f) in frames.iter().enumerate().take(15) {
+                let mut parts = Vec::new();
+                if let Some(ref file) = f.file {
+                    let basename = file.rsplit(['/', '\\']).next().unwrap_or(file);
+                    if let Some(line) = f.line {
+                        parts.push(format!("{}:{}", basename, line));
+                    } else {
+                        parts.push(basename.to_string());
+                    }
+                }
+                if let Some(ref fqn) = f.fqn {
+                    parts.push(fqn.clone());
+                } else if let Some(ref func) = f.function {
+                    parts.push(func.clone());
+                }
+                if !parts.is_empty() {
+                    out.push_str(&format!("  #{}: {}\n", i + 1, parts.join(" in ")));
+                }
+            }
+            if frames.len() > 15 {
+                out.push_str(&format!("  ... and {} more frames\n", frames.len() - 15));
+            }
+            out.push('\n');
+        }
+
         if hits.is_empty() {
+            out.push_str("No matching codebase files found.\n");
             return Ok(CallToolResult::success(vec![Content::text(
-                "No likely matches found in the codebase.",
+                out.trim().to_string(),
             )]));
         }
 
-        // 2. Generate hypothesis based on top hits and graph centrality
-        let mut out = String::new();
-        out.push_str("Error Stacktrace Analysis:\n\n");
+        // 4. Boost hits that match extracted file paths from frames
+        let frame_files: std::collections::HashSet<String> = frames
+            .iter()
+            .filter_map(|f| f.file.as_deref())
+            .map(|f| f.rsplit(['/', '\\']).next().unwrap_or(f).to_lowercase())
+            .collect();
+        let frame_functions: std::collections::HashSet<String> = frames
+            .iter()
+            .filter_map(|f| f.function.as_deref())
+            .map(|s| s.to_lowercase())
+            .collect();
 
-        out.push_str("Hypothesis: The error likely originates from or affects the following components, sorted by relevance and architectural significance.\n\n");
+        let mut scored_hits: Vec<_> = hits
+            .iter()
+            .map(|h| {
+                let basename = h
+                    .path
+                    .as_str()
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .unwrap_or(h.path.as_str())
+                    .to_lowercase();
+                let mut bonus = 0.0f32;
+                // Exact file match from stack frame
+                if frame_files.contains(&basename) {
+                    bonus += 0.3;
+                }
+                // Centrality bonus
+                bonus += h.centrality * 0.1;
+                (h, h.score + bonus)
+            })
+            .collect();
+        scored_hits.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-        for (i, h) in hits.iter().enumerate().take(5) {
+        // 5. Output ranked results
+        out.push_str("--- Likely Source Files ---\n");
+        out.push_str(
+            "Ranked by search relevance + stack frame matching + architectural centrality.\n\n",
+        );
+
+        for (i, (h, final_score)) in scored_hits.iter().enumerate().take(8) {
             let centrality_note = if h.centrality > 0.5 {
-                " (Architectural Hub)"
+                " [Hub]"
             } else if h.centrality > 0.2 {
-                " (Common Utility)"
+                " [Utility]"
             } else {
                 ""
             };
 
+            let basename = h
+                .path
+                .as_str()
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or(h.path.as_str())
+                .to_lowercase();
+            let frame_match = if frame_files.contains(&basename) {
+                " [STACK MATCH]"
+            } else {
+                ""
+            };
+
+            // Check if any frame function matches a graph node in this file
+            let mut func_matches = Vec::new();
+            if !frame_functions.is_empty() {
+                let file_nodes = self
+                    .state
+                    .graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("function"),
+                        None,
+                        Some(h.path.as_str()),
+                        50,
+                    )
+                    .unwrap_or_default();
+                for node in &file_nodes {
+                    let node_name_lower = node.name.to_lowercase();
+                    if frame_functions.contains(&node_name_lower) {
+                        func_matches.push(format!("{}:{}", node.name, node.start_line));
+                    }
+                }
+            }
+
             out.push_str(&format!(
-                "#{}: {}{} (score: {:.3})\n",
+                "#{}: {}{}{} (score: {:.3})\n",
                 i + 1,
                 h.path,
                 centrality_note,
-                h.score
+                frame_match,
+                final_score
             ));
 
-            if let Ok(Some((_, _, content, _, _))) =
+            if !func_matches.is_empty() {
+                out.push_str(&format!(
+                    "   Matching functions: {}\n",
+                    func_matches.join(", ")
+                ));
+            }
+
+            if let Ok(Some((_, _, content, start_line, _))) =
                 ps.search
                     .get_doc_by_doc_id(&req.project_id, "memory", gen_, &h.doc_id)
             {
                 let snippet: String = content.lines().take(3).collect::<Vec<_>>().join("\n");
+                out.push_str(&format!("   (line ~{})\n", start_line));
                 out.push_str("   > ");
                 out.push_str(&snippet.replace('\n', "\n   > "));
                 out.push_str("\n\n");

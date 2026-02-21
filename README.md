@@ -21,10 +21,11 @@ The server communicates over **STDIO** using the MCP protocol and is designed to
 
 ### Knowledge Graph
 - Builds a typed property graph of your codebase using Tree-sitter AST parsing
-- 12 edge kinds: `CoOccurrence`, `TemporalCoupling`, `Insight`, `Dependency`, `AntiPattern`, `Contains`, `Imports`, `SqlCalls`, `HasColumn`, `ForeignKey`, `QueriesTable`, `ReadsState`, `WritesState`
-- Node types: `Function`, `Class`, `File`, `Table`, `Column`, `Insight`, `MemoryBankSection`
-- O(degree) adjacency lookups via Redb-backed adjacency lists
+- 27 edge kinds: `CoOccurrence`, `TemporalCoupling`, `Insight`, `Dependency`, `AntiPattern`, `Contains`, `Imports`, `SqlCalls`, `HasColumn`, `ForeignKey`, `QueriesTable`, `ReadsState`, `WritesState`, `DataBinding`, `RegistersControl`, `IncludesFile`, `UnresolvedStateRead`, `UnresolvedStateWrite`, `ExposesWebService`, `ExposesHttpHandler`, `ExposesWcfService`, `ContainsUi`, `UiLayoutNeighbor`, `ReadsColumn`, `RegistersModule`, `RegistersHandler`, `ManipulatesDom`, `TriggersPostback`, `ApiCall`
+- Node types: `function`, `class`, `interface`, `file`, `db_table`, `db_column`, `global_state`, `control`, `ui_container`, `control_layout`, `web_service`, `http_handler`, `wcf_service`, `application`, `http_module`, `route_handler`, `app_setting`, `connection_string`, `binding_field`, `insight`, `memory_bank_section`
+- O(degree) adjacency lookups via Redb-backed composite-key adjacency lists (bincode serialization)
 - PageRank scoring for codebase overview ranking
+- Per-type and per-kind aggregation for architectural analysis
 
 ### Git Intelligence
 - Indexes full commit history and diffs
@@ -211,7 +212,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `update_project` | Incremental re-index of changed files. Parameters: `project_id`, `wait`, `max_commits`, `index_antipatterns` |
 | `list_projects` | List all indexed projects |
 | `project_info` | Detailed project metadata |
-| `project_health` | Quick health check (sync state, file counts) |
+| `project_health` | Comprehensive health check: per-namespace doc counts, graph/vector stats, disk usage, integrity warnings |
 | `delete_project` | Delete a project and all its stored data |
 | `repair_project` | Rebuild index from registry (GC + defrag) |
 
@@ -221,10 +222,10 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 |------|-------------|
 | `search_memory` | Hybrid FTS + vector search. Parameters: `query`, `project_id`, `namespace`, `max_results`, `use_mmr`, `fts_mode`, `include_content`, `max_content_chars_per_result`, language/path filters |
 | `get_chunk` | Fetch full content for a specific chunk by ID, with optional repo rule injection |
-| `graph_search` | Search with knowledge graph node-boost reranking |
-| `find_symbol_references` | Find all references to a symbol using graph + lexical fallback |
-| `get_codebase_overview` | High-level stats + top PageRank nodes |
-| `analyze_error_stack` | Parse a stack trace and identify likely source files |
+| `graph_search` | Hybrid text + graph symbol name matching with multi-edge neighbor expansion and configurable symbol boost |
+| `find_symbol_references` | All-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, lexical fallback |
+| `get_codebase_overview` | Language breakdown, symbol-type aggregation, edge-kind distribution, architectural layers, PageRank, DB tables, state keys, temporal couplings |
+| `analyze_error_stack` | Multi-language structured stacktrace parser (Python, .NET, Java, Node.js, Rust, Go, PHP, Ruby, ASP.NET) with frame-boosted search and graph centrality |
 
 ### Knowledge Graph
 
@@ -243,7 +244,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `ingest_zip_history` | Ingest a folder of zip snapshots as pseudo git history |
 | `search_history` | Search commit messages and diffs |
 | `analyze_temporal_couplings` | Detect files that frequently change together |
-| `analyze_reverts` | Detect reverted commits and harvest anti-patterns |
+| `analyze_reverts` | Detect reverted commits, generate LLM-powered descriptive anti-pattern rules, and index reverted diffs |
 
 ### Cognitive Features
 

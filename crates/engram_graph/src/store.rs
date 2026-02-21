@@ -816,6 +816,44 @@ impl GraphStore {
         Ok(count)
     }
 
+    /// Count nodes grouped by `node_type` (class, function, file, db_table, etc.).
+    pub fn count_nodes_by_type(&self, project_id: &str) -> anyhow::Result<HashMap<String, usize>> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let nt = rtx.open_table(NODES)?;
+        let mut counts = HashMap::new();
+        for r in nt.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            if let Ok(node) = bincode::deserialize::<Node>(v.value()) {
+                *counts.entry(node.node_type).or_insert(0) += 1;
+            }
+        }
+        Ok(counts)
+    }
+
+    /// Count edges grouped by `EdgeKind`.
+    pub fn count_edges_by_kind(&self, project_id: &str) -> anyhow::Result<HashMap<String, usize>> {
+        let prefix = format!("{project_id}\0");
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let mut counts = HashMap::new();
+        for r in et.range(prefix.as_str()..)? {
+            let (k, _) = r?;
+            let key = k.value();
+            if !key.starts_with(&prefix) {
+                break;
+            }
+            // Edge key: "{project}\0{kind}\0{src}\0{tgt}"
+            if let Some(kind_str) = key.strip_prefix(&prefix).and_then(|s| s.split('\0').next()) {
+                *counts.entry(kind_str.to_string()).or_insert(0) += 1;
+            }
+        }
+        Ok(counts)
+    }
+
     // ── Query (allocation-free case-insensitive matching) ────────────────────
 
     pub fn query_nodes(
