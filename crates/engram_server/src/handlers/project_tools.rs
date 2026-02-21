@@ -219,10 +219,11 @@ impl Engram {
         }
 
         let handle = tokio::spawn(async move {
-            let search_init = engram_index::HybridSearchEngine::new(
+            let search_init = engram_index::HybridSearchEngine::new_with_budget(
                 tantivy_dir,
                 lancedb_dir,
                 &state_for_spawn.cfg,
+                Some(state_for_spawn.memory_budget.clone()),
             )
             .await;
             let max_chunks = state_for_spawn.cfg.max_chunks_per_file;
@@ -489,10 +490,11 @@ impl Engram {
                     let lancedb_dir = project_root.join("lancedb");
                     tokio::fs::create_dir_all(&tantivy_dir).await?;
                     tokio::fs::create_dir_all(&lancedb_dir).await?;
-                    let search = engram_index::HybridSearchEngine::new(
+                    let search = engram_index::HybridSearchEngine::new_with_budget(
                         tantivy_dir.clone(),
                         lancedb_dir.clone(),
                         &state.cfg,
+                        Some(state.memory_budget.clone()),
                     )
                     .await?;
                     let rec = state

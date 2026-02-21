@@ -1,5 +1,6 @@
 use crate::tantivy_index::{Fields, open_or_create};
 use crate::{chunking, ingest};
+use engram_core::memory::{AllocationGuard, MemoryBudget, Subsystem};
 use engram_core::{ContentHash, DocIdStr, RelPath, build_pk};
 #[cfg(feature = "vector")]
 use lancedb::query::{ExecutableQuery, QueryBase};
@@ -106,6 +107,7 @@ pub struct HybridSearchEngine {
     tantivy_writer_memory: usize,
     /// MMR oversampling multiplier: fetch_k = top_k * this (default 5).
     mmr_oversampling: usize,
+    memory_budget: Option<Arc<MemoryBudget>>,
 }
 
 impl HybridSearchEngine {
@@ -113,6 +115,15 @@ impl HybridSearchEngine {
         tantivy_dir: PathBuf,
         lance_dir: PathBuf,
         cfg: &engram_core::Config,
+    ) -> anyhow::Result<Self> {
+        Self::new_with_budget(tantivy_dir, lance_dir, cfg, None).await
+    }
+
+    pub async fn new_with_budget(
+        tantivy_dir: PathBuf,
+        lance_dir: PathBuf,
+        cfg: &engram_core::Config,
+        memory_budget: Option<Arc<MemoryBudget>>,
     ) -> anyhow::Result<Self> {
         let embedding_backend = cfg.embedding_backend.clone();
         let (index, fields) = open_or_create(&tantivy_dir)?;
@@ -148,6 +159,7 @@ impl HybridSearchEngine {
             _lance_dir: lance_dir,
             tantivy_writer_memory: cfg.tantivy_writer_memory,
             mmr_oversampling: cfg.mmr_oversampling,
+            memory_budget,
         })
     }
 
@@ -167,6 +179,19 @@ impl HybridSearchEngine {
 
         // 1. Lexical index (Tantivy) — pk-based upsert
         {
+            let _tantivy_guard = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        self.tantivy_writer_memory as u64,
+                        Subsystem::Tantivy,
+                        "tantivy index writer",
+                    )
+                })
+                .transpose()?;
+
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
                 self.tantivy_index.writer(self.tantivy_writer_memory)?;
             for d in docs {
@@ -274,12 +299,42 @@ impl HybridSearchEngine {
                     if cancel.is_cancelled() {
                         break;
                     }
+                    let estimated_embed_bytes = chunk.iter().map(|t| t.len() as u64).sum::<u64>()
+                        + (chunk.len() as u64 * self.embedder.dimension() as u64 * 4);
+                    let _embed_guard = self
+                        .memory_budget
+                        .as_ref()
+                        .map(|budget| {
+                            AllocationGuard::try_new(
+                                budget,
+                                estimated_embed_bytes,
+                                Subsystem::LanceDb,
+                                "embedding batch",
+                            )
+                        })
+                        .transpose()?;
                     let batch_vecs = self.embedder.embed_batch(chunk).await?;
                     vectors.extend(batch_vecs);
                 }
             }
 
             if !cancel.is_cancelled() && !pks.is_empty() {
+                let estimated_vector_bytes =
+                    vectors.iter().map(|v| (v.len() as u64) * 4).sum::<u64>()
+                        + pks.iter().map(|pk| pk.len() as u64).sum::<u64>();
+                let _vector_guard = self
+                    .memory_budget
+                    .as_ref()
+                    .map(|budget| {
+                        AllocationGuard::try_new(
+                            budget,
+                            estimated_vector_bytes,
+                            Subsystem::LanceDb,
+                            "vector ingestion",
+                        )
+                    })
+                    .transpose()?;
+
                 let ns = &docs[0].namespace;
                 let batch = crate::vector::create_record_batch_with_gens(
                     project_id,
@@ -744,6 +799,23 @@ impl HybridSearchEngine {
             if cancel.is_cancelled() {
                 break;
             }
+
+            let chunking_estimate = file_chunk
+                .iter()
+                .filter_map(|p| std::fs::metadata(p).ok().map(|m| m.len()))
+                .sum::<u64>();
+            let _chunking_guard = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        chunking_estimate.max(1),
+                        Subsystem::ParseBuffer,
+                        "chunking/parse batch",
+                    )
+                })
+                .transpose()?;
 
             let chunk_paths = file_chunk.to_vec();
             let extractor = self.extractor.clone();
