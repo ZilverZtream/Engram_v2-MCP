@@ -65,6 +65,13 @@ static FIELD_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 // Tree-sitter enhanced CommandText assignment detection
 static CMD_TEXT_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 
+// Server-to-client script injection patterns
+static REGISTER_STARTUP_SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
+static REGISTER_CLIENT_SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
+static SCRIPT_MANAGER_RE: OnceLock<Regex> = OnceLock::new();
+// Extracts function names from injected JS strings
+static JS_FUNCTION_IN_SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -650,6 +657,11 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         edges.extend(extract_ado_column_access(source, &all_scopes));
     }
 
+    // Server-to-client script injection detection
+    if has_script_injection_keyword(source) {
+        edges.extend(extract_script_injections(source, &all_scopes));
+    }
+
     (symbols, edges)
 }
 
@@ -733,6 +745,179 @@ fn has_ado_keyword(source: &str) -> bool {
         || ci_contains_fast(src, b"row(\"")
         || ci_contains_fast(src, b"dr(\"")
         || ci_contains_fast(src, b"rdr(\"")
+}
+
+/// Fast check for script injection keywords.
+#[inline]
+fn has_script_injection_keyword(source: &str) -> bool {
+    let src = source.as_bytes();
+    ci_contains_fast(src, b"RegisterStartupScript")
+        || ci_contains_fast(src, b"RegisterClientScript")
+        || ci_contains_fast(src, b"ScriptManager")
+}
+
+/// Detect server-to-client script injection via `ClientScript.RegisterStartupScript`,
+/// `ClientScript.RegisterClientScriptBlock`, and `ScriptManager.RegisterStartupScript`.
+///
+/// Emits `injects_script` edges from the enclosing VB method to the JavaScript
+/// function being injected into the page.
+fn extract_script_injections(source: &str, all_scopes: &[ScopeEntry]) -> Vec<ExtractedEdge> {
+    let mut edges = Vec::new();
+
+    // Pattern 1: ClientScript.RegisterStartupScript / RegisterClientScriptBlock
+    // VB: Me.ClientScript.RegisterStartupScript(Me.GetType(), "key", "script", True)
+    // C#: ClientScript.RegisterStartupScript(GetType(), "key", "script", true);
+    // Also: Page.ClientScript.RegisterStartupScript(...)
+    if let Some(re) = get_compiled_regex(
+        &REGISTER_STARTUP_SCRIPT_RE,
+        r#"(?i)(?:Me\.|Page\.)?ClientScript\.Register(?:Startup|Client)Script(?:Block)?\s*\([^,]+,\s*[^,]+,\s*"(?P<script>[^"]{1,500})""#,
+        "register_startup_script",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let script = cap.name("script").unwrap().as_str();
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
+            emit_script_injection_edges(
+                &mut edges,
+                src_name,
+                src_kind,
+                src_line,
+                script,
+                "RegisterStartupScript",
+            );
+        }
+    }
+
+    // Pattern 2: ScriptManager.RegisterStartupScript
+    // ScriptManager.RegisterStartupScript(Me, Me.GetType(), "key", "script", True)
+    if let Some(re) = get_compiled_regex(
+        &SCRIPT_MANAGER_RE,
+        r#"(?i)ScriptManager\.Register(?:Startup|Client)Script\s*\([^,]+,\s*[^,]+,\s*[^,]+,\s*"(?P<script>[^"]{1,500})""#,
+        "script_manager",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let script = cap.name("script").unwrap().as_str();
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
+            emit_script_injection_edges(
+                &mut edges,
+                src_name,
+                src_kind,
+                src_line,
+                script,
+                "ScriptManager",
+            );
+        }
+    }
+
+    // Pattern 3: RegisterClientScriptBlock (less common variant)
+    if let Some(re) = get_compiled_regex(
+        &REGISTER_CLIENT_SCRIPT_RE,
+        r#"(?i)RegisterClientScriptBlock\s*\([^,]+,\s*"(?P<script>[^"]{1,500})""#,
+        "register_client_script",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let script = cap.name("script").unwrap().as_str();
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
+            emit_script_injection_edges(
+                &mut edges,
+                src_name,
+                src_kind,
+                src_line,
+                script,
+                "RegisterClientScriptBlock",
+            );
+        }
+    }
+
+    edges
+}
+
+/// Parse a script string for function calls and emit `injects_script` edges.
+fn emit_script_injection_edges(
+    edges: &mut Vec<ExtractedEdge>,
+    src_name: &str,
+    src_kind: &'static str,
+    src_line: u32,
+    script: &str,
+    injection_method: &str,
+) {
+    // Extract function names from the injected script
+    let func_re = get_compiled_regex(
+        &JS_FUNCTION_IN_SCRIPT_RE,
+        r"(?:function\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*\(",
+        "js_function_in_script",
+    );
+
+    let mut found_functions = HashSet::new();
+
+    if let Some(re) = func_re {
+        for cap in re.captures_iter(script) {
+            let func_name = cap.get(1).unwrap().as_str();
+            // Skip common JS keywords and short noise
+            if matches!(
+                func_name,
+                "if" | "for"
+                    | "while"
+                    | "function"
+                    | "return"
+                    | "var"
+                    | "let"
+                    | "const"
+                    | "new"
+                    | "typeof"
+                    | "alert"
+                    | "console"
+                    | "window"
+                    | "document"
+            ) || func_name.len() < 2
+            {
+                continue;
+            }
+            if !found_functions.insert(func_name.to_string()) {
+                continue;
+            }
+
+            let snippet: String = script.chars().take(100).collect();
+            let mut meta = HashMap::with_capacity(3);
+            meta.insert("injection_method".into(), injection_method.into());
+            meta.insert("script_snippet".into(), snippet);
+            meta.insert("target_function".into(), func_name.into());
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: func_name.to_string(),
+                target_kind: Some("function"),
+                target_start_line: None,
+                kind: "injects_script",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // If no functions found, still emit an edge to the script as a whole
+    if found_functions.is_empty() {
+        let snippet: String = script.chars().take(100).collect();
+        let mut meta = HashMap::with_capacity(2);
+        meta.insert("injection_method".into(), injection_method.into());
+        meta.insert("script_snippet".into(), snippet.clone());
+
+        edges.push(ExtractedEdge {
+            source_name: src_name.to_string(),
+            source_kind: src_kind,
+            source_start_line: src_line,
+            source_language: "vb",
+            target_name: format!("inline_script:{}", &snippet[..snippet.len().min(40)]),
+            target_kind: Some("function"),
+            target_start_line: None,
+            kind: "injects_script",
+            metadata: Some(meta),
+        });
+    }
 }
 
 /// Extract ADO.NET column access patterns, emitting `reads_column` edges
@@ -2745,6 +2930,99 @@ End Namespace
         assert!(
             meta.get("side_effects").is_none(),
             "Pure computation should have no side_effects"
+        );
+    }
+
+    // ── Script Injection Detection ───────────────────────────────────────
+
+    #[test]
+    fn test_register_startup_script() {
+        let code = r#"
+Imports System.Web.UI
+
+Namespace MyApp
+    Public Class Default1
+        Inherits Page
+
+        Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+            Me.ClientScript.RegisterStartupScript(Me.GetType(), "mapInit", "initializeMap(40.7, -74.0);", True)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Default.aspx.vb"), code);
+        let injects: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "injects_script")
+            .collect();
+        assert!(
+            !injects.is_empty(),
+            "expected injects_script edges for RegisterStartupScript"
+        );
+        assert!(injects.iter().any(|e| e.target_name == "initializeMap"));
+        let meta = injects[0].metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("injection_method").unwrap(),
+            "RegisterStartupScript"
+        );
+    }
+
+    #[test]
+    fn test_script_manager_register() {
+        let code = r#"
+Imports System.Web.UI
+
+Namespace MyApp
+    Public Class Default2
+        Inherits Page
+
+        Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+            ScriptManager.RegisterStartupScript(Me, Me.GetType(), "alert", "showSaveConfirmation();", True)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Form.aspx.vb"), code);
+        let injects: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "injects_script")
+            .collect();
+        assert!(
+            !injects.is_empty(),
+            "expected injects_script edges for ScriptManager"
+        );
+        assert!(
+            injects
+                .iter()
+                .any(|e| e.target_name == "showSaveConfirmation")
+        );
+    }
+
+    #[test]
+    fn test_script_injection_inline_no_function() {
+        let code = r#"
+Imports System.Web.UI
+
+Namespace MyApp
+    Public Class Default3
+        Inherits Page
+
+        Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+            Me.ClientScript.RegisterStartupScript(Me.GetType(), "inline", "alert('hello');", True)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Inline.aspx.vb"), code);
+        let injects: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "injects_script")
+            .collect();
+        // Should still emit an edge even when only alert() is found (skipped as noise)
+        // → falls back to inline_script: target
+        assert!(
+            !injects.is_empty(),
+            "expected injects_script edge for inline script"
         );
     }
 }

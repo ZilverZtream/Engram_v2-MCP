@@ -368,6 +368,8 @@ pub async fn process_ingest_stats(
             edge.target_name.clone()
         } else if edge.target_name.starts_with("binding_field:") {
             edge.target_name.clone()
+        } else if edge.target_name.starts_with("gis_config:") {
+            edge.target_name.clone()
         } else if edge.target_name.starts_with("column:") {
             edge.target_name.clone()
         } else if edge.target_kind.as_deref() == Some("db_table") {
@@ -474,6 +476,30 @@ pub async fn process_ingest_stats(
             }
         }
 
+        // Virtual nodes for GIS config targets (API keys, zoom levels, center points)
+        if target_id.starts_with("gis_config:") && seen_virtual_node_ids.insert(target_id.clone()) {
+            let parts: Vec<&str> = target_id.splitn(3, ':').collect();
+            if parts.len() == 3 {
+                let page_path = parts[1];
+                let config_key = parts[2];
+                nodes.push(engram_graph::Node {
+                    node_id: target_id.clone(),
+                    node_type: "gis_config".into(),
+                    name: format!("{}:{}", page_path, config_key),
+                    namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                    language: "javascript".into(),
+                    file_path: (**rel_path).clone(),
+                    start_line: 0,
+                    end_line: 0,
+                    generation,
+                    metadata: Some(serde_json::json!({
+                        "page_path": page_path,
+                        "config_key": config_key,
+                    })),
+                });
+            }
+        }
+
         let edge_kind = match edge.kind {
             "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                 engram_graph::EdgeKind::Contains
@@ -501,6 +527,10 @@ pub async fn process_ingest_stats(
             "manipulates_dom" => engram_graph::EdgeKind::ManipulatesDom,
             "triggers_postback" => engram_graph::EdgeKind::TriggersPostback,
             "api_call" => engram_graph::EdgeKind::ApiCall,
+            "parameter_binding" => engram_graph::EdgeKind::ParameterBinding,
+            "spatial_call" => engram_graph::EdgeKind::SpatialCall,
+            "state_affinity" => engram_graph::EdgeKind::StateAffinity,
+            "injects_script" => engram_graph::EdgeKind::InjectsScript,
             _ => engram_graph::EdgeKind::Dependency,
         };
 

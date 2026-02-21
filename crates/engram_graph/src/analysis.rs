@@ -46,6 +46,9 @@ pub fn compute_pagerank(
         (EdgeKind::QueriesTable, 0.7), // SQL-to-schema is a strong signal
         (EdgeKind::ReadsState, 0.6), // State dependencies important for migration
         (EdgeKind::WritesState, 0.7), // State writers more impactful than readers
+        (EdgeKind::SpatialCall, 0.5), // GIS dependencies moderate importance
+        (EdgeKind::StateAffinity, 0.4), // State affinities feed migration planning
+        (EdgeKind::InjectsScript, 0.7), // Script injection is high-coupling signal
     ];
     for (kind, weight_multiplier) in edge_configs {
         let edges = store.list_edges(project_id, Some(kind.clone()))?;

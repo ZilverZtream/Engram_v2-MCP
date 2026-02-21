@@ -1520,6 +1520,7 @@ async fn test_get_chunk_hardening() {
             doc_id: doc_id.clone(),
             namespace: "memory".into(),
             inject_rules: false,
+            logical_slice: None,
         }))
         .await
         .unwrap();
@@ -1551,6 +1552,7 @@ async fn test_get_chunk_hardening() {
             doc_id,
             namespace: "memory".into(),
             inject_rules: true,
+            logical_slice: None,
         }))
         .await
         .unwrap();

@@ -41,6 +41,15 @@ static FETCH_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static XHR_OPEN_RE: OnceLock<Regex> = OnceLock::new();
 static PAGE_METHODS_RE: OnceLock<Regex> = OnceLock::new();
 
+// Feature 5: GIS / Spatial logic patterns
+static GOOGLE_MAPS_RE: OnceLock<Regex> = OnceLock::new();
+static LEAFLET_RE: OnceLock<Regex> = OnceLock::new();
+static OPENLAYERS_RE: OnceLock<Regex> = OnceLock::new();
+static GIS_API_KEY_RE: OnceLock<Regex> = OnceLock::new();
+static GIS_ZOOM_RE: OnceLock<Regex> = OnceLock::new();
+static GIS_CENTER_RE: OnceLock<Regex> = OnceLock::new();
+static CTL00_ID_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -159,7 +168,7 @@ fn split_service_url(raw_url: &str) -> (String, Option<String>) {
 /// jQuery control selectors, `__doPostBack`, and AJAX service calls.
 pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let mut edges = Vec::new();
-    let syms = Vec::new(); // JS extractor only produces edges, not symbols
+    let mut syms = Vec::new();
 
     if source.len() > MAX_JS_SOURCE_BYTES {
         tracing::warn!(
@@ -188,6 +197,14 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     extract_fetch_calls(source, &line_starts, &file_name, &mut edges);
     extract_xhr_calls(source, &line_starts, &file_name, &mut edges);
     extract_page_methods(source, &line_starts, &file_name, &mut edges);
+
+    // ── Feature 5: GIS / Spatial logic edges ─────────────────────────────
+
+    extract_google_maps(source, &line_starts, &file_name, &mut edges);
+    extract_leaflet(source, &line_starts, &file_name, &mut edges);
+    extract_openlayers(source, &line_starts, &file_name, &mut edges);
+    extract_gis_configs(source, &line_starts, &file_name, &mut edges, &mut syms);
+    extract_ctl00_references(source, &line_starts, &file_name, &mut edges);
 
     // Deduplicate: same (source, target, kind) triple should only appear once.
     dedup_edges(&mut edges);
@@ -577,6 +594,303 @@ fn emit_ajax_edge(
     });
 }
 
+// ── Feature 5: GIS / Spatial Logic ──────────────────────────────────────────
+
+/// Map a GIS library class to its modern React-based equivalent.
+fn modern_gis_equivalent(library: &str, class: &str) -> &'static str {
+    let cls_lower = class.to_lowercase();
+    match (library, cls_lower.as_str()) {
+        ("google_maps", "latlng") => "React: google-map-react coords prop",
+        ("google_maps", "map") => "React: @react-google-maps/api GoogleMap",
+        ("google_maps", "marker") => "React: @react-google-maps/api Marker",
+        ("google_maps", "infowindow") => "React: @react-google-maps/api InfoWindow",
+        ("google_maps", "geocoder") => "React: @googlemaps/js-api-loader Geocoder",
+        ("google_maps", "directionsservice") => "React: @react-google-maps/api DirectionsService",
+        ("leaflet", "map") => "React: react-leaflet MapContainer",
+        ("leaflet", "marker") => "React: react-leaflet Marker",
+        ("leaflet", "tilelayer") => "React: react-leaflet TileLayer",
+        ("leaflet", "circle") => "React: react-leaflet Circle",
+        ("leaflet", "polygon") => "React: react-leaflet Polygon",
+        ("leaflet", "popup") => "React: react-leaflet Popup",
+        ("openlayers", "map") => "React: rlayers/RMap",
+        ("openlayers", "view") => "React: rlayers/RMap defaultView prop",
+        ("openlayers", "feature") => "React: rlayers/RFeature",
+        ("openlayers", "overlay") => "React: rlayers/ROverlay",
+        ("openlayers", "geolocation") => "React: rlayers with navigator.geolocation",
+        _ => "Manual migration analysis required",
+    }
+}
+
+/// Emit a spatial_call edge.
+fn emit_spatial_edge(
+    file_name: &str,
+    line: u32,
+    library: &str,
+    class: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let mut meta = HashMap::with_capacity(3);
+    meta.insert("gis_library".into(), library.into());
+    meta.insert("map_class".into(), class.into());
+    meta.insert(
+        "modern_equivalent".into(),
+        modern_gis_equivalent(library, class).into(),
+    );
+
+    edges.push(ExtractedEdge {
+        source_name: file_name.to_string(),
+        source_kind: "file",
+        source_start_line: line,
+        source_language: "javascript",
+        target_name: format!("gis:{}:{}", library, class.to_lowercase()),
+        target_kind: Some("gis_config"),
+        target_start_line: None,
+        kind: "spatial_call",
+        metadata: Some(meta),
+    });
+}
+
+/// Detect Google Maps API usage: `new google.maps.LatLng(`, `google.maps.event.addListener`
+fn extract_google_maps(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let re = match get_compiled_regex(
+        &GOOGLE_MAPS_RE,
+        r"(?i)new\s+google\.maps\.(?P<cls>LatLng|Map|Marker|InfoWindow|Geocoder|DirectionsService)\s*\(",
+        "google_maps",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+
+    for cap in re.captures_iter(source) {
+        let m = cap.get(0).unwrap();
+        let line = line_of(line_starts, m.start());
+        let cls = cap.name("cls").unwrap().as_str();
+        emit_spatial_edge(file_name, line, "google_maps", cls, edges);
+    }
+
+    // Also detect google.maps.event.addListener pattern
+    static GMAP_EVENT_RE: OnceLock<Regex> = OnceLock::new();
+    if let Some(re) = get_compiled_regex(
+        &GMAP_EVENT_RE,
+        r"(?i)google\.maps\.event\.(?:addListener|addListenerOnce)\s*\(",
+        "google_maps_event",
+    ) {
+        for m in re.find_iter(source) {
+            let line = line_of(line_starts, m.start());
+            emit_spatial_edge(file_name, line, "google_maps", "EventListener", edges);
+        }
+    }
+}
+
+/// Detect Leaflet.js usage: `L.map(`, `L.marker(`, `L.tileLayer(`
+fn extract_leaflet(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let re = match get_compiled_regex(
+        &LEAFLET_RE,
+        r"(?i)\bL\.(?P<cls>map|marker|tileLayer|circle|polygon|popup|polyline|layerGroup|featureGroup|geoJSON|icon|latLng|latLngBounds)\s*\(",
+        "leaflet",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+
+    for cap in re.captures_iter(source) {
+        let m = cap.get(0).unwrap();
+        let line = line_of(line_starts, m.start());
+        let cls = cap.name("cls").unwrap().as_str();
+        emit_spatial_edge(file_name, line, "leaflet", cls, edges);
+    }
+}
+
+/// Detect OpenLayers usage: `new ol.Map(`, `new ol.View(`
+fn extract_openlayers(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let re = match get_compiled_regex(
+        &OPENLAYERS_RE,
+        r"(?i)new\s+ol\.(?P<cls>Map|View|Feature|Overlay|Geolocation|layer\.Tile|layer\.Vector|source\.OSM|source\.Vector|proj\.fromLonLat)\s*\(",
+        "openlayers",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+
+    for cap in re.captures_iter(source) {
+        let m = cap.get(0).unwrap();
+        let line = line_of(line_starts, m.start());
+        let cls = cap.name("cls").unwrap().as_str();
+        // Normalize dotted sub-classes
+        let normalized = cls.replace('.', "_");
+        emit_spatial_edge(file_name, line, "openlayers", &normalized, edges);
+    }
+}
+
+/// Extract GIS configuration (API keys, zoom levels, center coordinates).
+/// Emits `gis_config` symbols and `spatial_call` edges linking JS file to config.
+fn extract_gis_configs(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+    syms: &mut Vec<ExtractedSymbol>,
+) {
+    // API key detection
+    if let Some(re) = get_compiled_regex(
+        &GIS_API_KEY_RE,
+        r#"(?i)(?:key|apiKey|api_key|apikey)\s*[:=]\s*['"](?P<key>[A-Za-z0-9_\-]{20,})['"]"#,
+        "gis_api_key",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let line = line_of(line_starts, m.start());
+            let key_value = cap.name("key").unwrap().as_str();
+            // Mask the key for safety (show first 8 + last 4 chars)
+            let masked = if key_value.len() > 12 {
+                format!(
+                    "{}...{}",
+                    &key_value[..8],
+                    &key_value[key_value.len() - 4..]
+                )
+            } else {
+                "***".to_string()
+            };
+
+            let mut meta = HashMap::with_capacity(2);
+            meta.insert("config_type".into(), "api_key".into());
+            meta.insert("masked_value".into(), masked);
+
+            syms.push(ExtractedSymbol {
+                name: format!("gis_config:{}:api_key", file_name),
+                kind: "gis_config",
+                start_line: line,
+                end_line: line,
+                metadata: Some(meta.clone()),
+            });
+
+            edges.push(ExtractedEdge {
+                source_name: file_name.to_string(),
+                source_kind: "file",
+                source_start_line: line,
+                source_language: "javascript",
+                target_name: format!("gis_config:{}:api_key", file_name),
+                target_kind: Some("gis_config"),
+                target_start_line: None,
+                kind: "spatial_call",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Zoom level detection
+    if let Some(re) = get_compiled_regex(
+        &GIS_ZOOM_RE,
+        r"(?i)(?:zoom|zoomLevel|initialZoom)\s*[:=]\s*(?P<val>\d{1,2})",
+        "gis_zoom",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let line = line_of(line_starts, m.start());
+            let val = cap.name("val").unwrap().as_str();
+
+            let mut meta = HashMap::with_capacity(2);
+            meta.insert("config_type".into(), "zoom".into());
+            meta.insert("value".into(), val.into());
+
+            syms.push(ExtractedSymbol {
+                name: format!("gis_config:{}:zoom", file_name),
+                kind: "gis_config",
+                start_line: line,
+                end_line: line,
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    // Center point detection: center: [lat, lng] or center: new L.LatLng(lat, lng)
+    if let Some(re) = get_compiled_regex(
+        &GIS_CENTER_RE,
+        r"(?i)center\s*[:=]\s*\[?\s*(?P<lat>-?\d+\.?\d*)\s*,\s*(?P<lng>-?\d+\.?\d*)",
+        "gis_center",
+    ) {
+        for cap in re.captures_iter(source) {
+            let m = cap.get(0).unwrap();
+            let line = line_of(line_starts, m.start());
+            let lat = cap.name("lat").unwrap().as_str();
+            let lng = cap.name("lng").unwrap().as_str();
+
+            let mut meta = HashMap::with_capacity(3);
+            meta.insert("config_type".into(), "center".into());
+            meta.insert("latitude".into(), lat.into());
+            meta.insert("longitude".into(), lng.into());
+
+            syms.push(ExtractedSymbol {
+                name: format!("gis_config:{}:center", file_name),
+                kind: "gis_config",
+                start_line: line,
+                end_line: line,
+                metadata: Some(meta),
+            });
+        }
+    }
+}
+
+/// Detect ASP.NET runtime-generated control IDs with `ctl00_` prefix.
+///
+/// In WebForms, controls inside NamingContainers get IDs like
+/// `ctl00_ContentPlaceHolder1_txtName`. This function reverse-maps
+/// these to the original control ID by extracting the final segment.
+fn extract_ctl00_references(
+    source: &str,
+    line_starts: &[usize],
+    file_name: &str,
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    let re = match get_compiled_regex(
+        &CTL00_ID_RE,
+        r#"(?i)(?:getElementById|getElement|\$)\s*\(\s*['"](?:#)?(?P<full_id>ctl\d+[_$](?:[A-Za-z0-9_$]+[_$])*(?P<ctrl_id>[A-Za-z][A-Za-z0-9_]*))['"]\s*\)"#,
+        "ctl00_id",
+    ) {
+        Some(r) => r,
+        None => return,
+    };
+
+    for cap in re.captures_iter(source) {
+        let m = cap.get(0).unwrap();
+        let line = line_of(line_starts, m.start());
+        let full_id = cap.name("full_id").unwrap().as_str();
+        let ctrl_id = cap.name("ctrl_id").unwrap().as_str();
+
+        let mut meta = HashMap::with_capacity(3);
+        meta.insert("selector_type".into(), "ctl00_reverse_map".into());
+        meta.insert("full_generated_id".into(), full_id.into());
+        meta.insert("resolved_control_id".into(), ctrl_id.into());
+
+        edges.push(ExtractedEdge {
+            source_name: file_name.to_string(),
+            source_kind: "file",
+            source_start_line: line,
+            source_language: "javascript",
+            target_name: ctrl_id.to_string(),
+            target_kind: Some("control"),
+            target_start_line: None,
+            kind: "manipulates_dom",
+            metadata: Some(meta),
+        });
+    }
+}
+
 // ── Deduplication ───────────────────────────────────────────────────────────
 
 /// Remove duplicate edges with the same `(source_name, target_name, kind)` triple.
@@ -944,5 +1258,169 @@ mod tests {
         let js = r#"fetch('javascript:void(0)');"#;
         let (_, edges) = extract_js(&test_path("skip.js"), js);
         assert!(edges.is_empty());
+    }
+
+    // ── Feature 5: GIS / Spatial Logic ───────────────────────────────────
+
+    #[test]
+    fn google_maps_detection() {
+        let js = r#"
+            var map = new google.maps.Map(document.getElementById('map'), {
+                center: new google.maps.LatLng(40.7128, -74.0060),
+                zoom: 12
+            });
+            var marker = new google.maps.Marker({ position: center, map: map });
+        "#;
+        let (_, edges) = extract_js(&test_path("gmap.js"), js);
+        let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
+        assert!(
+            spatial.len() >= 3,
+            "expected >=3 spatial_call edges, got {}",
+            spatial.len()
+        );
+        assert!(
+            spatial
+                .iter()
+                .any(|e| e.metadata.as_ref().unwrap().get("map_class").unwrap() == "Map")
+        );
+        assert!(
+            spatial
+                .iter()
+                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "google_maps")
+        );
+    }
+
+    #[test]
+    fn leaflet_detection() {
+        let js = r#"
+            var map = L.map('mapid').setView([51.505, -0.09], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            L.marker([51.5, -0.09]).addTo(map).bindPopup('Hello');
+        "#;
+        let (_, edges) = extract_js(&test_path("leaflet.js"), js);
+        let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
+        assert!(
+            spatial.len() >= 3,
+            "expected >=3 spatial_call edges, got {}",
+            spatial.len()
+        );
+        assert!(
+            spatial
+                .iter()
+                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "leaflet")
+        );
+    }
+
+    #[test]
+    fn openlayers_detection() {
+        let js = r#"
+            var map = new ol.Map({ target: 'map' });
+            var view = new ol.View({ center: [0, 0], zoom: 2 });
+        "#;
+        let (_, edges) = extract_js(&test_path("ol.js"), js);
+        let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
+        assert!(
+            spatial.len() >= 2,
+            "expected >=2 spatial_call edges, got {}",
+            spatial.len()
+        );
+        assert!(
+            spatial
+                .iter()
+                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "openlayers")
+        );
+    }
+
+    #[test]
+    fn gis_api_key_extraction() {
+        let js = r#"
+            var config = { apiKey: 'AIzaSyD1234567890abcdef1234' };
+        "#;
+        let (syms, edges) = extract_js(&test_path("config.js"), js);
+        let gis_syms: Vec<_> = syms.iter().filter(|s| s.kind == "gis_config").collect();
+        assert!(
+            !gis_syms.is_empty(),
+            "expected gis_config symbols for API key"
+        );
+        assert!(
+            gis_syms
+                .iter()
+                .any(|s| s.metadata.as_ref().unwrap().get("config_type").unwrap() == "api_key")
+        );
+        // Key should be masked
+        assert!(gis_syms.iter().any(|s| {
+            s.metadata
+                .as_ref()
+                .unwrap()
+                .get("masked_value")
+                .unwrap()
+                .contains("...")
+        }));
+        // Should also emit a spatial_call edge
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.kind == "spatial_call" && e.target_name.contains("api_key"))
+        );
+    }
+
+    #[test]
+    fn gis_zoom_and_center_extraction() {
+        let js = r#"
+            var options = { zoom: 15, center: [40.7128, -74.0060] };
+        "#;
+        let (syms, _) = extract_js(&test_path("opts.js"), js);
+        let zoom: Vec<_> = syms
+            .iter()
+            .filter(|s| {
+                s.kind == "gis_config"
+                    && s.metadata.as_ref().unwrap().get("config_type").unwrap() == "zoom"
+            })
+            .collect();
+        assert!(!zoom.is_empty(), "expected zoom config symbol");
+
+        let center: Vec<_> = syms
+            .iter()
+            .filter(|s| {
+                s.kind == "gis_config"
+                    && s.metadata.as_ref().unwrap().get("config_type").unwrap() == "center"
+            })
+            .collect();
+        assert!(!center.is_empty(), "expected center config symbol");
+        let meta = center[0].metadata.as_ref().unwrap();
+        assert_eq!(meta.get("latitude").unwrap(), "40.7128");
+        assert_eq!(meta.get("longitude").unwrap(), "-74.0060");
+    }
+
+    #[test]
+    fn ctl00_reverse_mapping() {
+        let js = r#"
+            document.getElementById('ctl00_MainContent_txtName').value = 'test';
+            $('#ctl00_ContentPlaceHolder1_btnSubmit').click();
+        "#;
+        let (_, edges) = extract_js(&test_path("ctl.js"), js);
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "manipulates_dom"
+                    && e.metadata.as_ref().unwrap().get("selector_type").unwrap()
+                        == "ctl00_reverse_map"
+            })
+            .collect();
+        assert!(
+            dom.len() >= 2,
+            "expected >=2 ctl00 reverse-mapped edges, got {}",
+            dom.len()
+        );
+        assert!(dom.iter().any(|e| e.target_name == "txtName"));
+        assert!(dom.iter().any(|e| e.target_name == "btnSubmit"));
+    }
+
+    #[test]
+    fn modern_gis_equivalent_lookup() {
+        assert!(modern_gis_equivalent("google_maps", "Map").contains("GoogleMap"));
+        assert!(modern_gis_equivalent("leaflet", "marker").contains("react-leaflet"));
+        assert!(modern_gis_equivalent("openlayers", "Map").contains("rlayers"));
+        assert!(modern_gis_equivalent("unknown", "thing").contains("Manual"));
     }
 }

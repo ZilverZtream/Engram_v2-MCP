@@ -1016,6 +1016,22 @@ impl HybridSearchEngine {
                             for s in &state_syms {
                                 local_stats.symbols.push((arc_rel.clone(), s.clone()));
                             }
+
+                            // State affinity analysis: co-accessed state keys → API endpoints
+                            if !state_edges.is_empty() {
+                                let (affinity_syms, affinity_edges) =
+                                    crate::state_extractor::analyze_state_affinity(
+                                        &state_edges,
+                                        &arc_rel,
+                                    );
+                                for s in &affinity_syms {
+                                    local_stats.symbols.push((arc_rel.clone(), s.clone()));
+                                }
+                                for e in affinity_edges {
+                                    local_stats.edges.push((arc_rel.clone(), e));
+                                }
+                            }
+
                             for e in state_edges {
                                 local_stats.edges.push((arc_rel.clone(), e));
                             }

@@ -211,6 +211,11 @@ pub struct GetChunkRequest {
     pub namespace: String,
     #[serde(default)]
     pub inject_rules: bool,
+    /// Logical slice type to filter content before returning.
+    /// Values: "all" (default), "event_handlers", "ui_methods", "data_methods",
+    /// "sql_queries", "state_access".
+    #[serde(default)]
+    pub logical_slice: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -964,4 +969,34 @@ pub struct GetMemoryBudgetRequest {
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
+}
+
+// -------------------- Blast Radius --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ComputeBlastRadiusRequest {
+    pub project_id: String,
+    /// File path to analyze (project-relative). Mutually exclusive with symbol_fqn.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Fully qualified symbol name to analyze. Mutually exclusive with file_path.
+    #[serde(default)]
+    pub symbol_fqn: Option<String>,
+    /// Include agentic migration guidance in the response. Default: true.
+    #[serde(default = "default_true")]
+    pub include_guidance: bool,
+}
+
+// -------------------- Detect Design Patterns --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct DetectDesignPatternsRequest {
+    pub project_id: String,
+    /// Filter to specific pattern names (e.g., ["God Object", "Session Soup"]).
+    /// Empty means return all detected patterns.
+    #[serde(default)]
+    pub pattern_filter: Vec<String>,
+    /// Maximum number of patterns to return. Default: 50.
+    #[serde(default = "default_limit_50")]
+    pub limit: usize,
 }

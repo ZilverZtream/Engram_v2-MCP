@@ -404,5 +404,106 @@ pub async fn dream_once(
         insights_generated += 1;
     }
 
+    // ── Anti-pattern detection during dream cycle ──────────────────────
+    // Run deterministic design anti-pattern detection and create insight
+    // nodes so they surface in search results and the knowledge graph.
+    let graph = state.graph.clone();
+    let pid_ap = project_id.to_string();
+    let ap_results = tokio::task::spawn_blocking(move || {
+        crate::services::pattern_detection_service::detect_design_antipatterns(
+            &graph, &pid_ap, 20, 10, 5,
+        )
+    })
+    .await
+    .unwrap_or_else(|_| Ok(Vec::new()))
+    .unwrap_or_default();
+
+    for ap in ap_results {
+        // Dedup: use pattern_name + first affected node as fingerprint
+        let fp = format!(
+            "antipattern:{}:{}",
+            ap.pattern_name,
+            ap.affected_nodes.first().map(|s| s.as_str()).unwrap_or("")
+        );
+        if !seen_fingerprints.insert(fp.clone()) {
+            continue;
+        }
+        if state.graph.fingerprint_has_insight(project_id, &fp)? {
+            continue;
+        }
+
+        let active_gen: u64 = {
+            let reg = state.registry.clone();
+            let pid = project_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                reg.get_meta(&pid, "active_generation")
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(1)
+            })
+            .await
+            .unwrap_or(1)
+        };
+
+        let insight_id = format!("insight:ap:{}", uuid::Uuid::new_v4());
+        let title = format!("Anti-Pattern: {} [{}]", ap.pattern_name, ap.severity);
+        let mut body = format!("{}\n\n", ap.description);
+        body.push_str(&format!("**Modern target:** {}\n\n", ap.modern_target));
+        body.push_str("**Refactoring steps:**\n");
+        for (i, step) in ap.refactoring_steps.iter().enumerate() {
+            body.push_str(&format!("{}. {}\n", i + 1, step));
+        }
+
+        let namespace = engram_core::namespaces::NAMESPACE_INSIGHTS;
+        let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
+            if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                0
+            } else {
+                active_gen
+            }
+        } else {
+            active_gen
+        };
+
+        let insight_content = format!("# {}\n\n{}", title, body);
+        let content_hash = engram_core::ContentHash::compute(insight_content.as_bytes());
+        let insight_path = format!("__insights/{insight_id}.md");
+        let doc_id = engram_core::DocIdStr::compute(&insight_path, 0, 0, &content_hash);
+        let chunk_id = engram_index::chunk_id_from_content_hash(&content_hash);
+
+        state.graph.create_insight(
+            project_id,
+            &insight_id,
+            &title,
+            &body,
+            &ap.affected_nodes,
+            Some(ap.evidence.clone()),
+            Some(fp),
+            active_gen,
+        )?;
+
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let doc = IndexDoc {
+            generation: effective_gen,
+            chunk_id,
+            path: insight_path.into(),
+            language: "markdown".into(),
+            content: insight_content,
+            namespace: namespace.into(),
+            author: None,
+            timestamp: None,
+            start_line: 0,
+            end_line: 0,
+            doc_id: doc_id.0,
+            content_hash: content_hash.0,
+        };
+        project
+            .search
+            .index_docs(project_id, &[doc], &cancel)
+            .await?;
+        insights_generated += 1;
+    }
+
     Ok(insights_generated)
 }

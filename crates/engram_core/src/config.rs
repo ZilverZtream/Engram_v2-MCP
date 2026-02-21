@@ -158,6 +158,12 @@ pub struct Config {
     /// Minimum Recall@10 score for vector search to be considered production-ready.
     #[serde(default = "default_retrieval_min_recall")]
     pub retrieval_min_recall: f64,
+
+    // --- Extraction confidence (Feature 6) ---
+    /// Minimum extraction confidence score (0.0–1.0) below which a warning is
+    /// injected into tool responses to alert agents of potentially incomplete results.
+    #[serde(default = "default_confidence_warning_threshold")]
+    pub confidence_warning_threshold: f64,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -247,6 +253,10 @@ fn default_retrieval_min_recall() -> f64 {
     0.6
 }
 
+fn default_confidence_warning_threshold() -> f64 {
+    0.5
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -287,6 +297,7 @@ impl Default for Config {
             integrity_auto_repair: default_integrity_auto_repair(),
             retrieval_min_ndcg: default_retrieval_min_ndcg(),
             retrieval_min_recall: default_retrieval_min_recall(),
+            confidence_warning_threshold: default_confidence_warning_threshold(),
         }
     }
 }

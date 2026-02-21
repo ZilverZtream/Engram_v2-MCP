@@ -66,6 +66,11 @@ impl NodeId {
         Self(format!("control:{}:{}", page_rel_path, control_id))
     }
 
+    /// Canonical ID for a GIS configuration node (API keys, zoom, center point).
+    pub fn gis_config(page_rel_path: &str, config_key: &str) -> Self {
+        Self(format!("gis_config:{}:{}", page_rel_path, config_key))
+    }
+
     /// Canonical ID for a database table node.
     pub fn table(table_name: &str) -> Self {
         Self(format!("table:{}", table_name.to_lowercase()))

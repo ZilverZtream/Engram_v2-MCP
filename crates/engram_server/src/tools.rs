@@ -1237,7 +1237,9 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    #[tool(description = "Fetch full content for a chunk (v1 parity: get_chunk).")]
+    #[tool(
+        description = "Fetch full content for a chunk (v1 parity: get_chunk). Supports logical_slice to filter by method category: event_handlers, ui_methods, data_methods, sql_queries, state_access, or all (default)."
+    )]
     #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id, doc_id = %params.0.doc_id))]
     pub async fn get_chunk(
         &self,
@@ -1257,17 +1259,34 @@ impl Engram {
         };
 
         // Inject repo rules if requested.
-        let display_content = if req.inject_rules {
+        let mut display_content = if req.inject_rules {
             self.inject_repo_rules(&req.project_id, &path, &content)
                 .await
         } else {
             content.to_string()
         };
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        // Apply logical slice if requested.
+        if let Some(ref slice_type) = req.logical_slice {
+            if slice_type != "all" && !slice_type.is_empty() {
+                display_content = crate::services::slice_service::apply_logical_slice(
+                    &display_content,
+                    slice_type,
+                    &lang,
+                );
+            }
+        }
+
+        // Compute confidence footer for WebForms files.
+        let confidence_footer = self.confidence_footer(&path, &lang);
+
+        let mut output = format!(
             "path: {}\ndoc_id: {}\nnamespace: {}\nlanguage: {}\nlines: {}-{}\nactive_generation: {}\n\n{}",
             path, req.doc_id, req.namespace, lang, start_line, end_line, gen_, display_content
-        ))]))
+        );
+        output.push_str(&confidence_footer);
+
+        Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 
     // ---- Memory bank + repo rules ----
@@ -2519,6 +2538,7 @@ impl Engram {
             ));
         }
 
+        let file_path_for_confidence = req.file_path.clone();
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             // 1. Resolve target node
@@ -2655,7 +2675,15 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e, None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        // Append confidence footer if the target is a WebForms file.
+        let mut result = out;
+        if let Some(ref fp) = file_path_for_confidence {
+            let rel = engram_core::RelPath::from(fp.as_str());
+            let lang = engram_core::guess_language(std::path::Path::new(fp));
+            result.push_str(&self.confidence_footer(&rel, &lang));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
     #[tool(
@@ -6159,6 +6187,153 @@ End Sub
                 out.trim().to_string(),
             )]))
         }
+    }
+
+    // ---- Migration Blast Radius ----
+
+    #[tool(
+        description = "Compute migration blast radius for a file or symbol. Returns risk score (1-10), complexity breakdown (event wiring, SQL, PageRank, state, GIS, script injection), seam candidates, and agentic migration guidance."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn compute_blast_radius(
+        &self,
+        params: Parameters<ComputeBlastRadiusRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+
+        // Resolve target node ID
+        let target_id = if let Some(ref fp) = req.file_path {
+            format!("file:{}", fp)
+        } else if let Some(ref fqn) = req.symbol_fqn {
+            // Try to resolve symbol FQN to a node ID
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let fqn_c = fqn.clone();
+            let found = tokio::task::spawn_blocking(move || {
+                // First try exact sym: prefix
+                let candidate = format!("sym:function:{}", fqn_c);
+                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
+                    return Some(candidate);
+                }
+                let candidate = format!("sym:class:{}", fqn_c);
+                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
+                    return Some(candidate);
+                }
+                None
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            found.unwrap_or_else(|| format!("sym:function:{}", fqn))
+        } else {
+            return Err(McpError::invalid_params(
+                "Either file_path or symbol_fqn is required",
+                None,
+            ));
+        };
+
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let include_guidance = req.include_guidance;
+
+        let report = tokio::task::spawn_blocking(move || {
+            crate::services::blast_radius_service::compute_blast_radius(
+                &graph,
+                &pid,
+                &target_id,
+                gen_,
+                include_guidance,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut output = crate::services::blast_radius_service::format_report(&report);
+
+        // Append confidence footer if the target is a file.
+        if let Some(ref fp) = req.file_path {
+            let rel = engram_core::RelPath::from(fp.as_str());
+            let lang = engram_core::guess_language(std::path::Path::new(fp));
+            output.push_str(&self.confidence_footer(&rel, &lang));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(output)]))
+    }
+
+    // ---- Design Pattern Detection ----
+
+    #[tool(
+        description = "Detect design anti-patterns in the codebase graph. Runs 5 deterministic heuristics: God Object, Spaghetti Events, Session Soup, SqlDataSource Coupling, Tight GIS Coupling. Returns affected nodes, severity, modern migration targets, and step-by-step refactoring guidance."
+    )]
+    #[tracing::instrument(skip(self, params), fields(project_id = %params.0.project_id))]
+    pub async fn detect_design_patterns(
+        &self,
+        params: Parameters<DetectDesignPatternsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let pattern_filter = req.pattern_filter.clone();
+        let limit = req.limit;
+
+        let mut patterns = tokio::task::spawn_blocking(move || {
+            crate::services::pattern_detection_service::detect_design_antipatterns(
+                &graph, &pid, 20, // god_threshold
+                10, // spaghetti_threshold
+                5,  // soup_threshold
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Apply pattern name filter if specified
+        if !pattern_filter.is_empty() {
+            patterns.retain(|p| {
+                pattern_filter
+                    .iter()
+                    .any(|f| p.pattern_name.to_lowercase().contains(&f.to_lowercase()))
+            });
+        }
+
+        patterns.truncate(limit);
+
+        if patterns.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No design anti-patterns detected in the project graph.".to_string(),
+            )]));
+        }
+
+        let mut out = format!("# Design Anti-Patterns Detected: {}\n\n", patterns.len());
+        for (i, p) in patterns.iter().enumerate() {
+            out.push_str(&format!(
+                "## {}. {} [{}]\n\n",
+                i + 1,
+                p.pattern_name,
+                p.severity
+            ));
+            out.push_str(&format!("{}\n\n", p.description));
+            out.push_str("**Affected nodes:**\n");
+            for n in &p.affected_nodes {
+                out.push_str(&format!("- `{}`\n", n));
+            }
+            out.push_str("\n**Evidence:**\n");
+            for e in &p.evidence {
+                out.push_str(&format!("- {}\n", e));
+            }
+            out.push_str(&format!("\n**Modern target:** {}\n\n", p.modern_target));
+            out.push_str("**Refactoring steps:**\n");
+            for (j, step) in p.refactoring_steps.iter().enumerate() {
+                out.push_str(&format!("{}. {}\n", j + 1, step));
+            }
+            out.push_str("\n---\n\n");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 }
 
