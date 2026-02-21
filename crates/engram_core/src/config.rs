@@ -303,6 +303,65 @@ impl Default for Config {
 }
 
 impl Config {
+    fn validate_positive_usize(field: &str, value: usize) -> Result<()> {
+        if value == 0 {
+            return Err(EngramError::Config(format!("{field} must be > 0")));
+        }
+        Ok(())
+    }
+
+    fn validate_unit_interval(field: &str, value: f64) -> Result<()> {
+        if !(0.0..=1.0).contains(&value) {
+            return Err(EngramError::Config(format!(
+                "{field} must be within [0.0, 1.0], got {value}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn validate(&self) -> Result<()> {
+        // Critical guards: zero/invalid values can deadlock workers or disable
+        // key production safeguards silently.
+        Self::validate_positive_usize("max_concurrent_jobs", self.max_concurrent_jobs)?;
+        Self::validate_positive_usize("max_chunks_per_file", self.max_chunks_per_file)?;
+        Self::validate_positive_usize("max_commits_per_watch", self.max_commits_per_watch)?;
+        Self::validate_positive_usize("tantivy_writer_memory", self.tantivy_writer_memory)?;
+        Self::validate_positive_usize("mmr_oversampling", self.mmr_oversampling)?;
+        Self::validate_positive_usize("max_parse_concurrency", self.max_parse_concurrency)?;
+
+        if self.vector_search_timeout_ms == 0 {
+            return Err(EngramError::Config(
+                "vector_search_timeout_ms must be > 0".into(),
+            ));
+        }
+
+        if !(0.0..=1.0).contains(&self.immune_warn_threshold)
+            || !(0.0..=1.0).contains(&self.immune_block_threshold)
+        {
+            return Err(EngramError::Config(format!(
+                "immune thresholds must be within [0.0, 1.0], got warn={} block={}",
+                self.immune_warn_threshold, self.immune_block_threshold
+            )));
+        }
+        if self.immune_warn_threshold > self.immune_block_threshold {
+            return Err(EngramError::Config(format!(
+                "immune_warn_threshold ({}) must be <= immune_block_threshold ({})",
+                self.immune_warn_threshold, self.immune_block_threshold
+            )));
+        }
+
+        Self::validate_unit_interval("safety_min_confidence", self.safety_min_confidence)?;
+        Self::validate_unit_interval("safety_min_coverage", self.safety_min_coverage)?;
+        Self::validate_unit_interval("retrieval_min_ndcg", self.retrieval_min_ndcg)?;
+        Self::validate_unit_interval("retrieval_min_recall", self.retrieval_min_recall)?;
+        Self::validate_unit_interval(
+            "confidence_warning_threshold",
+            self.confidence_warning_threshold,
+        )?;
+
+        Ok(())
+    }
+
     pub fn default_path() -> Result<PathBuf> {
         let p = ProjectDirs::from("io", "engram", "engram")
             .ok_or_else(|| EngramError::Config("unable to resolve config dir".into()))?;
@@ -356,6 +415,7 @@ impl Config {
         if cfg.llm_backend.trim().is_empty() {
             cfg.llm_backend = "none".into();
         }
+        cfg.validate()?;
         Ok(cfg)
     }
 }
