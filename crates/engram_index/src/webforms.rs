@@ -205,7 +205,7 @@ pub fn extract_webforms(
         // Emit a "page" symbol for the markup file itself.
         symbols.push(ExtractedSymbol {
             name: file_name.clone(),
-            kind: "page".into(),
+            kind: "page",
             start_line: line,
             end_line: line,
             metadata: None,
@@ -247,13 +247,13 @@ pub fn extract_webforms(
 
             edges.push(ExtractedEdge {
                 source_name: source_file.clone(),
-                source_kind: "page".into(),
+                source_kind: "page",
                 source_start_line: line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: cb_path.clone(),
-                target_kind: Some("file".into()),
+                target_kind: Some("file"),
                 target_start_line: None,
-                kind: "codebehind_file".into(),
+                kind: "codebehind_file",
                 metadata: Some(meta),
             });
         }
@@ -272,13 +272,13 @@ pub fn extract_webforms(
             // ── Edge 2: markup → codebehind class (codebehind_class) ────────────────
             edges.push(ExtractedEdge {
                 source_name: source_file.clone(),
-                source_kind: "page".into(),
+                source_kind: "page",
                 source_start_line: line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: simple_name.clone(),
-                target_kind: Some("class".into()),
+                target_kind: Some("class"),
                 target_start_line: None,
-                kind: "codebehind_class".into(),
+                kind: "codebehind_class",
                 metadata: Some(meta.clone()),
             });
 
@@ -289,13 +289,13 @@ pub fn extract_webforms(
                 let cb_lang = codebehind_language(cb_path);
                 edges.push(ExtractedEdge {
                     source_name: cb_path.clone(),
-                    source_kind: "file".into(),
+                    source_kind: "file",
                     source_start_line: line,
-                    source_language: cb_lang.into(),
+                    source_language: cb_lang,
                     target_name: simple_name,
-                    target_kind: Some("class".into()),
+                    target_kind: Some("class"),
                     target_start_line: None,
-                    kind: "cb_defines".into(),
+                    kind: "cb_defines",
                     metadata: Some(meta),
                 });
             }
@@ -371,7 +371,7 @@ pub fn extract_webforms(
 
             s.push(ExtractedSymbol {
                 name: ctrl_id.clone(),
-                kind: "control".into(),
+                kind: "control",
                 start_line: tag_line,
                 end_line: tag_line,
                 metadata: Some(symbol_meta),
@@ -389,13 +389,13 @@ pub fn extract_webforms(
 
                 e.push(ExtractedEdge {
                     source_name: ctrl_id.clone(),
-                    source_kind: "control".into(),
+                    source_kind: "control",
                     source_start_line: tag_line,
-                    source_language: "aspx".into(),
+                    source_language: "aspx",
                     target_name: handler,
-                    target_kind: Some("function".into()),
+                    target_kind: Some("function"),
                     target_start_line: None,
-                    kind: "event_wiring".into(),
+                    kind: "event_wiring",
                     metadata: if meta.is_empty() { None } else { Some(meta) },
                 });
             }
@@ -429,13 +429,13 @@ pub fn extract_webforms(
             // Edge: page → user control file (registers_control)
             edges.push(ExtractedEdge {
                 source_name: source_file.clone(),
-                source_kind: "page".into(),
+                source_kind: "page",
                 source_start_line: entry.line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: src_path.clone(),
-                target_kind: Some("file".into()),
+                target_kind: Some("file"),
                 target_start_line: None,
-                kind: "registers_control".into(),
+                kind: "registers_control",
                 metadata: Some(meta),
             });
         }
@@ -629,7 +629,7 @@ fn extract_service_directives(
 
         symbols.push(ExtractedSymbol {
             name: file_name.to_string(),
-            kind: symbol_kind.into(),
+            kind: symbol_kind,
             start_line: line,
             end_line: line,
             metadata: Some(sym_meta),
@@ -646,13 +646,13 @@ fn extract_service_directives(
 
             edges.push(ExtractedEdge {
                 source_name: source_file.to_string(),
-                source_kind: symbol_kind.into(),
+                source_kind: symbol_kind,
                 source_start_line: line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: cb_path.clone(),
-                target_kind: Some("file".into()),
+                target_kind: Some("file"),
                 target_start_line: None,
-                kind: "codebehind_file".into(),
+                kind: "codebehind_file",
                 metadata: Some(meta),
             });
         }
@@ -667,13 +667,13 @@ fn extract_service_directives(
 
             edges.push(ExtractedEdge {
                 source_name: source_file.to_string(),
-                source_kind: symbol_kind.into(),
+                source_kind: symbol_kind,
                 source_start_line: line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: simple_name.clone(),
-                target_kind: Some("class".into()),
+                target_kind: Some("class"),
                 target_start_line: None,
-                kind: edge_kind.into(),
+                kind: edge_kind,
                 metadata: Some(meta.clone()),
             });
 
@@ -682,13 +682,13 @@ fn extract_service_directives(
                 let cb_lang = codebehind_language(cb_path);
                 edges.push(ExtractedEdge {
                     source_name: cb_path.clone(),
-                    source_kind: "file".into(),
+                    source_kind: "file",
                     source_start_line: line,
-                    source_language: cb_lang.into(),
+                    source_language: cb_lang,
                     target_name: simple_name,
-                    target_kind: Some("class".into()),
+                    target_kind: Some("class"),
                     target_start_line: None,
-                    kind: "cb_defines".into(),
+                    kind: "cb_defines",
                     metadata: Some(meta),
                 });
             }
@@ -710,13 +710,13 @@ fn extract_service_directives(
 
                 edges.push(ExtractedEdge {
                     source_name: source_file.to_string(),
-                    source_kind: symbol_kind.into(),
+                    source_kind: symbol_kind,
                     source_start_line: line,
-                    source_language: "aspx".into(),
+                    source_language: "aspx",
                     target_name: factory_simple,
-                    target_kind: Some("class".into()),
+                    target_kind: Some("class"),
                     target_start_line: None,
-                    kind: "codebehind_class".into(),
+                    kind: "codebehind_class",
                     metadata: Some(meta),
                 });
             }
@@ -965,13 +965,13 @@ fn extract_user_control_tags(
 
                 edges.push(ExtractedEdge {
                     source_name: source_file.to_string(),
-                    source_kind: "page".into(),
+                    source_kind: "page",
                     source_start_line: line,
-                    source_language: "aspx".into(),
+                    source_language: "aspx",
                     target_name: src.clone(),
-                    target_kind: Some("file".into()),
+                    target_kind: Some("file"),
                     target_start_line: None,
-                    kind: "registers_control".into(),
+                    kind: "registers_control",
                     metadata: Some(meta),
                 });
             }
@@ -1086,7 +1086,7 @@ fn extract_datasource_controls(
 
         symbols.push(ExtractedSymbol {
             name: ds_id.clone(),
-            kind: "control".into(),
+            kind: "control",
             start_line: line,
             end_line: line,
             metadata: Some(sym_meta),
@@ -1117,13 +1117,13 @@ fn extract_datasource_controls(
 
                             edges.push(ExtractedEdge {
                                 source_name: ds_id.clone(),
-                                source_kind: "control".into(),
+                                source_kind: "control",
                                 source_start_line: line,
-                                source_language: "aspx".into(),
+                                source_language: "aspx",
                                 target_name: sql_target,
-                                target_kind: Some(sql_kind.into()),
+                                target_kind: Some(sql_kind),
                                 target_start_line: None,
-                                kind: "sql_calls".into(),
+                                kind: "sql_calls",
                                 metadata: Some(meta),
                             });
                         }
@@ -1147,13 +1147,13 @@ fn extract_datasource_controls(
 
                             edges.push(ExtractedEdge {
                                 source_name: ds_id.clone(),
-                                source_kind: "control".into(),
+                                source_kind: "control",
                                 source_start_line: line,
-                                source_language: "aspx".into(),
+                                source_language: "aspx",
                                 target_name: simple,
-                                target_kind: Some("class".into()),
+                                target_kind: Some("class"),
                                 target_start_line: None,
-                                kind: "codebehind_class".into(),
+                                kind: "codebehind_class",
                                 metadata: Some(meta),
                             });
                         }
@@ -1183,13 +1183,13 @@ fn extract_datasource_controls(
 
                             edges.push(ExtractedEdge {
                                 source_name: ds_id.clone(),
-                                source_kind: "control".into(),
+                                source_kind: "control",
                                 source_start_line: line,
-                                source_language: "aspx".into(),
+                                source_language: "aspx",
                                 target_name: method,
-                                target_kind: Some("function".into()),
+                                target_kind: Some("function"),
                                 target_start_line: None,
-                                kind: "event_wiring".into(),
+                                kind: "event_wiring",
                                 metadata: Some(meta),
                             });
                         }
@@ -1304,13 +1304,13 @@ fn extract_data_binding_expressions(
 
         edges.push(ExtractedEdge {
             source_name: source_file.to_string(),
-            source_kind: "page".into(),
+            source_kind: "page",
             source_start_line: line,
-            source_language: "aspx".into(),
+            source_language: "aspx",
             target_name,
-            target_kind: Some("binding_field".into()),
+            target_kind: Some("binding_field"),
             target_start_line: None,
-            kind: "data_binding".into(),
+            kind: "data_binding",
             metadata: Some(meta),
         });
     }
@@ -1395,13 +1395,13 @@ fn extract_server_side_includes(
 
             edges.push(ExtractedEdge {
                 source_name: source_file.to_string(),
-                source_kind: "page".into(),
+                source_kind: "page",
                 source_start_line: line,
-                source_language: "aspx".into(),
+                source_language: "aspx",
                 target_name: target,
-                target_kind: Some("file".into()),
+                target_kind: Some("file"),
                 target_start_line: None,
-                kind: "includes_file".into(),
+                kind: "includes_file",
                 metadata: Some(meta),
             });
         }

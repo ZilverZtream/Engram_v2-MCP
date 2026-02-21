@@ -237,13 +237,13 @@ fn extract_jquery_selectors(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file".into(),
+            source_kind: "file",
             source_start_line: line,
-            source_language: "javascript".into(),
+            source_language: "javascript",
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control".into()),
+            target_kind: Some("control"),
             target_start_line: None,
-            kind: "manipulates_dom".into(),
+            kind: "manipulates_dom",
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "jquery_ends_with".into(),
@@ -279,13 +279,13 @@ fn extract_asp_client_ids(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file".into(),
+            source_kind: "file",
             source_start_line: line,
-            source_language: "javascript".into(),
+            source_language: "javascript",
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control".into()),
+            target_kind: Some("control"),
             target_start_line: None,
-            kind: "manipulates_dom".into(),
+            kind: "manipulates_dom",
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "asp_client_id".into(),
@@ -323,13 +323,13 @@ fn extract_postbacks(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file".into(),
+            source_kind: "file",
             source_start_line: line,
-            source_language: "javascript".into(),
+            source_language: "javascript",
             target_name: short_id.to_string(),
-            target_kind: Some("control".into()),
+            target_kind: Some("control"),
             target_start_line: None,
-            kind: "triggers_postback".into(),
+            kind: "triggers_postback",
             metadata: Some(HashMap::from([("unique_id".into(), ctrl_id.to_string())])),
         });
     }
@@ -360,13 +360,13 @@ fn extract_getelementbyid(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file".into(),
+            source_kind: "file",
             source_start_line: line,
-            source_language: "javascript".into(),
+            source_language: "javascript",
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control".into()),
+            target_kind: Some("control"),
             target_start_line: None,
-            kind: "manipulates_dom".into(),
+            kind: "manipulates_dom",
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "getelementbyid".into(),
@@ -505,13 +505,13 @@ fn extract_page_methods(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file".into(),
+            source_kind: "file",
             source_start_line: line,
-            source_language: "javascript".into(),
+            source_language: "javascript",
             target_name: method_name.to_string(),
-            target_kind: Some("function".into()),
+            target_kind: Some("function"),
             target_start_line: None,
-            kind: "api_call".into(),
+            kind: "api_call",
             metadata: Some(meta),
         });
     }
@@ -566,13 +566,13 @@ fn emit_ajax_edge(
 
     edges.push(ExtractedEdge {
         source_name: file_name.to_string(),
-        source_kind: "file".into(),
+        source_kind: "file",
         source_start_line: line,
-        source_language: "javascript".into(),
+        source_language: "javascript",
         target_name: path_part,
-        target_kind: Some(target_kind.into()),
+        target_kind: Some(target_kind),
         target_start_line: None,
-        kind: "api_call".into(),
+        kind: "api_call",
         metadata: Some(meta),
     });
 }

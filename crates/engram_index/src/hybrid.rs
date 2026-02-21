@@ -84,6 +84,10 @@ pub struct HybridSearchEngine {
     embedding_backend: String,
     _tantivy_dir: PathBuf,
     _lance_dir: PathBuf,
+    /// Tantivy IndexWriter heap budget in bytes (default 50 MB).
+    tantivy_writer_memory: usize,
+    /// MMR oversampling multiplier: fetch_k = top_k * this (default 5).
+    mmr_oversampling: usize,
 }
 
 impl HybridSearchEngine {
@@ -124,6 +128,8 @@ impl HybridSearchEngine {
             embedding_backend,
             _tantivy_dir: tantivy_dir,
             _lance_dir: lance_dir,
+            tantivy_writer_memory: cfg.tantivy_writer_memory,
+            mmr_oversampling: cfg.mmr_oversampling,
         })
     }
 
@@ -144,7 +150,7 @@ impl HybridSearchEngine {
         // 1. Lexical index (Tantivy) — pk-based upsert
         {
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(50_000_000)?;
+                self.tantivy_index.writer(self.tantivy_writer_memory)?;
             for d in docs {
                 if cancel.is_cancelled() {
                     break;
@@ -273,7 +279,7 @@ impl HybridSearchEngine {
         // 1. Tantivy purge
         {
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(50_000_000)?;
+                self.tantivy_index.writer(self.tantivy_writer_memory)?;
 
             for ns in engram_core::KNOWN_NAMESPACES {
                 if let Ok(policy) = engram_core::get_policy(ns) {
@@ -510,7 +516,7 @@ impl HybridSearchEngine {
         // 1. Tantivy
         {
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(50_000_000)?;
+                self.tantivy_index.writer(self.tantivy_writer_memory)?;
             for p in paths {
                 let pid_term = Term::from_field_text(self.fields.project_id, project_id);
                 let ns_term = Term::from_field_text(self.fields.namespace, namespace);
@@ -740,11 +746,28 @@ impl HybridSearchEngine {
                             local_stats.edges.push((rel_path.clone(), e));
                         }
 
-                        // Post-processing: extract JS→ASP.NET bridge edges (.js files).
+                        // Post-processing: extract JS→ASP.NET bridge edges.
+                        // For .js files: extract from the full file.
+                        // For WebForms markup (.aspx/.ascx/.master): extract from inline
+                        // <script> blocks which frequently manipulate server controls via
+                        // jQuery/DOM APIs and __doPostBack calls.
                         if matches!(language, "javascript") {
                             let (_js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
                             for e in js_edges {
                                 local_stats.edges.push((rel_path.clone(), e));
+                            }
+                        } else if crate::webforms::is_webforms_markup(p) {
+                            // Extract inline <script> content from WebForms markup and
+                            // run the JS bridge extractor on it. This catches jQuery
+                            // selectors, __doPostBack calls, and PageMethods in inline
+                            // script blocks that would otherwise be invisible.
+                            let inline_js = extract_inline_scripts(&text);
+                            if !inline_js.is_empty() {
+                                let (_js_syms, js_edges) =
+                                    crate::js_extractor::extract_js(p, &inline_js);
+                                for e in js_edges {
+                                    local_stats.edges.push((rel_path.clone(), e));
+                                }
                             }
                         }
 
@@ -1337,12 +1360,19 @@ impl HybridSearchEngine {
                         Some(v) => v,
                         None => continue,
                     };
-                    let sim = dot_product(cand_vec, sel_vec);
+                    // Cosine similarity via dot product of (assumed) unit vectors.
+                    // Clamp to [0, 1] to handle non-cosine embedders (e.g., Euclidean
+                    // distance converted to `1 - dist`, which can produce negative
+                    // values for distant points). Without clamping, a negative max_sim
+                    // would flip the diversity penalty into a reward.
+                    let sim = dot_product(cand_vec, sel_vec).clamp(0.0, 1.0);
                     if sim > max_sim {
                         max_sim = sim;
                     }
                 }
 
+                // Standard MMR formula: λ * relevance - (1-λ) * max_similarity.
+                // cand.score is the RRF relevance; max_sim is clamped to [0, 1].
                 let mmr_score = lambda * cand.score - (1.0 - lambda) * max_sim;
                 if mmr_score > best_mmr_score {
                     best_mmr_score = mmr_score;
@@ -1362,7 +1392,11 @@ impl HybridSearchEngine {
         q: &HybridQuery,
         centrality_boost: Option<&std::collections::HashMap<String, f32>>,
     ) -> anyhow::Result<Vec<HybridHit>> {
-        let fetch_k = if q.use_mmr { q.top_k * 3 } else { q.top_k };
+        let fetch_k = if q.use_mmr {
+            q.top_k * self.mmr_oversampling.max(2)
+        } else {
+            q.top_k
+        };
 
         let mut q_modified = q.clone();
         q_modified.top_k = fetch_k;
@@ -1440,12 +1474,18 @@ impl HybridSearchEngine {
     }
 }
 
+/// Escape special characters for Tantivy's query parser so a literal user
+/// string does not accidentally invoke boolean operators, ranges, wildcards,
+/// regex, or other query syntax.
+///
+/// Covers all Tantivy 0.22+ special characters including `<` and `>` (used in
+/// range queries like `[A TO Z]` and `{A TO Z}`).
 pub fn escape_tantivy_literal(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
             '+' | '-' | '&' | '|' | '!' | '(' | ')' | '{' | '}' | '[' | ']' | '^' | '"' | '~'
-            | '*' | '?' | ':' | '\\' | '/' => {
+            | '*' | '?' | ':' | '\\' | '/' | '<' | '>' => {
                 out.push('\\');
                 out.push(c);
             }
@@ -1487,6 +1527,37 @@ pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
 // ---------------------------------------------------------------------------
 
 /// Check if a file is a web.config or app.config (ASP.NET configuration).
+/// Extract the content of all inline `<script>` blocks from WebForms markup.
+///
+/// Concatenates the bodies of `<script ...>...</script>` tags (excluding `runat="server"`)
+/// so the JS bridge extractor can find jQuery selectors, __doPostBack calls, fetch/XHR
+/// calls, and PageMethods invocations embedded directly in .aspx/.ascx/.master files.
+fn extract_inline_scripts(markup: &str) -> String {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match <script ...>...</script> blocks (case-insensitive, non-greedy).
+    static SCRIPT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"(?is)<script\b([^>]*)>(.*?)</script>"#).unwrap());
+
+    let mut out = String::new();
+    for cap in SCRIPT_RE.captures_iter(markup) {
+        let attrs = cap.get(1).map_or("", |m| m.as_str());
+        // Skip server-side scripts (e.g., <script runat="server"> which is C#/VB code)
+        if attrs.to_lowercase().contains("runat") {
+            continue;
+        }
+        let body = cap.get(2).map_or("", |m| m.as_str()).trim();
+        if !body.is_empty() {
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(body);
+        }
+    }
+    out
+}
+
 fn is_web_config(path: &std::path::Path) -> bool {
     path.file_name()
         .and_then(|n| n.to_str())

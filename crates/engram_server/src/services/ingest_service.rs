@@ -112,7 +112,7 @@ pub async fn process_ingest_stats(
         let (node_id, final_kind) = if sym.kind == "page" {
             (
                 engram_core::ids::NodeId::page(rel_path.as_str()).0,
-                sym.kind.clone(),
+                sym.kind.to_string(),
             )
         } else if sym.kind == "control" {
             let control_id = sym
@@ -201,7 +201,7 @@ pub async fn process_ingest_stats(
                     sym.start_line,
                 )
                 .0,
-                sym.kind.clone(),
+                sym.kind.to_string(),
             )
         };
 
@@ -463,7 +463,7 @@ pub async fn process_ingest_stats(
             }
         }
 
-        let edge_kind = match edge.kind.as_str() {
+        let edge_kind = match edge.kind {
             "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                 engram_graph::EdgeKind::Contains
             }

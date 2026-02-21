@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 
 pub const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024; // 10 MB limit for source files
 
+/// Check if a file appears to be binary by looking for null bytes in the first 8 KB.
+///
+/// SAFETY: This performs synchronous I/O. It is called from within `spawn_blocking`
+/// (via Rayon `par_iter` in `index_files`) so it does not block the Tokio async
+/// executor. Do NOT call this from an async context without wrapping in spawn_blocking.
 pub fn is_binary(path: &Path) -> bool {
     let mut file = match std::fs::File::open(path) {
         Ok(f) => f,

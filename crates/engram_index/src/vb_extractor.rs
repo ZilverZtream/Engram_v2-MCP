@@ -144,7 +144,7 @@ fn prune_scope_stack(stack: &mut Vec<ScopeEntry>, pos: usize) {
 }
 
 /// Walk the scope stack backwards to find the innermost *enclosing* scope.
-fn find_enclosing_scope(stack: &[ScopeEntry], pos: usize) -> (&str, &str, u32) {
+fn find_enclosing_scope(stack: &[ScopeEntry], pos: usize) -> (&str, &'static str, u32) {
     for entry in stack.iter().rev() {
         if pos >= entry.start && pos < entry.end {
             return (&entry.fqn, entry.kind, entry.line);
@@ -154,7 +154,7 @@ fn find_enclosing_scope(stack: &[ScopeEntry], pos: usize) -> (&str, &str, u32) {
 }
 
 /// Find the best (innermost) enclosing scope from a flat list of all scopes.
-fn find_best_enclosing_scope(scopes: &[ScopeEntry], pos: usize) -> (&str, &str, u32) {
+fn find_best_enclosing_scope(scopes: &[ScopeEntry], pos: usize) -> (&str, &'static str, u32) {
     let mut best: Option<&ScopeEntry> = None;
     for s in scopes {
         if pos >= s.start && pos < s.end {
@@ -353,13 +353,13 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             if !ns_text.is_empty() {
                 edges.push(ExtractedEdge {
                     source_name: "file".into(),
-                    source_kind: "file".into(),
+                    source_kind: "file",
                     source_start_line: 0,
-                    source_language: "vb".into(),
+                    source_language: "vb",
                     target_name: ns_text.to_string(),
                     target_kind: None,
                     target_start_line: None,
-                    kind: "imports".into(),
+                    kind: "imports",
                     metadata: None,
                 });
             }
@@ -411,18 +411,18 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                         meta.insert("unresolved".into(), "true".into());
                         (callee_raw.to_string(), None)
                     } else {
-                        (callee_fqn, Some("function".into()))
+                        (callee_fqn, Some("function"))
                     };
 
                 edges.push(ExtractedEdge {
                     source_name: src_name.to_string(),
-                    source_kind: src_kind.to_string(),
+                    source_kind: src_kind,
                     source_start_line: src_line,
-                    source_language: "vb".into(),
+                    source_language: "vb",
                     target_name,
                     target_kind,
                     target_start_line: None,
-                    kind: "calls".into(),
+                    kind: "calls",
                     metadata: if meta.is_empty() { None } else { Some(meta) },
                 });
             }
@@ -509,7 +509,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
                 symbols.push(ExtractedSymbol {
                     name: name.to_string(),
-                    kind: kind.to_string(),
+                    kind,
                     start_line,
                     end_line,
                     metadata: Some(meta),
@@ -521,13 +521,13 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 if let Some(parent) = scope_stack.last() {
                     edges.push(ExtractedEdge {
                         source_name: parent.fqn.clone(),
-                        source_kind: parent.kind.to_string(),
+                        source_kind: parent.kind,
                         source_start_line: parent.line,
-                        source_language: "vb".into(),
+                        source_language: "vb",
                         target_name: fqn.clone(),
-                        target_kind: Some(kind.to_string()),
+                        target_kind: Some(kind),
                         target_start_line: Some(start_line),
-                        kind: "contains".into(),
+                        kind: "contains",
                         metadata: None,
                     });
                 }
@@ -561,7 +561,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             // Attribute to enclosing scope if possible
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(&all_scopes, pos);
             edge.source_name = src_name.to_string();
-            edge.source_kind = src_kind.to_string();
+            edge.source_kind = src_kind;
             edge.source_start_line = src_line;
             edges.push(edge);
         }
@@ -730,13 +730,13 @@ fn extract_ado_column_access(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Ext
 
             edges.push(ExtractedEdge {
                 source_name: src_name.to_string(),
-                source_kind: src_kind.to_string(),
+                source_kind: src_kind,
                 source_start_line: src_line,
-                source_language: "vb".into(),
+                source_language: "vb",
                 target_name: format!("binding_field:{}", col_name),
-                target_kind: Some("binding_field".into()),
+                target_kind: Some("binding_field"),
                 target_start_line: None,
-                kind: "reads_column".into(),
+                kind: "reads_column",
                 metadata: Some(meta),
             });
         }
@@ -950,29 +950,29 @@ fn starts_with_ci(haystack: &str, needle: &str) -> bool {
 /// 1. Starts with `EXEC`/`EXECUTE` → stored proc (extract proc name)
 /// 2. Single token, length > 2, no whitespace → stored proc name
 /// 3. Everything else → inline SQL (hashed)
-fn classify_sql(sql: &str) -> (String, String) {
+fn classify_sql(sql: &str) -> (String, &'static str) {
     let trimmed = sql.trim();
     if trimmed.is_empty() {
-        return ("sql:inline:empty".into(), "inline_sql".into());
+        return ("sql:inline:empty".into(), "inline_sql");
     }
 
     // Check for EXEC/EXECUTE prefix without allocating an uppercase copy
     if starts_with_ci(trimmed, "EXECUTE ") {
         if let Some(proc) = extract_proc_name(&trimmed[8..]) {
-            return (format!("sql:stored_proc:{proc}"), "stored_proc".into());
+            return (format!("sql:stored_proc:{proc}"), "stored_proc");
         }
     } else if starts_with_ci(trimmed, "EXEC ")
         && let Some(proc) = extract_proc_name(&trimmed[5..])
     {
-        return (format!("sql:stored_proc:{proc}"), "stored_proc".into());
+        return (format!("sql:stored_proc:{proc}"), "stored_proc");
     }
 
     // Single identifier → stored proc
     if !trimmed.contains(char::is_whitespace) && trimmed.len() > 2 {
-        (format!("sql:stored_proc:{trimmed}"), "stored_proc".into())
+        (format!("sql:stored_proc:{trimmed}"), "stored_proc")
     } else {
         let h = blake3::hash(trimmed.as_bytes()).to_hex();
-        (format!("sql:inline:{}", &h[..12]), "inline_sql".into())
+        (format!("sql:inline:{}", &h[..12]), "inline_sql")
     }
 }
 
@@ -1044,13 +1044,13 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
 
                 edges.push(ExtractedEdge {
                     source_name: ctrl_id,
-                    source_kind: source_kind.to_string(),
+                    source_kind: source_kind,
                     source_start_line: (line_no + 1) as u32,
-                    source_language: "vb".into(),
+                    source_language: "vb",
                     target_name: handler.clone(),
-                    target_kind: Some("function".into()),
+                    target_kind: Some("function"),
                     target_start_line: Some((line_no + 1) as u32),
-                    kind: "event_wiring".into(),
+                    kind: "event_wiring",
                     metadata: Some(meta),
                 });
             }
@@ -1097,13 +1097,13 @@ pub fn extract_addhandler(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge
 
             edges.push(ExtractedEdge {
                 source_name: ctrl_id,
-                source_kind: "control".into(),
+                source_kind: "control",
                 source_start_line: (line_no + 1) as u32,
-                source_language: "vb".into(),
+                source_language: "vb",
                 target_name: handler_short.to_string(),
-                target_kind: Some("function".into()),
+                target_kind: Some("function"),
                 target_start_line: Some((line_no + 1) as u32),
-                kind: "event_wiring".into(),
+                kind: "event_wiring",
                 metadata: Some(meta),
             });
         }
@@ -1273,7 +1273,7 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
                     .chars()
                     .filter(|&c| c != '[' && c != ']')
                     .collect::<String>();
-                (format!("sql:stored_proc:{clean}"), "stored_proc".into())
+                (format!("sql:stored_proc:{clean}"), "stored_proc")
             } else {
                 classify_sql(trimmed)
             };
@@ -1283,13 +1283,13 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
             results.push((
                 ExtractedEdge {
                     source_name: "file".into(),
-                    source_kind: "file".into(),
+                    source_kind: "file",
                     source_start_line: 0,
-                    source_language: "vb".into(),
+                    source_language: "vb",
                     target_name: target_id,
                     target_kind: Some(target_kind_str),
                     target_start_line: None,
-                    kind: "sql_calls".into(),
+                    kind: "sql_calls",
                     metadata: Some(meta),
                 },
                 pos,
@@ -1344,13 +1344,13 @@ fn regex_extract_sql(source: &str) -> Vec<(ExtractedEdge, usize)> {
         results.push((
             ExtractedEdge {
                 source_name: "file".into(),
-                source_kind: "file".into(),
+                source_kind: "file",
                 source_start_line: 0,
-                source_language: "vb".into(),
+                source_language: "vb",
                 target_name: format!("{var}.{method}"),
-                target_kind: Some("sql_exec".into()),
+                target_kind: Some("sql_exec"),
                 target_start_line: None,
-                kind: "sql_exec".into(),
+                kind: "sql_exec",
                 metadata: Some(meta),
             },
             pos,
@@ -1482,7 +1482,7 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
                 let meta = HashMap::from([("fqn".into(), fqn)]);
                 symbols.push(ExtractedSymbol {
                     name: current_class.clone(),
-                    kind: "class".into(),
+                    kind: "class",
                     start_line: line_no,
                     end_line: line_no,
                     metadata: Some(meta),
@@ -1499,7 +1499,7 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
                 let meta = HashMap::from([("fqn".into(), fqn)]);
                 symbols.push(ExtractedSymbol {
                     name: (*name).to_string(),
-                    kind: kind.into(),
+                    kind,
                     start_line: line_no,
                     end_line: line_no,
                     metadata: Some(meta),

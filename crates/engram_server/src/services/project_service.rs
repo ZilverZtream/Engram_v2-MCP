@@ -45,7 +45,7 @@ pub async fn ensure_project_runtime(
 ) -> Result<ProjectState, EngramError> {
     validate_project_id(project_id)?;
 
-    if let Some(p) = state.get_project_cached(project_id).await {
+    if let Some(p) = state.get_project_cached(project_id) {
         return Ok(p);
     }
 
@@ -119,7 +119,7 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
     report.push_str("\n## Graph Stats\n");
     let mut node_kinds = std::collections::HashMap::new();
     for (_, sym) in &stats.symbols {
-        *node_kinds.entry(sym.kind.clone()).or_insert(0) += 1;
+        *node_kinds.entry(sym.kind).or_insert(0) += 1;
     }
     report.push_str("- Nodes by kind:\n");
     let mut kinds: Vec<_> = node_kinds.iter().collect();
@@ -130,7 +130,7 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
 
     let mut edge_kinds = std::collections::HashMap::new();
     for (_, edge) in &stats.edges {
-        *edge_kinds.entry(edge.kind.clone()).or_insert(0) += 1;
+        *edge_kinds.entry(edge.kind).or_insert(0) += 1;
     }
     report.push_str("- Edges by kind:\n");
     let mut ekinds: Vec<_> = edge_kinds.iter().collect();

@@ -74,5 +74,11 @@ arborium-vb = "2.13.0"
 # HTTP client (for Ollama / OpenAI remote backends)
 reqwest = { version = "0.13", features = ["json"] }
 
+# Binary serialization
+bincode = "1"
+
+# Concurrent collections
+dashmap = "6"
+
 # Utils
 regex = "1"

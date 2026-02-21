@@ -9,95 +9,79 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-// Namespaced by project_id so multiple projects can coexist.
+// ─── Table definitions ───────────────────────────────────────────────────────
+// v2 tables use bincode serialization for Node/Edge and composite keys for
+// adjacency. Legacy v1 tables (JSON, single-key adj) are dropped on open().
+//
 // Key format examples:
-//   nodes:   "{project}\0{node_id}"
-//   edges:   "{project}\0{edge_kind}\0{source}\0{target}"
-//   adj_out: "{project}\0{edge_kind}\0{source}"  → JSON [{target, weight, updated_at_ms}]
-//   adj_in:  "{project}\0{edge_kind}\0{target}"  → JSON [{source, weight, updated_at_ms}]
-//   meta:    "{project}\0{key}"
-static NODES: TableDefinition<&str, &[u8]> = TableDefinition::new("nodes");
-static EDGES: TableDefinition<&str, &[u8]> = TableDefinition::new("edges");
-static ADJ_OUT: TableDefinition<&str, &[u8]> = TableDefinition::new("adj_out");
-static ADJ_IN: TableDefinition<&str, &[u8]> = TableDefinition::new("adj_in");
+//   nodes_v2:   "{project}\0{node_id}"          → bincode(Node)
+//   edges_v2:   "{project}\0{kind}\0{src}\0{tgt}" → bincode(Edge)
+//   adj_out_v2: ("{project}\0{kind}\0{src}", "{tgt}")  → [weight:u32 LE, ts:u64 LE]
+//   adj_in_v2:  ("{project}\0{kind}\0{tgt}", "{src}")  → [weight:u32 LE, ts:u64 LE]
+//   meta:       "{project}\0{key}"              → UTF-8 bytes (unchanged)
+static NODES: TableDefinition<&str, &[u8]> = TableDefinition::new("nodes_v2");
+static EDGES: TableDefinition<&str, &[u8]> = TableDefinition::new("edges_v2");
+static ADJ_OUT: TableDefinition<(&str, &str), &[u8]> = TableDefinition::new("adj_out_v2");
+static ADJ_IN: TableDefinition<(&str, &str), &[u8]> = TableDefinition::new("adj_in_v2");
 static META: TableDefinition<&str, &[u8]> = TableDefinition::new("meta");
 static CENTRALITY: TableDefinition<&str, &[u8]> = TableDefinition::new("centrality");
 static INSIGHT_FINGERPRINTS: TableDefinition<&str, &[u8]> =
     TableDefinition::new("insight_fingerprints");
 
-/// Adjacency list entry (compact).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct AdjEntry {
-    id: String, // target_id for adj_out, source_id for adj_in
-    weight: u32,
-    updated_at_ms: u64,
+// ─── Adjacency value helpers (fixed 12-byte binary, no serde) ────────────────
+
+/// Encode adjacency value as 12 bytes: weight (4 LE) + updated_at_ms (8 LE).
+fn encode_adj_value(weight: u32, updated_at_ms: u64) -> [u8; 12] {
+    let mut buf = [0u8; 12];
+    buf[..4].copy_from_slice(&weight.to_le_bytes());
+    buf[4..].copy_from_slice(&updated_at_ms.to_le_bytes());
+    buf
 }
+
+/// Decode adjacency value from 12 bytes.
+fn decode_adj_value(bytes: &[u8]) -> (u32, u64) {
+    let weight = u32::from_le_bytes(bytes[..4].try_into().unwrap_or([0; 4]));
+    let ts = u64::from_le_bytes(bytes[4..12].try_into().unwrap_or([0; 8]));
+    (weight, ts)
+}
+
+// ─── EdgeKind ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum EdgeKind {
-    /// Search result co-occurrence (what v1 stored in search_sessions).
     CoOccurrence,
-    /// Git temporal coupling (files that frequently change together).
     TemporalCoupling,
-    /// Insight links (insight <-> sources).
     Insight,
-    /// Static dependency edges (imports/calls/etc).
     Dependency,
-    /// Anti-pattern links (e.g., reverted patches).
     AntiPattern,
-    /// Structural containment (e.g., class contains method).
     Contains,
-    /// Code imports/includes.
     Imports,
-    /// SQL database calls (stored procs, inline SQL).
     SqlCalls,
-    /// Structural: Table → Column.
     HasColumn,
-    /// Schema relationship: Column → Column (FK reference).
     ForeignKey,
-    /// SQL node → Table node (code references schema).
     QueriesTable,
-    /// Function/Page reads a global state key (Session, ViewState, etc.).
     ReadsState,
-    /// Function/Page writes a global state key (Session, ViewState, etc.).
     WritesState,
-    /// Markup data-binding expression referencing a model/schema field (Eval, Bind).
     DataBinding,
-    /// WebForms <%@ Register %> directive: parent page → child user control (.ascx).
     RegistersControl,
-    /// Server-Side Include directive: parent file → included file (SSI `#include`).
     IncludesFile,
-    /// State access via unresolved identifier (read): for downstream constant resolution.
     UnresolvedStateRead,
-    /// State access via unresolved identifier (write): for downstream constant resolution.
     UnresolvedStateWrite,
-    /// ASMX Web Service endpoint: .asmx file → backing class (<%@ WebService Class="..." %>).
     ExposesWebService,
-    /// Generic HTTP Handler endpoint: .ashx file → backing class (<%@ WebHandler Class="..." %>).
     ExposesHttpHandler,
-    /// WCF Service Host endpoint: .svc file → backing class (<%@ ServiceHost Service="..." %>).
     ExposesWcfService,
-    /// UI layout containment: a container (Panel, Table, GroupBox) contains a child control.
     ContainsUi,
-    /// UI layout sibling adjacency: sequential controls in tab/visual order.
     UiLayoutNeighbor,
-    /// ADO.NET code reads a DB column by name (row("Col"), reader.GetOrdinal("Col")).
     ReadsColumn,
-    /// web.config `<httpModules>` or `<system.webServer><modules>` → module class.
     RegistersModule,
-    /// web.config `<httpHandlers>` or `<system.webServer><handlers>` → handler class.
     RegistersHandler,
-    /// Client-side JavaScript manipulates an ASP.NET control via jQuery/DOM selector.
     ManipulatesDom,
-    /// Client-side JavaScript triggers an ASP.NET postback via `__doPostBack`.
     TriggersPostback,
-    /// Client-side JavaScript calls a server-side endpoint (AJAX/fetch to ASMX/ASHX/SVC/API).
     ApiCall,
 }
 
 impl EdgeKind {
-    /// All known edge kinds. Keep in sync with the enum variants.
     pub const ALL: &'static [EdgeKind] = &[
         EdgeKind::CoOccurrence,
         EdgeKind::TemporalCoupling,
@@ -202,11 +186,16 @@ impl EdgeKind {
 
 impl FromStr for EdgeKind {
     type Err = ();
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::parse(s).ok_or(())
     }
 }
+
+// ─── Node / Edge ─────────────────────────────────────────────────────────────
+// NOTE: `skip_serializing_if` is intentionally absent — bincode requires all
+// fields to be serialized in a fixed positional layout. The `#[serde(default)]`
+// on `metadata` is retained for backward-compatible JSON deserialization in API
+// responses (where Node may also be serialized via serde_json).
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
@@ -219,7 +208,7 @@ pub struct Node {
     pub start_line: u32,
     pub end_line: u32,
     pub generation: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub metadata: Option<JsonValue>,
 }
 
@@ -232,10 +221,12 @@ pub struct Edge {
     pub edge_kind: EdgeKind,
     pub weight: u32,
     pub generation: u64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub metadata: Option<JsonValue>,
     pub updated_at_ms: u64,
 }
+
+// ─── GraphStore ──────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
 pub struct GraphStore {
@@ -251,7 +242,29 @@ impl GraphStore {
         }
         let db = Database::create(db_path)?;
 
-        // Ensure tables exist by opening a write txn once.
+        // Drop legacy v1 tables (JSON-serialized, single-key adjacency).
+        // Data loss is acceptable — the graph is a derived index rebuilt on
+        // the next project update/indexing run.
+        {
+            let wtx = db.begin_write()?;
+            let mut dropped = Vec::new();
+            for name in ["nodes", "edges", "adj_out", "adj_in"] {
+                match wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) {
+                    Ok(true) => dropped.push(name),
+                    _ => {}
+                }
+            }
+            wtx.commit()?;
+            if !dropped.is_empty() {
+                tracing::info!(
+                    "Migrated graph store to v2 format — dropped legacy tables: {:?}. \
+                     Graph data will be rebuilt on next indexing run.",
+                    dropped
+                );
+            }
+        }
+
+        // Ensure v2 tables exist.
         let wtx = db.begin_write()?;
         {
             let _ = wtx.open_table(NODES)?;
@@ -267,16 +280,20 @@ impl GraphStore {
         Ok(Self { db: Arc::new(db) })
     }
 
+    // ── Upsert ───────────────────────────────────────────────────────────────
+
     pub fn upsert_nodes(&self, project_id: &str, nodes: &[Node]) -> anyhow::Result<()> {
         if nodes.is_empty() {
             return Ok(());
         }
+        validate_key_component("project_id", project_id)?;
         let wtx = self.db.begin_write()?;
         {
             let mut nt = wtx.open_table(NODES)?;
             for n in nodes {
+                validate_key_component("node_id", &n.node_id)?;
                 let key = format!("{project_id}\0{}", n.node_id);
-                let val = serde_json::to_vec(n)?;
+                let val = bincode::serialize(n)?;
                 nt.insert(key.as_str(), val.as_slice())?;
             }
         }
@@ -293,6 +310,14 @@ impl GraphStore {
         if nodes.is_empty() && edges.is_empty() {
             return Ok(());
         }
+        validate_key_component("project_id", project_id)?;
+        for n in nodes {
+            validate_key_component("node_id", &n.node_id)?;
+        }
+        for e in edges {
+            validate_key_component("source_id", &e.source_id)?;
+            validate_key_component("target_id", &e.target_id)?;
+        }
 
         let wtx = self.db.begin_write()?;
         {
@@ -300,7 +325,7 @@ impl GraphStore {
                 let mut nt = wtx.open_table(NODES)?;
                 for n in nodes {
                     let key = format!("{project_id}\0{}", n.node_id);
-                    let val = serde_json::to_vec(n)?;
+                    let val = bincode::serialize(n)?;
                     nt.insert(key.as_str(), val.as_slice())?;
                 }
             }
@@ -312,19 +337,21 @@ impl GraphStore {
 
                 for e in edges {
                     let ekey = edge_key(project_id, &e.edge_kind, &e.source_id, &e.target_id);
-                    let val = serde_json::to_vec(e)?;
+                    let val = bincode::serialize(e)?;
                     et.insert(ekey.as_str(), val.as_slice())?;
 
-                    let out_key = adj_key(project_id, &e.edge_kind, &e.source_id);
-                    let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
-                    upsert_adj_entry(&mut out_list, &e.target_id, e.weight, e.updated_at_ms);
-                    adj_out_t
-                        .insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+                    let adj_val = encode_adj_value(e.weight, e.updated_at_ms);
+                    let out_prefix = adj_key(project_id, &e.edge_kind, &e.source_id);
+                    adj_out_t.insert(
+                        (out_prefix.as_str(), e.target_id.as_str()),
+                        adj_val.as_slice(),
+                    )?;
 
-                    let in_key = adj_key(project_id, &e.edge_kind, &e.target_id);
-                    let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-                    upsert_adj_entry(&mut in_list, &e.source_id, e.weight, e.updated_at_ms);
-                    adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+                    let in_prefix = adj_key(project_id, &e.edge_kind, &e.target_id);
+                    adj_in_t.insert(
+                        (in_prefix.as_str(), e.source_id.as_str()),
+                        adj_val.as_slice(),
+                    )?;
                 }
             }
         }
@@ -336,6 +363,11 @@ impl GraphStore {
         if edges.is_empty() {
             return Ok(());
         }
+        validate_key_component("project_id", project_id)?;
+        for e in edges {
+            validate_key_component("source_id", &e.source_id)?;
+            validate_key_component("target_id", &e.target_id)?;
+        }
         let wtx = self.db.begin_write()?;
         {
             let mut et = wtx.open_table(EDGES)?;
@@ -344,25 +376,28 @@ impl GraphStore {
 
             for e in edges {
                 let ekey = edge_key(project_id, &e.edge_kind, &e.source_id, &e.target_id);
-                let val = serde_json::to_vec(e)?;
+                let val = bincode::serialize(e)?;
                 et.insert(ekey.as_str(), val.as_slice())?;
 
-                // Maintain OUT adjacency
-                let out_key = adj_key(project_id, &e.edge_kind, &e.source_id);
-                let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
-                upsert_adj_entry(&mut out_list, &e.target_id, e.weight, e.updated_at_ms);
-                adj_out_t.insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+                let adj_val = encode_adj_value(e.weight, e.updated_at_ms);
+                let out_prefix = adj_key(project_id, &e.edge_kind, &e.source_id);
+                adj_out_t.insert(
+                    (out_prefix.as_str(), e.target_id.as_str()),
+                    adj_val.as_slice(),
+                )?;
 
-                // Maintain IN adjacency
-                let in_key = adj_key(project_id, &e.edge_kind, &e.target_id);
-                let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-                upsert_adj_entry(&mut in_list, &e.source_id, e.weight, e.updated_at_ms);
-                adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+                let in_prefix = adj_key(project_id, &e.edge_kind, &e.target_id);
+                adj_in_t.insert(
+                    (in_prefix.as_str(), e.source_id.as_str()),
+                    adj_val.as_slice(),
+                )?;
             }
         }
         wtx.commit()?;
         Ok(())
     }
+
+    // ── Meta ─────────────────────────────────────────────────────────────────
 
     pub fn set_meta(&self, project_id: &str, key: &str, value: &str) -> anyhow::Result<()> {
         let wtx = self.db.begin_write()?;
@@ -385,8 +420,9 @@ impl GraphStore {
         Ok(Some(String::from_utf8_lossy(v.value()).to_string()))
     }
 
+    // ── Edge increment ───────────────────────────────────────────────────────
+
     #[allow(clippy::too_many_arguments)]
-    /// Increment a directed edge weight.
     pub fn increment_edge(
         &self,
         project_id: &str,
@@ -411,9 +447,7 @@ impl GraphStore {
             let maybe_edge = {
                 let existing = et.get(key.as_str())?;
                 if let Some(v) = existing {
-                    let bytes: &[u8] = v.value();
-                    let e: Edge = serde_json::from_slice(bytes)?;
-                    Some(e)
+                    bincode::deserialize::<Edge>(v.value()).ok()
                 } else {
                     None
                 }
@@ -426,7 +460,8 @@ impl GraphStore {
                 new_weight = e.weight;
                 e
             } else {
-                let e = Edge {
+                new_weight = delta;
+                Edge {
                     source_id: source_id.to_string(),
                     target_id: target_id.to_string(),
                     namespace: namespace.to_string(),
@@ -436,31 +471,31 @@ impl GraphStore {
                     generation,
                     metadata: None,
                     updated_at_ms: now,
-                };
-                new_weight = e.weight;
-                e
+                }
             };
 
-            let bytes = serde_json::to_vec(&final_edge)?;
+            let bytes = bincode::serialize(&final_edge)?;
             et.insert(key.as_str(), bytes.as_slice())?;
 
-            // Update adjacency tables
-            let out_key = adj_key(project_id, &kind, source_id);
-            let mut out_list = read_adj_list(&adj_out_t, &out_key)?;
-            upsert_adj_entry(&mut out_list, target_id, new_weight, now);
-            adj_out_t.insert(out_key.as_str(), serde_json::to_vec(&out_list)?.as_slice())?;
+            // O(1) point-insert adjacency entries (no list deserialization).
+            let adj_val = encode_adj_value(new_weight, now);
+            let out_prefix = adj_key(project_id, &kind, source_id);
+            adj_out_t.insert(
+                (out_prefix.as_str(), target_id),
+                adj_val.as_slice(),
+            )?;
 
-            let in_key = adj_key(project_id, &kind, target_id);
-            let mut in_list = read_adj_list(&adj_in_t, &in_key)?;
-            upsert_adj_entry(&mut in_list, source_id, new_weight, now);
-            adj_in_t.insert(in_key.as_str(), serde_json::to_vec(&in_list)?.as_slice())?;
+            let in_prefix = adj_key(project_id, &kind, target_id);
+            adj_in_t.insert(
+                (in_prefix.as_str(), source_id),
+                adj_val.as_slice(),
+            )?;
         }
         wtx.commit()?;
         Ok(new_weight)
     }
 
     #[allow(clippy::too_many_arguments)]
-    /// Increment an undirected edge by updating both directions.
     pub fn increment_undirected_edge(
         &self,
         project_id: &str,
@@ -485,12 +520,9 @@ impl GraphStore {
     }
 
     /// Batch-increment multiple edges in a single write transaction.
-    /// Each entry is (kind, source_id, target_id, delta).
-    /// This avoids the per-call transaction overhead of `increment_edge`.
     ///
-    /// Fix #8: adjacency lists for hot nodes are cached in a local HashMap so
-    /// that N edges touching the same high-degree node deserialization happens
-    /// once (read) and once (flush), not once per edge (O(N²) → O(N)).
+    /// With composite-key adjacency tables each adj update is an O(1) point
+    /// insert — no more read-modify-write of JSON arrays, no adjacency caches.
     #[allow(clippy::too_many_arguments)]
     pub fn batch_increment_edges(
         &self,
@@ -503,6 +535,11 @@ impl GraphStore {
         if increments.is_empty() {
             return Ok(());
         }
+        validate_key_component("project_id", project_id)?;
+        for (_, src, tgt, _) in increments {
+            validate_key_component("source_id", src)?;
+            validate_key_component("target_id", tgt)?;
+        }
         let now = now_ms();
         let wtx = self.db.begin_write()?;
         {
@@ -510,20 +547,13 @@ impl GraphStore {
             let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
             let mut adj_in_t = wtx.open_table(ADJ_IN)?;
 
-            // In-memory adjacency cache: key → Vec<AdjEntry>.
-            // Avoids re-deserializing the same JSON array for every edge that
-            // touches the same high-degree node within this batch.
-            let mut adj_out_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
-            let mut adj_in_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
-
             for (kind, source_id, target_id, delta) in increments {
                 let key = edge_key(project_id, kind, source_id, target_id);
 
                 let maybe_edge = {
                     let existing = et.get(key.as_str())?;
                     if let Some(v) = existing {
-                        let bytes: &[u8] = v.value();
-                        serde_json::from_slice::<Edge>(bytes).ok()
+                        bincode::deserialize::<Edge>(v.value()).ok()
                     } else {
                         None
                     }
@@ -549,43 +579,27 @@ impl GraphStore {
                 };
 
                 let new_weight = final_edge.weight;
-                let bytes = serde_json::to_vec(&final_edge)?;
+                let bytes = bincode::serialize(&final_edge)?;
                 et.insert(key.as_str(), bytes.as_slice())?;
 
-                // Update adjacency caches (read from DB only on first access).
-                let out_key = adj_key(project_id, kind, source_id);
-                let out_list = match adj_out_cache.entry(out_key.clone()) {
-                    std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-                    std::collections::hash_map::Entry::Vacant(entry) => {
-                        entry.insert(read_adj_list(&adj_out_t, &out_key)?)
-                    }
-                };
-                upsert_adj_entry(out_list, target_id, new_weight, now);
+                let adj_val = encode_adj_value(new_weight, now);
+                let out_prefix = adj_key(project_id, kind, source_id);
+                adj_out_t.insert(
+                    (out_prefix.as_str(), target_id.as_str()),
+                    adj_val.as_slice(),
+                )?;
 
-                let in_key = adj_key(project_id, kind, target_id);
-                let in_list = match adj_in_cache.entry(in_key.clone()) {
-                    std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
-                    std::collections::hash_map::Entry::Vacant(entry) => {
-                        entry.insert(read_adj_list(&adj_in_t, &in_key)?)
-                    }
-                };
-                upsert_adj_entry(in_list, source_id, new_weight, now);
-            }
-
-            // Flush all modified adjacency lists to the DB once at the end.
-            for (key, list) in adj_out_cache {
-                adj_out_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
-            }
-            for (key, list) in adj_in_cache {
-                adj_in_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
+                let in_prefix = adj_key(project_id, kind, target_id);
+                adj_in_t.insert(
+                    (in_prefix.as_str(), source_id.as_str()),
+                    adj_val.as_slice(),
+                )?;
             }
         }
         wtx.commit()?;
         Ok(())
     }
 
-    /// Batch-increment undirected edges (both directions) in a single write transaction.
-    /// Each entry is (kind, node_a, node_b, delta).
     #[allow(clippy::too_many_arguments)]
     pub fn batch_increment_undirected_edges(
         &self,
@@ -595,7 +609,6 @@ impl GraphStore {
         generation: u64,
         pairs: &[(EdgeKind, String, String, u32)],
     ) -> anyhow::Result<()> {
-        // Expand undirected pairs into directed edges (a→b and b→a), skipping self-loops.
         let mut directed: Vec<(EdgeKind, String, String, u32)> =
             Vec::with_capacity(pairs.len() * 2);
         for (kind, a, b, delta) in pairs {
@@ -608,8 +621,10 @@ impl GraphStore {
         self.batch_increment_edges(project_id, namespace, language, generation, &directed)
     }
 
+    // ── Neighbor queries (composite-key range scan) ──────────────────────────
+
     /// Get weighted outgoing neighbors for `source_id`.
-    /// O(degree) due to adjacency index.
+    /// O(degree) via composite-key range scan — no JSON deserialization.
     pub fn neighbors(
         &self,
         project_id: &str,
@@ -617,12 +632,21 @@ impl GraphStore {
         source_id: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<(String, u32)>> {
-        let key = adj_key(project_id, &kind, source_id);
+        let prefix = adj_key(project_id, &kind, source_id);
         let rtx = self.db.begin_read()?;
         let adj = rtx.open_table(ADJ_OUT)?;
-        let list = read_adj_list_ro(&adj, &key)?;
 
-        let mut out: Vec<(String, u32)> = list.into_iter().map(|e| (e.id, e.weight)).collect();
+        let mut out: Vec<(String, u32)> = Vec::new();
+        for result in adj.range((prefix.as_str(), "")..)? {
+            let (key_guard, val_guard) = result?;
+            let (pfx, neighbor_id) = key_guard.value();
+            if pfx != prefix.as_str() {
+                break;
+            }
+            let (weight, _ts) = decode_adj_value(val_guard.value());
+            out.push((neighbor_id.to_string(), weight));
+        }
+
         out.sort_by(|a, b| b.1.cmp(&a.1));
         if out.len() > limit {
             out.truncate(limit);
@@ -645,7 +669,7 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let e: Edge = serde_json::from_slice(v.value())?;
+            let e: Edge = bincode::deserialize(v.value())?;
             out.push(e);
             if out.len() >= limit {
                 break;
@@ -655,7 +679,6 @@ impl GraphStore {
     }
 
     /// Get weighted incoming neighbors for `target_id`.
-    /// O(degree) due to adjacency index.
     pub fn find_incoming_edges(
         &self,
         project_id: &str,
@@ -680,21 +703,22 @@ impl GraphStore {
 
         let mut out: Vec<(String, EdgeKind, u32)> = Vec::new();
 
-        if let Some(k) = kind {
-            // Single kind: O(degree)
-            let key = adj_key(project_id, &k, target_id);
-            let list = read_adj_list_ro(&adj, &key)?;
-            for e in list {
-                out.push((e.id, k.clone(), e.weight));
-            }
+        let kinds: &[EdgeKind] = if let Some(ref k) = kind {
+            std::slice::from_ref(k)
         } else {
-            // All edge kinds
-            for ek in EdgeKind::ALL {
-                let key = adj_key(project_id, ek, target_id);
-                let list = read_adj_list_ro(&adj, &key)?;
-                for e in list {
-                    out.push((e.id, ek.clone(), e.weight));
+            EdgeKind::ALL
+        };
+
+        for ek in kinds {
+            let prefix = adj_key(project_id, ek, target_id);
+            for result in adj.range((prefix.as_str(), "")..)? {
+                let (key_guard, val_guard) = result?;
+                let (pfx, source_id) = key_guard.value();
+                if pfx != prefix.as_str() {
+                    break;
                 }
+                let (weight, _ts) = decode_adj_value(val_guard.value());
+                out.push((source_id.to_string(), ek.clone(), weight));
             }
         }
 
@@ -705,6 +729,8 @@ impl GraphStore {
         Ok(out)
     }
 
+    // ── Node / Edge reads ────────────────────────────────────────────────────
+
     pub fn get_node(&self, project_id: &str, node_id: &str) -> anyhow::Result<Option<Node>> {
         let rtx = self.db.begin_read()?;
         let nt = rtx.open_table(NODES)?;
@@ -712,7 +738,7 @@ impl GraphStore {
         let Some(v) = nt.get(key.as_str())? else {
             return Ok(None);
         };
-        Ok(Some(serde_json::from_slice(v.value())?))
+        Ok(Some(bincode::deserialize(v.value())?))
     }
 
     pub fn list_edges(
@@ -729,7 +755,7 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let e: Edge = serde_json::from_slice(v.value())?;
+            let e: Edge = bincode::deserialize(v.value())?;
             if kind.as_ref().is_some_and(|fk| e.edge_kind != *fk) {
                 continue;
             }
@@ -738,7 +764,6 @@ impl GraphStore {
         Ok(out)
     }
 
-    /// List all node IDs in a project (optionally filtered by node_type).
     pub fn list_node_ids(
         &self,
         project_id: &str,
@@ -754,8 +779,7 @@ impl GraphStore {
             if !key.starts_with(&prefix) {
                 break;
             }
-            let bytes: &[u8] = v.value();
-            let n: Node = serde_json::from_slice(bytes)?;
+            let n: Node = bincode::deserialize(v.value())?;
             if node_type.is_some_and(|t| n.node_type != t) {
                 continue;
             }
@@ -764,8 +788,6 @@ impl GraphStore {
         Ok(out)
     }
 
-    /// List lightweight node metadata (file_path + metadata JSON) for file-type nodes.
-    /// Avoids deserializing full Node structs when only mtime/size/hash are needed.
     pub fn list_file_node_metadata(
         &self,
         project_id: &str,
@@ -779,20 +801,15 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            // Partial deserialization: extract only needed fields
-            let raw: serde_json::Value = serde_json::from_slice(v.value())?;
-            let node_type = raw.get("node_type").and_then(|v| v.as_str()).unwrap_or("");
-            if node_type != "file" {
+            let n: Node = bincode::deserialize(v.value())?;
+            if n.node_type != "file" {
                 continue;
             }
-            let file_path_str = raw.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
-            let metadata = raw.get("metadata").cloned();
-            out.push((RelPath::new(file_path_str), metadata));
+            out.push((n.file_path, n.metadata));
         }
         Ok(out)
     }
 
-    /// Count total nodes for a project without deserializing them.
     pub fn count_nodes(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
@@ -808,6 +825,8 @@ impl GraphStore {
         Ok(count)
     }
 
+    // ── Query (allocation-free case-insensitive matching) ────────────────────
+
     pub fn query_nodes(
         &self,
         project_id: &str,
@@ -821,6 +840,8 @@ impl GraphStore {
         let nt = rtx.open_table(NODES)?;
         let mut out = Vec::new();
 
+        // Pre-lowercase the queries once; the per-node matching uses
+        // `contains_case_insensitive` which avoids allocating on every row.
         let name_q = name_pattern.map(|s| s.to_lowercase());
         let path_q = file_path.map(|s| s.replace('\\', "/").to_lowercase());
 
@@ -829,7 +850,7 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let n: Node = serde_json::from_slice(v.value())?;
+            let n: Node = bincode::deserialize(v.value())?;
 
             if node_type.is_some_and(|t| !t.is_empty() && n.node_type != t) {
                 continue;
@@ -837,15 +858,14 @@ impl GraphStore {
 
             if name_q
                 .as_ref()
-                .is_some_and(|q| !q.is_empty() && !n.name.to_lowercase().contains(q))
+                .is_some_and(|q| !q.is_empty() && !contains_case_insensitive(&n.name, q))
             {
                 continue;
             }
 
-            if path_q
-                .as_ref()
-                .is_some_and(|q| !q.is_empty() && !n.file_path.as_str().to_lowercase().contains(q))
-            {
+            if path_q.as_ref().is_some_and(|q| {
+                !q.is_empty() && !contains_case_insensitive_path(n.file_path.as_str(), q)
+            }) {
                 continue;
             }
 
@@ -871,6 +891,8 @@ impl GraphStore {
         }
         Ok(count)
     }
+
+    // ── Centrality ───────────────────────────────────────────────────────────
 
     pub fn get_centrality(&self, project_id: &str, node_id: &str) -> anyhow::Result<f32> {
         let generation = self
@@ -920,13 +942,13 @@ impl GraphStore {
         Ok(())
     }
 
+    // ── Delete project ───────────────────────────────────────────────────────
+
     pub fn delete_project_data(&self, project_id: &str) -> anyhow::Result<()> {
         let prefix = format!("{project_id}\0");
-
-        // Batched deletion: commit every BATCH_SIZE keys to bound transaction size.
         const BATCH_SIZE: usize = 2000;
 
-        // Helper: collect one batch of keys from a table with the given prefix.
+        // Helper: collect one batch of keys from a single-key table.
         fn collect_batch(
             db: &Database,
             tdef: TableDefinition<&str, &[u8]>,
@@ -949,16 +971,32 @@ impl GraphStore {
             Ok(batch)
         }
 
-        // Drain a table by prefix, committing each batch separately.
-        let tables = [
-            ADJ_OUT,
-            ADJ_IN,
-            NODES,
-            EDGES,
-            META,
-            CENTRALITY,
-            INSIGHT_FINGERPRINTS,
-        ];
+        // Helper: collect one batch of composite keys from an adj table.
+        fn collect_adj_batch(
+            db: &Database,
+            tdef: TableDefinition<(&str, &str), &[u8]>,
+            prefix: &str,
+            batch_size: usize,
+        ) -> anyhow::Result<Vec<(String, String)>> {
+            let rtx = db.begin_read()?;
+            let t = rtx.open_table(tdef)?;
+            let mut batch = Vec::with_capacity(batch_size);
+            for r in t.range((prefix, "")..)? {
+                let (k, _) = r?;
+                let (first, second) = k.value();
+                if !first.starts_with(prefix) {
+                    break;
+                }
+                batch.push((first.to_string(), second.to_string()));
+                if batch.len() >= batch_size {
+                    break;
+                }
+            }
+            Ok(batch)
+        }
+
+        // Drain single-key tables
+        let tables = [NODES, EDGES, META, CENTRALITY, INSIGHT_FINGERPRINTS];
         for tdef in tables {
             loop {
                 let batch = collect_batch(&self.db, tdef, &prefix, BATCH_SIZE)?;
@@ -975,10 +1013,31 @@ impl GraphStore {
                 wtx.commit()?;
             }
         }
+
+        // Drain composite-key adjacency tables
+        let adj_tables = [ADJ_OUT, ADJ_IN];
+        for tdef in adj_tables {
+            loop {
+                let batch = collect_adj_batch(&self.db, tdef, &prefix, BATCH_SIZE)?;
+                if batch.is_empty() {
+                    break;
+                }
+                let wtx = self.db.begin_write()?;
+                {
+                    let mut t = wtx.open_table(tdef)?;
+                    for (k1, k2) in &batch {
+                        t.remove((k1.as_str(), k2.as_str()))?;
+                    }
+                }
+                wtx.commit()?;
+            }
+        }
+
         Ok(())
     }
 
-    /// Create an insight node plus edges linking it to sources.
+    // ── Insights ─────────────────────────────────────────────────────────────
+
     #[allow(clippy::too_many_arguments)]
     pub fn create_insight(
         &self,
@@ -1093,7 +1152,7 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let n: Node = serde_json::from_slice(v.value())?;
+            let n: Node = bincode::deserialize(v.value())?;
             if n.node_type == "insight"
                 && let Some(meta) = n.metadata
                 && let Some(fp) = meta.get("cluster_fingerprint").and_then(|v| v.as_str())
@@ -1105,6 +1164,8 @@ impl GraphStore {
         }
         Ok(false)
     }
+
+    // ── Purge (composite-key point deletes — no list manipulation) ───────────
 
     pub fn purge_old_generations(
         &self,
@@ -1124,7 +1185,7 @@ impl GraphStore {
                 if !k.value().starts_with(&prefix) {
                     break;
                 }
-                let n: Node = serde_json::from_slice(v.value())?;
+                let n: Node = bincode::deserialize(v.value())?;
                 if let Ok(policy) = engram_core::get_policy(&n.namespace) {
                     let stale = match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
@@ -1144,7 +1205,6 @@ impl GraphStore {
             keys
         };
 
-        // Remove stale nodes in batches
         for chunk in node_keys_to_remove.chunks(BATCH_SIZE) {
             let wtx = self.db.begin_write()?;
             {
@@ -1166,7 +1226,7 @@ impl GraphStore {
                 if !k.value().starts_with(&prefix) {
                     break;
                 }
-                let e: Edge = serde_json::from_slice(v.value())?;
+                let e: Edge = bincode::deserialize(v.value())?;
                 if let Ok(policy) = engram_core::get_policy(&e.namespace) {
                     let stale = match policy.retention {
                         engram_core::NamespaceRetention::KeepLatestOnly => {
@@ -1187,20 +1247,13 @@ impl GraphStore {
         };
 
         // Remove stale edges + adjacency entries in batches.
-        // Fix #12: cache adjacency lists in memory for the duration of each
-        // batch so high-degree nodes don't cause O(N²) JSON serialize/deserialize
-        // (one round-trip per removed edge that touches the same node).
+        // With composite-key adjacency, each removal is an O(1) point delete.
         for chunk in edge_keys_to_remove.chunks(BATCH_SIZE) {
             let wtx = self.db.begin_write()?;
             {
                 let mut et = wtx.open_table(EDGES)?;
                 let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
                 let mut adj_in_t = wtx.open_table(ADJ_IN)?;
-
-                // In-memory caches: key → Option<Vec<AdjEntry>>
-                // None means "delete this key" (empty list).
-                let mut adj_out_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
-                let mut adj_in_cache: HashMap<String, Vec<AdjEntry>> = HashMap::new();
 
                 for k in chunk {
                     // Parse edge key: "project\0kind\0source\0target"
@@ -1211,48 +1264,14 @@ impl GraphStore {
                         let target_id = parts[3];
 
                         if let Some(ek) = EdgeKind::parse(kind_str) {
-                            // Remove from ADJ_OUT[source] → target (cached)
-                            let out_key = adj_key(project_id, &ek, source_id);
-                            let out_list = match adj_out_cache.entry(out_key.clone()) {
-                                std::collections::hash_map::Entry::Occupied(entry) => {
-                                    entry.into_mut()
-                                }
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(read_adj_list(&adj_out_t, &out_key)?)
-                                }
-                            };
-                            out_list.retain(|e| e.id != target_id);
+                            let out_prefix = adj_key(project_id, &ek, source_id);
+                            adj_out_t.remove((out_prefix.as_str(), target_id))?;
 
-                            // Remove from ADJ_IN[target] → source (cached)
-                            let in_key = adj_key(project_id, &ek, target_id);
-                            let in_list = match adj_in_cache.entry(in_key.clone()) {
-                                std::collections::hash_map::Entry::Occupied(entry) => {
-                                    entry.into_mut()
-                                }
-                                std::collections::hash_map::Entry::Vacant(entry) => {
-                                    entry.insert(read_adj_list(&adj_in_t, &in_key)?)
-                                }
-                            };
-                            in_list.retain(|e| e.id != source_id);
+                            let in_prefix = adj_key(project_id, &ek, target_id);
+                            adj_in_t.remove((in_prefix.as_str(), source_id))?;
                         }
                     }
                     et.remove(k.as_str())?;
-                }
-
-                // Flush adjacency caches once per batch.
-                for (key, list) in adj_out_cache {
-                    if list.is_empty() {
-                        adj_out_t.remove(key.as_str())?;
-                    } else {
-                        adj_out_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
-                    }
-                }
-                for (key, list) in adj_in_cache {
-                    if list.is_empty() {
-                        adj_in_t.remove(key.as_str())?;
-                    } else {
-                        adj_in_t.insert(key.as_str(), serde_json::to_vec(&list)?.as_slice())?;
-                    }
                 }
             }
             wtx.commit()?;
@@ -1260,11 +1279,14 @@ impl GraphStore {
         Ok(())
     }
 
+    // ── BFS: find_ui_paths (parent-map, no Vec cloning) ──────────────────────
+
     /// Find paths from a start node to any SQL nodes.
     ///
-    /// Useful for tracing "Click -> Handler -> SQL".
-    /// Uses lightweight `Vec<String>` (node IDs) during BFS to avoid cloning
-    /// full Node structs at every branch, then materializes Nodes only for result paths.
+    /// Uses a parent-map BFS that stores `(node_id, parent_index)` entries
+    /// instead of cloning the entire path at every branch point. Paths are
+    /// reconstructed only for the winning terminals, eliminating exponential
+    /// memory growth on branchy graphs.
     pub fn find_ui_paths(
         &self,
         project_id: &str,
@@ -1272,59 +1294,65 @@ impl GraphStore {
         max_hops: usize,
         max_paths: usize,
     ) -> anyhow::Result<Vec<Vec<Node>>> {
-        use std::collections::{HashSet, VecDeque};
+        use std::collections::{HashMap, VecDeque};
 
-        // Bound total BFS work to prevent memory explosion on dense graphs.
-        const MAX_BFS_QUEUE_OPS: usize = 5000;
+        let max_bfs_queue_ops: usize = (max_hops * max_paths * 100).clamp(5000, 50_000);
         const MAX_BRANCHING: usize = 30;
         let mut bfs_ops: usize = 0;
 
-        // BFS over node IDs (lightweight); resolve to Nodes only at the end.
-        let mut queue: VecDeque<(String, Vec<String>)> = VecDeque::new();
+        // Each entry is a (node_id, parent_idx) pair. Paths are reconstructed
+        // by walking the parent chain, not by carrying full Vec<String> clones.
+        let mut entries: Vec<BfsEntryOuter> = Vec::new();
+        let mut queue: VecDeque<usize> = VecDeque::new();
         let mut id_paths: Vec<Vec<String>> = Vec::new();
-        let mut visited = HashSet::new();
+        let mut best_depth: HashMap<String, usize> = HashMap::new();
 
-        queue.push_back((start_node_id.to_string(), Vec::new()));
+        entries.push(BfsEntryOuter {
+            node_id: start_node_id.to_string(),
+            parent_idx: None,
+        });
+        queue.push_back(0);
 
-        while let Some((curr_id, mut path_ids)) = queue.pop_front() {
+        while let Some(entry_idx) = queue.pop_front() {
             bfs_ops += 1;
-            if bfs_ops > MAX_BFS_QUEUE_OPS {
+            if bfs_ops > max_bfs_queue_ops {
                 break;
             }
 
-            // Check existence without full deserialization burden on path
-            let node_exists = self.get_node(project_id, &curr_id)?;
-            let Some(node) = node_exists else {
+            let curr_id = entries[entry_idx].node_id.clone();
+
+            let Some(node) = self.get_node(project_id, &curr_id)? else {
                 continue;
             };
 
-            // Avoid cycles within a single path
-            if path_ids.contains(&curr_id) {
+            // Per-path cycle detection: check if curr_id appears in ancestors.
+            if bfs_path_contains(&entries, entry_idx, &curr_id) {
                 continue;
             }
 
-            path_ids.push(curr_id.clone());
-
-            // If we hit a SQL node, we found a target path
+            // If we hit a SQL node, reconstruct and record the path.
             if node.node_id.starts_with("sql:")
                 || node.node_type == "inline_sql"
                 || node.node_type == "stored_proc"
             {
-                id_paths.push(path_ids);
+                id_paths.push(bfs_reconstruct_path(&entries, entry_idx));
                 if id_paths.len() >= max_paths {
                     break;
                 }
                 continue;
             }
 
-            if path_ids.len() > max_hops {
+            let depth = bfs_depth(&entries, entry_idx);
+            if depth > max_hops {
                 continue;
             }
 
-            // Global visited to avoid redundant work in BFS
-            if !visited.insert(curr_id.clone()) && curr_id != start_node_id {
-                continue;
+            if let Some(&prev_depth) = best_depth.get(&curr_id) {
+                if depth > prev_depth && curr_id != start_node_id {
+                    continue;
+                }
             }
+            best_depth.insert(curr_id.clone(), depth);
 
             let mut neighbors = Vec::new();
             let kinds = [EdgeKind::Dependency, EdgeKind::Contains, EdgeKind::SqlCalls];
@@ -1333,7 +1361,6 @@ impl GraphStore {
                 neighbors.extend(out.into_iter().map(|(id, _)| id));
             }
 
-            // Deduplicate and limit branching to prevent exponential expansion
             neighbors.sort();
             neighbors.dedup();
             neighbors.truncate(MAX_BRANCHING);
@@ -1355,17 +1382,25 @@ impl GraphStore {
                                     == Some(name)
                             }) {
                                 next_id = best.node_id.clone();
-                            } else {
+                            } else if candidates.len() == 1 {
                                 next_id = candidates[0].node_id.clone();
                             }
-                        } else {
+                        } else if candidates.len() == 1 {
                             next_id = candidates[0].node_id.clone();
                         }
                     }
                 }
 
-                if !visited.contains(&next_id) || next_id.starts_with("sql:") {
-                    queue.push_back((next_id, path_ids.clone()));
+                // Allow SQL nodes even if in path (they are terminals).
+                let in_path = bfs_path_contains(&entries, entry_idx, &next_id)
+                    || entries[entry_idx].node_id == next_id;
+                if !in_path || next_id.starts_with("sql:") {
+                    let new_idx = entries.len();
+                    entries.push(BfsEntryOuter {
+                        node_id: next_id,
+                        parent_idx: Some(entry_idx),
+                    });
+                    queue.push_back(new_idx);
                 }
             }
         }
@@ -1385,17 +1420,15 @@ impl GraphStore {
         Ok(results)
     }
 
-    /// Multi-hop BFS traversal from a start node.
-    ///
-    /// `MAX_BFS_RESULTS` bounds total output to prevent memory explosion on
-    /// highly connected graphs.
+    // ── Traverse ─────────────────────────────────────────────────────────────
+
     pub fn traverse(
         &self,
         project_id: &str,
         start_node_id: &str,
         max_hops: usize,
         edge_kinds: Option<Vec<EdgeKind>>,
-        direction: &str, // "in", "out", "both"
+        direction: &str,
     ) -> anyhow::Result<Vec<(Node, usize)>> {
         use std::collections::{HashSet, VecDeque};
 
@@ -1424,7 +1457,6 @@ impl GraphStore {
 
             let mut neighbors = Vec::new();
 
-            // Incoming
             if direction == "in" || direction == "both" {
                 if let Some(ref kinds) = edge_kinds {
                     for k in kinds {
@@ -1438,7 +1470,6 @@ impl GraphStore {
                 }
             }
 
-            // Outgoing
             if direction == "out" || direction == "both" {
                 if let Some(ref kinds) = edge_kinds {
                     for k in kinds {
@@ -1446,7 +1477,6 @@ impl GraphStore {
                         neighbors.extend(out.into_iter().map(|(id, _)| id));
                     }
                 } else {
-                    // If no kinds specified for outgoing, iterate all known EdgeKinds.
                     for k in EdgeKind::ALL.iter().cloned() {
                         let out = self.neighbors(project_id, k, &curr_id, 100)?;
                         neighbors.extend(out.into_iter().map(|(id, _)| id));
@@ -1454,25 +1484,18 @@ impl GraphStore {
                 }
             }
 
-            // Deduplicate and limit branching factor to prevent exponential expansion
             neighbors.sort();
             neighbors.dedup();
             neighbors.truncate(MAX_BRANCHING_FACTOR);
 
             for mut next_id in neighbors {
                 if next_id.starts_with("::") {
-                    // Try to resolve it using the same logic as resolve_symbol_edges (simplified)
                     let name = &next_id[2..];
                     let short_name = name.split('.').next_back().unwrap_or(name);
-
-                    // We'll need name_to_targets here too if we want full robustness,
-                    // but for a traversal, maybe we can just query the graph for nodes with this name.
-                    // For performance in BFS, let's just use the query_nodes method (which is indexed).
                     if let Ok(candidates) =
                         self.query_nodes(project_id, None, Some(short_name), None, 5)
                         && !candidates.is_empty()
                     {
-                        // Prefer one with matching FQN if name is FQN
                         if name.contains('.') {
                             if let Some(best) = candidates.iter().find(|n| {
                                 n.metadata
@@ -1501,13 +1524,12 @@ impl GraphStore {
         Ok(results)
     }
 
-    /// Post-processing step to link unresolved "::name" edges to real nodes.
-    /// Prefers targets in the same file and same language.
+    // ── Resolve symbol edges ─────────────────────────────────────────────────
+
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
 
         // 1. Collect all potential targets (classes/functions)
-        // Map: name -> Vec<(node_id, file_path, language, metadata)>
         let mut name_to_targets: TargetMap = HashMap::new();
         let rtx = self.db.begin_read()?;
         let nt = rtx.open_table(NODES)?;
@@ -1516,17 +1538,14 @@ impl GraphStore {
             if !k.value().starts_with(&prefix) {
                 break;
             }
-            let n: Node = serde_json::from_slice(v.value())?;
-            // We favor functions/classes over chunks
+            let n: Node = bincode::deserialize(v.value())?;
             if n.node_type == "function" || n.node_type == "class" {
-                // Index by short name
                 name_to_targets.entry(n.name.clone()).or_default().push((
                     n.node_id.clone(),
                     n.file_path.clone(),
                     n.language.clone(),
                     n.metadata.clone(),
                 ));
-                // Index by FQN if present
                 if let Some(fqn) = n
                     .metadata
                     .as_ref()
@@ -1557,23 +1576,19 @@ impl GraphStore {
                 if !k.value().starts_with(&prefix) {
                     break;
                 }
-                let e: Edge = serde_json::from_slice(v.value())?;
+                let e: Edge = bincode::deserialize(v.value())?;
 
                 if e.target_id.starts_with("::") {
                     let name = &e.target_id[2..];
-
-                    // If name is an FQN, the last segment is the short name
                     let short_name = name.split('.').next_back().unwrap_or(name);
 
                     if let Some(targets) = name_to_targets.get(short_name) {
-                        // specialized: check if edge has FQN metadata
                         let edge_fqn = e
                             .metadata
                             .as_ref()
                             .and_then(|m| m.get("fqn"))
                             .and_then(|v| v.as_str());
 
-                        // Also check if the 'name' itself looks like an FQN
                         let target_fqn = if name.contains('.') {
                             Some(name)
                         } else {
@@ -1583,7 +1598,6 @@ impl GraphStore {
                         let mut target_node_id = None;
 
                         if let Some(fqn) = target_fqn {
-                            // Find target that matches this FQN exactly in its own metadata
                             target_node_id = targets
                                 .iter()
                                 .find(|(_, _, _, meta)| {
@@ -1596,31 +1610,29 @@ impl GraphStore {
                         }
 
                         if target_node_id.is_none() {
-                            // Fall back to existing heuristics
                             let source_key = format!("{project_id}\0{}", e.source_id);
                             let source_node: Option<Node> = nt
                                 .get(source_key.as_str())?
-                                .and_then(|v| serde_json::from_slice(v.value()).ok());
+                                .and_then(|v| bincode::deserialize(v.value()).ok());
 
                             target_node_id = if let Some(sn) = source_node {
-                                // 1. Same file?
                                 if let Some(t) =
                                     targets.iter().find(|(_, p, _, _)| *p == sn.file_path)
                                 {
                                     Some(t.0.clone())
-                                }
-                                // 2. Same language?
-                                else if let Some(t) =
+                                } else if let Some(t) =
                                     targets.iter().find(|(_, _, lang, _)| *lang == sn.language)
                                 {
                                     Some(t.0.clone())
+                                } else if targets.len() == 1 {
+                                    Some(targets[0].0.clone())
+                                } else {
+                                    None
                                 }
-                                // 3. Just first one
-                                else {
-                                    targets.first().map(|t| t.0.clone())
-                                }
+                            } else if targets.len() == 1 {
+                                Some(targets[0].0.clone())
                             } else {
-                                targets.first().map(|t| t.0.clone())
+                                None
                             };
                         }
 
@@ -1638,50 +1650,43 @@ impl GraphStore {
             let now = now_ms();
 
             for (old_key, new_edge) in updates {
-                // Remove old edge
                 et.remove(old_key.as_str())?;
 
-                // Remove stale adjacency entries for the old (unresolved) target
                 // Parse old key: "project\0kind\0source\0old_target"
                 let old_parts: Vec<&str> = old_key.splitn(4, '\0').collect();
                 if old_parts.len() == 4 {
                     let old_target = old_parts[3];
-                    let old_out_key = adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
-                    let mut out_list = read_adj_list(&adj_out_t, &old_out_key)?;
-                    out_list.retain(|e| e.id != old_target);
-                    upsert_adj_entry(&mut out_list, &new_edge.target_id, new_edge.weight, now);
+
+                    // Remove old adjacency entries (O(1) point deletes).
+                    let out_prefix =
+                        adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
+                    adj_out_t.remove((out_prefix.as_str(), old_target))?;
+
+                    let old_in_prefix = adj_key(project_id, &new_edge.edge_kind, old_target);
+                    adj_in_t.remove((old_in_prefix.as_str(), new_edge.source_id.as_str()))?;
+
+                    // Insert new adjacency entries.
+                    let adj_val = encode_adj_value(new_edge.weight, now);
                     adj_out_t.insert(
-                        old_out_key.as_str(),
-                        serde_json::to_vec(&out_list)?.as_slice(),
+                        (out_prefix.as_str(), new_edge.target_id.as_str()),
+                        adj_val.as_slice(),
                     )?;
 
-                    let old_in_key = adj_key(project_id, &new_edge.edge_kind, old_target);
-                    let mut in_list = read_adj_list(&adj_in_t, &old_in_key)?;
-                    in_list.retain(|e| e.id != new_edge.source_id);
-                    if !in_list.is_empty() {
-                        adj_in_t.insert(
-                            old_in_key.as_str(),
-                            serde_json::to_vec(&in_list)?.as_slice(),
-                        )?;
-                    }
-
-                    let new_in_key = adj_key(project_id, &new_edge.edge_kind, &new_edge.target_id);
-                    let mut new_in_list = read_adj_list(&adj_in_t, &new_in_key)?;
-                    upsert_adj_entry(&mut new_in_list, &new_edge.source_id, new_edge.weight, now);
+                    let new_in_prefix =
+                        adj_key(project_id, &new_edge.edge_kind, &new_edge.target_id);
                     adj_in_t.insert(
-                        new_in_key.as_str(),
-                        serde_json::to_vec(&new_in_list)?.as_slice(),
+                        (new_in_prefix.as_str(), new_edge.source_id.as_str()),
+                        adj_val.as_slice(),
                     )?;
                 }
 
-                // Insert new edge
                 let new_key = edge_key(
                     project_id,
                     &new_edge.edge_kind,
                     &new_edge.source_id,
                     &new_edge.target_id,
                 );
-                let val = serde_json::to_vec(&new_edge)?;
+                let val = bincode::serialize(&new_edge)?;
                 et.insert(new_key.as_str(), val.as_slice())?;
                 resolved_count += 1;
             }
@@ -1692,11 +1697,25 @@ impl GraphStore {
     }
 }
 
+// ─── Free functions ──────────────────────────────────────────────────────────
+
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
+}
+
+/// Validate that a key component does not contain the NUL byte separator.
+fn validate_key_component(name: &str, value: &str) -> anyhow::Result<()> {
+    if value.contains('\0') {
+        anyhow::bail!(
+            "Graph store key component '{name}' contains NUL byte — this would \
+             corrupt composite keys. Value (truncated): {:?}",
+            &value[..value.len().min(80)]
+        );
+    }
+    Ok(())
 }
 
 fn edge_key(project_id: &str, kind: &EdgeKind, source_id: &str, target_id: &str) -> String {
@@ -1707,35 +1726,202 @@ fn adj_key(project_id: &str, kind: &EdgeKind, node_id: &str) -> String {
     format!("{project_id}\0{}\0{node_id}", kind.as_str())
 }
 
-fn read_adj_list<T: redb::ReadableTable<&'static str, &'static [u8]>>(
-    table: &T,
-    key: &str,
-) -> anyhow::Result<Vec<AdjEntry>> {
-    match table.get(key)? {
-        Some(v) => Ok(serde_json::from_slice(v.value()).unwrap_or_default()),
-        None => Ok(Vec::new()),
+/// Case-insensitive ASCII substring check without heap allocation.
+fn contains_case_insensitive(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    let needle_bytes = needle.as_bytes();
+    let haystack_bytes = haystack.as_bytes();
+    if needle_bytes.len() > haystack_bytes.len() {
+        return false;
+    }
+    haystack_bytes
+        .windows(needle_bytes.len())
+        .any(|window| window.eq_ignore_ascii_case(needle_bytes))
+}
+
+/// Case-insensitive ASCII substring check with backslash → forward-slash
+/// normalization, without heap allocation.
+fn contains_case_insensitive_path(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    let needle_bytes = needle.as_bytes();
+    let haystack_bytes = haystack.as_bytes();
+    if needle_bytes.len() > haystack_bytes.len() {
+        return false;
+    }
+    haystack_bytes
+        .windows(needle_bytes.len())
+        .any(|window| {
+            window.iter().zip(needle_bytes.iter()).all(|(&h, &n)| {
+                let h_norm = if h == b'\\' { b'/' } else { h };
+                h_norm.eq_ignore_ascii_case(&n)
+            })
+        })
+}
+
+// ─── BFS helpers for find_ui_paths ───────────────────────────────────────────
+
+struct BfsEntryOuter {
+    node_id: String,
+    parent_idx: Option<usize>,
+}
+
+/// Walk up the parent chain to compute depth (distance from root).
+fn bfs_depth(entries: &[impl AsBfsEntry], idx: usize) -> usize {
+    let mut d = 0;
+    let mut current = entries[idx].parent();
+    while let Some(pidx) = current {
+        d += 1;
+        current = entries[pidx].parent();
+    }
+    d
+}
+
+/// Check if `target_id` appears anywhere in the ancestor chain (excluding self).
+fn bfs_path_contains(entries: &[impl AsBfsEntry], idx: usize, target: &str) -> bool {
+    let mut current = entries[idx].parent();
+    while let Some(i) = current {
+        if entries[i].node_id_ref() == target {
+            return true;
+        }
+        current = entries[i].parent();
+    }
+    false
+}
+
+/// Reconstruct the full path from root to `idx` by walking the parent chain.
+fn bfs_reconstruct_path(entries: &[impl AsBfsEntry], idx: usize) -> Vec<String> {
+    let mut path = Vec::new();
+    let mut current = Some(idx);
+    while let Some(i) = current {
+        path.push(entries[i].node_id_ref().to_string());
+        current = entries[i].parent();
+    }
+    path.reverse();
+    path
+}
+
+trait AsBfsEntry {
+    fn node_id_ref(&self) -> &str;
+    fn parent(&self) -> Option<usize>;
+}
+
+impl AsBfsEntry for BfsEntryOuter {
+    fn node_id_ref(&self) -> &str {
+        &self.node_id
+    }
+    fn parent(&self) -> Option<usize> {
+        self.parent_idx
     }
 }
 
-fn read_adj_list_ro(
-    table: &redb::ReadOnlyTable<&str, &[u8]>,
-    key: &str,
-) -> anyhow::Result<Vec<AdjEntry>> {
-    match table.get(key)? {
-        Some(v) => Ok(serde_json::from_slice(v.value()).unwrap_or_default()),
-        None => Ok(Vec::new()),
-    }
-}
+// ─── Tests ───────────────────────────────────────────────────────────────────
 
-fn upsert_adj_entry(list: &mut Vec<AdjEntry>, id: &str, weight: u32, updated_at_ms: u64) {
-    if let Some(e) = list.iter_mut().find(|e| e.id == id) {
-        e.weight = weight;
-        e.updated_at_ms = updated_at_ms;
-    } else {
-        list.push(AdjEntry {
-            id: id.to_string(),
-            weight,
-            updated_at_ms,
-        });
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn edge_kind_all_is_exhaustive() {
+        let all_set: std::collections::HashSet<&EdgeKind> = EdgeKind::ALL.iter().collect();
+
+        let check_variant = |ek: EdgeKind| -> bool {
+            match ek {
+                EdgeKind::CoOccurrence
+                | EdgeKind::TemporalCoupling
+                | EdgeKind::Insight
+                | EdgeKind::Dependency
+                | EdgeKind::AntiPattern
+                | EdgeKind::Contains
+                | EdgeKind::Imports
+                | EdgeKind::SqlCalls
+                | EdgeKind::HasColumn
+                | EdgeKind::ForeignKey
+                | EdgeKind::QueriesTable
+                | EdgeKind::ReadsState
+                | EdgeKind::WritesState
+                | EdgeKind::DataBinding
+                | EdgeKind::RegistersControl
+                | EdgeKind::IncludesFile
+                | EdgeKind::UnresolvedStateRead
+                | EdgeKind::UnresolvedStateWrite
+                | EdgeKind::ExposesWebService
+                | EdgeKind::ExposesHttpHandler
+                | EdgeKind::ExposesWcfService
+                | EdgeKind::ContainsUi
+                | EdgeKind::UiLayoutNeighbor
+                | EdgeKind::ReadsColumn
+                | EdgeKind::RegistersModule
+                | EdgeKind::RegistersHandler
+                | EdgeKind::ManipulatesDom
+                | EdgeKind::TriggersPostback
+                | EdgeKind::ApiCall => all_set.contains(&ek),
+            }
+        };
+
+        for ek in EdgeKind::ALL {
+            assert!(
+                check_variant(ek.clone()),
+                "EdgeKind::{:?} is in ALL but not in the exhaustive match — update the test",
+                ek
+            );
+        }
+
+        let variant_count = 29;
+        assert_eq!(
+            EdgeKind::ALL.len(),
+            variant_count,
+            "EdgeKind::ALL length mismatch — a variant was added to the enum \
+             but not to EdgeKind::ALL or this test"
+        );
+    }
+
+    #[test]
+    fn edge_kind_as_str_parse_roundtrip() {
+        for ek in EdgeKind::ALL {
+            let s = ek.as_str();
+            let parsed = EdgeKind::parse(s);
+            assert_eq!(
+                parsed.as_ref(),
+                Some(ek),
+                "as_str/parse roundtrip failed for {:?} -> {:?}",
+                ek,
+                s
+            );
+        }
+    }
+
+    #[test]
+    fn validate_key_component_rejects_nul() {
+        assert!(validate_key_component("test", "good_value").is_ok());
+        assert!(validate_key_component("test", "bad\0value").is_err());
+        assert!(validate_key_component("test", "\0").is_err());
+    }
+
+    #[test]
+    fn case_insensitive_search() {
+        assert!(contains_case_insensitive("FooBar", "oob"));
+        assert!(contains_case_insensitive("FooBar", "OOB"));
+        assert!(contains_case_insensitive("FooBar", "foobar"));
+        assert!(!contains_case_insensitive("FooBar", "baz"));
+        assert!(contains_case_insensitive("anything", ""));
+    }
+
+    #[test]
+    fn case_insensitive_path_normalizes_backslash() {
+        assert!(contains_case_insensitive_path("src\\main\\App.cs", "src/main"));
+        assert!(contains_case_insensitive_path("src/main/App.cs", "src/main"));
+        assert!(contains_case_insensitive_path("SRC\\Main\\APP.CS", "src/main/app.cs"));
+    }
+
+    #[test]
+    fn adj_value_roundtrip() {
+        let encoded = encode_adj_value(42, 1234567890123);
+        let (w, ts) = decode_adj_value(&encoded);
+        assert_eq!(w, 42);
+        assert_eq!(ts, 1234567890123);
     }
 }

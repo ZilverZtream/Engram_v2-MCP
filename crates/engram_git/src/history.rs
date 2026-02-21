@@ -223,7 +223,9 @@ impl GitWalker {
         let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
 
         let mut current_path: Option<RelPath> = None;
-        let mut buf = String::new();
+        // Pre-allocate buffer to avoid repeated reallocations as diff lines
+        // are appended. Cap at 256 KiB to avoid over-reserving for huge limits.
+        let mut buf = String::with_capacity(max_bytes.min(256 * 1024));
         let mut out: Vec<(RelPath, String)> = Vec::new();
 
         diff.print(DiffFormat::Patch, |delta, hunk, line| {
@@ -231,20 +233,26 @@ impl GitWalker {
             let p = p.map(|x| RelPath::new(&x.to_string_lossy()));
             if p != current_path {
                 if let Some(cp) = current_path.take() {
-                    out.push((cp, std::mem::take(&mut buf)));
+                    let done = std::mem::take(&mut buf);
+                    out.push((cp, done));
+                    // Reserve for the next file's diff output.
+                    buf.reserve(max_bytes.min(256 * 1024));
                 }
                 current_path = p;
             }
 
             if let Some(h) = hunk {
-                // hunk header is useful context
-                buf.push_str(&format!(
+                // Write hunk header directly into buf (avoids intermediate
+                // String allocation from format!()).
+                use std::fmt::Write;
+                let _ = write!(
+                    buf,
                     "@@ -{},{} +{},{} @@\n",
                     h.old_start(),
                     h.old_lines(),
                     h.new_start(),
                     h.new_lines()
-                ));
+                );
             }
 
             if buf.len() < max_bytes

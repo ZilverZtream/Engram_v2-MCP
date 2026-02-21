@@ -231,6 +231,23 @@ pub fn create_record_batch_with_gens(
             .collect::<Vec<_>>(),
     );
 
+    // Validate that all vectors match the expected dimension. Log a warning for
+    // any mismatches (which get silently padded/truncated to `dim`). A persistent
+    // mismatch indicates a misconfigured embedder and will degrade search quality.
+    let mismatch_count = vectors.iter().filter(|v| v.len() != dim).count();
+    if mismatch_count > 0 {
+        tracing::warn!(
+            expected_dim = dim,
+            mismatched = mismatch_count,
+            total = vectors.len(),
+            "Vector dimension mismatch detected — {} of {} vectors have incorrect \
+             dimension. Vectors will be padded/truncated to {}. Check embedder config.",
+            mismatch_count,
+            vectors.len(),
+            dim
+        );
+    }
+
     // Parallelize vector flattening; truncate/pad to `dim` to match the schema.
     let flat_vectors: Vec<f32> = vectors
         .par_iter()

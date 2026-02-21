@@ -797,8 +797,7 @@ async fn test_gc_preserves_global_namespaces() {
             .await
             .unwrap();
 
-        let mut map = state.projects.write().await;
-        let ps = map.get_mut(project_id).unwrap();
+        let ps = state.projects.get(project_id).unwrap();
         ps.search
             .purge_old_generations(project_id, 2)
             .await
@@ -2284,8 +2283,7 @@ async fn test_dream_project() {
 
     {
         let cancel = tokio_util::sync::CancellationToken::new();
-        let map = engram.state.projects.read().await;
-        let ps = map.get(project_id).unwrap();
+        let ps = engram.state.projects.get(project_id).unwrap();
         ps.search
             .index_docs(project_id, &index_docs, &cancel)
             .await
@@ -2870,8 +2868,7 @@ async fn test_dream_immune_integration() {
             end_line: 0,
         };
         let cancel = tokio_util::sync::CancellationToken::new();
-        let map = engram.state.projects.read().await;
-        let ps = map.get(project_id).unwrap();
+        let ps = engram.state.projects.get(project_id).unwrap();
         ps.search
             .index_docs(project_id, &[ap_doc], &cancel)
             .await
@@ -2921,8 +2918,7 @@ async fn test_dream_immune_integration() {
 
     {
         let cancel = tokio_util::sync::CancellationToken::new();
-        let map = engram.state.projects.read().await;
-        let ps = map.get(project_id).unwrap();
+        let ps = engram.state.projects.get(project_id).unwrap();
         ps.search
             .index_docs(project_id, &index_docs, &cancel)
             .await
@@ -3438,8 +3434,7 @@ async fn test_gc_policy_preservation() {
             }))
             .await;
 
-        let mut map = state.projects.write().await;
-        let ps = map.get_mut(project_id).unwrap();
+        let ps = state.projects.get(project_id).unwrap();
         ps.search
             .purge_old_generations(project_id, 3)
             .await
@@ -4547,7 +4542,7 @@ async fn test_insight_deduplication() {
 
     {
         let cancel = tokio_util::sync::CancellationToken::new();
-        let ps = state.get_project_cached(&project_id).await.unwrap();
+        let ps = state.get_project_cached(&project_id).unwrap();
         ps.search
             .index_docs(&project_id, &index_docs, &cancel)
             .await
