@@ -7,6 +7,7 @@
 //! - **Compatibility adapters**: Template adapter patterns for legacy/modern interop
 //! - **Rollback playbooks**: Generate rollback procedures for each wave
 
+use engram_index::solution_parser::{self, SolutionStructure};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -263,6 +264,8 @@ pub struct PlanInput {
     pub database_files: Vec<String>,
     /// Current timestamp.
     pub timestamp_ms: u64,
+    /// Phase 31: Optional parsed solution structure for project-aware wave planning.
+    pub solution_structure: Option<SolutionStructure>,
 }
 
 pub struct BoundaryCluster {
@@ -489,6 +492,30 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
             })
             .sum();
 
+        // Phase 31: Resolve project scope and cross-project deps from solution structure
+        let (project_scope, cross_project_deps) = if let Some(ref sln) = input.solution_structure {
+            // Determine which project this cluster's files belong to
+            let scope = cluster
+                .files
+                .first()
+                .and_then(|f| solution_parser::file_to_project(sln, f))
+                .map(|s| s.to_string());
+
+            // Find cross-project dependencies: projects this cluster depends on
+            let cross_deps = if let Some(ref scope_name) = scope {
+                sln.dependency_graph
+                    .get(scope_name)
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            };
+
+            (scope, cross_deps)
+        } else {
+            (Some(cluster.name.clone()), vec![])
+        };
+
         waves.push(MigrationWave {
             wave_number: wave_num,
             name: cluster.name.clone(),
@@ -499,8 +526,8 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
             adapters,
             risk_level: risk,
             estimated_effort: effort,
-            project_scope: Some(cluster.name.clone()),
-            cross_project_deps: vec![],
+            project_scope,
+            cross_project_deps,
         });
     }
 
@@ -849,6 +876,7 @@ mod tests {
             global_state_files: vec![],
             database_files: vec![],
             timestamp_ms: 1234567890,
+            solution_structure: None,
         };
 
         let plan = generate_migration_plan(&input);
@@ -872,6 +900,7 @@ mod tests {
             global_state_files: vec![],
             database_files: vec![],
             timestamp_ms: 1000,
+            solution_structure: None,
         };
 
         let plan = generate_migration_plan(&input);
@@ -916,5 +945,112 @@ mod tests {
         ];
         let order = topological_sort_clusters(&clusters, &edges);
         assert_eq!(order.len(), 2);
+    }
+
+    #[test]
+    fn solution_aware_waves_populate_project_scope_and_deps() {
+        use engram_index::solution_parser::build_solution_structure;
+
+        let sln_content = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebApp", "WebApp\WebApp.csproj", "{AAA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataLayer", "DataLayer\DataLayer.csproj", "{BBB}"
+EndProject
+"#;
+
+        let webapp_proj = r#"
+<Project>
+  <PropertyGroup>
+    <RootNamespace>MyWebApp</RootNamespace>
+    <AssemblyName>WebApp</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataLayer\DataLayer.csproj" />
+  </ItemGroup>
+</Project>"#;
+
+        let data_proj = r#"
+<Project>
+  <PropertyGroup>
+    <RootNamespace>DataLayer</RootNamespace>
+    <AssemblyName>DataLayer</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+  </PropertyGroup>
+</Project>"#;
+
+        let mut proj_files = std::collections::HashMap::new();
+        proj_files.insert("WebApp".to_string(), webapp_proj.to_string());
+        proj_files.insert("DataLayer".to_string(), data_proj.to_string());
+
+        let sln = build_solution_structure(sln_content, &proj_files);
+
+        let input = PlanInput {
+            project_id: "test".into(),
+            boundaries: vec![
+                BoundaryCluster {
+                    cluster_id: "c1".into(),
+                    name: "WebUI".into(),
+                    files: vec![
+                        "WebApp/Default.aspx".into(),
+                        "WebApp/Default.aspx.cs".into(),
+                    ],
+                    internal_edges: 3,
+                    shared_across: vec![],
+                },
+                BoundaryCluster {
+                    cluster_id: "c2".into(),
+                    name: "DataAccess".into(),
+                    files: vec![
+                        "DataLayer/UserRepository.cs".into(),
+                        "DataLayer/OrderRepository.cs".into(),
+                    ],
+                    internal_edges: 2,
+                    shared_across: vec![],
+                },
+            ],
+            cross_boundary_edges: vec![CrossBoundaryEdge {
+                source_cluster: "c1".into(),
+                target_cluster: "c2".into(),
+                source_file: "WebApp/Default.aspx.cs".into(),
+                target_file: "DataLayer/UserRepository.cs".into(),
+                edge_kind: "dependency".into(),
+            }],
+            global_state_files: vec![],
+            database_files: vec![],
+            timestamp_ms: 1000,
+            solution_structure: Some(sln),
+        };
+
+        let plan = generate_migration_plan(&input);
+
+        // Find the wave whose files are under WebApp/
+        let webapp_wave = plan.waves.iter().find(|w| {
+            w.items
+                .iter()
+                .any(|i| i.path.contains("WebApp/Default.aspx"))
+        });
+        assert!(webapp_wave.is_some(), "Should have a wave for WebApp files");
+
+        let wave = webapp_wave.unwrap();
+        // project_scope should be "WebApp" (resolved from file_to_project)
+        assert_eq!(wave.project_scope.as_deref(), Some("WebApp"));
+        // cross_project_deps should include DataLayer (WebApp references DataLayer)
+        assert!(
+            wave.cross_project_deps.contains(&"DataLayer".to_string()),
+            "WebApp wave should have DataLayer as cross-project dep"
+        );
+
+        // DataLayer wave should have no cross-project deps
+        let data_wave = plan.waves.iter().find(|w| {
+            w.items
+                .iter()
+                .any(|i| i.path.contains("DataLayer/UserRepository"))
+        });
+        assert!(data_wave.is_some());
+        assert!(
+            data_wave.unwrap().cross_project_deps.is_empty(),
+            "DataLayer should have no cross-project deps"
+        );
     }
 }
