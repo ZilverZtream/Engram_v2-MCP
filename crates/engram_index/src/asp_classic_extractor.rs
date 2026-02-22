@@ -87,11 +87,7 @@ fn get_compiled_regex<'a>(
 fn inline_block_regex() -> Option<&'static Regex> {
     // Note: Rust's `regex` crate does not support lookaheads, so we match all
     // <% ... %> blocks and filter out directive blocks (<%@ ... %>) after matching.
-    get_compiled_regex(
-        &INLINE_BLOCK_RE,
-        r"(?si)<%(.*?)%>",
-        "asp_inline_block",
-    )
+    get_compiled_regex(&INLINE_BLOCK_RE, r"(?si)<%(.*?)%>", "asp_inline_block")
 }
 
 fn script_runat_regex() -> Option<&'static Regex> {
@@ -264,11 +260,7 @@ pub fn extract_classic_asp(
 
 /// Extract VBScript `Sub`/`Function` definitions from `<% ... %>` and
 /// `<script runat="server">` blocks.
-fn extract_server_functions(
-    source: &str,
-    lines: &[&str],
-    symbols: &mut Vec<ExtractedSymbol>,
-) {
+fn extract_server_functions(source: &str, lines: &[&str], symbols: &mut Vec<ExtractedSymbol>) {
     let Some(func_re) = vbs_func_regex() else {
         return;
     };
@@ -364,7 +356,11 @@ fn extract_state_accesses(
                 let match_end = cap.get(0).map_or(0, |m| m.end());
                 let is_write = is_assignment_lhs_at(line, match_end);
 
-                let edge_kind = if is_write { "writes_state" } else { "reads_state" };
+                let edge_kind = if is_write {
+                    "writes_state"
+                } else {
+                    "reads_state"
+                };
                 let target = format!("state:{}:{}", store_type, key);
 
                 let mut meta = HashMap::with_capacity(2);
@@ -711,10 +707,7 @@ fn extract_includes(
             }
 
             let mut meta = HashMap::with_capacity(1);
-            meta.insert(
-                "include_type".to_string(),
-                include_type.to_lowercase(),
-            );
+            meta.insert("include_type".to_string(), include_type.to_lowercase());
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
@@ -935,10 +928,7 @@ userId = Session("UserId")
 %>"#;
         let (syms, edges) = extract_classic_asp(&rel("page.asp"), source);
 
-        let state_syms: Vec<_> = syms
-            .iter()
-            .filter(|s| s.kind == "global_state")
-            .collect();
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
         assert_eq!(state_syms.len(), 1);
         assert_eq!(state_syms[0].name, "Session:UserId");
 
@@ -962,10 +952,7 @@ Application("VisitorCount") = Application("VisitorCount") + 1
 %>"#;
         let (syms, edges) = extract_classic_asp(&rel("global.asp"), source);
 
-        let state_syms: Vec<_> = syms
-            .iter()
-            .filter(|s| s.kind == "global_state")
-            .collect();
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
         assert_eq!(state_syms.len(), 1, "dedup by (store, key)");
 
         // First occurrence is a write (LHS of =), second is a read.
@@ -1028,10 +1015,7 @@ Application("VisitorCount") = Application("VisitorCount") + 1
         let source = r#"<% Dim x : x = Session('UserName') %>"#;
         let (syms, edges) = extract_classic_asp(&rel("sq.asp"), source);
 
-        let state_syms: Vec<_> = syms
-            .iter()
-            .filter(|s| s.kind == "global_state")
-            .collect();
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
         assert_eq!(state_syms.len(), 1);
         assert_eq!(state_syms[0].name, "Session:UserName");
         assert_eq!(edges.len(), 1);
@@ -1169,10 +1153,7 @@ cmd.CommandText = "INSERT INTO Orders (customer_id, total) VALUES (1, 99.99)"
         let source = r#"<!--#include file="header.asp"-->"#;
         let (_, edges) = extract_classic_asp(&rel("page.asp"), source);
 
-        let includes: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "includes_file")
-            .collect();
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
         assert_eq!(includes.len(), 1);
         assert_eq!(includes[0].target_name, "header.asp");
 
@@ -1185,10 +1166,7 @@ cmd.CommandText = "INSERT INTO Orders (customer_id, total) VALUES (1, 99.99)"
         let source = r#"<!--#include virtual="/inc/footer.asp"-->"#;
         let (_, edges) = extract_classic_asp(&rel("page.asp"), source);
 
-        let includes: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "includes_file")
-            .collect();
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
         assert_eq!(includes.len(), 1);
         assert_eq!(includes[0].target_name, "/inc/footer.asp");
 
@@ -1203,10 +1181,7 @@ cmd.CommandText = "INSERT INTO Orders (customer_id, total) VALUES (1, 99.99)"
 <!--#include virtual="/inc/footer.asp"-->"#;
         let (_, edges) = extract_classic_asp(&rel("page.asp"), source);
 
-        let includes: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "includes_file")
-            .collect();
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
         assert_eq!(includes.len(), 2);
     }
 
@@ -1222,7 +1197,10 @@ cmd.CommandText = "INSERT INTO Orders (customer_id, total) VALUES (1, 99.99)"
             .find(|s| s.name == "classic_asp_file" && s.kind == "insight")
             .unwrap();
         let meta = insight.metadata.as_ref().unwrap();
-        assert_eq!(meta.get("uses_response_write").map(|s| s.as_str()), Some("true"));
+        assert_eq!(
+            meta.get("uses_response_write").map(|s| s.as_str()),
+            Some("true")
+        );
     }
 
     #[test]
@@ -1279,17 +1257,11 @@ End Sub
         assert!(funcs.iter().any(|f| f.name == "RenderPage"));
 
         // State
-        let state_syms: Vec<_> = syms
-            .iter()
-            .filter(|s| s.kind == "global_state")
-            .collect();
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
         assert!(state_syms.len() >= 3, "Session, QueryString, Cookies x2");
 
         // Includes
-        let includes: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "includes_file")
-            .collect();
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
         assert_eq!(includes.len(), 2);
 
         // COM insight
@@ -1317,12 +1289,12 @@ End Sub
         assert_eq!(deps[0].target_name, "login.asp");
 
         // Response.Write annotation
-        let insight = syms
-            .iter()
-            .find(|s| s.name == "classic_asp_file")
-            .unwrap();
+        let insight = syms.iter().find(|s| s.name == "classic_asp_file").unwrap();
         let meta = insight.metadata.as_ref().unwrap();
-        assert_eq!(meta.get("uses_response_write").map(|s| s.as_str()), Some("true"));
+        assert_eq!(
+            meta.get("uses_response_write").map(|s| s.as_str()),
+            Some("true")
+        );
     }
 
     // ── Edge cases ──
@@ -1346,10 +1318,7 @@ Session("Detected") = "yes"
 %>"#;
         let (syms, edges) = extract_classic_asp(&rel("comments.asp"), source);
 
-        let state_syms: Vec<_> = syms
-            .iter()
-            .filter(|s| s.kind == "global_state")
-            .collect();
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
         assert_eq!(state_syms.len(), 1, "only non-comment line detected");
         assert_eq!(state_syms[0].name, "Session:Detected");
 

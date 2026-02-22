@@ -219,7 +219,7 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
     // ── Feature 5: GIS / Spatial logic edges ─────────────────────────────
 
-    extract_google_maps(source, &line_starts, &file_name, &mut edges);
+    extract_google_maps(source, &line_starts, &file_name, &mut edges, &mut syms);
     extract_leaflet(source, &line_starts, &file_name, &mut edges);
     extract_openlayers(source, &line_starts, &file_name, &mut edges);
     extract_gis_configs(source, &line_starts, &file_name, &mut edges, &mut syms);
@@ -679,34 +679,172 @@ fn extract_google_maps(
     line_starts: &[usize],
     file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
+    syms: &mut Vec<ExtractedSymbol>,
 ) {
     let re = match get_compiled_regex(
         &GOOGLE_MAPS_RE,
-        r"(?i)new\s+google\.maps\.(?P<cls>LatLng|Map|Marker|InfoWindow|Geocoder|DirectionsService)\s*\(",
+        r"(?i)new\s+google\.maps\.(?P<cls>LatLng|LatLngBounds|Map|Marker|InfoWindow|Geocoder|DirectionsService|DirectionsRenderer|DistanceMatrixService|ElevationService|MaxZoomService|StreetViewPanorama|StreetViewService|places\.(?:Autocomplete|SearchBox|PlacesService)|visualization\.HeatmapLayer|KmlLayer|Data|OverlayView|Size|Point|Circle|Rectangle|Polygon|Polyline|GroundOverlay|ImageMapType)\s*\(",
         "google_maps",
     ) {
         Some(r) => r,
         None => return,
     };
 
+    let mut gmaps_classes: Vec<(String, u32)> = Vec::new();
+    let mut has_places = false;
+    let mut has_streetview = false;
+    let mut has_heatmap = false;
+    let mut has_kml = false;
+    let mut has_directions = false;
+    let mut has_distance_matrix = false;
+    let mut has_elevation = false;
+    let mut has_data_layer = false;
+    let mut has_drawing = false;
+
     for cap in re.captures_iter(source) {
         let m = cap.get(0).unwrap();
         let line = line_of(line_starts, m.start());
         let cls = cap.name("cls").unwrap().as_str();
         emit_spatial_edge(file_name, line, "google_maps", cls, edges);
+        gmaps_classes.push((cls.to_string(), line));
+
+        let cls_lower = cls.to_lowercase();
+        if cls_lower.contains("autocomplete")
+            || cls_lower.contains("searchbox")
+            || cls_lower.contains("placesservice")
+        {
+            has_places = true;
+        }
+        if cls_lower.contains("streetview") {
+            has_streetview = true;
+        }
+        if cls_lower.contains("heatmap") {
+            has_heatmap = true;
+        }
+        if cls_lower.contains("kml") {
+            has_kml = true;
+        }
+        if cls_lower.contains("directions") {
+            has_directions = true;
+        }
+        if cls_lower.contains("distancematrix") {
+            has_distance_matrix = true;
+        }
+        if cls_lower.contains("elevation") {
+            has_elevation = true;
+        }
+        if cls_lower == "data" {
+            has_data_layer = true;
+        }
     }
 
-    // Also detect google.maps.event.addListener pattern
+    // Detect google.maps.event.addListener pattern
     static GMAP_EVENT_RE: OnceLock<Regex> = OnceLock::new();
     if let Some(re) = get_compiled_regex(
         &GMAP_EVENT_RE,
-        r"(?i)google\.maps\.event\.(?:addListener|addListenerOnce)\s*\(",
+        r"(?i)google\.maps\.event\.(?:addListener|addListenerOnce|addDomListener|removeListener|trigger|clearListeners|clearInstanceListeners)\s*\(",
         "google_maps_event",
     ) {
         for m in re.find_iter(source) {
             let line = line_of(line_starts, m.start());
             emit_spatial_edge(file_name, line, "google_maps", "EventListener", edges);
         }
+    }
+
+    // Detect google.maps.drawing.DrawingManager
+    static GMAP_DRAWING_FULL_RE: OnceLock<Regex> = OnceLock::new();
+    if let Some(re) = get_compiled_regex(
+        &GMAP_DRAWING_FULL_RE,
+        r"(?i)google\.maps\.drawing\.(?:DrawingManager|OverlayType)",
+        "gmaps_drawing_full",
+    ) {
+        if re.is_match(source) {
+            has_drawing = true;
+        }
+    }
+
+    // Detect Maps JS API library loading parameters (places, drawing, visualization, geometry)
+    static GMAP_LIBRARIES_RE: OnceLock<Regex> = OnceLock::new();
+    if let Some(re) = get_compiled_regex(
+        &GMAP_LIBRARIES_RE,
+        r#"(?i)libraries\s*[:=]\s*['"](?P<libs>[^'"]+)['"]"#,
+        "gmaps_libraries",
+    ) {
+        if let Some(cap) = re.captures(source) {
+            let libs = cap.name("libs").map_or("", |m| m.as_str()).to_lowercase();
+            if libs.contains("places") {
+                has_places = true;
+            }
+            if libs.contains("drawing") {
+                has_drawing = true;
+            }
+            if libs.contains("visualization") {
+                has_heatmap = true;
+            }
+        }
+    }
+
+    // Detect google.maps.geometry.* (spherical, encoding, poly)
+    static GMAP_GEOMETRY_RE: OnceLock<Regex> = OnceLock::new();
+    let mut has_geometry = false;
+    if let Some(re) = get_compiled_regex(
+        &GMAP_GEOMETRY_RE,
+        r"(?i)google\.maps\.geometry\.(?:spherical|encoding|poly)\.\w+",
+        "gmaps_geometry",
+    ) {
+        if re.is_match(source) {
+            has_geometry = true;
+        }
+    }
+
+    // Emit detailed inventory if any Google Maps usage found
+    if !gmaps_classes.is_empty() {
+        let mut meta = HashMap::with_capacity(16);
+        meta.insert("library".into(), "google_maps".into());
+        meta.insert("class_count".into(), gmaps_classes.len().to_string());
+        meta.insert("has_places_api".into(), has_places.to_string());
+        meta.insert("has_streetview".into(), has_streetview.to_string());
+        meta.insert("has_heatmap".into(), has_heatmap.to_string());
+        meta.insert("has_kml".into(), has_kml.to_string());
+        meta.insert("has_directions".into(), has_directions.to_string());
+        meta.insert(
+            "has_distance_matrix".into(),
+            has_distance_matrix.to_string(),
+        );
+        meta.insert("has_elevation".into(), has_elevation.to_string());
+        meta.insert("has_data_layer".into(), has_data_layer.to_string());
+        meta.insert("has_drawing".into(), has_drawing.to_string());
+        meta.insert("has_geometry".into(), has_geometry.to_string());
+
+        // Migration guidance varies by feature usage
+        let complexity = if has_places || has_directions || has_streetview || has_heatmap {
+            "high"
+        } else if has_kml || has_data_layer || has_drawing {
+            "medium"
+        } else {
+            "low"
+        };
+        meta.insert("migration_complexity".into(), complexity.into());
+        meta.insert(
+            "modern_target_react".into(),
+            "@react-google-maps/api (or @vis.gl/react-google-maps)".into(),
+        );
+        meta.insert(
+            "modern_target_blazor".into(),
+            "BlazorGoogleMaps NuGet package".into(),
+        );
+        meta.insert(
+            "modern_target_angular".into(),
+            "@angular/google-maps".into(),
+        );
+
+        syms.push(ExtractedSymbol {
+            name: format!("google_maps_inventory:{}", file_name),
+            kind: "insight",
+            start_line: gmaps_classes.first().map_or(0, |(_, l)| *l),
+            end_line: gmaps_classes.last().map_or(0, |(_, l)| *l),
+            metadata: Some(meta),
+        });
     }
 }
 
@@ -1230,6 +1368,15 @@ fn extract_esri_arcgis(
     let mut has_rest_api = false;
     let mut has_feature_layer = false;
     let mut has_map_view = false;
+    let mut has_3d = false;
+    let mut has_widgets = false;
+    let mut has_geoprocessing = false;
+    let mut has_routing = false;
+    let mut has_editing = false;
+    let mut has_printing = false;
+    let mut has_portal = false;
+    let mut has_auth = false;
+    let mut has_geometry_service = false;
 
     // --- AMD module loading: require(["esri/Map", "esri/views/MapView", ...]) ---
     let re_amd = get_compiled_regex(
@@ -1244,11 +1391,42 @@ fn extract_esri_arcgis(
             let line = line_of(line_starts, m.start());
             esri_classes.push((module.to_string(), line));
 
-            if module.to_lowercase().contains("featurelayer") {
+            let mod_lower = module.to_lowercase();
+            if mod_lower.contains("featurelayer") {
                 has_feature_layer = true;
             }
-            if module.to_lowercase().contains("mapview") {
+            if mod_lower.contains("mapview") || mod_lower.contains("sceneview") {
                 has_map_view = true;
+            }
+            if mod_lower.contains("sceneview") || mod_lower.contains("webscene") {
+                has_3d = true;
+            }
+            if mod_lower.contains("widgets/") {
+                has_widgets = true;
+            }
+            if mod_lower.contains("geoprocessor") || mod_lower.contains("geoprocessing") {
+                has_geoprocessing = true;
+            }
+            if mod_lower.contains("route")
+                || mod_lower.contains("servicearea")
+                || mod_lower.contains("closestfacility")
+            {
+                has_routing = true;
+            }
+            if mod_lower.contains("editor") || mod_lower.contains("sketch") {
+                has_editing = true;
+            }
+            if mod_lower.contains("print") {
+                has_printing = true;
+            }
+            if mod_lower.contains("portal") {
+                has_portal = true;
+            }
+            if mod_lower.contains("identity") || mod_lower.contains("oauth") {
+                has_auth = true;
+            }
+            if mod_lower.contains("geometryservice") || mod_lower.contains("geometryengine") {
+                has_geometry_service = true;
             }
 
             emit_spatial_edge(file_name, line, "arcgis", module, edges);
@@ -1256,9 +1434,10 @@ fn extract_esri_arcgis(
     }
 
     // --- ES module style: new Map(), new MapView(), new FeatureLayer() ---
+    // Covers core classes, layers, widgets, tasks, geometry, and renderers
     let re_es = get_compiled_regex(
         &ESRI_ES_RE,
-        r"(?i)\bnew\s+(?P<cls>Map|MapView|SceneView|FeatureLayer|GraphicsLayer|TileLayer|VectorTileLayer|ImageryLayer|Graphic|Point|Polyline|Polygon|Extent|SpatialReference)\s*\(",
+        r"(?i)\bnew\s+(?P<cls>Map|WebMap|WebScene|MapView|SceneView|FeatureLayer|GraphicsLayer|TileLayer|VectorTileLayer|ImageryLayer|ImageryTileLayer|ElevationLayer|CSVLayer|GeoJSONLayer|WMSLayer|WMTSLayer|MapImageLayer|StreamLayer|GroupLayer|Graphic|Point|Polyline|Polygon|Extent|SpatialReference|Multipoint|Circle|Mesh|Search|Legend|LayerList|BasemapGallery|BasemapToggle|Expand|Home|Locate|Compass|ScaleBar|Print|Sketch|Editor|FeatureForm|FeatureTable|Popup|PopupTemplate|Swipe|TimeSlider|Bookmarks|DirectLineMeasurement3D|AreaMeasurement3D|Measurement|CoordinateConversion|IdentifyTask|FindTask|QueryTask|Geoprocessor|RouteTask|ServiceAreaTask|ClosestFacilityTask|PrintTask|Locator|GeometryService|SimpleRenderer|UniqueValueRenderer|ClassBreaksRenderer|HeatmapRenderer|DotDensityRenderer|SimpleMarkerSymbol|SimpleLineSymbol|SimpleFillSymbol|PictureMarkerSymbol|TextSymbol|Query|FeatureEffect|FeatureFilter|Portal|PortalItem|PortalQueryParams|OAuthInfo|IdentityManager)\s*\(",
         "esri_es",
     );
     if let Some(re) = re_es {
@@ -1268,11 +1447,76 @@ fn extract_esri_arcgis(
             let line = line_of(line_starts, m.start());
             esri_classes.push((cls.to_string(), line));
 
-            if cls.eq_ignore_ascii_case("FeatureLayer") {
+            let cls_lower = cls.to_lowercase();
+            if cls_lower == "featurelayer" {
                 has_feature_layer = true;
             }
-            if cls.eq_ignore_ascii_case("MapView") || cls.eq_ignore_ascii_case("SceneView") {
+            if cls_lower == "mapview" || cls_lower == "sceneview" {
                 has_map_view = true;
+            }
+            if cls_lower == "sceneview"
+                || cls_lower == "webscene"
+                || cls_lower.contains("3d")
+                || cls_lower == "mesh"
+            {
+                has_3d = true;
+            }
+            if matches!(
+                cls_lower.as_str(),
+                "search"
+                    | "legend"
+                    | "layerlist"
+                    | "basemapgallery"
+                    | "basemaptoggle"
+                    | "expand"
+                    | "home"
+                    | "locate"
+                    | "compass"
+                    | "scalebar"
+                    | "print"
+                    | "sketch"
+                    | "editor"
+                    | "featureform"
+                    | "featuretable"
+                    | "popup"
+                    | "popuptemplate"
+                    | "swipe"
+                    | "timeslider"
+                    | "bookmarks"
+                    | "measurement"
+                    | "coordinateconversion"
+            ) {
+                has_widgets = true;
+            }
+            if cls_lower == "geoprocessor" {
+                has_geoprocessing = true;
+            }
+            if cls_lower == "routetask"
+                || cls_lower == "serviceareatask"
+                || cls_lower == "closestfacilitytask"
+            {
+                has_routing = true;
+            }
+            if cls_lower == "editor" || cls_lower == "sketch" || cls_lower == "featureform" {
+                has_editing = true;
+            }
+            if cls_lower == "print" || cls_lower == "printtask" {
+                has_printing = true;
+            }
+            if cls_lower == "portal"
+                || cls_lower == "portalitem"
+                || cls_lower == "portalqueryparams"
+            {
+                has_portal = true;
+            }
+            if cls_lower == "oauthinfo" || cls_lower == "identitymanager" {
+                has_auth = true;
+            }
+            if cls_lower == "geometryservice"
+                || cls_lower == "identifytask"
+                || cls_lower == "findtask"
+            {
+                has_geometry_service = true;
             }
 
             emit_spatial_edge(file_name, line, "arcgis", cls, edges);
@@ -1351,15 +1595,9 @@ fn extract_esri_arcgis(
 
     // Emit summary insight if any ArcGIS patterns found
     if !esri_classes.is_empty() {
-        let api_style = if re_dojo
-            .and_then(|re| re.find(source))
-            .is_some()
-        {
+        let api_style = if re_dojo.and_then(|re| re.find(source)).is_some() {
             "dojo_legacy"
-        } else if re_amd
-            .and_then(|re| re.find(source))
-            .is_some()
-        {
+        } else if re_amd.and_then(|re| re.find(source)).is_some() {
             "amd"
         } else {
             "es_modules"
@@ -1371,16 +1609,35 @@ fn extract_esri_arcgis(
             _ => "Already modern - ensure @arcgis/core 4.x",
         };
 
-        let mut meta = HashMap::with_capacity(8);
+        // Determine migration complexity
+        let complexity = if has_geoprocessing || has_3d || has_routing || has_auth || has_portal {
+            "high"
+        } else if has_editing || has_printing || has_widgets || has_geometry_service {
+            "medium"
+        } else {
+            "low"
+        };
+
+        let mut meta = HashMap::with_capacity(20);
         meta.insert("library".into(), "arcgis".into());
         meta.insert("api_style".into(), api_style.into());
         meta.insert("has_feature_layer".into(), has_feature_layer.to_string());
         meta.insert("has_map_view".into(), has_map_view.to_string());
+        meta.insert("has_3d".into(), has_3d.to_string());
         meta.insert("has_rest_api".into(), has_rest_api.to_string());
+        meta.insert("has_widgets".into(), has_widgets.to_string());
+        meta.insert("has_geoprocessing".into(), has_geoprocessing.to_string());
+        meta.insert("has_routing".into(), has_routing.to_string());
+        meta.insert("has_editing".into(), has_editing.to_string());
+        meta.insert("has_printing".into(), has_printing.to_string());
+        meta.insert("has_portal".into(), has_portal.to_string());
+        meta.insert("has_auth".into(), has_auth.to_string());
         meta.insert(
-            "esri_class_count".into(),
-            esri_classes.len().to_string(),
+            "has_geometry_service".into(),
+            has_geometry_service.to_string(),
         );
+        meta.insert("esri_class_count".into(), esri_classes.len().to_string());
+        meta.insert("migration_complexity".into(), complexity.into());
         meta.insert("modern_equivalent".into(), modern_equiv.into());
         meta.insert(
             "modern_target_react".into(),

@@ -127,16 +127,17 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **JSON Audit Reports**: Immutable `AdpDecisionReport` with gate-by-gate evidence, config snapshots, and input replay data
 - **Benchmark CI**: GitHub Actions workflow running benchmark, ADP corpus, mutation, and reproducibility tests with 90-day artifact retention
 
-### End-to-End Migration Engine (Phase 30)
+### End-to-End Migration Engine (Phase 30 + 30a Hardening)
 
 - **Control Mapping Catalog**: 50-entry WebForms → modern UI control mapping with Blazor, React, and Angular targets, accessibility attributes, data binding patterns, and event equivalents
-- **Migration Scaffold Generator**: Produces full component skeletons for Blazor/React/Angular from graph context, including repository interfaces, DTOs, test scaffolds, and state key mapping
+- **Migration Scaffold Generator**: Produces full component code for Blazor/React/Angular with real business logic from graph edges (SQL→repository calls, state→get/set, navigation→routing), async/await conversion guidance, repository interfaces, DTOs, and test scaffolds
 - **Database Strategy Advisor**: Classifies data access patterns (inline SQL, stored proc, DataSet, DataReader, Entity Framework, LINQ-to-SQL), generates repository interfaces, and scores SQL injection risk
-- **Runtime Instrumentation Pipeline**: Generates injectable C# and VB.NET HttpModule code for runtime tracing (routes, session, SQL, postbacks, errors) with web.config entries, plus reconciliation of static graph paths against runtime evidence
+- **Runtime Instrumentation Pipeline**: Generates injectable C# and VB.NET HttpModule code for runtime tracing (routes, session, SQL, postbacks, errors) with web.config entries, auto-generated `InstrumentedSessionStateWrapper` (IHttpSessionState) and `InstrumentedDbCommand` (DbCommand with timing), plus reconciliation of static graph paths against runtime evidence
 - **State Migration Advisor**: Per-key state migration recommendations (Session, ViewState, Application, Cache, Cookie, QueryString, HiddenField) with access pattern analysis, ViewState lifecycle classification, and affinity grouping
-- **Characterization Test Generator**: Produces NUnit/xUnit/MSTest test classes covering event handlers, data flows, state transitions, navigation, and API contracts from graph analysis
-- **VB.NET Deep Extraction**: On Error/Resume Next, With blocks, late-binding CreateObject, My. namespace, ReDim Preserve
-- **GIS Deep Extraction**: Leaflet/Esri/ArcGIS layer inventory (WMS, GeoJSON, MarkerCluster, Draw, CRS), spatial API call detection
+- **Characterization Test Generator**: Produces executable NUnit/xUnit/MSTest test classes with TestPageFactory, MockHttpSession, TestDbFactory, MockResponseRecorder helper infrastructure covering event handlers, data flows, state transitions, navigation, and API contracts
+- **Strangler Fig Infrastructure Generator**: Complete incremental cutover infrastructure — YARP reverse proxy configuration, Microsoft.FeatureManagement per-page feature flags, routing middleware with percentage-based rollout and sticky session affinity, migration health check endpoint, Program.cs registration with Polly circuit breaker/retry, and CorrelationId middleware for cross-boundary tracing
+- **VB.NET Deep Extraction**: Nested With block stack, On Error GoTo label resolution (two-pass), CreateObject return value propagation with alias tracking, late-bound method call detection, My. namespace, ReDim Preserve
+- **GIS Deep Extraction**: 30+ Google Maps classes (Places, StreetView, Heatmap, KML, Directions, DistanceMatrix, Elevation, Geometry), 80+ Esri/ArcGIS ES module classes (widgets, tasks, renderers, geometry, portal, auth, 3D), migration complexity assessment
 - **Classic ASP Extractor**: 7 detection categories (COM objects, ADO, state access, SQL, navigation, includes, inline functions) with 31 tests
 - **Report Extractor**: SSRS (.rdlc/.rdl) and Crystal Reports detection with parameter, dataset, subreport, and table reference extraction
 - **Windows Service Detection**: ServiceBase/TopShelf/BackgroundService pattern recognition in graph topology
@@ -391,6 +392,7 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `reconcile_runtime_evidence` | Compare static graph paths (SQL calls, state access, dependencies, postbacks) against a runtime evidence batch and produce confirmed/contradicted/inconclusive report |
 | `suggest_state_migration` | Analyze state usage (Session, ViewState, Application, Cache, Cookie, QueryString) and produce per-key migration recommendations with ViewState lifecycle report |
 | `generate_characterization_tests` | Generate NUnit/xUnit/MSTest characterization test classes covering event handlers, data flows, state transitions, navigation, and API contracts |
+| `generate_strangler_fig_config` | Generate complete strangler fig migration infrastructure: YARP reverse proxy, feature flags, routing middleware with rollout and sticky sessions, health check, Program.cs with Polly resilience |
 
 ### Utilities
 

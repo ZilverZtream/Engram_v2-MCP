@@ -294,4 +294,8 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "generate_characterization_tests",
         status: CapabilityStatus::Implemented,
     },
+    CapabilityFlag {
+        key: "generate_strangler_fig_config",
+        status: CapabilityStatus::Implemented,
+    },
 ];

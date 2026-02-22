@@ -216,7 +216,6 @@ pub struct Config {
     pub adp_max_wave_items: usize,
 
     // ── Phase 30: Migration Engine ──────────────────────────────────────
-
     /// Default target stack for scaffold generation. "blazor", "react", or "angular".
     #[serde(default = "default_scaffold_target_stack")]
     pub scaffold_default_target_stack: String,

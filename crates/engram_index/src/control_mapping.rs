@@ -47,7 +47,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         angular_equivalent: "mat-table / ag-grid-angular",
         properties_map: &[
             ("DataSource", "Items / data prop"),
-            ("AutoGenerateColumns", "Column definitions via <PropertyColumn>"),
+            (
+                "AutoGenerateColumns",
+                "Column definitions via <PropertyColumn>",
+            ),
             ("AllowPaging", "Pagination component / paginator"),
             ("AllowSorting", "SortBy parameter / column sort config"),
             ("PageSize", "ItemsPerPage / pageSize prop"),
@@ -174,7 +177,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         ],
         event_map: &[
             ("TextChanged", "OnChange / onChange / (input) event"),
-            ("AutoPostBack", "Replaced by explicit change handler; no page reload"),
+            (
+                "AutoPostBack",
+                "Replaced by explicit change handler; no page reload",
+            ),
         ],
         data_binding_pattern: "@bind-Value for Blazor; value+onChange for React; [(ngModel)] for Angular",
         notes: "Low complexity. Direct mapping. TextMode=MultiLine becomes <textarea>; TextMode=Password becomes type='password'.",
@@ -192,9 +198,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("Items", "Options collection / <option> elements"),
             ("AppendDataBoundItems", "Merge static + dynamic options"),
         ],
-        event_map: &[
-            ("SelectedIndexChanged", "OnChange / onChange / (selectionChange)"),
-        ],
+        event_map: &[(
+            "SelectedIndexChanged",
+            "OnChange / onChange / (selectionChange)",
+        )],
         data_binding_pattern: "@bind-Value with <option> foreach; value+onChange for React; [(value)] for Angular",
         notes: "Low complexity. Map Items to <option> elements. AppendDataBoundItems requires merging static and data-bound options.",
     },
@@ -209,9 +216,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("Text", "Adjacent <label> element"),
             ("AutoPostBack", "Explicit change handler"),
         ],
-        event_map: &[
-            ("CheckedChanged", "OnChange / onChange / (change)"),
-        ],
+        event_map: &[("CheckedChanged", "OnChange / onChange / (change)")],
         data_binding_pattern: "@bind-Value for Blazor; checked+onChange for React; [(ngModel)] for Angular",
         notes: "Low complexity. Direct mapping. AutoPostBack removed; use explicit event handlers.",
     },
@@ -228,9 +233,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("RepeatDirection", "CSS flex-direction"),
             ("SelectedValue", "Array of selected values"),
         ],
-        event_map: &[
-            ("SelectedIndexChanged", "Per-checkbox onChange aggregated into state"),
-        ],
+        event_map: &[(
+            "SelectedIndexChanged",
+            "Per-checkbox onChange aggregated into state",
+        )],
         data_binding_pattern: "Maintain Set<string> of selected values; bind each checkbox to membership check",
         notes: "Low-medium complexity. No single-component equivalent; build from individual checkboxes with shared state.",
     },
@@ -245,9 +251,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("GroupName", "name attribute / InputRadioGroup Name"),
             ("Text", "Adjacent <label>"),
         ],
-        event_map: &[
-            ("CheckedChanged", "OnChange on radio group / onChange / (change)"),
-        ],
+        event_map: &[(
+            "CheckedChanged",
+            "OnChange on radio group / onChange / (change)",
+        )],
         data_binding_pattern: "@bind-Value on InputRadioGroup; name+value+onChange for React; [(ngModel)] on mat-radio-group",
         notes: "Low complexity. Must be placed inside a radio group construct in modern frameworks.",
     },
@@ -264,9 +271,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("DataValueField", "Value field"),
             ("RepeatDirection", "CSS flex-direction"),
         ],
-        event_map: &[
-            ("SelectedIndexChanged", "OnChange / onChange / (change)"),
-        ],
+        event_map: &[("SelectedIndexChanged", "OnChange / onChange / (change)")],
         data_binding_pattern: "Bind selected value to radio group; iterate options to create radio buttons",
         notes: "Low complexity. Maps naturally to radio group patterns in all frameworks.",
     },
@@ -300,9 +305,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("HasFile", "file !== null check"),
             ("AllowMultiple", "multiple attribute"),
         ],
-        event_map: &[
-            ("(no server event)", "OnChange / onChange / (change)"),
-        ],
+        event_map: &[("(no server event)", "OnChange / onChange / (change)")],
         data_binding_pattern: "Handle file via IBrowserFile stream (Blazor) or FormData (React/Angular); upload via HTTP POST",
         notes: "Medium complexity. WebForms PostedFile is server-side; modern equivalents are client-side with async upload.",
     },
@@ -318,7 +321,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         properties_map: &[
             ("Text", "Button text content / children"),
             ("CommandName", "Custom data attribute or handler parameter"),
-            ("CommandArgument", "Custom data attribute or handler parameter"),
+            (
+                "CommandArgument",
+                "Custom data attribute or handler parameter",
+            ),
             ("CausesValidation", "Form validation trigger configuration"),
             ("ValidationGroup", "EditContext or form group scope"),
         ],
@@ -358,9 +364,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("AlternateText", "alt attribute"),
             ("CommandName", "Handler parameter"),
         ],
-        event_map: &[
-            ("Click", "@onclick / onClick / (click) with coordinates"),
-        ],
+        event_map: &[("Click", "@onclick / onClick / (click) with coordinates")],
         data_binding_pattern: "No data binding; wire click handler",
         notes: "Low complexity. Rarely used. Replace with icon button or <button> containing an <img>.",
     },
@@ -390,13 +394,14 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         angular_equivalent: "mat-menu with mat-menu-item",
         properties_map: &[
             ("DataSource", "Menu items collection"),
-            ("Orientation", "CSS flex-direction / horizontal/vertical prop"),
+            (
+                "Orientation",
+                "CSS flex-direction / horizontal/vertical prop",
+            ),
             ("StaticDisplayLevels", "Visible depth configuration"),
             ("Items", "Recursive menu item collection"),
         ],
-        event_map: &[
-            ("MenuItemClick", "OnClick per menu item / (click) per item"),
-        ],
+        event_map: &[("MenuItemClick", "OnClick per menu item / (click) per item")],
         data_binding_pattern: "Bind hierarchical menu items to recursive component tree",
         notes: "Medium-high complexity. WebForms Menu supports declarative hierarchical structure and SiteMap binding. Modern equivalents require building recursive menu components.",
     },
@@ -413,8 +418,14 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("SelectedNode", "Selected node state"),
         ],
         event_map: &[
-            ("SelectedNodeChanged", "OnSelectedChanged / onNodeSelect / (selectionChange)"),
-            ("TreeNodeExpanded", "OnExpand / onNodeToggle / (expandedChange)"),
+            (
+                "SelectedNodeChanged",
+                "OnSelectedChanged / onNodeSelect / (selectionChange)",
+            ),
+            (
+                "TreeNodeExpanded",
+                "OnExpand / onNodeToggle / (expandedChange)",
+            ),
         ],
         data_binding_pattern: "Bind hierarchical data model to recursive tree component",
         notes: "High complexity. Recursive data binding with lazy loading, check state propagation, and selection management.",
@@ -476,9 +487,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("ActiveViewIndex", "Active tab/view state index"),
             ("Views", "Child view components"),
         ],
-        event_map: &[
-            ("ActiveViewChanged", "State change handler / (selectedTabChange)"),
-        ],
+        event_map: &[(
+            "ActiveViewChanged",
+            "State change handler / (selectedTabChange)",
+        )],
         data_binding_pattern: "Bind active index to state; render corresponding view conditionally",
         notes: "Low-medium complexity. Replace with tab component or conditional render based on active index state.",
     },
@@ -488,9 +500,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         blazor_equivalent: "RenderFragment / conditional block",
         react_equivalent: "Conditional JSX block",
         angular_equivalent: "ng-template with ngSwitchCase",
-        properties_map: &[
-            ("Visible", "Controlled by parent MultiView/tab state"),
-        ],
+        properties_map: &[("Visible", "Controlled by parent MultiView/tab state")],
         event_map: &[
             ("Activate", "Component mount / show lifecycle"),
             ("Deactivate", "Component unmount / hide lifecycle"),
@@ -562,9 +572,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("Interval", "Timer interval in milliseconds"),
             ("Enabled", "Start/stop timer state"),
         ],
-        event_map: &[
-            ("Tick", "Timer callback / subscription handler"),
-        ],
+        event_map: &[("Tick", "Timer callback / subscription handler")],
         data_binding_pattern: "Set up timer in component lifecycle; trigger state update on tick",
         notes: "Low-medium complexity. WebForms Timer triggers postback on interval. Replace with client-side timer that calls API and updates state.",
     },
@@ -575,7 +583,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         react_equivalent: "Loading state + spinner component / Suspense",
         angular_equivalent: "Loading indicator with *ngIf / HTTP interceptor spinner",
         properties_map: &[
-            ("AssociatedUpdatePanelID", "Loading state scoped to specific operation"),
+            (
+                "AssociatedUpdatePanelID",
+                "Loading state scoped to specific operation",
+            ),
             ("DisplayAfter", "CSS transition-delay or setTimeout"),
             ("ProgressTemplate", "Spinner/skeleton component template"),
         ],
@@ -593,7 +604,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         react_equivalent: "API call via fetch/axios + backend endpoint",
         angular_equivalent: "HttpClient service + backend API endpoint",
         properties_map: &[
-            ("ConnectionString", "appsettings.json connection string / env variable"),
+            (
+                "ConnectionString",
+                "appsettings.json connection string / env variable",
+            ),
             ("SelectCommand", "EF Core LINQ query / repository method"),
             ("InsertCommand", "Repository insert method / API POST"),
             ("UpdateCommand", "Repository update method / API PUT"),
@@ -638,9 +652,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("Where", "LINQ .Where() clause"),
             ("OrderBy", "LINQ .OrderBy() clause"),
         ],
-        event_map: &[
-            ("Selecting", "Pre-query filter application"),
-        ],
+        event_map: &[("Selecting", "Pre-query filter application")],
         data_binding_pattern: "Use EF Core LINQ directly in service; expose via API for SPA frameworks",
         notes: "Medium complexity. LINQ-to-SQL/EF patterns transfer well to EF Core. Markup-embedded queries must move to service layer.",
     },
@@ -656,9 +668,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("EntitySetName", "DbSet<T> property name"),
             ("Where", "LINQ Where clause"),
         ],
-        event_map: &[
-            ("QueryCreated", "IQueryable pipeline extension"),
-        ],
+        event_map: &[("QueryCreated", "IQueryable pipeline extension")],
         data_binding_pattern: "Use EF Core DbContext in service layer; expose via API endpoints",
         notes: "Medium complexity. Entity Framework already has a modern equivalent (EF Core). Connection/mapping configuration moves to DbContext OnModelCreating.",
     },
@@ -801,13 +811,14 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         angular_equivalent: "Custom ValidatorFn / AsyncValidatorFn",
         properties_map: &[
             ("ControlToValidate", "Field reference"),
-            ("ClientValidationFunction", "Client-side validation function"),
+            (
+                "ClientValidationFunction",
+                "Client-side validation function",
+            ),
             ("ValidateEmptyText", "Validate even when empty"),
             ("ErrorMessage", "Validation message"),
         ],
-        event_map: &[
-            ("ServerValidate", "Custom validation logic (server-side)"),
-        ],
+        event_map: &[("ServerValidate", "Custom validation logic (server-side)")],
         data_binding_pattern: "Implement custom validation attribute or inline validator function",
         notes: "Medium complexity. Server-side validation logic must be ported to validation attribute. Client-side function rewritten in framework's validation paradigm.",
     },
@@ -827,9 +838,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("DataTextField", "Option display field"),
             ("DataValueField", "Option value field"),
         ],
-        event_map: &[
-            ("SelectedIndexChanged", "OnChange / onChange / (selectionChange)"),
-        ],
+        event_map: &[(
+            "SelectedIndexChanged",
+            "OnChange / onChange / (selectionChange)",
+        )],
         data_binding_pattern: "Bind selected value(s) to state; populate options from collection",
         notes: "Low complexity. Similar to DropDownList but with visible rows and optional multi-select.",
     },
@@ -839,12 +851,8 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         blazor_equivalent: "Component state / [Parameter] / cascading value",
         react_equivalent: "useState / useRef / <input type='hidden'>",
         angular_equivalent: "Component property / <input type='hidden'>",
-        properties_map: &[
-            ("Value", "State variable / hidden input value"),
-        ],
-        event_map: &[
-            ("ValueChanged", "State change notification"),
-        ],
+        properties_map: &[("Value", "State variable / hidden input value")],
+        event_map: &[("ValueChanged", "State change notification")],
         data_binding_pattern: "Store value in component state; use hidden input only for form submission compatibility",
         notes: "Low complexity. Usually replaced by component state. Only use <input type='hidden'> when submitting to a traditional form endpoint.",
     },
@@ -900,8 +908,14 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         react_equivalent: "Conditional render based on auth context / ProtectedRoute",
         angular_equivalent: "*ngIf with auth service / route guard",
         properties_map: &[
-            ("AnonymousTemplate", "NotAuthorized render fragment / fallback"),
-            ("LoggedInTemplate", "Authorized render fragment / protected content"),
+            (
+                "AnonymousTemplate",
+                "NotAuthorized render fragment / fallback",
+            ),
+            (
+                "LoggedInTemplate",
+                "Authorized render fragment / protected content",
+            ),
             ("RoleGroups", "Policy-based authorization / role checks"),
         ],
         event_map: &[],
@@ -914,9 +928,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         blazor_equivalent: "@Body in layout / @RenderBody()",
         react_equivalent: "{children} / <Outlet> (react-router)",
         angular_equivalent: "<router-outlet> / <ng-content>",
-        properties_map: &[
-            ("ID", "Slot name / outlet name"),
-        ],
+        properties_map: &[("ID", "Slot name / outlet name")],
         event_map: &[],
         data_binding_pattern: "Define layout with @Body placeholder; pages specify layout via @layout directive",
         notes: "Low complexity. Master page ContentPlaceHolder maps to layout slot/outlet. Named placeholders map to named slots or sections.",
@@ -927,9 +939,7 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         blazor_equivalent: "@section / page body targeting layout",
         react_equivalent: "Component rendered into Outlet / children",
         angular_equivalent: "Component rendered into router-outlet / ng-content select",
-        properties_map: &[
-            ("ContentPlaceHolderID", "Section name / target slot"),
-        ],
+        properties_map: &[("ContentPlaceHolderID", "Section name / target slot")],
         event_map: &[],
         data_binding_pattern: "Page content automatically fills the corresponding layout placeholder",
         notes: "Low complexity. Content control fills a ContentPlaceHolder. Maps to layout section system.",
@@ -947,9 +957,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
             ("DataTextField", "Item text field"),
             ("DataValueField", "Item value field"),
         ],
-        event_map: &[
-            ("Click", "Per-item click handler (when DisplayMode=LinkButton)"),
-        ],
+        event_map: &[(
+            "Click",
+            "Per-item click handler (when DisplayMode=LinkButton)",
+        )],
         data_binding_pattern: "Iterate collection; render <li> per item with text or link content",
         notes: "Low complexity. Direct mapping to HTML list with iteration.",
     },
@@ -960,12 +971,13 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         react_equivalent: "Custom carousel/banner component with useEffect interval",
         angular_equivalent: "Custom component with RxJS timer for rotation",
         properties_map: &[
-            ("AdvertisementFile", "Ad configuration data source (JSON/API)"),
+            (
+                "AdvertisementFile",
+                "Ad configuration data source (JSON/API)",
+            ),
             ("KeywordFilter", "Filtering logic on ad data"),
         ],
-        event_map: &[
-            ("AdCreated", "OnAdChange / render callback"),
-        ],
+        event_map: &[("AdCreated", "OnAdChange / render callback")],
         data_binding_pattern: "Load ad data from API; rotate display on timer interval",
         notes: "Medium complexity. Rarely used. Replace with custom banner rotation or third-party ad SDK integration.",
     },
@@ -989,9 +1001,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         blazor_equivalent: "Component rendering (no output caching equivalent needed)",
         react_equivalent: "Dynamic component rendering",
         angular_equivalent: "Dynamic component with ViewContainerRef",
-        properties_map: &[
-            ("MethodName", "Component render method / dynamic content function"),
-        ],
+        properties_map: &[(
+            "MethodName",
+            "Component render method / dynamic content function",
+        )],
         event_map: &[],
         data_binding_pattern: "Render dynamic content inline; output caching concept does not apply to SPA frameworks",
         notes: "Low complexity. Substitution punches through output caching. Irrelevant in SPA architectures where rendering is client-side.",
@@ -1182,7 +1195,10 @@ mod tests {
     #[test]
     fn all_entries_have_required_fields() {
         for m in CONTROL_MAPPINGS {
-            assert!(!m.legacy_control.is_empty(), "legacy_control must not be empty");
+            assert!(
+                !m.legacy_control.is_empty(),
+                "legacy_control must not be empty"
+            );
             assert!(
                 !m.legacy_namespace.is_empty(),
                 "legacy_namespace must not be empty for {}",

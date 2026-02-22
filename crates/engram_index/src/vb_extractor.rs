@@ -872,18 +872,59 @@ fn extract_on_error_patterns(
         "err_object",
     );
 
+    // ── Pass 1: Scan for all VB labels (e.g. `ErrorHandler:`, `Cleanup:`, `0:`)
+    //    Labels are identifiers at the start of a line followed by a colon.
+    //    We build a map: label_name → line_number for GoTo resolution.
+    let mut label_lines: HashMap<String, u32> = HashMap::new();
+    {
+        let mut byte_off: usize = 0;
+        for line_text in source.lines() {
+            let ln = line_idx.line_of(byte_off);
+            let trimmed = line_text.trim();
+            // A VB label: identifier followed by `:` at end, not a keyword line
+            // Must not be inside a string literal or comment
+            if let Some(colon_pos) = trimmed.find(':') {
+                // Only consider if the colon is at the end of the first token
+                let before_colon = trimmed[..colon_pos].trim();
+                if !before_colon.is_empty()
+                    && before_colon
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_')
+                    && !before_colon.eq_ignore_ascii_case("Case")
+                    && !before_colon.eq_ignore_ascii_case("Default")
+                    && !before_colon.eq_ignore_ascii_case("Public")
+                    && !before_colon.eq_ignore_ascii_case("Private")
+                    && !before_colon.eq_ignore_ascii_case("Protected")
+                    && !before_colon.eq_ignore_ascii_case("Friend")
+                    && !before_colon.eq_ignore_ascii_case("Shared")
+                {
+                    // Check what follows the colon — if it's just whitespace or
+                    // more code, this is a label
+                    let after_colon = trimmed[colon_pos + 1..].trim();
+                    // A label line either has nothing after the colon or a comment
+                    if after_colon.is_empty()
+                        || after_colon.starts_with('\'')
+                        || after_colon.starts_with("REM")
+                    {
+                        label_lines.insert(before_colon.to_string(), ln);
+                    }
+                }
+            }
+            byte_off += line_text.len() + 1;
+        }
+    }
+
     // Track on-error regions: start → (pattern, scope_fqn)
     let mut resume_next_regions: Vec<(u32, u32, String)> = Vec::new();
     let mut current_resume_start: Option<(u32, usize)> = None;
+    // Track active GoTo label handlers: label → (goto_line, scope)
+    let mut active_goto_handlers: Vec<(String, u32, String)> = Vec::new();
 
-    for (byte_offset, line_text) in source
-        .lines()
-        .scan(0usize, |offset, line| {
-            let start = *offset;
-            *offset += line.len() + 1; // +1 for newline
-            Some((start, line))
-        })
-    {
+    for (byte_offset, line_text) in source.lines().scan(0usize, |offset, line| {
+        let start = *offset;
+        *offset += line.len() + 1; // +1 for newline
+        Some((start, line))
+    }) {
         let line_num = line_idx.line_of(byte_offset);
 
         // Detect On Error Resume Next
@@ -923,22 +964,26 @@ fn extract_on_error_patterns(
                 // On Error GoTo 0 ends resume-next region
                 if label == "0" || label == "-1" {
                     if let Some((start_line, _)) = current_resume_start.take() {
-                        let (src_name, _, _) =
-                            find_best_enclosing_scope(all_scopes, byte_offset);
-                        resume_next_regions.push((
-                            start_line,
-                            line_num,
-                            src_name.to_string(),
-                        ));
+                        let (src_name, _, _) = find_best_enclosing_scope(all_scopes, byte_offset);
+                        resume_next_regions.push((start_line, line_num, src_name.to_string()));
                     }
                 } else {
                     let (src_name, src_kind, src_line) =
                         find_best_enclosing_scope(all_scopes, byte_offset);
 
+                    // Resolve label to line number
+                    let resolved_line = label_lines.get(label).copied();
+
                     let mut meta = HashMap::new();
                     meta.insert("pattern".to_string(), "on_error_goto".to_string());
                     meta.insert("goto_label".to_string(), label.to_string());
                     meta.insert("line".to_string(), line_num.to_string());
+                    if let Some(target_line) = resolved_line {
+                        meta.insert("label_target_line".to_string(), target_line.to_string());
+                        meta.insert("label_resolved".to_string(), "true".to_string());
+                    } else {
+                        meta.insert("label_resolved".to_string(), "false".to_string());
+                    }
                     meta.insert(
                         "modern_equivalent".to_string(),
                         "try/catch with specific exception types".to_string(),
@@ -951,10 +996,12 @@ fn extract_on_error_patterns(
                         source_language: "vb",
                         target_name: "unstructured_error_handling".to_string(),
                         target_kind: Some("insight"),
-                        target_start_line: Some(line_num),
+                        target_start_line: resolved_line.or(Some(line_num)),
                         kind: "anti_pattern",
                         metadata: Some(meta),
                     });
+
+                    active_goto_handlers.push((label.to_string(), line_num, src_name.to_string()));
                 }
             }
         }
@@ -976,6 +1023,23 @@ fn extract_on_error_patterns(
             resume_next_regions.len().to_string(),
         );
         meta.insert(
+            "goto_handlers_resolved".to_string(),
+            active_goto_handlers
+                .iter()
+                .filter(|(l, _, _)| label_lines.contains_key(l))
+                .count()
+                .to_string(),
+        );
+        meta.insert(
+            "goto_handlers_unresolved".to_string(),
+            active_goto_handlers
+                .iter()
+                .filter(|(l, _, _)| !label_lines.contains_key(l))
+                .count()
+                .to_string(),
+        );
+        meta.insert("labels_found".to_string(), label_lines.len().to_string());
+        meta.insert(
             "modern_equivalent".to_string(),
             "try/catch with specific exception types".to_string(),
         );
@@ -993,24 +1057,21 @@ fn extract_on_error_patterns(
 }
 
 /// Detect `With ... End With` blocks and resolve `.Property` member accesses.
+/// Supports **nested** With blocks via a stack — the innermost With target
+/// resolves `.Member` accesses. Outer With blocks resume when inner blocks close.
 /// Emits `reads_state`/`writes_state`/`data_binding` edges from the With target.
-fn extract_with_blocks(
-    source: &str,
-    all_scopes: &[ScopeEntry],
-) -> Vec<ExtractedEdge> {
+fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<ExtractedEdge> {
     let mut edges = Vec::new();
     let line_idx = LineIndex::new(source);
 
     // Match "With <target>" line
-    let re_with = get_compiled_regex(
-        &WITH_BLOCK_RE,
-        r"(?i)^\s*With\s+(\S+)",
-        "with_block",
-    );
+    let re_with = get_compiled_regex(&WITH_BLOCK_RE, r"(?i)^\s*With\s+(\S+)", "with_block");
     // Match ".<member>" access inside a with block (assignment or read)
+    // Also handles chained member access like `.Controls.Add(...)` and
+    // method calls like `.Open(...)` or `.SaveAs("path")`
     let re_member = get_compiled_regex(
         &WITH_MEMBER_RE,
-        r"(?i)^\s*\.(\w+)\s*(?:=\s*(.+)|$)",
+        r"(?i)^\s*\.(\w+)(?:\s*\(.*\))?\s*(?:=\s*(.+)|$)",
         "with_member",
     );
 
@@ -1023,35 +1084,56 @@ fn extract_with_blocks(
         None => return edges,
     };
 
-    let mut in_with = false;
-    let mut with_target = String::new();
-    let mut with_start_line: u32 = 0;
+    /// Stack entry for nested With blocks.
+    struct WithFrame {
+        target: String,
+        start_line: u32,
+        depth: usize,
+    }
+
+    // Stack of With frames — supports arbitrary nesting depth.
+    // The topmost frame is the currently active With target.
+    let mut with_stack: Vec<WithFrame> = Vec::new();
     let mut byte_offset: usize = 0;
 
     for line_text in source.lines() {
         let line_num = line_idx.line_of(byte_offset);
-
         let trimmed = line_text.trim();
 
-        // Detect End With
-        if in_with && trimmed.eq_ignore_ascii_case("End With") {
-            in_with = false;
-            with_target.clear();
+        // Detect End With — pop the innermost frame
+        if trimmed.eq_ignore_ascii_case("End With") {
+            with_stack.pop();
             byte_offset += line_text.len() + 1;
             continue;
         }
 
-        // Detect With <target>
+        // Detect With <target> — push a new frame
         if let Some(cap) = re_with.captures(line_text) {
-            in_with = true;
-            with_target = cap.get(1).map_or("", |m| m.as_str()).to_string();
-            with_start_line = line_num;
+            let raw_target = cap.get(1).map_or("", |m| m.as_str());
+            // If the target starts with `.` and we're inside a With block,
+            // resolve it against the outer With target (chained With)
+            let resolved_target = if raw_target.starts_with('.') {
+                if let Some(outer) = with_stack.last() {
+                    format!("{}{}", outer.target, raw_target)
+                } else {
+                    raw_target.to_string()
+                }
+            } else {
+                raw_target.to_string()
+            };
+
+            let depth = with_stack.len();
+            with_stack.push(WithFrame {
+                target: resolved_target,
+                start_line: line_num,
+                depth,
+            });
             byte_offset += line_text.len() + 1;
             continue;
         }
 
-        // Inside a With block, detect .Member accesses
-        if in_with {
+        // Inside a With block, detect .Member accesses — use the topmost frame
+        if let Some(frame) = with_stack.last() {
             if let Some(cap) = re_member.captures(trimmed) {
                 let member = cap.get(1).map_or("", |m| m.as_str());
                 let is_write = cap.get(2).is_some();
@@ -1059,8 +1141,7 @@ fn extract_with_blocks(
                 let (src_name, src_kind, src_line) =
                     find_best_enclosing_scope(all_scopes, byte_offset);
 
-                let target_name =
-                    format!("{}.{}", with_target, member);
+                let target_name = format!("{}.{}", frame.target, member);
 
                 let edge_kind = if is_write {
                     "writes_state"
@@ -1069,12 +1150,12 @@ fn extract_with_blocks(
                 };
 
                 let mut meta = HashMap::new();
-                meta.insert("with_target".to_string(), with_target.clone());
+                meta.insert("with_target".to_string(), frame.target.clone());
                 meta.insert("member".to_string(), member.to_string());
-                meta.insert(
-                    "with_block_start".to_string(),
-                    with_start_line.to_string(),
-                );
+                meta.insert("with_block_start".to_string(), frame.start_line.to_string());
+                if frame.depth > 0 {
+                    meta.insert("nesting_depth".to_string(), frame.depth.to_string());
+                }
 
                 edges.push(ExtractedEdge {
                     source_name: src_name.to_string(),
@@ -1096,7 +1177,28 @@ fn extract_with_blocks(
     edges
 }
 
+/// Map a COM ProgId to its modern .NET equivalent.
+fn modern_equivalent_for_prog_id(prog_id: &str) -> &'static str {
+    match prog_id.to_lowercase().as_str() {
+        s if s.contains("excel") => "EPPlus or ClosedXML NuGet package",
+        s if s.contains("word") => "Open XML SDK or DocX NuGet package",
+        s if s.contains("outlook") || s.contains("mapi") => "Microsoft Graph API",
+        s if s.contains("adodb") => "ADO.NET SqlConnection/SqlCommand",
+        s if s.contains("scripting.filesystemobject") => "System.IO namespace",
+        s if s.contains("scripting.dictionary") => "Dictionary<TKey,TValue>",
+        s if s.contains("msxml") || s.contains("xmlhttp") => "HttpClient or XDocument",
+        s if s.contains("wscript") || s.contains("shell") => "System.Diagnostics.Process",
+        s if s.contains("cdo") => "System.Net.Mail.SmtpClient",
+        s if s.contains("wia") => "System.Drawing.Image or ImageSharp",
+        s if s.contains("access") || s.contains("dao") => "Entity Framework Core",
+        s if s.contains("pdf") => "iTextSharp or QuestPDF",
+        _ => "Find appropriate .NET NuGet package replacement",
+    }
+}
+
 /// Detect `CreateObject()`, `GetObject()`, and `CallByName()` as COM interop / late binding.
+/// Tracks CreateObject return value assignments (e.g. `Set obj = CreateObject("...")`)
+/// and propagates the ProgId through subsequent `obj.Method(...)` calls.
 /// Emits `anti_pattern` edges + `insight` nodes.
 fn extract_late_binding(
     source: &str,
@@ -1116,11 +1218,7 @@ fn extract_late_binding(
         r#"(?i)\bGetObject\s*\(\s*"([^"]*)"(?:\s*,\s*"([^"]+)")?\s*\)"#,
         "getobject",
     );
-    let re_callbyname = get_compiled_regex(
-        &CALLBYNAME_RE,
-        r"(?i)\bCallByName\s*\(",
-        "callbyname",
-    );
+    let re_callbyname = get_compiled_regex(&CALLBYNAME_RE, r"(?i)\bCallByName\s*\(", "callbyname");
     let re_late_bound = get_compiled_regex(
         &LATE_BOUND_OBJECT_RE,
         r"(?i)\bDim\s+(\w+)\s+As\s+Object\b",
@@ -1128,6 +1226,72 @@ fn extract_late_binding(
     );
 
     let mut prog_ids_seen: HashSet<String> = HashSet::new();
+
+    // ── Pass 1: Build variable→ProgId mapping from CreateObject/GetObject assignments ──
+    // Tracks `Dim x = CreateObject("ProgId")`, `Set x = CreateObject("ProgId")`,
+    // `x = CreateObject("ProgId")` patterns.
+    let mut var_to_prog_id: HashMap<String, String> = HashMap::new();
+
+    // Regex for assignment: `(Set )? <var> = CreateObject("progid")`
+    // Also handles `Dim <var> As Object = CreateObject("progid")` in one line
+    static CREATE_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+    let re_assign = get_compiled_regex(
+        &CREATE_ASSIGN_RE,
+        r#"(?i)(?:Set\s+|Dim\s+)?(\w+)\s*(?:As\s+\w+\s*)?=\s*CreateObject\s*\(\s*"([^"]+)"\s*\)"#,
+        "create_assign",
+    );
+    if let Some(re) = re_assign {
+        for cap in re.captures_iter(source) {
+            let var_name = cap.get(1).map_or("", |m| m.as_str());
+            let prog_id = cap.get(2).map_or("", |m| m.as_str());
+            if !var_name.is_empty() && !prog_id.is_empty() {
+                var_to_prog_id.insert(var_name.to_lowercase(), prog_id.to_string());
+            }
+        }
+    }
+    // Also track GetObject assignments
+    static GET_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+    let re_get_assign = get_compiled_regex(
+        &GET_ASSIGN_RE,
+        r#"(?i)(?:Set\s+|Dim\s+)?(\w+)\s*(?:As\s+\w+\s*)?=\s*GetObject\s*\(\s*"([^"]*)"(?:\s*,\s*"([^"]+)")?\s*\)"#,
+        "get_assign",
+    );
+    if let Some(re) = re_get_assign {
+        for cap in re.captures_iter(source) {
+            let var_name = cap.get(1).map_or("", |m| m.as_str());
+            let prog_id = cap.get(3).or(cap.get(2)).map_or("", |m| m.as_str());
+            if !var_name.is_empty() && !prog_id.is_empty() {
+                var_to_prog_id.insert(var_name.to_lowercase(), prog_id.to_string());
+            }
+        }
+    }
+
+    // Track secondary assignments: `Set y = x` where x has a known ProgId
+    // (propagate through one level of aliasing)
+    static SET_ALIAS_RE: OnceLock<Regex> = OnceLock::new();
+    let re_alias = get_compiled_regex(
+        &SET_ALIAS_RE,
+        r"(?i)(?:Set\s+)(\w+)\s*=\s*(\w+)\s*$",
+        "set_alias",
+    );
+    if let Some(re) = re_alias {
+        // Collect in a separate pass to avoid borrow issues
+        let aliases: Vec<(String, String)> = re
+            .captures_iter(source)
+            .filter_map(|cap| {
+                let target = cap.get(1).map_or("", |m| m.as_str()).to_lowercase();
+                let src = cap.get(2).map_or("", |m| m.as_str()).to_lowercase();
+                if let Some(pid) = var_to_prog_id.get(&src) {
+                    Some((target, pid.clone()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for (target, pid) in aliases {
+            var_to_prog_id.insert(target, pid);
+        }
+    }
 
     // Scan for CreateObject
     if let Some(re) = re_create {
@@ -1137,42 +1301,17 @@ fn extract_late_binding(
             let byte_offset = full_match.start();
             let line_num = line_idx.line_of(byte_offset);
 
-            let (src_name, src_kind, src_line) =
-                find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
-            // Determine modern equivalent based on ProgId
-            let modern_eq = match prog_id.to_lowercase().as_str() {
-                s if s.contains("excel") => {
-                    "EPPlus or ClosedXML NuGet package"
-                }
-                s if s.contains("word") => {
-                    "Open XML SDK or DocX NuGet package"
-                }
-                s if s.contains("outlook") || s.contains("mapi") => {
-                    "Microsoft Graph API"
-                }
-                s if s.contains("adodb") => {
-                    "ADO.NET SqlConnection/SqlCommand"
-                }
-                s if s.contains("scripting.filesystemobject") => {
-                    "System.IO namespace"
-                }
-                s if s.contains("msxml") || s.contains("xmlhttp") => {
-                    "HttpClient or XDocument"
-                }
-                s if s.contains("wscript") || s.contains("shell") => {
-                    "System.Diagnostics.Process"
-                }
-                s if s.contains("cdo") => {
-                    "System.Net.Mail.SmtpClient"
-                }
-                _ => "Find appropriate .NET NuGet package replacement",
-            };
+            let modern_eq = modern_equivalent_for_prog_id(prog_id);
 
             let mut meta = HashMap::new();
             meta.insert("prog_id".to_string(), prog_id.to_string());
             meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
-            meta.insert("pattern".to_string(), "com_interop_createobject".to_string());
+            meta.insert(
+                "pattern".to_string(),
+                "com_interop_createobject".to_string(),
+            );
 
             edges.push(ExtractedEdge {
                 source_name: src_name.to_string(),
@@ -1207,22 +1346,18 @@ fn extract_late_binding(
         for cap in re.captures_iter(source) {
             let full_match = cap.get(0).expect("full match always exists");
             let path_or_empty = cap.get(1).map_or("", |m| m.as_str());
-            let prog_id = cap
-                .get(2)
-                .map_or(path_or_empty, |m| m.as_str());
+            let prog_id = cap.get(2).map_or(path_or_empty, |m| m.as_str());
             let byte_offset = full_match.start();
             let line_num = line_idx.line_of(byte_offset);
 
-            let (src_name, src_kind, src_line) =
-                find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let modern_eq = modern_equivalent_for_prog_id(prog_id);
 
             let mut meta = HashMap::new();
             meta.insert("prog_id".to_string(), prog_id.to_string());
             meta.insert("pattern".to_string(), "com_interop_getobject".to_string());
-            meta.insert(
-                "modern_equivalent".to_string(),
-                "Find appropriate .NET NuGet package replacement".to_string(),
-            );
+            meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
 
             edges.push(ExtractedEdge {
                 source_name: src_name.to_string(),
@@ -1244,8 +1379,7 @@ fn extract_late_binding(
             let byte_offset = mat.start();
             let line_num = line_idx.line_of(byte_offset);
 
-            let (src_name, src_kind, src_line) =
-                find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
             let mut meta = HashMap::new();
             meta.insert("pattern".to_string(), "late_binding_callbyname".to_string());
@@ -1276,16 +1410,25 @@ fn extract_late_binding(
             let byte_offset = full_match.start();
             let line_num = line_idx.line_of(byte_offset);
 
-            let (src_name, src_kind, src_line) =
-                find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
             let mut meta = HashMap::new();
             meta.insert("variable".to_string(), var_name.to_string());
             meta.insert("pattern".to_string(), "late_bound_variable".to_string());
-            meta.insert(
-                "modern_equivalent".to_string(),
-                "Use specific type or interface".to_string(),
-            );
+
+            // If we resolved this variable's ProgId, include it
+            if let Some(prog_id) = var_to_prog_id.get(&var_name.to_lowercase()) {
+                meta.insert("resolved_prog_id".to_string(), prog_id.clone());
+                meta.insert(
+                    "modern_equivalent".to_string(),
+                    modern_equivalent_for_prog_id(prog_id).to_string(),
+                );
+            } else {
+                meta.insert(
+                    "modern_equivalent".to_string(),
+                    "Use specific type or interface".to_string(),
+                );
+            }
 
             edges.push(ExtractedEdge {
                 source_name: src_name.to_string(),
@@ -1298,6 +1441,55 @@ fn extract_late_binding(
                 kind: "anti_pattern",
                 metadata: Some(meta),
             });
+        }
+    }
+
+    // ── Pass 2: Detect method calls on tracked variables (`obj.Method(...)`) ──
+    // For each variable with a known ProgId, find `<var>.<method>` calls and
+    // emit late-bound call edges that reference the resolved ProgId.
+    if !var_to_prog_id.is_empty() {
+        static LATE_CALL_RE: OnceLock<Regex> = OnceLock::new();
+        let re_call = get_compiled_regex(
+            &LATE_CALL_RE,
+            r"(?i)\b(\w+)\.(\w+)\s*(?:\(|$)",
+            "late_bound_call",
+        );
+        if let Some(re) = re_call {
+            for cap in re.captures_iter(source) {
+                let var_name = cap.get(1).map_or("", |m| m.as_str());
+                let method = cap.get(2).map_or("", |m| m.as_str());
+                let var_lower = var_name.to_lowercase();
+
+                if let Some(prog_id) = var_to_prog_id.get(&var_lower) {
+                    let full_match = cap.get(0).expect("full match always exists");
+                    let byte_offset = full_match.start();
+                    let line_num = line_idx.line_of(byte_offset);
+
+                    let (src_name, src_kind, src_line) =
+                        find_best_enclosing_scope(all_scopes, byte_offset);
+
+                    let modern_eq = modern_equivalent_for_prog_id(prog_id);
+
+                    let mut meta = HashMap::new();
+                    meta.insert("pattern".to_string(), "late_bound_method_call".to_string());
+                    meta.insert("variable".to_string(), var_name.to_string());
+                    meta.insert("method".to_string(), method.to_string());
+                    meta.insert("resolved_prog_id".to_string(), prog_id.clone());
+                    meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
+
+                    edges.push(ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name: format!("com_interop:{}:{}", prog_id, method),
+                        target_kind: Some("insight"),
+                        target_start_line: Some(line_num),
+                        kind: "anti_pattern",
+                        metadata: Some(meta),
+                    });
+                }
+            }
         }
     }
 
@@ -1314,11 +1506,8 @@ fn extract_my_namespace(
     let mut edges = Vec::new();
     let line_idx = LineIndex::new(source);
 
-    let re_settings = get_compiled_regex(
-        &MY_SETTINGS_RE,
-        r"(?i)\bMy\.Settings\.(\w+)",
-        "my_settings",
-    );
+    let re_settings =
+        get_compiled_regex(&MY_SETTINGS_RE, r"(?i)\bMy\.Settings\.(\w+)", "my_settings");
     let re_computer = get_compiled_regex(
         &MY_COMPUTER_RE,
         r"(?i)\bMy\.Computer\.(\w+(?:\.\w+)*)",
@@ -1329,11 +1518,7 @@ fn extract_my_namespace(
         r"(?i)\bMy\.Application\.(\w+(?:\.\w+)*)",
         "my_application",
     );
-    let re_user = get_compiled_regex(
-        &MY_USER_RE,
-        r"(?i)\bMy\.User\.(\w+)",
-        "my_user",
-    );
+    let re_user = get_compiled_regex(&MY_USER_RE, r"(?i)\bMy\.User\.(\w+)", "my_user");
     let re_resources = get_compiled_regex(
         &MY_RESOURCES_RE,
         r"(?i)\bMy\.Resources\.(\w+)",
@@ -1350,8 +1535,7 @@ fn extract_my_namespace(
             let byte_offset = full_match.start();
             let line_num = line_idx.line_of(byte_offset);
 
-            let (src_name, src_kind, src_line) =
-                find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
             let mut meta = HashMap::new();
             meta.insert("state_type".to_string(), "My.Settings".to_string());
@@ -1465,10 +1649,7 @@ fn extract_my_namespace(
 
 /// Detect `ReDim` / `ReDim Preserve` as an anti-pattern.
 /// Emits `anti_pattern` edges suggesting List(Of T) usage.
-fn extract_redim_usage(
-    source: &str,
-    all_scopes: &[ScopeEntry],
-) -> Vec<ExtractedEdge> {
+fn extract_redim_usage(source: &str, all_scopes: &[ScopeEntry]) -> Vec<ExtractedEdge> {
     let mut edges = Vec::new();
     let line_idx = LineIndex::new(source);
 
@@ -1490,8 +1671,7 @@ fn extract_redim_usage(
         let byte_offset = full_match.start();
         let line_num = line_idx.line_of(byte_offset);
 
-        let (src_name, src_kind, src_line) =
-            find_best_enclosing_scope(all_scopes, byte_offset);
+        let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
         let mut meta = HashMap::new();
         meta.insert(

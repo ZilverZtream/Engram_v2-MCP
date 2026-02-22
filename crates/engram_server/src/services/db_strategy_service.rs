@@ -121,8 +121,7 @@ pub fn classify_data_access_patterns(
     let sql_edges = graph.list_edges_by_kind(project_id, EdgeKind::SqlCalls, 50_000)?;
     let qt_edges = graph.list_edges_by_kind(project_id, EdgeKind::QueriesTable, 50_000)?;
     let rc_edges = graph.list_edges_by_kind(project_id, EdgeKind::ReadsColumn, 50_000)?;
-    let pb_edges =
-        graph.list_edges_by_kind(project_id, EdgeKind::ParameterBinding, 50_000)?;
+    let pb_edges = graph.list_edges_by_kind(project_id, EdgeKind::ParameterBinding, 50_000)?;
     let db_edges = graph.list_edges_by_kind(project_id, EdgeKind::DataBinding, 50_000)?;
 
     // Group edges by file
@@ -162,7 +161,10 @@ pub fn classify_data_access_patterns(
     let mut profiles = Vec::new();
 
     for file_path in all_files {
-        let sql = file_sql.get(&file_path).map(|v| v.as_slice()).unwrap_or(&[]);
+        let sql = file_sql
+            .get(&file_path)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[]);
         let qt = file_qt.get(&file_path).map(|v| v.as_slice()).unwrap_or(&[]);
         let rc = file_rc.get(&file_path).map(|v| v.as_slice()).unwrap_or(&[]);
         let pb = file_pb.get(&file_path).map(|v| v.as_slice()).unwrap_or(&[]);
@@ -173,9 +175,9 @@ pub fn classify_data_access_patterns(
         let has_param = injection_risks
             .iter()
             .any(|r| r.risk_type == SqlRiskType::Parameterized);
-        let has_concat = injection_risks
-            .iter()
-            .any(|r| r.risk_type == SqlRiskType::Concatenated || r.risk_type == SqlRiskType::Interpolated);
+        let has_concat = injection_risks.iter().any(|r| {
+            r.risk_type == SqlRiskType::Concatenated || r.risk_type == SqlRiskType::Interpolated
+        });
 
         // Unique tables
         let mut tables: HashSet<String> = HashSet::new();
@@ -302,10 +304,7 @@ pub fn generate_repository_interfaces(
         for col in columns {
             let prop_name = to_pascal_case(col);
             let prop_type = infer_csharp_type(col);
-            let _ = writeln!(
-                code,
-                "    public {prop_type} {prop_name} {{ get; set; }}"
-            );
+            let _ = writeln!(code, "    public {prop_type} {prop_name} {{ get; set; }}");
         }
         let _ = writeln!(code, "}}");
         let _ = writeln!(code);
@@ -322,28 +321,16 @@ pub fn generate_repository_interfaces(
                 code,
                 "    Task<IEnumerable<{entity}>> GetAll{entity}Async();"
             );
-            let _ = writeln!(
-                code,
-                "    Task<{entity}?> Get{entity}ByIdAsync(int id);"
-            );
+            let _ = writeln!(code, "    Task<{entity}?> Get{entity}ByIdAsync(int id);");
         }
         if ops.contains("insert") {
-            let _ = writeln!(
-                code,
-                "    Task<int> Create{entity}Async({entity} entity);"
-            );
+            let _ = writeln!(code, "    Task<int> Create{entity}Async({entity} entity);");
         }
         if ops.contains("update") {
-            let _ = writeln!(
-                code,
-                "    Task Update{entity}Async({entity} entity);"
-            );
+            let _ = writeln!(code, "    Task Update{entity}Async({entity} entity);");
         }
         if ops.contains("delete") {
-            let _ = writeln!(
-                code,
-                "    Task Delete{entity}Async(int id);"
-            );
+            let _ = writeln!(code, "    Task Delete{entity}Async(int id);");
         }
     }
 
@@ -351,12 +338,12 @@ pub fn generate_repository_interfaces(
     let _ = writeln!(code);
 
     // Generate Dapper implementation skeleton
-    let _ = writeln!(code, "public class {page_name}Repository : I{page_name}Repository");
-    let _ = writeln!(code, "{{");
     let _ = writeln!(
         code,
-        "    private readonly string _connectionString;"
+        "public class {page_name}Repository : I{page_name}Repository"
     );
+    let _ = writeln!(code, "{{");
+    let _ = writeln!(code, "    private readonly string _connectionString;");
     let _ = writeln!(code);
     let _ = writeln!(
         code,
@@ -375,7 +362,10 @@ pub fn generate_repository_interfaces(
                 "    public async Task<IEnumerable<{entity}>> GetAll{entity}Async()"
             );
             let _ = writeln!(code, "    {{");
-            let _ = writeln!(code, "        using var conn = new SqlConnection(_connectionString);");
+            let _ = writeln!(
+                code,
+                "        using var conn = new SqlConnection(_connectionString);"
+            );
             let _ = writeln!(
                 code,
                 "        return await conn.QueryAsync<{entity}>(\"SELECT * FROM {table}\");"
@@ -388,7 +378,10 @@ pub fn generate_repository_interfaces(
                 "    public async Task<{entity}?> Get{entity}ByIdAsync(int id)"
             );
             let _ = writeln!(code, "    {{");
-            let _ = writeln!(code, "        using var conn = new SqlConnection(_connectionString);");
+            let _ = writeln!(
+                code,
+                "        using var conn = new SqlConnection(_connectionString);"
+            );
             let _ = writeln!(
                 code,
                 "        return await conn.QuerySingleOrDefaultAsync<{entity}>(\"SELECT * FROM {table} WHERE Id = @Id\", new {{ Id = id }});"
@@ -425,12 +418,12 @@ pub fn generate_repository_interfaces(
         }
         if ops.contains("delete") {
             let _ = writeln!(code);
+            let _ = writeln!(code, "    public async Task Delete{entity}Async(int id)");
+            let _ = writeln!(code, "    {{");
             let _ = writeln!(
                 code,
-                "    public async Task Delete{entity}Async(int id)"
+                "        using var conn = new SqlConnection(_connectionString);"
             );
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(code, "        using var conn = new SqlConnection(_connectionString);");
             let _ = writeln!(
                 code,
                 "        await conn.ExecuteAsync(\"DELETE FROM {table} WHERE Id = @Id\", new {{ Id = id }});"
@@ -478,10 +471,9 @@ fn classify_file(
     let mut patterns: Vec<DataAccessPattern> = Vec::new();
 
     // Check for SqlDataSource (declarative)
-    let has_sqldatasource = db_edges.iter().any(|e| {
-        e.source_id.contains("SqlDataSource")
-            || e.target_id.contains("SqlDataSource")
-    });
+    let has_sqldatasource = db_edges
+        .iter()
+        .any(|e| e.source_id.contains("SqlDataSource") || e.target_id.contains("SqlDataSource"));
     if has_sqldatasource {
         patterns.push(DataAccessPattern::SqlDatasourceDeclarative);
     }
@@ -522,8 +514,7 @@ fn classify_file(
     // Check for EF/LINQ
     let has_ef = sql_edges.iter().any(|e| {
         let meta = edge_meta_str(e);
-        meta.contains("DbContext")
-            || meta.contains("ObjectContext")
+        meta.contains("DbContext") || meta.contains("ObjectContext")
     });
     if has_ef {
         patterns.push(DataAccessPattern::EntityFrameworkV1);
@@ -571,9 +562,7 @@ fn score_sql_injection(sql_edges: &[&Edge], file_path: &str) -> Vec<SqlInjection
             SqlRiskType::Concatenated
         } else if meta.contains("interpolat") || sql_text.contains('{') {
             SqlRiskType::Interpolated
-        } else if meta.contains("StoredProcedure")
-            || meta.to_uppercase().contains("EXEC")
-        {
+        } else if meta.contains("StoredProcedure") || meta.to_uppercase().contains("EXEC") {
             SqlRiskType::StoredProc
         } else if sql_text.contains('@') || sql_text.contains('?') {
             SqlRiskType::Parameterized
@@ -730,18 +719,26 @@ mod tests {
 
     #[test]
     fn pattern_migration_targets() {
-        assert!(DataAccessPattern::InlineSql
-            .migration_target()
-            .contains("Dapper"));
-        assert!(DataAccessPattern::StoredProcedure
-            .migration_target()
-            .contains("repository"));
-        assert!(DataAccessPattern::DatasetAdapter
-            .migration_target()
-            .contains("EF Core"));
-        assert!(DataAccessPattern::EntityFrameworkV1
-            .migration_target()
-            .contains("EF Core"));
+        assert!(
+            DataAccessPattern::InlineSql
+                .migration_target()
+                .contains("Dapper")
+        );
+        assert!(
+            DataAccessPattern::StoredProcedure
+                .migration_target()
+                .contains("repository")
+        );
+        assert!(
+            DataAccessPattern::DatasetAdapter
+                .migration_target()
+                .contains("EF Core")
+        );
+        assert!(
+            DataAccessPattern::EntityFrameworkV1
+                .migration_target()
+                .contains("EF Core")
+        );
     }
 
     fn make_edge(source: &str, target: &str, meta_json: Option<&str>) -> Edge {
@@ -856,7 +853,11 @@ mod tests {
 
     #[test]
     fn extract_file_from_edge_metadata() {
-        let e = make_edge("fn:Load", "sql:q", Some(r#"{"file_path": "Orders.aspx.cs"}"#));
+        let e = make_edge(
+            "fn:Load",
+            "sql:q",
+            Some(r#"{"file_path": "Orders.aspx.cs"}"#),
+        );
         assert_eq!(extract_file_from_edge(&e), "Orders.aspx.cs");
     }
 

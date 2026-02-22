@@ -130,22 +130,45 @@ The replay subsystem enables reproducible ADP testing:
 - Namespace skew, empty stores, tolerance boundaries
 - Repair policy override verification
 
-## End-to-End Migration Engine (Phase 30)
+## End-to-End Migration Engine (Phase 30 + 30a Hardening)
 
-Phase 30 closes 8 structural gaps between legacy code comprehension and autonomous migration. The architecture extends across three crates:
+Phase 30 closes 8 structural gaps between legacy code comprehension and autonomous migration. Phase 30a hardens 7 shortcomings to production quality. The architecture extends across three crates:
 
 ### engram_index (extraction layer)
 - `control_mapping.rs`: Static lookup table of 50 WebForms controls mapped to Blazor/React/Angular targets with accessibility and data binding metadata
 - `asp_classic_extractor.rs`: Regex-based Classic ASP extraction (COM, ADO, state, SQL, navigation, includes, inline functions)
 - `report_extractor.rs`: SSRS/Crystal Reports detection via regex pattern matching on markup and code-behind content
+- `vb_extractor.rs` (enhanced): Stack-based nested With blocks, two-pass On Error GoTo label resolution, CreateObject variable propagation and alias tracking, late-bound method call detection
+- `js_extractor.rs` (enhanced): 30+ Google Maps classes (Places, StreetView, Heatmap, KML, Directions, DistanceMatrix, Elevation, Geometry), 80+ Esri/ArcGIS ES module classes (widgets, tasks, renderers, geometry, portal, auth, 3D), migration complexity assessment
 
 ### engram_server (service layer)
-Five new services follow the established pure-function + Serialize pattern:
-- `scaffold_service.rs`: Reads graph context (controls, functions, SQL edges, state edges) and generates framework-specific component code
+Six new services follow the established pure-function + Serialize pattern:
+- `scaffold_service.rs`: Reads graph context and generates framework-specific component code with real business logic (SQL→repository calls, state→get/set, navigation→routing) and async/await conversion guidance per framework
 - `db_strategy_service.rs`: Classifies `DataAccessPattern` from edge metadata, generates repository interfaces, scores SQL injection risk
-- `instrumentation_service.rs`: Generates C#/VB.NET `IHttpModule` code with configurable tracing categories; reconciliation engine compares static graph paths against `RuntimeEvidenceBatch` events
+- `instrumentation_service.rs`: Generates C#/VB.NET `IHttpModule` code with configurable tracing, `InstrumentedSessionStateWrapper` (IHttpSessionState impl), `InstrumentedDbCommand` (DbCommand subclass with timing/error logging); reconciliation engine compares static graph paths against `RuntimeEvidenceBatch` events
 - `state_migration_service.rs`: Classifies state stores from graph node targets, analyzes access patterns, recommends modern equivalents
-- `characterization_test_service.rs`: Collects graph edges by category and generates framework-specific test methods
+- `characterization_test_service.rs`: Generates executable test bodies with helper infrastructure (TestPageFactory, MockHttpSession, TestDbFactory, MockResponseRecorder, MockHttpContext)
+- `strangler_fig_service.rs`: Generates complete strangler fig infrastructure — YARP reverse proxy, feature flags, routing middleware with sticky sessions, health check, Program.cs with Polly + CorrelationId
+
+### Strangler fig architecture
+```
+                    ┌─────────────────────────────────────┐
+                    │         Modern ASP.NET Core          │
+                    │                                       │
+ Client ──→ YARP ──┤  CorrelationIdMiddleware              │
+                    │  FeatureFlagMiddleware                │
+                    │  StranglerFigMiddleware ──→ modern    │
+                    │       │ (sticky sessions)             │
+                    │       └──→ ProxyToLegacy ──→ legacy   │
+                    │  MigrationHealthCheck (/health)       │
+                    └─────────────────────────────────────┘
+```
+
+Key design decisions:
+- **Sticky sessions**: Once a user is assigned modern or legacy for a page, they stay on that backend for the session duration (prevents mid-session flips during percentage rollout)
+- **Polly resilience**: Circuit breaker (5 failures → 30s break) + exponential retry (3 attempts) on legacy proxy
+- **Correlation IDs**: X-Correlation-Id header propagated across modern↔legacy boundary for distributed tracing
+- **Progressive rollout**: `StranglerFig:Rollout:{PageName} = 0..100` config per page
 
 ### Data flow
 ```
