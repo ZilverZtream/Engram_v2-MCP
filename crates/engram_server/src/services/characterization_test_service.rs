@@ -243,9 +243,13 @@ pub fn generate_characterization_tests(
                 .target_id
                 .strip_prefix("state:")
                 .unwrap_or(&read_edge.target_id);
+            // Phase 31: Use realistic test values based on key name
+            let test_val = generate_test_value(key);
             let _ = writeln!(
                 code,
-                "        _session[\"{key}\"] = \"TEST_VALUE\"; // Read by {fname}"
+                "        _session[\"{key}\"] = {literal}; // Read by {fname} ({desc})",
+                literal = test_val.csharp_literal,
+                desc = test_val.description
             );
         }
 
@@ -365,9 +369,13 @@ pub fn generate_characterization_tests(
                 .target_id
                 .strip_prefix("param:")
                 .unwrap_or(&param.target_id);
+            // Phase 31: Use realistic parameter values
+            let test_val = generate_test_value(param_name);
             let _ = writeln!(
                 code,
-                "        cmd.Parameters.AddWithValue(\"@{param_name}\", \"TEST_VALUE\");"
+                "        cmd.Parameters.AddWithValue(\"@{param_name}\", {literal}); // {desc}",
+                literal = test_val.csharp_literal,
+                desc = test_val.description
             );
         }
         let _ = writeln!(code, "        using var reader = cmd.ExecuteReader();");
@@ -606,7 +614,135 @@ pub fn generate_characterization_tests(
         test_count += 1;
     }
 
+    // Phase 31: Multi-scenario tests — missing state + boundary values
+    // Generate for each event handler that has state reads
+    for func in &ctx.functions {
+        let fname = &func.name;
+        if !is_event_handler(fname) {
+            continue;
+        }
+
+        let handler_reads: Vec<&Edge> = ctx
+            .reads_state
+            .iter()
+            .filter(|e| e.source_id.contains(fname))
+            .collect();
+
+        if handler_reads.is_empty() {
+            continue;
+        }
+
+        // Missing state test
+        let missing_test = format!("{fname}_Should_Handle_Missing_State");
+        let _ = writeln!(code);
+        let _ = writeln!(code, "    {}", fw.test_attribute());
+        let _ = writeln!(code, "    public void {missing_test}()");
+        let _ = writeln!(code, "    {{");
+        let _ = writeln!(
+            code,
+            "        // Arrange — state keys intentionally NOT set"
+        );
+        let _ = writeln!(
+            code,
+            "        // This characterizes behavior when session state is missing"
+        );
+        let _ = writeln!(code);
+        let _ = writeln!(code, "        // Act");
+        let _ = writeln!(
+            code,
+            "        var page = TestPageFactory.Create<{page_name}>("
+        );
+        let _ = writeln!(code, "            sessionState: _session,");
+        let _ = writeln!(code, "            dbConnection: null);");
+        let _ = writeln!(
+            code,
+            "        // NOTE: If legacy code crashes with NullReferenceException,"
+        );
+        let _ = writeln!(
+            code,
+            "        // that IS the expected behavior to characterize."
+        );
+        let _ = writeln!(code, "        try {{");
+        let _ = writeln!(code, "            page.{fname}(null, EventArgs.Empty);");
+        let _ = writeln!(code, "        }} catch (NullReferenceException) {{");
+        let _ = writeln!(
+            code,
+            "            // Document: legacy code does NOT handle missing state gracefully"
+        );
+        let _ = writeln!(code, "            return;");
+        let _ = writeln!(code, "        }}");
+        let _ = writeln!(
+            code,
+            "        // If we reach here: legacy code handles missing state"
+        );
+        let _ = writeln!(code, "        {}", fw.assert_not_null("page"));
+        let _ = writeln!(code, "    }}");
+
+        coverage.push(TestCoverageEntry {
+            test_name: missing_test,
+            category: TestCategory::StateTransition,
+            covered_edges: handler_reads
+                .iter()
+                .map(|e| format!("MissingState:{} → {}", e.source_id, e.target_id))
+                .collect(),
+            covered_nodes: vec![func.node_id.clone()],
+        });
+        test_count += 1;
+
+        // Boundary values test
+        let boundary_test = format!("{fname}_Should_Handle_Boundary_Values");
+        let _ = writeln!(code);
+        let _ = writeln!(code, "    {}", fw.test_attribute());
+        let _ = writeln!(code, "    public void {boundary_test}()");
+        let _ = writeln!(code, "    {{");
+        let _ = writeln!(code, "        // Arrange — boundary/edge-case values");
+        for read_edge in &handler_reads {
+            let key = read_edge
+                .target_id
+                .strip_prefix("state:")
+                .unwrap_or(&read_edge.target_id);
+            let test_val = generate_test_value(key);
+            let _ = writeln!(
+                code,
+                "        _session[\"{key}\"] = {boundary}; // boundary value for {key}",
+                boundary = test_val.boundary_variant
+            );
+        }
+        let _ = writeln!(code);
+        let _ = writeln!(code, "        // Act");
+        let _ = writeln!(
+            code,
+            "        var page = TestPageFactory.Create<{page_name}>("
+        );
+        let _ = writeln!(code, "            sessionState: _session,");
+        let _ = writeln!(code, "            dbConnection: null);");
+        let _ = writeln!(code, "        page.{fname}(null, EventArgs.Empty);");
+        let _ = writeln!(code);
+        let _ = writeln!(code, "        // Assert — characterize boundary behavior");
+        let _ = writeln!(code, "        {}", fw.assert_not_null("page"));
+        let _ = writeln!(code, "    }}");
+
+        coverage.push(TestCoverageEntry {
+            test_name: boundary_test,
+            category: TestCategory::StateTransition,
+            covered_edges: handler_reads
+                .iter()
+                .map(|e| format!("Boundary:{} → {}", e.source_id, e.target_id))
+                .collect(),
+            covered_nodes: vec![func.node_id.clone()],
+        });
+        test_count += 1;
+    }
+
     let _ = writeln!(code, "}}");
+
+    // Phase 31: Generate test fixture class
+    let state_keys_for_fixtures = collect_unique_state_keys(&ctx.reads_state, &ctx.writes_state);
+    if !state_keys_for_fixtures.is_empty() {
+        let _ = writeln!(code);
+        let fixtures = generate_test_fixtures(&page_name, &state_keys_for_fixtures);
+        code.push_str(&fixtures);
+    }
 
     if test_count == 0 {
         warnings.push(
@@ -622,6 +758,300 @@ pub fn generate_characterization_tests(
         test_count,
         warnings,
     })
+}
+
+// ─── Phase 31: Test data generator ────────────────────────────────────────────
+
+/// Generate a realistic test value for a state key or column name.
+pub fn generate_test_value(key_name: &str) -> TestValue {
+    let lower = key_name.to_lowercase();
+
+    // Security-sensitive keys → redacted
+    if lower.contains("password")
+        || lower.contains("secret")
+        || lower.contains("token")
+        || lower.contains("apikey")
+        || lower.contains("api_key")
+    {
+        return TestValue {
+            csharp_literal: "\"REDACTED_TEST_TOKEN\"".into(),
+            csharp_type: "string".into(),
+            description: "Never use real credentials in tests".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // GUID/UUID
+    if lower.ends_with("guid") || lower.ends_with("uuid") {
+        return TestValue {
+            csharp_literal: "Guid.Parse(\"550e8400-e29b-41d4-a716-446655440000\")".into(),
+            csharp_type: "Guid".into(),
+            description: "GUID identifier".into(),
+            null_variant: "Guid.Empty".into(),
+            boundary_variant: "Guid.Empty".into(),
+        };
+    }
+
+    // Integer IDs
+    if lower.ends_with("id") || lower == "id" {
+        let context_prefix = extract_context_prefix(&lower);
+        return TestValue {
+            csharp_literal: "42".into(),
+            csharp_type: "int".into(),
+            description: format!("{context_prefix} identifier"),
+            null_variant: "0".into(),
+            boundary_variant: "-1".into(),
+        };
+    }
+
+    // Email
+    if lower.contains("email") {
+        return TestValue {
+            csharp_literal: "\"test@example.com\"".into(),
+            csharp_type: "string".into(),
+            description: "Email address".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Name (contextual)
+    if lower.ends_with("name") || lower.ends_with("title") {
+        let context = extract_context_prefix(&lower);
+        let value = format!("Test {context}");
+        return TestValue {
+            csharp_literal: format!("\"{value}\""),
+            csharp_type: "string".into(),
+            description: format!("{context} name"),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Date/time
+    if lower.ends_with("date")
+        || lower.ends_with("time")
+        || lower.ends_with("at")
+        || lower.ends_with("on")
+        || lower.starts_with("created")
+        || lower.starts_with("modified")
+        || lower.starts_with("updated")
+    {
+        return TestValue {
+            csharp_literal: "new DateTime(2024, 1, 15)".into(),
+            csharp_type: "DateTime".into(),
+            description: "Date/time value".into(),
+            null_variant: "DateTime.MinValue".into(),
+            boundary_variant: "DateTime.MinValue".into(),
+        };
+    }
+
+    // Money/amounts
+    if lower.ends_with("amount")
+        || lower.ends_with("total")
+        || lower.ends_with("price")
+        || lower.ends_with("cost")
+        || lower.ends_with("balance")
+    {
+        return TestValue {
+            csharp_literal: "99.99m".into(),
+            csharp_type: "decimal".into(),
+            description: "Monetary value".into(),
+            null_variant: "0m".into(),
+            boundary_variant: "-0.01m".into(),
+        };
+    }
+
+    // Counts
+    if lower.ends_with("count") || lower.ends_with("qty") || lower.ends_with("quantity") {
+        return TestValue {
+            csharp_literal: "5".into(),
+            csharp_type: "int".into(),
+            description: "Count/quantity".into(),
+            null_variant: "0".into(),
+            boundary_variant: "-1".into(),
+        };
+    }
+
+    // Boolean
+    if lower.starts_with("is")
+        || lower.starts_with("has")
+        || lower.ends_with("active")
+        || lower.ends_with("enabled")
+    {
+        return TestValue {
+            csharp_literal: "true".into(),
+            csharp_type: "bool".into(),
+            description: "Boolean flag".into(),
+            null_variant: "false".into(),
+            boundary_variant: "false".into(),
+        };
+    }
+
+    // Status (string enum pattern)
+    if lower.contains("status") {
+        return TestValue {
+            csharp_literal: "\"Active\"".into(),
+            csharp_type: "string".into(),
+            description: "Status value".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // URL/Path
+    if lower.ends_with("url") || lower.ends_with("uri") || lower.ends_with("link") {
+        return TestValue {
+            csharp_literal: "\"https://example.com\"".into(),
+            csharp_type: "string".into(),
+            description: "URL".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+    if lower.ends_with("path") {
+        return TestValue {
+            csharp_literal: "\"/test/path\"".into(),
+            csharp_type: "string".into(),
+            description: "File/URL path".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Phone
+    if lower.contains("phone") {
+        return TestValue {
+            csharp_literal: "\"555-0100\"".into(),
+            csharp_type: "string".into(),
+            description: "Phone number".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Zip/Postal
+    if lower.contains("zip") || lower.contains("postal") {
+        return TestValue {
+            csharp_literal: "\"12345\"".into(),
+            csharp_type: "string".into(),
+            description: "Postal code".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Description/Notes
+    if lower.contains("description") || lower.contains("notes") || lower.contains("comment") {
+        return TestValue {
+            csharp_literal: "\"Test description for characterization\"".into(),
+            csharp_type: "string".into(),
+            description: "Text content".into(),
+            null_variant: "null".into(),
+            boundary_variant: "\"\"".into(),
+        };
+    }
+
+    // Default: string fallback
+    TestValue {
+        csharp_literal: format!("\"test_{key_name}\""),
+        csharp_type: "string".into(),
+        description: format!("String value — verify type for {key_name}"),
+        null_variant: "null".into(),
+        boundary_variant: "\"\"".into(),
+    }
+}
+
+/// A test value with type information and boundary variants.
+#[derive(Debug, Clone, Serialize)]
+pub struct TestValue {
+    /// C# literal for the test value.
+    pub csharp_literal: String,
+    /// C# type name.
+    pub csharp_type: String,
+    /// Description for the developer.
+    pub description: String,
+    /// Null/empty variant for negative tests.
+    pub null_variant: String,
+    /// Boundary/edge-case variant.
+    pub boundary_variant: String,
+}
+
+fn extract_context_prefix(lower: &str) -> String {
+    // "username" → "User", "productname" → "Product", "orderid" → "Order"
+    let suffixes = [
+        "name", "title", "id", "email", "date", "time", "count", "amount", "total", "price",
+        "status", "url", "path", "phone", "code", "type", "guid", "uuid", "at", "on",
+    ];
+    for suffix in &suffixes {
+        if lower.ends_with(suffix) && lower.len() > suffix.len() {
+            let prefix = &lower[..lower.len() - suffix.len()];
+            if !prefix.is_empty() {
+                let mut chars = prefix.chars();
+                let first = chars.next().unwrap_or('t').to_uppercase().to_string();
+                return format!("{first}{}", chars.as_str());
+            }
+        }
+    }
+    "Item".into()
+}
+
+/// Generate a test fixture class with static test data.
+pub fn generate_test_fixtures(
+    page_name: &str,
+    state_keys: &[(String, Vec<String>, Vec<String>)],
+) -> String {
+    let mut code = String::with_capacity(1024);
+    let _ = writeln!(code, "public static class {page_name}TestFixtures");
+    let _ = writeln!(code, "{{");
+
+    for (key, _, _) in state_keys {
+        let safe_key = key.replace(['[', ']', '"', '\'', ':'], "");
+        let field_name = format!("Valid{}", to_pascal(&safe_key));
+        let test_val = generate_test_value(&safe_key);
+        let csharp_type = &test_val.csharp_type;
+        let literal = &test_val.csharp_literal;
+        let _ = writeln!(
+            code,
+            "    public static readonly {csharp_type} {field_name} = {literal};"
+        );
+    }
+
+    let _ = writeln!(code);
+    let _ = writeln!(
+        code,
+        "    public static MockHttpSession CreateAuthenticatedSession()"
+    );
+    let _ = writeln!(code, "    {{");
+    let _ = writeln!(code, "        var session = new MockHttpSession();");
+    for (key, _, _) in state_keys {
+        let safe_key = key.replace(['[', ']', '"', '\'', ':'], "");
+        let field_name = format!("Valid{}", to_pascal(&safe_key));
+        let _ = writeln!(code, "        session[\"{safe_key}\"] = {field_name};");
+    }
+    let _ = writeln!(code, "        return session;");
+    let _ = writeln!(code, "    }}");
+    let _ = writeln!(code, "}}");
+    code
+}
+
+fn to_pascal(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut cap_next = true;
+    for c in s.chars() {
+        if c == '_' || c == ' ' || c == '-' {
+            cap_next = true;
+            continue;
+        }
+        if cap_next {
+            result.extend(c.to_uppercase());
+            cap_next = false;
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────
@@ -1033,5 +1463,108 @@ mod tests {
     fn test_category_serialization() {
         let json = serde_json::to_string(&TestCategory::EventHandler).unwrap_or_default();
         assert!(json.contains("event_handler"));
+    }
+
+    // Phase 31: Test data realism tests
+
+    #[test]
+    fn test_data_id_key_generates_integer() {
+        let val = generate_test_value("UserId");
+        assert_eq!(val.csharp_type, "int");
+        assert_eq!(val.csharp_literal, "42");
+    }
+
+    #[test]
+    fn test_data_name_key_generates_contextual_string() {
+        let val = generate_test_value("UserName");
+        assert_eq!(val.csharp_type, "string");
+        assert!(val.csharp_literal.contains("Test User"));
+    }
+
+    #[test]
+    fn test_data_email_key_generates_email() {
+        let val = generate_test_value("UserEmail");
+        assert_eq!(val.csharp_type, "string");
+        assert!(val.csharp_literal.contains("test@example.com"));
+    }
+
+    #[test]
+    fn test_data_date_key_generates_datetime() {
+        let val = generate_test_value("OrderDate");
+        assert_eq!(val.csharp_type, "DateTime");
+        assert!(val.csharp_literal.contains("DateTime"));
+    }
+
+    #[test]
+    fn test_data_amount_key_generates_decimal() {
+        let val = generate_test_value("TotalAmount");
+        assert_eq!(val.csharp_type, "decimal");
+        assert!(val.csharp_literal.contains("99.99m"));
+    }
+
+    #[test]
+    fn test_data_unknown_key_fallback() {
+        let val = generate_test_value("XyzFoo");
+        assert_eq!(val.csharp_type, "string");
+        assert!(val.description.contains("verify type"));
+    }
+
+    #[test]
+    fn test_data_negative_variant_for_string() {
+        let val = generate_test_value("UserName");
+        assert_eq!(val.null_variant, "null");
+        assert_eq!(val.boundary_variant, "\"\"");
+    }
+
+    #[test]
+    fn test_data_negative_variant_for_int() {
+        let val = generate_test_value("OrderId");
+        assert_eq!(val.null_variant, "0");
+        assert_eq!(val.boundary_variant, "-1");
+    }
+
+    #[test]
+    fn test_data_no_passwords_in_values() {
+        let val = generate_test_value("UserPassword");
+        assert!(val.csharp_literal.contains("REDACTED"));
+        assert!(val.description.contains("Never use real credentials"));
+    }
+
+    #[test]
+    fn test_data_status_generates_enum_pattern() {
+        let val = generate_test_value("OrderStatus");
+        assert_eq!(val.csharp_literal, "\"Active\"");
+    }
+
+    #[test]
+    fn test_data_phone_generates_phone() {
+        let val = generate_test_value("WorkPhone");
+        assert!(val.csharp_literal.contains("555-0100"));
+    }
+
+    #[test]
+    fn test_data_guid_key() {
+        let val = generate_test_value("OrderGuid");
+        assert_eq!(val.csharp_type, "Guid");
+        assert!(val.csharp_literal.contains("Guid.Parse"));
+    }
+
+    #[test]
+    fn test_fixture_class_generated() {
+        let state_keys = vec![
+            ("UserId".into(), vec!["fn:A".into()], vec!["fn:B".into()]),
+            ("UserName".into(), vec!["fn:A".into()], vec![]),
+        ];
+        let fixtures = generate_test_fixtures("OrderPage", &state_keys);
+        assert!(fixtures.contains("OrderPageTestFixtures"));
+        assert!(fixtures.contains("ValidUserId"));
+        assert!(fixtures.contains("ValidUserName"));
+        assert!(fixtures.contains("CreateAuthenticatedSession"));
+    }
+
+    #[test]
+    fn test_data_context_inference_productname() {
+        let val = generate_test_value("ProductName");
+        assert!(val.csharp_literal.contains("Test Product"));
     }
 }

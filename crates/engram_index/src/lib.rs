@@ -14,7 +14,10 @@ pub mod js_extractor;
 pub mod layout_extractor;
 pub mod parsing;
 pub mod report_extractor;
+pub mod solution_parser;
+pub mod sql_parser;
 pub mod state_extractor;
+pub mod sync_hazard_detector;
 pub mod tantivy_index;
 pub mod vb_extractor;
 #[cfg(feature = "vector")]

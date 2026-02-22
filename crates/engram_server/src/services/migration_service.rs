@@ -43,6 +43,12 @@ pub struct MigrationWave {
     pub risk_level: WaveRisk,
     /// Estimated effort (story points or relative units).
     pub estimated_effort: u32,
+    /// Phase 31: Which project this wave targets (from solution structure).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_scope: Option<String>,
+    /// Phase 31: Projects this wave depends on being migrated first.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub cross_project_deps: Vec<String>,
 }
 
 /// A single item (file, module, component) within a migration wave.
@@ -333,6 +339,8 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
             adapters: vec![],
             risk_level: WaveRisk::High,
             estimated_effort: 8,
+            project_scope: None,
+            cross_project_deps: vec![],
         });
     }
 
@@ -491,6 +499,8 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
             adapters,
             risk_level: risk,
             estimated_effort: effort,
+            project_scope: Some(cluster.name.clone()),
+            cross_project_deps: vec![],
         });
     }
 

@@ -8,6 +8,7 @@
 
 use engram_graph::{Edge, EdgeKind, GraphStore, Node};
 use engram_index::control_mapping;
+use engram_index::sql_parser::{self, SqlAnalysis, SqlOp};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write;
@@ -698,72 +699,95 @@ fn generate_repository_interface(
     let _ = writeln!(code, "using System.Collections.Generic;");
     let _ = writeln!(code);
 
-    // Collect table operations
-    let mut table_ops: BTreeMap<String, HashSet<String>> = BTreeMap::new();
-    for edge in &ctx.queries_table {
-        let table = edge
-            .target_id
-            .strip_prefix("table:")
-            .unwrap_or(&edge.target_id);
-        table_ops
-            .entry(table.to_string())
-            .or_default()
-            .insert("query".into());
-    }
-    for edge in &ctx.sql_edges {
-        let sql_hint = edge
-            .metadata
-            .as_ref()
-            .and_then(|m| m.get("sql"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        let upper = sql_hint.to_uppercase();
-        if upper.contains("INSERT") {
-            for (_, ops) in table_ops.iter_mut() {
-                ops.insert("insert".into());
-            }
-        }
-        if upper.contains("UPDATE") {
-            for (_, ops) in table_ops.iter_mut() {
-                ops.insert("update".into());
-            }
-        }
-        if upper.contains("DELETE") {
-            for (_, ops) in table_ops.iter_mut() {
-                ops.insert("delete".into());
-            }
-        }
-    }
+    // Phase 31: Use SQL parser for precise method signatures
+    let sql_analyses: Vec<SqlAnalysis> = ctx
+        .sql_edges
+        .iter()
+        .filter_map(|e| {
+            e.metadata
+                .as_ref()
+                .and_then(|m| m.get("sql").or_else(|| m.get("command_text")))
+                .and_then(|v| v.as_str())
+                .map(sql_parser::analyze_sql)
+        })
+        .collect();
 
-    // Generate interface
+    // Generate interface with precise method signatures
     let _ = writeln!(code, "public interface I{page_name}Repository");
     let _ = writeln!(code, "{{");
 
-    for (table, ops) in &table_ops {
-        let entity = to_pascal_case(table);
-        if ops.contains("query") {
-            let _ = writeln!(
-                code,
-                "    Task<IEnumerable<{entity}>> GetAll{entity}Async();"
-            );
-            let _ = writeln!(code, "    Task<{entity}?> Get{entity}ByIdAsync(int id);");
-        }
-        if ops.contains("insert") {
-            let _ = writeln!(code, "    Task<int> Create{entity}Async({entity} entity);");
-        }
-        if ops.contains("update") {
-            let _ = writeln!(code, "    Task Update{entity}Async({entity} entity);");
-        }
-        if ops.contains("delete") {
-            let _ = writeln!(code, "    Task Delete{entity}Async(int id);");
-        }
+    if !sql_analyses.is_empty() {
+        let mut emitted_sigs: HashSet<String> = HashSet::new();
+        for analysis in &sql_analyses {
+            let sig = sql_parser::generate_method_signature(analysis);
+            if emitted_sigs.insert(sig.clone()) {
+                if analysis.has_subquery {
+                    let _ = writeln!(
+                        code,
+                        "    // Note: contains subquery — verify generated signature"
+                    );
+                }
+                if analysis.has_cte {
+                    let _ = writeln!(code, "    // Note: uses CTE — verify generated signature");
+                }
+                if analysis.is_multi_statement {
+                    let _ = writeln!(
+                        code,
+                        "    // Note: multi-statement SQL — consider splitting into separate methods"
+                    );
+                }
+                let _ = writeln!(code, "    {sig};");
 
-        mapping_report.push(MappingEntry {
-            legacy_element: format!("Inline SQL → {table}"),
-            modern_element: format!("I{page_name}Repository.{entity}*Async()"),
-            category: "data_access".into(),
-            notes: "Repository pattern with Dapper/EF Core".into(),
-        });
+                let method_name = sql_parser::generate_method_name(analysis);
+                mapping_report.push(MappingEntry {
+                    legacy_element: format!(
+                        "SQL: {} → {}",
+                        analysis.operation,
+                        analysis.primary_table.as_deref().unwrap_or("?")
+                    ),
+                    modern_element: format!("I{page_name}Repository.{method_name}()"),
+                    category: "data_access".into(),
+                    notes: format!(
+                        "Parameters: [{}]",
+                        analysis
+                            .parameters
+                            .iter()
+                            .map(|p| format!("{} {}", p.inferred_type, p.name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                });
+            }
+        }
+    } else {
+        // Fallback: table-based generic methods when no SQL text available
+        let mut table_ops: BTreeMap<String, HashSet<String>> = BTreeMap::new();
+        for edge in &ctx.queries_table {
+            let table = edge
+                .target_id
+                .strip_prefix("table:")
+                .unwrap_or(&edge.target_id);
+            table_ops
+                .entry(table.to_string())
+                .or_default()
+                .insert("query".into());
+        }
+        for (table, ops) in &table_ops {
+            let entity = to_pascal_case(table);
+            if ops.contains("query") {
+                let _ = writeln!(
+                    code,
+                    "    Task<IEnumerable<{entity}>> GetAll{entity}Async();"
+                );
+                let _ = writeln!(code, "    Task<{entity}?> Get{entity}ByIdAsync(int id);");
+            }
+            mapping_report.push(MappingEntry {
+                legacy_element: format!("Inline SQL → {table}"),
+                modern_element: format!("I{page_name}Repository.{entity}*Async()"),
+                category: "data_access".into(),
+                notes: "Repository pattern with Dapper/EF Core".into(),
+            });
+        }
     }
 
     let _ = writeln!(code, "}}");
@@ -776,11 +800,74 @@ fn generate_dto_classes(
     ctx: &FileContext,
     mapping_report: &mut Vec<MappingEntry>,
 ) -> Option<String> {
-    if ctx.reads_column.is_empty() && ctx.queries_table.is_empty() {
+    if ctx.reads_column.is_empty() && ctx.queries_table.is_empty() && ctx.sql_edges.is_empty() {
         return None;
     }
 
     let mut code = String::with_capacity(1024);
+    let mut emitted_classes: HashSet<String> = HashSet::new();
+
+    // Phase 31: Generate composite DTOs from JOIN queries via SQL parser
+    for edge in &ctx.sql_edges {
+        if let Some(sql_text) = edge
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("sql").or_else(|| m.get("command_text")))
+            .and_then(|v| v.as_str())
+        {
+            let analysis = sql_parser::analyze_sql(sql_text);
+            if let Some(dto_code) = sql_parser::generate_composite_dto(&analysis) {
+                let class_name = analysis
+                    .primary_table
+                    .as_deref()
+                    .map(|t| {
+                        let entity =
+                            to_pascal_case(t.trim_start_matches('[').trim_end_matches(']'));
+                        if analysis.joined_tables.is_empty() {
+                            entity
+                        } else {
+                            let join_suffix: String = analysis
+                                .joined_tables
+                                .iter()
+                                .take(2)
+                                .map(|j| {
+                                    to_pascal_case(
+                                        j.table.trim_start_matches('[').trim_end_matches(']'),
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("");
+                            format!("{entity}With{join_suffix}")
+                        }
+                    })
+                    .unwrap_or_else(|| "Data".into());
+
+                if emitted_classes.insert(class_name.clone()) {
+                    code.push_str(&dto_code);
+                    let _ = writeln!(code);
+                    mapping_report.push(MappingEntry {
+                        legacy_element: format!(
+                            "JOIN query → {}",
+                            analysis.primary_table.as_deref().unwrap_or("?")
+                        ),
+                        modern_element: format!("class {class_name}"),
+                        category: "dto".into(),
+                        notes: format!(
+                            "Composite DTO from JOIN with [{}]",
+                            analysis
+                                .joined_tables
+                                .iter()
+                                .map(|j| j.table.clone())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ),
+                    });
+                }
+            }
+        }
+    }
+
+    // Standard DTOs from column edges (for non-JOIN queries or when SQL text unavailable)
     let mut table_columns: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for edge in &ctx.reads_column {
@@ -788,7 +875,6 @@ fn generate_dto_classes(
             .target_id
             .strip_prefix("col:")
             .unwrap_or(&edge.target_id);
-        // Try to find parent table from source
         let table = edge
             .metadata
             .as_ref()
@@ -801,7 +887,6 @@ fn generate_dto_classes(
             .push(col_name.to_string());
     }
 
-    // Fallback: use queries_table edges if no column data
     if table_columns.is_empty() {
         for edge in &ctx.queries_table {
             let table = edge
@@ -814,6 +899,11 @@ fn generate_dto_classes(
 
     for (table, columns) in &table_columns {
         let class_name = to_pascal_case(table);
+        if emitted_classes.contains(&class_name) {
+            continue; // Already emitted by SQL parser
+        }
+        emitted_classes.insert(class_name.clone());
+
         let _ = writeln!(code, "public class {class_name}");
         let _ = writeln!(code, "{{");
 
@@ -838,44 +928,91 @@ fn generate_dto_classes(
         });
     }
 
-    Some(code)
+    if code.is_empty() { None } else { Some(code) }
 }
 
 /// Infer a C# type from a column name using naming conventions.
+/// Phase 31: Extended heuristics with GUID, double, and more bool patterns.
 fn infer_csharp_type(col_name: &str) -> &'static str {
     let lower = col_name.to_lowercase();
+
+    // Boolean patterns
+    if lower.starts_with("is")
+        || lower.starts_with("has")
+        || lower.starts_with("can")
+        || lower.starts_with("should")
+        || lower.ends_with("flag")
+        || lower.ends_with("active")
+        || lower.ends_with("enabled")
+    {
+        return "bool";
+    }
+
+    // GUID/UUID
+    if lower.ends_with("guid") || lower.ends_with("uuid") {
+        return "Guid";
+    }
+
+    // Integer IDs
     if lower.ends_with("id") {
-        "int"
-    } else if lower.ends_with("name")
+        return "int";
+    }
+
+    // Counts/quantities
+    if lower.ends_with("count")
+        || lower.ends_with("qty")
+        || lower.ends_with("quantity")
+        || lower.ends_with("number")
+    {
+        return "int";
+    }
+
+    // Date/time
+    if lower.ends_with("date")
+        || lower.ends_with("time")
+        || lower.ends_with("at")
+        || lower.ends_with("on")
+        || lower.starts_with("created")
+        || lower.starts_with("modified")
+        || lower.starts_with("updated")
+        || lower.starts_with("deleted")
+    {
+        return "DateTime";
+    }
+
+    // Money/decimal
+    if lower.ends_with("amount")
+        || lower.ends_with("total")
+        || lower.ends_with("price")
+        || lower.ends_with("cost")
+        || lower.ends_with("balance")
+    {
+        return "decimal";
+    }
+
+    // Double/float
+    if lower.ends_with("percent") || lower.ends_with("rate") || lower.ends_with("ratio") {
+        return "double";
+    }
+
+    // String types
+    if lower.ends_with("name")
         || lower.ends_with("description")
         || lower.ends_with("title")
         || lower.ends_with("email")
         || lower.ends_with("address")
         || lower.ends_with("text")
         || lower.ends_with("url")
+        || lower.ends_with("uri")
+        || lower.ends_with("link")
+        || lower.ends_with("phone")
+        || lower.ends_with("status")
+        || lower.ends_with("path")
     {
-        "string"
-    } else if lower.ends_with("date")
-        || lower.ends_with("time")
-        || lower.starts_with("created")
-        || lower.starts_with("modified")
-        || lower.starts_with("updated")
-    {
-        "DateTime"
-    } else if lower.ends_with("amount")
-        || lower.ends_with("total")
-        || lower.ends_with("price")
-        || lower.ends_with("cost")
-        || lower.ends_with("balance")
-    {
-        "decimal"
-    } else if lower.starts_with("is") || lower.starts_with("has") || lower.starts_with("can") {
-        "bool"
-    } else if lower.ends_with("count") || lower.ends_with("quantity") || lower.ends_with("number") {
-        "int"
-    } else {
-        "string"
+        return "string";
     }
+
+    "string"
 }
 
 // ─── Test scaffold ────────────────────────────────────────────────────────────
@@ -1165,6 +1302,7 @@ fn extract_state_key(target_id: &str) -> String {
 }
 
 /// Generate Blazor business logic lines for a handler based on its graph edges.
+/// Phase 31: Uses SQL parser for specific method names + async hazard warnings.
 fn generate_blazor_handler_body(ctx: &FileContext, fname: &str, code: &mut String) -> bool {
     let mut generated_any = false;
 
@@ -1184,44 +1322,129 @@ fn generate_blazor_handler_body(ctx: &FileContext, fname: &str, code: &mut Strin
             "        // Use async repository methods below. For library code, append .ConfigureAwait(false)."
         );
         for sql_edge in &handler_sql {
-            let op = classify_sql_op(sql_edge);
-            let table = extract_table_from_sql_edge(sql_edge);
-            let entity = to_pascal_case(&table);
-            match op {
-                "SELECT" => {
-                    let _ = writeln!(
-                        code,
-                        "        var {camel}List = await Repository.GetAll{entity}Async();",
-                        camel = to_camel_case(&table)
-                    );
+            // Phase 31: Try SQL parser first for specific method names
+            let sql_text = sql_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("sql").or_else(|| m.get("command_text")))
+                .and_then(|v| v.as_str());
+
+            if let Some(sql) = sql_text {
+                let analysis = sql_parser::analyze_sql(sql);
+                let method_name = sql_parser::generate_method_name(&analysis);
+                let params_call = analysis
+                    .parameters
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                match analysis.operation {
+                    SqlOp::Select => {
+                        let camel =
+                            to_camel_case(analysis.primary_table.as_deref().unwrap_or("data"));
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "        var {camel}List = await Repository.{method_name}();"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "        var {camel}List = await Repository.{method_name}({params_call});"
+                            );
+                        }
+                    }
+                    SqlOp::Insert => {
+                        let entity =
+                            to_pascal_case(analysis.primary_table.as_deref().unwrap_or("Entity"));
+                        let camel = to_camel_case(&entity);
+                        let _ = writeln!(
+                            code,
+                            "        var {camel} = new {entity}(); // TODO: populate from form fields"
+                        );
+                        let _ = writeln!(code, "        await Repository.{method_name}({camel});");
+                    }
+                    SqlOp::Update => {
+                        let _ = writeln!(code, "        // TODO: populate entity from form fields");
+                        if params_call.is_empty() {
+                            let _ =
+                                writeln!(code, "        await Repository.{method_name}(entity);");
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "        await Repository.{method_name}({params_call}, entity);"
+                            );
+                        }
+                    }
+                    SqlOp::Delete => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "        await Repository.{method_name}(id); // TODO: resolve id from selection"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "        await Repository.{method_name}({params_call});"
+                            );
+                        }
+                    }
+                    SqlOp::Exec => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "        var result = await Repository.{method_name}();"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "        var result = await Repository.{method_name}({params_call});"
+                            );
+                        }
+                    }
                 }
-                "INSERT" => {
-                    let _ = writeln!(
-                        code,
-                        "        var {camel} = new {entity}(); // TODO: populate from form fields",
-                        camel = to_camel_case(&table)
-                    );
-                    let _ = writeln!(
-                        code,
-                        "        await Repository.Create{entity}Async({camel});",
-                        camel = to_camel_case(&table)
-                    );
+            } else {
+                // Fallback to generic method names
+                let op = classify_sql_op(sql_edge);
+                let table = extract_table_from_sql_edge(sql_edge);
+                let entity = to_pascal_case(&table);
+                match op {
+                    "SELECT" => {
+                        let _ = writeln!(
+                            code,
+                            "        var {camel}List = await Repository.GetAll{entity}Async();",
+                            camel = to_camel_case(&table)
+                        );
+                    }
+                    "INSERT" => {
+                        let _ = writeln!(
+                            code,
+                            "        var {camel} = new {entity}(); // TODO: populate from form fields",
+                            camel = to_camel_case(&table)
+                        );
+                        let _ = writeln!(
+                            code,
+                            "        await Repository.Create{entity}Async({camel});",
+                            camel = to_camel_case(&table)
+                        );
+                    }
+                    "UPDATE" => {
+                        let _ = writeln!(code, "        // TODO: populate entity from form fields");
+                        let _ = writeln!(
+                            code,
+                            "        await Repository.Update{entity}Async({camel});",
+                            camel = to_camel_case(&table)
+                        );
+                    }
+                    "DELETE" => {
+                        let _ = writeln!(
+                            code,
+                            "        await Repository.Delete{entity}Async(id); // TODO: resolve id from selection"
+                        );
+                    }
+                    _ => {}
                 }
-                "UPDATE" => {
-                    let _ = writeln!(code, "        // TODO: populate entity from form fields");
-                    let _ = writeln!(
-                        code,
-                        "        await Repository.Update{entity}Async({camel});",
-                        camel = to_camel_case(&table)
-                    );
-                }
-                "DELETE" => {
-                    let _ = writeln!(
-                        code,
-                        "        await Repository.Delete{entity}Async(id); // TODO: resolve id from selection"
-                    );
-                }
-                _ => {}
             }
         }
         generated_any = true;
@@ -1558,6 +1781,20 @@ mod tests {
         assert_eq!(infer_csharp_type("IsActive"), "bool");
         assert_eq!(infer_csharp_type("ItemCount"), "int");
         assert_eq!(infer_csharp_type("Data"), "string");
+    }
+
+    #[test]
+    fn infer_csharp_types_phase31_extended() {
+        assert_eq!(infer_csharp_type("OrderGuid"), "Guid");
+        assert_eq!(infer_csharp_type("HasPermission"), "bool");
+        assert_eq!(infer_csharp_type("ShouldNotify"), "bool");
+        assert_eq!(infer_csharp_type("ActiveFlag"), "bool");
+        assert_eq!(infer_csharp_type("SuccessRate"), "double");
+        assert_eq!(infer_csharp_type("CompletionPercent"), "double");
+        assert_eq!(infer_csharp_type("DeletedAt"), "DateTime");
+        assert_eq!(infer_csharp_type("ItemQty"), "int");
+        assert_eq!(infer_csharp_type("ProfileUrl"), "string");
+        assert_eq!(infer_csharp_type("OrderStatus"), "string");
     }
 
     #[test]
