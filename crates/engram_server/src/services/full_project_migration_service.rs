@@ -451,6 +451,10 @@ pub struct MethodInfo {
     pub body_preview: Option<String>,
     /// Heuristic complexity: branches + loops + error handlers + SQL + Session.
     pub complexity_score: u32,
+    /// VB Handles clause bindings: e.g. ["btnSave.Click", "MyBase.Load"].
+    /// Empty for C# methods (which use += event wiring or aspx runat="server" attributes).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub handles_clause: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2947,6 +2951,7 @@ fn build_method_inventories(
                     called_by: vec![],
                     body_preview: None, // graph nodes don't have body text
                     complexity_score: 0,
+                    handles_clause: vec![],
                 });
             }
 
@@ -3102,11 +3107,31 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     static CS_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(r"(?im)^\s*((?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(\w[\w.<>\[\],]*)\s+(\w+)\s*\(([^)]*)\)").unwrap()
     });
+    // THIRD-PASS: Extract VB Handles clause (e.g. "Handles btnSave.Click, Timer1.Tick")
+    // Critical for migration: tells AI agent which control event triggers this method.
+    static VB_HANDLES_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?im)(?:Sub|Function)\s+(\w+)\s*\([^)]*\)(?:\s+As\s+\w[\w.<>\[\],\s]*)?\s+Handles\s+(.+)$").unwrap()
+    });
 
     let mut methods = Vec::new();
     let is_vb = content.contains("End Sub") || content.contains("End Function");
 
     if is_vb {
+        // THIRD-PASS: Pre-build Handles clause map for O(1) lookup per method
+        let mut handles_map: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for cap in VB_HANDLES_RE.captures_iter(content) {
+            let method_name = cap[1].to_string();
+            let handles_str = cap[2].to_string();
+            // Parse comma-separated Handles targets: "btnSave.Click, Timer1.Tick"
+            let bindings: Vec<String> = handles_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            handles_map.insert(method_name, bindings);
+        }
+
         for cap in VB_METHOD_RE.captures_iter(content) {
             let access = cap.get(1).map_or("Private", |m| m.as_str().trim());
             let kind_str = &cap[2];
@@ -3124,7 +3149,23 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
                 .trim()
                 .to_string();
             let effects = extract_effects_from_nearby_content(content, &name);
-            let kind = classify_method_kind(&name, &effects, &None);
+            let handles = handles_map.get(&name).cloned().unwrap_or_default();
+            // If Handles MyBase.Load, classify as Lifecycle even if name doesn't match pattern
+            let kind = if handles.iter().any(|h| {
+                let lower_h = h.to_lowercase();
+                lower_h.contains("mybase.load")
+                    || lower_h.contains("mybase.init")
+                    || lower_h.contains("mybase.prerender")
+                    || lower_h.contains("mybase.unload")
+                    || lower_h.contains("me.load")
+                    || lower_h.contains("me.init")
+            }) {
+                MethodKind::Lifecycle
+            } else if !handles.is_empty() {
+                MethodKind::ControlEvent
+            } else {
+                classify_method_kind(&name, &effects, &None)
+            };
 
             // Extract body for line range, preview, and complexity
             let (body_preview, line_range, line_count, complexity) =
@@ -3153,6 +3194,7 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
                 called_by: vec![],
                 body_preview,
                 complexity_score: complexity,
+                handles_clause: handles,
             });
         }
     } else {
@@ -3217,6 +3259,7 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
                 called_by: vec![],
                 body_preview,
                 complexity_score: complexity,
+                handles_clause: vec![],
             });
         }
     }
@@ -3224,11 +3267,23 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     methods
 }
 
-fn extract_effects_from_nearby_content(content: &str, _method_name: &str) -> Vec<String> {
-    // Lightweight heuristic: scan full content for common patterns
-    // A more precise approach would find the method body, but this is a fallback
+fn extract_effects_from_nearby_content(content: &str, method_name: &str) -> Vec<String> {
+    // THIRD-PASS FIX: Scope effect detection to the method body when possible.
+    // Previously scanned the ENTIRE file, causing every method to be tagged
+    // with SQL_Access if any method in the file used SqlCommand.
+    let body_text: Option<String> = {
+        let is_vb = content.contains("End Sub") || content.contains("End Function");
+        if is_vb {
+            extract_vb_method_body(content, method_name).map(|(b, _, _, _)| b)
+        } else {
+            extract_cs_method_body(content, method_name).map(|(b, _, _, _)| b)
+        }
+    };
+    // Use extracted body if available, fall back to full file content
+    let scan_text = body_text.as_deref().unwrap_or(content);
+    let lower = scan_text.to_lowercase();
+
     let mut effects = Vec::new();
-    let lower = content.to_lowercase();
     if lower.contains("sqlcommand")
         || lower.contains("sqlconnection")
         || lower.contains("sqldatareader")
@@ -3236,6 +3291,8 @@ fn extract_effects_from_nearby_content(content: &str, _method_name: &str) -> Vec
         || lower.contains("executenonquery")
         || lower.contains("executereader")
         || lower.contains("executescalar")
+        || lower.contains("oledbcommand")
+        || lower.contains("oledbconnection")
     {
         effects.push("SQL_Access".to_string());
     }
@@ -3248,6 +3305,18 @@ fn extract_effects_from_nearby_content(content: &str, _method_name: &str) -> Vec
     }
     if lower.contains("createobject") {
         effects.push("COM_Interop".to_string());
+    }
+    if lower.contains("response.redirect")
+        || lower.contains("server.transfer")
+        || lower.contains("response.write")
+    {
+        effects.push("HTTP_Response".to_string());
+    }
+    if lower.contains("smtpclient")
+        || lower.contains("mailmessage")
+        || lower.contains("cdo.message")
+    {
+        effects.push("Email_Send".to_string());
     }
     effects
 }
@@ -7348,16 +7417,42 @@ fn resolve_inheritance_chains(
                 .map(|c| c[1].to_string())
                 .collect();
 
-            class_map.insert(
-                class_name.clone(),
-                (
-                    parent.clone(),
-                    path.to_string(),
-                    methods,
-                    state_writes,
-                    base_calls,
-                ),
-            );
+            // THIRD-PASS FIX: Merge instead of overwrite when partial classes
+            // span multiple files (e.g. _Default.aspx.vb + _Default.aspx.designer.vb).
+            // The second insert would clobber the first file's methods.
+            if let Some(existing) = class_map.get_mut(class_name) {
+                // Keep the parent from the file that declares the inheritance
+                if existing.0.is_empty() || existing.0 == class_name.as_str() {
+                    existing.0 = parent.clone();
+                }
+                // Merge methods, state_writes, base_calls (deduplicated)
+                for m in &methods {
+                    if !existing.2.contains(m) {
+                        existing.2.push(m.clone());
+                    }
+                }
+                for sw in &state_writes {
+                    if !existing.3.contains(sw) {
+                        existing.3.push(sw.clone());
+                    }
+                }
+                for bc in &base_calls {
+                    if !existing.4.contains(bc) {
+                        existing.4.push(bc.clone());
+                    }
+                }
+            } else {
+                class_map.insert(
+                    class_name.clone(),
+                    (
+                        parent.clone(),
+                        path.to_string(),
+                        methods,
+                        state_writes,
+                        base_calls,
+                    ),
+                );
+            }
         }
     }
 
@@ -7669,9 +7764,17 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
             .expect("vb_nested_open")
     });
 
+    // Determine which line index in after_start contains the actual declaration.
+    // The regex ^\s* can match leading newlines, so m.start() may precede the declaration line.
+    // Count newlines in the match span to find the declaration line index.
+    let match_len = m.end() - m.start();
+    let decl_line_idx = after_start[..match_len.min(after_start.len())]
+        .matches('\n')
+        .count();
+
     for (i, line) in after_start.lines().enumerate() {
-        if i == 0 {
-            continue; // skip the opening line
+        if i <= decl_line_idx {
+            continue; // skip the declaration line and any preceding empty lines
         }
         let trimmed = line.trim().to_uppercase();
 
@@ -7680,10 +7783,12 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
             depth += 1;
         }
 
-        // Count closings
-        if trimmed.starts_with(&format!("END {upper_kind}")) {
+        // Count closings — must match BOTH End Sub and End Function
+        // because a Function can contain nested Sub (and vice versa).
+        // Only break when depth reaches 0 AND closing kind matches the opening kind.
+        if trimmed.starts_with("END SUB") || trimmed.starts_with("END FUNCTION") {
             depth -= 1;
-            if depth == 0 {
+            if depth == 0 && trimmed.starts_with(&format!("END {upper_kind}")) {
                 // Calculate byte offset
                 let line_start = after_start
                     .lines()
@@ -7936,23 +8041,49 @@ static CX_SESSION_RE: std::sync::LazyLock<Regex> =
 
 /// Compute a heuristic complexity score for a method body.
 /// Uses pre-compiled LazyLock regexes to avoid per-call compilation overhead.
+///
+/// THIRD-PASS FIX: Subtract overlap counts to prevent double-counting.
+/// `else if` matches both `\bif\b` and `\belse\s+if\b`.
+/// `select case` matches both `\bcase\b` and `\bselect\s+case\b`.
+/// `do while` matches both `\bwhile\b` and `\bdo\s+while\b`.
+/// `for each` (VB) matches both `\bfor\s` and `\bfor\s+each\b`.
+/// `foreach` (C#) matches `\bfor\s` because of the word boundary + space.
 fn compute_complexity_score(body: &str) -> u32 {
     let mut score: u32 = 0;
 
-    // Branches (1 point each)
-    score += CX_IF_RE.find_iter(body).count() as u32;
-    score += CX_ELSE_IF_RE.find_iter(body).count() as u32;
-    score += CX_ELSEIF_RE.find_iter(body).count() as u32;
-    score += CX_SWITCH_RE.find_iter(body).count() as u32;
-    score += CX_CASE_RE.find_iter(body).count() as u32;
-    score += CX_SELECT_CASE_RE.find_iter(body).count() as u32;
+    // Branches (1 point each), with overlap subtraction
+    let if_count = CX_IF_RE.find_iter(body).count() as u32;
+    let else_if_count = CX_ELSE_IF_RE.find_iter(body).count() as u32;
+    let elseif_count = CX_ELSEIF_RE.find_iter(body).count() as u32;
+    // `else if` and `elseif` also match `\bif\b`, so subtract them
+    score += if_count
+        .saturating_sub(else_if_count)
+        .saturating_sub(elseif_count);
+    score += else_if_count;
+    score += elseif_count;
 
-    // Loops (1 point each)
-    score += CX_FOR_RE.find_iter(body).count() as u32;
-    score += CX_FOREACH_RE.find_iter(body).count() as u32;
-    score += CX_FOR_EACH_RE.find_iter(body).count() as u32;
-    score += CX_WHILE_RE.find_iter(body).count() as u32;
-    score += CX_DO_WHILE_RE.find_iter(body).count() as u32;
+    score += CX_SWITCH_RE.find_iter(body).count() as u32;
+    let case_count = CX_CASE_RE.find_iter(body).count() as u32;
+    let select_case_count = CX_SELECT_CASE_RE.find_iter(body).count() as u32;
+    // `select case` also matches `\bcase\b`, subtract overlap
+    score += case_count.saturating_sub(select_case_count);
+    score += select_case_count;
+
+    // Loops (1 point each), with overlap subtraction
+    let for_count = CX_FOR_RE.find_iter(body).count() as u32;
+    let foreach_count = CX_FOREACH_RE.find_iter(body).count() as u32;
+    let for_each_count = CX_FOR_EACH_RE.find_iter(body).count() as u32;
+    // `for each` (VB) matches `\bfor\s`, and C# `foreach` does NOT match `\bfor\s`
+    // (because `foreach` has no space after `for`). So only subtract VB for_each.
+    score += for_count.saturating_sub(for_each_count);
+    score += foreach_count;
+    score += for_each_count;
+
+    let while_count = CX_WHILE_RE.find_iter(body).count() as u32;
+    let do_while_count = CX_DO_WHILE_RE.find_iter(body).count() as u32;
+    // `do while` also matches `\bwhile\b`, subtract overlap
+    score += while_count.saturating_sub(do_while_count);
+    score += do_while_count;
     score += CX_DO_RE.find_iter(body).count() as u32;
 
     // Error handlers (2 points each)
@@ -8584,6 +8715,7 @@ mod tests {
                         called_by: vec![],
                         body_preview: None,
                         complexity_score: 0,
+                        handles_clause: vec![],
                     },
                     MethodInfo {
                         name: "btnSubmit_Click".into(),
@@ -8600,6 +8732,7 @@ mod tests {
                         called_by: vec![],
                         body_preview: None,
                         complexity_score: 3,
+                        handles_clause: vec!["btnSubmit.Click".into()],
                     },
                 ],
                 lifecycle_methods: 1,
@@ -10163,5 +10296,272 @@ public class BasePage : System.Web.UI.Page {
             score >= 12,
             "Complex method should score >= 12, got {score}"
         );
+    }
+
+    // ── Third-Pass Tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn vb_method_body_function_containing_nested_sub() {
+        // BUG FIX: End Sub inside a Function must decrement depth correctly
+        let content = r#"
+    Public Function GetData(ByVal id As Integer) As String
+        Dim result As String = ""
+        Call Helper(id)
+        Return result
+    End Function
+
+    Private Sub Helper(ByVal id As Integer)
+        Console.WriteLine(id)
+    End Sub
+"#;
+        let result = extract_vb_method_body(content, "GetData");
+        assert!(result.is_some(), "Should extract GetData Function body");
+        let (body, _, _, line_count) = result.unwrap();
+        assert!(
+            body.contains("Call Helper"),
+            "Body should contain Call Helper"
+        );
+        assert!(
+            !body.contains("Console.WriteLine"),
+            "Body should NOT contain Helper's body"
+        );
+        assert!(
+            line_count <= 6,
+            "GetData should be ~5 lines, got {line_count}"
+        );
+    }
+
+    #[test]
+    fn vb_method_body_sub_containing_nested_function() {
+        // Reverse case: Sub containing a nested Function
+        let content = r#"
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+        Dim x As Integer = ComputeValue(5)
+    End Sub
+
+    Private Function ComputeValue(ByVal n As Integer) As Integer
+        Return n * 2
+    End Function
+"#;
+        let result = extract_vb_method_body(content, "Page_Load");
+        assert!(result.is_some(), "Should extract Page_Load");
+        let (body, _, _, lc) = result.unwrap();
+        assert!(body.contains("ComputeValue(5)"), "Should contain the call");
+        assert!(
+            !body.contains("Return n * 2"),
+            "Should NOT contain Function body"
+        );
+        assert!(lc <= 4, "Page_Load should be ~3 lines, got {lc}");
+    }
+
+    #[test]
+    fn complexity_score_no_double_counting_else_if() {
+        // THIRD-PASS: `else if` should count as 1, not 2 (if + else if)
+        let body = r#"
+            if (x == 1) {
+                DoA();
+            } else if (x == 2) {
+                DoB();
+            } else if (x == 3) {
+                DoC();
+            }
+        "#;
+        let score = compute_complexity_score(body);
+        // 1 if + 2 else if = 3, not 5
+        assert_eq!(
+            score, 3,
+            "else if should not double-count with if, got {score}"
+        );
+    }
+
+    #[test]
+    fn complexity_score_no_double_counting_vb_patterns() {
+        // VB: Select Case + For Each should not double count
+        let body = r#"
+            Select Case status
+                Case "Active"
+                    For Each item In items
+                        DoWork(item)
+                    Next
+                Case "Inactive"
+                    DoNothing()
+            End Select
+        "#;
+        let score = compute_complexity_score(body);
+        // 1 select case + 2 case + 1 for each = 4, not 7
+        assert_eq!(score, 4, "VB patterns should not double-count, got {score}");
+    }
+
+    #[test]
+    fn partial_class_methods_are_merged() {
+        // THIRD-PASS: Partial classes in separate files should merge, not overwrite
+        let code_files: Vec<(&str, &str)> = vec![
+            (
+                "Default.aspx.vb",
+                r#"
+Partial Class _Default
+    Inherits BasePage
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+        Session("UserId") = 42
+    End Sub
+
+    Protected Sub btnSave_Click(sender As Object, e As EventArgs)
+        SaveData()
+    End Sub
+End Class
+"#,
+            ),
+            (
+                "Default.aspx.designer.vb",
+                r#"
+Partial Class _Default
+
+    Protected WithEvents btnSave As Global.System.Web.UI.WebControls.Button
+    Protected WithEvents lblMessage As Global.System.Web.UI.WebControls.Label
+End Class
+"#,
+            ),
+        ];
+
+        let markup = vec![FileContent {
+            file_path: "Default.aspx".into(),
+            markup_content: r#"<%@ Page Language="VB" Inherits="MyApp._Default" %>"#.into(),
+            codebehind_content: None,
+        }];
+
+        let report = resolve_inheritance_chains(&code_files, &markup);
+
+        // Verify the _Default class merged methods from both files
+        // The chain should include _Default → BasePage
+        assert!(
+            !report.chains.is_empty(),
+            "Should have at least one inheritance chain"
+        );
+        let chain = &report.chains[0];
+        assert!(
+            chain.chain.contains(&"_Default".to_string()),
+            "Chain should contain _Default"
+        );
+    }
+
+    #[test]
+    fn effects_scoped_to_method_body_not_file() {
+        // THIRD-PASS: extract_effects_from_nearby_content should only scan the method's body
+        let content = r#"
+Public Class MyPage
+    Inherits System.Web.UI.Page
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+        Dim name As String = Request.QueryString("name")
+        lblWelcome.Text = "Hello " & name
+    End Sub
+
+    Protected Sub btnQuery_Click(sender As Object, e As EventArgs)
+        Dim cmd As New SqlCommand("SELECT * FROM Users", conn)
+        Dim reader As SqlDataReader = cmd.ExecuteReader()
+        Session("LastQuery") = DateTime.Now
+    End Sub
+End Class
+"#;
+        // Page_Load should NOT have SQL_Access effect
+        let page_load_effects = extract_effects_from_nearby_content(content, "Page_Load");
+        assert!(
+            !page_load_effects.iter().any(|e| e.contains("SQL")),
+            "Page_Load should NOT have SQL_Access (SQL is in btnQuery_Click), got: {:?}",
+            page_load_effects
+        );
+
+        // btnQuery_Click SHOULD have SQL_Access
+        let btn_effects = extract_effects_from_nearby_content(content, "btnQuery_Click");
+        assert!(
+            btn_effects.iter().any(|e| e.contains("SQL")),
+            "btnQuery_Click SHOULD have SQL_Access, got: {:?}",
+            btn_effects
+        );
+    }
+
+    #[test]
+    fn vb_handles_clause_extraction() {
+        // THIRD-PASS: Handles clause should be captured in MethodInfo
+        let content = r#"
+Public Class MyPage
+    Inherits System.Web.UI.Page
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+        ' Init
+    End Sub
+
+    Protected Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+        ' Save
+    End Sub
+
+    Protected Sub Timer_Tick(sender As Object, e As EventArgs) Handles Timer1.Tick, Timer2.Tick
+        ' Tick from two timers
+    End Sub
+
+    Private Sub HelperMethod()
+        ' No Handles clause
+    End Sub
+End Class
+"#;
+        let methods = extract_methods_from_content(content);
+
+        let page_load = methods.iter().find(|m| m.name == "Page_Load");
+        assert!(page_load.is_some(), "Should find Page_Load");
+        let pl = page_load.unwrap();
+        assert!(
+            pl.handles_clause.contains(&"Me.Load".to_string()),
+            "Page_Load should have Handles Me.Load, got: {:?}",
+            pl.handles_clause
+        );
+        assert!(
+            matches!(pl.method_kind, MethodKind::Lifecycle),
+            "Page_Load with Handles Me.Load should be Lifecycle"
+        );
+
+        let btn_save = methods.iter().find(|m| m.name == "btnSave_Click");
+        assert!(btn_save.is_some(), "Should find btnSave_Click");
+        assert!(
+            btn_save
+                .unwrap()
+                .handles_clause
+                .contains(&"btnSave.Click".to_string()),
+            "btnSave_Click should have Handles btnSave.Click"
+        );
+        assert!(
+            matches!(btn_save.unwrap().method_kind, MethodKind::ControlEvent),
+            "btnSave_Click with Handles should be ControlEvent"
+        );
+
+        let timer = methods.iter().find(|m| m.name == "Timer_Tick");
+        assert!(timer.is_some(), "Should find Timer_Tick");
+        let t = timer.unwrap();
+        assert_eq!(
+            t.handles_clause.len(),
+            2,
+            "Timer_Tick should have 2 Handles bindings"
+        );
+        assert!(t.handles_clause.contains(&"Timer1.Tick".to_string()));
+        assert!(t.handles_clause.contains(&"Timer2.Tick".to_string()));
+
+        let helper = methods.iter().find(|m| m.name == "HelperMethod");
+        assert!(helper.is_some(), "Should find HelperMethod");
+        assert!(
+            helper.unwrap().handles_clause.is_empty(),
+            "HelperMethod should have no Handles clause"
+        );
+    }
+
+    #[test]
+    fn complexity_no_double_count_do_while() {
+        let body = r#"
+            do while (reader.Read())
+                count += 1
+            loop
+        "#;
+        let score = compute_complexity_score(body);
+        // 1 do while = 1, not 2 (do while + while)
+        assert_eq!(score, 1, "do while should count as 1, not 2, got {score}");
     }
 }

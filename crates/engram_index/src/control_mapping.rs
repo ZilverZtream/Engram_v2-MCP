@@ -90,9 +90,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         has_nested_postback: true,
         migration_complexity: 4,
         breaking_differences: &[
-            "ViewState paging requires manual state management",
-            "RowCommand dispatching has no equivalent",
-            "EditIndex/SelectedIndex lifecycle coupling",
+            "ViewState stores page index, sort expression, and edit index across postbacks; must be converted to component state",
+            "RowCommand dispatching via CommandName/CommandArgument has no SPA equivalent; decompose into per-row button handlers",
+            "EditIndex/SelectedIndex are set during lifecycle events and require DataBind() to take effect",
+            "Auto-generated columns (BoundField, TemplateField) require explicit column definitions in modern grids",
         ],
     },
     ControlMapping {
@@ -769,9 +770,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         has_nested_postback: true,
         migration_complexity: 4,
         breaking_differences: &[
-            "Masks full postback as partial update",
-            "ViewState coupling hidden from child controls",
-            "Trigger model has no SPA equivalent",
+            "Masks full postback as partial update — child controls still execute full page lifecycle",
+            "ViewState coupling hidden: child controls depend on ViewState without knowing it",
+            "AsyncPostBackTrigger/PostBackTrigger model has no SPA equivalent; decompose into component boundaries",
+            "Nested UpdatePanels create invisible dependency chains that break when removed",
         ],
     },
     ControlMapping {
@@ -1543,9 +1545,10 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         has_nested_postback: true,
         migration_complexity: 5,
         breaking_differences: &[
-            "NeedDataSource lifecycle pattern",
-            "Detail tables require nested binding",
-            "MasterTableView column model has no equivalent",
+            "NeedDataSource fires on every postback (Init/Filter/Sort/Page); modern OnRead fires once per user action",
+            "ViewState reconstructs page index, sort column, and filter state server-side; Blazor grids hold this in component state",
+            "MasterTableView detail tables create nested postback cycles with no modern equivalent",
+            "Column templates with server controls require complete decomposition to Razor components",
         ],
     },
     ControlMapping {
@@ -1805,8 +1808,9 @@ pub const CONTROL_MAPPINGS: &[ControlMapping] = &[
         has_nested_postback: true,
         migration_complexity: 4,
         breaking_differences: &[
-            "AjaxSetting model has no SPA equivalent",
-            "Loading panel integration",
+            "AjaxSettings bind control-to-UpdatePanel pairs; must decompose into individual component data-fetch patterns",
+            "RadAjaxPanel wraps UpdatePanel-style partial rendering; child controls still run full lifecycle",
+            "Loading panel per-control integration must be replaced with per-component loading state",
         ],
     },
     // =====================================================================
