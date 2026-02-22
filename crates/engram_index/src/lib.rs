@@ -15,6 +15,7 @@ pub mod layout_extractor;
 pub mod parsing;
 pub mod report_extractor;
 pub mod solution_parser;
+pub mod sp_extractor;
 pub mod sql_parser;
 pub mod state_extractor;
 pub mod sync_hazard_detector;

@@ -8883,6 +8883,72 @@ End Sub
             })
             .collect();
 
+        // ── Phase 34: Discover .sql, packages.config, web.*.config, .resx, .master files ─
+
+        // 12a. SQL files for stored procedure catalog
+        let sql_file_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 100).await;
+        let sql_files: Vec<(String, String)> = sql_file_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // 12b. packages.config files (legacy NuGet format)
+        let pkgconfig_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &["packages.config"], 20)
+                .await;
+        let packages_config_files: Vec<(String, String)> = pkgconfig_paths
+            .into_iter()
+            .filter(|p| p.ends_with("packages.config"))
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // 12c. Config transform files (web.Debug.config, web.Release.config, etc.)
+        let config_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".config"], 100).await;
+        let config_transform_files: Vec<(String, String)> = config_paths
+            .into_iter()
+            .filter(|p| {
+                let lower = p.to_lowercase();
+                lower.contains("web.")
+                    && lower.ends_with(".config")
+                    && !lower.ends_with("web.config")
+                    && !lower.ends_with("packages.config")
+            })
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // 12d. .resx resource files
+        let resx_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".resx"], 200).await;
+        let resx_files: Vec<(String, String)> = resx_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // 12e. .master files (already discovered in markup scan, but we need raw content)
+        let master_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".master"], 50).await;
+        let master_files: Vec<(String, String)> = master_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
         // ── Build ProjectFileBundle ───────────────────────────────────────
 
         let bundle = ProjectFileBundle {
@@ -8894,6 +8960,11 @@ End Sub
             web_config_content: webconfig_content,
             code_files,
             project_references,
+            sql_files,
+            packages_config_files,
+            config_transform_files,
+            resx_files,
+            master_files,
         };
 
         // ── Blocking phase: run all analysis ──────────────────────────────

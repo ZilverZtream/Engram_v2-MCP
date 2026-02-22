@@ -60,6 +60,13 @@ pub struct FullProjectMigrationReport {
     pub email_patterns: EmailPatternReport,
     pub background_jobs: BackgroundJobReport,
 
+    // ── Phase 34: deep structural analyses ────────────────────────────────
+    pub sp_catalog: StoredProcedureCatalog,
+    pub inheritance_chains: InheritanceChainReport,
+    pub config_transforms: ConfigTransformReport,
+    pub master_page_regions: MasterPageRegionMap,
+    pub resource_inventory: ResourceInventory,
+
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
 }
@@ -96,6 +103,16 @@ pub struct CrossCuttingSummary {
     pub total_cache_keys: usize,
     pub has_email: bool,
     pub has_background_jobs: bool,
+    // Phase 34 aggregation
+    pub total_stored_procedures: usize,
+    pub total_sp_called_from_code: usize,
+    pub deepest_inheritance_chain: usize,
+    pub total_base_classes: usize,
+    pub total_config_environments: usize,
+    pub total_resource_files: usize,
+    pub total_resource_languages: usize,
+    pub total_master_page_regions: usize,
+    pub total_legacy_packages: usize,
 }
 
 /// An item (table, state key, control) shared across multiple files.
@@ -123,6 +140,16 @@ pub struct ProjectFileBundle {
     pub code_files: Vec<(String, String)>,
     /// Phase 33: parsed .csproj/.vbproj project references.
     pub project_references: Vec<ProjectReferenceBundle>,
+    /// Phase 34: .sql files for stored procedure catalog.
+    pub sql_files: Vec<(String, String)>,
+    /// Phase 34: packages.config files (legacy NuGet format).
+    pub packages_config_files: Vec<(String, String)>,
+    /// Phase 34: web.*.config transform files (web.Debug.config, etc.).
+    pub config_transform_files: Vec<(String, String)>,
+    /// Phase 34: .resx resource files.
+    pub resx_files: Vec<(String, String)>,
+    /// Phase 34: .master files for region mapping.
+    pub master_files: Vec<(String, String)>,
 }
 
 /// Parsed project file metadata (.csproj/.vbproj).
@@ -419,6 +446,11 @@ pub struct MethodInfo {
     pub effects: Vec<String>,
     pub calls_methods: Vec<String>,
     pub called_by: Vec<String>,
+    /// Method body preview: full body for ≤30 lines, truncated otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_preview: Option<String>,
+    /// Heuristic complexity: branches + loops + error handlers + SQL + Session.
+    pub complexity_score: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -503,6 +535,10 @@ pub struct DependencyInventory {
     pub third_party_assemblies: Vec<String>,
     pub packages_with_known_replacement: usize,
     pub packages_without_replacement: usize,
+    /// Packages from legacy packages.config files (pre-SDK-style projects).
+    pub legacy_packages: Vec<LegacyPackageRef>,
+    /// Assembly binding redirects from web.config.
+    pub binding_redirects: Vec<BindingRedirect>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -744,6 +780,165 @@ pub struct BackgroundJobPattern {
     pub risk_level: String,
 }
 
+// ── Phase 34: Stored Procedure Catalog (Ticket 1) ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StoredProcedureCatalog {
+    pub procedures: Vec<StoredProcedureInfo>,
+    pub total_procedures: usize,
+    pub procedures_with_params: usize,
+    pub procedures_called_from_code: usize,
+    pub uncalled_procedures: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct StoredProcedureInfo {
+    pub name: String,
+    pub parameters: Vec<SpParameterInfo>,
+    pub tables_read: Vec<String>,
+    pub tables_written: Vec<String>,
+    pub called_from: Vec<String>,
+    pub line_count: usize,
+    pub has_dynamic_sql: bool,
+    pub has_cursor: bool,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SpParameterInfo {
+    pub name: String,
+    pub sql_type: String,
+    pub direction: String,
+    pub default_value: Option<String>,
+    pub csharp_type: String,
+}
+
+// ── Phase 34: Base Class Inheritance Chain (Ticket 2) ─────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InheritanceChainReport {
+    pub chains: Vec<InheritanceChain>,
+    pub base_classes: Vec<BaseClassInfo>,
+    pub shared_lifecycle_methods: Vec<SharedLifecycleMethod>,
+    pub deepest_chain_depth: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InheritanceChain {
+    pub page_file: String,
+    pub chain: Vec<String>,
+    pub inherited_lifecycle_methods: Vec<(String, String)>,
+    pub inherited_state_writes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BaseClassInfo {
+    pub class_name: String,
+    pub file_path: String,
+    pub derived_count: usize,
+    pub lifecycle_methods: Vec<String>,
+    pub state_keys_initialized: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SharedLifecycleMethod {
+    pub method_name: String,
+    pub defining_class: String,
+    pub overridden_in: Vec<String>,
+    pub calls_base: bool,
+}
+
+// ── Phase 34: Binding Redirects (Ticket 3) ────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LegacyPackageRef {
+    pub package_id: String,
+    pub version: String,
+    pub target_framework: String,
+    pub is_dev_dependency: bool,
+    pub modern_replacement: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BindingRedirect {
+    pub assembly_name: String,
+    pub old_version_range: String,
+    pub new_version: String,
+    pub public_key_token: Option<String>,
+    pub has_known_replacement: bool,
+}
+
+// ── Phase 34: Config Transforms (Ticket 6a) ──────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigTransformReport {
+    pub environments: Vec<ConfigEnvironment>,
+    pub total_transforms: usize,
+    pub connection_string_overrides: Vec<(String, String)>,
+    pub debug_flag_overrides: Vec<(String, bool)>,
+    pub app_setting_overrides: Vec<(String, String, String)>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigEnvironment {
+    pub name: String,
+    pub file_path: String,
+    pub transforms: Vec<ConfigTransform>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ConfigTransform {
+    pub xpath_hint: String,
+    pub operation: String,
+    pub key: Option<String>,
+    pub value_preview: Option<String>,
+}
+
+// ── Phase 34: Master Page Region Mapping (Ticket 6b) ──────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MasterPageRegionMap {
+    pub master_pages: Vec<MasterPageInfo>,
+    pub regions: Vec<RegionMapping>,
+    pub orphan_regions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MasterPageInfo {
+    pub file_path: String,
+    pub placeholders: Vec<String>,
+    pub nested_master: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RegionMapping {
+    pub region_name: String,
+    pub defined_in: String,
+    pub filled_by: Vec<String>,
+    pub has_default_content: bool,
+    pub modern_equivalent: String,
+}
+
+// ── Phase 34: Resource File Inventory (Ticket 6c) ─────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ResourceInventory {
+    pub resource_files: Vec<ResourceFileInfo>,
+    pub total_keys: usize,
+    pub languages_detected: Vec<String>,
+    pub has_global_resources: bool,
+    pub has_local_resources: bool,
+    pub embedded_resource_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ResourceFileInfo {
+    pub file_path: String,
+    pub key_count: usize,
+    pub language: Option<String>,
+    pub resource_type: String,
+}
+
 // ── Main entry point ──────────────────────────────────────────────────────────
 
 /// Analyze an entire project for migration.
@@ -961,6 +1156,57 @@ pub fn analyze_full_project(
             .map(|ga| ga.codebehind_content.as_deref().unwrap_or("")),
     );
 
+    // ── 3c. Phase 34 analyses ─────────────────────────────────────────────
+
+    // Ticket 1: Stored procedure catalog
+    let sp_catalog = build_sp_catalog(&bundle.sql_files, &code_refs);
+
+    // Ticket 2: Inheritance chain resolution
+    let inheritance_chains = resolve_inheritance_chains(&code_refs, capped);
+
+    // Ticket 3: packages.config + binding redirects (extend dependency_inventory)
+    let mut dependency_inventory = dependency_inventory;
+    for (_, content) in &bundle.packages_config_files {
+        let legacy_pkgs = parse_packages_config(content);
+        // If we got legacy packages and had 0 NuGet packages from SDK-style, use these
+        if !legacy_pkgs.is_empty() {
+            if dependency_inventory.total_packages == 0 {
+                // Convert legacy to NuGet info for unified reporting
+                for lp in &legacy_pkgs {
+                    let (repl, ver, notes, cat) = lookup_modern_replacement(&lp.package_id);
+                    dependency_inventory.nuget_packages.push(NuGetPackageInfo {
+                        name: lp.package_id.clone(),
+                        version: Some(lp.version.clone()),
+                        modern_replacement: repl.map(|s| s.to_string()),
+                        modern_version: ver.map(|s| s.to_string()),
+                        migration_notes: notes.map(|s| s.to_string()),
+                        category: cat.to_string(),
+                    });
+                }
+                dependency_inventory.total_packages = dependency_inventory.nuget_packages.len();
+                let wr = dependency_inventory
+                    .nuget_packages
+                    .iter()
+                    .filter(|p| p.modern_replacement.is_some())
+                    .count();
+                dependency_inventory.packages_with_known_replacement = wr;
+                dependency_inventory.packages_without_replacement =
+                    dependency_inventory.total_packages - wr;
+            }
+            dependency_inventory.legacy_packages.extend(legacy_pkgs);
+        }
+    }
+    dependency_inventory.binding_redirects = extract_binding_redirects(web_config_content);
+
+    // Ticket 6a: Config transforms
+    let config_transforms = parse_config_transforms(&bundle.config_transform_files);
+
+    // Ticket 6b: Master page region mapping
+    let master_page_regions = build_master_page_region_map(&bundle.master_files, capped);
+
+    // Ticket 6c: Resource file inventory
+    let resource_inventory = build_resource_inventory(&bundle.resx_files);
+
     // ── 4. Cross-cutting aggregation ──────────────────────────────────────
 
     let cross_cutting = build_cross_cutting_summary(
@@ -977,6 +1223,11 @@ pub fn analyze_full_project(
         &caching_inventory,
         &email_patterns,
         &background_jobs,
+        &sp_catalog,
+        &inheritance_chains,
+        &config_transforms,
+        &resource_inventory,
+        &master_page_regions,
     );
 
     // ── 5. Build the wave lookup (file_path → wave number) ────────────────
@@ -1018,6 +1269,11 @@ pub fn analyze_full_project(
         &multi_tenancy,
         &email_patterns,
         &background_jobs,
+        &sp_catalog,
+        &inheritance_chains,
+        &config_transforms,
+        &master_page_regions,
+        &resource_inventory,
     );
 
     Ok(FullProjectMigrationReport {
@@ -1047,6 +1303,11 @@ pub fn analyze_full_project(
         multi_tenancy,
         email_patterns,
         background_jobs,
+        sp_catalog,
+        inheritance_chains,
+        config_transforms,
+        master_page_regions,
+        resource_inventory,
         markdown_report,
     })
 }
@@ -1067,6 +1328,11 @@ fn build_cross_cutting_summary(
     cache_inv: &CachingInventory,
     email: &EmailPatternReport,
     bg_jobs: &BackgroundJobReport,
+    sp_cat: &StoredProcedureCatalog,
+    inherit: &InheritanceChainReport,
+    cfg_transforms: &ConfigTransformReport,
+    res_inv: &ResourceInventory,
+    master_regions: &MasterPageRegionMap,
 ) -> CrossCuttingSummary {
     let mut complexity_distribution: BTreeMap<String, usize> = BTreeMap::new();
     let mut risk_distribution: BTreeMap<String, usize> = BTreeMap::new();
@@ -1219,6 +1485,16 @@ fn build_cross_cutting_summary(
         total_cache_keys: cache_inv.total_cache_keys,
         has_email: email.has_email,
         has_background_jobs: bg_jobs.has_background_jobs,
+        // Phase 34 aggregation
+        total_stored_procedures: sp_cat.total_procedures,
+        total_sp_called_from_code: sp_cat.procedures_called_from_code,
+        deepest_inheritance_chain: inherit.deepest_chain_depth,
+        total_base_classes: inherit.base_classes.len(),
+        total_config_environments: cfg_transforms.environments.len(),
+        total_resource_files: res_inv.resource_files.len(),
+        total_resource_languages: res_inv.languages_detected.len(),
+        total_master_page_regions: master_regions.regions.len(),
+        total_legacy_packages: dep_inv.legacy_packages.len(),
     }
 }
 
@@ -2669,6 +2945,8 @@ fn build_method_inventories(
                     effects,
                     calls_methods: vec![],
                     called_by: vec![],
+                    body_preview: None, // graph nodes don't have body text
+                    complexity_score: 0,
                 });
             }
 
@@ -2848,6 +3126,16 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
             let effects = extract_effects_from_nearby_content(content, &name);
             let kind = classify_method_kind(&name, &effects, &None);
 
+            // Extract body for line range, preview, and complexity
+            let (body_preview, line_range, line_count, complexity) =
+                if let Some((body, sl, el, lc)) = extract_vb_method_body(content, &name) {
+                    let preview = make_body_preview(&body, lc);
+                    let cx = compute_complexity_score(&body);
+                    (Some(preview), (sl, el), lc, cx)
+                } else {
+                    (None, (0, 0), 0, 0)
+                };
+
             methods.push(MethodInfo {
                 name,
                 signature,
@@ -2857,12 +3145,14 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
                     .next()
                     .unwrap_or("Private")
                     .to_string(),
-                line_range: (0, 0),
-                line_count: 0,
+                line_range,
+                line_count,
                 method_kind: kind,
                 effects,
                 calls_methods: vec![],
                 called_by: vec![],
+                body_preview,
+                complexity_score: complexity,
             });
         }
     } else {
@@ -2900,6 +3190,16 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
             let effects = extract_effects_from_nearby_content(content, &name);
             let kind = classify_method_kind(&name, &effects, &None);
 
+            // Extract body for line range, preview, and complexity
+            let (body_preview, line_range, line_count, complexity) =
+                if let Some((body, sl, el, lc)) = extract_cs_method_body(content, &name) {
+                    let preview = make_body_preview(&body, lc);
+                    let cx = compute_complexity_score(&body);
+                    (Some(preview), (sl, el), lc, cx)
+                } else {
+                    (None, (0, 0), 0, 0)
+                };
+
             methods.push(MethodInfo {
                 name,
                 signature,
@@ -2909,12 +3209,14 @@ fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
                     .next()
                     .unwrap_or("private")
                     .to_string(),
-                line_range: (0, 0),
-                line_count: 0,
+                line_range,
+                line_count,
                 method_kind: kind,
                 effects,
                 calls_methods: vec![],
                 called_by: vec![],
+                body_preview,
+                complexity_score: complexity,
             });
         }
     }
@@ -3196,6 +3498,8 @@ fn build_dependency_inventory(project_refs: &[ProjectReferenceBundle]) -> Depend
         nuget_packages: all_packages,
         assembly_references: all_assemblies,
         project_references: proj_refs,
+        legacy_packages: Vec::new(), // populated separately from packages.config
+        binding_redirects: Vec::new(), // populated separately from web.config
     }
 }
 
@@ -4569,8 +4873,13 @@ fn render_markdown(
     multi_tenant: &MultiTenancyReport,
     email: &EmailPatternReport,
     bg_jobs: &BackgroundJobReport,
+    sp_cat: &StoredProcedureCatalog,
+    inherit: &InheritanceChainReport,
+    cfg_transforms: &ConfigTransformReport,
+    master_regions: &MasterPageRegionMap,
+    res_inv: &ResourceInventory,
 ) -> String {
-    let mut md = String::with_capacity(128_000);
+    let mut md = String::with_capacity(160_000);
 
     // ── Header ────────────────────────────────────────────────────────────
     md.push_str(&format!(
@@ -6485,6 +6794,297 @@ fn render_markdown(
         md.push('\n');
     }
 
+    // ── Phase 34: Stored Procedure Catalog ──────────────────────────────
+    if sp_cat.total_procedures > 0 {
+        md.push_str("## Stored Procedure Catalog\n\n");
+        md.push_str(&format!(
+            "**Total**: {} procedures | **Called from code**: {} | **Uncalled (dead?)**: {}\n\n",
+            sp_cat.total_procedures,
+            sp_cat.procedures_called_from_code,
+            sp_cat.uncalled_procedures.len()
+        ));
+
+        md.push_str("| Procedure | Params | Tables Read | Tables Written | Lines | Dynamic SQL | Cursor | Modern Equivalent |\n");
+        md.push_str("|-----------|--------|-------------|----------------|-------|-------------|--------|-------------------|\n");
+        for sp in sp_cat.procedures.iter().take(50) {
+            md.push_str(&format!(
+                "| `{}` | {} | {} | {} | {} | {} | {} | {} |\n",
+                sp.name,
+                sp.parameters.len(),
+                sp.tables_read.join(", "),
+                sp.tables_written.join(", "),
+                sp.line_count,
+                if sp.has_dynamic_sql { "Yes" } else { "No" },
+                if sp.has_cursor { "Yes" } else { "No" },
+                sp.modern_equivalent
+            ));
+        }
+        md.push('\n');
+
+        // Parameter details for top SPs
+        let top_sps: Vec<_> = sp_cat
+            .procedures
+            .iter()
+            .filter(|sp| !sp.parameters.is_empty() && !sp.called_from.is_empty())
+            .take(10)
+            .collect();
+        if !top_sps.is_empty() {
+            md.push_str("### Stored Procedure Parameters (Top Called)\n\n");
+            for sp in top_sps {
+                md.push_str(&format!(
+                    "**{}** — called from: {}\n\n",
+                    sp.name,
+                    sp.called_from.join(", ")
+                ));
+                md.push_str("| Parameter | SQL Type | C# Type | Direction | Default |\n");
+                md.push_str("|-----------|----------|---------|-----------|--------|\n");
+                for p in &sp.parameters {
+                    md.push_str(&format!(
+                        "| `{}` | {} | `{}` | {} | {} |\n",
+                        p.name,
+                        p.sql_type,
+                        p.csharp_type,
+                        p.direction,
+                        p.default_value.as_deref().unwrap_or("-")
+                    ));
+                }
+                md.push('\n');
+            }
+        }
+
+        if !sp_cat.uncalled_procedures.is_empty() {
+            md.push_str("### Potentially Dead Procedures\n\n");
+            md.push_str("These SPs were found in `.sql` files but are not called from any scanned code-behind:\n\n");
+            for name in sp_cat.uncalled_procedures.iter().take(30) {
+                md.push_str(&format!("- `{name}`\n"));
+            }
+            md.push('\n');
+        }
+    }
+
+    // ── Phase 34: Inheritance Chain Report ────────────────────────────────
+    if !inherit.chains.is_empty() {
+        md.push_str("## Base Class Inheritance Chains\n\n");
+        md.push_str(&format!(
+            "**Deepest chain**: {} levels | **Shared base classes**: {}\n\n",
+            inherit.deepest_chain_depth,
+            inherit.base_classes.len()
+        ));
+
+        // Base class summary
+        if !inherit.base_classes.is_empty() {
+            md.push_str("### Shared Base Classes\n\n");
+            md.push_str("| Base Class | File | Derived Pages | Lifecycle Methods | Session Keys Initialized |\n");
+            md.push_str("|------------|------|---------------|-------------------|-------------------------|\n");
+            for bc in &inherit.base_classes {
+                md.push_str(&format!(
+                    "| `{}` | `{}` | {} | {} | {} |\n",
+                    bc.class_name,
+                    bc.file_path,
+                    bc.derived_count,
+                    bc.lifecycle_methods.join(", "),
+                    if bc.state_keys_initialized.is_empty() {
+                        "-".to_string()
+                    } else {
+                        bc.state_keys_initialized.join(", ")
+                    }
+                ));
+            }
+            md.push('\n');
+        }
+
+        // Shared lifecycle methods
+        if !inherit.shared_lifecycle_methods.is_empty() {
+            md.push_str("### Shared Lifecycle Methods\n\n");
+            for slm in &inherit.shared_lifecycle_methods {
+                md.push_str(&format!(
+                    "- **{}** defined in `{}`, overridden in: {} {}\n",
+                    slm.method_name,
+                    slm.defining_class,
+                    slm.overridden_in.join(", "),
+                    if slm.calls_base {
+                        "(calls base)"
+                    } else {
+                        "(does NOT call base)"
+                    }
+                ));
+            }
+            md.push('\n');
+        }
+
+        // Per-page chain diagrams (top 20)
+        md.push_str("### Inheritance Chains per Page\n\n");
+        for chain in inherit.chains.iter().take(20) {
+            md.push_str(&format!(
+                "**{}**: `{}`\n",
+                chain.page_file,
+                chain.chain.join(" → ")
+            ));
+            if !chain.inherited_state_writes.is_empty() {
+                md.push_str(&format!(
+                    "  - Inherited Session keys: {}\n",
+                    chain.inherited_state_writes.join(", ")
+                ));
+            }
+            if !chain.inherited_lifecycle_methods.is_empty() {
+                let parts: Vec<String> = chain
+                    .inherited_lifecycle_methods
+                    .iter()
+                    .map(|(m, c)| format!("{m} ({c})"))
+                    .collect();
+                md.push_str(&format!("  - Inherited lifecycle: {}\n", parts.join(", ")));
+            }
+        }
+        md.push('\n');
+    }
+
+    // ── Phase 34: Config Transforms ───────────────────────────────────────
+    if !cfg_transforms.environments.is_empty() {
+        md.push_str("## Configuration Transforms\n\n");
+        md.push_str(&format!(
+            "**Environments**: {} | **Total transforms**: {}\n\n",
+            cfg_transforms.environments.len(),
+            cfg_transforms.total_transforms
+        ));
+        md.push_str("Modern equivalent: `appsettings.{Environment}.json` with environment-specific overrides.\n\n");
+
+        for env in &cfg_transforms.environments {
+            md.push_str(&format!("### {} (`{}`)\n\n", env.name, env.file_path));
+            md.push_str("| XPath | Operation | Key | Value |\n");
+            md.push_str("|-------|-----------|-----|-------|\n");
+            for t in &env.transforms {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    t.xpath_hint,
+                    t.operation,
+                    t.key.as_deref().unwrap_or("-"),
+                    t.value_preview.as_deref().unwrap_or("-")
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !cfg_transforms.connection_string_overrides.is_empty() {
+            md.push_str("**Connection string overrides by environment:**\n");
+            for (env, cs) in &cfg_transforms.connection_string_overrides {
+                md.push_str(&format!("- `{env}` → `{cs}`\n"));
+            }
+            md.push('\n');
+        }
+
+        if !cfg_transforms.debug_flag_overrides.is_empty() {
+            md.push_str("**Debug flag by environment:**\n");
+            for (env, debug) in &cfg_transforms.debug_flag_overrides {
+                md.push_str(&format!("- `{env}` → debug={debug}\n"));
+            }
+            md.push('\n');
+        }
+    }
+
+    // ── Phase 34: Master Page Region Map ──────────────────────────────────
+    if !master_regions.master_pages.is_empty() {
+        md.push_str("## Master Page Layout Regions\n\n");
+        md.push_str(&format!(
+            "**Master pages**: {} | **Content regions**: {}\n\n",
+            master_regions.master_pages.len(),
+            master_regions.regions.len()
+        ));
+
+        md.push_str("| Region | Defined In | Pages Filling | Has Default | Modern Equivalent |\n");
+        md.push_str("|--------|-----------|---------------|-------------|-------------------|\n");
+        for region in &master_regions.regions {
+            md.push_str(&format!(
+                "| `{}` | `{}` | {} | {} | `{}` |\n",
+                region.region_name,
+                region.defined_in,
+                region.filled_by.len(),
+                if region.has_default_content {
+                    "Yes"
+                } else {
+                    "No"
+                },
+                region.modern_equivalent
+            ));
+        }
+        md.push('\n');
+
+        if !master_regions.orphan_regions.is_empty() {
+            md.push_str("**Orphan regions** (defined but never filled):\n");
+            for r in &master_regions.orphan_regions {
+                md.push_str(&format!("- `{r}`\n"));
+            }
+            md.push('\n');
+        }
+    }
+
+    // ── Phase 34: Resource File Inventory ─────────────────────────────────
+    if !res_inv.resource_files.is_empty() {
+        md.push_str("## Resource Files (.resx)\n\n");
+        md.push_str(&format!(
+            "**Total files**: {} | **Total keys**: {} | **Languages**: {}\n",
+            res_inv.resource_files.len(),
+            res_inv.total_keys,
+            if res_inv.languages_detected.is_empty() {
+                "default only".to_string()
+            } else {
+                res_inv.languages_detected.join(", ")
+            }
+        ));
+        if res_inv.has_global_resources {
+            md.push_str("- Uses `App_GlobalResources` → migrate to `IStringLocalizer`\n");
+        }
+        if res_inv.has_local_resources {
+            md.push_str(
+                "- Uses `App_LocalResources` → migrate to page-specific `IStringLocalizer`\n",
+            );
+        }
+        if res_inv.embedded_resource_count > 0 {
+            md.push_str(&format!(
+                "- {} embedded resources (images, files)\n",
+                res_inv.embedded_resource_count
+            ));
+        }
+        md.push('\n');
+
+        md.push_str("| File | Keys | Language | Type |\n");
+        md.push_str("|------|------|----------|------|\n");
+        for rf in res_inv.resource_files.iter().take(30) {
+            md.push_str(&format!(
+                "| `{}` | {} | {} | {} |\n",
+                rf.file_path,
+                rf.key_count,
+                rf.language.as_deref().unwrap_or("default"),
+                rf.resource_type
+            ));
+        }
+        md.push('\n');
+    }
+
+    // ── Phase 34: Binding Redirects ───────────────────────────────────────
+    if !dep_inv.binding_redirects.is_empty() {
+        md.push_str("## Assembly Binding Redirects\n\n");
+        md.push_str(&format!(
+            "**{}** binding redirects found — these indicate version conflicts to resolve.\n\n",
+            dep_inv.binding_redirects.len()
+        ));
+        md.push_str("| Assembly | Old Version | New Version | Known Replacement |\n");
+        md.push_str("|----------|-------------|-------------|-------------------|\n");
+        for br in &dep_inv.binding_redirects {
+            md.push_str(&format!(
+                "| `{}` | {} | {} | {} |\n",
+                br.assembly_name,
+                br.old_version_range,
+                br.new_version,
+                if br.has_known_replacement {
+                    "Yes"
+                } else {
+                    "No"
+                }
+            ));
+        }
+        md.push('\n');
+    }
+
     // ── Risk Assessment ───────────────────────────────────────────────────
     md.push_str("## Risk Assessment\n\n");
     md.push_str("| Risk Band | Files |\n|-----------|-------|\n");
@@ -6501,6 +7101,1060 @@ fn render_markdown(
     }
 
     md
+}
+
+// ── Phase 34: Stored Procedure Catalog Builder ───────────────────────────────
+
+fn build_sp_catalog(
+    sql_files: &[(String, String)],
+    code_files: &[(&str, &str)],
+) -> StoredProcedureCatalog {
+    use engram_index::sp_extractor;
+
+    let mut all_procs: Vec<StoredProcedureInfo> = Vec::new();
+    let mut code_calls: Vec<(String, String)> = Vec::new(); // (sp_name, calling_file)
+
+    // 1. Parse SQL files for SP definitions
+    for (_path, content) in sql_files {
+        let defs = sp_extractor::parse_sp_definitions(content);
+        for sp in defs {
+            let modern_eq = if sp.has_dynamic_sql {
+                "raw SQL (review for SQL injection)".to_string()
+            } else if sp.has_cursor {
+                "LINQ query or Dapper (cursor refactoring needed)".to_string()
+            } else if sp.tables_read.len() > 3 || sp.tables_written.len() > 2 {
+                "EF Core with repository pattern (complex joins)".to_string()
+            } else if sp.tables_written.is_empty() {
+                "EF Core query or Dapper".to_string()
+            } else {
+                "EF Core SaveChanges or Dapper Execute".to_string()
+            };
+
+            all_procs.push(StoredProcedureInfo {
+                name: sp.name.clone(),
+                parameters: sp
+                    .parameters
+                    .iter()
+                    .map(|p| SpParameterInfo {
+                        name: p.name.clone(),
+                        sql_type: p.sql_type.clone(),
+                        direction: p.direction.clone(),
+                        default_value: p.default_value.clone(),
+                        csharp_type: p.csharp_type.clone(),
+                    })
+                    .collect(),
+                tables_read: sp.tables_read,
+                tables_written: sp.tables_written,
+                called_from: Vec::new(), // filled below
+                line_count: sp.line_count,
+                has_dynamic_sql: sp.has_dynamic_sql,
+                has_cursor: sp.has_cursor,
+                modern_equivalent: modern_eq,
+            });
+        }
+    }
+
+    // 2. Scan code files for SP calls
+    for (path, content) in code_files {
+        let rel = engram_core::RelPath::new(path);
+        let (_, edges) = sp_extractor::extract_code_side_sp_calls(&rel, content);
+        for edge in edges {
+            if edge.kind == "calls_stored_procedure" {
+                code_calls.push((edge.target_name.clone(), path.to_string()));
+            }
+        }
+    }
+
+    // 3. Cross-reference: mark which SPs are called from code
+    for (sp_name, calling_file) in &code_calls {
+        for proc in &mut all_procs {
+            if proc.name.eq_ignore_ascii_case(sp_name) && !proc.called_from.contains(calling_file) {
+                proc.called_from.push(calling_file.clone());
+            }
+        }
+    }
+
+    let total = all_procs.len();
+    let with_params = all_procs
+        .iter()
+        .filter(|p| !p.parameters.is_empty())
+        .count();
+    let called_from_code = all_procs
+        .iter()
+        .filter(|p| !p.called_from.is_empty())
+        .count();
+    let uncalled: Vec<String> = all_procs
+        .iter()
+        .filter(|p| p.called_from.is_empty())
+        .map(|p| p.name.clone())
+        .collect();
+
+    StoredProcedureCatalog {
+        procedures: all_procs,
+        total_procedures: total,
+        procedures_with_params: with_params,
+        procedures_called_from_code: called_from_code,
+        uncalled_procedures: uncalled,
+    }
+}
+
+// ── Phase 34: Inheritance Chain Resolution ───────────────────────────────────
+
+static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(
+        r"(?im)^\s*(?:Public\s+)?(?:Partial\s+)?Class\s+(\w+)\s*(?:\r?\n\s*)?Inherits\s+(\w[\w.]*)",
+    )
+    .expect("vb_class_inherits")
+});
+static CS_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?im)^\s*(?:public\s+)?(?:partial\s+)?class\s+(\w+)\s*:\s*(\w[\w.]*)")
+        .expect("cs_class_inherits")
+});
+static VB_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?im)^\s*(?:Protected\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Public\s+)?(?:Private\s+)?(?:Friend\s+)?(?:Shared\s+)?(?:Async\s+)?(?:Sub|Function)\s+(\w+)").expect("vb_method_def")
+});
+static CS_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?im)^\s*(?:protected\s+)?(?:override\s+)?(?:virtual\s+)?(?:public\s+)?(?:private\s+)?(?:internal\s+)?(?:static\s+)?(?:async\s+)?(?:void|[\w<>\[\]]+)\s+(\w+)\s*\(").expect("cs_method_def")
+});
+static VB_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)MyBase\.(\w+)").expect("vb_calls_base"));
+static CS_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)base\.(\w+)").expect("cs_calls_base"));
+static SESSION_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)Session\s*[\(\[]\s*"(\w+)"\s*[\)\]]\s*="#).expect("session_write")
+});
+static INHERITS_DIRECTIVE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)Inherits\s*=\s*"([^"]+)""#).expect("inherits_directive")
+});
+
+const LIFECYCLE_METHODS: &[&str] = &[
+    "Page_Load",
+    "Page_Init",
+    "Page_PreRender",
+    "Page_Unload",
+    "Page_PreInit",
+    "Page_InitComplete",
+    "Page_LoadComplete",
+    "Page_PreRenderComplete",
+    "Page_SaveStateComplete",
+    "Page_Error",
+    "OnInit",
+    "OnLoad",
+    "OnPreRender",
+    "OnUnload",
+    "OnInitComplete",
+    "OnLoadComplete",
+    "OnPreRenderComplete",
+    "CreateChildControls",
+    "Render",
+];
+
+fn resolve_inheritance_chains(
+    code_files: &[(&str, &str)],
+    markup_files: &[FileContent],
+) -> InheritanceChainReport {
+    // 1. Build class map: class_name → (parent_class, file_path, methods[], state_writes[])
+    let mut class_map: std::collections::HashMap<
+        String,
+        (String, String, Vec<String>, Vec<String>, Vec<String>),
+    > = std::collections::HashMap::new();
+
+    for (path, content) in code_files {
+        // VB class definitions
+        for cap in VB_CLASS_INHERITS_RE.captures_iter(content) {
+            let class_name = cap[1].to_string();
+            let parent = cap[2].to_string();
+
+            let methods: Vec<String> = VB_METHOD_DEF_RE
+                .captures_iter(content)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            let base_calls: Vec<String> = VB_CALLS_BASE_RE
+                .captures_iter(content)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            let state_writes: Vec<String> = SESSION_WRITE_RE
+                .captures_iter(content)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            class_map.insert(
+                class_name,
+                (parent, path.to_string(), methods, state_writes, base_calls),
+            );
+        }
+
+        // C# class definitions
+        for cap in CS_CLASS_INHERITS_RE.captures_iter(content) {
+            let class_name = cap[1].to_string();
+            let parent = cap[2].to_string();
+
+            let methods: Vec<String> = CS_METHOD_DEF_RE
+                .captures_iter(content)
+                .filter_map(|c| {
+                    let name = c[1].to_string();
+                    // Filter out keywords
+                    if [
+                        "if",
+                        "else",
+                        "for",
+                        "foreach",
+                        "while",
+                        "switch",
+                        "catch",
+                        "using",
+                        "lock",
+                        "return",
+                        "new",
+                        "class",
+                        "struct",
+                        "interface",
+                        "enum",
+                        "namespace",
+                    ]
+                    .contains(&name.as_str())
+                    {
+                        None
+                    } else {
+                        Some(name)
+                    }
+                })
+                .collect();
+
+            let base_calls: Vec<String> = CS_CALLS_BASE_RE
+                .captures_iter(content)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            let state_writes: Vec<String> = SESSION_WRITE_RE
+                .captures_iter(content)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            class_map.insert(
+                class_name,
+                (parent, path.to_string(), methods, state_writes, base_calls),
+            );
+        }
+    }
+
+    // 2. For each .aspx Inherits directive, walk the chain
+    let mut chains: Vec<InheritanceChain> = Vec::new();
+    let mut base_class_usage: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+
+    for fc in markup_files {
+        let inherits_class = INHERITS_DIRECTIVE_RE
+            .captures(&fc.markup_content)
+            .and_then(|c| {
+                let full = c[1].to_string();
+                // Extract just the class name (after last dot)
+                full.rsplit('.').next().map(|s| s.to_string())
+            });
+
+        let Some(page_class) = inherits_class else {
+            continue;
+        };
+
+        let mut chain: Vec<String> = Vec::new();
+        let mut inherited_lifecycle: Vec<(String, String)> = Vec::new();
+        let mut inherited_state_writes: Vec<String> = Vec::new();
+        let mut current = page_class.clone();
+
+        // Walk up the inheritance chain
+        for _ in 0..20 {
+            // max depth safety
+            chain.push(current.clone());
+
+            let Some((parent, _path, methods, state_writes, _base_calls)) = class_map.get(&current)
+            else {
+                // Check if parent is a known framework class
+                if current == "Page"
+                    || current == "System.Web.UI.Page"
+                    || current == "UserControl"
+                    || current == "MasterPage"
+                {
+                    chain.push(format!("System.Web.UI.{current}"));
+                }
+                break;
+            };
+
+            // Track which base classes are used
+            base_class_usage
+                .entry(current.clone())
+                .or_default()
+                .push(fc.file_path.clone());
+
+            // Collect lifecycle methods from this ancestor
+            for method in methods {
+                if LIFECYCLE_METHODS
+                    .iter()
+                    .any(|lm| lm.eq_ignore_ascii_case(method))
+                {
+                    inherited_lifecycle.push((method.clone(), current.clone()));
+                }
+            }
+
+            // Collect state writes from ancestors (not the page class itself)
+            if current != page_class {
+                for key in state_writes {
+                    if !inherited_state_writes.contains(key) {
+                        inherited_state_writes.push(key.clone());
+                    }
+                }
+            }
+
+            current = parent.clone();
+        }
+
+        if chain.len() > 1 {
+            chains.push(InheritanceChain {
+                page_file: fc.file_path.clone(),
+                chain,
+                inherited_lifecycle_methods: inherited_lifecycle,
+                inherited_state_writes,
+            });
+        }
+    }
+
+    // 3. Build base class info
+    let mut base_classes: Vec<BaseClassInfo> = Vec::new();
+    for (class_name, pages) in &base_class_usage {
+        if let Some((_, file_path, methods, state_writes, _)) = class_map.get(class_name) {
+            let lifecycle_methods: Vec<String> = methods
+                .iter()
+                .filter(|m| {
+                    LIFECYCLE_METHODS
+                        .iter()
+                        .any(|lm| lm.eq_ignore_ascii_case(m))
+                })
+                .cloned()
+                .collect();
+
+            if pages.len() > 1 || !lifecycle_methods.is_empty() {
+                base_classes.push(BaseClassInfo {
+                    class_name: class_name.clone(),
+                    file_path: file_path.clone(),
+                    derived_count: pages.len(),
+                    lifecycle_methods,
+                    state_keys_initialized: state_writes.clone(),
+                });
+            }
+        }
+    }
+    base_classes.sort_by(|a, b| b.derived_count.cmp(&a.derived_count));
+
+    // 4. Build shared lifecycle methods
+    let mut shared_lifecycle: Vec<SharedLifecycleMethod> = Vec::new();
+    for lm_name in LIFECYCLE_METHODS {
+        let mut defining_classes: Vec<(String, Vec<String>)> = Vec::new();
+
+        for (class_name, (_, _, methods, _, base_calls)) in &class_map {
+            if methods.iter().any(|m| m.eq_ignore_ascii_case(lm_name)) {
+                let calls_base = base_calls.iter().any(|bc| bc.eq_ignore_ascii_case(lm_name));
+                defining_classes.push((
+                    class_name.clone(),
+                    if calls_base {
+                        vec!["calls_base".to_string()]
+                    } else {
+                        vec![]
+                    },
+                ));
+            }
+        }
+
+        if defining_classes.len() > 1 {
+            let first = defining_classes[0].0.clone();
+            let calls_base = !defining_classes[0].1.is_empty();
+            let overridden_in: Vec<String> = defining_classes[1..]
+                .iter()
+                .map(|(name, _)| name.clone())
+                .collect();
+
+            shared_lifecycle.push(SharedLifecycleMethod {
+                method_name: lm_name.to_string(),
+                defining_class: first,
+                overridden_in,
+                calls_base,
+            });
+        }
+    }
+
+    let deepest = chains.iter().map(|c| c.chain.len()).max().unwrap_or(0);
+
+    InheritanceChainReport {
+        chains,
+        base_classes,
+        shared_lifecycle_methods: shared_lifecycle,
+        deepest_chain_depth: deepest,
+    }
+}
+
+// ── Phase 34: packages.config Parser ─────────────────────────────────────────
+
+static PKG_CONFIG_ENTRY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<package\s+id\s*=\s*"([^"]+)"\s+version\s*=\s*"([^"]+)"(?:\s+targetFramework\s*=\s*"([^"]+)")?(?:\s+developmentDependency\s*=\s*"(true)")?[^/]*/>"#)
+        .expect("pkg_config_entry")
+});
+
+fn parse_packages_config(content: &str) -> Vec<LegacyPackageRef> {
+    let mut packages = Vec::new();
+
+    for cap in PKG_CONFIG_ENTRY_RE.captures_iter(content) {
+        let package_id = cap[1].to_string();
+        let version = cap[2].to_string();
+        let target_framework = cap.get(3).map_or("", |m| m.as_str()).to_string();
+        let is_dev = cap.get(4).is_some();
+
+        let modern_replacement = {
+            let (repl, _, _, _) = lookup_modern_replacement(&package_id);
+            repl.map(|s| s.to_string())
+        };
+
+        packages.push(LegacyPackageRef {
+            package_id,
+            version,
+            target_framework,
+            is_dev_dependency: is_dev,
+            modern_replacement,
+        });
+    }
+
+    packages
+}
+
+// ── Phase 34: Binding Redirect Parser ────────────────────────────────────────
+
+static BINDING_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(
+        r#"(?is)<dependentAssembly>\s*<assemblyIdentity\s+name\s*=\s*"([^"]+)"(?:\s+publicKeyToken\s*=\s*"([^"]+)")?[^/]*/>\s*<bindingRedirect\s+oldVersion\s*=\s*"([^"]+)"\s+newVersion\s*=\s*"([^"]+)"[^/]*/>\s*</dependentAssembly>"#,
+    )
+    .expect("binding_redirect")
+});
+
+fn extract_binding_redirects(web_config: Option<&str>) -> Vec<BindingRedirect> {
+    let Some(content) = web_config else {
+        return Vec::new();
+    };
+
+    let mut redirects = Vec::new();
+
+    for cap in BINDING_REDIRECT_RE.captures_iter(content) {
+        let assembly_name = cap[1].to_string();
+        let public_key_token = cap.get(2).map(|m| m.as_str().to_string());
+        let old_version = cap[3].to_string();
+        let new_version = cap[4].to_string();
+
+        let has_known = lookup_assembly_replacement(&assembly_name).0.is_some();
+
+        redirects.push(BindingRedirect {
+            assembly_name,
+            old_version_range: old_version,
+            new_version,
+            public_key_token,
+            has_known_replacement: has_known,
+        });
+    }
+
+    redirects
+}
+
+// ── Phase 34: Method Body Extraction ─────────────────────────────────────────
+
+/// Extract VB method body by tracking Sub/Function to End Sub/End Function.
+fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u32, u32, u32)> {
+    // Find the method signature line
+    let pattern = format!(
+        r"(?im)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Async\s+)?(Sub|Function)\s+{}\s*\(",
+        regex::escape(method_name)
+    );
+    let re = Regex::new(&pattern).ok()?;
+    let m = re.find(content)?;
+
+    let start_offset = m.start();
+    let start_line = content[..start_offset].lines().count() as u32;
+
+    // Determine if it's Sub or Function
+    let cap = re.captures(&content[m.start()..])?;
+    let kind = cap[1].to_string();
+    let _end_marker = if kind.eq_ignore_ascii_case("Sub") {
+        "End Sub"
+    } else {
+        "End Function"
+    };
+
+    // Find matching End Sub/Function using depth tracking
+    let after_start = &content[start_offset..];
+    let mut depth = 1i32;
+    let mut end_pos = None;
+    let upper_kind = kind.to_uppercase();
+
+    for (i, line) in after_start.lines().enumerate() {
+        if i == 0 {
+            continue; // skip the opening line
+        }
+        let trimmed = line.trim().to_uppercase();
+
+        // Count nested openings
+        if trimmed.starts_with("IF ") && trimmed.contains(" THEN") && !trimmed.ends_with(" THEN") {
+            // single-line If — don't count
+        } else if (trimmed.starts_with(&format!("SUB "))
+            || trimmed.starts_with(&format!("FUNCTION ")))
+            && !trimmed.starts_with("END ")
+        {
+            depth += 1;
+        }
+
+        // Count closings
+        if trimmed.starts_with(&format!("END {upper_kind}")) {
+            depth -= 1;
+            if depth == 0 {
+                // Calculate byte offset
+                let line_start = after_start
+                    .lines()
+                    .take(i)
+                    .map(|l| l.len() + 1)
+                    .sum::<usize>();
+                end_pos = Some(start_offset + line_start + line.len());
+                break;
+            }
+        }
+    }
+
+    let end_offset = end_pos.unwrap_or(content.len());
+    let body = &content[start_offset..end_offset];
+    let line_count = body.lines().count() as u32;
+    let end_line = start_line + line_count.saturating_sub(1);
+
+    Some((body.to_string(), start_line, end_line, line_count))
+}
+
+/// Extract C# method body by tracking brace depth.
+fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u32, u32, u32)> {
+    let pattern = format!(
+        r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:void|[\w<>\[\],]+)\s+{}\s*\(",
+        regex::escape(method_name)
+    );
+    let re = Regex::new(&pattern).ok()?;
+    let m = re.find(content)?;
+
+    let start_offset = m.start();
+    let start_line = content[..start_offset].lines().count() as u32;
+
+    // Find the opening brace
+    let after_sig = &content[m.end()..];
+    let brace_offset = after_sig.find('{')?;
+    let body_start = m.end() + brace_offset;
+
+    // Track brace depth
+    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut in_char = false;
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+    let mut prev_char = ' ';
+    let mut end_pos = None;
+
+    for (i, ch) in content[body_start..].char_indices() {
+        if in_line_comment {
+            if ch == '\n' {
+                in_line_comment = false;
+            }
+            prev_char = ch;
+            continue;
+        }
+        if in_block_comment {
+            if prev_char == '*' && ch == '/' {
+                in_block_comment = false;
+            }
+            prev_char = ch;
+            continue;
+        }
+        if in_string {
+            if ch == '"' && prev_char != '\\' {
+                in_string = false;
+            }
+            prev_char = ch;
+            continue;
+        }
+        if in_char {
+            if ch == '\'' && prev_char != '\\' {
+                in_char = false;
+            }
+            prev_char = ch;
+            continue;
+        }
+
+        match ch {
+            '/' if prev_char == '/' => {
+                in_line_comment = true;
+            }
+            '*' if prev_char == '/' => {
+                in_block_comment = true;
+            }
+            '"' => {
+                in_string = true;
+            }
+            '\'' => {
+                in_char = true;
+            }
+            '{' => {
+                depth += 1;
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    end_pos = Some(body_start + i + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+        prev_char = ch;
+    }
+
+    let end_offset = end_pos.unwrap_or(content.len());
+    let body = &content[start_offset..end_offset];
+    let line_count = body.lines().count() as u32;
+    let end_line = start_line + line_count.saturating_sub(1);
+
+    Some((body.to_string(), start_line, end_line, line_count))
+}
+
+/// Produce a body preview: full for ≤30 lines, truncated otherwise.
+fn make_body_preview(body: &str, line_count: u32) -> String {
+    let lines: Vec<&str> = body.lines().collect();
+    if lines.is_empty() {
+        return String::new();
+    }
+
+    // Dedent: find minimum leading whitespace
+    let min_indent = lines
+        .iter()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.len() - l.trim_start().len())
+        .min()
+        .unwrap_or(0);
+
+    let dedent = |line: &str| -> String {
+        if line.len() >= min_indent {
+            line[min_indent..].to_string()
+        } else {
+            line.trim_start().to_string()
+        }
+    };
+
+    if line_count <= 30 {
+        lines
+            .iter()
+            .map(|l| dedent(l))
+            .collect::<Vec<_>>()
+            .join("\n")
+    } else {
+        let first_10: Vec<String> = lines.iter().take(10).map(|l| dedent(l)).collect();
+        let last_5: Vec<String> = lines
+            .iter()
+            .rev()
+            .take(5)
+            .rev()
+            .map(|l| dedent(l))
+            .collect();
+        let remaining = line_count as usize - 15;
+        format!(
+            "{}\n    ... ({remaining} more lines) ...\n{}",
+            first_10.join("\n"),
+            last_5.join("\n")
+        )
+    }
+}
+
+/// Compute a heuristic complexity score for a method body.
+fn compute_complexity_score(body: &str) -> u32 {
+    let mut score: u32 = 0;
+    let lower = body.to_lowercase();
+
+    // Branches (1 point each)
+    let branch_patterns = [
+        r"\bif\b",
+        r"\belse\s+if\b",
+        r"\belseif\b",
+        r"\bswitch\b",
+        r"\bcase\b",
+        r"\bselect\s+case\b",
+    ];
+    for pat in branch_patterns {
+        if let Ok(re) = Regex::new(&format!("(?i){pat}")) {
+            score += re.find_iter(&lower).count() as u32;
+        }
+    }
+
+    // Loops (1 point each)
+    let loop_patterns = [
+        r"\bfor\s",
+        r"\bforeach\b",
+        r"\bfor\s+each\b",
+        r"\bwhile\b",
+        r"\bdo\s+while\b",
+        r"\bdo\s*$",
+    ];
+    for pat in loop_patterns {
+        if let Ok(re) = Regex::new(&format!("(?im){pat}")) {
+            score += re.find_iter(body).count() as u32;
+        }
+    }
+
+    // Error handlers (2 points each)
+    let err_patterns = [r"\btry\s*\{", r"\btry\s*$", r"\bcatch\b", r"\bOn\s+Error\b"];
+    for pat in err_patterns {
+        if let Ok(re) = Regex::new(&format!("(?im){pat}")) {
+            score += re.find_iter(body).count() as u32 * 2;
+        }
+    }
+
+    // SQL strings (3 points each)
+    let sql_patterns = [
+        r#""SELECT\s"#,
+        r#""INSERT\s"#,
+        r#""UPDATE\s"#,
+        r#""DELETE\s"#,
+        r"CommandText\s*=",
+        r"SqlCommand",
+        r"SqlDataAdapter",
+    ];
+    for pat in sql_patterns {
+        if let Ok(re) = Regex::new(&format!("(?i){pat}")) {
+            score += re.find_iter(body).count() as u32 * 3;
+        }
+    }
+
+    // Session access (1 point each)
+    if let Ok(re) = Regex::new(r#"(?i)Session\s*[\(\[]"#) {
+        score += re.find_iter(body).count() as u32;
+    }
+
+    score
+}
+
+// ── Phase 34: Config Transform Parser ────────────────────────────────────────
+
+static XDT_TRANSFORM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)xdt:Transform\s*=\s*"(\w+)""#).expect("xdt_transform")
+});
+static XDT_LOCATOR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)xdt:Locator\s*=\s*"Match\((\w+)\)""#).expect("xdt_locator")
+});
+static XDT_CONNSTR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*xdt:Transform"#,
+    )
+    .expect("xdt_connstr")
+});
+static XDT_APPSETTING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)"[^>]*xdt:Transform"#)
+        .expect("xdt_appsetting")
+});
+static XDT_DEBUG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<compilation[^>]*debug\s*=\s*"(true|false)""#).expect("xdt_debug")
+});
+
+fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransformReport {
+    let mut environments: Vec<ConfigEnvironment> = Vec::new();
+    let mut total_transforms = 0usize;
+    let mut conn_overrides: Vec<(String, String)> = Vec::new();
+    let mut debug_overrides: Vec<(String, bool)> = Vec::new();
+    let mut setting_overrides: Vec<(String, String, String)> = Vec::new();
+
+    for (path, content) in transform_files {
+        // Derive environment name from filename: web.Release.config → Release
+        let env_name = path
+            .rsplit('/')
+            .next()
+            .or_else(|| path.rsplit('\\').next())
+            .unwrap_or(path)
+            .strip_prefix("web.")
+            .or_else(|| path.strip_prefix("Web."))
+            .unwrap_or(path)
+            .strip_suffix(".config")
+            .unwrap_or(path)
+            .to_string();
+
+        let mut transforms: Vec<ConfigTransform> = Vec::new();
+
+        // Extract all XDT transform operations
+        for cap in XDT_TRANSFORM_RE.captures_iter(content) {
+            let operation = cap[1].to_string();
+
+            // Find the XML element context around this transform
+            let match_pos = cap.get(0).map_or(0, |m| m.start());
+            let context_start = content[..match_pos].rfind('<').unwrap_or(0);
+            let context_end = content[match_pos..]
+                .find('>')
+                .map(|p| match_pos + p + 1)
+                .unwrap_or(content.len());
+            let context = &content[context_start..context_end];
+
+            let key = XDT_LOCATOR_RE.captures(context).map(|c| c[1].to_string());
+
+            // Extract value preview (sanitize sensitive values)
+            let value_preview = if context.contains("connectionString") {
+                Some("(connection string)".to_string())
+            } else if let Some(val_cap) = Regex::new(r#"value\s*=\s*"([^"]*)""#)
+                .ok()
+                .and_then(|re| re.captures(context))
+            {
+                let val = val_cap[1].to_string();
+                if val.len() > 50 {
+                    Some(format!("{}...", &val[..47]))
+                } else {
+                    Some(val)
+                }
+            } else {
+                None
+            };
+
+            // Derive xpath hint from element context
+            let xpath_hint = if context.contains("<appSettings")
+                || context.contains("<add ") && context.contains("key=")
+            {
+                "configuration/appSettings".to_string()
+            } else if context.contains("connectionStrings") || context.contains("connectionString")
+            {
+                "configuration/connectionStrings".to_string()
+            } else if context.contains("<compilation") {
+                "configuration/system.web/compilation".to_string()
+            } else if context.contains("<customErrors") {
+                "configuration/system.web/customErrors".to_string()
+            } else if context.contains("<system.webServer") {
+                "configuration/system.webServer".to_string()
+            } else {
+                "configuration/...".to_string()
+            };
+
+            transforms.push(ConfigTransform {
+                xpath_hint,
+                operation,
+                key,
+                value_preview,
+            });
+            total_transforms += 1;
+        }
+
+        // Extract connection string overrides
+        for cap in XDT_CONNSTR_RE.captures_iter(content) {
+            conn_overrides.push((env_name.clone(), cap[1].to_string()));
+        }
+
+        // Extract debug flag overrides
+        if let Some(cap) = XDT_DEBUG_RE.captures(content) {
+            let debug_val = cap[1].eq_ignore_ascii_case("true");
+            debug_overrides.push((env_name.clone(), debug_val));
+        }
+
+        // Extract app setting overrides
+        for cap in XDT_APPSETTING_RE.captures_iter(content) {
+            setting_overrides.push((env_name.clone(), cap[1].to_string(), cap[2].to_string()));
+        }
+
+        if !transforms.is_empty() {
+            environments.push(ConfigEnvironment {
+                name: env_name,
+                file_path: path.clone(),
+                transforms,
+            });
+        }
+    }
+
+    ConfigTransformReport {
+        environments,
+        total_transforms,
+        connection_string_overrides: conn_overrides,
+        debug_flag_overrides: debug_overrides,
+        app_setting_overrides: setting_overrides,
+    }
+}
+
+// ── Phase 34: Master Page Region Mapping ─────────────────────────────────────
+
+static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)""#)
+        .expect("content_placeholder")
+});
+static CONTENT_FILLS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:Content\s+[^>]*ContentPlaceHolderID\s*=\s*"([^"]+)""#)
+        .expect("content_fills")
+});
+static MASTER_PAGE_FILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).expect("master_page_file")
+});
+static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?is)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)"[^>]*>\s*\S"#)
+        .expect("placeholder_default")
+});
+
+fn build_master_page_region_map(
+    master_files: &[(String, String)],
+    markup_files: &[FileContent],
+) -> MasterPageRegionMap {
+    let mut master_pages: Vec<MasterPageInfo> = Vec::new();
+    let mut region_map: std::collections::HashMap<String, (String, Vec<String>, bool)> =
+        std::collections::HashMap::new();
+
+    // 1. Parse master pages for ContentPlaceHolder definitions
+    for (path, content) in master_files {
+        let mut placeholders: Vec<String> = Vec::new();
+
+        for cap in CONTENT_PLACEHOLDER_RE.captures_iter(content) {
+            let id = cap[1].to_string();
+            let has_default = PLACEHOLDER_DEFAULT_RE
+                .captures_iter(content)
+                .any(|dc| dc[1] == *id);
+            region_map
+                .entry(id.clone())
+                .or_insert_with(|| (path.clone(), Vec::new(), has_default));
+            placeholders.push(id);
+        }
+
+        let nested_master = MASTER_PAGE_FILE_RE
+            .captures(content)
+            .map(|c| c[1].to_string());
+
+        master_pages.push(MasterPageInfo {
+            file_path: path.clone(),
+            placeholders,
+            nested_master,
+        });
+    }
+
+    // 2. Scan aspx/ascx files for asp:Content fills
+    for fc in markup_files {
+        for cap in CONTENT_FILLS_RE.captures_iter(&fc.markup_content) {
+            let region_id = cap[1].to_string();
+            if let Some(entry) = region_map.get_mut(&region_id) {
+                if !entry.1.contains(&fc.file_path) {
+                    entry.1.push(fc.file_path.clone());
+                }
+            } else {
+                // Region referenced but not defined in any scanned master page
+                region_map.insert(
+                    region_id,
+                    (
+                        "(unknown master)".to_string(),
+                        vec![fc.file_path.clone()],
+                        false,
+                    ),
+                );
+            }
+        }
+    }
+
+    // 3. Build region mappings
+    let mut regions: Vec<RegionMapping> = Vec::new();
+    let mut orphans: Vec<String> = Vec::new();
+
+    for (region_name, (defined_in, filled_by, has_default)) in &region_map {
+        let modern_eq = match region_name.as_str() {
+            "MainContent" | "ContentPlaceHolder1" | "BodyContent" | "content" => {
+                "@RenderBody()".to_string()
+            }
+            "head" | "HeadContent" | "HeaderContent" => {
+                "@RenderSection(\"Head\", required: false)".to_string()
+            }
+            "ScriptsSection" | "Scripts" | "FooterScripts" => {
+                "@RenderSection(\"Scripts\", required: false)".to_string()
+            }
+            _ => format!("@RenderSection(\"{region_name}\", required: false)"),
+        };
+
+        if filled_by.is_empty() || defined_in == "(unknown master)" {
+            orphans.push(region_name.clone());
+        }
+
+        regions.push(RegionMapping {
+            region_name: region_name.clone(),
+            defined_in: defined_in.clone(),
+            filled_by: filled_by.clone(),
+            has_default_content: *has_default,
+            modern_equivalent: modern_eq,
+        });
+    }
+
+    regions.sort_by(|a, b| b.filled_by.len().cmp(&a.filled_by.len()));
+
+    MasterPageRegionMap {
+        master_pages,
+        regions,
+        orphan_regions: orphans,
+    }
+}
+
+// ── Phase 34: Resource File (.resx) Inventory ────────────────────────────────
+
+static RESX_DATA_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<data\s+name\s*=\s*"([^"]+)""#).expect("resx_data")
+});
+static RESX_FILE_REF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)type\s*=\s*"System\.Resources\.ResXFileRef"#).expect("resx_file_ref")
+});
+static RESX_LANG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"\.([a-z]{2}(?:-[A-Z]{2})?)\.resx$").expect("resx_lang")
+});
+
+fn build_resource_inventory(resx_files: &[(String, String)]) -> ResourceInventory {
+    let mut files: Vec<ResourceFileInfo> = Vec::new();
+    let mut total_keys = 0usize;
+    let mut languages: Vec<String> = Vec::new();
+    let mut has_global = false;
+    let mut has_local = false;
+    let mut embedded_count = 0usize;
+
+    for (path, content) in resx_files {
+        let key_count = RESX_DATA_RE.captures_iter(content).count();
+        total_keys += key_count;
+
+        // Detect embedded resources (file refs)
+        let file_ref_count = RESX_FILE_REF_RE.captures_iter(content).count();
+        embedded_count += file_ref_count;
+
+        // Detect language from filename
+        let language = RESX_LANG_RE.captures(path).map(|c| c[1].to_string());
+        if let Some(ref lang) = language {
+            if !languages.contains(lang) {
+                languages.push(lang.clone());
+            }
+        }
+
+        // Classify: App_GlobalResources vs App_LocalResources
+        let resource_type =
+            if path.contains("App_GlobalResources") || path.contains("app_globalresources") {
+                has_global = true;
+                "global".to_string()
+            } else if path.contains("App_LocalResources") || path.contains("app_localresources") {
+                has_local = true;
+                "local".to_string()
+            } else {
+                "embedded".to_string()
+            };
+
+        files.push(ResourceFileInfo {
+            file_path: path.clone(),
+            key_count,
+            language,
+            resource_type,
+        });
+    }
+
+    files.sort_by(|a, b| b.key_count.cmp(&a.key_count));
+
+    ResourceInventory {
+        resource_files: files,
+        total_keys,
+        languages_detected: languages,
+        has_global_resources: has_global,
+        has_local_resources: has_local,
+        embedded_resource_count: embedded_count,
+    }
 }
 
 /// Convert epoch days (since 1970-01-01) to (year, month, day).
@@ -6541,6 +8195,8 @@ mod tests {
             third_party_assemblies: vec![],
             packages_with_known_replacement: 0,
             packages_without_replacement: 0,
+            legacy_packages: vec![],
+            binding_redirects: vec![],
         }
     }
 
@@ -6585,6 +8241,54 @@ mod tests {
         }
     }
 
+    fn empty_sp_catalog() -> StoredProcedureCatalog {
+        StoredProcedureCatalog {
+            procedures: vec![],
+            total_procedures: 0,
+            procedures_with_params: 0,
+            procedures_called_from_code: 0,
+            uncalled_procedures: vec![],
+        }
+    }
+
+    fn empty_inheritance() -> InheritanceChainReport {
+        InheritanceChainReport {
+            chains: vec![],
+            base_classes: vec![],
+            shared_lifecycle_methods: vec![],
+            deepest_chain_depth: 0,
+        }
+    }
+
+    fn empty_config_transforms() -> ConfigTransformReport {
+        ConfigTransformReport {
+            environments: vec![],
+            total_transforms: 0,
+            connection_string_overrides: vec![],
+            debug_flag_overrides: vec![],
+            app_setting_overrides: vec![],
+        }
+    }
+
+    fn empty_resource_inv() -> ResourceInventory {
+        ResourceInventory {
+            resource_files: vec![],
+            total_keys: 0,
+            languages_detected: vec![],
+            has_global_resources: false,
+            has_local_resources: false,
+            embedded_resource_count: 0,
+        }
+    }
+
+    fn empty_master_regions() -> MasterPageRegionMap {
+        MasterPageRegionMap {
+            master_pages: vec![],
+            regions: vec![],
+            orphan_regions: vec![],
+        }
+    }
+
     #[test]
     fn cross_cutting_empty_dossiers() {
         let state = StateMigrationReport {
@@ -6612,6 +8316,11 @@ mod tests {
             &empty_cache(),
             &empty_email(),
             &empty_bg_jobs(),
+            &empty_sp_catalog(),
+            &empty_inheritance(),
+            &empty_config_transforms(),
+            &empty_resource_inv(),
+            &empty_master_regions(),
         );
         assert_eq!(cross.total_pages_analyzed, 0);
         assert!(cross.shared_sql_tables.is_empty());
@@ -6657,6 +8366,11 @@ mod tests {
             &empty_cache(),
             &empty_email(),
             &empty_bg_jobs(),
+            &empty_sp_catalog(),
+            &empty_inheritance(),
+            &empty_config_transforms(),
+            &empty_resource_inv(),
+            &empty_master_regions(),
         );
 
         // "Users" appears in Page1 and Page2 → shared
@@ -6702,6 +8416,8 @@ mod tests {
                         effects: vec![],
                         calls_methods: vec![],
                         called_by: vec![],
+                        body_preview: None,
+                        complexity_score: 0,
                     },
                     MethodInfo {
                         name: "btnSubmit_Click".into(),
@@ -6716,6 +8432,8 @@ mod tests {
                         effects: vec!["SQL".into()],
                         calls_methods: vec![],
                         called_by: vec![],
+                        body_preview: None,
+                        complexity_score: 3,
                     },
                 ],
                 lifecycle_methods: 1,
@@ -6747,6 +8465,8 @@ mod tests {
             third_party_assemblies: vec![],
             packages_with_known_replacement: 1,
             packages_without_replacement: 0,
+            legacy_packages: vec![],
+            binding_redirects: vec![],
         };
 
         let cache = CachingInventory {
@@ -6819,6 +8539,11 @@ mod tests {
             &cache,
             &email,
             &bg,
+            &empty_sp_catalog(),
+            &empty_inheritance(),
+            &empty_config_transforms(),
+            &empty_resource_inv(),
+            &empty_master_regions(),
         );
 
         assert_eq!(cross.total_methods, 2);
@@ -7074,5 +8799,960 @@ Dim conn As String = GetConnectionForTenant(tenantId)
             has_binary_rpt_files: false,
             shared_data_sources: vec![],
         }
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Stored Procedure Catalog (Ticket 1)
+    // =========================================================================
+
+    #[test]
+    fn sp_catalog_parses_sql_definitions() {
+        let sql = r#"
+CREATE PROCEDURE dbo.GetUsers
+    @Active bit = 1,
+    @RoleId int
+AS
+BEGIN
+    SELECT * FROM Users WHERE Active = @Active AND RoleId = @RoleId
+END
+"#;
+        let catalog = build_sp_catalog(
+            &[("stored_procs/GetUsers.sql".to_string(), sql.to_string())],
+            &[],
+        );
+        assert_eq!(catalog.total_procedures, 1);
+        assert_eq!(catalog.procedures[0].name, "GetUsers");
+        assert_eq!(catalog.procedures[0].parameters.len(), 2);
+        assert!(
+            catalog.procedures[0]
+                .tables_read
+                .contains(&"Users".to_string())
+        );
+        assert!(!catalog.procedures[0].has_dynamic_sql);
+    }
+
+    #[test]
+    fn sp_catalog_cross_references_code_calls() {
+        let sql = r#"
+CREATE PROCEDURE dbo.GetActiveProjects
+AS
+SELECT * FROM Projects WHERE Active = 1
+"#;
+        let cs_code = r#"
+var cmd = new SqlCommand();
+cmd.CommandType = CommandType.StoredProcedure;
+cmd.CommandText = "GetActiveProjects";
+cmd.Connection = conn;
+cmd.ExecuteReader();
+"#;
+        let catalog = build_sp_catalog(
+            &[("sp/GetActiveProjects.sql".to_string(), sql.to_string())],
+            &[("Data/ProjectRepo.cs", cs_code)],
+        );
+        assert_eq!(catalog.procedures_called_from_code, 1);
+        assert_eq!(catalog.uncalled_procedures.len(), 0);
+        assert!(!catalog.procedures[0].called_from.is_empty());
+    }
+
+    #[test]
+    fn sp_catalog_identifies_uncalled_procedures() {
+        let sql = r#"
+CREATE PROCEDURE dbo.OldUnusedProc AS SELECT 1
+"#;
+        let catalog = build_sp_catalog(&[("sp/unused.sql".to_string(), sql.to_string())], &[]);
+        assert_eq!(catalog.uncalled_procedures.len(), 1);
+        assert!(catalog.procedures[0].called_from.is_empty());
+    }
+
+    #[test]
+    fn sp_catalog_detects_dynamic_sql() {
+        let sql = r#"
+CREATE PROCEDURE dbo.DynSearch @Filter nvarchar(200) AS
+DECLARE @sql nvarchar(max)
+SET @sql = 'SELECT * FROM Products WHERE ' + @Filter
+EXEC sp_executesql @sql
+"#;
+        let catalog = build_sp_catalog(&[("sp/dyn.sql".to_string(), sql.to_string())], &[]);
+        assert!(catalog.procedures[0].has_dynamic_sql);
+        assert!(
+            catalog.procedures[0]
+                .modern_equivalent
+                .contains("SQL injection")
+        );
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Inheritance Chain Resolution (Ticket 2)
+    // =========================================================================
+
+    #[test]
+    fn inheritance_resolves_cs_chain() {
+        let base_code = r#"
+public class BasePage : System.Web.UI.Page
+{
+    protected override void OnInit(EventArgs e) { base.OnInit(e); }
+    protected void Page_Load(object sender, EventArgs e) { Session["user"] = "admin"; }
+}
+"#;
+        let derived_code = r#"
+public class EditPage : BasePage
+{
+    protected override void Page_Load(object sender, EventArgs e) { base.Page_Load(sender, e); }
+}
+"#;
+        let markup = FileContent {
+            file_path: "EditPage.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="EditPage" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let report = resolve_inheritance_chains(
+            &[("BasePage.cs", base_code), ("EditPage.cs", derived_code)],
+            &[markup],
+        );
+        assert!(!report.chains.is_empty());
+        assert!(report.chains[0].chain.len() >= 2);
+    }
+
+    #[test]
+    fn inheritance_resolves_vb_chain() {
+        let base_code = r#"
+Public Class SecureBasePage
+    Inherits System.Web.UI.Page
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+        Session("userId") = 123
+    End Sub
+End Class
+"#;
+        let derived = r#"
+Public Class AdminPage
+    Inherits SecureBasePage
+
+    Protected Overrides Sub Page_Load(sender As Object, e As EventArgs)
+        MyBase.Page_Load(sender, e)
+    End Sub
+End Class
+"#;
+        let markup = FileContent {
+            file_path: "Admin.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="AdminPage" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let report = resolve_inheritance_chains(
+            &[("SecureBasePage.vb", base_code), ("AdminPage.vb", derived)],
+            &[markup],
+        );
+        assert!(!report.chains.is_empty());
+        // AdminPage should be in the chain walking up to SecureBasePage
+        let chain = &report.chains[0];
+        assert!(chain.chain.contains(&"AdminPage".to_string()));
+        assert!(chain.chain.contains(&"SecureBasePage".to_string()));
+    }
+
+    #[test]
+    fn inheritance_detects_shared_lifecycle_methods() {
+        let base_code = r#"
+public class AppBasePage : System.Web.UI.Page
+{
+    protected override void OnInit(EventArgs e) { base.OnInit(e); }
+    protected void Page_Load(object sender, EventArgs e) { }
+    protected void Page_PreRender(object sender, EventArgs e) { }
+}
+"#;
+        let child1 = r#"
+public class Page1 : AppBasePage
+{
+    protected override void Page_Load(object sender, EventArgs e) { base.Page_Load(sender, e); }
+}
+"#;
+        let child2 = r#"
+public class Page2 : AppBasePage
+{
+    protected override void Page_Load(object sender, EventArgs e) { base.Page_Load(sender, e); }
+}
+"#;
+        let m1 = FileContent {
+            file_path: "Page1.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="Page1" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let m2 = FileContent {
+            file_path: "Page2.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="Page2" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let report = resolve_inheritance_chains(
+            &[
+                ("AppBasePage.cs", base_code),
+                ("Page1.cs", child1),
+                ("Page2.cs", child2),
+            ],
+            &[m1, m2],
+        );
+        // AppBasePage referenced by 2 pages — should be in base_classes
+        let base_info = report
+            .base_classes
+            .iter()
+            .find(|b| b.class_name == "AppBasePage");
+        assert!(base_info.is_some(), "AppBasePage should be in base_classes");
+        assert!(base_info.expect("exists").lifecycle_methods.len() >= 2);
+    }
+
+    #[test]
+    fn inheritance_detects_session_writes_from_base() {
+        let base_code = r#"
+public class StatefulBase : System.Web.UI.Page
+{
+    protected void Page_Load(object sender, EventArgs e) {
+        Session["cart"] = new ShoppingCart();
+        Session["locale"] = "en-US";
+    }
+}
+"#;
+        let derived = r#"
+public class CheckoutPage : StatefulBase
+{
+}
+"#;
+        let markup = FileContent {
+            file_path: "Checkout.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="CheckoutPage" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let report = resolve_inheritance_chains(
+            &[("StatefulBase.cs", base_code), ("CheckoutPage.cs", derived)],
+            &[markup],
+        );
+        assert!(!report.chains.is_empty(), "Should have at least one chain");
+        let chain = report
+            .chains
+            .iter()
+            .find(|c| c.chain.contains(&"CheckoutPage".to_string()))
+            .expect("CheckoutPage chain should exist");
+        assert!(
+            chain.inherited_state_writes.len() >= 2,
+            "Expected >= 2 inherited state writes, got {:?}",
+            chain.inherited_state_writes
+        );
+    }
+
+    #[test]
+    fn inheritance_handles_deep_chain() {
+        let level0 = r#"
+public class Level0 : System.Web.UI.Page
+{
+    protected void Page_Load(object sender, EventArgs e) { }
+}
+"#;
+        let level1 = r#"
+public class Level1 : Level0
+{
+    protected override void Page_Load(object sender, EventArgs e) { base.Page_Load(sender, e); }
+}
+"#;
+        let level2 = r#"
+public class Level2 : Level1
+{
+    protected override void Page_Load(object sender, EventArgs e) { base.Page_Load(sender, e); }
+}
+"#;
+        let markup = FileContent {
+            file_path: "DeepPage.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="Level2" %>"#.to_string(),
+            codebehind_content: None,
+        };
+        let report = resolve_inheritance_chains(
+            &[
+                ("Level0.cs", level0),
+                ("Level1.cs", level1),
+                ("Level2.cs", level2),
+            ],
+            &[markup],
+        );
+        // Chain: Level2 → Level1 → Level0 → System.Web.UI.Page = depth 4
+        assert!(
+            report.deepest_chain_depth >= 3,
+            "Expected depth >= 3, got {}",
+            report.deepest_chain_depth
+        );
+    }
+
+    #[test]
+    fn inheritance_empty_code_produces_empty_report() {
+        let report = resolve_inheritance_chains(&[], &[]);
+        assert!(report.chains.is_empty());
+        assert!(report.base_classes.is_empty());
+        assert_eq!(report.deepest_chain_depth, 0);
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: packages.config + Binding Redirects (Ticket 3)
+    // =========================================================================
+
+    #[test]
+    fn parse_packages_config_basic() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net48" />
+  <package id="EntityFramework" version="6.4.4" targetFramework="net48" />
+  <package id="AutoMapper" version="12.0.1" targetFramework="net48" />
+</packages>"#;
+        let packages = parse_packages_config(xml);
+        assert_eq!(packages.len(), 3);
+        assert_eq!(packages[0].package_id, "Newtonsoft.Json");
+        assert_eq!(packages[0].version, "13.0.3");
+        assert_eq!(packages[0].target_framework, "net48");
+    }
+
+    #[test]
+    fn parse_packages_config_with_dev_dependency() {
+        let xml = r#"<packages>
+  <package id="xunit" version="2.4.2" targetFramework="net48" developmentDependency="true" />
+</packages>"#;
+        let packages = parse_packages_config(xml);
+        assert_eq!(packages.len(), 1);
+        assert!(packages[0].is_dev_dependency);
+    }
+
+    #[test]
+    fn parse_packages_config_empty() {
+        let xml = r#"<packages></packages>"#;
+        let packages = parse_packages_config(xml);
+        assert!(packages.is_empty());
+    }
+
+    #[test]
+    fn parse_packages_config_detects_modern_replacement() {
+        let xml = r#"<packages>
+  <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net48" />
+</packages>"#;
+        let packages = parse_packages_config(xml);
+        assert_eq!(packages.len(), 1);
+        // Newtonsoft.Json should have System.Text.Json as modern replacement
+        // (depends on lookup_modern_replacement impl)
+    }
+
+    #[test]
+    fn binding_redirects_from_web_config() {
+        let config = r#"<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <dependentAssembly>
+        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" />
+        <bindingRedirect oldVersion="0.0.0.0-13.0.0.0" newVersion="13.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Mvc" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="0.0.0.0-5.2.9.0" newVersion="5.2.9.0" />
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+</configuration>"#;
+        let redirects = extract_binding_redirects(Some(config));
+        assert_eq!(redirects.len(), 2);
+        assert_eq!(redirects[0].assembly_name, "Newtonsoft.Json");
+        assert_eq!(redirects[0].old_version_range, "0.0.0.0-13.0.0.0");
+        assert_eq!(redirects[0].new_version, "13.0.0.0");
+        assert_eq!(
+            redirects[0].public_key_token.as_deref(),
+            Some("30ad4fe6b2a6aeed")
+        );
+    }
+
+    #[test]
+    fn binding_redirects_none_config() {
+        let redirects = extract_binding_redirects(None);
+        assert!(redirects.is_empty());
+    }
+
+    #[test]
+    fn binding_redirects_no_redirects() {
+        let config = r#"<configuration><runtime></runtime></configuration>"#;
+        let redirects = extract_binding_redirects(Some(config));
+        assert!(redirects.is_empty());
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Method Body Extraction (Ticket 4)
+    // =========================================================================
+
+    #[test]
+    fn extract_cs_method_body_simple() {
+        let code = r#"
+public class MyPage : Page
+{
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        var x = 1;
+        var y = 2;
+    }
+
+    private void Helper()
+    {
+        // do nothing
+    }
+}
+"#;
+        let result = extract_cs_method_body(code, "Page_Load");
+        assert!(result.is_some());
+        let (body, _start, _end, lines) = result.expect("found");
+        assert!(body.contains("var x = 1"));
+        assert!(body.contains("var y = 2"));
+        assert!(lines >= 4); // signature + body + braces
+    }
+
+    #[test]
+    fn extract_cs_method_body_with_nested_braces() {
+        let code = r#"
+public void ProcessData()
+{
+    if (true)
+    {
+        for (int i = 0; i < 10; i++)
+        {
+            DoSomething();
+        }
+    }
+}
+"#;
+        let result = extract_cs_method_body(code, "ProcessData");
+        assert!(result.is_some());
+        let (body, _, _, _) = result.expect("found");
+        assert!(body.contains("DoSomething()"));
+    }
+
+    #[test]
+    fn extract_cs_method_body_with_strings_containing_braces() {
+        let code = r#"
+public string FormatJson()
+{
+    return "{ \"key\": \"value\" }";
+}
+"#;
+        let result = extract_cs_method_body(code, "FormatJson");
+        assert!(result.is_some());
+        let (body, _, _, _) = result.expect("found");
+        assert!(body.contains("return"));
+    }
+
+    #[test]
+    fn extract_cs_method_body_not_found() {
+        let code = r#"
+public void ExistingMethod() { }
+"#;
+        let result = extract_cs_method_body(code, "NonExistentMethod");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn extract_vb_method_body_simple() {
+        let code = r#"
+Public Class MyPage
+    Protected Sub Page_Load(sender As Object, e As EventArgs) Handles Me.Load
+        Dim x As Integer = 1
+        Dim y As Integer = 2
+    End Sub
+
+    Private Sub Helper()
+        ' do nothing
+    End Sub
+End Class
+"#;
+        let result = extract_vb_method_body(code, "Page_Load");
+        assert!(result.is_some());
+        let (body, _start, _end, lines) = result.expect("found");
+        assert!(body.contains("Dim x"));
+        assert!(body.contains("Dim y"));
+        assert!(lines >= 3);
+    }
+
+    #[test]
+    fn extract_vb_method_body_with_nested_blocks() {
+        let code = r#"
+Protected Sub ProcessData()
+    If True Then
+        For Each item In collection
+            DoSomething(item)
+        Next
+    End If
+End Sub
+"#;
+        let result = extract_vb_method_body(code, "ProcessData");
+        assert!(result.is_some());
+        let (body, _, _, _) = result.expect("found");
+        assert!(body.contains("DoSomething"));
+    }
+
+    #[test]
+    fn extract_vb_method_body_function() {
+        let code = r#"
+Public Function GetTotal() As Decimal
+    Dim total As Decimal = 0
+    Return total
+End Function
+"#;
+        let result = extract_vb_method_body(code, "GetTotal");
+        assert!(result.is_some());
+        let (body, _, _, _) = result.expect("found");
+        assert!(body.contains("Return total"));
+    }
+
+    #[test]
+    fn make_body_preview_short_method() {
+        let body = "protected void Page_Load(object sender, EventArgs e)\n{\n    var x = 1;\n}";
+        let preview = make_body_preview(body, 4);
+        // Short method (≤30 lines) should be returned in full
+        assert!(preview.contains("var x = 1"));
+        assert!(!preview.contains("more lines"));
+    }
+
+    #[test]
+    fn make_body_preview_long_method() {
+        let mut lines: Vec<String> = Vec::new();
+        lines.push("    protected void BigMethod()".to_string());
+        lines.push("    {".to_string());
+        for i in 0..40 {
+            lines.push(format!("        var x{i} = {i};"));
+        }
+        lines.push("    }".to_string());
+        let body = lines.join("\n");
+        let line_count = body.lines().count() as u32;
+        let preview = make_body_preview(&body, line_count);
+        assert!(preview.contains("more lines"));
+    }
+
+    #[test]
+    fn complexity_score_empty() {
+        let score = compute_complexity_score("");
+        assert_eq!(score, 0);
+    }
+
+    #[test]
+    fn complexity_score_branches_and_loops() {
+        let body = r#"
+if (condition) { }
+else if (other) { }
+for (int i = 0; i < 10; i++) { }
+while (running) { }
+"#;
+        let score = compute_complexity_score(body);
+        // 2 if-related + 1 for + 1 while = 4+
+        assert!(score >= 4, "Expected >= 4, got {score}");
+    }
+
+    #[test]
+    fn complexity_score_try_catch() {
+        let body = r#"
+try {
+    DoSomething();
+} catch (Exception ex) {
+    LogError(ex);
+}
+"#;
+        let score = compute_complexity_score(body);
+        // try = 2pts, catch = 2pts = 4+
+        assert!(score >= 4, "Expected >= 4 for try/catch, got {score}");
+    }
+
+    #[test]
+    fn complexity_score_sql() {
+        let body = r#"
+var sql = "SELECT * FROM Users WHERE Active = 1";
+cmd.CommandText = sql;
+var adapter = new SqlDataAdapter(cmd);
+"#;
+        let score = compute_complexity_score(body);
+        // "SELECT " = 3, CommandText = 3, SqlDataAdapter = 3 = 9+
+        assert!(score >= 9, "Expected >= 9 for SQL, got {score}");
+    }
+
+    #[test]
+    fn complexity_score_session() {
+        let body = r#"
+Session["user"] = GetUser();
+var cart = Session["cart"];
+"#;
+        let score = compute_complexity_score(body);
+        // 2 session accesses
+        assert!(score >= 2, "Expected >= 2 for session, got {score}");
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Control Lifecycle Metadata (Ticket 5)
+    // =========================================================================
+
+    #[test]
+    fn lifecycle_gridview_high_complexity() {
+        let gv = engram_index::control_mapping::lookup("GridView").expect("GridView exists");
+        assert_eq!(gv.migration_complexity, 4);
+        assert!(gv.requires_databind_on_postback);
+        assert!(gv.has_nested_postback);
+        assert!(!gv.breaking_differences.is_empty());
+    }
+
+    #[test]
+    fn lifecycle_textbox_low_complexity() {
+        let tb = engram_index::control_mapping::lookup("TextBox").expect("TextBox exists");
+        assert_eq!(tb.migration_complexity, 1);
+        assert!(!tb.requires_databind_on_postback);
+        assert!(!tb.has_nested_postback);
+        assert_eq!(tb.event_firing_model, "per_user_action");
+    }
+
+    #[test]
+    fn lifecycle_updatepanel_has_breaking_diffs() {
+        let up = engram_index::control_mapping::lookup("UpdatePanel").expect("UpdatePanel exists");
+        assert_eq!(up.migration_complexity, 4);
+        assert!(up.has_nested_postback);
+        assert!(up.breaking_differences.len() >= 2);
+    }
+
+    #[test]
+    fn lifecycle_radgrid_max_complexity() {
+        let rg = engram_index::control_mapping::lookup("RadGrid").expect("RadGrid exists");
+        assert_eq!(rg.migration_complexity, 5);
+        assert!(rg.requires_databind_on_postback);
+        assert!(rg.has_nested_postback);
+        assert!(rg.breaking_differences.len() >= 3);
+    }
+
+    #[test]
+    fn lifecycle_button_stateless() {
+        let btn = engram_index::control_mapping::lookup("Button").expect("Button exists");
+        assert_eq!(btn.state_model, "Stateless");
+        assert_eq!(btn.lifecycle_phase, "Any");
+        assert_eq!(btn.migration_complexity, 1);
+    }
+
+    #[test]
+    fn lifecycle_validation_controls_prerender() {
+        for name in &[
+            "ValidationSummary",
+            "RequiredFieldValidator",
+            "CompareValidator",
+            "RangeValidator",
+            "RegularExpressionValidator",
+        ] {
+            let ctrl = engram_index::control_mapping::lookup(name)
+                .unwrap_or_else(|| panic!("{name} exists"));
+            assert_eq!(
+                ctrl.lifecycle_phase, "PreRender",
+                "{name} should fire at PreRender"
+            );
+            assert_eq!(ctrl.state_model, "Stateless", "{name} should be stateless");
+        }
+    }
+
+    #[test]
+    fn lifecycle_data_source_controls_stateless() {
+        for name in &[
+            "SqlDataSource",
+            "ObjectDataSource",
+            "LinqDataSource",
+            "EntityDataSource",
+        ] {
+            let ctrl = engram_index::control_mapping::lookup(name)
+                .unwrap_or_else(|| panic!("{name} exists"));
+            assert_eq!(ctrl.state_model, "Stateless", "{name} should be stateless");
+            assert_eq!(ctrl.event_firing_model, "once", "{name} should fire once");
+        }
+    }
+
+    #[test]
+    fn lifecycle_all_entries_have_valid_phase() {
+        let valid_phases = ["Init", "Load", "PreRender", "Postback", "Any"];
+        for m in engram_index::control_mapping::CONTROL_MAPPINGS {
+            assert!(
+                valid_phases.contains(&m.lifecycle_phase),
+                "{}: invalid lifecycle_phase '{}'",
+                m.legacy_control,
+                m.lifecycle_phase
+            );
+        }
+    }
+
+    #[test]
+    fn lifecycle_all_entries_have_valid_state_model() {
+        let valid_models = ["ViewState", "ControlState", "Stateless", "ComponentState"];
+        for m in engram_index::control_mapping::CONTROL_MAPPINGS {
+            assert!(
+                valid_models.contains(&m.state_model),
+                "{}: invalid state_model '{}'",
+                m.legacy_control,
+                m.state_model
+            );
+        }
+    }
+
+    #[test]
+    fn lifecycle_all_entries_have_valid_event_model() {
+        let valid_models = ["per_postback", "per_user_action", "once", "manual"];
+        for m in engram_index::control_mapping::CONTROL_MAPPINGS {
+            assert!(
+                valid_models.contains(&m.event_firing_model),
+                "{}: invalid event_firing_model '{}'",
+                m.legacy_control,
+                m.event_firing_model
+            );
+        }
+    }
+
+    #[test]
+    fn lifecycle_complexity_range_1_to_5() {
+        for m in engram_index::control_mapping::CONTROL_MAPPINGS {
+            assert!(
+                (1..=5).contains(&m.migration_complexity),
+                "{}: complexity {} out of range 1-5",
+                m.legacy_control,
+                m.migration_complexity
+            );
+        }
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Config Transforms (Ticket 6)
+    // =========================================================================
+
+    #[test]
+    fn config_transforms_release() {
+        let transform = r#"<?xml version="1.0" encoding="utf-8"?>
+<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <system.web>
+    <compilation xdt:Transform="RemoveAttributes(debug)" />
+  </system.web>
+  <connectionStrings>
+    <add name="DefaultConnection" connectionString="Server=prod;Database=AppDb;" xdt:Transform="SetAttributes" xdt:Locator="Match(name)" />
+  </connectionStrings>
+  <appSettings>
+    <add key="Environment" value="Production" xdt:Transform="SetAttributes" xdt:Locator="Match(key)" />
+  </appSettings>
+</configuration>"#;
+        let report =
+            parse_config_transforms(&[("web.Release.config".to_string(), transform.to_string())]);
+        assert_eq!(report.environments.len(), 1);
+        assert_eq!(report.environments[0].name, "Release");
+        assert!(report.total_transforms > 0);
+        assert!(!report.connection_string_overrides.is_empty());
+        assert!(!report.app_setting_overrides.is_empty());
+    }
+
+    #[test]
+    fn config_transforms_debug_and_release() {
+        let debug_t = r#"<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <system.web>
+    <compilation debug="true" xdt:Transform="SetAttributes" />
+  </system.web>
+</configuration>"#;
+        let release_t = r#"<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <system.web>
+    <compilation debug="false" xdt:Transform="SetAttributes" />
+  </system.web>
+</configuration>"#;
+        let report = parse_config_transforms(&[
+            ("web.Debug.config".to_string(), debug_t.to_string()),
+            ("web.Release.config".to_string(), release_t.to_string()),
+        ]);
+        assert_eq!(report.environments.len(), 2);
+        assert!(report.debug_flag_overrides.len() >= 2);
+    }
+
+    #[test]
+    fn config_transforms_empty() {
+        let report = parse_config_transforms(&[]);
+        assert_eq!(report.environments.len(), 0);
+        assert_eq!(report.total_transforms, 0);
+    }
+
+    #[test]
+    fn config_transforms_staging_environment() {
+        let staging = r#"<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <connectionStrings>
+    <add name="MainDb" connectionString="Server=staging-db;Database=App;" xdt:Transform="SetAttributes" xdt:Locator="Match(name)" />
+  </connectionStrings>
+</configuration>"#;
+        let report =
+            parse_config_transforms(&[("web.Staging.config".to_string(), staging.to_string())]);
+        assert_eq!(report.environments[0].name, "Staging");
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Master Page Regions (Ticket 6)
+    // =========================================================================
+
+    #[test]
+    fn master_page_region_map_basic() {
+        let master_content = r#"<%@ Master Language="C#" %>
+<html>
+<head><asp:ContentPlaceHolder ID="HeadContent" runat="server" /></head>
+<body>
+  <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+  <asp:ContentPlaceHolder ID="FooterContent" runat="server"><p>Default footer</p></asp:ContentPlaceHolder>
+</body>
+</html>"#;
+        let page = FileContent {
+            file_path: "Default.aspx".to_string(),
+            markup_content: r#"<%@ Page MasterPageFile="~/Site.master" %>
+<asp:Content ID="c1" ContentPlaceHolderID="MainContent" runat="server">
+  <h1>Hello</h1>
+</asp:Content>
+<asp:Content ID="c2" ContentPlaceHolderID="HeadContent" runat="server">
+  <title>Home</title>
+</asp:Content>"#
+                .to_string(),
+            codebehind_content: None,
+        };
+        let map = build_master_page_region_map(
+            &[("Site.master".to_string(), master_content.to_string())],
+            &[page],
+        );
+        assert_eq!(map.master_pages.len(), 1);
+        assert!(
+            map.master_pages[0]
+                .placeholders
+                .contains(&"HeadContent".to_string())
+        );
+        assert!(
+            map.master_pages[0]
+                .placeholders
+                .contains(&"MainContent".to_string())
+        );
+        assert!(
+            map.master_pages[0]
+                .placeholders
+                .contains(&"FooterContent".to_string())
+        );
+        // MainContent and HeadContent are filled
+        let filled_regions: Vec<&str> = map
+            .regions
+            .iter()
+            .filter(|r| !r.filled_by.is_empty())
+            .map(|r| r.region_name.as_str())
+            .collect();
+        assert!(filled_regions.contains(&"MainContent"));
+        assert!(filled_regions.contains(&"HeadContent"));
+    }
+
+    #[test]
+    fn master_page_region_map_orphan_detection() {
+        let page = FileContent {
+            file_path: "Page.aspx".to_string(),
+            markup_content: r#"<asp:Content ContentPlaceHolderID="OrphanRegion" runat="server">stuff</asp:Content>"#
+                .to_string(),
+            codebehind_content: None,
+        };
+        let map = build_master_page_region_map(
+            &[(
+                "Main.master".to_string(),
+                r#"<asp:ContentPlaceHolder ID="Body" runat="server" />"#.to_string(),
+            )],
+            &[page],
+        );
+        assert!(!map.orphan_regions.is_empty());
+        assert!(map.orphan_regions.contains(&"OrphanRegion".to_string()));
+    }
+
+    #[test]
+    fn master_page_region_map_empty() {
+        let map = build_master_page_region_map(&[], &[]);
+        assert!(map.master_pages.is_empty());
+        assert!(map.regions.is_empty());
+    }
+
+    #[test]
+    fn master_page_nested_master() {
+        let master_content = r#"<%@ Master MasterPageFile="~/Root.master" %>
+<asp:Content ContentPlaceHolderID="Body" runat="server">
+  <asp:ContentPlaceHolder ID="ChildBody" runat="server" />
+</asp:Content>"#;
+        let map = build_master_page_region_map(
+            &[("Child.master".to_string(), master_content.to_string())],
+            &[],
+        );
+        assert_eq!(map.master_pages.len(), 1);
+        assert_eq!(
+            map.master_pages[0].nested_master.as_deref(),
+            Some("~/Root.master")
+        );
+    }
+
+    // =========================================================================
+    // PHASE 34 TESTS: Resource Inventory (Ticket 6)
+    // =========================================================================
+
+    #[test]
+    fn resource_inventory_basic() {
+        let resx = r#"<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="Title" xml:space="preserve">
+    <value>Welcome</value>
+  </data>
+  <data name="Greeting" xml:space="preserve">
+    <value>Hello, World!</value>
+  </data>
+  <data name="ButtonText" xml:space="preserve">
+    <value>Click Me</value>
+  </data>
+</root>"#;
+        let inv = build_resource_inventory(&[(
+            "App_GlobalResources/Strings.resx".to_string(),
+            resx.to_string(),
+        )]);
+        assert_eq!(inv.resource_files.len(), 1);
+        assert_eq!(inv.total_keys, 3);
+        assert!(inv.has_global_resources);
+    }
+
+    #[test]
+    fn resource_inventory_language_detection() {
+        let resx_en = r#"<root><data name="Hello"><value>Hello</value></data></root>"#;
+        let resx_fr = r#"<root><data name="Hello"><value>Bonjour</value></data></root>"#;
+        let resx_de = r#"<root><data name="Hello"><value>Hallo</value></data></root>"#;
+        let inv = build_resource_inventory(&[
+            (
+                "App_GlobalResources/Strings.resx".to_string(),
+                resx_en.to_string(),
+            ),
+            (
+                "App_GlobalResources/Strings.fr.resx".to_string(),
+                resx_fr.to_string(),
+            ),
+            (
+                "App_GlobalResources/Strings.de.resx".to_string(),
+                resx_de.to_string(),
+            ),
+        ]);
+        assert_eq!(inv.resource_files.len(), 3);
+        assert!(inv.languages_detected.len() >= 2); // fr, de at minimum
+    }
+
+    #[test]
+    fn resource_inventory_local_resources() {
+        let resx = r#"<root><data name="Label1.Text"><value>Submit</value></data></root>"#;
+        let inv = build_resource_inventory(&[(
+            "App_LocalResources/Default.aspx.resx".to_string(),
+            resx.to_string(),
+        )]);
+        assert!(inv.has_local_resources);
+        assert!(!inv.has_global_resources);
+    }
+
+    #[test]
+    fn resource_inventory_empty() {
+        let inv = build_resource_inventory(&[]);
+        assert_eq!(inv.resource_files.len(), 0);
+        assert_eq!(inv.total_keys, 0);
+        assert!(!inv.has_global_resources);
+        assert!(!inv.has_local_resources);
+    }
+
+    #[test]
+    fn resource_inventory_embedded_resources() {
+        let resx = r#"<root><data name="Icon" type="System.Resources.ResXFileRef, System.Windows.Forms"><value>icon.bmp;System.Drawing.Bitmap</value></data></root>"#;
+        let inv = build_resource_inventory(&[(
+            "Properties/Resources.resx".to_string(),
+            resx.to_string(),
+        )]);
+        assert_eq!(inv.embedded_resource_count, 1);
     }
 }
