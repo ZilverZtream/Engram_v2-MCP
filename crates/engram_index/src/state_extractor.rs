@@ -60,6 +60,18 @@ static CS_COOKIE_RE: OnceLock<Regex> = OnceLock::new();
 /// VB.NET cookie access: Request.Cookies("Key") or Response.Cookies("Key")
 static VB_COOKIE_RE: OnceLock<Regex> = OnceLock::new();
 
+/// C# programmatic cache access: HttpRuntime.Cache.Insert/Add/Get/Remove
+static CS_CACHE_API_RE: OnceLock<Regex> = OnceLock::new();
+
+/// VB.NET programmatic cache access: HttpRuntime.Cache.Insert/Add/Get/Remove
+static VB_CACHE_API_RE: OnceLock<Regex> = OnceLock::new();
+
+/// Response.Cache output cache control: Response.Cache.SetCacheability etc.
+static RESPONSE_CACHE_RE: OnceLock<Regex> = OnceLock::new();
+
+/// SqlCacheDependency usage
+static SQL_CACHE_DEP_RE: OnceLock<Regex> = OnceLock::new();
+
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
     pattern: &str,
@@ -726,6 +738,138 @@ fn capitalize_first(s: &str) -> String {
         None => String::new(),
         Some(c) => c.to_uppercase().to_string() + chars.as_str(),
     }
+}
+
+// ── Programmatic Cache API Detection (Phase 33) ──────────────────────────────
+
+/// A detected programmatic cache API usage.
+#[derive(Debug, Clone)]
+pub struct CacheApiUsage {
+    pub file: String,
+    pub line: usize,
+    pub api_type: CacheApiType,
+    pub key: Option<String>,
+}
+
+/// Type of cache API detected.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CacheApiType {
+    /// HttpRuntime.Cache.Insert / Cache.Insert / Cache.Add
+    CacheInsert,
+    /// HttpRuntime.Cache.Get / Cache.Get / Cache["key"]
+    CacheGet,
+    /// HttpRuntime.Cache.Remove
+    CacheRemove,
+    /// Response.Cache.SetCacheability / SetExpires / SetMaxAge etc.
+    ResponseCache,
+    /// new SqlCacheDependency(...)
+    SqlCacheDependency,
+}
+
+fn cs_cache_api_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &CS_CACHE_API_RE,
+        r#"(?i)(?:HttpRuntime\.Cache|Cache)\s*\.\s*(Insert|Add|Get|Remove)\s*\(\s*(?:"([^"]+)"|([A-Za-z_]\w*))"#,
+        "cache_api_cs",
+    )
+}
+
+fn vb_cache_api_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &VB_CACHE_API_RE,
+        r#"(?i)(?:HttpRuntime\.Cache|Cache)\s*\.\s*(Insert|Add|Get|Remove)\s*\(\s*(?:"([^"]+)"|([A-Za-z_]\w*))"#,
+        "cache_api_vb",
+    )
+}
+
+fn response_cache_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &RESPONSE_CACHE_RE,
+        r#"(?i)Response\.Cache\s*\.\s*(SetCacheability|SetExpires|SetMaxAge|SetSlidingExpiration|SetValidUntilExpires|SetNoStore|SetNoServerCaching|SetAllowResponseInBrowserHistory|VaryByHeaders|VaryByParams)"#,
+        "response_cache",
+    )
+}
+
+fn sql_cache_dep_regex() -> Option<&'static Regex> {
+    get_compiled_regex(
+        &SQL_CACHE_DEP_RE,
+        r#"(?i)(?:new\s+)?SqlCacheDependency\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)""#,
+        "sql_cache_dep",
+    )
+}
+
+/// Extract all programmatic cache API usages from a source file.
+///
+/// Detects HttpRuntime.Cache operations, Response.Cache directives,
+/// and SqlCacheDependency instantiation.
+pub fn extract_cache_api_usages(
+    file_path: &str,
+    source: &str,
+    language: &str,
+) -> Vec<CacheApiUsage> {
+    let mut results = Vec::new();
+
+    // Cache.Insert/Add/Get/Remove
+    let cache_re = match language {
+        "csharp" => cs_cache_api_regex(),
+        "vbnet" => vb_cache_api_regex(),
+        _ => None,
+    };
+    if let Some(re) = cache_re {
+        for (line_idx, line) in source.lines().enumerate() {
+            for caps in re.captures_iter(line) {
+                let method = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let key = caps
+                    .get(2)
+                    .or_else(|| caps.get(3))
+                    .map(|m| m.as_str().to_string());
+                let api_type = match method.to_lowercase().as_str() {
+                    "insert" | "add" => CacheApiType::CacheInsert,
+                    "get" => CacheApiType::CacheGet,
+                    "remove" => CacheApiType::CacheRemove,
+                    _ => CacheApiType::CacheGet,
+                };
+                results.push(CacheApiUsage {
+                    file: file_path.to_string(),
+                    line: line_idx + 1,
+                    api_type,
+                    key,
+                });
+            }
+        }
+    }
+
+    // Response.Cache.Set*
+    if let Some(re) = response_cache_regex() {
+        for (line_idx, line) in source.lines().enumerate() {
+            if re.is_match(line) {
+                results.push(CacheApiUsage {
+                    file: file_path.to_string(),
+                    line: line_idx + 1,
+                    api_type: CacheApiType::ResponseCache,
+                    key: None,
+                });
+            }
+        }
+    }
+
+    // SqlCacheDependency
+    if let Some(re) = sql_cache_dep_regex() {
+        for (line_idx, line) in source.lines().enumerate() {
+            for caps in re.captures_iter(line) {
+                let db = caps.get(1).map(|m| m.as_str()).unwrap_or("?");
+                let table = caps.get(2).map(|m| m.as_str()).unwrap_or("?");
+                results.push(CacheApiUsage {
+                    file: file_path.to_string(),
+                    line: line_idx + 1,
+                    api_type: CacheApiType::SqlCacheDependency,
+                    key: Some(format!("{db}.{table}")),
+                });
+            }
+        }
+    }
+
+    results
 }
 
 #[cfg(test)]

@@ -8843,6 +8843,46 @@ End Sub
             })
             .collect();
 
+        // 11. Discover and parse .csproj/.vbproj files (Phase 33: Gap 3)
+        use crate::services::full_project_migration_service::ProjectReferenceBundle;
+        let proj_file_paths = discover_files_recursive(
+            std::path::Path::new(&project_dir),
+            &[".csproj", ".vbproj"],
+            50,
+        )
+        .await;
+
+        let project_references: Vec<ProjectReferenceBundle> = proj_file_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                let content = std::fs::read_to_string(&full).ok()?;
+                let info = engram_index::solution_parser::parse_project_file(&content, &rel);
+                // Separate NuGet PackageReference items from assembly Reference items.
+                // solution_parser merges both into package_references; we split them
+                // by checking if the name looks like a framework assembly (no dots with
+                // version = None, starts with "System." etc.) vs a NuGet package.
+                let mut nuget_refs = Vec::new();
+                let mut asm_refs = Vec::new();
+                for pr in &info.package_references {
+                    if pr.version.is_some() {
+                        nuget_refs.push(pr.clone());
+                    } else {
+                        asm_refs.push(pr.name.clone());
+                    }
+                }
+                Some(ProjectReferenceBundle {
+                    project_path: rel,
+                    target_framework: info.target_framework,
+                    assembly_name: info.assembly_name,
+                    root_namespace: info.root_namespace,
+                    package_references: nuget_refs,
+                    assembly_references: asm_refs,
+                    project_dependencies: info.project_references,
+                })
+            })
+            .collect();
+
         // ── Build ProjectFileBundle ───────────────────────────────────────
 
         let bundle = ProjectFileBundle {
@@ -8853,6 +8893,7 @@ End Sub
             global_asax,
             web_config_content: webconfig_content,
             code_files,
+            project_references,
         };
 
         // ── Blocking phase: run all analysis ──────────────────────────────

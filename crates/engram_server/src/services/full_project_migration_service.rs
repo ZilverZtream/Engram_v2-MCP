@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use engram_graph::{EdgeKind, GraphStore};
+use engram_index::solution_parser::PackageRef;
+use regex::Regex;
 use serde::Serialize;
 
 use super::auth_config_service::AuthConfigMap;
@@ -47,6 +49,17 @@ pub struct FullProjectMigrationReport {
     pub classic_asp: ClassicAspSummary,
     pub reports: ReportSummary,
 
+    // ── Phase 33: 80%→100% analyses ───────────────────────────────────────
+    pub method_inventories: BTreeMap<String, PageMethodInventory>,
+    pub third_party_controls: ThirdPartyControlSummary,
+    pub dependency_inventory: DependencyInventory,
+    pub caching_inventory: CachingInventory,
+    pub url_routing: UrlRoutingInventory,
+    pub vb_translation: VbTranslationReport,
+    pub multi_tenancy: MultiTenancyReport,
+    pub email_patterns: EmailPatternReport,
+    pub background_jobs: BackgroundJobReport,
+
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
 }
@@ -72,6 +85,17 @@ pub struct CrossCuttingSummary {
     pub total_service_endpoints: usize,
     pub total_classic_asp_files: usize,
     pub total_reports: usize,
+    // Phase 33 aggregation
+    pub total_methods: usize,
+    pub total_event_handlers: usize,
+    pub total_web_methods: usize,
+    pub largest_file_by_methods: Option<(String, usize)>,
+    pub total_nuget_packages: usize,
+    pub target_framework: String,
+    pub total_cached_pages: usize,
+    pub total_cache_keys: usize,
+    pub has_email: bool,
+    pub has_background_jobs: bool,
 }
 
 /// An item (table, state key, control) shared across multiple files.
@@ -97,6 +121,20 @@ pub struct ProjectFileBundle {
     pub global_asax: Option<FileContent>,
     pub web_config_content: Option<String>,
     pub code_files: Vec<(String, String)>,
+    /// Phase 33: parsed .csproj/.vbproj project references.
+    pub project_references: Vec<ProjectReferenceBundle>,
+}
+
+/// Parsed project file metadata (.csproj/.vbproj).
+#[derive(Debug, Clone)]
+pub struct ProjectReferenceBundle {
+    pub project_path: String,
+    pub target_framework: Option<String>,
+    pub assembly_name: Option<String>,
+    pub root_namespace: Option<String>,
+    pub package_references: Vec<PackageRef>,
+    pub assembly_references: Vec<String>,
+    pub project_dependencies: Vec<String>,
 }
 
 // ── Phase 32: JavaScript / jQuery Analysis ────────────────────────────────────
@@ -367,6 +405,345 @@ pub struct CrystalReportInfo {
     pub modern_equivalent: String,
 }
 
+// ── Phase 33: Code-Behind Method Inventory (Gap 1) ────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MethodInfo {
+    pub name: String,
+    pub signature: String,
+    pub return_type: String,
+    pub access_level: String,
+    pub line_range: (u32, u32),
+    pub line_count: u32,
+    pub method_kind: MethodKind,
+    pub effects: Vec<String>,
+    pub calls_methods: Vec<String>,
+    pub called_by: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum MethodKind {
+    Lifecycle,
+    ControlEvent,
+    WebMethod,
+    DataAccess,
+    Helper,
+    Unknown,
+}
+
+impl std::fmt::Display for MethodKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Lifecycle => write!(f, "Lifecycle"),
+            Self::ControlEvent => write!(f, "ControlEvent"),
+            Self::WebMethod => write!(f, "WebMethod"),
+            Self::DataAccess => write!(f, "DataAccess"),
+            Self::Helper => write!(f, "Helper"),
+            Self::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PageMethodInventory {
+    pub file_path: String,
+    pub codebehind_path: String,
+    pub total_methods: usize,
+    pub methods: Vec<MethodInfo>,
+    pub lifecycle_methods: usize,
+    pub event_handlers: usize,
+    pub web_methods: usize,
+    pub data_access_methods: usize,
+    pub helper_methods: usize,
+    pub largest_method: Option<(String, u32)>,
+    pub methods_with_sql: usize,
+    pub methods_with_state: usize,
+}
+
+// ── Phase 33: Third-Party Control Detection (Gap 2) ───────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ThirdPartyControlSummary {
+    pub vendors_detected: Vec<VendorSummary>,
+    pub total_third_party_controls: usize,
+    pub files_with_third_party: Vec<String>,
+    pub unmapped_controls: Vec<UnmappedControl>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VendorSummary {
+    pub vendor: String,
+    pub suite: String,
+    pub control_count: usize,
+    pub controls_used: Vec<(String, usize)>,
+    pub files: Vec<String>,
+    pub modern_replacement_suite: String,
+    pub license_note: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UnmappedControl {
+    pub tag_name: String,
+    pub vendor: String,
+    pub file_path: String,
+    pub note: String,
+}
+
+// ── Phase 33: Dependency Inventory (Gap 3) ────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DependencyInventory {
+    pub target_frameworks: Vec<String>,
+    pub nuget_packages: Vec<NuGetPackageInfo>,
+    pub assembly_references: Vec<AssemblyRefInfo>,
+    pub project_references: Vec<ProjectRefInfo>,
+    pub total_packages: usize,
+    pub total_assemblies: usize,
+    pub framework_assemblies: Vec<String>,
+    pub third_party_assemblies: Vec<String>,
+    pub packages_with_known_replacement: usize,
+    pub packages_without_replacement: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct NuGetPackageInfo {
+    pub name: String,
+    pub version: Option<String>,
+    pub modern_replacement: Option<String>,
+    pub modern_version: Option<String>,
+    pub migration_notes: Option<String>,
+    pub category: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AssemblyRefInfo {
+    pub assembly_name: String,
+    pub is_framework: bool,
+    pub modern_equivalent: Option<String>,
+    pub removal_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectRefInfo {
+    pub project_name: String,
+    pub project_path: String,
+    pub target_framework: Option<String>,
+}
+
+// ── Phase 33: Caching Inventory (Gap 4) ───────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CachingInventory {
+    pub output_cache_pages: Vec<OutputCacheEntry>,
+    pub programmatic_cache_keys: Vec<ProgrammaticCacheEntry>,
+    pub response_cache_files: Vec<String>,
+    pub sql_cache_dependencies: Vec<SqlCacheDependencyEntry>,
+    pub total_cached_pages: usize,
+    pub total_cache_keys: usize,
+    pub has_response_caching: bool,
+    pub has_sql_dependencies: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OutputCacheEntry {
+    pub file_path: String,
+    pub duration_seconds: Option<u32>,
+    pub vary_by_param: Option<String>,
+    pub vary_by_control: Option<String>,
+    pub vary_by_custom: Option<String>,
+    pub location: Option<String>,
+    pub cache_profile: Option<String>,
+    pub sql_dependency: Option<String>,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProgrammaticCacheEntry {
+    pub cache_key: String,
+    pub operation: String,
+    pub files: Vec<String>,
+    pub has_expiration: bool,
+    pub has_dependency: bool,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SqlCacheDependencyEntry {
+    pub file_path: String,
+    pub database_name: Option<String>,
+    pub table_name: Option<String>,
+    pub modern_note: String,
+}
+
+// ── Phase 33: URL Routing Inventory (Gap 5) ───────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UrlRoutingInventory {
+    pub rewrite_rules: Vec<UrlRewriteRule>,
+    pub page_routes: Vec<PageRoute>,
+    pub url_mappings: Vec<UrlMapping>,
+    pub rewrite_path_calls: Vec<RewritePathCall>,
+    pub redirects: Vec<RedirectEntry>,
+    pub server_transfers: Vec<ServerTransferEntry>,
+    pub has_friendly_urls: bool,
+    pub total_url_patterns: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UrlRewriteRule {
+    pub rule_name: String,
+    pub match_pattern: String,
+    pub action_type: String,
+    pub target_url: String,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PageRoute {
+    pub route_name: String,
+    pub url_pattern: String,
+    pub physical_page: String,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UrlMapping {
+    pub friendly_url: String,
+    pub mapped_url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RewritePathCall {
+    pub file_path: String,
+    pub target_path: String,
+    pub line_number: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RedirectEntry {
+    pub file_path: String,
+    pub target_url: String,
+    pub is_permanent: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ServerTransferEntry {
+    pub file_path: String,
+    pub target_page: String,
+}
+
+// ── Phase 33: VB.NET → C# Translation Flags (Gap 6) ──────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VbTranslationReport {
+    pub is_vb_project: bool,
+    pub vb_file_count: usize,
+    pub cs_file_count: usize,
+    pub mixed_language: bool,
+    pub translation_flags: Vec<VbTranslationFlag>,
+    pub total_flags: usize,
+    pub flags_by_category: BTreeMap<String, usize>,
+    pub highest_risk_files: Vec<(String, usize)>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VbTranslationFlag {
+    pub category: String,
+    pub pattern: String,
+    pub file_path: String,
+    pub count: usize,
+    pub csharp_equivalent: String,
+    pub risk_level: String,
+    pub auto_translatable: bool,
+    pub notes: String,
+}
+
+// ── Phase 33: Multi-Tenancy Detection (Gap 7) ─────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MultiTenancyReport {
+    pub is_multi_tenant: bool,
+    pub confidence: String,
+    pub tenant_id_column_name: Option<String>,
+    pub isolation_strategy: Option<String>,
+    pub detection_evidence: Vec<TenancyEvidence>,
+    pub tenant_resolution: Option<TenantResolution>,
+    pub tenant_filtered_queries: usize,
+    pub files_with_tenant_logic: Vec<String>,
+    pub migration_recommendations: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TenancyEvidence {
+    pub evidence_type: String,
+    pub file_path: String,
+    pub detail: String,
+    pub line_hint: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TenantResolution {
+    pub mechanism: String,
+    pub module_class: Option<String>,
+    pub file_path: String,
+}
+
+// ── Phase 33: Email / Notification Patterns (Gap 8) ───────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EmailPatternReport {
+    pub has_email: bool,
+    pub email_patterns: Vec<EmailPattern>,
+    pub smtp_config: Option<SmtpConfig>,
+    pub total_email_files: usize,
+    pub uses_html_email: bool,
+    pub uses_attachments: bool,
+    pub uses_legacy_cdo: bool,
+    pub uses_legacy_web_mail: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EmailPattern {
+    pub file_path: String,
+    pub pattern_type: String,
+    pub count: usize,
+    pub modern_equivalent: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SmtpConfig {
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub from_address: Option<String>,
+    pub uses_credentials: bool,
+    pub uses_ssl: bool,
+}
+
+// ── Phase 33: Background Job Patterns (Gap 8) ─────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackgroundJobReport {
+    pub has_background_jobs: bool,
+    pub patterns: Vec<BackgroundJobPattern>,
+    pub total_background_files: usize,
+    pub uses_thread_pool: bool,
+    pub uses_timers: bool,
+    pub uses_task_run: bool,
+    pub uses_bg_worker: bool,
+    pub uses_hangfire: bool,
+    pub uses_quartz: bool,
+    pub fire_and_forget_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BackgroundJobPattern {
+    pub file_path: String,
+    pub pattern_type: String,
+    pub count: usize,
+    pub modern_equivalent: String,
+    pub risk_level: String,
+}
+
 // ── Main entry point ──────────────────────────────────────────────────────────
 
 /// Analyze an entire project for migration.
@@ -535,6 +912,55 @@ pub fn analyze_full_project(
 
     let reports = build_report_summary(graph, project_id, &bundle.report_files);
 
+    // ── 3b. Phase 33 analyses ──────────────────────────────────────────────
+
+    // Gap 1: Code-behind method inventory
+    let method_inventories = build_method_inventories(graph, project_id, capped);
+
+    // Gap 2: Third-party control detection
+    let third_party_controls = build_third_party_control_summary(&bundle.markup_files);
+
+    // Gap 3: Dependency inventory
+    let dependency_inventory = build_dependency_inventory(&bundle.project_references);
+
+    // Gap 4: Caching inventory
+    let caching_inventory =
+        build_caching_inventory(&bundle.markup_files, &code_refs, &bundle.code_files);
+
+    // Gap 5: URL routing
+    let url_routing = extract_url_routing(
+        web_config_content,
+        bundle
+            .global_asax
+            .as_ref()
+            .map(|ga| ga.codebehind_content.as_deref().unwrap_or(""))
+            .unwrap_or(""),
+        &code_refs,
+    );
+
+    // Gap 6: VB.NET translation flags
+    let vb_translation = analyze_vb_translation_flags(&code_refs);
+
+    // Gap 7: Multi-tenancy detection
+    let multi_tenancy = detect_multi_tenancy(
+        web_config_content,
+        &code_refs,
+        bundle
+            .global_asax
+            .as_ref()
+            .map(|ga| ga.codebehind_content.as_deref().unwrap_or("")),
+    );
+
+    // Gap 8: Email + background jobs
+    let email_patterns = detect_email_patterns(&code_refs, web_config_content);
+    let background_jobs = detect_background_job_patterns(
+        &code_refs,
+        bundle
+            .global_asax
+            .as_ref()
+            .map(|ga| ga.codebehind_content.as_deref().unwrap_or("")),
+    );
+
     // ── 4. Cross-cutting aggregation ──────────────────────────────────────
 
     let cross_cutting = build_cross_cutting_summary(
@@ -546,6 +972,11 @@ pub fn analyze_full_project(
         &service_endpoints,
         &classic_asp,
         &reports,
+        &method_inventories,
+        &dependency_inventory,
+        &caching_inventory,
+        &email_patterns,
+        &background_jobs,
     );
 
     // ── 5. Build the wave lookup (file_path → wave number) ────────────────
@@ -578,6 +1009,15 @@ pub fn analyze_full_project(
         &anti_patterns,
         &classic_asp,
         &reports,
+        &method_inventories,
+        &third_party_controls,
+        &dependency_inventory,
+        &caching_inventory,
+        &url_routing,
+        &vb_translation,
+        &multi_tenancy,
+        &email_patterns,
+        &background_jobs,
     );
 
     Ok(FullProjectMigrationReport {
@@ -598,6 +1038,15 @@ pub fn analyze_full_project(
         anti_patterns,
         classic_asp,
         reports,
+        method_inventories,
+        third_party_controls,
+        dependency_inventory,
+        caching_inventory,
+        url_routing,
+        vb_translation,
+        multi_tenancy,
+        email_patterns,
+        background_jobs,
         markdown_report,
     })
 }
@@ -613,6 +1062,11 @@ fn build_cross_cutting_summary(
     se: &ServiceEndpointSummary,
     asp: &ClassicAspSummary,
     rpt: &ReportSummary,
+    method_inv: &BTreeMap<String, PageMethodInventory>,
+    dep_inv: &DependencyInventory,
+    cache_inv: &CachingInventory,
+    email: &EmailPatternReport,
+    bg_jobs: &BackgroundJobReport,
 ) -> CrossCuttingSummary {
     let mut complexity_distribution: BTreeMap<String, usize> = BTreeMap::new();
     let mut risk_distribution: BTreeMap<String, usize> = BTreeMap::new();
@@ -714,6 +1168,24 @@ fn build_cross_cutting_summary(
         })
         .collect();
 
+    // Phase 33 method aggregation
+    let mut total_methods = 0usize;
+    let mut total_event_handlers = 0usize;
+    let mut total_web_methods = 0usize;
+    let mut largest_file_by_methods: Option<(String, usize)> = None;
+    for (path, inv) in method_inv {
+        total_methods += inv.total_methods;
+        total_event_handlers += inv.event_handlers;
+        total_web_methods += inv.web_methods;
+        if largest_file_by_methods
+            .as_ref()
+            .map_or(true, |(_, c)| inv.total_methods > *c)
+            && inv.total_methods > 0
+        {
+            largest_file_by_methods = Some((path.clone(), inv.total_methods));
+        }
+    }
+
     CrossCuttingSummary {
         total_pages_analyzed: dossiers.len(),
         complexity_distribution,
@@ -732,6 +1204,21 @@ fn build_cross_cutting_summary(
         total_service_endpoints: se.total_endpoints,
         total_classic_asp_files: asp.total_asp_files,
         total_reports: rpt.total_reports,
+        // Phase 33
+        total_methods,
+        total_event_handlers,
+        total_web_methods,
+        largest_file_by_methods,
+        total_nuget_packages: dep_inv.total_packages,
+        target_framework: dep_inv
+            .target_frameworks
+            .first()
+            .cloned()
+            .unwrap_or_default(),
+        total_cached_pages: cache_inv.total_cached_pages,
+        total_cache_keys: cache_inv.total_cache_keys,
+        has_email: email.has_email,
+        has_background_jobs: bg_jobs.has_background_jobs,
     }
 }
 
@@ -2051,6 +2538,2006 @@ fn build_report_summary(
     }
 }
 
+// ── Phase 33 analysis functions ────────────────────────────────────────────────
+
+// ── Gap 1: Code-behind method inventory ─────────────────────────────────────
+
+fn classify_method_kind(
+    name: &str,
+    effects: &[String],
+    metadata: &Option<serde_json::Value>,
+) -> MethodKind {
+    static LIFECYCLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)^(?:Page_(?:Load|Init|PreRender|Unload|PreInit|InitComplete|LoadComplete|PreRenderComplete|SaveStateComplete|Error)|OnInit|OnLoad|OnPreRender|OnUnload)$").unwrap()
+    });
+    static CONTROL_EVENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)_(?:Click|Command|RowCommand|SelectedIndexChanged|TextChanged|CheckedChanged|DataBound|RowEditing|RowUpdating|RowDeleting|RowCancelingEdit|PageIndexChanging|Sorting|ItemCommand|ItemDataBound|DataBinding|ServerClick|ServerChange|NeedDataSource|ItemCreated|Init|Load|PreRender|Unload)$").unwrap()
+    });
+
+    if LIFECYCLE_RE.is_match(name) {
+        return MethodKind::Lifecycle;
+    }
+    if CONTROL_EVENT_RE.is_match(name) {
+        return MethodKind::ControlEvent;
+    }
+
+    // Check for WebMethod attribute in metadata
+    if let Some(meta) = metadata {
+        if let Some(sig) = meta.get("signature").and_then(|v| v.as_str()) {
+            if sig.contains("WebMethod") {
+                return MethodKind::WebMethod;
+            }
+        }
+        if let Some(eff) = meta.get("effects").and_then(|v| v.as_str()) {
+            if eff.contains("WebMethod") {
+                return MethodKind::WebMethod;
+            }
+        }
+    }
+
+    if effects.iter().any(|e| e.contains("SQL_Access")) {
+        return MethodKind::DataAccess;
+    }
+
+    MethodKind::Helper
+}
+
+fn build_method_inventories(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    file_contents: &[FileContent],
+) -> BTreeMap<String, PageMethodInventory> {
+    let mut result = BTreeMap::new();
+
+    for fc in file_contents {
+        let cb_path = fc.file_path.clone() + ".vb";
+        let cb_path_cs = fc.file_path.clone() + ".cs";
+
+        // Try both VB and CS code-behind paths
+        for codebehind_path in &[&cb_path, &cb_path_cs] {
+            let method_nodes = match graph.query_nodes(
+                project_id,
+                Some("function"),
+                None,
+                Some(codebehind_path),
+                500,
+            ) {
+                Ok(nodes) => nodes,
+                Err(_) => continue,
+            };
+
+            if method_nodes.is_empty() {
+                // Also try without the extra extension (e.g. just "Page.aspx.vb")
+                continue;
+            }
+
+            let mut methods: Vec<MethodInfo> = Vec::new();
+
+            for node in &method_nodes {
+                let effects: Vec<String> = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("effects"))
+                    .and_then(|v| v.as_str())
+                    .map(|s| {
+                        s.split(',')
+                            .map(|e| e.trim().to_string())
+                            .filter(|e| !e.is_empty())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                let signature = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("signature"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&node.name)
+                    .to_string();
+
+                let return_type = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("return_type"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Sub")
+                    .to_string();
+
+                let access_level = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("access_level"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Private")
+                    .to_string();
+
+                let kind = classify_method_kind(&node.name, &effects, &node.metadata);
+                let line_count = if node.end_line >= node.start_line {
+                    node.end_line - node.start_line + 1
+                } else {
+                    1
+                };
+
+                methods.push(MethodInfo {
+                    name: node.name.clone(),
+                    signature,
+                    return_type,
+                    access_level,
+                    line_range: (node.start_line, node.end_line),
+                    line_count,
+                    method_kind: kind,
+                    effects,
+                    calls_methods: vec![],
+                    called_by: vec![],
+                });
+            }
+
+            // Populate calls_methods/called_by from Dependency edges
+            if let Ok(dep_edges) = graph.list_edges_by_kind(project_id, EdgeKind::Dependency, 5000)
+            {
+                let method_names: Vec<String> = methods.iter().map(|m| m.name.clone()).collect();
+                for edge in &dep_edges {
+                    for m in &mut methods {
+                        if edge.source_id.ends_with(&m.name) {
+                            let target_name =
+                                edge.target_id.rsplit('.').next().unwrap_or(&edge.target_id);
+                            if method_names.contains(&target_name.to_string()) {
+                                m.calls_methods.push(target_name.to_string());
+                            }
+                        }
+                        if edge.target_id.ends_with(&m.name) {
+                            let source_name =
+                                edge.source_id.rsplit('.').next().unwrap_or(&edge.source_id);
+                            if method_names.contains(&source_name.to_string()) {
+                                m.called_by.push(source_name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
+            let lifecycle_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::Lifecycle))
+                .count();
+            let event_handlers = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::ControlEvent))
+                .count();
+            let web_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::WebMethod))
+                .count();
+            let data_access_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::DataAccess))
+                .count();
+            let helper_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::Helper))
+                .count();
+            let methods_with_sql = methods
+                .iter()
+                .filter(|m| m.effects.iter().any(|e| e.contains("SQL")))
+                .count();
+            let methods_with_state = methods
+                .iter()
+                .filter(|m| m.effects.iter().any(|e| e.contains("State")))
+                .count();
+            let largest_method = methods
+                .iter()
+                .max_by_key(|m| m.line_count)
+                .map(|m| (m.name.clone(), m.line_count));
+
+            let inventory = PageMethodInventory {
+                file_path: fc.file_path.clone(),
+                codebehind_path: codebehind_path.to_string(),
+                total_methods: methods.len(),
+                lifecycle_methods,
+                event_handlers,
+                web_methods,
+                data_access_methods,
+                helper_methods,
+                largest_method,
+                methods_with_sql,
+                methods_with_state,
+                methods,
+            };
+
+            result.insert(fc.file_path.clone(), inventory);
+            break; // Found methods, no need to try the other extension
+        }
+    }
+
+    // Fallback: if graph had no data, parse code-behind content directly
+    for fc in file_contents {
+        if result.contains_key(&fc.file_path) {
+            continue;
+        }
+        if let Some(ref cb_content) = fc.codebehind_content {
+            let methods = extract_methods_from_content(cb_content);
+            if methods.is_empty() {
+                continue;
+            }
+            let cb_path = fc.file_path.clone() + ".vb";
+            let lifecycle_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::Lifecycle))
+                .count();
+            let event_handlers = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::ControlEvent))
+                .count();
+            let web_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::WebMethod))
+                .count();
+            let data_access_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::DataAccess))
+                .count();
+            let helper_methods = methods
+                .iter()
+                .filter(|m| matches!(m.method_kind, MethodKind::Helper))
+                .count();
+            let methods_with_sql = methods
+                .iter()
+                .filter(|m| m.effects.iter().any(|e| e.contains("SQL")))
+                .count();
+            let methods_with_state = methods
+                .iter()
+                .filter(|m| m.effects.iter().any(|e| e.contains("State")))
+                .count();
+            let largest_method = methods
+                .iter()
+                .max_by_key(|m| m.line_count)
+                .map(|m| (m.name.clone(), m.line_count));
+
+            result.insert(
+                fc.file_path.clone(),
+                PageMethodInventory {
+                    file_path: fc.file_path.clone(),
+                    codebehind_path: cb_path,
+                    total_methods: methods.len(),
+                    lifecycle_methods,
+                    event_handlers,
+                    web_methods,
+                    data_access_methods,
+                    helper_methods,
+                    largest_method,
+                    methods_with_sql,
+                    methods_with_state,
+                    methods,
+                },
+            );
+        }
+    }
+
+    result
+}
+
+/// Fallback: extract method signatures directly from code-behind text using regex.
+fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
+    static VB_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*((?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:MustOverride\s+)?(?:Async\s+)?(Sub|Function)\s+(\w+)\s*\(([^)]*)\)(?:\s+As\s+(\w[\w.<>\[\],\s]*))?").unwrap()
+    });
+    static CS_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*((?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(\w[\w.<>\[\],]*)\s+(\w+)\s*\(([^)]*)\)").unwrap()
+    });
+
+    let mut methods = Vec::new();
+    let is_vb = content.contains("End Sub") || content.contains("End Function");
+
+    if is_vb {
+        for cap in VB_METHOD_RE.captures_iter(content) {
+            let access = cap.get(1).map_or("Private", |m| m.as_str().trim());
+            let kind_str = &cap[2];
+            let name = cap[3].to_string();
+            let params = cap[4].to_string();
+            let return_type = cap.get(5).map_or(
+                if kind_str.eq_ignore_ascii_case("Sub") {
+                    "Sub"
+                } else {
+                    "Object"
+                },
+                |m| m.as_str(),
+            );
+            let signature = format!("{access} {kind_str} {name}({params})")
+                .trim()
+                .to_string();
+            let effects = extract_effects_from_nearby_content(content, &name);
+            let kind = classify_method_kind(&name, &effects, &None);
+
+            methods.push(MethodInfo {
+                name,
+                signature,
+                return_type: return_type.to_string(),
+                access_level: access
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("Private")
+                    .to_string(),
+                line_range: (0, 0),
+                line_count: 0,
+                method_kind: kind,
+                effects,
+                calls_methods: vec![],
+                called_by: vec![],
+            });
+        }
+    } else {
+        for cap in CS_METHOD_RE.captures_iter(content) {
+            let access = cap.get(1).map_or("private", |m| m.as_str().trim());
+            let return_type = cap[2].to_string();
+            let name = cap[3].to_string();
+            let params = cap[4].to_string();
+            // Skip common non-method matches
+            if [
+                "if",
+                "else",
+                "for",
+                "foreach",
+                "while",
+                "switch",
+                "catch",
+                "using",
+                "lock",
+                "return",
+                "new",
+                "class",
+                "struct",
+                "interface",
+                "enum",
+                "namespace",
+            ]
+            .contains(&name.as_str())
+            {
+                continue;
+            }
+            let signature = format!("{access} {return_type} {name}({params})")
+                .trim()
+                .to_string();
+            let effects = extract_effects_from_nearby_content(content, &name);
+            let kind = classify_method_kind(&name, &effects, &None);
+
+            methods.push(MethodInfo {
+                name,
+                signature,
+                return_type,
+                access_level: access
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("private")
+                    .to_string(),
+                line_range: (0, 0),
+                line_count: 0,
+                method_kind: kind,
+                effects,
+                calls_methods: vec![],
+                called_by: vec![],
+            });
+        }
+    }
+
+    methods
+}
+
+fn extract_effects_from_nearby_content(content: &str, _method_name: &str) -> Vec<String> {
+    // Lightweight heuristic: scan full content for common patterns
+    // A more precise approach would find the method body, but this is a fallback
+    let mut effects = Vec::new();
+    let lower = content.to_lowercase();
+    if lower.contains("sqlcommand")
+        || lower.contains("sqlconnection")
+        || lower.contains("sqldatareader")
+        || lower.contains("sqldataadapter")
+        || lower.contains("executenonquery")
+        || lower.contains("executereader")
+        || lower.contains("executescalar")
+    {
+        effects.push("SQL_Access".to_string());
+    }
+    if lower.contains("session(")
+        || lower.contains("session[")
+        || lower.contains("viewstate(")
+        || lower.contains("viewstate[")
+    {
+        effects.push("State_Access".to_string());
+    }
+    if lower.contains("createobject") {
+        effects.push("COM_Interop".to_string());
+    }
+    effects
+}
+
+// ── Gap 2: Third-party control detection ────────────────────────────────────
+
+fn build_third_party_control_summary(markup_files: &[FileContent]) -> ThirdPartyControlSummary {
+    static THIRD_PARTY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)<(telerik|rad|dx|ig|igtbl|igmisc|igsch|ComponentArt|kendo|obout|eo|FarPoint|Dart|cwc|ntx):(\w+)\b"#).unwrap()
+    });
+
+    let mut vendor_controls: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
+    let mut all_files: Vec<String> = Vec::new();
+
+    for fc in markup_files {
+        let mut found_in_file = false;
+        for cap in THIRD_PARTY_RE.captures_iter(&fc.markup_content) {
+            let prefix = cap[1].to_string();
+            let control_name = cap[2].to_string();
+            let vendor = classify_vendor_from_prefix(&prefix);
+            vendor_controls
+                .entry(vendor)
+                .or_default()
+                .entry(format!("{prefix}:{control_name}"))
+                .or_default()
+                .push(fc.file_path.clone());
+            found_in_file = true;
+        }
+        if found_in_file {
+            all_files.push(fc.file_path.clone());
+        }
+    }
+    all_files.sort();
+    all_files.dedup();
+
+    let mut vendors_detected = Vec::new();
+    let mut total_third_party = 0usize;
+    let mut unmapped_controls = Vec::new();
+
+    for (vendor, controls_map) in &vendor_controls {
+        let (suite, modern_suite, license) = vendor_suite_info(vendor);
+        let mut controls_used: Vec<(String, usize)> = Vec::new();
+        let mut vendor_files: Vec<String> = Vec::new();
+        let mut vendor_count = 0usize;
+
+        for (tag_name, files) in controls_map {
+            let usage = files.len();
+            vendor_count += usage;
+            controls_used.push((tag_name.clone(), usage));
+
+            let control_short = tag_name.split(':').nth(1).unwrap_or(tag_name);
+            if engram_index::control_mapping::lookup(control_short).is_none() {
+                let first_file = files.first().cloned().unwrap_or_default();
+                unmapped_controls.push(UnmappedControl {
+                    tag_name: tag_name.clone(),
+                    vendor: vendor.clone(),
+                    file_path: first_file,
+                    note: format!(
+                        "No automatic mapping — evaluate {modern_suite} or manual implementation"
+                    ),
+                });
+            }
+
+            vendor_files.extend(files.iter().cloned());
+        }
+
+        vendor_files.sort();
+        vendor_files.dedup();
+        controls_used.sort_by(|a, b| b.1.cmp(&a.1));
+        total_third_party += vendor_count;
+
+        vendors_detected.push(VendorSummary {
+            vendor: vendor.clone(),
+            suite: suite.to_string(),
+            control_count: vendor_count,
+            controls_used,
+            files: vendor_files,
+            modern_replacement_suite: modern_suite.to_string(),
+            license_note: license.to_string(),
+        });
+    }
+
+    vendors_detected.sort_by(|a, b| b.control_count.cmp(&a.control_count));
+
+    ThirdPartyControlSummary {
+        vendors_detected,
+        total_third_party_controls: total_third_party,
+        files_with_third_party: all_files,
+        unmapped_controls,
+    }
+}
+
+fn classify_vendor_from_prefix(prefix: &str) -> String {
+    match prefix.to_lowercase().as_str() {
+        "telerik" | "rad" | "kendo" => "Telerik".to_string(),
+        "dx" => "DevExpress".to_string(),
+        "ig" | "igtbl" | "igmisc" | "igsch" | "ntx" => "Infragistics".to_string(),
+        "componentart" => "ComponentArt".to_string(),
+        "obout" => "Obout".to_string(),
+        "eo" => "EO.WebControls".to_string(),
+        "farpoint" => "FarPoint".to_string(),
+        "dart" => "Dart".to_string(),
+        "cwc" => "CustomWebControls".to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn vendor_suite_info(vendor: &str) -> (&'static str, &'static str, &'static str) {
+    match vendor {
+        "Telerik" => (
+            "UI for ASP.NET AJAX",
+            "Telerik UI for Blazor or MudBlazor",
+            "Commercial for Telerik Blazor; MudBlazor is MIT",
+        ),
+        "DevExpress" => (
+            "ASP.NET Controls",
+            "DevExpress Blazor Components or MudBlazor",
+            "Commercial license required",
+        ),
+        "Infragistics" => (
+            "Ultimate UI for ASP.NET",
+            "IgniteUI for Blazor or MudBlazor",
+            "Commercial license required",
+        ),
+        "ComponentArt" => (
+            "Web.UI",
+            "MudBlazor or Radzen",
+            "ComponentArt discontinued; use open-source alternative",
+        ),
+        "Obout" => (
+            "Suite for ASP.NET",
+            "MudBlazor",
+            "Obout discontinued; migrate to open-source",
+        ),
+        "EO.WebControls" => ("EO.Web", "MudBlazor", "Commercial"),
+        "FarPoint" => (
+            "Spread for ASP.NET",
+            "SpreadJS or AG Grid",
+            "Commercial license required",
+        ),
+        _ => (
+            "Unknown Suite",
+            "MudBlazor (open-source)",
+            "Evaluate licensing",
+        ),
+    }
+}
+
+// ── Gap 3: Dependency inventory ─────────────────────────────────────────────
+
+fn build_dependency_inventory(project_refs: &[ProjectReferenceBundle]) -> DependencyInventory {
+    let mut target_frameworks: Vec<String> = Vec::new();
+    let mut all_packages: Vec<NuGetPackageInfo> = Vec::new();
+    let mut all_assemblies: Vec<AssemblyRefInfo> = Vec::new();
+    let mut proj_refs: Vec<ProjectRefInfo> = Vec::new();
+    let mut seen_packages: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut seen_assemblies: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for prb in project_refs {
+        if let Some(ref tf) = prb.target_framework {
+            if !target_frameworks.contains(tf) {
+                target_frameworks.push(tf.clone());
+            }
+        }
+
+        for pkg in &prb.package_references {
+            if seen_packages.contains(&pkg.name.to_lowercase()) {
+                continue;
+            }
+            seen_packages.insert(pkg.name.to_lowercase());
+
+            let (modern, version, notes, category) = lookup_modern_replacement(&pkg.name);
+            let is_framework =
+                pkg.name.starts_with("System.") || pkg.name.starts_with("Microsoft.");
+
+            if is_framework && pkg.version.is_none() {
+                // This is an assembly reference, not a NuGet package
+                if seen_assemblies.insert(pkg.name.to_lowercase()) {
+                    let (asm_modern, removal) = lookup_assembly_replacement(&pkg.name);
+                    all_assemblies.push(AssemblyRefInfo {
+                        assembly_name: pkg.name.clone(),
+                        is_framework: true,
+                        modern_equivalent: asm_modern.map(|s| s.to_string()),
+                        removal_reason: removal.map(|s| s.to_string()),
+                    });
+                }
+            } else {
+                all_packages.push(NuGetPackageInfo {
+                    name: pkg.name.clone(),
+                    version: pkg.version.clone(),
+                    modern_replacement: modern.map(|s| s.to_string()),
+                    modern_version: version.map(|s| s.to_string()),
+                    migration_notes: notes.map(|s| s.to_string()),
+                    category: category.to_string(),
+                });
+            }
+        }
+
+        for asm in &prb.assembly_references {
+            if seen_assemblies.contains(&asm.to_lowercase()) {
+                continue;
+            }
+            seen_assemblies.insert(asm.to_lowercase());
+            let is_fw =
+                asm.starts_with("System.") || asm.starts_with("Microsoft.") || asm == "mscorlib";
+            let (modern, removal) = lookup_assembly_replacement(asm);
+            all_assemblies.push(AssemblyRefInfo {
+                assembly_name: asm.clone(),
+                is_framework: is_fw,
+                modern_equivalent: modern.map(|s| s.to_string()),
+                removal_reason: removal.map(|s| s.to_string()),
+            });
+        }
+
+        for dep in &prb.project_dependencies {
+            proj_refs.push(ProjectRefInfo {
+                project_name: dep.rsplit(['/', '\\']).next().unwrap_or(dep).to_string(),
+                project_path: dep.clone(),
+                target_framework: prb.target_framework.clone(),
+            });
+        }
+    }
+
+    let framework_assemblies: Vec<String> = all_assemblies
+        .iter()
+        .filter(|a| a.is_framework)
+        .map(|a| a.assembly_name.clone())
+        .collect();
+    let third_party_assemblies: Vec<String> = all_assemblies
+        .iter()
+        .filter(|a| !a.is_framework)
+        .map(|a| a.assembly_name.clone())
+        .collect();
+    let with_replacement = all_packages
+        .iter()
+        .filter(|p| p.modern_replacement.is_some())
+        .count();
+    let without_replacement = all_packages.len() - with_replacement;
+
+    DependencyInventory {
+        total_packages: all_packages.len(),
+        total_assemblies: all_assemblies.len(),
+        packages_with_known_replacement: with_replacement,
+        packages_without_replacement: without_replacement,
+        framework_assemblies,
+        third_party_assemblies,
+        target_frameworks,
+        nuget_packages: all_packages,
+        assembly_references: all_assemblies,
+        project_references: proj_refs,
+    }
+}
+
+/// Returns (modern_replacement, modern_version, migration_notes, category)
+fn lookup_modern_replacement(
+    package: &str,
+) -> (
+    Option<&'static str>,
+    Option<&'static str>,
+    Option<&'static str>,
+    &'static str,
+) {
+    match package.to_lowercase().as_str() {
+        "entityframework" => (
+            Some("Microsoft.EntityFrameworkCore"),
+            Some("8.0+"),
+            Some("Different DbContext API; migrations differ"),
+            "ORM",
+        ),
+        "newtonsoft.json" => (
+            Some("System.Text.Json (or keep Newtonsoft)"),
+            Some("8.0+"),
+            Some("Compatible; System.Text.Json is built-in but API differs"),
+            "Serialization",
+        ),
+        "telerik.web.ui" => (
+            Some("Telerik.UI.for.Blazor"),
+            None,
+            Some("Commercial, completely different API surface"),
+            "UI Controls",
+        ),
+        "devexpress.web" | "devexpress.web.v23.1" => (
+            Some("DevExpress.Blazor"),
+            None,
+            Some("Commercial, different API"),
+            "UI Controls",
+        ),
+        "infragistics.web" | "infragistics4.web" => (
+            Some("IgniteUI.Blazor"),
+            None,
+            Some("Commercial"),
+            "UI Controls",
+        ),
+        "log4net" => (
+            Some("Serilog or NLog"),
+            Some("3.0+"),
+            Some("Similar patterns; Serilog preferred for structured logging"),
+            "Logging",
+        ),
+        "nlog" => (
+            Some("NLog"),
+            Some("5.0+"),
+            Some("Already .NET Core compatible"),
+            "Logging",
+        ),
+        "serilog" => (
+            Some("Serilog"),
+            Some("3.0+"),
+            Some("Already compatible"),
+            "Logging",
+        ),
+        "unity" => (
+            Some("Microsoft.Extensions.DependencyInjection"),
+            Some("8.0+"),
+            Some("Built-in DI in ASP.NET Core"),
+            "DI",
+        ),
+        "autofac" => (
+            Some("Autofac"),
+            Some("7.0+"),
+            Some(".NET Core compatible"),
+            "DI",
+        ),
+        "structuremap" => (
+            Some("Microsoft.Extensions.DependencyInjection or Lamar"),
+            None,
+            Some("StructureMap discontinued; Lamar is successor"),
+            "DI",
+        ),
+        "system.data.sqlclient" => (
+            Some("Microsoft.Data.SqlClient"),
+            Some("5.0+"),
+            Some("Namespace change; connection string compatible"),
+            "Data",
+        ),
+        "microsoft.practices.enterpriselibrary.data" | "enterpriselibrary.data" => (
+            Some("Microsoft.Data.SqlClient + Dapper"),
+            None,
+            Some("Replace per-block; no single equivalent"),
+            "Data",
+        ),
+        "npoi" => (
+            Some("NPOI"),
+            Some("2.6+"),
+            Some("Compatible; or consider ClosedXML"),
+            "Office",
+        ),
+        "epplus" => (
+            Some("EPPlus"),
+            Some("7.0+"),
+            Some("License changed to commercial in v5+"),
+            "Office",
+        ),
+        "itextsharp" => (
+            Some("itext7 or QuestPDF"),
+            None,
+            Some("License changed; QuestPDF is MIT"),
+            "PDF",
+        ),
+        "crystaldecisions.crystalreports.engine" => (
+            None,
+            None,
+            Some("No .NET Core port; consider SSRS, FastReport, or Telerik Reporting"),
+            "Reporting",
+        ),
+        "microsoft.reportviewer.webforms"
+        | "microsoft.reportingservices.reportviewercontrol.webforms" => (
+            Some("Microsoft.Reporting.NETCore"),
+            Some("16.0+"),
+            Some("Limited .NET Core support"),
+            "Reporting",
+        ),
+        "microsoft.aspnet.signalr" => (
+            Some("Microsoft.AspNetCore.SignalR"),
+            Some("8.0+"),
+            Some("Different hub API; requires rewrite"),
+            "RealTime",
+        ),
+        "system.web.optimization" => (
+            None,
+            None,
+            Some("Removed; use Vite, Webpack, or esbuild for bundling"),
+            "Build",
+        ),
+        "microsoft.owin" | "owin" => (
+            None,
+            None,
+            Some("ASP.NET Core has native middleware pipeline"),
+            "Middleware",
+        ),
+        "nhibernate" => (
+            Some("NHibernate or EF Core"),
+            Some("5.4+"),
+            Some(".NET Core compatible"),
+            "ORM",
+        ),
+        "dapper" => (
+            Some("Dapper"),
+            Some("2.1+"),
+            Some("Already compatible"),
+            "ORM",
+        ),
+        "fluentvalidation" => (
+            Some("FluentValidation"),
+            Some("11.0+"),
+            Some("Already compatible"),
+            "Validation",
+        ),
+        "automapper" => (
+            Some("AutoMapper or Mapster"),
+            Some("13.0+"),
+            Some("Already compatible; Mapster is faster alternative"),
+            "Mapping",
+        ),
+        "mediatr" => (
+            Some("MediatR"),
+            Some("12.0+"),
+            Some("Already compatible"),
+            "Patterns",
+        ),
+        "hangfire" | "hangfire.core" => (
+            Some("Hangfire"),
+            Some("1.8+"),
+            Some("Already compatible"),
+            "BackgroundJobs",
+        ),
+        "quartz" | "quartz.net" => (
+            Some("Quartz.NET"),
+            Some("3.8+"),
+            Some("Already compatible"),
+            "BackgroundJobs",
+        ),
+        "stackexchange.redis" => (
+            Some("StackExchange.Redis"),
+            Some("2.7+"),
+            Some("Already compatible"),
+            "Cache",
+        ),
+        "microsoft.aspnet.webapi" | "microsoft.aspnet.webapi.core" => (
+            Some("Microsoft.AspNetCore.Mvc"),
+            Some("8.0+"),
+            Some("Unified in ASP.NET Core; different routing and DI"),
+            "Web",
+        ),
+        "microsoft.aspnet.mvc" => (
+            Some("Microsoft.AspNetCore.Mvc"),
+            Some("8.0+"),
+            Some("Different routing, DI, filters"),
+            "Web",
+        ),
+        "ajaxcontroltoolkit" => (
+            None,
+            None,
+            Some("No .NET Core port; use MudBlazor or JavaScript components"),
+            "UI Controls",
+        ),
+        "antlr" | "antlr3.runtime" => (
+            Some("Antlr4.Runtime.Standard"),
+            Some("4.13+"),
+            Some("Different API"),
+            "Parsing",
+        ),
+        "webgrease" => (None, None, Some("Removed; use modern bundler"), "Build"),
+        "microsoft.web.infrastructure" => (None, None, Some("Built into ASP.NET Core"), "Web"),
+        "microsoft.aspnet.web.optimization" => {
+            (None, None, Some("Use Vite/Webpack for bundling"), "Build")
+        }
+        "dotnetopenauth" => (
+            Some("Microsoft.AspNetCore.Authentication.OAuth"),
+            Some("8.0+"),
+            Some("Built-in OAuth in ASP.NET Core"),
+            "Auth",
+        ),
+        "microsoft.identitymodel.tokens" => (
+            Some("Microsoft.IdentityModel.Tokens"),
+            Some("7.0+"),
+            Some("Already compatible"),
+            "Auth",
+        ),
+        "microsoft.aspnet.identity.core" => (
+            Some("Microsoft.AspNetCore.Identity"),
+            Some("8.0+"),
+            Some("Different API but same concepts"),
+            "Auth",
+        ),
+        "system.web.services" => (None, None, Some("Removed; use Minimal API or gRPC"), "Web"),
+        "system.servicemodel" => (
+            Some("CoreWCF or gRPC"),
+            None,
+            Some("Limited WCF in .NET Core; gRPC preferred"),
+            "Services",
+        ),
+        "system.enterpriseservices" => (None, None, Some("No .NET Core equivalent"), "Legacy"),
+        "system.directoryservices" => (
+            Some("System.DirectoryServices"),
+            None,
+            Some("Partial support; needs platform-specific shim"),
+            "Directory",
+        ),
+        "system.drawing" => (
+            Some("System.Drawing.Common or SkiaSharp"),
+            None,
+            Some("Linux needs libgdiplus; SkiaSharp is cross-platform"),
+            "Graphics",
+        ),
+        _ => (None, None, None, "Unknown"),
+    }
+}
+
+fn lookup_assembly_replacement(assembly: &str) -> (Option<&'static str>, Option<&'static str>) {
+    match assembly.to_lowercase().as_str() {
+        "system.web" => (
+            None,
+            Some("Removed in .NET Core — use ASP.NET Core middleware"),
+        ),
+        "system.web.mvc" => (
+            Some("Microsoft.AspNetCore.Mvc"),
+            Some("Different routing and DI"),
+        ),
+        "system.web.services" => (None, Some("Removed — use Minimal API or gRPC")),
+        "system.web.extensions" => (
+            None,
+            Some("Removed — AJAX functionality is built-in to ASP.NET Core"),
+        ),
+        "system.enterpriseservices" => (None, Some("Removed — no .NET Core equivalent")),
+        "system.web.mobile" => (None, Some("Removed — use responsive design")),
+        "system.web.routing" => (None, Some("Built into ASP.NET Core endpoint routing")),
+        "system.web.abstractions" => (None, Some("Built into ASP.NET Core")),
+        "system.web.dynamicdata" => (None, Some("Removed — no equivalent")),
+        "system.web.entity" => (None, Some("Use EF Core")),
+        "system.web.applicationservices" => (None, Some("Use ASP.NET Core Identity")),
+        "microsoft.csharp" => (Some("Microsoft.CSharp"), None),
+        "system.configuration" => (
+            Some("Microsoft.Extensions.Configuration"),
+            Some("Different API"),
+        ),
+        "system.data" => (Some("System.Data.Common"), None),
+        "system.data.sqlclient" => (Some("Microsoft.Data.SqlClient"), Some("Namespace change")),
+        _ => (None, None),
+    }
+}
+
+// ── Gap 4: Caching inventory ────────────────────────────────────────────────
+
+fn build_caching_inventory(
+    markup_files: &[FileContent],
+    code_refs: &[(&str, &str)],
+    code_files: &[(String, String)],
+) -> CachingInventory {
+    static OUTPUT_CACHE_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<%@\s*OutputCache\s+([^%]+?)%>"#).unwrap());
+    static CACHE_ATTR_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)(\w+)\s*=\s*"([^"]*)""#).unwrap());
+    static CACHE_API_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:HttpRuntime\.Cache|HttpContext\.Current\.Cache|(?<!\w)Cache)\.(Insert|Add|Get|Remove)\s*\(\s*"([^"]+)""#).unwrap()
+    });
+    static RESPONSE_CACHE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)Response\.Cache\.Set(?:Expires|Cacheability|MaxAge|ValidUntilExpires|NoStore|NoTransforms|SlidingExpiration|Revalidation|ETag|LastModified|VaryByCustom|OmitVaryStar)\s*\(").unwrap()
+    });
+    static SQL_CACHE_DEP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(
+            r#"(?i)new\s+SqlCacheDependency\s*\(\s*"?([^",)]*)"?\s*(?:,\s*"?([^",)]*)"?)?\s*\)"#,
+        )
+        .unwrap()
+    });
+
+    let mut output_cache_pages = Vec::new();
+    let mut programmatic_keys: BTreeMap<String, (Vec<String>, String)> = BTreeMap::new();
+    let mut response_cache_files: Vec<String> = Vec::new();
+    let mut sql_cache_deps = Vec::new();
+
+    // Scan markup files for OutputCache directives
+    for fc in markup_files {
+        for cap in OUTPUT_CACHE_RE.captures_iter(&fc.markup_content) {
+            let attrs_str = &cap[1];
+            let mut duration: Option<u32> = None;
+            let mut vary_by_param: Option<String> = None;
+            let mut vary_by_control: Option<String> = None;
+            let mut vary_by_custom: Option<String> = None;
+            let mut location: Option<String> = None;
+            let mut cache_profile: Option<String> = None;
+            let mut sql_dependency: Option<String> = None;
+
+            for attr_cap in CACHE_ATTR_RE.captures_iter(attrs_str) {
+                let key = &attr_cap[1];
+                let val = attr_cap[2].to_string();
+                match key.to_lowercase().as_str() {
+                    "duration" => duration = val.parse().ok(),
+                    "varybyparam" => vary_by_param = Some(val),
+                    "varybycontrol" => vary_by_control = Some(val),
+                    "varybycustom" => vary_by_custom = Some(val),
+                    "location" => location = Some(val),
+                    "cacheprofile" => cache_profile = Some(val),
+                    "sqldependency" => sql_dependency = Some(val),
+                    _ => {}
+                }
+            }
+
+            let mut modern_parts = Vec::new();
+            if let Some(d) = duration {
+                modern_parts.push(format!("Duration = {d}"));
+            }
+            if let Some(ref vbp) = vary_by_param {
+                if vbp != "none" && vbp != "*" {
+                    modern_parts.push(format!("VaryByQueryKeys = new[] {{ \"{vbp}\" }}"));
+                }
+            }
+            let modern_equivalent = if modern_parts.is_empty() {
+                "[ResponseCache]".to_string()
+            } else {
+                format!("[ResponseCache({})]", modern_parts.join(", "))
+            };
+
+            output_cache_pages.push(OutputCacheEntry {
+                file_path: fc.file_path.clone(),
+                duration_seconds: duration,
+                vary_by_param,
+                vary_by_control,
+                vary_by_custom,
+                location,
+                cache_profile,
+                sql_dependency,
+                modern_equivalent,
+            });
+        }
+    }
+
+    // Scan code files for programmatic cache patterns
+    let all_code: Vec<(&str, &str)> = code_refs
+        .iter()
+        .copied()
+        .chain(code_files.iter().map(|(p, c)| (p.as_str(), c.as_str())))
+        .collect();
+
+    for (path, content) in &all_code {
+        for cap in CACHE_API_RE.captures_iter(content) {
+            let operation = cap[1].to_string();
+            let cache_key = cap[2].to_string();
+            programmatic_keys
+                .entry(cache_key)
+                .or_insert_with(|| (Vec::new(), operation.clone()))
+                .0
+                .push(path.to_string());
+        }
+
+        if RESPONSE_CACHE_RE.is_match(content) && !response_cache_files.contains(&path.to_string())
+        {
+            response_cache_files.push(path.to_string());
+        }
+
+        for cap in SQL_CACHE_DEP_RE.captures_iter(content) {
+            let db = cap.get(1).map(|m| m.as_str().to_string());
+            let table = cap.get(2).map(|m| m.as_str().to_string());
+            sql_cache_deps.push(SqlCacheDependencyEntry {
+                file_path: path.to_string(),
+                database_name: db,
+                table_name: table,
+                modern_note: "No direct .NET Core equivalent — use EF Change Tracker + cache invalidation or message bus".to_string(),
+            });
+        }
+    }
+
+    let programmatic_cache_keys: Vec<ProgrammaticCacheEntry> = programmatic_keys
+        .into_iter()
+        .map(|(key, (mut files, operation))| {
+            files.sort();
+            files.dedup();
+            let modern = if files.len() > 1 {
+                "IDistributedCache (shared across instances)".to_string()
+            } else {
+                "IMemoryCache with SlidingExpiration".to_string()
+            };
+            ProgrammaticCacheEntry {
+                cache_key: key,
+                operation,
+                has_expiration: false,
+                has_dependency: false,
+                modern_equivalent: modern,
+                files,
+            }
+        })
+        .collect();
+
+    let total_cached = output_cache_pages.len();
+    let total_keys = programmatic_cache_keys.len();
+    let has_resp = !response_cache_files.is_empty();
+    let has_sql = !sql_cache_deps.is_empty();
+
+    CachingInventory {
+        output_cache_pages,
+        programmatic_cache_keys,
+        response_cache_files,
+        sql_cache_dependencies: sql_cache_deps,
+        total_cached_pages: total_cached,
+        total_cache_keys: total_keys,
+        has_response_caching: has_resp,
+        has_sql_dependencies: has_sql,
+    }
+}
+
+// ── Gap 5: URL routing/rewrite rules ────────────────────────────────────────
+
+fn extract_url_routing(
+    web_config: Option<&str>,
+    global_asax_content: &str,
+    code_files: &[(&str, &str)],
+) -> UrlRoutingInventory {
+    static REWRITE_RULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?is)<rule\s+name="([^"]*)"[^>]*>.*?<match\s+url="([^"]*)"[^/]*/?>.*?<action\s+type="(\w+)"\s+url="([^"]*)"[^/]*/?>.*?</rule>"#).unwrap()
+    });
+    static URL_MAPPING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)<add\s+url="([^"]*)"\s+mappedUrl="([^"]*)"\s*/>"#).unwrap()
+    });
+    static MAP_PAGE_ROUTE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)\.MapPageRoute\s*\(\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)""#).unwrap()
+    });
+    static REWRITE_PATH_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(
+            r#"(?i)(?:HttpContext\.Current|Context|HttpContext)\.RewritePath\s*\(\s*"([^"]*)""#,
+        )
+        .unwrap()
+    });
+    static REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)Response\.Redirect(Permanent)?\s*\(\s*"([^"]*)""#).unwrap()
+    });
+    static SERVER_TRANSFER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)Server\.Transfer\s*\(\s*"([^"]*)""#).unwrap()
+    });
+    static FRIENDLY_URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)FriendlyUrl|FriendlyUrlSettings|EnableFriendlyUrls").unwrap()
+    });
+
+    let mut rewrite_rules = Vec::new();
+    let mut page_routes = Vec::new();
+    let mut url_mappings = Vec::new();
+    let mut rewrite_path_calls = Vec::new();
+    let mut redirects = Vec::new();
+    let mut server_transfers = Vec::new();
+    let mut has_friendly_urls = false;
+
+    // Parse web.config
+    if let Some(wc) = web_config {
+        for cap in REWRITE_RULE_RE.captures_iter(wc) {
+            let name = cap[1].to_string();
+            let pattern = cap[2].to_string();
+            let action = cap[3].to_string();
+            let target = cap[4].to_string();
+            let modern = build_modern_route_equivalent(&pattern, &target, &action);
+            rewrite_rules.push(UrlRewriteRule {
+                rule_name: name,
+                match_pattern: pattern,
+                action_type: action,
+                target_url: target,
+                modern_equivalent: modern,
+            });
+        }
+
+        for cap in URL_MAPPING_RE.captures_iter(wc) {
+            url_mappings.push(UrlMapping {
+                friendly_url: cap[1].to_string(),
+                mapped_url: cap[2].to_string(),
+            });
+        }
+
+        if FRIENDLY_URL_RE.is_match(wc) {
+            has_friendly_urls = true;
+        }
+    }
+
+    // Parse Global.asax for MapPageRoute calls
+    for cap in MAP_PAGE_ROUTE_RE.captures_iter(global_asax_content) {
+        let route_name = cap[1].to_string();
+        let pattern = cap[2].to_string();
+        let page = cap[3].to_string();
+        let modern = format!("app.MapGet(\"/{pattern}\", ...)");
+        page_routes.push(PageRoute {
+            route_name,
+            url_pattern: pattern,
+            physical_page: page,
+            modern_equivalent: modern,
+        });
+    }
+
+    // Scan all code files
+    let all_content: Vec<(&str, &str)> = code_files
+        .iter()
+        .copied()
+        .chain(std::iter::once(("Global.asax.vb", global_asax_content)))
+        .collect();
+
+    for (path, content) in &all_content {
+        for (line_num, line) in content.lines().enumerate() {
+            if let Some(cap) = REWRITE_PATH_RE.captures(line) {
+                rewrite_path_calls.push(RewritePathCall {
+                    file_path: path.to_string(),
+                    target_path: cap[1].to_string(),
+                    line_number: (line_num + 1) as u32,
+                });
+            }
+            if let Some(cap) = REDIRECT_RE.captures(line) {
+                let is_permanent = cap.get(1).is_some();
+                redirects.push(RedirectEntry {
+                    file_path: path.to_string(),
+                    target_url: cap[2].to_string(),
+                    is_permanent,
+                });
+            }
+            if let Some(cap) = SERVER_TRANSFER_RE.captures(line) {
+                server_transfers.push(ServerTransferEntry {
+                    file_path: path.to_string(),
+                    target_page: cap[1].to_string(),
+                });
+            }
+        }
+
+        if FRIENDLY_URL_RE.is_match(content) {
+            has_friendly_urls = true;
+        }
+    }
+
+    let total = rewrite_rules.len() + page_routes.len() + url_mappings.len();
+
+    UrlRoutingInventory {
+        rewrite_rules,
+        page_routes,
+        url_mappings,
+        rewrite_path_calls,
+        redirects,
+        server_transfers,
+        has_friendly_urls,
+        total_url_patterns: total,
+    }
+}
+
+fn build_modern_route_equivalent(pattern: &str, target: &str, action_type: &str) -> String {
+    // Convert IIS rewrite regex to ASP.NET Core endpoint pattern
+    let route = pattern
+        .replace(r"\d+", "{id:int}")
+        .replace(r"(\d+)", "{id}")
+        .replace(r"([^/]+)", "{slug}")
+        .replace("^", "")
+        .replace("$", "");
+    let _ = target; // target is the rewrite destination
+    match action_type.to_lowercase().as_str() {
+        "redirect" | "redirectpermanent" => {
+            format!("app.MapGet(\"/{route}\", () => Results.Redirect(\"{target}\"))")
+        }
+        _ => format!("app.MapGet(\"/{route}\", ...)"),
+    }
+}
+
+// ── Gap 6: VB.NET → C# translation flags ───────────────────────────────────
+
+fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationReport {
+    static OPTIONAL_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?\w+\s+As\s+").unwrap()
+    });
+    static IS_MISSING_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bIsMissing\s*\(").unwrap());
+    static MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+)?Module\s+(\w+)").unwrap()
+    });
+    static MY_NAMESPACE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\bMy\.(Computer|Application|Settings|Resources|User|Forms|WebServices)\b")
+            .unwrap()
+    });
+    static WITH_EVENTS_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bWithEvents\s+").unwrap());
+    static HANDLES_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bHandles\s+\w+\.\w+").unwrap());
+    static RAISE_EVENT_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bRaiseEvent\s+\w+").unwrap());
+    static SHADOWS_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bShadows\s+").unwrap());
+    static OPTION_COMPARE_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?im)^\s*Option\s+Compare\s+Text").unwrap());
+    static LIKE_OPERATOR_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bLike\s+"[^"]*[*?#\[\]]+[^"]*""#).unwrap());
+    static VB_INTRINSICS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:IsNumeric|IsDate|IsNothing|IsDBNull|IsArray|IsError)\s*\(").unwrap()
+    });
+    static ON_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\bOn\s+Error\s+(?:Resume\s+Next|GoTo\s+)").unwrap()
+    });
+    static LATE_BINDING_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bDim\s+\w+\s+As\s+Object\b").unwrap());
+    static VB_CAST_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:CType|DirectCast|TryCast|CStr|CInt|CDbl|CBool|CLng|CDec|CDate|CByte|CShort|CSng|CObj|CChar)\s*\(").unwrap()
+    });
+
+    struct FlagDef {
+        category: &'static str,
+        pattern_name: &'static str,
+        re: &'static std::sync::LazyLock<Regex>,
+        csharp_eq: &'static str,
+        risk: &'static str,
+        auto_tr: bool,
+        notes: &'static str,
+    }
+
+    let flag_defs: Vec<FlagDef> = vec![
+        FlagDef {
+            category: "ErrorHandling",
+            pattern_name: "On Error Resume Next / GoTo",
+            re: &ON_ERROR_RE,
+            csharp_eq: "try-catch blocks",
+            risk: "high",
+            auto_tr: false,
+            notes: "Each On Error must be manually restructured into proper exception handling",
+        },
+        FlagDef {
+            category: "OptionalParams",
+            pattern_name: "Optional parameter",
+            re: &OPTIONAL_PARAM_RE,
+            csharp_eq: "default parameter values",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+        FlagDef {
+            category: "OptionalParams",
+            pattern_name: "IsMissing()",
+            re: &IS_MISSING_RE,
+            csharp_eq: "No equivalent — restructure logic",
+            risk: "high",
+            auto_tr: false,
+            notes: "IsMissing has no C# equivalent; refactor to nullable parameters",
+        },
+        FlagDef {
+            category: "Modules",
+            pattern_name: "Module declaration",
+            re: &MODULE_RE,
+            csharp_eq: "static class",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+        FlagDef {
+            category: "MyNamespace",
+            pattern_name: "My. namespace",
+            re: &MY_NAMESPACE_RE,
+            csharp_eq: "System.IO / IConfiguration / etc.",
+            risk: "medium",
+            auto_tr: false,
+            notes: "My.Settings → IConfiguration; My.Computer → System.IO",
+        },
+        FlagDef {
+            category: "Events",
+            pattern_name: "WithEvents",
+            re: &WITH_EVENTS_RE,
+            csharp_eq: "Explicit += / -= subscription",
+            risk: "medium",
+            auto_tr: false,
+            notes: "",
+        },
+        FlagDef {
+            category: "Events",
+            pattern_name: "Handles clause",
+            re: &HANDLES_RE,
+            csharp_eq: "btn.Click += handler in constructor",
+            risk: "medium",
+            auto_tr: false,
+            notes: "",
+        },
+        FlagDef {
+            category: "Events",
+            pattern_name: "RaiseEvent",
+            re: &RAISE_EVENT_RE,
+            csharp_eq: "MyEvent?.Invoke(args)",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+        FlagDef {
+            category: "Inheritance",
+            pattern_name: "Shadows keyword",
+            re: &SHADOWS_RE,
+            csharp_eq: "new modifier",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+        FlagDef {
+            category: "StringCompare",
+            pattern_name: "Option Compare Text",
+            re: &OPTION_COMPARE_RE,
+            csharp_eq: "StringComparer.OrdinalIgnoreCase everywhere",
+            risk: "high",
+            auto_tr: false,
+            notes: "All string comparisons in this file use case-insensitive by default",
+        },
+        FlagDef {
+            category: "PatternMatch",
+            pattern_name: "Like operator",
+            re: &LIKE_OPERATOR_RE,
+            csharp_eq: "Regex.IsMatch()",
+            risk: "medium",
+            auto_tr: false,
+            notes: "",
+        },
+        FlagDef {
+            category: "Intrinsics",
+            pattern_name: "VB intrinsics (IsNumeric, etc.)",
+            re: &VB_INTRINSICS_RE,
+            csharp_eq: "TryParse methods",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+        FlagDef {
+            category: "LateBind",
+            pattern_name: "Dim x As Object (late binding)",
+            re: &LATE_BINDING_RE,
+            csharp_eq: "dynamic keyword",
+            risk: "high",
+            auto_tr: false,
+            notes: "",
+        },
+        FlagDef {
+            category: "Casting",
+            pattern_name: "VB cast operators",
+            re: &VB_CAST_RE,
+            csharp_eq: "(Type)x or x as Type",
+            risk: "low",
+            auto_tr: true,
+            notes: "",
+        },
+    ];
+
+    let mut vb_files = 0usize;
+    let mut cs_files = 0usize;
+    let mut translation_flags: Vec<VbTranslationFlag> = Vec::new();
+    let mut file_flag_counts: BTreeMap<String, usize> = BTreeMap::new();
+
+    for (path, content) in code_files {
+        let is_vb = path.to_lowercase().ends_with(".vb");
+        let is_cs = path.to_lowercase().ends_with(".cs");
+        if is_vb {
+            vb_files += 1;
+        } else if is_cs {
+            cs_files += 1;
+        }
+
+        // Only scan VB files for VB-specific constructs
+        if !is_vb {
+            continue;
+        }
+
+        for def in &flag_defs {
+            let count = def.re.find_iter(content).count();
+            if count > 0 {
+                translation_flags.push(VbTranslationFlag {
+                    category: def.category.to_string(),
+                    pattern: def.pattern_name.to_string(),
+                    file_path: path.to_string(),
+                    count,
+                    csharp_equivalent: def.csharp_eq.to_string(),
+                    risk_level: def.risk.to_string(),
+                    auto_translatable: def.auto_tr,
+                    notes: def.notes.to_string(),
+                });
+                *file_flag_counts.entry(path.to_string()).or_insert(0) += count;
+            }
+        }
+    }
+
+    let mut flags_by_category: BTreeMap<String, usize> = BTreeMap::new();
+    for flag in &translation_flags {
+        *flags_by_category.entry(flag.category.clone()).or_insert(0) += flag.count;
+    }
+
+    let total_flags: usize = translation_flags.iter().map(|f| f.count).sum();
+
+    let mut highest_risk: Vec<(String, usize)> = file_flag_counts.into_iter().collect();
+    highest_risk.sort_by(|a, b| b.1.cmp(&a.1));
+    highest_risk.truncate(10);
+
+    VbTranslationReport {
+        is_vb_project: vb_files > cs_files,
+        vb_file_count: vb_files,
+        cs_file_count: cs_files,
+        mixed_language: vb_files > 0 && cs_files > 0,
+        total_flags,
+        translation_flags,
+        flags_by_category,
+        highest_risk_files: highest_risk,
+    }
+}
+
+// ── Gap 7: Multi-tenancy detection ──────────────────────────────────────────
+
+fn detect_multi_tenancy(
+    web_config: Option<&str>,
+    code_files: &[(&str, &str)],
+    global_asax_content: Option<&str>,
+) -> MultiTenancyReport {
+    static TENANT_SESSION_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)Session\s*[\(\[]\s*"(?:TenantId|Tenant|TenantKey|TenantCode|OrganizationId|OrgId|CompanyId|ClientId|SiteId|AccountId|CustomerId)"#).unwrap()
+    });
+    static TENANT_CONTEXT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:HttpContext\.Current\.Items|Context\.Items)\s*[\(\[]\s*"(?:TenantId|Tenant|TenantContext|CurrentTenant)"#).unwrap()
+    });
+    static TENANT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:WHERE|AND)\s+(?:\w+\.)?(?:TenantId|TenantID|Tenant_ID|OrgId|OrganizationId|CompanyId|SiteId|AccountId)\s*=\s*(?:@\w+|'\w*'|\?)"#).unwrap()
+    });
+    static TENANT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:tenantId|tenant_id|orgId|organizationId|companyId|siteId|accountId)\s+(?:As\s+(?:Integer|String|Guid|Long|Int32|Int64)|:\s*(?:int|string|Guid|long))"#).unwrap()
+    });
+    static TENANT_CONFIG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:TenantMode|MultiTenancy|TenantProvider|TenantResolution|TenantStrategy|IsTenanted|EnableMultiTenancy)"#).unwrap()
+    });
+    static TENANT_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(
+            r#"(?i)(?:GetConnectionString|ConnectionString)\s*[\(\[]\s*(?:tenantId|tenant|orgId)"#,
+        )
+        .unwrap()
+    });
+    static SUBDOMAIN_TENANT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:Request\.Url\.Host|Request\.Headers\["X-Tenant"|Request\.Headers\["Host"\]).*(?:Split|Substring|Replace|tenant|org)"#).unwrap()
+    });
+    static TENANT_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)class\s+\w*(?:Tenant|MultiTenant|Org)\w*\s*(?::\s*I(?:Http)?Module|Inherits\s+I(?:Http)?Module)"#).unwrap()
+    });
+
+    let mut evidence: Vec<TenancyEvidence> = Vec::new();
+    let mut files_with_tenant: Vec<String> = Vec::new();
+    let mut tenant_filtered_queries = 0usize;
+    let mut tenant_resolution: Option<TenantResolution> = None;
+    let mut tenant_col_name: Option<String> = None;
+
+    // Scan web.config
+    if let Some(wc) = web_config {
+        if TENANT_CONFIG_RE.is_match(wc) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "config".to_string(),
+                file_path: "web.config".to_string(),
+                detail: "Tenant configuration key found in web.config".to_string(),
+                line_hint: None,
+            });
+        }
+    }
+
+    // Scan Global.asax
+    if let Some(ga) = global_asax_content {
+        if TENANT_MODULE_RE.is_match(ga) || SUBDOMAIN_TENANT_RE.is_match(ga) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "module".to_string(),
+                file_path: "Global.asax".to_string(),
+                detail: "Tenant resolution logic in Global.asax".to_string(),
+                line_hint: None,
+            });
+        }
+    }
+
+    // Scan code files
+    for (path, content) in code_files {
+        let mut file_has_tenant = false;
+
+        if TENANT_SESSION_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "session_storage".to_string(),
+                file_path: path.to_string(),
+                detail: "Tenant ID stored in/read from Session".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+        }
+
+        if TENANT_CONTEXT_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "context_items".to_string(),
+                file_path: path.to_string(),
+                detail: "Tenant context stored in HttpContext.Items".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+        }
+
+        let sql_count = TENANT_SQL_RE.find_iter(content).count();
+        if sql_count > 0 {
+            tenant_filtered_queries += sql_count;
+            evidence.push(TenancyEvidence {
+                evidence_type: "sql_filter".to_string(),
+                file_path: path.to_string(),
+                detail: format!("{sql_count} SQL queries filter by tenant column"),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+            // Try to extract the most common column name
+            if tenant_col_name.is_none() {
+                if let Some(cap) = TENANT_SQL_RE.captures(content) {
+                    let full_match = cap.get(0).unwrap().as_str();
+                    if let Some(col) = full_match.split('=').next() {
+                        let col = col.trim().rsplit('.').next().unwrap_or(col.trim());
+                        let col = col.split_whitespace().last().unwrap_or(col);
+                        tenant_col_name = Some(col.to_string());
+                    }
+                }
+            }
+        }
+
+        if TENANT_PARAM_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "parameter".to_string(),
+                file_path: path.to_string(),
+                detail: "Method parameter with tenant ID".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+        }
+
+        if TENANT_CONN_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "connection_string".to_string(),
+                file_path: path.to_string(),
+                detail: "Tenant-specific connection string selection".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+        }
+
+        if SUBDOMAIN_TENANT_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "subdomain".to_string(),
+                file_path: path.to_string(),
+                detail: "Subdomain-based tenant resolution".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+            if tenant_resolution.is_none() {
+                tenant_resolution = Some(TenantResolution {
+                    mechanism: "subdomain".to_string(),
+                    module_class: None,
+                    file_path: path.to_string(),
+                });
+            }
+        }
+
+        if TENANT_MODULE_RE.is_match(content) {
+            evidence.push(TenancyEvidence {
+                evidence_type: "http_module".to_string(),
+                file_path: path.to_string(),
+                detail: "Tenant resolution IHttpModule".to_string(),
+                line_hint: None,
+            });
+            file_has_tenant = true;
+            tenant_resolution = Some(TenantResolution {
+                mechanism: "http_module".to_string(),
+                module_class: TENANT_MODULE_RE
+                    .captures(content)
+                    .and_then(|c| c.get(0))
+                    .map(|m| m.as_str().to_string()),
+                file_path: path.to_string(),
+            });
+        }
+
+        if file_has_tenant {
+            files_with_tenant.push(path.to_string());
+        }
+    }
+
+    files_with_tenant.sort();
+    files_with_tenant.dedup();
+
+    // Classify confidence
+    let evidence_types: std::collections::HashSet<&str> =
+        evidence.iter().map(|e| e.evidence_type.as_str()).collect();
+    let confidence = match evidence_types.len() {
+        0 => "none",
+        1 => "low",
+        2 => "medium",
+        _ => "high",
+    };
+
+    let is_multi_tenant = !evidence.is_empty();
+
+    // Determine isolation strategy
+    let isolation_strategy = if evidence_types.contains("connection_string") {
+        Some("separate_db".to_string())
+    } else if tenant_filtered_queries > 0 {
+        Some("shared_db_shared_schema".to_string())
+    } else {
+        None
+    };
+
+    // Build recommendations
+    let mut recommendations = Vec::new();
+    if is_multi_tenant {
+        recommendations
+            .push("Replace tenant resolution module with ASP.NET Core middleware".to_string());
+        recommendations
+            .push("Use EF Core Global Query Filters for automatic tenant filtering".to_string());
+        recommendations
+            .push("Register ITenantContext as scoped service (one per request)".to_string());
+        if isolation_strategy.as_deref() == Some("separate_db") {
+            recommendations
+                .push("Use IDbContextFactory<T> with tenant-specific connections".to_string());
+        }
+        recommendations.push(
+            "Move Session-based tenant ID to JWT claims or HttpContext.Items via middleware"
+                .to_string(),
+        );
+        recommendations.push("CRITICAL: Audit ALL SQL queries for tenant filtering — missing ANY filter causes data leak".to_string());
+    }
+
+    MultiTenancyReport {
+        is_multi_tenant,
+        confidence: confidence.to_string(),
+        tenant_id_column_name: tenant_col_name,
+        isolation_strategy,
+        detection_evidence: evidence,
+        tenant_resolution,
+        tenant_filtered_queries,
+        files_with_tenant_logic: files_with_tenant,
+        migration_recommendations: recommendations,
+    }
+}
+
+// ── Gap 8: Email & background job detection ─────────────────────────────────
+
+fn detect_email_patterns(
+    code_files: &[(&str, &str)],
+    web_config: Option<&str>,
+) -> EmailPatternReport {
+    static SMTP_CLIENT_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?SmtpClient\s*[\(\.]").unwrap());
+    static MAIL_MESSAGE_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?MailMessage\s*\(").unwrap());
+    static WEB_MAIL_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bSystem\.Web\.Mail\b").unwrap());
+    static ATTACHMENT_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?Attachment\s*\(").unwrap());
+    static ALTERNATE_VIEW_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\bAlternateView\.CreateAlternateViewFromString\s*\(").unwrap()
+    });
+    static CDO_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)CreateObject\s*\(\s*"CDO\.Message"\s*\)"#).unwrap()
+    });
+    static SMTP_CONFIG_HOST_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network\s+host\s*=\s*"([^"]*)""#).unwrap());
+    static SMTP_CONFIG_PORT_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network[^>]*port\s*=\s*"(\d+)""#).unwrap());
+    static SMTP_CONFIG_FROM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)<smtp\s+[^>]*from\s*=\s*"([^"]*)""#).unwrap()
+    });
+
+    let mut email_patterns: Vec<EmailPattern> = Vec::new();
+    let mut uses_html = false;
+    let mut uses_attachments = false;
+    let mut uses_cdo = false;
+    let mut uses_web_mail = false;
+    let mut email_files: Vec<String> = Vec::new();
+
+    for (path, content) in code_files {
+        let mut file_patterns: Vec<(&str, &str, usize)> = Vec::new();
+
+        let smtp_count = SMTP_CLIENT_RE.find_iter(content).count();
+        if smtp_count > 0 {
+            file_patterns.push(("SmtpClient", "IEmailSender / SendGrid SDK", smtp_count));
+        }
+        let mm_count = MAIL_MESSAGE_RE.find_iter(content).count();
+        if mm_count > 0 {
+            file_patterns.push(("MailMessage", "IEmailSender with Razor templates", mm_count));
+        }
+        let wm_count = WEB_MAIL_RE.find_iter(content).count();
+        if wm_count > 0 {
+            file_patterns.push(("System.Web.Mail", "IEmailSender (obsolete API)", wm_count));
+            uses_web_mail = true;
+        }
+        let cdo_count = CDO_RE.find_iter(content).count();
+        if cdo_count > 0 {
+            file_patterns.push(("CDO.Message", "IEmailSender (COM object)", cdo_count));
+            uses_cdo = true;
+        }
+
+        if ATTACHMENT_RE.is_match(content) {
+            uses_attachments = true;
+        }
+        if ALTERNATE_VIEW_RE.is_match(content) {
+            uses_html = true;
+        }
+
+        if !file_patterns.is_empty() {
+            email_files.push(path.to_string());
+            for (ptype, modern, count) in file_patterns {
+                email_patterns.push(EmailPattern {
+                    file_path: path.to_string(),
+                    pattern_type: ptype.to_string(),
+                    count,
+                    modern_equivalent: modern.to_string(),
+                });
+            }
+        }
+    }
+    email_files.sort();
+    email_files.dedup();
+
+    // Parse SMTP config from web.config
+    let smtp_config = web_config.and_then(|wc| {
+        if !wc.to_lowercase().contains("<smtp") && !wc.to_lowercase().contains("<network") {
+            return None;
+        }
+        let host = SMTP_CONFIG_HOST_RE.captures(wc).map(|c| c[1].to_string());
+        let port = SMTP_CONFIG_PORT_RE
+            .captures(wc)
+            .and_then(|c| c[1].parse().ok());
+        let from = SMTP_CONFIG_FROM_RE.captures(wc).map(|c| c[1].to_string());
+        let uses_credentials = wc.to_lowercase().contains("username=")
+            || wc.to_lowercase().contains("defaultcredentials");
+        let uses_ssl =
+            wc.to_lowercase().contains("enablessl") || wc.to_lowercase().contains("ssl=\"true\"");
+        Some(SmtpConfig {
+            host,
+            port,
+            from_address: from,
+            uses_credentials,
+            uses_ssl,
+        })
+    });
+
+    let has_email = !email_patterns.is_empty();
+
+    EmailPatternReport {
+        has_email,
+        email_patterns,
+        smtp_config,
+        total_email_files: email_files.len(),
+        uses_html_email: uses_html,
+        uses_attachments,
+        uses_legacy_cdo: uses_cdo,
+        uses_legacy_web_mail: uses_web_mail,
+    }
+}
+
+fn detect_background_job_patterns(
+    code_files: &[(&str, &str)],
+    global_asax_content: Option<&str>,
+) -> BackgroundJobReport {
+    static THREAD_POOL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\bThreadPool\.QueueUserWorkItem\s*\(").unwrap()
+    });
+    static BG_WORKER_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?BackgroundWorker\b").unwrap());
+    static TASK_RUN_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bTask\.Run\s*\(").unwrap());
+    static TIMER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:New\s+)?(?:System\.(?:Timers|Threading)\.)?Timer\s*\(").unwrap()
+    });
+    static THREAD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:New\s+)?Thread\s*\(\s*(?:AddressOf|New\s+ThreadStart|New\s+ParameterizedThreadStart)\s").unwrap()
+    });
+    static HANGFIRE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(
+            r"(?i)\bBackgroundJob\.(?:Enqueue|Schedule|ContinueWith|ContinueJobWith)\s*[\(<]",
+        )
+        .unwrap()
+    });
+    static QUARTZ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:IScheduler|JobBuilder\.Create|TriggerBuilder\.Create)\b").unwrap()
+    });
+    static SELF_CALL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)WebClient\s*\(\s*\)\.Download(?:String|Data)\s*\(\s*"(?:http|~/)"#)
+            .unwrap()
+    });
+
+    struct BgDef {
+        re: &'static std::sync::LazyLock<Regex>,
+        pattern_type: &'static str,
+        modern: &'static str,
+        risk: &'static str,
+    }
+
+    let bg_defs: Vec<BgDef> = vec![
+        BgDef {
+            re: &THREAD_POOL_RE,
+            pattern_type: "ThreadPool.QueueUserWorkItem",
+            modern: "BackgroundService + Channel<T>",
+            risk: "high",
+        },
+        BgDef {
+            re: &BG_WORKER_RE,
+            pattern_type: "BackgroundWorker",
+            modern: "BackgroundService",
+            risk: "medium",
+        },
+        BgDef {
+            re: &TASK_RUN_RE,
+            pattern_type: "Task.Run (fire-and-forget)",
+            modern: "Hangfire BackgroundJob.Enqueue or IHostedService",
+            risk: "high",
+        },
+        BgDef {
+            re: &TIMER_RE,
+            pattern_type: "Timer",
+            modern: "IHostedService with PeriodicTimer",
+            risk: "medium",
+        },
+        BgDef {
+            re: &THREAD_RE,
+            pattern_type: "Thread creation",
+            modern: "BackgroundService or Task.Run with lifetime management",
+            risk: "high",
+        },
+        BgDef {
+            re: &HANGFIRE_RE,
+            pattern_type: "Hangfire",
+            modern: "Hangfire (already compatible)",
+            risk: "low",
+        },
+        BgDef {
+            re: &QUARTZ_RE,
+            pattern_type: "Quartz.NET",
+            modern: "Quartz.NET (already compatible)",
+            risk: "low",
+        },
+        BgDef {
+            re: &SELF_CALL_RE,
+            pattern_type: "Self-call timer (WebClient)",
+            modern: "IHostedService + HttpClientFactory",
+            risk: "high",
+        },
+    ];
+
+    let mut patterns: Vec<BackgroundJobPattern> = Vec::new();
+    let mut bg_files: Vec<String> = Vec::new();
+    let mut uses_thread_pool = false;
+    let mut uses_timers = false;
+    let mut uses_task_run = false;
+    let mut uses_bg_worker = false;
+    let mut uses_hangfire = false;
+    let mut uses_quartz = false;
+    let mut fire_and_forget = 0usize;
+
+    let all_code: Vec<(&str, &str)> = code_files
+        .iter()
+        .copied()
+        .chain(global_asax_content.map(|c| ("Global.asax", c)))
+        .collect();
+
+    for (path, content) in &all_code {
+        let mut file_has_bg = false;
+        for def in &bg_defs {
+            let count = def.re.find_iter(content).count();
+            if count > 0 {
+                patterns.push(BackgroundJobPattern {
+                    file_path: path.to_string(),
+                    pattern_type: def.pattern_type.to_string(),
+                    count,
+                    modern_equivalent: def.modern.to_string(),
+                    risk_level: def.risk.to_string(),
+                });
+                file_has_bg = true;
+
+                match def.pattern_type {
+                    "ThreadPool.QueueUserWorkItem" => {
+                        uses_thread_pool = true;
+                        fire_and_forget += count;
+                    }
+                    "BackgroundWorker" => uses_bg_worker = true,
+                    "Task.Run (fire-and-forget)" => {
+                        uses_task_run = true;
+                        fire_and_forget += count;
+                    }
+                    "Timer" => uses_timers = true,
+                    "Thread creation" => fire_and_forget += count,
+                    "Hangfire" => uses_hangfire = true,
+                    "Quartz.NET" => uses_quartz = true,
+                    _ => {}
+                }
+            }
+        }
+        if file_has_bg {
+            bg_files.push(path.to_string());
+        }
+    }
+    bg_files.sort();
+    bg_files.dedup();
+
+    BackgroundJobReport {
+        has_background_jobs: !patterns.is_empty(),
+        total_background_files: bg_files.len(),
+        uses_thread_pool,
+        uses_timers,
+        uses_task_run,
+        uses_bg_worker,
+        uses_hangfire,
+        uses_quartz,
+        fire_and_forget_count: fire_and_forget,
+        patterns,
+    }
+}
+
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
@@ -2073,8 +4560,17 @@ fn render_markdown(
     anti: &AntiPatternSummary,
     asp: &ClassicAspSummary,
     rpt: &ReportSummary,
+    method_inv: &BTreeMap<String, PageMethodInventory>,
+    third_party: &ThirdPartyControlSummary,
+    dep_inv: &DependencyInventory,
+    cache_inv: &CachingInventory,
+    url_routing: &UrlRoutingInventory,
+    vb_trans: &VbTranslationReport,
+    multi_tenant: &MultiTenancyReport,
+    email: &EmailPatternReport,
+    bg_jobs: &BackgroundJobReport,
 ) -> String {
-    let mut md = String::with_capacity(64_000);
+    let mut md = String::with_capacity(128_000);
 
     // ── Header ────────────────────────────────────────────────────────────
     md.push_str(&format!(
@@ -2164,6 +4660,177 @@ fn render_markdown(
     }
     md.push_str("\n");
 
+    // ── Phase 33: Project Dependencies (Gap 3) ───────────────────────────
+    if dep_inv.total_packages > 0 || dep_inv.total_assemblies > 0 {
+        md.push_str("## Project Dependencies\n\n");
+        if let Some(tf) = dep_inv.target_frameworks.first() {
+            md.push_str(&format!("**Target Framework**: {tf}\n"));
+        }
+        md.push_str(&format!(
+            "**NuGet Packages**: {} ({} have modern replacements, {} need manual evaluation)\n",
+            dep_inv.total_packages,
+            dep_inv.packages_with_known_replacement,
+            dep_inv.packages_without_replacement
+        ));
+        md.push_str(&format!(
+            "**Assembly References**: {} ({} framework, {} third-party)\n",
+            dep_inv.total_assemblies,
+            dep_inv.framework_assemblies.len(),
+            dep_inv.third_party_assemblies.len()
+        ));
+        md.push_str(&format!(
+            "**Project References**: {}\n\n",
+            dep_inv.project_references.len()
+        ));
+
+        if !dep_inv.nuget_packages.is_empty() {
+            md.push_str("### NuGet Packages\n");
+            md.push_str("| Package | Version | Modern Replacement | Category | Notes |\n");
+            md.push_str("|---------|---------|-------------------|----------|-------|\n");
+            for pkg in &dep_inv.nuget_packages {
+                let ver = pkg.version.as_deref().unwrap_or("-");
+                let modern = pkg.modern_replacement.as_deref().unwrap_or("(evaluate)");
+                let notes = pkg.migration_notes.as_deref().unwrap_or("");
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    pkg.name, ver, modern, pkg.category, notes
+                ));
+            }
+            md.push('\n');
+        }
+
+        let removable: Vec<&AssemblyRefInfo> = dep_inv
+            .assembly_references
+            .iter()
+            .filter(|a| a.removal_reason.is_some())
+            .collect();
+        if !removable.is_empty() {
+            md.push_str("### Framework Assemblies Requiring Replacement\n");
+            md.push_str("| Assembly | Status in .NET Core | Migration Path |\n");
+            md.push_str("|----------|--------------------|--------------|\n");
+            for asm in &removable {
+                let reason = asm.removal_reason.as_deref().unwrap_or("");
+                let modern = asm.modern_equivalent.as_deref().unwrap_or("(none)");
+                md.push_str(&format!(
+                    "| {} | {} | {} |\n",
+                    asm.assembly_name, reason, modern
+                ));
+            }
+            md.push('\n');
+        }
+
+        let compatible: Vec<&NuGetPackageInfo> = dep_inv
+            .nuget_packages
+            .iter()
+            .filter(|p| {
+                p.modern_replacement
+                    .as_deref()
+                    .map_or(false, |m| m.contains("compatible") || m == &p.name)
+            })
+            .collect();
+        if !compatible.is_empty() {
+            let names: Vec<&str> = compatible.iter().map(|p| p.name.as_str()).collect();
+            md.push_str(&format!(
+                "### Compatible Packages (no action needed)\n{}\n\n",
+                names.join(", ")
+            ));
+        }
+        md.push('\n');
+    }
+
+    // ── Phase 33: Language & Translation Analysis (Gap 6) ────────────────
+    if vb_trans.vb_file_count > 0 || vb_trans.cs_file_count > 0 {
+        md.push_str("## Language & Translation Analysis\n\n");
+        let primary = if vb_trans.is_vb_project {
+            "VB.NET"
+        } else {
+            "C#"
+        };
+        md.push_str(&format!(
+            "**Primary language**: {primary} ({} files)\n",
+            if vb_trans.is_vb_project {
+                vb_trans.vb_file_count
+            } else {
+                vb_trans.cs_file_count
+            }
+        ));
+        if vb_trans.mixed_language {
+            let secondary = if vb_trans.is_vb_project {
+                "C#"
+            } else {
+                "VB.NET"
+            };
+            let sec_count = if vb_trans.is_vb_project {
+                vb_trans.cs_file_count
+            } else {
+                vb_trans.vb_file_count
+            };
+            md.push_str(&format!(
+                "**Secondary language**: {secondary} ({sec_count} files)\n"
+            ));
+        }
+        md.push_str(&format!(
+            "**Translation flags**: {} across files\n\n",
+            vb_trans.total_flags
+        ));
+
+        if !vb_trans.flags_by_category.is_empty() {
+            md.push_str("### Translation Risk Summary\n");
+            md.push_str("| Category | Count | Risk | Auto-Translatable |\n");
+            md.push_str("|----------|-------|------|-------------------|\n");
+            for (cat, count) in &vb_trans.flags_by_category {
+                let risk = vb_trans
+                    .translation_flags
+                    .iter()
+                    .find(|f| &f.category == cat)
+                    .map(|f| f.risk_level.as_str())
+                    .unwrap_or("low");
+                let auto_val = vb_trans
+                    .translation_flags
+                    .iter()
+                    .find(|f| &f.category == cat)
+                    .map(|f| if f.auto_translatable { "Yes" } else { "No" })
+                    .unwrap_or("No");
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    cat, count, risk, auto_val
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !vb_trans.highest_risk_files.is_empty() {
+            md.push_str("### Highest-Risk Files (most translation flags)\n");
+            md.push_str("| File | Flags |\n|------|-------|\n");
+            for (path, count) in &vb_trans.highest_risk_files {
+                md.push_str(&format!("| {} | {} |\n", path, count));
+            }
+            md.push('\n');
+        }
+
+        if vb_trans.is_vb_project {
+            md.push_str("### Migration Strategy\n");
+            md.push_str("1. Run automated VB→C# converter (dotnet-vb2cs or Instant C#) for mechanical translations\n");
+            let on_error = vb_trans
+                .flags_by_category
+                .get("ErrorHandling")
+                .copied()
+                .unwrap_or(0);
+            if on_error > 0 {
+                md.push_str(&format!("2. Manually fix {on_error} `On Error Resume Next` patterns → proper try-catch\n"));
+            }
+            let late = vb_trans
+                .flags_by_category
+                .get("LateBind")
+                .copied()
+                .unwrap_or(0);
+            if late > 0 {
+                md.push_str(&format!("3. Convert {late} `Dim x As Object` late bindings → `dynamic` or typed interfaces\n"));
+            }
+            md.push('\n');
+        }
+    }
+
     // ── Authentication & Authorization ────────────────────────────────────
     md.push_str("## Authentication & Authorization\n\n");
     md.push_str(&format!(
@@ -2227,6 +4894,55 @@ fn render_markdown(
         }
     }
     md.push('\n');
+
+    // ── Phase 33: Multi-Tenancy Analysis (Gap 7) ──────────────────────────
+    if multi_tenant.is_multi_tenant {
+        md.push_str("## Multi-Tenancy Analysis\n\n");
+        md.push_str(&format!(
+            "**Multi-tenant**: Yes (confidence: {})\n",
+            multi_tenant.confidence
+        ));
+        if let Some(ref col) = multi_tenant.tenant_id_column_name {
+            md.push_str(&format!("**Tenant ID column**: `{col}`\n"));
+        }
+        if let Some(ref strat) = multi_tenant.isolation_strategy {
+            md.push_str(&format!("**Isolation strategy**: {strat}\n"));
+        }
+        if let Some(ref res) = multi_tenant.tenant_resolution {
+            md.push_str(&format!(
+                "**Tenant resolution**: {} via `{}`\n",
+                res.mechanism, res.file_path
+            ));
+        }
+        md.push_str(&format!(
+            "**Tenant-filtered queries**: {}\n",
+            multi_tenant.tenant_filtered_queries
+        ));
+        md.push_str(&format!(
+            "**Files with tenant logic**: {}\n\n",
+            multi_tenant.files_with_tenant_logic.len()
+        ));
+
+        if !multi_tenant.detection_evidence.is_empty() {
+            md.push_str("### Detection Evidence\n");
+            md.push_str("| Type | File | Detail |\n|------|------|--------|\n");
+            for ev in &multi_tenant.detection_evidence {
+                md.push_str(&format!(
+                    "| {} | {} | {} |\n",
+                    ev.evidence_type, ev.file_path, ev.detail
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !multi_tenant.migration_recommendations.is_empty() {
+            md.push_str("### Modern Migration Strategy\n");
+            for (i, rec) in multi_tenant.migration_recommendations.iter().enumerate() {
+                md.push_str(&format!("{}. {rec}\n", i + 1));
+            }
+            md.push('\n');
+        }
+    }
 
     // ── Global.asax (Phase 32) ───────────────────────────────────────────
     if global.has_global_asax {
@@ -2386,6 +5102,104 @@ fn render_markdown(
         }
     }
 
+    // ── Phase 33: URL Routing & Rewriting (Gap 5) ─────────────────────────
+    if url_routing.total_url_patterns > 0
+        || !url_routing.rewrite_path_calls.is_empty()
+        || !url_routing.redirects.is_empty()
+        || !url_routing.server_transfers.is_empty()
+    {
+        md.push_str("## URL Routing & Rewriting\n\n");
+        md.push_str(&format!(
+            "**URL patterns**: {} ({} rewrite rules, {} page routes, {} URL mappings)\n",
+            url_routing.total_url_patterns,
+            url_routing.rewrite_rules.len(),
+            url_routing.page_routes.len(),
+            url_routing.url_mappings.len()
+        ));
+        md.push_str(&format!(
+            "**RewritePath calls**: {}\n",
+            url_routing.rewrite_path_calls.len()
+        ));
+        md.push_str(&format!("**Redirects**: {}\n", url_routing.redirects.len()));
+        md.push_str(&format!(
+            "**Server.Transfer calls**: {}\n",
+            url_routing.server_transfers.len()
+        ));
+        md.push_str(&format!(
+            "**Friendly URLs**: {}\n\n",
+            if url_routing.has_friendly_urls {
+                "enabled"
+            } else {
+                "disabled"
+            }
+        ));
+
+        if !url_routing.rewrite_rules.is_empty() {
+            md.push_str("### IIS Rewrite Rules\n");
+            md.push_str("| Rule | Match Pattern | Action | Target | Modern Equivalent |\n");
+            md.push_str("|------|--------------|--------|--------|-------------------|\n");
+            for rule in &url_routing.rewrite_rules {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    rule.rule_name,
+                    rule.match_pattern,
+                    rule.action_type,
+                    rule.target_url,
+                    rule.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !url_routing.page_routes.is_empty() {
+            md.push_str("### Page Routes (Global.asax)\n");
+            md.push_str("| Route Name | URL Pattern | Physical Page | Modern Equivalent |\n");
+            md.push_str("|-----------|-------------|---------------|-------------------|\n");
+            for route in &url_routing.page_routes {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    route.route_name,
+                    route.url_pattern,
+                    route.physical_page,
+                    route.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !url_routing.server_transfers.is_empty() {
+            md.push_str(&format!("### Code-Based URL Manipulation\n"));
+            md.push_str("| File | Type | Target |\n|------|------|--------|\n");
+            for st in &url_routing.server_transfers {
+                md.push_str(&format!(
+                    "| {} | Server.Transfer | {} |\n",
+                    st.file_path, st.target_page
+                ));
+            }
+            for rp in &url_routing.rewrite_path_calls {
+                md.push_str(&format!(
+                    "| {} | RewritePath | {} |\n",
+                    rp.file_path, rp.target_path
+                ));
+            }
+            md.push('\n');
+            md.push_str(&format!("**WARNING**: {} Server.Transfer calls must be refactored — this pattern does not exist in ASP.NET Core\n\n", url_routing.server_transfers.len()));
+        }
+
+        md.push_str("### Migration Strategy\n");
+        md.push_str(
+            "- IIS Rewrite Rules → ASP.NET Core URL Rewriting Middleware (`app.UseRewriter()`)\n",
+        );
+        md.push_str("- `MapPageRoute` → `app.MapGet()` / `@page` directives\n");
+        md.push_str("- `HttpContext.RewritePath` → Middleware pipeline or endpoint routing\n");
+        md.push_str(
+            "- `Server.Transfer` → **No equivalent** — refactor to redirect or shared component\n",
+        );
+        md.push_str(
+            "- `Response.Redirect` → `Results.Redirect()` / `NavigationManager.NavigateTo()`\n\n",
+        );
+    }
+
     // ── State Management ──────────────────────────────────────────────────
     md.push_str("## State Management (Project-Wide)\n\n");
     md.push_str(&format!(
@@ -2412,6 +5226,84 @@ fn render_markdown(
             md.push_str(&format!("- `{k}`\n"));
         }
         md.push('\n');
+    }
+
+    // ── Phase 33: Caching Strategy (Gap 4) ─────────────────────────────────
+    if cache_inv.total_cached_pages > 0
+        || cache_inv.total_cache_keys > 0
+        || cache_inv.has_response_caching
+    {
+        md.push_str("## Caching Strategy\n\n");
+        md.push_str(&format!(
+            "**Output-cached pages**: {}\n",
+            cache_inv.total_cached_pages
+        ));
+        md.push_str(&format!(
+            "**Programmatic cache keys**: {}\n",
+            cache_inv.total_cache_keys
+        ));
+        md.push_str(&format!(
+            "**Response-cached files**: {}\n",
+            cache_inv.response_cache_files.len()
+        ));
+        md.push_str(&format!(
+            "**SQL cache dependencies**: {}\n\n",
+            cache_inv.sql_cache_dependencies.len()
+        ));
+
+        if !cache_inv.output_cache_pages.is_empty() {
+            md.push_str("### Page/Control Output Caching\n");
+            md.push_str("| Page | Duration | VaryByParam | Location | Modern Equivalent |\n");
+            md.push_str("|------|----------|-------------|----------|-------------------|\n");
+            for oc in &cache_inv.output_cache_pages {
+                let dur = oc
+                    .duration_seconds
+                    .map_or("-".to_string(), |d| format!("{d}s"));
+                let vbp = oc.vary_by_param.as_deref().unwrap_or("-");
+                let loc = oc.location.as_deref().unwrap_or("-");
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    oc.file_path, dur, vbp, loc, oc.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !cache_inv.programmatic_cache_keys.is_empty() {
+            md.push_str("### Programmatic Cache Keys\n");
+            md.push_str("| Key | Operations | Used By | Modern Equivalent |\n");
+            md.push_str("|-----|-----------|---------|-------------------|\n");
+            for ck in &cache_inv.programmatic_cache_keys {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    ck.cache_key,
+                    ck.operation,
+                    ck.files.join(", "),
+                    ck.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !cache_inv.sql_cache_dependencies.is_empty() {
+            md.push_str("### SQL Cache Dependencies\n");
+            md.push_str("| File | Database | Table | Note |\n|------|----------|-------|------|\n");
+            for sd in &cache_inv.sql_cache_dependencies {
+                let db = sd.database_name.as_deref().unwrap_or("-");
+                let tbl = sd.table_name.as_deref().unwrap_or("-");
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    sd.file_path, db, tbl, sd.modern_note
+                ));
+            }
+            md.push('\n');
+        }
+
+        md.push_str("### Migration Strategy\n");
+        md.push_str("- `HttpRuntime.Cache` → `IMemoryCache` (single-server) or `IDistributedCache` (Redis, multi-server)\n");
+        md.push_str("- `<%@ OutputCache %>` → `[ResponseCache]` attribute + `services.AddResponseCaching()`\n");
+        md.push_str("- `Response.Cache.*` → `Response.Headers` or `[ResponseCache]` attribute\n");
+        md.push_str("- `SqlCacheDependency` → Manual invalidation via Change Tracking, SignalR, or message bus\n\n");
     }
 
     // ── Data Access Patterns ──────────────────────────────────────────────
@@ -2445,6 +5337,95 @@ fn render_markdown(
                 injection_risk_files.join(", ")
             ));
         }
+    }
+
+    // ── Phase 33: Code-Behind Method Inventory (Gap 1) ─────────────────────
+    if !method_inv.is_empty() {
+        let total_m: usize = method_inv.values().map(|i| i.total_methods).sum();
+        let total_eh: usize = method_inv.values().map(|i| i.event_handlers).sum();
+        let total_wm: usize = method_inv.values().map(|i| i.web_methods).sum();
+        let total_helpers: usize = method_inv.values().map(|i| i.helper_methods).sum();
+        let total_lc: usize = method_inv.values().map(|i| i.lifecycle_methods).sum();
+
+        md.push_str("## Code-Behind Method Inventory\n\n");
+        md.push_str(&format!(
+            "**Total methods**: {} across {} code-behind files\n",
+            total_m,
+            method_inv.len()
+        ));
+        md.push_str(&format!(
+            "**Lifecycle handlers**: {} | **Event handlers**: {} | **WebMethods**: {} | **Helpers**: {}\n",
+            total_lc, total_eh, total_wm, total_helpers
+        ));
+        if let Some((ref path, count)) = cross.largest_file_by_methods {
+            md.push_str(&format!(
+                "**Largest code-behind**: {} ({} methods)\n",
+                path, count
+            ));
+        }
+        md.push('\n');
+
+        // Top 10 files by method count
+        let mut sorted_files: Vec<(&String, &PageMethodInventory)> = method_inv.iter().collect();
+        sorted_files.sort_by(|a, b| b.1.total_methods.cmp(&a.1.total_methods));
+        sorted_files.truncate(10);
+
+        if !sorted_files.is_empty() {
+            md.push_str("### Files by Method Count (top 10)\n");
+            md.push_str("| File | Methods | Events | SQL Methods | Largest Method |\n");
+            md.push_str("|------|---------|--------|-------------|----------------|\n");
+            for (path, inv) in &sorted_files {
+                let largest = inv
+                    .largest_method
+                    .as_ref()
+                    .map(|(n, lc)| format!("{n} ({lc} lines)"))
+                    .unwrap_or_else(|| "-".to_string());
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    path, inv.total_methods, inv.event_handlers, inv.methods_with_sql, largest
+                ));
+            }
+            md.push('\n');
+        }
+
+        // Complexity indicators
+        let big_methods: usize = method_inv
+            .values()
+            .flat_map(|i| i.methods.iter())
+            .filter(|m| m.line_count > 50)
+            .count();
+        let sql_methods: usize = method_inv.values().map(|i| i.methods_with_sql).sum();
+        let com_methods: usize = method_inv
+            .values()
+            .flat_map(|i| i.methods.iter())
+            .filter(|m| m.effects.iter().any(|e| e.contains("COM")))
+            .count();
+        md.push_str("### Migration Complexity Indicators\n");
+        if big_methods > 0 {
+            md.push_str(&format!(
+                "- {} methods > 50 lines → candidates for decomposition\n",
+                big_methods
+            ));
+        }
+        if sql_methods > 0 {
+            md.push_str(&format!(
+                "- {} methods with SQL_Access → need repository extraction\n",
+                sql_methods
+            ));
+        }
+        if com_methods > 0 {
+            md.push_str(&format!(
+                "- {} methods with COM_Interop → need modern library replacement\n",
+                com_methods
+            ));
+        }
+        if total_wm > 0 {
+            md.push_str(&format!(
+                "- {} WebMethods → must become API endpoints\n",
+                total_wm
+            ));
+        }
+        md.push('\n');
     }
 
     // ── Service Endpoints (Phase 32) ─────────────────────────────────────
@@ -2789,6 +5770,50 @@ fn render_markdown(
         md.push('\n');
     }
 
+    // ── Phase 33: Third-Party Control Libraries (Gap 2) ────────────────────
+    if third_party.total_third_party_controls > 0 {
+        md.push_str("## Third-Party Control Libraries\n\n");
+        md.push_str(&format!(
+            "**Vendors detected**: {}\n",
+            third_party.vendors_detected.len()
+        ));
+        md.push_str(&format!(
+            "**Total third-party controls**: {} across {} files\n\n",
+            third_party.total_third_party_controls,
+            third_party.files_with_third_party.len()
+        ));
+
+        for vendor in &third_party.vendors_detected {
+            md.push_str(&format!("### {} {}\n", vendor.vendor, vendor.suite));
+            let control_list: Vec<String> = vendor
+                .controls_used
+                .iter()
+                .map(|(name, count)| format!("{name} ({count})"))
+                .collect();
+            md.push_str(&format!(
+                "- **Controls used**: {}\n",
+                control_list.join(", ")
+            ));
+            md.push_str(&format!(
+                "- **Modern replacement ({target_stack})**: {}\n",
+                vendor.modern_replacement_suite
+            ));
+            md.push_str(&format!("- **License**: {}\n\n", vendor.license_note));
+        }
+
+        if !third_party.unmapped_controls.is_empty() {
+            md.push_str("### Unmapped Controls (no automatic mapping)\n");
+            md.push_str("| Control | Vendor | File | Note |\n|---------|--------|------|------|\n");
+            for uc in &third_party.unmapped_controls {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    uc.tag_name, uc.vendor, uc.file_path, uc.note
+                ));
+            }
+            md.push('\n');
+        }
+    }
+
     // ── Design Anti-Patterns (Phase 32) ──────────────────────────────────
     if anti.total_anti_patterns > 0 {
         md.push_str("## Design Anti-Patterns\n\n");
@@ -2851,6 +5876,116 @@ fn render_markdown(
             }
             md.push('\n');
         }
+    }
+
+    // ── Phase 33: Email & Notifications (Gap 8) ────────────────────────────
+    if email.has_email {
+        md.push_str("## Email & Notifications\n\n");
+        md.push_str(&format!(
+            "**Email sending**: Yes ({} files)\n",
+            email.total_email_files
+        ));
+        if let Some(ref cfg) = email.smtp_config {
+            let host = cfg.host.as_deref().unwrap_or("unknown");
+            let port = cfg.port.map_or("-".to_string(), |p| p.to_string());
+            md.push_str(&format!(
+                "**SMTP config**: {}:{} (SSL: {}, credentials: {})\n",
+                host, port, cfg.uses_ssl, cfg.uses_credentials
+            ));
+        }
+        md.push_str(&format!(
+            "**HTML email**: {}\n",
+            if email.uses_html_email { "Yes" } else { "No" }
+        ));
+        md.push_str(&format!(
+            "**Attachments**: {}\n",
+            if email.uses_attachments { "Yes" } else { "No" }
+        ));
+        if email.uses_legacy_cdo {
+            md.push_str("**Legacy CDO**: Yes (COM interop)\n");
+        }
+        if email.uses_legacy_web_mail {
+            md.push_str("**Legacy System.Web.Mail**: Yes (obsolete)\n");
+        }
+        md.push('\n');
+
+        if !email.email_patterns.is_empty() {
+            md.push_str("### Email Usage\n");
+            md.push_str("| File | Pattern | Count | Modern Equivalent |\n");
+            md.push_str("|------|---------|-------|-------------------|\n");
+            for ep in &email.email_patterns {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    ep.file_path, ep.pattern_type, ep.count, ep.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        md.push_str("### Migration Strategy\n");
+        md.push_str(
+            "- `SmtpClient` → **Obsolete in .NET 6+** — replace with `IEmailSender` abstraction\n",
+        );
+        md.push_str("- Register `IEmailSender` implementation: SendGrid, Mailgun, or Azure Communication Services\n");
+        md.push_str("- HTML email templates → Razor templates with strongly-typed models\n");
+        md.push_str("- SMTP config → `appsettings.json` service configuration\n\n");
+    }
+
+    // ── Phase 33: Background Processing (Gap 8) ──────────────────────────
+    if bg_jobs.has_background_jobs {
+        md.push_str("## Background Processing\n\n");
+        md.push_str(&format!(
+            "**Background jobs**: Yes ({} files)\n",
+            bg_jobs.total_background_files
+        ));
+        md.push_str(&format!(
+            "**Fire-and-forget**: {} (HIGH RISK)\n",
+            bg_jobs.fire_and_forget_count
+        ));
+        if bg_jobs.uses_timers {
+            md.push_str("**Timers**: Yes\n");
+        }
+        if bg_jobs.uses_thread_pool {
+            md.push_str("**ThreadPool**: Yes\n");
+        }
+        if bg_jobs.uses_task_run {
+            md.push_str("**Task.Run**: Yes\n");
+        }
+        if bg_jobs.uses_hangfire {
+            md.push_str("**Hangfire**: Yes (already compatible)\n");
+        }
+        if bg_jobs.uses_quartz {
+            md.push_str("**Quartz.NET**: Yes (already compatible)\n");
+        }
+        md.push('\n');
+
+        if !bg_jobs.patterns.is_empty() {
+            md.push_str("### Background Job Inventory\n");
+            md.push_str("| File | Pattern | Count | Risk | Modern Equivalent |\n");
+            md.push_str("|------|---------|-------|------|-------------------|\n");
+            for bp in &bg_jobs.patterns {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    bp.file_path, bp.pattern_type, bp.count, bp.risk_level, bp.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+
+        md.push_str("### Migration Strategy\n");
+        md.push_str("- `ThreadPool.QueueUserWorkItem` → `BackgroundService` + `Channel<T>`\n");
+        md.push_str("- `System.Timers.Timer` → `IHostedService` with `PeriodicTimer`\n");
+        md.push_str("- `Task.Run()` fire-and-forget → Hangfire `BackgroundJob.Enqueue()` or `IHostedService`\n");
+        md.push_str(
+            "- `BackgroundWorker` → `BackgroundService` (same pattern, different base class)\n",
+        );
+        if bg_jobs.fire_and_forget_count > 0 {
+            md.push_str(&format!(
+                "- **WARNING**: {} fire-and-forget patterns will silently fail in ASP.NET Core\n",
+                bg_jobs.fire_and_forget_count
+            ));
+        }
+        md.push('\n');
     }
 
     // ── Classic ASP (Phase 32) ───────────────────────────────────────────
@@ -3240,6 +6375,97 @@ fn render_markdown(
             md.push_str(&format!("**Anti-patterns**: {}\n", summaries.join("; ")));
         }
 
+        // Phase 33: Method inventory per page (Gap 1)
+        if let Some(inv) = method_inv.get(&d.file_path) {
+            if !inv.methods.is_empty() {
+                md.push_str(&format!(
+                    "**Methods** ({} total: {} lifecycle, {} event handlers, {} helpers)\n\n",
+                    inv.total_methods,
+                    inv.lifecycle_methods,
+                    inv.event_handlers,
+                    inv.helper_methods
+                ));
+                md.push_str("| Method | Kind | Lines | Effects | Signature |\n");
+                md.push_str("|--------|------|-------|---------|----------|\n");
+                for m in &inv.methods {
+                    let effects = if m.effects.is_empty() {
+                        "-".to_string()
+                    } else {
+                        m.effects.join(", ")
+                    };
+                    md.push_str(&format!(
+                        "| {} | {} | {} | {} | {} |\n",
+                        m.name, m.method_kind, m.line_count, effects, m.signature
+                    ));
+                }
+                md.push('\n');
+            }
+        }
+
+        // Phase 33: Third-party controls per page (Gap 2)
+        {
+            let page_tp: Vec<&VendorSummary> = third_party
+                .vendors_detected
+                .iter()
+                .filter(|v| v.files.contains(&d.file_path))
+                .collect();
+            if !page_tp.is_empty() {
+                let parts: Vec<String> = page_tp
+                    .iter()
+                    .flat_map(|v| {
+                        v.controls_used
+                            .iter()
+                            .filter(|(_, _)| true) // all controls from vendor present in this page
+                            .map(|(name, count)| format!("{name} ({count})"))
+                    })
+                    .collect();
+                md.push_str(&format!("**Third-party controls**: {}\n", parts.join(", ")));
+            }
+        }
+
+        // Phase 33: VB translation flags per page (Gap 6)
+        if vb_trans.is_vb_project {
+            let page_flags: Vec<&VbTranslationFlag> = vb_trans
+                .translation_flags
+                .iter()
+                .filter(|f| {
+                    let cb = d.codebehind_file.as_deref().unwrap_or("");
+                    f.file_path == d.file_path
+                        || f.file_path.contains(cb)
+                        || (d.file_path.ends_with(".aspx")
+                            && f.file_path == format!("{}.vb", d.file_path))
+                })
+                .collect();
+            if !page_flags.is_empty() {
+                let parts: Vec<String> = page_flags
+                    .iter()
+                    .map(|f| format!("{} ({})", f.pattern, f.count))
+                    .collect();
+                md.push_str(&format!("**VB translation flags**: {}\n", parts.join(", ")));
+            }
+        }
+
+        // Phase 33: Caching per page (Gap 4)
+        {
+            let page_cache: Vec<&OutputCacheEntry> = cache_inv
+                .output_cache_pages
+                .iter()
+                .filter(|c| c.file_path == d.file_path)
+                .collect();
+            if !page_cache.is_empty() {
+                for oc in &page_cache {
+                    let dur = oc
+                        .duration_seconds
+                        .map_or("-".to_string(), |d| format!("{d}s"));
+                    md.push_str(&format!("**OutputCache**: Duration={dur}"));
+                    if let Some(ref vbp) = oc.vary_by_param {
+                        md.push_str(&format!(", VaryByParam={vbp}"));
+                    }
+                    md.push('\n');
+                }
+            }
+        }
+
         // Risk factors
         if !d.risk_factors.is_empty() {
             md.push_str(&format!(
@@ -3299,6 +6525,66 @@ fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
 mod tests {
     use super::*;
 
+    fn empty_methods() -> BTreeMap<String, PageMethodInventory> {
+        BTreeMap::new()
+    }
+
+    fn empty_deps() -> DependencyInventory {
+        DependencyInventory {
+            target_frameworks: vec![],
+            nuget_packages: vec![],
+            assembly_references: vec![],
+            project_references: vec![],
+            total_packages: 0,
+            total_assemblies: 0,
+            framework_assemblies: vec![],
+            third_party_assemblies: vec![],
+            packages_with_known_replacement: 0,
+            packages_without_replacement: 0,
+        }
+    }
+
+    fn empty_cache() -> CachingInventory {
+        CachingInventory {
+            output_cache_pages: vec![],
+            programmatic_cache_keys: vec![],
+            response_cache_files: vec![],
+            sql_cache_dependencies: vec![],
+            total_cached_pages: 0,
+            total_cache_keys: 0,
+            has_response_caching: false,
+            has_sql_dependencies: false,
+        }
+    }
+
+    fn empty_email() -> EmailPatternReport {
+        EmailPatternReport {
+            has_email: false,
+            email_patterns: vec![],
+            smtp_config: None,
+            total_email_files: 0,
+            uses_html_email: false,
+            uses_attachments: false,
+            uses_legacy_cdo: false,
+            uses_legacy_web_mail: false,
+        }
+    }
+
+    fn empty_bg_jobs() -> BackgroundJobReport {
+        BackgroundJobReport {
+            has_background_jobs: false,
+            patterns: vec![],
+            total_background_files: 0,
+            uses_thread_pool: false,
+            uses_timers: false,
+            uses_task_run: false,
+            uses_bg_worker: false,
+            uses_hangfire: false,
+            uses_quartz: false,
+            fire_and_forget_count: 0,
+        }
+    }
+
     #[test]
     fn cross_cutting_empty_dossiers() {
         let state = StateMigrationReport {
@@ -3321,11 +6607,21 @@ mod tests {
             &empty_endpoints(),
             &empty_asp(),
             &empty_rpt(),
+            &empty_methods(),
+            &empty_deps(),
+            &empty_cache(),
+            &empty_email(),
+            &empty_bg_jobs(),
         );
         assert_eq!(cross.total_pages_analyzed, 0);
         assert!(cross.shared_sql_tables.is_empty());
         assert!(cross.shared_state_keys.is_empty());
         assert_eq!(cross.total_validators, 0);
+        assert_eq!(cross.total_methods, 0);
+        assert_eq!(cross.total_nuget_packages, 0);
+        assert_eq!(cross.total_cached_pages, 0);
+        assert!(!cross.has_email);
+        assert!(!cross.has_background_jobs);
     }
 
     #[test]
@@ -3356,6 +6652,11 @@ mod tests {
             &empty_endpoints(),
             &empty_asp(),
             &empty_rpt(),
+            &empty_methods(),
+            &empty_deps(),
+            &empty_cache(),
+            &empty_email(),
+            &empty_bg_jobs(),
         );
 
         // "Users" appears in Page1 and Page2 → shared
@@ -3364,6 +6665,295 @@ mod tests {
         assert_eq!(cross.shared_sql_tables[0].used_by.len(), 2);
 
         // "Orders" and "Logs" appear in only one file → not shared
+    }
+
+    #[test]
+    fn cross_cutting_phase33_aggregation() {
+        let state = StateMigrationReport {
+            project_id: "test".into(),
+            recommendations: vec![],
+            viewstate_report: None,
+            summary: state_migration_service::StateMigrationSummary {
+                total_state_keys: 0,
+                by_store: BTreeMap::new(),
+                by_target: BTreeMap::new(),
+                high_risk_keys: vec![],
+            },
+        };
+
+        // Build method inventories with some data
+        let mut methods = BTreeMap::new();
+        methods.insert(
+            "Default.aspx".to_string(),
+            PageMethodInventory {
+                file_path: "Default.aspx".into(),
+                codebehind_path: "Default.aspx.vb".into(),
+                total_methods: 2,
+                methods: vec![
+                    MethodInfo {
+                        name: "Page_Load".into(),
+                        signature: "Protected Sub Page_Load(sender As Object, e As EventArgs)"
+                            .into(),
+                        return_type: "void".into(),
+                        access_level: "Protected".into(),
+                        line_range: (10, 20),
+                        line_count: 10,
+                        method_kind: MethodKind::Lifecycle,
+                        effects: vec![],
+                        calls_methods: vec![],
+                        called_by: vec![],
+                    },
+                    MethodInfo {
+                        name: "btnSubmit_Click".into(),
+                        signature:
+                            "Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)"
+                                .into(),
+                        return_type: "void".into(),
+                        access_level: "Protected".into(),
+                        line_range: (25, 40),
+                        line_count: 15,
+                        method_kind: MethodKind::ControlEvent,
+                        effects: vec!["SQL".into()],
+                        calls_methods: vec![],
+                        called_by: vec![],
+                    },
+                ],
+                lifecycle_methods: 1,
+                event_handlers: 1,
+                web_methods: 0,
+                data_access_methods: 0,
+                helper_methods: 0,
+                largest_method: Some(("btnSubmit_Click".into(), 15)),
+                methods_with_sql: 1,
+                methods_with_state: 0,
+            },
+        );
+
+        let deps = DependencyInventory {
+            target_frameworks: vec!["net48".into()],
+            nuget_packages: vec![NuGetPackageInfo {
+                name: "Newtonsoft.Json".into(),
+                version: Some("13.0.1".into()),
+                modern_replacement: Some("System.Text.Json".into()),
+                modern_version: Some("built-in".into()),
+                migration_notes: Some("Built-in in .NET Core+".into()),
+                category: "serialization".into(),
+            }],
+            assembly_references: vec![],
+            project_references: vec![],
+            total_packages: 1,
+            total_assemblies: 0,
+            framework_assemblies: vec![],
+            third_party_assemblies: vec![],
+            packages_with_known_replacement: 1,
+            packages_without_replacement: 0,
+        };
+
+        let cache = CachingInventory {
+            output_cache_pages: vec![OutputCacheEntry {
+                file_path: "Default.aspx".into(),
+                duration_seconds: Some(60),
+                vary_by_param: Some("none".into()),
+                vary_by_control: None,
+                vary_by_custom: None,
+                location: None,
+                cache_profile: None,
+                sql_dependency: None,
+                modern_equivalent: "[ResponseCache]".into(),
+            }],
+            programmatic_cache_keys: vec![],
+            response_cache_files: vec![],
+            sql_cache_dependencies: vec![],
+            total_cached_pages: 1,
+            total_cache_keys: 0,
+            has_response_caching: false,
+            has_sql_dependencies: false,
+        };
+
+        let email = EmailPatternReport {
+            has_email: true,
+            email_patterns: vec![EmailPattern {
+                file_path: "Notifications.vb".into(),
+                pattern_type: "SmtpClient".into(),
+                count: 1,
+                modern_equivalent: "IEmailSender / MailKit".into(),
+            }],
+            smtp_config: None,
+            total_email_files: 1,
+            uses_html_email: false,
+            uses_attachments: false,
+            uses_legacy_cdo: false,
+            uses_legacy_web_mail: false,
+        };
+
+        let bg = BackgroundJobReport {
+            has_background_jobs: true,
+            patterns: vec![BackgroundJobPattern {
+                file_path: "Scheduler.vb".into(),
+                pattern_type: "ThreadPool".into(),
+                count: 1,
+                modern_equivalent: "IHostedService / BackgroundService".into(),
+                risk_level: "high".into(),
+            }],
+            total_background_files: 1,
+            uses_thread_pool: true,
+            uses_timers: false,
+            uses_task_run: false,
+            uses_bg_worker: false,
+            uses_hangfire: false,
+            uses_quartz: false,
+            fire_and_forget_count: 1,
+        };
+
+        let cross = build_cross_cutting_summary(
+            &[],
+            &state,
+            &empty_js(),
+            &empty_gis(),
+            &empty_anti(),
+            &empty_endpoints(),
+            &empty_asp(),
+            &empty_rpt(),
+            &methods,
+            &deps,
+            &cache,
+            &email,
+            &bg,
+        );
+
+        assert_eq!(cross.total_methods, 2);
+        assert_eq!(cross.total_event_handlers, 1);
+        assert_eq!(cross.total_web_methods, 0);
+        assert_eq!(
+            cross.largest_file_by_methods,
+            Some(("Default.aspx".to_string(), 2))
+        );
+        assert_eq!(cross.total_nuget_packages, 1);
+        assert_eq!(cross.total_cached_pages, 1);
+        assert_eq!(cross.total_cache_keys, 0);
+        assert!(cross.has_email);
+        assert!(cross.has_background_jobs);
+    }
+
+    #[test]
+    fn vb_translation_flags_detect_module() {
+        let vb_code = r#"
+Module GlobalHelpers
+    Public Sub DoSomething()
+    End Sub
+End Module
+"#;
+        let flags = analyze_vb_translation_flags(&[("Helpers.vb", vb_code)]);
+        assert!(!flags.translation_flags.is_empty());
+        assert!(
+            flags
+                .translation_flags
+                .iter()
+                .any(|f| f.pattern.contains("Module"))
+        );
+        assert!(flags.total_flags > 0);
+    }
+
+    #[test]
+    fn email_detection_finds_smtp_client() {
+        let code = r#"
+Dim smtp As New SmtpClient("mail.example.com")
+Dim msg As New MailMessage()
+msg.To.Add("user@example.com")
+smtp.Send(msg)
+"#;
+        let report = detect_email_patterns(&[("Mailer.vb", code)], None);
+        assert!(report.has_email);
+        assert!(report.total_email_files > 0);
+    }
+
+    #[test]
+    fn background_job_detection_finds_thread_pool() {
+        let code = r#"
+ThreadPool.QueueUserWorkItem(Sub(state)
+    ProcessBatch()
+End Sub)
+"#;
+        let report = detect_background_job_patterns(&[("Worker.vb", code)], None);
+        assert!(report.has_background_jobs);
+        assert!(report.uses_thread_pool);
+    }
+
+    #[test]
+    fn dependency_inventory_maps_replacements() {
+        let refs = vec![ProjectReferenceBundle {
+            project_path: "App.vbproj".into(),
+            target_framework: Some("v4.7.2".into()),
+            assembly_name: Some("MyApp".into()),
+            root_namespace: Some("MyApp".into()),
+            package_references: vec![
+                PackageRef {
+                    name: "Newtonsoft.Json".into(),
+                    version: Some("13.0.1".into()),
+                },
+                PackageRef {
+                    name: "EntityFramework".into(),
+                    version: Some("6.4.4".into()),
+                },
+            ],
+            assembly_references: vec!["System.Web".into(), "System.Data".into()],
+            project_dependencies: vec![],
+        }];
+        let inv = build_dependency_inventory(&refs);
+        assert!(inv.target_frameworks.contains(&"v4.7.2".to_string()));
+        assert_eq!(inv.total_packages, 2);
+        // Newtonsoft.Json should have a replacement
+        assert!(
+            inv.nuget_packages
+                .iter()
+                .any(|p| p.name == "Newtonsoft.Json" && p.modern_replacement.is_some())
+        );
+    }
+
+    #[test]
+    fn multi_tenancy_detects_tenant_id() {
+        let code = r#"
+Dim tenantId As String = CStr(Session("TenantId"))
+Dim conn As String = GetConnectionForTenant(tenantId)
+"#;
+        let report = detect_multi_tenancy(None, &[("Data.vb", code)], None);
+        assert!(!report.detection_evidence.is_empty());
+    }
+
+    #[test]
+    fn caching_inventory_finds_output_cache() {
+        let markup = r#"<%@ Page Language="VB" %>
+<%@ OutputCache Duration="60" VaryByParam="id" %>
+<asp:GridView ID="gv" runat="server" />"#;
+        let files = vec![FileContent {
+            file_path: "Products.aspx".into(),
+            markup_content: markup.into(),
+            codebehind_content: None,
+        }];
+        let inv = build_caching_inventory(&files, &[], &[]);
+        assert_eq!(inv.total_cached_pages, 1);
+        assert_eq!(inv.output_cache_pages.len(), 1);
+        assert_eq!(inv.output_cache_pages[0].duration_seconds, Some(60));
+        assert_eq!(inv.output_cache_pages[0].vary_by_param, Some("id".into()));
+    }
+
+    #[test]
+    fn url_routing_extracts_rewrite_rules() {
+        let web_config = r#"
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="Products" stopProcessing="true">
+          <match url="^products/(.+)$" />
+          <action type="Rewrite" url="Products.aspx?id={R:1}" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>"#;
+        let inv = extract_url_routing(Some(web_config), "", &[]);
+        assert!(!inv.rewrite_rules.is_empty());
     }
 
     fn make_test_dossier(file_path: &str, tables: Vec<&str>, blast_radius: u8) -> MigrationDossier {
