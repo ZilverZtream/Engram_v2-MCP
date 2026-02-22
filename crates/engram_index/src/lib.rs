@@ -10,6 +10,7 @@ pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;
 pub mod ingest;
+pub mod jquery_inventory;
 pub mod js_extractor;
 pub mod layout_extractor;
 pub mod parsing;
@@ -21,6 +22,7 @@ pub mod state_extractor;
 pub mod sync_hazard_detector;
 pub mod tantivy_index;
 pub mod vb_extractor;
+pub mod vb_translation_traps;
 #[cfg(feature = "vector")]
 pub mod vector;
 pub mod webforms;

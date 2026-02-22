@@ -692,6 +692,13 @@ fn build_name_candidates(name: &str) -> Vec<String> {
         cands.push(to_camel_case(&state_stripped).to_lowercase());
     }
 
+    // 7. Graph-style prefixes: strip "table:", "ctrl:", "api:", etc.
+    let graph_stripped = strip_graph_prefix(name);
+    if graph_stripped != name {
+        cands.push(graph_stripped.to_lowercase());
+        cands.push(to_camel_case(&graph_stripped).to_lowercase());
+    }
+
     // Deduplicate while preserving order
     let mut seen: HashSet<String> = HashSet::with_capacity(cands.len());
     cands.retain(|c| !c.is_empty() && seen.insert(c.clone()));
@@ -837,6 +844,7 @@ fn strip_event_suffix(name: &str) -> String {
 }
 
 /// Strip state-store prefix for cleaner key extraction.
+/// Handles `state:Session[SortColumn]` → `SortColumn` and `session:Theme` → `Theme`.
 fn strip_state_prefix(name: &str) -> String {
     for prefix in &[
         "state:",
@@ -848,9 +856,33 @@ fn strip_state_prefix(name: &str) -> String {
         "querystring:",
     ] {
         if name.to_lowercase().starts_with(prefix) {
-            return name[prefix.len()..]
-                .trim_matches(|c: char| c == '[' || c == ']' || c == '"' || c == '\'')
+            let remainder = &name[prefix.len()..];
+            let remainder = remainder.trim_matches(|c: char| c == '"' || c == '\'');
+            // Handle Store[Key] pattern: extract just the key inside brackets
+            if let Some(bracket_start) = remainder.find('[') {
+                if let Some(bracket_end) = remainder.find(']') {
+                    if bracket_end > bracket_start + 1 {
+                        return remainder[bracket_start + 1..bracket_end].to_string();
+                    }
+                }
+            }
+            // Fallback: strip brackets from ends
+            return remainder
+                .trim_matches(|c: char| c == '[' || c == ']')
                 .to_string();
+        }
+    }
+    name.to_string()
+}
+
+/// Strip graph-style prefixes (`table:`, `ctrl:`, etc.) for name matching.
+fn strip_graph_prefix(name: &str) -> String {
+    for prefix in &[
+        "table:", "ctrl:", "control:", "api:", "field:", "col:", "column:", "binding:", "proc:",
+        "sp:",
+    ] {
+        if name.to_lowercase().starts_with(prefix) {
+            return name[prefix.len()..].trim().to_string();
         }
     }
     name.to_string()

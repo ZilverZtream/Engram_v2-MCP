@@ -768,7 +768,7 @@ mod tests {
     fn suggested_next_ordered_by_risk_score() {
         let (store, _dir) = make_store();
 
-        // Insert 7 NotStarted files with varying risk scores.
+        // Insert 8 files: 7 NotStarted with varying risk scores + 1 Migrated.
         let files = vec![
             ("high_risk.aspx", MigrationStatus::NotStarted, Some(90u8)),
             ("low_risk.aspx", MigrationStatus::NotStarted, Some(5)),
@@ -777,6 +777,7 @@ mod tests {
             ("also_low.aspx", MigrationStatus::NotStarted, Some(10)),
             ("already_done.aspx", MigrationStatus::Migrated, Some(1)),
             ("another_low.aspx", MigrationStatus::NotStarted, Some(15)),
+            ("trivial.aspx", MigrationStatus::NotStarted, Some(3)),
         ];
 
         for (path, status, risk) in files {
