@@ -510,11 +510,30 @@ fn infer_viewstate_type(key: &str) -> String {
         "string".to_string()
     } else if k.contains("date") || k.contains("time") {
         "DateTime?".to_string()
-    } else if k.contains("is") || k.contains("has") || k.contains("enable") || k.contains("show") {
+    } else if k.starts_with("is")
+        || k.contains("has")
+        || k.contains("enable")
+        || k.contains("show")
+        || k.contains("visible")
+        || k.contains("active")
+        || k.contains("checked")
+    {
         "bool".to_string()
-    } else if k.contains("id") && !k.contains("grid") {
+    } else if k.contains("id")
+        && !k.contains("grid")
+        && !k.contains("guid")
+        && !k.contains("valid")
+        && !k.contains("void")
+        && !k.contains("width")
+    {
         "int?".to_string()
-    } else if k.contains("list") || k.contains("items") || k.contains("data") {
+    } else if k.contains("list")
+        || k.contains("items")
+        || k.starts_with("data")
+        || k.contains("dataset")
+        || k.contains("datatable")
+        || k.contains("datasource")
+    {
         "List<object>".to_string()
     } else {
         "object".to_string()

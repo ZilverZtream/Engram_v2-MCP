@@ -91,7 +91,9 @@ pub struct CausesValidationButton {
 // ── Regex patterns ────────────────────────────────────────────────────────
 
 static RE_VALIDATOR_TAG: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:(RequiredFieldValidator|CompareValidator|RangeValidator|RegularExpressionValidator|CustomValidator)\b([^>]*?)(/\s*>|>.*?</asp:\1\s*>)")
+    // Match the opening tag only — all validator attributes live on the opening tag.
+    // Previous regex used \1 backreference (unsupported by Rust regex crate).
+    Regex::new(r"(?is)<asp:(RequiredFieldValidator|CompareValidator|RangeValidator|RegularExpressionValidator|CustomValidator)\b([^>]*?)(?:/\s*>|>)")
         .unwrap()
 });
 

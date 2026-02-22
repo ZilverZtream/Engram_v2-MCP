@@ -67,6 +67,11 @@ pub struct FullProjectMigrationReport {
     pub master_page_regions: MasterPageRegionMap,
     pub resource_inventory: ResourceInventory,
 
+    // ── Phase 35: last-mile accuracy ─────────────────────────────────────
+    pub vb_translation_traps: engram_index::vb_translation_traps::VbTranslationTrapReport,
+    pub jquery_inventory: engram_index::jquery_inventory::JQueryInventory,
+    pub cross_layer_traces: CrossLayerTraceSummary,
+
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
 }
@@ -824,7 +829,18 @@ pub struct InheritanceChainReport {
     pub chains: Vec<InheritanceChain>,
     pub base_classes: Vec<BaseClassInfo>,
     pub shared_lifecycle_methods: Vec<SharedLifecycleMethod>,
+    pub inherited_effects: Vec<InheritedEffect>,
     pub deepest_chain_depth: usize,
+}
+
+/// An effect inherited from a base class method.
+#[derive(Debug, Clone, Serialize)]
+pub struct InheritedEffect {
+    pub class: String,
+    pub inherited_from: String,
+    pub method: String,
+    pub effects: Vec<String>,
+    pub detail: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -851,6 +867,39 @@ pub struct SharedLifecycleMethod {
     pub overridden_in: Vec<String>,
     pub calls_base: bool,
 }
+
+// ── Phase 35: Cross-Layer AJAX→Handler→Data Tracing ──────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CrossLayerTraceSummary {
+    pub chains: Vec<DataFlowChain>,
+    pub total_chains: usize,
+    pub unresolved_urls: Vec<String>,
+    pub handlers_without_ajax_callers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DataFlowChain {
+    pub feature_name: String,
+    pub trigger_file: String,
+    pub steps: Vec<DataFlowStep>,
+    pub tables_touched: Vec<String>,
+    pub risk_notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DataFlowStep {
+    pub layer: String,
+    pub file_path: String,
+    pub action: String,
+    pub params: Vec<String>,
+}
+
+// ── Phase 35: VB Translation Traps (from engram_index) ───────────────────────
+// Re-exported from engram_index::vb_translation_traps
+
+// ── Phase 35: jQuery Inventory (from engram_index) ───────────────────────────
+// Re-exported from engram_index::jquery_inventory
 
 // ── Phase 34: Binding Redirects (Ticket 3) ────────────────────────────────────
 
@@ -1211,6 +1260,29 @@ pub fn analyze_full_project(
     // Ticket 6c: Resource file inventory
     let resource_inventory = build_resource_inventory(&bundle.resx_files);
 
+    // ── 3d. Phase 35 analyses ─────────────────────────────────────────────
+
+    // VB.NET translation traps
+    let vb_translation_traps =
+        engram_index::vb_translation_traps::detect_vb_translation_traps(&code_refs);
+
+    // jQuery ecosystem inventory
+    let js_refs: Vec<(&str, &str)> = bundle
+        .js_files
+        .iter()
+        .map(|(p, c)| (p.as_str(), c.as_str()))
+        .collect();
+    let markup_refs: Vec<(&str, &str)> = capped
+        .iter()
+        .map(|fc| (fc.file_path.as_str(), fc.markup_content.as_str()))
+        .collect();
+    let jquery_inventory =
+        engram_index::jquery_inventory::build_jquery_inventory(&js_refs, &markup_refs);
+
+    // Cross-layer AJAX→Handler→Data tracing
+    let cross_layer_traces =
+        build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_refs);
+
     // ── 4. Cross-cutting aggregation ──────────────────────────────────────
 
     let cross_cutting = build_cross_cutting_summary(
@@ -1278,6 +1350,9 @@ pub fn analyze_full_project(
         &config_transforms,
         &master_page_regions,
         &resource_inventory,
+        &vb_translation_traps,
+        &jquery_inventory,
+        &cross_layer_traces,
     );
 
     Ok(FullProjectMigrationReport {
@@ -1312,6 +1387,9 @@ pub fn analyze_full_project(
         config_transforms,
         master_page_regions,
         resource_inventory,
+        vb_translation_traps,
+        jquery_inventory,
+        cross_layer_traces,
         markdown_report,
     })
 }
@@ -4947,6 +5025,9 @@ fn render_markdown(
     cfg_transforms: &ConfigTransformReport,
     master_regions: &MasterPageRegionMap,
     res_inv: &ResourceInventory,
+    vb_traps: &engram_index::vb_translation_traps::VbTranslationTrapReport,
+    jquery_inv: &engram_index::jquery_inventory::JQueryInventory,
+    cross_traces: &CrossLayerTraceSummary,
 ) -> String {
     let mut md = String::with_capacity(160_000);
 
@@ -7154,6 +7235,176 @@ fn render_markdown(
         md.push('\n');
     }
 
+    // ── Phase 35: VB Translation Traps ──────────────────────────────────
+    if vb_traps.total_traps > 0 {
+        md.push_str("## VB.NET Translation Traps\n\n");
+        md.push_str(&format!(
+            "**Total traps**: {} | **Silent bugs**: {} | **Compile errors**: {} | **Files analyzed**: {}\n\n",
+            vb_traps.total_traps,
+            vb_traps.silent_bug_count,
+            vb_traps.compile_error_count,
+            vb_traps.files_analyzed,
+        ));
+        md.push_str("| Trap | Location | Risk | VB Code | Guidance |\n");
+        md.push_str("|------|----------|------|---------|----------|\n");
+        for trap in vb_traps.traps.iter().take(50) {
+            let code_escaped = trap.vb_code.replace('|', "\\|");
+            let guidance_escaped = trap.guidance.replace('|', "\\|");
+            let guidance_short = if guidance_escaped.len() > 80 {
+                // Truncate at a safe char boundary
+                let end = guidance_escaped
+                    .char_indices()
+                    .nth(80)
+                    .map(|(i, _)| i)
+                    .unwrap_or(guidance_escaped.len());
+                format!("{}...", &guidance_escaped[..end])
+            } else {
+                guidance_escaped
+            };
+            md.push_str(&format!(
+                "| {} | `{}` | {} | `{}` | {} |\n",
+                trap.trap, trap.location, trap.risk, code_escaped, guidance_short
+            ));
+        }
+        if vb_traps.total_traps > 50 {
+            md.push_str(&format!(
+                "\n*... and {} more traps (see JSON output for full list)*\n",
+                vb_traps.total_traps - 50
+            ));
+        }
+        md.push('\n');
+    }
+
+    // ── Phase 35: jQuery Ecosystem Inventory ─────────────────────────────
+    if jquery_inv.total_usages > 0 || jquery_inv.core_version.is_some() {
+        md.push_str("## jQuery Plugin Ecosystem\n\n");
+        if let Some(ref ver) = jquery_inv.core_version {
+            let vuln_badge = if jquery_inv.core_vulnerable {
+                " **VULNERABLE**"
+            } else {
+                ""
+            };
+            md.push_str(&format!("**jQuery Core**: v{ver}{vuln_badge}\n\n"));
+            for note in &jquery_inv.vulnerability_notes {
+                md.push_str(&format!("- {note}\n"));
+            }
+            if !jquery_inv.vulnerability_notes.is_empty() {
+                md.push('\n');
+            }
+        }
+        md.push_str(&format!(
+            "**Total plugin usages**: {} | **Files analyzed**: {}\n\n",
+            jquery_inv.total_usages, jquery_inv.files_analyzed,
+        ));
+
+        if !jquery_inv.ui_widgets.is_empty() {
+            md.push_str("### jQuery UI Widgets\n\n");
+            md.push_str("| Widget | File | Line | Modern Equivalent | Complexity |\n");
+            md.push_str("|--------|------|------|-------------------|------------|\n");
+            for w in &jquery_inv.ui_widgets {
+                md.push_str(&format!(
+                    "| {} | `{}` | {} | {} | {} |\n",
+                    w.name, w.file_path, w.line_number, w.modern_equivalent, w.migration_complexity
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !jquery_inv.third_party_plugins.is_empty() {
+            md.push_str("### Third-Party Plugins\n\n");
+            md.push_str("| Plugin | File | Line | Modern Equivalent | Complexity |\n");
+            md.push_str("|--------|------|------|-------------------|------------|\n");
+            for p in &jquery_inv.third_party_plugins {
+                md.push_str(&format!(
+                    "| {} | `{}` | {} | {} | {} |\n",
+                    p.name, p.file_path, p.line_number, p.modern_equivalent, p.migration_complexity
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !jquery_inv.custom_plugins.is_empty() {
+            md.push_str("### Custom Plugins ($.fn.*)\n\n");
+            md.push_str("| Plugin | File | Line |\n");
+            md.push_str("|--------|------|------|\n");
+            for p in &jquery_inv.custom_plugins {
+                md.push_str(&format!(
+                    "| {} | `{}` | {} |\n",
+                    p.name, p.file_path, p.line_number
+                ));
+            }
+            md.push('\n');
+        }
+
+        if !jquery_inv.deprecated_patterns.is_empty() {
+            md.push_str("### Deprecated Patterns\n\n");
+            md.push_str("| Pattern | File | Line | Recommendation |\n");
+            md.push_str("|---------|------|------|----------------|\n");
+            for d in &jquery_inv.deprecated_patterns {
+                md.push_str(&format!(
+                    "| {} | `{}` | {} | {} |\n",
+                    d.name, d.file_path, d.line_number, d.modern_equivalent
+                ));
+            }
+            md.push('\n');
+        }
+    }
+
+    // ── Phase 35: Cross-Layer Data Flow Chains ───────────────────────────
+    if !cross_traces.chains.is_empty() {
+        md.push_str("## Cross-Layer Data Flow Chains\n\n");
+        md.push_str(&format!(
+            "**Total chains**: {} | **Unresolved URLs**: {}\n\n",
+            cross_traces.total_chains,
+            cross_traces.unresolved_urls.len(),
+        ));
+
+        for chain in cross_traces.chains.iter().take(20) {
+            md.push_str(&format!("### Feature: {}\n\n", chain.feature_name));
+            md.push_str("| Layer | File | Action |\n");
+            md.push_str("|-------|------|--------|\n");
+            for step in &chain.steps {
+                md.push_str(&format!(
+                    "| {} | `{}` | {} |\n",
+                    step.layer, step.file_path, step.action
+                ));
+            }
+            if !chain.tables_touched.is_empty() {
+                md.push_str(&format!(
+                    "\n**Tables**: {}\n",
+                    chain.tables_touched.join(", ")
+                ));
+            }
+            for note in &chain.risk_notes {
+                md.push_str(&format!("- {note}\n"));
+            }
+            md.push('\n');
+        }
+
+        if !cross_traces.unresolved_urls.is_empty() {
+            md.push_str("### Unresolved AJAX URLs\n\n");
+            for url in &cross_traces.unresolved_urls {
+                md.push_str(&format!("- `{url}`\n"));
+            }
+            md.push('\n');
+        }
+    }
+
+    // ── Phase 35: Inherited Effects ──────────────────────────────────────
+    if !inherit.inherited_effects.is_empty() {
+        md.push_str("## Inherited Effects (Base Class Propagation)\n\n");
+        md.push_str("| Derived Class | Inherited From | Method | Effects |\n");
+        md.push_str("|---------------|----------------|--------|--------|\n");
+        for eff in inherit.inherited_effects.iter().take(50) {
+            let effects_str = eff.effects.join(", ").replace('|', "\\|");
+            md.push_str(&format!(
+                "| {} | {} | {} | {} |\n",
+                eff.class, eff.inherited_from, eff.method, effects_str
+            ));
+        }
+        md.push('\n');
+    }
+
     // ── Risk Assessment ───────────────────────────────────────────────────
     md.push_str("## Risk Assessment\n\n");
     md.push_str("| Risk Band | Files |\n|-----------|-------|\n");
@@ -7598,14 +7849,463 @@ fn resolve_inheritance_chains(
         }
     }
 
+    // 5. Propagate effects down inheritance chains
+    let inherited_effects = propagate_inherited_effects(&chains, code_files);
+
     let deepest = chains.iter().map(|c| c.chain.len()).max().unwrap_or(0);
 
     InheritanceChainReport {
         chains,
         base_classes,
         shared_lifecycle_methods: shared_lifecycle,
+        inherited_effects,
         deepest_chain_depth: deepest,
     }
+}
+
+// ── Phase 35: Inherited effect propagation ───────────────────────────────────
+
+// Effect detection regexes for method bodies
+static EFFECT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:SqlCommand|SqlDataAdapter|ExecuteReader|ExecuteNonQuery|ExecuteScalar|SqlConnection|OleDbCommand|DataAdapter)\b")
+        .expect("effect_sql")
+});
+static EFFECT_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:Response\.Redirect|Server\.Transfer|Response\.RedirectPermanent)\b")
+        .expect("effect_redirect")
+});
+static EFFECT_CONTROL_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:\w+\.(?:Text|Visible|Enabled|DataSource|DataBind|SelectedValue|SelectedIndex|Items)\s*=)")
+        .expect("effect_control_write")
+});
+static EFFECT_HTTP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(?:Response\.Write|Response\.ContentType|Response\.AddHeader|Response\.Cookies)\b",
+    )
+    .expect("effect_http")
+});
+
+/// Extract effects from a method body snippet.
+fn extract_method_effects(method_body: &str) -> Vec<String> {
+    let mut effects = Vec::new();
+
+    // Session/ViewState writes
+    let session_keys: Vec<String> = SESSION_WRITE_RE
+        .captures_iter(method_body)
+        .map(|c| format!("Session[\"{}\"]", &c[1]))
+        .collect();
+    if !session_keys.is_empty() {
+        effects.push(format!("State_Access: writes {}", session_keys.join(", ")));
+    }
+
+    // SQL operations
+    if EFFECT_SQL_RE.is_match(method_body) {
+        effects.push("SQL_Access".to_string());
+    }
+
+    // Redirects
+    if EFFECT_REDIRECT_RE.is_match(method_body) {
+        effects.push("Redirect".to_string());
+    }
+
+    // Control writes (UI mutation)
+    if EFFECT_CONTROL_WRITE_RE.is_match(method_body) {
+        effects.push("UI_Mutation".to_string());
+    }
+
+    // HTTP response manipulation
+    if EFFECT_HTTP_RE.is_match(method_body) {
+        effects.push("HTTP_Response".to_string());
+    }
+
+    effects
+}
+
+/// Extract method bodies from a class region of code.
+fn extract_method_bodies_from_class(class_body: &str, is_vb: bool) -> Vec<(String, String)> {
+    let mut results: Vec<(String, String)> = Vec::new();
+
+    let method_re = if is_vb {
+        &*VB_METHOD_DEF_RE
+    } else {
+        &*CS_METHOD_DEF_RE
+    };
+
+    let starts: Vec<(usize, String)> = method_re
+        .captures_iter(class_body)
+        .map(|c| (c.get(0).expect("match").start(), c[1].to_string()))
+        .collect();
+
+    for (i, (start, name)) in starts.iter().enumerate() {
+        let end = starts
+            .get(i + 1)
+            .map(|(s, _)| *s)
+            .unwrap_or(class_body.len());
+        let body = &class_body[*start..end];
+        results.push((name.clone(), body.to_string()));
+    }
+
+    results
+}
+
+/// Propagate effects from ancestor classes down to derived page classes.
+fn propagate_inherited_effects(
+    chains: &[InheritanceChain],
+    code_files: &[(&str, &str)],
+) -> Vec<InheritedEffect> {
+    // Build class_name → (file_path, class_body) for targeted extraction
+    let mut class_bodies: std::collections::HashMap<String, (bool, String)> =
+        std::collections::HashMap::new();
+
+    for (path, content) in code_files {
+        let is_vb = path.to_lowercase().ends_with(".vb");
+        let class_re = if is_vb {
+            &*VB_CLASS_INHERITS_RE
+        } else {
+            &*CS_CLASS_INHERITS_RE
+        };
+
+        let mut ranges: Vec<(String, usize)> = Vec::new();
+        for cap in class_re.captures_iter(content) {
+            let class_name = cap[1].to_string();
+            let start_pos = cap.get(0).map_or(0, |m| m.start());
+            ranges.push((class_name, start_pos));
+        }
+
+        for (ci, (class_name, start_pos)) in ranges.iter().enumerate() {
+            let end_pos = ranges.get(ci + 1).map(|(_, p)| *p).unwrap_or(content.len());
+            let body = content[*start_pos..end_pos].to_string();
+            class_bodies.insert(class_name.clone(), (is_vb, body));
+        }
+    }
+
+    let mut inherited_effects: Vec<InheritedEffect> = Vec::new();
+
+    for chain in chains {
+        if chain.chain.len() < 2 {
+            continue;
+        }
+
+        let page_class = &chain.chain[0];
+
+        // Walk ancestors (skip the page class itself at index 0)
+        for ancestor_name in &chain.chain[1..] {
+            // Skip framework base classes
+            if ancestor_name.starts_with("System.Web.UI.") {
+                continue;
+            }
+
+            let Some((is_vb, class_body)) = class_bodies.get(ancestor_name) else {
+                continue;
+            };
+
+            let method_bodies = extract_method_bodies_from_class(class_body, *is_vb);
+
+            for (method_name, method_body) in &method_bodies {
+                let effects = extract_method_effects(method_body);
+                if effects.is_empty() {
+                    continue;
+                }
+
+                inherited_effects.push(InheritedEffect {
+                    class: page_class.clone(),
+                    inherited_from: ancestor_name.clone(),
+                    method: method_name.clone(),
+                    effects: effects.clone(),
+                    detail: format!(
+                        "{}.{} has: {}",
+                        ancestor_name,
+                        method_name,
+                        effects.join(", ")
+                    ),
+                });
+            }
+        }
+    }
+
+    inherited_effects
+}
+
+// ── Phase 35: Cross-Layer AJAX→Handler→Data Tracing ──────────────────────────
+
+static HANDLER_SP_NAME_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)CommandText\s*=\s*"(sp_\w+|usp_\w+|\w+_\w+)""#).expect("handler_sp_name")
+});
+
+static HANDLER_TABLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?")
+        .expect("handler_table")
+});
+
+/// Build cross-layer traces from JS AJAX calls → handlers → database.
+fn build_cross_layer_traces(
+    js_analysis: &JsAnalysisSummary,
+    sp_catalog: &StoredProcedureCatalog,
+    service_endpoints: &ServiceEndpointSummary,
+    code_files: &[(&str, &str)],
+) -> CrossLayerTraceSummary {
+    // 1. Build URL→handler file map from service endpoints and code files
+    let mut url_to_handler: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+
+    // Map from service_endpoints
+    for ep in &service_endpoints.web_services {
+        let base = extract_filename_from_path(&ep.file_path);
+        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
+    }
+    for ep in &service_endpoints.http_handlers {
+        let base = extract_filename_from_path(&ep.file_path);
+        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
+    }
+    for ep in &service_endpoints.wcf_services {
+        let base = extract_filename_from_path(&ep.file_path);
+        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
+    }
+    for ep in &service_endpoints.route_handlers {
+        let base = extract_filename_from_path(&ep.file_path);
+        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
+    }
+
+    // Also map from code files by filename
+    for &(path, _) in code_files {
+        let lower = path.to_lowercase();
+        if lower.ends_with(".ashx")
+            || lower.ends_with(".ashx.cs")
+            || lower.ends_with(".ashx.vb")
+            || lower.ends_with(".asmx")
+            || lower.ends_with(".asmx.cs")
+            || lower.ends_with(".asmx.vb")
+        {
+            let base = extract_filename_from_path(path);
+            // Strip .cs / .vb suffix for matching
+            let base_lower = base.to_lowercase().replace(".cs", "").replace(".vb", "");
+            url_to_handler.insert(base_lower, path.to_string());
+        }
+    }
+
+    // Build code_file content map
+    let content_map: std::collections::HashMap<&str, &str> =
+        code_files.iter().map(|&(p, c)| (p, c)).collect();
+
+    // SP name → tables map from catalog
+    let mut sp_tables: std::collections::HashMap<String, (Vec<String>, Vec<String>)> =
+        std::collections::HashMap::new();
+    for sp in &sp_catalog.procedures {
+        sp_tables.insert(
+            sp.name.to_lowercase(),
+            (sp.tables_read.clone(), sp.tables_written.clone()),
+        );
+    }
+
+    let mut chains: Vec<DataFlowChain> = Vec::new();
+    let mut unresolved_urls: Vec<String> = Vec::new();
+    let mut resolved_handlers: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // 2. For each AJAX call, try to resolve the chain
+    for ajax_call in &js_analysis.ajax_calls {
+        let url = &ajax_call.target_url;
+        let url_parts = extract_url_parts(url);
+        let handler_file_lower = url_parts
+            .file_part
+            .to_lowercase()
+            .replace(".cs", "")
+            .replace(".vb", "");
+
+        // Try to find handler
+        let handler_path = url_to_handler.get(&handler_file_lower).cloned();
+
+        if handler_path.is_none() {
+            if !unresolved_urls.contains(url) {
+                unresolved_urls.push(url.clone());
+            }
+            continue;
+        }
+
+        let handler_path = handler_path.expect("checked above");
+        resolved_handlers.insert(handler_path.clone());
+
+        // Build steps
+        let mut steps: Vec<DataFlowStep> = Vec::new();
+        let mut tables_touched: Vec<String> = Vec::new();
+        let mut risk_notes: Vec<String> = Vec::new();
+
+        // Step 1: Client AJAX call
+        steps.push(DataFlowStep {
+            layer: "client".to_string(),
+            file_path: ajax_call.js_file.clone(),
+            action: format!(
+                "{} {} to {}",
+                ajax_call.transport,
+                url_parts.method_part.as_deref().unwrap_or(""),
+                url
+            ),
+            params: Vec::new(),
+        });
+
+        // Step 2: Handler processing
+        let handler_content = find_handler_content(&handler_path, &content_map);
+        let mut sp_names: Vec<String> = Vec::new();
+
+        if let Some(content) = handler_content {
+            // Find SP calls in handler
+            for cap in HANDLER_SP_NAME_RE.captures_iter(content) {
+                sp_names.push(cap[1].to_string());
+            }
+
+            // Find direct table access
+            for cap in HANDLER_TABLE_RE.captures_iter(content) {
+                let table = cap[1].to_string();
+                if !tables_touched.contains(&table) {
+                    tables_touched.push(table);
+                }
+            }
+
+            let sp_desc = if !sp_names.is_empty() {
+                format!("calls {}", sp_names.join(", "))
+            } else if !tables_touched.is_empty() {
+                format!("direct SQL on: {}", tables_touched.join(", "))
+            } else {
+                "processes request (no SQL detected)".to_string()
+            };
+
+            steps.push(DataFlowStep {
+                layer: "handler".to_string(),
+                file_path: handler_path.clone(),
+                action: sp_desc,
+                params: sp_names.clone(),
+            });
+        } else {
+            steps.push(DataFlowStep {
+                layer: "handler".to_string(),
+                file_path: handler_path.clone(),
+                action: "handler file (code not available for analysis)".to_string(),
+                params: Vec::new(),
+            });
+            risk_notes.push("Handler code-behind not found — cannot trace data layer".into());
+        }
+
+        // Step 3: Database layer (from SP catalog)
+        for sp_name in &sp_names {
+            if let Some((reads, writes)) = sp_tables.get(&sp_name.to_lowercase()) {
+                for t in reads {
+                    if !tables_touched.contains(t) {
+                        tables_touched.push(t.clone());
+                    }
+                }
+                for t in writes {
+                    if !tables_touched.contains(t) {
+                        tables_touched.push(t.clone());
+                    }
+                }
+
+                steps.push(DataFlowStep {
+                    layer: "database".to_string(),
+                    file_path: sp_name.clone(),
+                    action: format!(
+                        "reads: [{}], writes: [{}]",
+                        reads.join(", "),
+                        writes.join(", ")
+                    ),
+                    params: Vec::new(),
+                });
+            }
+        }
+
+        let feature_name = url_parts
+            .method_part
+            .unwrap_or_else(|| url_parts.file_part.clone());
+
+        chains.push(DataFlowChain {
+            feature_name,
+            trigger_file: ajax_call.js_file.clone(),
+            steps,
+            tables_touched,
+            risk_notes,
+        });
+    }
+
+    // Find handlers without callers
+    let all_handler_paths: Vec<String> = url_to_handler.values().cloned().collect();
+    let handlers_without_ajax_callers: Vec<String> = all_handler_paths
+        .into_iter()
+        .filter(|h| !resolved_handlers.contains(h))
+        .collect();
+
+    let total_chains = chains.len();
+
+    CrossLayerTraceSummary {
+        chains,
+        total_chains,
+        unresolved_urls,
+        handlers_without_ajax_callers,
+    }
+}
+
+struct UrlParts {
+    file_part: String,
+    method_part: Option<String>,
+}
+
+fn extract_url_parts(url: &str) -> UrlParts {
+    // Strip query string and fragment
+    let clean = url.split('?').next().unwrap_or(url);
+    let clean = clean.split('#').next().unwrap_or(clean);
+
+    // Split on last / to separate method from file
+    // e.g. "Services/MapData.asmx/GetPolygons" → file="MapData.asmx", method="GetPolygons"
+    let parts: Vec<&str> = clean.rsplitn(2, '/').collect();
+    if parts.len() == 2 {
+        let maybe_method = parts[0];
+        let path_part = parts[1];
+
+        // If the path part contains a file extension, the right side is a method name
+        if path_part.contains('.') && !maybe_method.contains('.') {
+            let file = extract_filename_from_path(path_part);
+            return UrlParts {
+                file_part: file.to_string(),
+                method_part: Some(maybe_method.to_string()),
+            };
+        }
+    }
+
+    // No method part, just extract filename
+    let file = extract_filename_from_path(clean);
+    UrlParts {
+        file_part: file.to_string(),
+        method_part: None,
+    }
+}
+
+fn extract_filename_from_path(path: &str) -> &str {
+    path.rsplit(['/', '\\']).next().unwrap_or(path)
+}
+
+fn find_handler_content<'a>(
+    handler_path: &str,
+    content_map: &std::collections::HashMap<&str, &'a str>,
+) -> Option<&'a str> {
+    // Direct match
+    if let Some(&c) = content_map.get(handler_path) {
+        return Some(c);
+    }
+    // Try with .cs or .vb suffix
+    let with_cs = format!("{handler_path}.cs");
+    if let Some(&c) = content_map.get(with_cs.as_str()) {
+        return Some(c);
+    }
+    let with_vb = format!("{handler_path}.vb");
+    if let Some(&c) = content_map.get(with_vb.as_str()) {
+        return Some(c);
+    }
+    // Partial match by filename
+    let filename = extract_filename_from_path(handler_path).to_lowercase();
+    for (&path, &content) in content_map {
+        let pf = extract_filename_from_path(path).to_lowercase();
+        if pf == filename || pf.starts_with(&filename) {
+            return Some(content);
+        }
+    }
+    None
 }
 
 // ── Phase 34: packages.config Parser ─────────────────────────────────────────
@@ -8554,6 +9254,7 @@ mod tests {
             base_classes: vec![],
             shared_lifecycle_methods: vec![],
             deepest_chain_depth: 0,
+            inherited_effects: vec![],
         }
     }
 
@@ -10070,7 +10771,7 @@ public class Foo : Page {
 "#;
         let result = extract_cs_method_body(code, "Page_Load");
         assert!(result.is_some(), "Should find Page_Load");
-        let (body, _, _, line_count) = result.unwrap();
+        let (body, _, _, _line_count) = result.unwrap();
         assert!(
             body.contains("@\"SELECT"),
             "Body should contain verbatim string"
@@ -10563,5 +11264,271 @@ End Class
         let score = compute_complexity_score(body);
         // 1 do while = 1, not 2 (do while + while)
         assert_eq!(score, 1, "do while should count as 1, not 2, got {score}");
+    }
+
+    // ── Phase 35: Inherited Effect Propagation ───────────────────────────
+
+    #[test]
+    fn inherited_effects_propagate_down() {
+        let code_files: Vec<(&str, &str)> = vec![
+            (
+                "BasePage.cs",
+                r#"
+public class BasePage : System.Web.UI.Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        Session["UserId"] = GetCurrentUser();
+        var cmd = new SqlCommand("SELECT * FROM Users");
+        cmd.ExecuteReader();
+    }
+    protected void Page_Init(object sender, EventArgs e) {
+        Session["Theme"] = "Default";
+    }
+}
+"#,
+            ),
+            (
+                "Default.aspx.cs",
+                r#"
+public class _Default : BasePage {
+    protected override void Page_Load(object sender, EventArgs e) {
+        base.Page_Load(sender, e);
+        lblWelcome.Text = "Hello";
+    }
+}
+"#,
+            ),
+        ];
+        let markup = vec![FileContent {
+            file_path: "Default.aspx".into(),
+            markup_content: r#"<%@ Page Inherits="_Default" %>"#.into(),
+            codebehind_content: None,
+        }];
+        let report = resolve_inheritance_chains(&code_files, &markup);
+        assert!(
+            !report.inherited_effects.is_empty(),
+            "should have inherited effects"
+        );
+        // BasePage.Page_Load writes Session and has SQL
+        let load_effects: Vec<&InheritedEffect> = report
+            .inherited_effects
+            .iter()
+            .filter(|e| e.inherited_from == "BasePage" && e.method == "Page_Load")
+            .collect();
+        assert!(
+            !load_effects.is_empty(),
+            "should inherit effects from BasePage.Page_Load"
+        );
+        assert!(
+            load_effects[0]
+                .effects
+                .iter()
+                .any(|e| e.contains("State_Access") || e.contains("Session")),
+            "should detect state access: {:?}",
+            load_effects[0].effects
+        );
+        assert!(
+            load_effects[0]
+                .effects
+                .iter()
+                .any(|e| e.contains("SQL_Access")),
+            "should detect SQL access: {:?}",
+            load_effects[0].effects
+        );
+    }
+
+    #[test]
+    fn inherited_effects_three_level_hierarchy() {
+        let code_files: Vec<(&str, &str)> = vec![
+            (
+                "BasePage.cs",
+                r#"
+public class BasePage : Page {
+    protected void Page_Init(object sender, EventArgs e) {
+        Session["UserId"] = GetUser();
+    }
+}
+"#,
+            ),
+            (
+                "SectionPage.cs",
+                r#"
+public class SectionPage : BasePage {
+    protected void Page_Load(object sender, EventArgs e) {
+        var cmd = new SqlCommand("SELECT * FROM Sections");
+        cmd.ExecuteReader();
+    }
+}
+"#,
+            ),
+            (
+                "Default.aspx.cs",
+                r#"
+public class _Default : SectionPage {
+    protected void btnSave_Click(object sender, EventArgs e) {
+        lblStatus.Text = "Saved";
+    }
+}
+"#,
+            ),
+        ];
+        let markup = vec![FileContent {
+            file_path: "Default.aspx".into(),
+            markup_content: r#"<%@ Page Inherits="_Default" %>"#.into(),
+            codebehind_content: None,
+        }];
+        let report = resolve_inheritance_chains(&code_files, &markup);
+        // _Default inherits from SectionPage which inherits from BasePage
+        // Should get effects from both ancestors
+        let from_basepage: Vec<&InheritedEffect> = report
+            .inherited_effects
+            .iter()
+            .filter(|e| e.class == "_Default" && e.inherited_from == "BasePage")
+            .collect();
+        let from_section: Vec<&InheritedEffect> = report
+            .inherited_effects
+            .iter()
+            .filter(|e| e.class == "_Default" && e.inherited_from == "SectionPage")
+            .collect();
+        assert!(!from_basepage.is_empty(), "should inherit from BasePage");
+        assert!(!from_section.is_empty(), "should inherit from SectionPage");
+    }
+
+    // ── Phase 35: Cross-Layer Tracing ────────────────────────────────────
+
+    #[test]
+    fn cross_layer_trace_ajax_to_handler() {
+        let js_analysis = JsAnalysisSummary {
+            total_js_files: 1,
+            js_files_with_server_deps: 1,
+            dom_manipulations: vec![],
+            postback_triggers: vec![],
+            ajax_calls: vec![JsAjaxCall {
+                js_file: "search.js".into(),
+                target_url: "Services/MapData.asmx/GetPoints".into(),
+                transport: "jquery_ajax".into(),
+                target_method: Some("GetPoints".into()),
+                target_type: "asmx".into(),
+            }],
+            page_js_dependencies: BTreeMap::new(),
+            inline_script_files: vec![],
+            jquery_version_hint: None,
+        };
+
+        let sp_catalog = StoredProcedureCatalog {
+            procedures: vec![StoredProcedureInfo {
+                name: "sp_GetPoints".into(),
+                parameters: vec![],
+                tables_read: vec!["Locations".into()],
+                tables_written: vec![],
+                called_from: vec!["MapData.asmx.cs".into()],
+                line_count: 20,
+                has_dynamic_sql: false,
+                has_cursor: false,
+                modern_equivalent: String::new(),
+            }],
+            total_procedures: 1,
+            procedures_with_params: 0,
+            procedures_called_from_code: 1,
+            uncalled_procedures: vec![],
+        };
+
+        let service_endpoints = ServiceEndpointSummary {
+            web_services: vec![ServiceEndpoint {
+                file_path: "Services/MapData.asmx".into(),
+                service_name: "MapData".into(),
+                methods: vec!["GetPoints".into()],
+                modern_equivalent: "Web API".into(),
+                called_by: vec![],
+            }],
+            http_handlers: vec![],
+            wcf_services: vec![],
+            http_modules: vec![],
+            route_handlers: vec![],
+            total_endpoints: 1,
+        };
+
+        let code_files: Vec<(&str, &str)> = vec![(
+            "Services/MapData.asmx.cs",
+            r#"
+public class MapData : WebService {
+    [WebMethod]
+    public string GetPoints() {
+        var cmd = new SqlCommand();
+        cmd.CommandText = "sp_GetPoints";
+        cmd.CommandType = CommandType.StoredProcedure;
+        return cmd.ExecuteReader().ToString();
+    }
+}
+"#,
+        )];
+
+        let traces =
+            build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_files);
+
+        assert!(!traces.chains.is_empty(), "should have at least one chain");
+        assert!(
+            traces.chains[0].steps.len() >= 2,
+            "chain should have client + handler steps, got {}",
+            traces.chains[0].steps.len()
+        );
+        assert_eq!(traces.chains[0].steps[0].layer, "client");
+        assert_eq!(traces.chains[0].steps[1].layer, "handler");
+    }
+
+    #[test]
+    fn cross_layer_unresolved_url_tracked() {
+        let js_analysis = JsAnalysisSummary {
+            total_js_files: 1,
+            js_files_with_server_deps: 1,
+            dom_manipulations: vec![],
+            postback_triggers: vec![],
+            ajax_calls: vec![JsAjaxCall {
+                js_file: "app.js".into(),
+                target_url: "NonExistent.ashx/DoStuff".into(),
+                transport: "fetch".into(),
+                target_method: Some("DoStuff".into()),
+                target_type: "ashx".into(),
+            }],
+            page_js_dependencies: BTreeMap::new(),
+            inline_script_files: vec![],
+            jquery_version_hint: None,
+        };
+
+        let sp_catalog = StoredProcedureCatalog {
+            procedures: vec![],
+            total_procedures: 0,
+            procedures_with_params: 0,
+            procedures_called_from_code: 0,
+            uncalled_procedures: vec![],
+        };
+        let service_endpoints = ServiceEndpointSummary {
+            web_services: vec![],
+            http_handlers: vec![],
+            wcf_services: vec![],
+            http_modules: vec![],
+            route_handlers: vec![],
+            total_endpoints: 0,
+        };
+
+        let traces = build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &[]);
+
+        assert!(
+            traces.chains.is_empty(),
+            "no chain should be built for unresolved URL"
+        );
+        assert!(
+            !traces.unresolved_urls.is_empty(),
+            "unresolved URL should be tracked"
+        );
+    }
+
+    #[test]
+    fn cross_layer_url_parts_extraction() {
+        let parts = extract_url_parts("Services/MapData.asmx/GetPolygons?bounds=1,2,3,4");
+        assert_eq!(parts.file_part, "MapData.asmx");
+        assert_eq!(parts.method_part.as_deref(), Some("GetPolygons"));
+
+        let parts2 = extract_url_parts("api/search");
+        assert!(parts2.method_part.is_none() || parts2.file_part == "search");
     }
 }
