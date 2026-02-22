@@ -8884,10 +8884,17 @@ End Sub
             .collect();
 
         // ── Phase 34: Discover .sql, packages.config, web.*.config, .resx, .master files ─
+        // Run all 5 discovery scans concurrently for better I/O parallelism.
+        let proj_dir_ref = std::path::Path::new(&project_dir);
+        let (sql_file_paths, pkgconfig_paths, config_paths, resx_paths, master_paths) = tokio::join!(
+            discover_files_recursive(proj_dir_ref, &[".sql"], 100),
+            discover_files_recursive(proj_dir_ref, &["packages.config"], 20),
+            discover_files_recursive(proj_dir_ref, &[".config"], 100),
+            discover_files_recursive(proj_dir_ref, &[".resx"], 200),
+            discover_files_recursive(proj_dir_ref, &[".master"], 50),
+        );
 
         // 12a. SQL files for stored procedure catalog
-        let sql_file_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 100).await;
         let sql_files: Vec<(String, String)> = sql_file_paths
             .into_iter()
             .filter_map(|rel| {
@@ -8897,9 +8904,6 @@ End Sub
             .collect();
 
         // 12b. packages.config files (legacy NuGet format)
-        let pkgconfig_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &["packages.config"], 20)
-                .await;
         let packages_config_files: Vec<(String, String)> = pkgconfig_paths
             .into_iter()
             .filter(|p| p.ends_with("packages.config"))
@@ -8910,8 +8914,6 @@ End Sub
             .collect();
 
         // 12c. Config transform files (web.Debug.config, web.Release.config, etc.)
-        let config_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".config"], 100).await;
         let config_transform_files: Vec<(String, String)> = config_paths
             .into_iter()
             .filter(|p| {
@@ -8928,8 +8930,6 @@ End Sub
             .collect();
 
         // 12d. .resx resource files
-        let resx_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".resx"], 200).await;
         let resx_files: Vec<(String, String)> = resx_paths
             .into_iter()
             .filter_map(|rel| {
@@ -8939,8 +8939,6 @@ End Sub
             .collect();
 
         // 12e. .master files (already discovered in markup scan, but we need raw content)
-        let master_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".master"], 50).await;
         let master_files: Vec<(String, String)> = master_paths
             .into_iter()
             .filter_map(|rel| {
