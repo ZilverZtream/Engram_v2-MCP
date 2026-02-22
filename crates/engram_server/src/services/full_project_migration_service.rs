@@ -75,6 +75,10 @@ pub struct FullProjectMigrationReport {
     // ── Phase 36: business logic comprehension ───────────────────────────
     pub business_logic: super::business_logic_service::ProjectBusinessLogicReport,
 
+    // ── Phase 37: intelligence amplification ─────────────────────────────
+    pub database_intelligence: super::database_intelligence_service::DatabaseIntelligence,
+    pub session_workflows: super::session_workflow_service::SessionWorkflowReport,
+
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
 }
@@ -1368,7 +1372,43 @@ pub fn analyze_full_project(
         }
     };
 
-    // ── 7. Render markdown ────────────────────────────────────────────────
+    // ── 7. Phase 37: Database Intelligence ─────────────────────────────
+
+    // Collect code-level table references for cross-referencing
+    let code_tables: std::collections::HashSet<String> = {
+        let mut tables = std::collections::HashSet::new();
+        for sp in &sp_catalog.procedures {
+            for t in &sp.tables_read {
+                tables.insert(t.clone());
+            }
+            for t in &sp.tables_written {
+                tables.insert(t.clone());
+            }
+        }
+        // Also add tables from cross-cutting shared SQL tables
+        for item in &cross_cutting.shared_sql_tables {
+            tables.insert(item.name.clone());
+        }
+        tables
+    };
+
+    let sql_refs: Vec<(String, String)> = bundle
+        .sql_files
+        .iter()
+        .map(|(p, c)| (p.clone(), c.clone()))
+        .collect();
+    let database_intelligence = super::database_intelligence_service::build_database_intelligence(
+        &sp_catalog,
+        &sql_refs,
+        &code_tables,
+    );
+
+    // ── 8. Phase 37: Session Workflow Reconstruction ────────────────────
+
+    let session_workflows =
+        super::session_workflow_service::reconstruct_session_workflows(graph, project_id);
+
+    // ── 9. Render markdown ──────────────────────────────────────────────
 
     let markdown_report = render_markdown(
         project_id,
@@ -1407,6 +1447,8 @@ pub fn analyze_full_project(
         &jquery_inventory,
         &cross_layer_traces,
         &business_logic,
+        &database_intelligence,
+        &session_workflows,
     );
 
     Ok(FullProjectMigrationReport {
@@ -1445,8 +1487,188 @@ pub fn analyze_full_project(
         jquery_inventory,
         cross_layer_traces,
         business_logic,
+        database_intelligence,
+        session_workflows,
         markdown_report,
     })
+}
+
+// ── Ticket 37.1: Async LLM Enhancement Pass ──────────────────────────────────
+
+/// Upgrade deterministic business logic summaries with LLM-powered analysis.
+///
+/// This is an async post-processing step. For each file in the report's
+/// business_logic section, if we have the source content, we call the LLM
+/// to produce step-by-step explanations. If the LLM fails for a method,
+/// the deterministic version is kept. Each LLM result is then validated
+/// against the deterministic extraction (Ticket 37.2).
+pub async fn enhance_report_with_llm(
+    report: &mut FullProjectMigrationReport,
+    dreaming: &engram_ml::DreamingEngine,
+    file_contents: &std::collections::HashMap<String, String>,
+    max_concurrent: usize,
+) {
+    use super::business_logic_service::{analyze_file_logic, validate_llm_output};
+
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent));
+    let dreaming = Arc::new(dreaming.clone());
+    let cached: Arc<std::collections::HashMap<String, String>> =
+        Arc::new(std::collections::HashMap::new());
+
+    let mut handles = Vec::new();
+
+    for file_summary in &report.business_logic.file_summaries {
+        let file_path = file_summary.file_path.clone();
+
+        // Look up the file content — try direct path first, then codebehind path
+        let content = file_contents.get(&file_path).cloned().or_else(|| {
+            report
+                .method_inventories
+                .get(&file_path)
+                .and_then(|inv| file_contents.get(&inv.codebehind_path))
+                .cloned()
+        });
+
+        let Some(content) = content else {
+            continue;
+        };
+
+        let sem = semaphore.clone();
+        let dream = dreaming.clone();
+        let cache = cached.clone();
+
+        let handle = tokio::spawn(async move {
+            let _permit = sem.acquire().await.expect("semaphore closed");
+            let (file_logic, analyzed, skipped) =
+                analyze_file_logic(&dream, &file_path, &content, &cache).await;
+            (file_path, file_logic, analyzed, skipped)
+        });
+        handles.push(handle);
+    }
+
+    // Collect LLM results
+    let mut llm_results: std::collections::HashMap<
+        String,
+        super::business_logic_service::FileBusinessLogic,
+    > = std::collections::HashMap::new();
+    let mut total_analyzed = 0usize;
+    let mut total_failures = 0usize;
+
+    for handle in handles {
+        match handle.await {
+            Ok((file_path, file_logic, analyzed, _skipped)) => {
+                total_analyzed += analyzed;
+                total_failures += file_logic
+                    .methods
+                    .iter()
+                    .filter(|m| m.purpose.is_empty())
+                    .count();
+                llm_results.insert(file_path, file_logic);
+            }
+            Err(e) => {
+                tracing::warn!("LLM enhancement task failed: {e}");
+                total_failures += 1;
+            }
+        }
+    }
+
+    // Merge LLM results into the report, validating each method
+    for file_summary in &mut report.business_logic.file_summaries {
+        if let Some(llm_file) = llm_results.get(&file_summary.file_path) {
+            // Update file-level purpose
+            if !llm_file.file_purpose.is_empty() {
+                file_summary.file_purpose = llm_file.file_purpose.clone();
+            }
+
+            // For each method, try to find the LLM version and validate
+            for det_method in &mut file_summary.methods {
+                if let Some(llm_method) = llm_file
+                    .methods
+                    .iter()
+                    .find(|m| m.method_name == det_method.method_name)
+                {
+                    if llm_method.purpose.is_empty() {
+                        // LLM failed for this method, keep deterministic
+                        continue;
+                    }
+
+                    // Validate against deterministic effects
+                    let effects: Vec<String> = det_method
+                        .side_effects_detail
+                        .split(", ")
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                        .collect();
+                    let validation = validate_llm_output(llm_method, det_method, &effects);
+
+                    // Upgrade the method with LLM data
+                    det_method.purpose = llm_method.purpose.clone();
+                    det_method.steps = llm_method.steps.clone();
+                    det_method.business_rules = llm_method.business_rules.clone();
+                    det_method.data_flow = llm_method.data_flow.clone();
+                    det_method.error_handling = llm_method.error_handling.clone();
+                    // Keep deterministic side_effects_detail (more reliable)
+                    det_method.confidence = validation.confidence.to_string();
+                    det_method.validation_warnings = validation.warnings;
+                }
+            }
+        }
+    }
+
+    report.business_logic.methods_analyzed = total_analyzed;
+    report.business_logic.llm_failures = total_failures;
+
+    // Re-render the markdown with upgraded data
+    let wave_lookup: BTreeMap<String, u32> = {
+        let mut wl = BTreeMap::new();
+        for wave in &report.migration_order.waves {
+            for wf in &wave.files {
+                wl.insert(wf.path.clone(), wave.wave_number);
+            }
+        }
+        wl
+    };
+
+    report.markdown_report = render_markdown(
+        &report.project_id,
+        &report.target_stack,
+        &report.generated_at,
+        &report.migration_order,
+        &report.state_migration,
+        &report.auth_config,
+        &report.data_access_profiles,
+        &report.page_dossiers,
+        &report.cross_cutting,
+        &wave_lookup,
+        &report.js_analysis,
+        &report.gis_analysis,
+        &report.web_config_inventory,
+        &report.service_endpoints,
+        &report.global_asax,
+        &report.anti_patterns,
+        &report.classic_asp,
+        &report.reports,
+        &report.method_inventories,
+        &report.third_party_controls,
+        &report.dependency_inventory,
+        &report.caching_inventory,
+        &report.url_routing,
+        &report.vb_translation,
+        &report.multi_tenancy,
+        &report.email_patterns,
+        &report.background_jobs,
+        &report.sp_catalog,
+        &report.inheritance_chains,
+        &report.config_transforms,
+        &report.master_page_regions,
+        &report.resource_inventory,
+        &report.vb_translation_traps,
+        &report.jquery_inventory,
+        &report.cross_layer_traces,
+        &report.business_logic,
+        &report.database_intelligence,
+        &report.session_workflows,
+    );
 }
 
 // ── Cross-cutting aggregation ─────────────────────────────────────────────────
@@ -5084,8 +5306,10 @@ fn render_markdown(
     jquery_inv: &engram_index::jquery_inventory::JQueryInventory,
     cross_traces: &CrossLayerTraceSummary,
     biz_logic: &super::business_logic_service::ProjectBusinessLogicReport,
+    db_intel: &super::database_intelligence_service::DatabaseIntelligence,
+    session_wf: &super::session_workflow_service::SessionWorkflowReport,
 ) -> String {
-    let mut md = String::with_capacity(160_000);
+    let mut md = String::with_capacity(180_000);
 
     // ── Header ────────────────────────────────────────────────────────────
     md.push_str(&format!(
@@ -7481,10 +7705,145 @@ fn render_markdown(
         md.push_str(&super::business_logic_service::render_compact_markdown(
             biz_logic,
         ));
-        md.push_str("\n> **Tip**: Run `analyze_business_logic` with an LLM backend configured ");
-        md.push_str("for detailed step-by-step method explanations powered by Qwen 2.5 Coder.\n\n");
+        // Show tip only when no LLM was used (no confidence data present)
+        let has_llm_data = biz_logic
+            .file_summaries
+            .iter()
+            .any(|f| f.methods.iter().any(|m| !m.confidence.is_empty()));
+        if !has_llm_data {
+            md.push_str("\n> **Tip**: Run `analyze_full_project_migration` with `use_llm: true` ");
+            md.push_str(
+                "for LLM-powered business logic comprehension with confidence scoring.\n\n",
+            );
+        }
     }
 
+    // ── Phase 37: Database Intelligence ──────────────────────────────────
+    md.push_str(
+        &super::database_intelligence_service::render_database_intelligence_markdown(db_intel),
+    );
+
+    // ── Phase 37: Session Workflows ─────────────────────────────────────
+    md.push_str(&super::session_workflow_service::render_session_workflows_markdown(session_wf));
+
+    // ── Phase 37: Migration Intelligence Confidence Dashboard ───────────
+    md.push_str(&render_confidence_dashboard(
+        cross, biz_logic, db_intel, session_wf,
+    ));
+
+    md
+}
+
+/// Render a top-level confidence dashboard summarizing intelligence coverage.
+fn render_confidence_dashboard(
+    cross: &CrossCuttingSummary,
+    biz_logic: &super::business_logic_service::ProjectBusinessLogicReport,
+    db_intel: &super::database_intelligence_service::DatabaseIntelligence,
+    session_wf: &super::session_workflow_service::SessionWorkflowReport,
+) -> String {
+    let mut md = String::with_capacity(2_000);
+    md.push_str("## Migration Intelligence Confidence\n\n");
+    md.push_str("| Dimension | Coverage | Confidence |\n|---|---|---|\n");
+
+    // Code Structure
+    md.push_str(&format!(
+        "| Code Structure | {} pages analyzed | {} |\n",
+        cross.total_pages_analyzed,
+        if cross.total_pages_analyzed > 0 {
+            "✅ High"
+        } else {
+            "❌ Low"
+        }
+    ));
+
+    // Business Logic — single pass for confidence counts
+    let total_methods: usize = biz_logic
+        .file_summaries
+        .iter()
+        .map(|f| f.methods.len())
+        .sum();
+    let (mut llm_methods, mut high_conf, mut med_conf, mut low_conf) =
+        (0usize, 0usize, 0usize, 0usize);
+    for m in biz_logic.file_summaries.iter().flat_map(|f| &f.methods) {
+        if !m.confidence.is_empty() {
+            llm_methods += 1;
+            match m.confidence.as_str() {
+                "High" => high_conf += 1,
+                "Medium" => med_conf += 1,
+                "Low" => low_conf += 1,
+                _ => {}
+            }
+        }
+    }
+
+    if llm_methods > 0 {
+        md.push_str(&format!(
+            "| Business Logic | {llm_methods}/{total_methods} methods analyzed by LLM | ✅ High ({high_conf}), ⚠️ Medium ({med_conf}), ❌ Low ({low_conf}) |\n"
+        ));
+    } else {
+        md.push_str(&format!(
+            "| Business Logic | {total_methods} methods (deterministic only) | ⚠️ Medium (no LLM) |\n"
+        ));
+    }
+
+    // Database
+    let sp_count = db_intel.sp_logic.len();
+    let trigger_count = db_intel.triggers.len();
+    let table_count = db_intel.schema.tables.len();
+    let db_confidence = if sp_count > 0 && table_count > 0 {
+        "✅ High"
+    } else if sp_count > 0 || table_count > 0 {
+        "⚠️ Medium"
+    } else {
+        "ℹ️ No SQL files"
+    };
+    md.push_str(&format!(
+        "| Database | {table_count} tables in schema, {sp_count} SPs analyzed, {trigger_count} triggers | {db_confidence} |\n"
+    ));
+
+    // Session Workflows
+    let wf_count = session_wf.cross_page_chains;
+    let wf_confidence = if session_wf.total_keys > 0 {
+        if session_wf.warnings.is_empty() {
+            "✅ High"
+        } else {
+            "⚠️ Medium"
+        }
+    } else {
+        "ℹ️ No state detected"
+    };
+    md.push_str(&format!(
+        "| Session Workflows | {} keys, {wf_count} cross-page flows | {wf_confidence} |\n",
+        session_wf.total_keys
+    ));
+
+    // Data Access
+    md.push_str(&format!(
+        "| Data Access | {} SPs, {} called from code | {} |\n",
+        cross.total_stored_procedures,
+        cross.total_sp_called_from_code,
+        if cross.total_sp_called_from_code > 0 {
+            "✅ High"
+        } else if cross.total_stored_procedures > 0 {
+            "⚠️ Medium"
+        } else {
+            "ℹ️ No SPs"
+        }
+    ));
+
+    // External Integrations
+    let ext_count = cross.total_service_endpoints;
+    md.push_str(&format!(
+        "| External Integrations | {} service endpoints | {} |\n",
+        ext_count,
+        if ext_count > 0 {
+            "⚠️ Medium (contracts not parsed)"
+        } else {
+            "ℹ️ None detected"
+        }
+    ));
+
+    md.push('\n');
     md
 }
 
@@ -11666,6 +12025,8 @@ public class MapData : WebService {
                     error_handling: String::new(),
                     side_effects_detail: String::new(),
                     content_hash: "h".to_string(),
+                    confidence: String::new(),
+                    validation_warnings: vec![],
                 }],
                 analyzed_at: "2026-01-01".to_string(),
             }],

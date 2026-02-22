@@ -1391,6 +1391,12 @@ pub struct AnalyzeFullProjectMigrationRequest {
     /// Return JSON output instead of markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
+    /// Use LLM to enhance business logic analysis (async post-processing). Default: false.
+    /// When true and an LLM backend is configured, the deterministic business logic
+    /// summaries are upgraded with LLM-powered step-by-step explanations and validated
+    /// against static analysis for confidence scoring.
+    #[serde(default)]
+    pub use_llm: bool,
 }
 
 // ── Phase 36: Business Logic Comprehension ───────────────────────────────────
