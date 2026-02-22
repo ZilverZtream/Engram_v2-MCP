@@ -106,6 +106,7 @@ engram-v2/
 | `reconcile_runtime_evidence` | implemented |
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
+| `generate_strangler_fig_config` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Phase 27: Gold Standard Hardening
@@ -195,9 +196,9 @@ Promoted `analyze_file_coding_style` from experimental to implemented and `graph
 | `tree-sitter-java` | Java parsing for coding style analysis |
 | `tree-sitter-go` | Go parsing for coding style analysis |
 
-## Phase 30: End-to-End Migration Engine
+## Phase 30: End-to-End Migration Engine + Phase 30a Hardening
 
-Closes 8 structural gaps between legacy code comprehension and autonomous migration.
+Closes 8 structural gaps between legacy code comprehension and autonomous migration, then hardens 7 shortcomings to production quality.
 
 ### New modules
 
@@ -206,23 +207,36 @@ Closes 8 structural gaps between legacy code comprehension and autonomous migrat
 | `control_mapping.rs` | `engram_index` | 50-entry WebForms → Blazor/React/Angular control mapping catalog |
 | `asp_classic_extractor.rs` | `engram_index` | Classic ASP (.asp) extraction: COM objects, ADO, state, SQL, navigation, includes |
 | `report_extractor.rs` | `engram_index` | SSRS (.rdlc/.rdl) and Crystal Reports detection and parameter/dataset extraction |
-| `scaffold_service.rs` | `engram_server` | Migration scaffold generator (Blazor/React/Angular components, repos, DTOs, tests) |
+| `scaffold_service.rs` | `engram_server` | Migration scaffold generator with real business logic from graph edges, async/await guidance |
 | `db_strategy_service.rs` | `engram_server` | Data access pattern classifier, repository interface generator, SQL injection scorer |
-| `instrumentation_service.rs` | `engram_server` | C#/VB.NET HttpModule instrumentation generator + static-vs-runtime reconciliation |
+| `instrumentation_service.rs` | `engram_server` | C#/VB.NET HttpModule generator + session/SQL wrappers + static-vs-runtime reconciliation |
 | `state_migration_service.rs` | `engram_server` | Per-key state migration recommendations with ViewState lifecycle analysis |
-| `characterization_test_service.rs` | `engram_server` | NUnit/xUnit/MSTest characterization test generator from graph analysis |
+| `characterization_test_service.rs` | `engram_server` | NUnit/xUnit/MSTest test generator producing executable test bodies with helper infrastructure |
+| `strangler_fig_service.rs` | `engram_server` | YARP reverse proxy, feature flags, routing middleware, health check, Program.cs registration |
 
 ### Modified modules
 
 | Module | Changes |
 |--------|---------|
-| `vb_extractor.rs` (engram_index) | 5 new VB.NET extraction functions: On Error, With blocks, late binding, My. namespace, ReDim |
-| `js_extractor.rs` (engram_index) | GIS deep extraction: Leaflet/Esri/ArcGIS layer inventory, spatial API detection |
+| `vb_extractor.rs` (engram_index) | Nested With block stack, On Error GoTo label resolution (two-pass), CreateObject propagation/alias tracking, late-bound method detection, My. namespace, ReDim |
+| `js_extractor.rs` (engram_index) | 30+ Google Maps classes, 80+ Esri/ArcGIS ES module classes, migration complexity assessment, library loading detection |
 | `pattern_detection_service.rs` (engram_server) | Windows Service detection (ServiceBase, TopShelf, BackgroundService) |
-| `tools.rs` (engram_server) | 5 new tool handlers |
-| `requests.rs` (engram_server) | 5 new request structs |
-| `capabilities.rs` (engram_server) | 5 new capability flags |
+| `tools.rs` (engram_server) | 6 new tool handlers (includes `generate_strangler_fig_config`) |
+| `requests.rs` (engram_server) | 6 new request structs (includes `GenerateStranglerFigRequest`) |
+| `capabilities.rs` (engram_server) | 6 new capability flags |
 | `config.rs` (engram_core) | 5 new config fields |
+
+### Phase 30a Hardening Details
+
+| Gap | Fix | Description |
+|-----|-----|-------------|
+| Scaffold stubs | Real business logic | Handlers generate actual SQL→repository calls, state→get/set, navigation→routing from graph edges per framework |
+| Test stubs | Executable bodies | Tests create page instances via TestPageFactory, invoke handlers, assert with MockHttpSession/TestDbFactory/MockResponseRecorder |
+| GIS gaps | Enterprise coverage | Google Maps expanded to 30+ classes; Esri/ArcGIS expanded to 80+ ES module classes with 3D/widgets/geoprocessing/portal/auth |
+| No session/SQL wrappers | Auto-generation | InstrumentedSessionStateWrapper (IHttpSessionState) + InstrumentedDbCommand (DbCommand) with timing/error logging |
+| No strangler fig | Full infrastructure | YARP config, FeatureFlagMiddleware, StranglerFigMiddleware with sticky sessions, MigrationHealthCheck, Program.cs with Polly + CorrelationId |
+| No async/await guidance | Conversion notes | Scaffolds include ConfigureAwait guidance and sync→async transformation comments |
+| Shallow VB.NET patterns | Deep nesting | Stack-based With blocks, two-pass label resolution, CreateObject variable propagation |
 
 ### New config fields
 
@@ -243,8 +257,9 @@ Closes 8 structural gaps between legacy code comprehension and autonomous migrat
 | `ReconcileRuntimeEvidenceRequest` | project_id, evidence_json |
 | `SuggestStateMigrationRequest` | project_id, output_json |
 | `GenerateCharacterizationTestsRequest` | project_id, file_path, framework, output_json |
+| `GenerateStranglerFigRequest` | project_id, legacy_base_url, modern_base_url |
 
-### Test coverage: 121 new tests
+### Test coverage: 138+ tests
 
 | Module | Tests |
 |--------|-------|
@@ -256,9 +271,10 @@ Closes 8 structural gaps between legacy code comprehension and autonomous migrat
 | `instrumentation_service` | 11 |
 | `state_migration_service` | 15 |
 | `characterization_test_service` | 6 |
+| `strangler_fig_service` | 17 |
 | `pattern_detection_service` | 3 (includes Windows Service) |
 | doc tests | 2 (control_mapping) |
-| **Total** | **121** |
+| **Total** | **138+** |
 
 ## Source-of-truth sync rule
 

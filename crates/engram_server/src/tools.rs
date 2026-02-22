@@ -7038,6 +7038,20 @@ End Sub
         out.push_str(&result.vb_module);
         out.push_str("```\n\n");
 
+        if let Some(ref wrapper) = result.session_wrapper {
+            out.push_str(
+                "## Session State Wrapper (InstrumentedSessionStateWrapper.cs)\n```csharp\n",
+            );
+            out.push_str(wrapper);
+            out.push_str("```\n\n");
+        }
+
+        if let Some(ref wrapper) = result.sql_wrapper {
+            out.push_str("## SQL Command Wrapper (InstrumentedDbCommand.cs)\n```csharp\n");
+            out.push_str(wrapper);
+            out.push_str("```\n\n");
+        }
+
         out.push_str("## web.config Entries\n```xml\n");
         out.push_str(&result.webconfig_entries);
         out.push_str("```\n\n");
@@ -7069,8 +7083,9 @@ End Sub
         let pid = req.project_id.clone();
 
         let batch: engram_core::runtime_evidence::RuntimeEvidenceBatch =
-            serde_json::from_str(&req.evidence_json)
-                .map_err(|e| McpError::invalid_params(format!("Invalid evidence JSON: {e}"), None))?;
+            serde_json::from_str(&req.evidence_json).map_err(|e| {
+                McpError::invalid_params(format!("Invalid evidence JSON: {e}"), None)
+            })?;
 
         let report = tokio::task::spawn_blocking(move || {
             crate::services::instrumentation_service::reconcile_runtime_evidence(
@@ -7190,7 +7205,10 @@ End Sub
             out.push_str(&format!("### {}\n", rec.state_key));
             out.push_str(&format!("- **Store**: {:?}\n", rec.store_type));
             out.push_str(&format!("- **Pattern**: {:?}\n", rec.access_pattern));
-            out.push_str(&format!("- **Type inference**: {}\n", rec.data_type_inference));
+            out.push_str(&format!(
+                "- **Type inference**: {}\n",
+                rec.data_type_inference
+            ));
             out.push_str(&format!(
                 "- **Readers**: {} | **Writers**: {}\n",
                 rec.readers.len(),
@@ -7198,7 +7216,10 @@ End Sub
             ));
             out.push_str(&format!("- **Target**: {}\n", rec.recommended_target));
             out.push_str(&format!("- **Reasoning**: {}\n", rec.reasoning));
-            out.push_str(&format!("- **Code hint**: `{}`\n\n", rec.migration_code_hint));
+            out.push_str(&format!(
+                "- **Code hint**: `{}`\n\n",
+                rec.migration_code_hint
+            ));
         }
 
         if let Some(ref vs) = report.viewstate_report {
@@ -7246,10 +7267,7 @@ End Sub
 
         let result = tokio::task::spawn_blocking(move || {
             crate::services::characterization_test_service::generate_characterization_tests(
-                &graph,
-                &pid,
-                &file_path,
-                &framework,
+                &graph, &pid, &file_path, &framework,
             )
         })
         .await
@@ -7288,6 +7306,94 @@ End Sub
             for w in &result.warnings {
                 out.push_str(&format!("- {w}\n"));
             }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Generate strangler fig migration infrastructure (YARP, feature flags, middleware, health check).
+    #[tool(
+        name = "generate_strangler_fig_config",
+        description = "Generate complete strangler fig migration infrastructure for incremental cutover from legacy ASP.NET WebForms to modern stack. Produces YARP reverse proxy configuration, Microsoft.FeatureManagement feature flags, routing middleware with percentage-based rollout, and a health check endpoint reporting migration progress."
+    )]
+    pub async fn generate_strangler_fig_config(
+        &self,
+        params: Parameters<GenerateStranglerFigRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let legacy_url = req.legacy_base_url.clone();
+        let modern_url = req.modern_base_url.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::strangler_fig_service::generate_strangler_fig_config(
+                &graph,
+                &pid,
+                &legacy_url,
+                &modern_url,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = String::from("# Strangler Fig Migration Infrastructure\n\n");
+
+        out.push_str(&format!(
+            "**Pages discovered**: {} total ({} migrated, {} unmigrated)\n\n",
+            result.migrated_pages.len() + result.unmigrated_pages.len(),
+            result.migrated_pages.len(),
+            result.unmigrated_pages.len(),
+        ));
+
+        // YARP reverse proxy config
+        out.push_str("## YARP Reverse Proxy (appsettings.YARP.json)\n```json\n");
+        out.push_str(&result.yarp_config);
+        out.push_str("```\n\n");
+
+        // Feature flags config + middleware
+        out.push_str("## Feature Flags (appsettings.FeatureFlags.json + FeatureFlagMiddleware.cs)\n```csharp\n");
+        out.push_str(&result.feature_flags_config);
+        out.push_str("```\n\n");
+
+        // Routing middleware
+        out.push_str(
+            "## Strangler Fig Routing Middleware (StranglerFigMiddleware.cs)\n```csharp\n",
+        );
+        out.push_str(&result.routing_middleware);
+        out.push_str("```\n\n");
+
+        // Health check
+        out.push_str("## Migration Health Check (MigrationHealthCheck.cs)\n```csharp\n");
+        out.push_str(&result.health_check);
+        out.push_str("```\n\n");
+
+        // Program.cs registration
+        out.push_str("## Program.cs Registration (with Polly, Correlation ID, Session Affinity)\n```csharp\n");
+        out.push_str(&result.program_cs);
+        out.push_str("```\n\n");
+
+        // Page inventory
+        if !result.migrated_pages.is_empty() {
+            out.push_str("## Migrated Pages\n");
+            for p in &result.migrated_pages {
+                out.push_str(&format!("- ✅ {p}\n"));
+            }
+            out.push('\n');
+        }
+        if !result.unmigrated_pages.is_empty() {
+            out.push_str("## Unmigrated Pages\n");
+            for p in &result.unmigrated_pages {
+                out.push_str(&format!("- ⬜ {p}\n"));
+            }
+            out.push('\n');
+        }
+
+        // Deployment steps
+        out.push_str("## Deployment Steps\n");
+        for step in &result.deployment_steps {
+            out.push_str(&format!("{step}\n"));
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))

@@ -77,6 +77,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `reconcile_runtime_evidence` | implemented |
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
+| `generate_strangler_fig_config` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Notes

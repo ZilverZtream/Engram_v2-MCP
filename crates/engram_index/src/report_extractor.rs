@@ -175,22 +175,10 @@ pub fn extract_ssrs_report(
     let mut has_subreports = false;
 
     // ── Data sources ────────────────────────────────────────────────────────
-    extract_ssrs_data_sources(
-        source,
-        &line_offsets,
-        &file_path,
-        &mut symbols,
-        &mut edges,
-    );
+    extract_ssrs_data_sources(source, &line_offsets, &file_path, &mut symbols, &mut edges);
 
     // ── Command text (SQL queries in datasets) ──────────────────────────────
-    extract_ssrs_command_text(
-        source,
-        &line_offsets,
-        &file_path,
-        &file_name,
-        &mut edges,
-    );
+    extract_ssrs_command_text(source, &line_offsets, &file_path, &file_name, &mut edges);
 
     // ── Dataset count ───────────────────────────────────────────────────────
     if let Some(ds_re) = get_compiled_regex(
@@ -215,13 +203,7 @@ pub fn extract_ssrs_report(
     }
 
     // ── Dataset field columns ───────────────────────────────────────────────
-    extract_ssrs_data_fields(
-        source,
-        &line_offsets,
-        &file_path,
-        &file_name,
-        &mut edges,
-    );
+    extract_ssrs_data_fields(source, &line_offsets, &file_path, &file_name, &mut edges);
 
     // ── Subreport references ────────────────────────────────────────────────
     if let Some(sub_re) = get_compiled_regex(
@@ -846,7 +828,10 @@ mod tests {
         let (syms, edges) = extract_ssrs_report(&rel, rdl);
 
         // Report symbol.
-        let report = syms.iter().find(|s| s.kind == "report").expect("report symbol");
+        let report = syms
+            .iter()
+            .find(|s| s.kind == "report")
+            .expect("report symbol");
         assert_eq!(report.name, "OrderReport.rdl");
         let meta = report.metadata.as_ref().expect("report meta");
         assert_eq!(meta.get("report_type").map(|s| s.as_str()), Some("ssrs"));
@@ -858,7 +843,10 @@ mod tests {
         );
 
         // Insight symbol.
-        let insight = syms.iter().find(|s| s.kind == "insight").expect("insight symbol");
+        let insight = syms
+            .iter()
+            .find(|s| s.kind == "insight")
+            .expect("insight symbol");
         assert!(insight.name.starts_with("ssrs_report:"));
         let imeta = insight.metadata.as_ref().expect("insight meta");
         assert!(imeta.get("modern_equivalent").is_some());
@@ -911,10 +899,7 @@ mod tests {
 
         let report = syms.iter().find(|s| s.kind == "report").expect("report");
         let meta = report.metadata.as_ref().expect("meta");
-        assert_eq!(
-            meta.get("has_subreports").map(|s| s.as_str()),
-            Some("true")
-        );
+        assert_eq!(meta.get("has_subreports").map(|s| s.as_str()), Some("true"));
 
         let dep_edges: Vec<_> = edges.iter().filter(|e| e.kind == "dependency").collect();
         assert_eq!(dep_edges.len(), 1);
@@ -1025,10 +1010,12 @@ public partial class ReportPage : System.Web.UI.Page
         assert_eq!(insight.name, "crystal_reports_usage");
         let imeta = insight.metadata.as_ref().expect("insight meta");
         assert!(imeta.get("modern_equivalent").is_some());
-        assert!(imeta
-            .get("rpt_files")
-            .expect("rpt_files")
-            .contains("SalesReport.rpt"));
+        assert!(
+            imeta
+                .get("rpt_files")
+                .expect("rpt_files")
+                .contains("SalesReport.rpt")
+        );
 
         // Dependency edge to .rpt file.
         let dep_edges: Vec<_> = edges.iter().filter(|e| e.kind == "dependency").collect();
@@ -1166,10 +1153,7 @@ public class NormalPage : Page
 
         assert!(syms.iter().any(|s| s.kind == "insight"));
 
-        let contains_edges: Vec<_> = edges
-            .iter()
-            .filter(|e| e.kind == "contains")
-            .collect();
+        let contains_edges: Vec<_> = edges.iter().filter(|e| e.kind == "contains").collect();
         // Should detect both CrystalDecisions:... controls.
         assert!(contains_edges.len() >= 2);
     }

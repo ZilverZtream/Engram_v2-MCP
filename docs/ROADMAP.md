@@ -77,6 +77,7 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `reconcile_runtime_evidence` | implemented |
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
+| `generate_strangler_fig_config` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Focus areas
@@ -87,21 +88,22 @@ The matrix below is generated from capability flags and acts as the roadmap base
 
 ## Changelog
 
-### Phase 30: End-to-End Migration Engine (8 gaps)
-- **5 new tools**: `generate_migration_scaffold`, `generate_instrumentation_code`, `reconcile_runtime_evidence`, `suggest_state_migration`, `generate_characterization_tests`
+### Phase 30: End-to-End Migration Engine (8 gaps) + Phase 30a Hardening (7 fixes)
+- **6 new tools**: `generate_migration_scaffold`, `generate_instrumentation_code`, `reconcile_runtime_evidence`, `suggest_state_migration`, `generate_characterization_tests`, `generate_strangler_fig_config`
 - **Control mapping catalog** (`engram_index::control_mapping`): 50-entry WebForms → Blazor/React/Angular control mappings with accessibility, data binding, and event equivalents
-- **Scaffold service** (`scaffold_service.rs`): Blazor/React/Angular component generator with repository interfaces, DTOs, test scaffolds, and state key mapping
+- **Scaffold service** (`scaffold_service.rs`): Blazor/React/Angular component generator with real business logic from graph edges (SQL→repository, state→get/set, navigation→routing), async/await conversion guidance, repository interfaces, DTOs, test scaffolds
 - **DB strategy service** (`db_strategy_service.rs`): Data access pattern classifier (8 patterns), repository interface generator, SQL injection risk scorer
-- **Instrumentation service** (`instrumentation_service.rs`): C#/VB.NET HttpModule generator with route/session/SQL/postback/error tracing, plus static-vs-runtime reconciliation
+- **Instrumentation service** (`instrumentation_service.rs`): C#/VB.NET HttpModule generator with route/session/SQL/postback/error tracing, InstrumentedSessionStateWrapper (IHttpSessionState impl), InstrumentedDbCommand (DbCommand subclass with timing), plus static-vs-runtime reconciliation
 - **State migration service** (`state_migration_service.rs`): Per-key migration recommendations with access pattern analysis, ViewState lifecycle classification, and affinity grouping
-- **Characterization test service** (`characterization_test_service.rs`): NUnit/xUnit/MSTest test generator covering 5 categories from graph analysis
-- **VB.NET deep extraction**: On Error/Resume Next, With blocks, late-binding, My. namespace, ReDim Preserve
-- **GIS deep extraction**: Leaflet/Esri/ArcGIS layer inventory, spatial API call detection
+- **Characterization test service** (`characterization_test_service.rs`): NUnit/xUnit/MSTest test generator producing executable test bodies with TestPageFactory, MockHttpSession, TestDbFactory, MockResponseRecorder helper infrastructure
+- **Strangler fig service** (`strangler_fig_service.rs`): YARP reverse proxy config, Microsoft.FeatureManagement feature flags, routing middleware with percentage-based rollout and sticky sessions, health check endpoint, Program.cs registration with Polly circuit breaker/retry, CorrelationId middleware
+- **VB.NET deep extraction**: Nested With block stack, On Error GoTo label resolution (two-pass), CreateObject return value propagation and alias tracking, late-bound method call detection, My. namespace, ReDim Preserve
+- **GIS deep extraction**: 30+ Google Maps classes (Places, StreetView, Heatmap, KML, Directions, DistanceMatrix, Elevation, Geometry), 80+ Esri/ArcGIS ES module classes (widgets, tasks, renderers, geometry, portal, auth, 3D), migration complexity assessment
 - **Classic ASP extractor** (`asp_classic_extractor.rs`): 7 detection categories with 31 tests
 - **Report extractor** (`report_extractor.rs`): SSRS and Crystal Reports detection with 16 tests
 - **Windows Service detection**: ServiceBase/TopShelf/BackgroundService recognition in pattern detection service
 - **Config fields**: `scaffold_default_target_stack`, `scaffold_include_tests`, `enable_classic_asp_extraction`, `enable_report_extraction`, `characterization_test_framework`
-- **121 new tests** across all Phase 30 modules
+- **138+ tests** across all Phase 30 modules (121 original + 17 strangler fig)
 
 ### Phase 27: Gold Standard Hardening (10 tickets)
 - **Benchmark schemas** (`engram_core::benchmark`): `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, `DriftReport` with versioned schemas, per-class thresholds, and drift detection

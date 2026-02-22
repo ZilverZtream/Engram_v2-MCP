@@ -88,7 +88,9 @@ pub fn generate_scaffold(
             generate_angular_component(&ctx, file_path, &mut mapping_report, &mut warnings)
         }
         _ => {
-            warnings.push(format!("Unknown target stack '{target}', defaulting to Blazor"));
+            warnings.push(format!(
+                "Unknown target stack '{target}', defaulting to Blazor"
+            ));
             generate_blazor_component(&ctx, file_path, &mut mapping_report, &mut warnings)
         }
     };
@@ -153,14 +155,11 @@ fn collect_file_context(
     // Edges by kind
     let sql_edges = collect_edges_for_file(graph, project_id, EdgeKind::SqlCalls, file_path)?;
     let reads_state = collect_edges_for_file(graph, project_id, EdgeKind::ReadsState, file_path)?;
-    let writes_state =
-        collect_edges_for_file(graph, project_id, EdgeKind::WritesState, file_path)?;
-    let reads_column =
-        collect_edges_for_file(graph, project_id, EdgeKind::ReadsColumn, file_path)?;
+    let writes_state = collect_edges_for_file(graph, project_id, EdgeKind::WritesState, file_path)?;
+    let reads_column = collect_edges_for_file(graph, project_id, EdgeKind::ReadsColumn, file_path)?;
     let queries_table =
         collect_edges_for_file(graph, project_id, EdgeKind::QueriesTable, file_path)?;
-    let data_binding =
-        collect_edges_for_file(graph, project_id, EdgeKind::DataBinding, file_path)?;
+    let data_binding = collect_edges_for_file(graph, project_id, EdgeKind::DataBinding, file_path)?;
     let triggers_postback =
         collect_edges_for_file(graph, project_id, EdgeKind::TriggersPostback, file_path)?;
 
@@ -207,12 +206,13 @@ fn collect_edges_for_file(
     Ok(all
         .into_iter()
         .filter(|e| {
-            e.source_id.contains(file_path) || e.metadata.as_ref().is_some_and(|m| {
-                m.as_object()
-                    .and_then(|o| o.get("file_path"))
-                    .and_then(|v| v.as_str())
-                    .is_some_and(|fp| fp == file_path)
-            })
+            e.source_id.contains(file_path)
+                || e.metadata.as_ref().is_some_and(|m| {
+                    m.as_object()
+                        .and_then(|o| o.get("file_path"))
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|fp| fp == file_path)
+                })
         })
         .collect())
 }
@@ -255,12 +255,17 @@ fn generate_blazor_component(
         let legacy_name = &control.name;
         let control_type = extract_control_type(&control.node_id);
         if let Some(mapping) = control_mapping::lookup(&control_type) {
+            let _ = writeln!(code, "<!-- Mapped from {legacy_name} ({control_type}) -->");
             let _ = writeln!(
                 code,
-                "<!-- Mapped from {legacy_name} ({control_type}) -->"
+                "<!-- {}: {} -->",
+                mapping.blazor_equivalent, mapping.notes
             );
-            let _ = writeln!(code, "<!-- {}: {} -->", mapping.blazor_equivalent, mapping.notes);
-            let _ = writeln!(code, "<{} />", simplify_blazor_tag(mapping.blazor_equivalent));
+            let _ = writeln!(
+                code,
+                "<{} />",
+                simplify_blazor_tag(mapping.blazor_equivalent)
+            );
             let _ = writeln!(code);
 
             mapping_report.push(MappingEntry {
@@ -270,7 +275,10 @@ fn generate_blazor_component(
                 notes: mapping.data_binding_pattern.to_string(),
             });
         } else {
-            let _ = writeln!(code, "<!-- TODO: No mapping for {control_type}#{legacy_name} -->");
+            let _ = writeln!(
+                code,
+                "<!-- TODO: No mapping for {control_type}#{legacy_name} -->"
+            );
             warnings.push(format!("No control mapping for '{control_type}'"));
         }
     }
@@ -304,12 +312,28 @@ fn generate_blazor_component(
 
     // OnInitializedAsync
     let _ = writeln!(code);
-    let _ = writeln!(code, "    protected override async Task OnInitializedAsync()");
-    let _ = writeln!(code, "    {{");
     let _ = writeln!(
         code,
-        "        // TODO: migrate from Page_Load / Page_Init"
+        "    // ASYNC NOTE: Legacy Page_Load was synchronous. This lifecycle method is async."
     );
+    let _ = writeln!(
+        code,
+        "    // For library/service code, use .ConfigureAwait(false) on awaited calls to avoid"
+    );
+    let _ = writeln!(
+        code,
+        "    // deadlocks when called from non-UI contexts. In Blazor components, the default"
+    );
+    let _ = writeln!(
+        code,
+        "    // SynchronizationContext handles marshaling back to the render thread."
+    );
+    let _ = writeln!(
+        code,
+        "    protected override async Task OnInitializedAsync()"
+    );
+    let _ = writeln!(code, "    {{");
+    let _ = writeln!(code, "        // TODO: migrate from Page_Load / Page_Init");
     for (key, _) in &state_keys {
         let field_name = to_camel_case(key);
         let _ = writeln!(
@@ -320,7 +344,7 @@ fn generate_blazor_component(
     let _ = writeln!(code, "        await base.OnInitializedAsync();");
     let _ = writeln!(code, "    }}");
 
-    // Event handler stubs
+    // Event handlers — generate business logic from graph edges
     for func in &ctx.functions {
         let fname = &func.name;
         if fname.contains("_Click")
@@ -336,33 +360,23 @@ fn generate_blazor_component(
             );
             let _ = writeln!(code, "    private async Task {fname}()");
             let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        // Original handler: {fname}"
-            );
 
-            // Note SQL calls from this handler
-            for sql_edge in &ctx.sql_edges {
-                if sql_edge.source_id.contains(fname) {
-                    let _ = writeln!(
-                        code,
-                        "        // SQL: {} → use Repository method instead",
-                        sql_edge.target_id
-                    );
-                }
+            // Generate business logic from graph edges; fall back to stub only if no edges found
+            let generated = generate_blazor_handler_body(ctx, fname, &mut code);
+            if !generated {
+                let _ = writeln!(
+                    code,
+                    "        throw new NotImplementedException(); // No graph edges found — add logic manually"
+                );
             }
 
-            let _ = writeln!(code, "        throw new NotImplementedException();");
             let _ = writeln!(code, "    }}");
 
             mapping_report.push(MappingEntry {
                 legacy_element: fname.clone(),
                 modern_element: format!("async Task {fname}()"),
                 category: "event_handler".into(),
-                notes: format!(
-                    "Lines {}-{} in legacy code",
-                    func.start_line, func.end_line
-                ),
+                notes: format!("Lines {}-{} in legacy code", func.start_line, func.end_line),
             });
         }
     }
@@ -383,9 +397,15 @@ fn generate_react_component(
     let mut code = String::with_capacity(4096);
 
     // Imports
-    let _ = writeln!(code, "import React, {{ useState, useEffect }} from 'react';");
+    let _ = writeln!(
+        code,
+        "import React, {{ useState, useEffect }} from 'react';"
+    );
     if !ctx.sql_edges.is_empty() || !ctx.queries_table.is_empty() {
-        let _ = writeln!(code, "import {{ use{page_name}Repository }} from '../hooks/use{page_name}Repository';");
+        let _ = writeln!(
+            code,
+            "import {{ use{page_name}Repository }} from '../hooks/use{page_name}Repository';"
+        );
     }
     let _ = writeln!(code);
 
@@ -427,10 +447,7 @@ fn generate_react_component(
 
     // Repository hook
     if !ctx.sql_edges.is_empty() {
-        let _ = writeln!(
-            code,
-            "  const repository = use{page_name}Repository();"
-        );
+        let _ = writeln!(code, "  const repository = use{page_name}Repository();");
     }
     let _ = writeln!(code);
 
@@ -441,17 +458,14 @@ fn generate_react_component(
     let _ = writeln!(code, "  }}, []);");
     let _ = writeln!(code);
 
-    // Handler stubs
+    // Handlers — generate business logic from graph edges
     let _ = writeln!(code, "  const loadData = async () => {{");
     let _ = writeln!(code, "    // TODO: load initial data");
     let _ = writeln!(code, "  }};");
 
     for func in &ctx.functions {
         let fname = &func.name;
-        if fname.contains("_Click")
-            || fname.contains("_Command")
-            || fname.contains("_Changed")
-        {
+        if fname.contains("_Click") || fname.contains("_Command") || fname.contains("_Changed") {
             let handler_name = to_camel_case(fname);
             let _ = writeln!(code);
             let _ = writeln!(
@@ -460,20 +474,23 @@ fn generate_react_component(
                 func.start_line, func.end_line
             );
             let _ = writeln!(code, "  const {handler_name} = async () => {{");
-            let _ = writeln!(
-                code,
-                "    throw new Error('Not implemented: {fname}');"
-            );
+
+            // Generate business logic from graph edges; fall back to stub only if no edges found
+            let generated = generate_react_handler_body(ctx, fname, &mut code);
+            if !generated {
+                let _ = writeln!(
+                    code,
+                    "    throw new Error('Not implemented: {fname}'); // No graph edges found"
+                );
+            }
+
             let _ = writeln!(code, "  }};");
 
             mapping_report.push(MappingEntry {
                 legacy_element: fname.clone(),
                 modern_element: format!("const {handler_name}"),
                 category: "event_handler".into(),
-                notes: format!(
-                    "Lines {}-{} in legacy code",
-                    func.start_line, func.end_line
-                ),
+                notes: format!("Lines {}-{} in legacy code", func.start_line, func.end_line),
             });
         }
     }
@@ -534,10 +551,7 @@ fn generate_angular_component(
     let mut code = String::with_capacity(4096);
 
     // Imports
-    let _ = writeln!(
-        code,
-        "import {{ Component, OnInit }} from '@angular/core';"
-    );
+    let _ = writeln!(code, "import {{ Component, OnInit }} from '@angular/core';");
     if !ctx.sql_edges.is_empty() || !ctx.queries_table.is_empty() {
         let _ = writeln!(
             code,
@@ -593,13 +607,10 @@ fn generate_angular_component(
     let _ = writeln!(code, "    // TODO: load initial data");
     let _ = writeln!(code, "  }}");
 
-    // Event handler stubs
+    // Event handlers — generate business logic from graph edges
     for func in &ctx.functions {
         let fname = &func.name;
-        if fname.contains("_Click")
-            || fname.contains("_Command")
-            || fname.contains("_Changed")
-        {
+        if fname.contains("_Click") || fname.contains("_Command") || fname.contains("_Changed") {
             let method_name = to_camel_case(fname);
             let _ = writeln!(code);
             let _ = writeln!(
@@ -608,20 +619,23 @@ fn generate_angular_component(
                 func.start_line, func.end_line
             );
             let _ = writeln!(code, "  {method_name}(): void {{");
-            let _ = writeln!(
-                code,
-                "    throw new Error('Not implemented: {fname}');"
-            );
+
+            // Generate business logic from graph edges; fall back to stub only if no edges found
+            let generated = generate_angular_handler_body(ctx, fname, &mut code);
+            if !generated {
+                let _ = writeln!(
+                    code,
+                    "    throw new Error('Not implemented: {fname}'); // No graph edges found"
+                );
+            }
+
             let _ = writeln!(code, "  }}");
 
             mapping_report.push(MappingEntry {
                 legacy_element: fname.clone(),
                 modern_element: format!("{method_name}()"),
                 category: "event_handler".into(),
-                notes: format!(
-                    "Lines {}-{} in legacy code",
-                    func.start_line, func.end_line
-                ),
+                notes: format!("Lines {}-{} in legacy code", func.start_line, func.end_line),
             });
         }
     }
@@ -732,28 +746,16 @@ fn generate_repository_interface(
                 code,
                 "    Task<IEnumerable<{entity}>> GetAll{entity}Async();"
             );
-            let _ = writeln!(
-                code,
-                "    Task<{entity}?> Get{entity}ByIdAsync(int id);"
-            );
+            let _ = writeln!(code, "    Task<{entity}?> Get{entity}ByIdAsync(int id);");
         }
         if ops.contains("insert") {
-            let _ = writeln!(
-                code,
-                "    Task<int> Create{entity}Async({entity} entity);"
-            );
+            let _ = writeln!(code, "    Task<int> Create{entity}Async({entity} entity);");
         }
         if ops.contains("update") {
-            let _ = writeln!(
-                code,
-                "    Task Update{entity}Async({entity} entity);"
-            );
+            let _ = writeln!(code, "    Task Update{entity}Async({entity} entity);");
         }
         if ops.contains("delete") {
-            let _ = writeln!(
-                code,
-                "    Task Delete{entity}Async(int id);"
-            );
+            let _ = writeln!(code, "    Task Delete{entity}Async(int id);");
         }
 
         mapping_report.push(MappingEntry {
@@ -821,10 +823,7 @@ fn generate_dto_classes(
             for col in columns {
                 let prop_name = to_pascal_case(col);
                 let prop_type = infer_csharp_type(col);
-                let _ = writeln!(
-                    code,
-                    "    public {prop_type} {prop_name} {{ get; set; }}"
-                );
+                let _ = writeln!(code, "    public {prop_type} {prop_name} {{ get; set; }}");
             }
         }
 
@@ -872,8 +871,7 @@ fn infer_csharp_type(col_name: &str) -> &'static str {
         "decimal"
     } else if lower.starts_with("is") || lower.starts_with("has") || lower.starts_with("can") {
         "bool"
-    } else if lower.ends_with("count") || lower.ends_with("quantity") || lower.ends_with("number")
-    {
+    } else if lower.ends_with("count") || lower.ends_with("quantity") || lower.ends_with("number") {
         "int"
     } else {
         "string"
@@ -909,39 +907,45 @@ fn generate_test_scaffold(ctx: &FileContext, file_path: &str, target: &str) -> S
             let _ = writeln!(code, "    [Test]");
             let _ = writeln!(code, "    public void Should_Render_Without_Error()");
             let _ = writeln!(code, "    {{");
+            let _ = writeln!(code, "        var cut = RenderComponent<{page_name}>();");
             let _ = writeln!(
                 code,
-                "        var cut = RenderComponent<{page_name}>();"
+                "        Assert.That(cut.Markup, Does.Contain(\"{page_name}\"));"
             );
-            let _ = writeln!(code, "        Assert.That(cut.Markup, Does.Contain(\"{page_name}\"));");
             let _ = writeln!(code, "    }}");
             let _ = writeln!(code, "}}");
         }
         "react" => {
-            let _ = writeln!(code, "import {{ render, screen }} from '@testing-library/react';");
+            let _ = writeln!(
+                code,
+                "import {{ render, screen }} from '@testing-library/react';"
+            );
             let _ = writeln!(code, "import {page_name} from './{page_name}';");
             let _ = writeln!(code);
             let _ = writeln!(code, "describe('{page_name}', () => {{");
             let _ = writeln!(code, "  it('renders without crashing', () => {{");
             let _ = writeln!(code, "    render(<{page_name} />);");
-            let _ = writeln!(code, "    expect(screen.getByText('{page_name}')).toBeInTheDocument();");
+            let _ = writeln!(
+                code,
+                "    expect(screen.getByText('{page_name}')).toBeInTheDocument();"
+            );
             let _ = writeln!(code, "  }});");
             let _ = writeln!(code, "}});");
         }
         "angular" => {
             let class_name = to_pascal_case(&page_name);
             let selector = to_kebab_case(&page_name);
-            let _ = writeln!(code, "import {{ ComponentFixture, TestBed }} from '@angular/core/testing';");
+            let _ = writeln!(
+                code,
+                "import {{ ComponentFixture, TestBed }} from '@angular/core/testing';"
+            );
             let _ = writeln!(
                 code,
                 "import {{ {class_name}Component }} from './{selector}.component';"
             );
             let _ = writeln!(code);
             let _ = writeln!(code, "describe('{class_name}Component', () => {{");
-            let _ = writeln!(
-                code,
-                "  let component: {class_name}Component;"
-            );
+            let _ = writeln!(code, "  let component: {class_name}Component;");
             let _ = writeln!(
                 code,
                 "  let fixture: ComponentFixture<{class_name}Component>;"
@@ -949,10 +953,7 @@ fn generate_test_scaffold(ctx: &FileContext, file_path: &str, target: &str) -> S
             let _ = writeln!(code);
             let _ = writeln!(code, "  beforeEach(async () => {{");
             let _ = writeln!(code, "    await TestBed.configureTestingModule({{");
-            let _ = writeln!(
-                code,
-                "      declarations: [{class_name}Component]"
-            );
+            let _ = writeln!(code, "      declarations: [{class_name}Component]");
             let _ = writeln!(code, "    }}).compileComponents();");
             let _ = writeln!(code);
             let _ = writeln!(
@@ -1077,6 +1078,441 @@ fn to_kebab_case(s: &str) -> String {
     result
 }
 
+/// Classify an SQL edge into an operation type by inspecting metadata or target_id.
+fn classify_sql_op(edge: &Edge) -> &'static str {
+    let sql_hint = edge
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("sql"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let upper = sql_hint.to_uppercase();
+    let target_upper = edge.target_id.to_uppercase();
+    if upper.contains("INSERT") || target_upper.contains("INSERT") {
+        "INSERT"
+    } else if upper.contains("UPDATE") || target_upper.contains("UPDATE") {
+        "UPDATE"
+    } else if upper.contains("DELETE") || target_upper.contains("DELETE") {
+        "DELETE"
+    } else {
+        "SELECT"
+    }
+}
+
+/// Extract table name from a SQL edge target_id.
+/// Handles formats like "table:Orders", "sql:SELECT * FROM Orders", or raw names.
+fn extract_table_from_sql_edge(edge: &Edge) -> String {
+    // Try table from metadata first
+    if let Some(table) = edge
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("table"))
+        .and_then(|v| v.as_str())
+    {
+        return table.to_string();
+    }
+    // Try target_id with "table:" prefix
+    if let Some(t) = edge.target_id.strip_prefix("table:") {
+        return t.to_string();
+    }
+    // Try to parse FROM/INTO/UPDATE from SQL text
+    let sql_text = edge
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("sql"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&edge.target_id);
+    let upper = sql_text.to_uppercase();
+    for keyword in &["FROM ", "INTO ", "UPDATE ", "JOIN "] {
+        if let Some(pos) = upper.find(keyword) {
+            let after = &sql_text[pos + keyword.len()..];
+            let table = after
+                .trim()
+                .split(|c: char| c.is_whitespace() || c == '(' || c == ';' || c == ',')
+                .next()
+                .unwrap_or("");
+            if !table.is_empty() {
+                return table.to_string();
+            }
+        }
+    }
+    // Fallback to target_id cleaned up
+    edge.target_id
+        .split(':')
+        .last()
+        .unwrap_or(&edge.target_id)
+        .to_string()
+}
+
+/// Extract the state key from a state edge target_id.
+/// Handles formats like "state:Session:UserName" or "state:UserName".
+fn extract_state_key(target_id: &str) -> String {
+    let stripped = target_id.strip_prefix("state:").unwrap_or(target_id);
+    // If there's still a "Session:" or "ViewState:" prefix, strip it
+    if let Some(rest) = stripped.strip_prefix("Session:") {
+        return rest.to_string();
+    }
+    if let Some(rest) = stripped.strip_prefix("ViewState:") {
+        return rest.to_string();
+    }
+    if let Some(rest) = stripped.strip_prefix("Application:") {
+        return rest.to_string();
+    }
+    if let Some(rest) = stripped.strip_prefix("Cache:") {
+        return rest.to_string();
+    }
+    stripped.to_string()
+}
+
+/// Generate Blazor business logic lines for a handler based on its graph edges.
+fn generate_blazor_handler_body(ctx: &FileContext, fname: &str, code: &mut String) -> bool {
+    let mut generated_any = false;
+
+    // SQL edges for this handler
+    let handler_sql: Vec<&Edge> = ctx
+        .sql_edges
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    if !handler_sql.is_empty() {
+        let _ = writeln!(
+            code,
+            "        // ASYNC NOTE: Legacy code used synchronous ADO.NET (SqlCommand.ExecuteReader)."
+        );
+        let _ = writeln!(
+            code,
+            "        // Use async repository methods below. For library code, append .ConfigureAwait(false)."
+        );
+        for sql_edge in &handler_sql {
+            let op = classify_sql_op(sql_edge);
+            let table = extract_table_from_sql_edge(sql_edge);
+            let entity = to_pascal_case(&table);
+            match op {
+                "SELECT" => {
+                    let _ = writeln!(
+                        code,
+                        "        var {camel}List = await Repository.GetAll{entity}Async();",
+                        camel = to_camel_case(&table)
+                    );
+                }
+                "INSERT" => {
+                    let _ = writeln!(
+                        code,
+                        "        var {camel} = new {entity}(); // TODO: populate from form fields",
+                        camel = to_camel_case(&table)
+                    );
+                    let _ = writeln!(
+                        code,
+                        "        await Repository.Create{entity}Async({camel});",
+                        camel = to_camel_case(&table)
+                    );
+                }
+                "UPDATE" => {
+                    let _ = writeln!(code, "        // TODO: populate entity from form fields");
+                    let _ = writeln!(
+                        code,
+                        "        await Repository.Update{entity}Async({camel});",
+                        camel = to_camel_case(&table)
+                    );
+                }
+                "DELETE" => {
+                    let _ = writeln!(
+                        code,
+                        "        await Repository.Delete{entity}Async(id); // TODO: resolve id from selection"
+                    );
+                }
+                _ => {}
+            }
+        }
+        generated_any = true;
+    }
+
+    // State writes for this handler
+    let handler_writes: Vec<&Edge> = ctx
+        .writes_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    for edge in &handler_writes {
+        let key = extract_state_key(&edge.target_id);
+        let _ = writeln!(
+            code,
+            "        await SessionState.SetAsync(\"{key}\", value); // TODO: replace 'value' with actual data"
+        );
+        generated_any = true;
+    }
+
+    // State reads for this handler
+    let handler_reads: Vec<&Edge> = ctx
+        .reads_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    for edge in &handler_reads {
+        let key = extract_state_key(&edge.target_id);
+        let field_name = to_camel_case(&key);
+        let _ = writeln!(
+            code,
+            "        var {field_name} = await SessionState.GetAsync<string>(\"{key}\");"
+        );
+        generated_any = true;
+    }
+
+    // Data binding edges for this handler
+    let handler_bindings: Vec<&Edge> = ctx
+        .data_binding
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    for edge in &handler_bindings {
+        let target = edge
+            .target_id
+            .strip_prefix("control:")
+            .unwrap_or(&edge.target_id);
+        let _ = writeln!(code, "        // Data-bind: refresh {target}");
+        let _ = writeln!(code, "        StateHasChanged();");
+        generated_any = true;
+    }
+
+    // Postback/navigation edges for this handler
+    let handler_postbacks: Vec<&Edge> = ctx
+        .triggers_postback
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    for edge in &handler_postbacks {
+        let target = edge
+            .target_id
+            .strip_prefix("file:")
+            .unwrap_or(&edge.target_id);
+        let route = target
+            .replace('\\', "/")
+            .replace(".aspx", "")
+            .rsplit('/')
+            .next()
+            .unwrap_or(target)
+            .to_string();
+        let _ = writeln!(code, "        NavigationManager.NavigateTo(\"/{route}\");");
+        generated_any = true;
+    }
+
+    generated_any
+}
+
+/// Generate React business logic lines for a handler based on its graph edges.
+fn generate_react_handler_body(ctx: &FileContext, fname: &str, code: &mut String) -> bool {
+    let mut generated_any = false;
+
+    // SQL edges
+    let handler_sql: Vec<&Edge> = ctx
+        .sql_edges
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    if !handler_sql.is_empty() {
+        let _ = writeln!(
+            code,
+            "    // ASYNC NOTE: Legacy code used synchronous ADO.NET — now uses async fetch via repository hook."
+        );
+        for sql_edge in &handler_sql {
+            let op = classify_sql_op(sql_edge);
+            let table = extract_table_from_sql_edge(sql_edge);
+            let entity = to_pascal_case(&table);
+            let camel = to_camel_case(&table);
+            match op {
+                "SELECT" => {
+                    let _ = writeln!(
+                        code,
+                        "    const {camel}Data = await repository.get{entity}();"
+                    );
+                    let _ = writeln!(code, "    // TODO: update component state with {camel}Data");
+                }
+                "INSERT" => {
+                    let _ = writeln!(
+                        code,
+                        "    const formData = {{}}; // TODO: collect from form fields"
+                    );
+                    let _ = writeln!(code, "    await repository.create{entity}(formData);");
+                }
+                "UPDATE" => {
+                    let _ = writeln!(
+                        code,
+                        "    await repository.update{entity}(formData); // TODO: populate formData"
+                    );
+                }
+                "DELETE" => {
+                    let _ = writeln!(
+                        code,
+                        "    await repository.delete{entity}(id); // TODO: resolve id from selection"
+                    );
+                }
+                _ => {}
+            }
+        }
+        generated_any = true;
+    }
+
+    // State writes
+    for edge in ctx
+        .writes_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let key = extract_state_key(&edge.target_id);
+        let setter = to_pascal_case(&key);
+        let _ = writeln!(
+            code,
+            "    set{setter}(newValue); // TODO: replace newValue with actual data"
+        );
+        generated_any = true;
+    }
+
+    // State reads
+    for edge in ctx
+        .reads_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let key = extract_state_key(&edge.target_id);
+        let field = to_camel_case(&key);
+        let _ = writeln!(
+            code,
+            "    const current{pascal} = {field}; // read from state",
+            pascal = to_pascal_case(&key)
+        );
+        generated_any = true;
+    }
+
+    // Postback/navigation
+    for edge in ctx
+        .triggers_postback
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let target = edge
+            .target_id
+            .strip_prefix("file:")
+            .unwrap_or(&edge.target_id);
+        let route = target
+            .replace('\\', "/")
+            .replace(".aspx", "")
+            .rsplit('/')
+            .next()
+            .unwrap_or(target)
+            .to_string();
+        let _ = writeln!(code, "    router.push('/{route}');");
+        generated_any = true;
+    }
+
+    generated_any
+}
+
+/// Generate Angular business logic lines for a handler based on its graph edges.
+fn generate_angular_handler_body(ctx: &FileContext, fname: &str, code: &mut String) -> bool {
+    let mut generated_any = false;
+
+    // SQL edges
+    let handler_sql: Vec<&Edge> = ctx
+        .sql_edges
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+        .collect();
+    if !handler_sql.is_empty() {
+        let _ = writeln!(
+            code,
+            "    // ASYNC NOTE: Legacy code used synchronous ADO.NET — now uses RxJS Observable via service."
+        );
+        for sql_edge in &handler_sql {
+            let op = classify_sql_op(sql_edge);
+            let table = extract_table_from_sql_edge(sql_edge);
+            let entity = to_pascal_case(&table);
+            let camel = to_camel_case(&table);
+            match op {
+                "SELECT" => {
+                    let _ = writeln!(
+                        code,
+                        "    this.service.get{entity}().subscribe(data => this.{camel}Data = data);"
+                    );
+                }
+                "INSERT" => {
+                    let _ = writeln!(code, "    const payload = {{}}; // TODO: collect from form");
+                    let _ = writeln!(
+                        code,
+                        "    this.service.create{entity}(payload).subscribe(() => this.loadData());"
+                    );
+                }
+                "UPDATE" => {
+                    let _ = writeln!(
+                        code,
+                        "    this.service.update{entity}(payload).subscribe(() => this.loadData()); // TODO: populate payload"
+                    );
+                }
+                "DELETE" => {
+                    let _ = writeln!(
+                        code,
+                        "    this.service.delete{entity}(id).subscribe(() => this.loadData()); // TODO: resolve id"
+                    );
+                }
+                _ => {}
+            }
+        }
+        generated_any = true;
+    }
+
+    // State writes
+    for edge in ctx
+        .writes_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let key = extract_state_key(&edge.target_id);
+        let field = to_camel_case(&key);
+        let _ = writeln!(
+            code,
+            "    this.{field} = newValue; // TODO: replace newValue with actual data"
+        );
+        generated_any = true;
+    }
+
+    // State reads
+    for edge in ctx
+        .reads_state
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let key = extract_state_key(&edge.target_id);
+        let field = to_camel_case(&key);
+        let _ = writeln!(
+            code,
+            "    const current = this.{field}; // read from component state"
+        );
+        generated_any = true;
+    }
+
+    // Postback/navigation
+    for edge in ctx
+        .triggers_postback
+        .iter()
+        .filter(|e| e.source_id.contains(fname))
+    {
+        let target = edge
+            .target_id
+            .strip_prefix("file:")
+            .unwrap_or(&edge.target_id);
+        let route = target
+            .replace('\\', "/")
+            .replace(".aspx", "")
+            .rsplit('/')
+            .next()
+            .unwrap_or(target)
+            .to_string();
+        let _ = writeln!(code, "    this.router.navigate(['/{route}']);");
+        generated_any = true;
+    }
+
+    generated_any
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1109,10 +1545,7 @@ mod tests {
             extract_control_type("control:asp:GridView#GridView1"),
             "asp:GridView"
         );
-        assert_eq!(
-            extract_control_type("control:asp:TextBox"),
-            "asp:TextBox"
-        );
+        assert_eq!(extract_control_type("control:asp:TextBox"), "asp:TextBox");
         assert_eq!(extract_control_type("control:MyCustom"), "MyCustom");
     }
 

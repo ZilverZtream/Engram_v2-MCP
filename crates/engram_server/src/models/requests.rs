@@ -1212,3 +1212,23 @@ pub struct GenerateCharacterizationTestsRequest {
     #[serde(default)]
     pub output_json: bool,
 }
+
+// -------------------- Strangler Fig --------------------
+
+fn default_legacy_url() -> String {
+    "http://localhost:5000".into()
+}
+fn default_modern_url() -> String {
+    "http://localhost:5001".into()
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GenerateStranglerFigRequest {
+    pub project_id: String,
+    /// Base URL of the legacy application. Default: "http://localhost:5000".
+    #[serde(default = "default_legacy_url")]
+    pub legacy_base_url: String,
+    /// Base URL of the modern application. Default: "http://localhost:5001".
+    #[serde(default = "default_modern_url")]
+    pub modern_base_url: String,
+}

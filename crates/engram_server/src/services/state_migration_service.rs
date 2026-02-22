@@ -249,12 +249,8 @@ pub fn analyze_state_migration(
     let mut by_target: BTreeMap<String, usize> = BTreeMap::new();
     let mut high_risk = Vec::new();
     for rec in &recommendations {
-        *by_store
-            .entry(format!("{:?}", rec.store_type))
-            .or_default() += 1;
-        *by_target
-            .entry(rec.recommended_target.clone())
-            .or_default() += 1;
+        *by_store.entry(format!("{:?}", rec.store_type)).or_default() += 1;
+        *by_target.entry(rec.recommended_target.clone()).or_default() += 1;
         if rec.writers.len() > 3 || rec.readers.len() > 10 {
             high_risk.push(rec.state_key.clone());
         }
@@ -494,7 +490,9 @@ fn is_url_state_candidate(key: &str) -> bool {
         || lower.contains("tab")
 }
 
-fn generate_viewstate_report(recommendations: &[StateKeyRecommendation]) -> Option<ViewStateReport> {
+fn generate_viewstate_report(
+    recommendations: &[StateKeyRecommendation],
+) -> Option<ViewStateReport> {
     let vs_recs: Vec<&StateKeyRecommendation> = recommendations
         .iter()
         .filter(|r| r.store_type == StateStore::ViewState)
@@ -535,10 +533,7 @@ fn generate_viewstate_report(recommendations: &[StateKeyRecommendation]) -> Opti
             .filter_map(|s| {
                 s.split(':')
                     .last()
-                    .map(|p| p.split('.')
-                        .take(2)
-                        .collect::<Vec<_>>()
-                        .join("."))
+                    .map(|p| p.split('.').take(2).collect::<Vec<_>>().join("."))
             })
             .collect();
 
@@ -800,22 +795,28 @@ mod tests {
 
     #[test]
     fn affinity_group_building() {
-        let edges = vec![
-            Edge {
-                source_id: "state:UserId".into(),
-                target_id: "state:UserName".into(),
-                namespace: "test".into(),
-                language: "csharp".into(),
-                edge_kind: EdgeKind::StateAffinity,
-                weight: 1,
-                generation: 1,
-                metadata: None,
-                updated_at_ms: 0,
-            },
-        ];
+        let edges = vec![Edge {
+            source_id: "state:UserId".into(),
+            target_id: "state:UserName".into(),
+            namespace: "test".into(),
+            language: "csharp".into(),
+            edge_kind: EdgeKind::StateAffinity,
+            weight: 1,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 0,
+        }];
         let groups = build_affinity_groups(&edges);
-        assert!(groups.get("UserId").is_some_and(|v| v.contains(&"UserName".to_string())));
-        assert!(groups.get("UserName").is_some_and(|v| v.contains(&"UserId".to_string())));
+        assert!(
+            groups
+                .get("UserId")
+                .is_some_and(|v| v.contains(&"UserName".to_string()))
+        );
+        assert!(
+            groups
+                .get("UserName")
+                .is_some_and(|v| v.contains(&"UserId".to_string()))
+        );
     }
 
     #[test]

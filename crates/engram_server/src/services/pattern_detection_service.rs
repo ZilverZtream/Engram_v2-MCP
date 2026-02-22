@@ -327,7 +327,10 @@ pub fn detect_design_antipatterns(
                         ),
                         severity: AntiPatternSeverity::Moderate,
                         affected_nodes: vec![e.source_id.clone()],
-                        evidence: vec![format!("Node type: background_service in {}", node.file_path.as_str())],
+                        evidence: vec![format!(
+                            "Node type: background_service in {}",
+                            node.file_path.as_str()
+                        )],
                         modern_target: "ASP.NET Core BackgroundService / IHostedService, \
                                         Hangfire, or Azure Functions"
                             .into(),
@@ -335,7 +338,8 @@ pub fn detect_design_antipatterns(
                             "Identify timer intervals and trigger conditions".into(),
                             "Create IHostedService or BackgroundService implementation".into(),
                             "Migrate OnStart/OnStop to StartAsync/StopAsync".into(),
-                            "Register in Program.cs via builder.Services.AddHostedService<T>()".into(),
+                            "Register in Program.cs via builder.Services.AddHostedService<T>()"
+                                .into(),
                         ],
                     });
                 }
@@ -386,7 +390,8 @@ pub fn detect_background_service_patterns(
     }
 
     // Hangfire
-    if src_lower.contains("backgroundjob.enqueue") || src_lower.contains("recurringjob.addorupdate") {
+    if src_lower.contains("backgroundjob.enqueue") || src_lower.contains("recurringjob.addorupdate")
+    {
         results.push(DetectedServicePattern {
             pattern: "hangfire_job".to_string(),
             file_path: file_path.to_string(),
