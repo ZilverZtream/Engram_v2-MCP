@@ -8612,7 +8612,7 @@ End Sub
     /// Analyze an entire project for migration in one call.
     #[tool(
         name = "analyze_full_project_migration",
-        description = "Analyze an entire project for migration in one call. Produces a complete migration dossier for every page, project-wide auth/state/data-access analysis, topologically sorted migration waves, cross-cutting risk assessment, and actionable migration steps. This is the single tool needed to understand a legacy project before writing any migration code."
+        description = "Analyze an entire project for migration in one call. Produces a complete migration dossier for every page, project-wide auth/state/data-access analysis, topologically sorted migration waves, cross-cutting risk assessment, JavaScript/jQuery dependency mapping, GIS/spatial inventory, service endpoint catalog, web.config inventory, Global.asax lifecycle mapping, anti-pattern detection, Classic ASP analysis, and SSRS/Crystal Reports inventory. This is the single tool needed to understand a legacy project before writing any migration code."
     )]
     pub async fn analyze_full_project_migration(
         &self,
@@ -8628,60 +8628,91 @@ End Sub
 
         // ── Async phase: discover and read all files from disk ────────────
 
-        // 1. Get all file nodes from the graph to discover markup files
+        // 1. Get all file nodes from the graph to discover files by type
         let graph_clone = graph.clone();
         let pid_clone = pid.clone();
         let file_nodes = tokio::task::spawn_blocking(move || {
-            graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 10_000)
+            graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 50_000)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // 2. Identify markup files (.aspx, .ascx, .master)
-        let markup_extensions = [".aspx", ".ascx", ".master"];
-        let mut markup_paths: Vec<String> = file_nodes
-            .iter()
-            .filter_map(|n| {
-                let name = n.name.to_lowercase();
-                if markup_extensions.iter().any(|ext| name.ends_with(ext)) {
-                    Some(n.name.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        // 2. Categorize files from graph nodes
+        let mut markup_paths: Vec<String> = Vec::new();
+        let mut js_paths: Vec<String> = Vec::new();
+        let mut asp_paths: Vec<String> = Vec::new();
+        let mut report_paths: Vec<String> = Vec::new();
+        let mut code_paths: Vec<String> = Vec::new();
+        let mut has_global_asax = false;
 
-        // If graph has no file nodes, fall back to filesystem scan
-        if markup_paths.is_empty() {
-            if let Ok(mut entries) = tokio::fs::read_dir(&project_dir).await {
-                let mut discovered = Vec::new();
-                while let Ok(Some(entry)) = entries.next_entry().await {
-                    let path = entry.path();
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        let ext_lower = ext.to_lowercase();
-                        if ext_lower == "aspx" || ext_lower == "ascx" || ext_lower == "master" {
-                            if let Some(rel) = path
-                                .strip_prefix(&project_dir)
-                                .ok()
-                                .and_then(|r| r.to_str())
-                            {
-                                discovered.push(rel.replace('\\', "/"));
-                            }
-                        }
-                    }
-                }
-                markup_paths = discovered;
+        for n in &file_nodes {
+            let name_lower = n.name.to_lowercase();
+            if name_lower.ends_with(".aspx")
+                || name_lower.ends_with(".ascx")
+                || name_lower.ends_with(".master")
+            {
+                markup_paths.push(n.name.clone());
+            } else if name_lower.ends_with(".js") {
+                js_paths.push(n.name.clone());
+            } else if name_lower.ends_with(".asp") {
+                asp_paths.push(n.name.clone());
+            } else if name_lower.ends_with(".rdl") || name_lower.ends_with(".rdlc") {
+                report_paths.push(n.name.clone());
+            } else if name_lower.ends_with(".cs") || name_lower.ends_with(".vb") {
+                code_paths.push(n.name.clone());
+            }
+            if name_lower == "global.asax"
+                || name_lower.ends_with("/global.asax")
+                || name_lower.ends_with("\\global.asax")
+            {
+                has_global_asax = true;
             }
         }
 
-        // Cap at max_files
+        // 3. Fall back to recursive filesystem scan if graph has no file nodes
+        if markup_paths.is_empty() {
+            let all_extensions = &[".aspx", ".ascx", ".master", ".js", ".asp", ".rdl", ".rdlc"];
+            let discovered = discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                all_extensions,
+                max_files * 5,
+            )
+            .await;
+
+            for path_str in discovered {
+                let lower = path_str.to_lowercase();
+                if lower.ends_with(".aspx")
+                    || lower.ends_with(".ascx")
+                    || lower.ends_with(".master")
+                {
+                    markup_paths.push(path_str);
+                } else if lower.ends_with(".js") {
+                    js_paths.push(path_str);
+                } else if lower.ends_with(".asp") {
+                    asp_paths.push(path_str);
+                } else if lower.ends_with(".rdl") || lower.ends_with(".rdlc") {
+                    report_paths.push(path_str);
+                }
+            }
+
+            // Also scan for code files (.cs, .vb) with the recursive walker
+            let code_discovered = discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                &[".cs", ".vb"],
+                max_files * 10,
+            )
+            .await;
+            code_paths = code_discovered;
+        }
+
+        // Cap markup at max_files
         markup_paths.truncate(max_files);
 
-        // 3. Read all markup + code-behind files concurrently
-        use crate::services::full_project_migration_service::FileContent;
+        // 4. Read all markup + code-behind files concurrently
+        use crate::services::full_project_migration_service::{FileContent, ProjectFileBundle};
 
-        let read_futures: Vec<_> = markup_paths
+        let read_markup_futures: Vec<_> = markup_paths
             .iter()
             .map(|rel_path| {
                 let dir = project_dir.clone();
@@ -8704,13 +8735,68 @@ End Sub
             })
             .collect();
 
-        let file_contents: Vec<FileContent> = futures::future::join_all(read_futures)
-            .await
-            .into_iter()
-            .flatten()
+        // 5. Read JS files concurrently
+        let read_js_futures: Vec<_> = js_paths
+            .iter()
+            .map(|rel_path| {
+                let dir = project_dir.clone();
+                let rel = rel_path.clone();
+                async move {
+                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    tokio::fs::read_to_string(&full_path)
+                        .await
+                        .ok()
+                        .map(|content| (rel, content))
+                }
+            })
             .collect();
 
-        // 4. Read web.config
+        // 6. Read Classic ASP files concurrently
+        let read_asp_futures: Vec<_> = asp_paths
+            .iter()
+            .map(|rel_path| {
+                let dir = project_dir.clone();
+                let rel = rel_path.clone();
+                async move {
+                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    tokio::fs::read_to_string(&full_path)
+                        .await
+                        .ok()
+                        .map(|content| (rel, content))
+                }
+            })
+            .collect();
+
+        // 7. Read report files concurrently
+        let read_report_futures: Vec<_> = report_paths
+            .iter()
+            .map(|rel_path| {
+                let dir = project_dir.clone();
+                let rel = rel_path.clone();
+                async move {
+                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    tokio::fs::read_to_string(&full_path)
+                        .await
+                        .ok()
+                        .map(|content| (rel, content))
+                }
+            })
+            .collect();
+
+        // Execute all reads concurrently
+        let (markup_results, js_results, asp_results, report_results) = tokio::join!(
+            futures::future::join_all(read_markup_futures),
+            futures::future::join_all(read_js_futures),
+            futures::future::join_all(read_asp_futures),
+            futures::future::join_all(read_report_futures),
+        );
+
+        let markup_files: Vec<FileContent> = markup_results.into_iter().flatten().collect();
+        let js_files: Vec<(String, String)> = js_results.into_iter().flatten().collect();
+        let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
+        let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
+
+        // 8. Read web.config
         let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
         let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
         let webconfig_content = if webconfig_content.is_none() {
@@ -8720,41 +8806,63 @@ End Sub
             webconfig_content
         };
 
-        // 5. Collect all code-behind files for auth scanning
-        let code_files: Vec<(String, String)> = file_nodes
-            .iter()
-            .filter_map(|n| {
-                let name = n.name.to_lowercase();
-                if name.ends_with(".cs") || name.ends_with(".vb") {
-                    Some(n.name.clone())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>()
+        // 9. Read Global.asax + codebehind
+        let global_asax = {
+            let ga_path = std::path::Path::new(&project_dir).join("Global.asax");
+            let ga_exists = has_global_asax || ga_path.exists();
+            if ga_exists {
+                let markup = tokio::fs::read_to_string(&ga_path)
+                    .await
+                    .unwrap_or_default();
+                // Try Global.asax.cs, then Global.asax.vb
+                let cb = {
+                    let cs = std::path::Path::new(&project_dir).join("Global.asax.cs");
+                    let vb = std::path::Path::new(&project_dir).join("Global.asax.vb");
+                    if let Ok(content) = tokio::fs::read_to_string(&cs).await {
+                        Some(content)
+                    } else {
+                        tokio::fs::read_to_string(&vb).await.ok()
+                    }
+                };
+                Some(FileContent {
+                    file_path: "Global.asax".to_string(),
+                    markup_content: markup,
+                    codebehind_content: cb,
+                })
+            } else {
+                None
+            }
+        };
+
+        // 10. Collect all code files for auth scanning
+        let code_files: Vec<(String, String)> = code_paths
             .into_iter()
             .filter_map(|rel| {
                 let full = std::path::Path::new(&project_dir).join(&rel);
-                // Use std::fs since we already did the async part
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
 
+        // ── Build ProjectFileBundle ───────────────────────────────────────
+
+        let bundle = ProjectFileBundle {
+            markup_files,
+            js_files,
+            classic_asp_files,
+            report_files,
+            global_asax,
+            web_config_content: webconfig_content,
+            code_files,
+        };
+
         // ── Blocking phase: run all analysis ──────────────────────────────
 
         let report = tokio::task::spawn_blocking(move || {
-            let code_refs: Vec<(&str, &str)> = code_files
-                .iter()
-                .map(|(p, c)| (p.as_str(), c.as_str()))
-                .collect();
-
             crate::services::full_project_migration_service::analyze_full_project(
                 &graph,
                 &pid,
                 &target_stack,
-                &file_contents,
-                webconfig_content.as_deref(),
-                &code_refs,
+                &bundle,
                 max_files,
             )
         })
@@ -8774,6 +8882,69 @@ End Sub
             report.markdown_report,
         )]))
     }
+}
+
+/// Recursively discover files with specific extensions under a directory.
+///
+/// Skips `bin/`, `obj/`, `node_modules/`, `.git/`, `packages/` directories.
+/// Returns relative paths (forward-slash separated). Caps at `max_files` total.
+async fn discover_files_recursive(
+    dir: &std::path::Path,
+    extensions: &[&str],
+    max_files: usize,
+) -> Vec<String> {
+    use std::collections::VecDeque;
+
+    let skip_dirs: std::collections::HashSet<&str> = [
+        "bin",
+        "obj",
+        "node_modules",
+        ".git",
+        "packages",
+        ".vs",
+        ".svn",
+        "debug",
+        "release",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut queue: VecDeque<std::path::PathBuf> = VecDeque::new();
+    queue.push_back(dir.to_path_buf());
+
+    let mut results = Vec::new();
+
+    while let Some(current_dir) = queue.pop_front() {
+        if results.len() >= max_files {
+            break;
+        }
+        let mut entries = match tokio::fs::read_dir(&current_dir).await {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if results.len() >= max_files {
+                break;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if !skip_dirs.contains(name.to_lowercase().as_str()) {
+                        queue.push_back(path);
+                    }
+                }
+            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let ext_with_dot = format!(".{}", ext.to_lowercase());
+                if extensions.iter().any(|e| e.to_lowercase() == ext_with_dot) {
+                    if let Some(rel) = path.strip_prefix(dir).ok().and_then(|r| r.to_str()) {
+                        results.push(rel.replace('\\', "/"));
+                    }
+                }
+            }
+        }
+    }
+
+    results
 }
 
 /// Find the code-behind file for an ASPX file.
