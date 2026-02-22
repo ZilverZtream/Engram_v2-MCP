@@ -344,7 +344,7 @@ pub fn extract_webforms(
     // Match tags with runat="server" and an ID attribute.
     let Some(control_re) = get_compiled_regex(
         &CONTROL_RE,
-        r#"(?i)<(?:asp|ajaxToolkit|custom):[A-Za-z]+\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
+        r#"(?i)<(?:asp|ajaxToolkit|custom|telerik|rad|dx|ig|igtbl|igmisc|igsch|ComponentArt|kendo|obout|eo|FarPoint|Dart|cwc|ntx|uc|cc1|uc1):[A-Za-z]+\b([^>]*runat\s*=\s*"server"[^>]*)/?>"#,
         "webforms_control",
     ) else {
         return (symbols, edges);
@@ -1758,6 +1758,79 @@ fn lexically_normalize(path: &Path) -> std::path::PathBuf {
         }
     }
     ret
+}
+
+// ── Phase 33: OutputCache directive detection ─────────────────────────────────
+
+/// A detected `<%@ OutputCache %>` directive in markup.
+#[derive(Debug, Clone)]
+pub struct OutputCacheDirective {
+    /// Duration in seconds.
+    pub duration: Option<u32>,
+    /// VaryByParam value.
+    pub vary_by_param: Option<String>,
+    /// VaryByControl value.
+    pub vary_by_control: Option<String>,
+    /// VaryByCustom value.
+    pub vary_by_custom: Option<String>,
+    /// VaryByHeader value.
+    pub vary_by_header: Option<String>,
+    /// CacheProfile name.
+    pub cache_profile: Option<String>,
+    /// Location: Any, Client, Server, etc.
+    pub location: Option<String>,
+    /// SqlDependency attribute.
+    pub sql_dependency: Option<String>,
+}
+
+/// Extract `<%@ OutputCache ... %>` directives from ASPX/ASCX markup.
+///
+/// Returns all detected OutputCache directives (typically zero or one per file).
+pub fn extract_output_cache_directives(markup: &str) -> Vec<OutputCacheDirective> {
+    static OC_RE: OnceLock<Regex> = OnceLock::new();
+    let Some(re) = get_compiled_regex(
+        &OC_RE,
+        r"(?i)<%@\s*OutputCache\b([^%]*)%>",
+        "webforms_output_cache",
+    ) else {
+        return vec![];
+    };
+
+    let mut results = Vec::new();
+    for caps in re.captures_iter(markup) {
+        let attrs = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+
+        let duration = extract_attr(attrs, "Duration").and_then(|v| v.parse::<u32>().ok());
+        let vary_by_param = extract_attr(attrs, "VaryByParam");
+        let vary_by_control = extract_attr(attrs, "VaryByControl");
+        let vary_by_custom = extract_attr(attrs, "VaryByCustom");
+        let vary_by_header = extract_attr(attrs, "VaryByHeader");
+        let cache_profile = extract_attr(attrs, "CacheProfile");
+        let location = extract_attr(attrs, "Location");
+        let sql_dependency = extract_attr(attrs, "SqlDependency");
+
+        results.push(OutputCacheDirective {
+            duration,
+            vary_by_param,
+            vary_by_control,
+            vary_by_custom,
+            vary_by_header,
+            cache_profile,
+            location,
+            sql_dependency,
+        });
+    }
+    results
+}
+
+/// Helper: extract an attribute value from a directive attribute string.
+///
+/// Called a handful of times per directive; simple pattern compiled per call.
+fn extract_attr(attrs: &str, name: &str) -> Option<String> {
+    let pattern = format!(r#"(?i)\b{}\s*=\s*"([^"]*)""#, regex::escape(name));
+    let re = Regex::new(&pattern).ok()?;
+    re.captures(attrs)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
 }
 
 /// Returns true if the file extension suggests an ASP.NET WebForms markup or
