@@ -142,6 +142,15 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **Report Extractor**: SSRS (.rdlc/.rdl) and Crystal Reports detection with parameter, dataset, subreport, and table reference extraction
 - **Windows Service Detection**: ServiceBase/TopShelf/BackgroundService pattern recognition in graph topology
 
+### Migration Workflow Engine (Phase 31)
+
+- **Per-File Analysis Primitives**: 6 tools for deep per-file analysis — validation mapping (WebForms → DataAnnotation/FluentValidation), auth config (Forms/Windows/code-level patterns), page lifecycle mapping (Page_Init → OnInitialized), ViewState dependency extraction, UpdatePanel/AJAX region mapping, and entry-to-sink data flow tracing
+- **Migration Dossier**: Orchestrates all per-file analysis services into a single comprehensive dossier with lifecycle events, ViewState keys, AJAX regions, validators, auth patterns, blast radius, and scaffold preview
+- **Coverage Checker**: Compares original legacy page against modern migrated code to identify gaps across 6 categories (lifecycle, data binding, validation, state, navigation, auth)
+- **Progress Tracker**: Standalone Redb-backed migration status database tracking per-file status (not_started/in_progress/done/blocked) with blocking dependency chains
+- **Migration Wave Planner**: Kahn's algorithm topological sort producing parallelizable migration waves with cycle detection and bottleneck identification
+- **Full Project Analysis** (`analyze_full_project_migration`): The single-call "give me everything" tool — reads all markup + code-behind files concurrently, orchestrates migration order, state migration, auth config, data access classification, and per-file dossiers in one call. Produces a `FullProjectMigrationReport` with cross-cutting summary (shared SQL tables, shared state keys, shared user controls, risk distribution) and a comprehensive rendered markdown report
+
 ---
 
 ## Installation
@@ -393,6 +402,23 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `suggest_state_migration` | Analyze state usage (Session, ViewState, Application, Cache, Cookie, QueryString) and produce per-key migration recommendations with ViewState lifecycle report |
 | `generate_characterization_tests` | Generate NUnit/xUnit/MSTest characterization test classes covering event handlers, data flows, state transitions, navigation, and API contracts |
 | `generate_strangler_fig_config` | Generate complete strangler fig migration infrastructure: YARP reverse proxy, feature flags, routing middleware with rollout and sticky sessions, health check, Program.cs with Polly resilience |
+
+### Migration Workflow (Phase 31)
+
+| Tool | Description |
+|------|-------------|
+| `map_validation_controls` | Map WebForms validators to DataAnnotation/FluentValidation equivalents with validation group analysis |
+| `map_auth_config` | Analyze web.config auth mode (Forms/Windows/None), location rules, membership/role providers, and code-level auth patterns |
+| `map_page_lifecycle` | Map Page lifecycle events to modern framework equivalents, detect IsPostBack branching, identify implicit behaviors |
+| `analyze_viewstate_deps` | Extract explicit/implicit ViewState usage, recommend modern state types per field |
+| `map_ajax_regions` | Inventory UpdatePanel/ScriptManager regions, map triggers, suggest component decomposition |
+| `trace_data_flow` | Trace data flow from entry point to sinks (SQL, state, response) with cross-file dependency detection |
+| `get_migration_dossier` | Build a comprehensive per-file migration dossier orchestrating all analysis sub-services |
+| `check_migration_coverage` | Compare original page vs modern code to find migration gaps across 6 categories |
+| `update_migration_status` | Track per-file migration status (not_started/in_progress/done/blocked) with blocking dependencies |
+| `get_migration_progress` | Retrieve overall migration progress for a project |
+| `suggest_migration_order` | Topological sort via Kahn's algorithm producing parallelizable waves with cycle detection |
+| `analyze_full_project_migration` | **One-call full project analysis**: reads all markup + code-behind files, orchestrates migration order, state, auth, data access, and per-file dossiers into a single comprehensive report with cross-cutting summary |
 
 ### Utilities
 

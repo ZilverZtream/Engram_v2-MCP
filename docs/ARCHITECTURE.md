@@ -178,3 +178,66 @@ Graph (Redb) ──→ Service (pure fn) ──→ Tool handler ──→ MCP re
 ```
 
 All services take `&Arc<GraphStore>` and project ID, query graph edges/nodes in `spawn_blocking`, and produce serializable result structs. Tool handlers format results as Markdown or JSON depending on request parameters.
+
+## Migration Workflow Engine (Phase 31)
+
+Phase 31 builds the complete migration analysis workflow — 11 specialized services plus a single-call orchestrator.
+
+### Service architecture
+
+```
+                        ┌────────────────────────────────────────────┐
+                        │    analyze_full_project_migration           │
+                        │    (full_project_migration_service.rs)      │
+                        │                                            │
+                        │  ┌─ migration_order_service ──→ wave plan  │
+                        │  ├─ state_migration_service ──→ state rpt  │
+                        │  ├─ auth_config_service ──→ auth config    │
+                        │  ├─ db_strategy_service ──→ data access    │
+                        │  └─ per-file: dossier_service ──→ dossier  │
+                        │       ├─ lifecycle_service                  │
+                        │       ├─ viewstate_service                  │
+                        │       ├─ ajax_region_service                │
+                        │       ├─ validation_mapping_service         │
+                        │       └─ blast_radius_service               │
+                        │                                            │
+                        │  → CrossCuttingSummary (aggregated)         │
+                        │  → markdown_report (rendered)               │
+                        └────────────────────────────────────────────┘
+```
+
+### Async → blocking data flow
+
+The `analyze_full_project_migration` tool handler follows a two-phase pattern:
+
+1. **Async phase** (tokio runtime):
+   - Query all file nodes from graph (via `spawn_blocking`)
+   - Identify `.aspx`/`.ascx`/`.master` markup files
+   - Read all markup + code-behind files concurrently via `futures::future::join_all`
+   - Read web.config
+   - Collect all `.cs`/`.vb` files for auth scanning
+
+2. **Blocking phase** (via `spawn_blocking`):
+   - Call `analyze_full_project()` with all pre-read content
+   - Orchestrate all sub-services synchronously
+   - Build cross-cutting summary
+   - Render markdown report
+
+This avoids async I/O inside `spawn_blocking` while keeping the blocking analysis in a dedicated thread.
+
+### Progress persistence
+
+`MigrationProgressStore` in `AppState` uses a standalone Redb database (separate from the graph store) to track per-file migration status. Operations:
+- `update_status(project_id, file_path, status, notes, blocked_reason, blocking_deps)`
+- `get_progress(project_id)` → per-file status list with rollup counts
+- `list_files(project_id, status_filter)` → filtered file list
+
+### Cross-cutting summary
+
+The `CrossCuttingSummary` aggregates data across all per-file dossiers:
+- **Shared SQL tables**: tables accessed by multiple files (coupling indicator)
+- **Shared state keys**: Session/ViewState/Cache keys used across files (state coupling)
+- **Shared user controls**: ASCX controls registered by multiple pages
+- **Risk distribution**: count of files per risk band
+- **Complexity distribution**: count of files per complexity level (Low/Medium/High)
+- **Aggregate counts**: total validators, UpdatePanels, lifecycle events, files with IsPostBack

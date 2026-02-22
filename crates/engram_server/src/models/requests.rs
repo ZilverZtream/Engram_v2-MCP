@@ -1232,3 +1232,163 @@ pub struct GenerateStranglerFigRequest {
     #[serde(default = "default_modern_url")]
     pub modern_base_url: String,
 }
+
+// -------------------- Phase 31: Migration Workflow Engine --------------------
+
+/// Ticket 7: Map validation controls to modern equivalents.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct MapValidationControlsRequest {
+    pub project_id: String,
+    /// Project-relative path to the .aspx, .ascx, or .master file.
+    pub file_path: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 8: Map authentication/authorization configuration.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct MapAuthConfigRequest {
+    pub project_id: String,
+    /// Optional file scope — if provided, only scan this file for code-level
+    /// auth checks. If omitted, scans all indexed code files.
+    #[serde(default)]
+    pub file_scope: Option<String>,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 3: Map page lifecycle events to modern equivalents.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct MapPageLifecycleRequest {
+    pub project_id: String,
+    /// Project-relative path to the code-behind file (.aspx.vb, .aspx.cs).
+    pub file_path: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 4: Analyze ViewState dependencies (explicit and implicit).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AnalyzeViewStateDepsRequest {
+    pub project_id: String,
+    /// Project-relative path to the code-behind file (.aspx.vb, .aspx.cs).
+    pub file_path: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 6: Map UpdatePanel / AJAX regions to modern component boundaries.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct MapAjaxRegionsRequest {
+    pub project_id: String,
+    /// Project-relative path to the .aspx file.
+    pub file_path: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 2: Trace data flow from an event handler through SQL/state/binding.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct TraceDataFlowRequest {
+    pub project_id: String,
+    /// Project-relative path to the code-behind file.
+    pub file_path: String,
+    /// Name of the event handler to trace (e.g. "btnSearch_Click").
+    pub entry_point: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 1: Get a complete migration dossier for a single page.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMigrationDossierRequest {
+    pub project_id: String,
+    /// Project-relative path to the .aspx (or .ascx / .master) file.
+    pub file_path: String,
+    /// Target stack for scaffold preview: "blazor", "react", "angular". Default: "blazor".
+    #[serde(default = "default_target_stack")]
+    pub target_stack: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 5: Check migration coverage — what did the modern code miss?
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct CheckMigrationCoverageRequest {
+    pub project_id: String,
+    /// Project-relative path to the original legacy file.
+    pub original_file: String,
+    /// The generated modern code to verify against the graph.
+    pub modern_code: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 9a: Update migration status for a file.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct UpdateMigrationStatusRequest {
+    pub project_id: String,
+    /// Project-relative path of the file whose status is being updated.
+    pub file_path: String,
+    /// Status: "not_started", "in_progress", "migrated", "verified", "blocked".
+    pub status: String,
+    /// Free-form notes (PR links, comments, blockers).
+    #[serde(default)]
+    pub notes: String,
+    /// Optional risk score (0–100).
+    #[serde(default)]
+    pub risk_score: Option<u8>,
+    /// Reason the file is blocked (only relevant when status = "blocked").
+    #[serde(default)]
+    pub blocked_reason: Option<String>,
+    /// File paths that must be migrated before this one.
+    #[serde(default)]
+    pub blocking_dependencies: Vec<String>,
+}
+
+/// Ticket 9b: Get migration progress for a project.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMigrationProgressRequest {
+    pub project_id: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Ticket 10: Suggest optimal migration order based on dependency graph.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct SuggestMigrationOrderRequest {
+    pub project_id: String,
+    /// Return JSON output instead of human-readable text. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// -------------------- Phase 31: Full Project Migration --------------------
+
+fn default_max_files() -> usize {
+    200
+}
+
+/// Analyze an entire project for migration in one call.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AnalyzeFullProjectMigrationRequest {
+    pub project_id: String,
+    /// Target stack: "blazor", "react", or "angular". Default: "blazor".
+    #[serde(default = "default_target_stack")]
+    pub target_stack: String,
+    /// Maximum number of markup files to analyze. Default: 200.
+    #[serde(default = "default_max_files")]
+    pub max_files: usize,
+    /// Return JSON output instead of markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}

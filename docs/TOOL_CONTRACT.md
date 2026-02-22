@@ -96,6 +96,28 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `generate_characterization_tests(project_id, file_path, framework="nunit", output_json=false)` — NUnit/xUnit/MSTest characterization test generator producing executable test bodies with TestPageFactory, MockHttpSession, TestDbFactory, MockResponseRecorder helper infrastructure covering event handlers, data flows, state transitions, navigation, and API contracts
 - `generate_strangler_fig_config(project_id, legacy_base_url="http://localhost:5000", modern_base_url="http://localhost:5001")` — generates complete strangler fig migration infrastructure: YARP reverse proxy configuration, Microsoft.FeatureManagement per-page feature flags, routing middleware with percentage-based rollout and sticky session affinity, health check endpoint with migration progress, Program.cs registration with Polly circuit breaker/retry, and CorrelationId middleware for cross-boundary tracing
 
+## Migration Workflow Engine (Phase 31)
+
+### Per-file analysis tools
+- `map_validation_controls(project_id, file_path, output_json=false)` — maps WebForms validators (RequiredFieldValidator, CompareValidator, CustomValidator, etc.) to DataAnnotation/FluentValidation equivalents with validation group analysis
+- `map_auth_config(project_id, file_path=null, output_json=false)` — analyzes web.config auth mode (Forms/Windows/None), location authorization rules, membership/role provider config, and code-level auth patterns (IsInRole, FormsAuthentication, Authorize attributes)
+- `map_page_lifecycle(project_id, file_path, output_json=false)` — maps Page lifecycle events (Page_Init, Page_Load, Page_PreRender, etc.) to modern framework equivalents, detects IsPostBack branching, identifies implicit WebForms behaviors (ViewState, event wiring, control tree)
+- `analyze_viewstate_deps(project_id, file_path, output_json=false)` — extracts explicit ViewState["key"] usage and implicit control-level ViewState, recommends modern state type per field (component state, URL parameter, distributed cache, etc.)
+- `map_ajax_regions(project_id, file_path, output_json=false)` — inventories UpdatePanel/ScriptManager regions, maps partial postback triggers, suggests component decomposition boundaries
+- `trace_data_flow(project_id, file_path, entry_point=null, output_json=false)` — traces data flow from entry point to sinks (SQL, state writes, response), tracks state reads/writes and SQL table access, detects cross-file dependencies
+
+### Orchestration tools
+- `get_migration_dossier(project_id, file_path, target_stack="blazor", output_json=false)` — builds a comprehensive per-file migration dossier orchestrating lifecycle, ViewState, AJAX, validation, auth, blast radius, and scaffold generation into one report
+- `check_migration_coverage(project_id, original_file, modern_code, output_json=false)` — compares original page against modern code to identify migration gaps across 6 categories: lifecycle, data binding, validation, state management, navigation, authentication
+
+### Progress tracking tools
+- `update_migration_status(project_id, file_path, status, notes=null, blocked_reason=null, blocking_dependencies=[])` — updates migration status for a file (not_started/in_progress/done/blocked) with optional notes and blocking dependency tracking
+- `get_migration_progress(project_id, output_json=false)` — retrieves overall migration progress for a project with per-file status breakdown
+- `suggest_migration_order(project_id, output_json=false)` — computes topologically sorted migration plan via Kahn's algorithm, groups files into parallelizable waves, detects dependency cycles, identifies bottleneck files
+
+### Full project analysis
+- `analyze_full_project_migration(project_id, target_stack="blazor", max_files=200, output_json=false)` — the single-call migration analysis tool. Reads all markup + code-behind files concurrently, then orchestrates migration_order + state_migration + auth_config + db_strategy + per-file dossiers. Produces comprehensive FullProjectMigrationReport with CrossCuttingSummary (shared SQL tables, shared state keys, shared user controls, risk distribution, complexity distribution) and rendered markdown report covering Executive Summary, Auth, State Management, Data Access, Wave Plan, Cross-Cutting Concerns, Page-by-Page Dossiers, and Risk Assessment
+
 ## ADP Infrastructure (Phase 27)
 
 The `autonomous_decision_gate` tool is backed by production hardening infrastructure:

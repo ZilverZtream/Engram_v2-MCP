@@ -107,6 +107,18 @@ engram-v2/
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
 | `generate_strangler_fig_config` | implemented |
+| `map_validation_controls` | implemented |
+| `map_auth_config` | implemented |
+| `map_page_lifecycle` | implemented |
+| `analyze_viewstate_deps` | implemented |
+| `map_ajax_regions` | implemented |
+| `trace_data_flow` | implemented |
+| `get_migration_dossier` | implemented |
+| `check_migration_coverage` | implemented |
+| `update_migration_status` | implemented |
+| `get_migration_progress` | implemented |
+| `suggest_migration_order` | implemented |
+| `analyze_full_project_migration` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Phase 27: Gold Standard Hardening
@@ -275,6 +287,49 @@ Closes 8 structural gaps between legacy code comprehension and autonomous migrat
 | `pattern_detection_service` | 3 (includes Windows Service) |
 | doc tests | 2 (control_mapping) |
 | **Total** | **138+** |
+
+## Phase 31: Migration Workflow Engine (12 tools, 11 services)
+
+Builds the complete migration analysis workflow — from individual analysis primitives to a single "one call, everything" orchestrator that produces a comprehensive migration report for an entire project.
+
+### New modules
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `validation_mapping_service.rs` | `engram_server` | WebForms validator → DataAnnotation/FluentValidation mapping, custom validator detection, validation group analysis |
+| `auth_config_service.rs` | `engram_server` | web.config auth mode detection, location rules, membership/role provider config, code-level auth pattern scanning |
+| `lifecycle_service.rs` | `engram_server` | Page lifecycle event mapping (Page_Init → OnInitialized), IsPostBack detection, implicit WebForms behaviors |
+| `viewstate_service.rs` | `engram_server` | Explicit ViewState["key"] extraction, implicit control-level ViewState, modern state type recommendations |
+| `ajax_region_service.rs` | `engram_server` | UpdatePanel/ScriptManager inventory, partial postback trigger mapping, component decomposition |
+| `data_flow_service.rs` | `engram_server` | Entry-point → sink data flow tracing, state read/write tracking, SQL table access |
+| `coverage_service.rs` | `engram_server` | Migration coverage gap analysis comparing original page vs modern code across 6 categories |
+| `dossier_service.rs` | `engram_server` | Per-file migration dossier orchestrating lifecycle/viewstate/ajax/validation/auth/blast-radius/scaffold |
+| `migration_progress_service.rs` | `engram_server` | Standalone Redb-backed migration status tracker (not_started/in_progress/done/blocked per file) |
+| `migration_order_service.rs` | `engram_server` | Kahn's algorithm topological sort producing parallelizable migration waves |
+| `full_project_migration_service.rs` | `engram_server` | Single-call orchestrator: reads all files concurrently, runs all sub-services, produces FullProjectMigrationReport with CrossCuttingSummary |
+
+### New request structs
+
+| Struct | Parameters |
+|--------|------------|
+| `MapValidationControlsRequest` | project_id, file_path, output_json |
+| `MapAuthConfigRequest` | project_id, file_path, output_json |
+| `MapPageLifecycleRequest` | project_id, file_path, output_json |
+| `AnalyzeViewStateDepsRequest` | project_id, file_path, output_json |
+| `MapAjaxRegionsRequest` | project_id, file_path, output_json |
+| `TraceDataFlowRequest` | project_id, file_path, entry_point, output_json |
+| `GetMigrationDossierRequest` | project_id, file_path, target_stack, output_json |
+| `CheckMigrationCoverageRequest` | project_id, original_file, modern_code, output_json |
+| `UpdateMigrationStatusRequest` | project_id, file_path, status, notes, blocked_reason, blocking_dependencies |
+| `GetMigrationProgressRequest` | project_id, output_json |
+| `SuggestMigrationOrderRequest` | project_id, output_json |
+| `AnalyzeFullProjectMigrationRequest` | project_id, target_stack, max_files, output_json |
+
+### Infrastructure
+
+- `MigrationProgressStore` in `AppState` — standalone Redb database for persistent file-level migration status
+- Helper functions in tools.rs: `find_codebehind_path()`, `find_aspx_for_codebehind()`
+- `futures` workspace dependency added to `engram_server` for concurrent file I/O
 
 ## Source-of-truth sync rule
 

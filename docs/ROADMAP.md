@@ -78,6 +78,18 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
 | `generate_strangler_fig_config` | implemented |
+| `map_validation_controls` | implemented |
+| `map_auth_config` | implemented |
+| `map_page_lifecycle` | implemented |
+| `analyze_viewstate_deps` | implemented |
+| `map_ajax_regions` | implemented |
+| `trace_data_flow` | implemented |
+| `get_migration_dossier` | implemented |
+| `check_migration_coverage` | implemented |
+| `update_migration_status` | implemented |
+| `get_migration_progress` | implemented |
+| `suggest_migration_order` | implemented |
+| `analyze_full_project_migration` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Focus areas
@@ -87,6 +99,21 @@ The matrix below is generated from capability flags and acts as the roadmap base
   - `graph_centrality_rerank`: multi-algorithm centrality (PageRank + degree + betweenness approximation), 3 modes (search+rerank, node scoring, top-N), configurable algorithm weights, Brandes k-pivot betweenness.
 
 ## Changelog
+
+### Phase 31: Migration Workflow Engine (12 tools, 11 services)
+- **12 new tools**: `map_validation_controls`, `map_auth_config`, `map_page_lifecycle`, `analyze_viewstate_deps`, `map_ajax_regions`, `trace_data_flow`, `get_migration_dossier`, `check_migration_coverage`, `update_migration_status`, `get_migration_progress`, `suggest_migration_order`, `analyze_full_project_migration`
+- **Validation mapping** (`validation_mapping_service.rs`): WebForms validator → DataAnnotation/FluentValidation mapping with custom validator detection and validation group analysis
+- **Auth config analysis** (`auth_config_service.rs`): web.config auth mode detection (Forms/Windows/None), location rules, membership/role provider config, code-level auth pattern scanning
+- **Page lifecycle mapping** (`lifecycle_service.rs`): Page lifecycle event mapping (Page_Init → OnInitialized), IsPostBack detection, implicit WebForms behaviors
+- **ViewState analysis** (`viewstate_service.rs`): Explicit ViewState["key"] extraction, implicit control-level ViewState, modern state type recommendations
+- **AJAX region mapping** (`ajax_region_service.rs`): UpdatePanel/ScriptManager inventory, partial postback trigger mapping, component decomposition suggestions
+- **Data flow tracing** (`data_flow_service.rs`): Entry-point → sink data flow tracing, state read/write tracking, SQL table access, cross-file dependencies
+- **Migration dossier** (`dossier_service.rs`): Per-file migration dossier orchestrating lifecycle/viewstate/ajax/validation/auth/blast-radius/scaffold
+- **Coverage checking** (`coverage_service.rs`): Migration coverage gap analysis comparing original page vs modern code across 6 categories
+- **Progress tracking** (`migration_progress_service.rs`): Standalone Redb-backed migration status tracker (not_started/in_progress/done/blocked per file)
+- **Migration ordering** (`migration_order_service.rs`): Kahn's algorithm topological sort producing parallelizable waves with cycle detection and bottleneck identification
+- **Full project analysis** (`full_project_migration_service.rs`): Single-call orchestrator that reads all markup + code-behind files concurrently, runs migration_order + state_migration + auth_config + db_strategy + per-file dossiers, produces FullProjectMigrationReport with CrossCuttingSummary and comprehensive markdown report
+- **Infrastructure**: MigrationProgressStore in AppState (standalone Redb), helper functions find_codebehind_path/find_aspx_for_codebehind, futures dependency for concurrent file I/O
 
 ### Phase 30: End-to-End Migration Engine (8 gaps) + Phase 30a Hardening (7 fixes)
 - **6 new tools**: `generate_migration_scaffold`, `generate_instrumentation_code`, `reconcile_runtime_evidence`, `suggest_state_migration`, `generate_characterization_tests`, `generate_strangler_fig_config`
