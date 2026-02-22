@@ -348,4 +348,13 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "analyze_full_project_migration",
         status: CapabilityStatus::Implemented,
     },
+    // Phase 36: Business Logic Comprehension
+    CapabilityFlag {
+        key: "analyze_business_logic",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "query_business_logic",
+        status: CapabilityStatus::Implemented,
+    },
 ];

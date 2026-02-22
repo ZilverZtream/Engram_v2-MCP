@@ -72,6 +72,9 @@ pub struct FullProjectMigrationReport {
     pub jquery_inventory: engram_index::jquery_inventory::JQueryInventory,
     pub cross_layer_traces: CrossLayerTraceSummary,
 
+    // ── Phase 36: business logic comprehension ───────────────────────────
+    pub business_logic: super::business_logic_service::ProjectBusinessLogicReport,
+
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
 }
@@ -1315,7 +1318,57 @@ pub fn analyze_full_project(
         }
     }
 
-    // ── 6. Render markdown ────────────────────────────────────────────────
+    // ── 6. Deterministic business logic summaries ─────────────────────────
+    // (LLM-powered summaries are available via the `analyze_business_logic` tool)
+
+    let business_logic = {
+        let mut file_summaries = Vec::new();
+        let mut total_methods = 0usize;
+        for (file_path, inv) in &method_inventories {
+            // Use detect_class_name on actual content when available, fall back to filename stem
+            let class_name = code_refs
+                .iter()
+                .find(|(p, _)| *p == inv.codebehind_path.as_str())
+                .map(|(_, c)| super::business_logic_service::detect_class_name(c))
+                .unwrap_or_else(|| {
+                    inv.codebehind_path
+                        .rsplit(['/', '\\'])
+                        .next()
+                        .and_then(|f| f.split('.').next())
+                        .unwrap_or("Unknown")
+                        .to_string()
+                });
+            let methods: Vec<super::business_logic_service::MethodBusinessLogic> = inv
+                .methods
+                .iter()
+                .map(|m| {
+                    super::business_logic_service::deterministic_method_summary(
+                        file_path,
+                        m,
+                        &class_name,
+                    )
+                })
+                .collect();
+            total_methods += methods.len();
+            file_summaries.push(super::business_logic_service::FileBusinessLogic {
+                file_path: file_path.clone(),
+                class_name,
+                file_purpose: String::new(), // No LLM available in sync context
+                methods,
+                analyzed_at: now.clone(),
+            });
+        }
+        super::business_logic_service::ProjectBusinessLogicReport {
+            project_id: project_id.to_string(),
+            files_analyzed: file_summaries.len(),
+            methods_analyzed: total_methods,
+            methods_skipped_cached: 0,
+            llm_failures: 0,
+            file_summaries,
+        }
+    };
+
+    // ── 7. Render markdown ────────────────────────────────────────────────
 
     let markdown_report = render_markdown(
         project_id,
@@ -1353,6 +1406,7 @@ pub fn analyze_full_project(
         &vb_translation_traps,
         &jquery_inventory,
         &cross_layer_traces,
+        &business_logic,
     );
 
     Ok(FullProjectMigrationReport {
@@ -1390,6 +1444,7 @@ pub fn analyze_full_project(
         vb_translation_traps,
         jquery_inventory,
         cross_layer_traces,
+        business_logic,
         markdown_report,
     })
 }
@@ -3178,7 +3233,7 @@ fn build_method_inventories(
 }
 
 /// Fallback: extract method signatures directly from code-behind text using regex.
-fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
+pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     static VB_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(r"(?im)^\s*((?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:MustOverride\s+)?(?:Async\s+)?(Sub|Function)\s+(\w+)\s*\(([^)]*)\)(?:\s+As\s+(\w[\w.<>\[\],\s]*))?").unwrap()
     });
@@ -5028,6 +5083,7 @@ fn render_markdown(
     vb_traps: &engram_index::vb_translation_traps::VbTranslationTrapReport,
     jquery_inv: &engram_index::jquery_inventory::JQueryInventory,
     cross_traces: &CrossLayerTraceSummary,
+    biz_logic: &super::business_logic_service::ProjectBusinessLogicReport,
 ) -> String {
     let mut md = String::with_capacity(160_000);
 
@@ -7420,6 +7476,15 @@ fn render_markdown(
         }
     }
 
+    // ── Phase 36: Business Logic Summary ────────────────────────────────
+    if !biz_logic.file_summaries.is_empty() {
+        md.push_str(&super::business_logic_service::render_compact_markdown(
+            biz_logic,
+        ));
+        md.push_str("\n> **Tip**: Run `analyze_business_logic` with an LLM backend configured ");
+        md.push_str("for detailed step-by-step method explanations powered by Qwen 2.5 Coder.\n\n");
+    }
+
     md
 }
 
@@ -8430,7 +8495,10 @@ fn extract_binding_redirects(web_config: Option<&str>) -> Vec<BindingRedirect> {
 // ── Phase 34: Method Body Extraction ─────────────────────────────────────────
 
 /// Extract VB method body by tracking Sub/Function to End Sub/End Function.
-fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u32, u32, u32)> {
+pub(crate) fn extract_vb_method_body(
+    content: &str,
+    method_name: &str,
+) -> Option<(String, u32, u32, u32)> {
     // Find the method signature line
     let pattern = format!(
         r"(?im)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Async\s+)?(Sub|Function)\s+{}\s*\(",
@@ -8512,7 +8580,10 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
 /// Extract C# method body by tracking brace depth.
 /// Handles verbatim strings (`@"..."`), interpolated strings, block/line comments,
 /// and generic return types with commas (`Dictionary<string, int>`).
-fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u32, u32, u32)> {
+pub(crate) fn extract_cs_method_body(
+    content: &str,
+    method_name: &str,
+) -> Option<(String, u32, u32, u32)> {
     let pattern = format!(
         r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:void|[\w]+(?:<[\w,\s<>\[\]?]+>)?(?:\[\])?)\s+{}\s*\(",
         regex::escape(method_name)
@@ -9155,7 +9226,7 @@ fn build_resource_inventory(resx_files: &[(String, String)]) -> ResourceInventor
 }
 
 /// Convert epoch days (since 1970-01-01) to (year, month, day).
-fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
+pub(crate) fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
     // Civil calendar algorithm from Howard Hinnant
     let z = days + 719468;
     let era = z / 146097;
@@ -11530,5 +11601,80 @@ public class MapData : WebService {
 
         let parts2 = extract_url_parts("api/search");
         assert!(parts2.method_part.is_none() || parts2.file_part == "search");
+    }
+
+    // ── Phase 36: Business Logic Integration Tests ───────────────────────
+
+    #[test]
+    fn business_logic_deterministic_in_report() {
+        use crate::services::business_logic_service;
+
+        let method = MethodInfo {
+            name: "Page_Load".to_string(),
+            signature: "Protected Sub Page_Load(sender, e)".to_string(),
+            return_type: "Sub".to_string(),
+            access_level: "Protected".to_string(),
+            line_range: (10, 30),
+            line_count: 20,
+            method_kind: MethodKind::Lifecycle,
+            effects: vec![
+                "SQL: SELECT Orders".to_string(),
+                "Session write: CartTotal".to_string(),
+            ],
+            calls_methods: vec![],
+            called_by: vec![],
+            body_preview: Some("Protected Sub Page_Load()\nEnd Sub".to_string()),
+            complexity_score: 6,
+            handles_clause: vec![],
+        };
+
+        let summary = business_logic_service::deterministic_method_summary(
+            "OrderPage.aspx.vb",
+            &method,
+            "OrderPage",
+        );
+
+        assert_eq!(summary.fqn, "OrderPage.Page_Load");
+        assert!(summary.purpose.contains("lifecycle handler"));
+        assert!(summary.purpose.contains("SQL: SELECT Orders"));
+        assert_eq!(summary.steps.len(), 2);
+        assert!(!summary.content_hash.is_empty());
+    }
+
+    #[test]
+    fn business_logic_compact_render_includes_section() {
+        use crate::services::business_logic_service;
+
+        let report = business_logic_service::ProjectBusinessLogicReport {
+            project_id: "test".to_string(),
+            files_analyzed: 1,
+            methods_analyzed: 1,
+            methods_skipped_cached: 0,
+            llm_failures: 0,
+            file_summaries: vec![business_logic_service::FileBusinessLogic {
+                file_path: "Default.aspx.vb".to_string(),
+                class_name: "_Default".to_string(),
+                file_purpose: "Main page".to_string(),
+                methods: vec![business_logic_service::MethodBusinessLogic {
+                    file_path: "Default.aspx.vb".to_string(),
+                    method_name: "Page_Load".to_string(),
+                    fqn: "_Default.Page_Load".to_string(),
+                    purpose: "Loads dashboard data".to_string(),
+                    steps: vec![],
+                    business_rules: vec!["Auth required".to_string()],
+                    data_flow: String::new(),
+                    error_handling: String::new(),
+                    side_effects_detail: String::new(),
+                    content_hash: "h".to_string(),
+                }],
+                analyzed_at: "2026-01-01".to_string(),
+            }],
+        };
+
+        let md = business_logic_service::render_compact_markdown(&report);
+        assert!(md.contains("## Business Logic Summary"));
+        assert!(md.contains("_Default"));
+        assert!(md.contains("Loads dashboard data"));
+        assert!(md.contains("Auth required"));
     }
 }

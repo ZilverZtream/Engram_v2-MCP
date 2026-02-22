@@ -44,6 +44,7 @@ pub const NAMESPACE_HISTORY: &str = "history";
 pub const NAMESPACE_ANTIPATTERN: &str = "antipattern";
 pub const NAMESPACE_MEMORY_BANK: &str = "memory_bank";
 pub const NAMESPACE_INSIGHTS: &str = "insights";
+pub const NAMESPACE_BUSINESS_LOGIC: &str = "business_logic";
 
 pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_MEMORY,
@@ -51,6 +52,7 @@ pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_ANTIPATTERN,
     NAMESPACE_MEMORY_BANK,
     NAMESPACE_INSIGHTS,
+    NAMESPACE_BUSINESS_LOGIC,
 ];
 
 /// Returns the policy for a given namespace name.
@@ -73,6 +75,10 @@ pub fn get_policy(namespace: &str) -> Result<NamespacePolicy> {
             retention: NamespaceRetention::KeepForever,
         }),
         NAMESPACE_INSIGHTS => Ok(NamespacePolicy {
+            versioning: NamespaceVersioning::GlobalMutable,
+            retention: NamespaceRetention::KeepForever,
+        }),
+        NAMESPACE_BUSINESS_LOGIC => Ok(NamespacePolicy {
             versioning: NamespaceVersioning::GlobalMutable,
             retention: NamespaceRetention::KeepForever,
         }),
@@ -113,5 +119,12 @@ mod tests {
             NamespaceVersioning::Snapshot
         );
         assert!(get_policy("unknown").is_err());
+    }
+
+    #[test]
+    fn business_logic_namespace_is_global_mutable() {
+        let policy = get_policy(NAMESPACE_BUSINESS_LOGIC).unwrap();
+        assert_eq!(policy.versioning, NamespaceVersioning::GlobalMutable);
+        assert_eq!(policy.retention, NamespaceRetention::KeepForever);
     }
 }

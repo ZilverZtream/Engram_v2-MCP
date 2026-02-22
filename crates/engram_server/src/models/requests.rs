@@ -1392,3 +1392,41 @@ pub struct AnalyzeFullProjectMigrationRequest {
     #[serde(default)]
     pub output_json: bool,
 }
+
+// ── Phase 36: Business Logic Comprehension ───────────────────────────────────
+
+fn default_max_concurrent() -> usize {
+    2
+}
+
+/// Analyze business logic of methods using the local LLM.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AnalyzeBusinessLogicRequest {
+    pub project_id: String,
+    /// Specific file to analyze. If omitted, analyzes all code-behind files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Specific method to analyze (requires file_path).
+    #[serde(default)]
+    pub method_name: Option<String>,
+    /// Re-analyze even if cached results exist. Default: false.
+    #[serde(default)]
+    pub force_refresh: bool,
+    /// Max concurrent LLM calls. Default: 2.
+    #[serde(default = "default_max_concurrent")]
+    pub max_concurrent: usize,
+    /// Return JSON output instead of markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Query business logic summaries using natural language.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct QueryBusinessLogicRequest {
+    pub project_id: String,
+    /// Natural language query about business logic.
+    pub query: String,
+    /// Maximum number of results. Default: 5.
+    #[serde(default = "default_limit_5")]
+    pub top_k: usize,
+}
