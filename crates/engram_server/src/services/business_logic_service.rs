@@ -60,6 +60,155 @@ pub struct MethodBusinessLogic {
     pub error_handling: String,
     pub side_effects_detail: String,
     pub content_hash: String,
+    /// Confidence level from LLM validation (High / Medium / Low / empty if not validated).
+    #[serde(default)]
+    pub confidence: String,
+    /// Warnings from cross-validation of LLM output against deterministic effects.
+    #[serde(default)]
+    pub validation_warnings: Vec<String>,
+}
+
+// ── Ticket 37.2: LLM Validation Gate ─────────────────────────────────────────
+
+/// Result of cross-validating LLM output against deterministic extraction.
+#[derive(Debug, Clone, Serialize)]
+pub struct ValidationResult {
+    pub confidence: Confidence,
+    pub warnings: Vec<String>,
+}
+
+/// Confidence level assigned after cross-validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum Confidence {
+    High,
+    Medium,
+    Low,
+}
+
+impl std::fmt::Display for Confidence {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::High => write!(f, "High"),
+            Self::Medium => write!(f, "Medium"),
+            Self::Low => write!(f, "Low"),
+        }
+    }
+}
+
+/// Cross-validate LLM output against deterministic effects.
+///
+/// Compares what the LLM reported vs what static analysis already found.
+/// Checks both directions: effects the LLM missed, and tables the LLM
+/// hallucinated. Returns a confidence score and list of discrepancy warnings.
+pub fn validate_llm_output(
+    llm: &MethodBusinessLogic,
+    deterministic: &MethodBusinessLogic,
+    effects: &[String],
+) -> ValidationResult {
+    let mut warnings = Vec::new();
+    let llm_data_lower = llm.data_flow.to_lowercase();
+    let llm_effects_lower = llm.side_effects_detail.to_lowercase();
+    let llm_all_lower = format!(
+        "{} {} {} {} {}",
+        llm_data_lower,
+        llm_effects_lower,
+        llm.purpose.to_lowercase(),
+        llm.steps.join(" ").to_lowercase(),
+        llm.business_rules.join(" ").to_lowercase(),
+    );
+
+    // Category checkers: (keyword_in_effect, keyword_in_llm, description)
+    let categories: &[(&str, &str, &str)] = &[
+        ("sql:", "sql", "database access"),
+        ("session", "session", "Session usage"),
+        ("redirect", "redirect", "Redirect"),
+        ("viewstate", "viewstate", "ViewState usage"),
+        ("cache", "cache", "Cache usage"),
+        ("application", "application[", "Application state usage"),
+        ("cookie", "cookie", "Cookie usage"),
+        ("email", "email", "Email sending"),
+        ("file", "file", "File I/O"),
+    ];
+
+    for effect in effects {
+        let eff_lower = effect.to_lowercase();
+
+        for &(eff_keyword, llm_keyword, desc) in categories {
+            if eff_lower.contains(eff_keyword) && !llm_all_lower.contains(llm_keyword) {
+                warnings.push(format!(
+                    "LLM missed {desc} detected by static analysis: {effect}"
+                ));
+                break; // one warning per effect is enough
+            }
+        }
+    }
+
+    // Check if deterministic found error handling but LLM said none
+    if deterministic.error_handling.contains("Has error handling")
+        && (llm.error_handling.is_empty()
+            || llm.error_handling.to_lowercase().contains("no error")
+            || llm.error_handling.to_lowercase().contains("none"))
+    {
+        warnings.push(
+            "LLM reports no error handling, but static analysis found Try/Catch or On Error"
+                .to_string(),
+        );
+    }
+
+    // Check if LLM mentions tables not found in deterministic analysis
+    static TABLE_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:FROM|INTO|UPDATE|JOIN)\s+\[?(\w+)\]?").expect("TABLE_RE")
+    });
+    static SQL_KEYWORDS: LazyLock<std::collections::HashSet<&'static str>> = LazyLock::new(|| {
+        [
+            "select", "where", "set", "values", "table", "dbo", "sys", "null", "not", "and", "or",
+            "as", "on", "into", "inner", "outer", "left", "right", "cross", "top", "distinct",
+            "case", "when", "then", "else", "end", "begin", "declare", "cursor", "fetch",
+            "inserted", "deleted",
+        ]
+        .into_iter()
+        .collect()
+    });
+
+    let effects_joined = effects.join(" ").to_lowercase();
+    let det_all_lower = format!(
+        "{} {}",
+        deterministic.data_flow.to_lowercase(),
+        deterministic.side_effects_detail.to_lowercase()
+    );
+    for cap in TABLE_RE.captures_iter(&llm.data_flow) {
+        let table = cap[1].to_lowercase();
+        if SQL_KEYWORDS.contains(table.as_str()) {
+            continue;
+        }
+        // Check both effects and deterministic data_flow
+        if !effects_joined.contains(&table) && !det_all_lower.contains(&table) {
+            warnings.push(format!(
+                "LLM mentioned table '{table}' not found in static analysis — verify"
+            ));
+        }
+    }
+
+    let confidence = match warnings.len() {
+        0 => Confidence::High,
+        1 | 2 => Confidence::Medium,
+        _ => Confidence::Low,
+    };
+
+    ValidationResult {
+        confidence,
+        warnings,
+    }
+}
+
+/// Return the confidence badge emoji for rendering in markdown.
+pub fn confidence_badge(confidence: &str) -> &'static str {
+    match confidence {
+        "High" => "✅ High",
+        "Medium" => "⚠️ Medium",
+        "Low" => "❌ Low",
+        _ => "",
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -138,6 +287,8 @@ pub fn parse_llm_response(
         error_handling,
         side_effects_detail,
         content_hash: content_hash.to_string(),
+        confidence: String::new(),
+        validation_warnings: vec![],
     }
 }
 
@@ -275,6 +426,8 @@ pub fn deterministic_method_summary(
         error_handling,
         side_effects_detail: method.effects.join(", "),
         content_hash: body_hash,
+        confidence: String::new(),
+        validation_warnings: vec![],
     }
 }
 
@@ -327,6 +480,8 @@ pub async fn analyze_method_logic(
             error_handling: String::new(),
             side_effects_detail: String::new(),
             content_hash: body_hash,
+            confidence: String::new(),
+            validation_warnings: vec![],
         };
     }
 
@@ -561,7 +716,13 @@ pub fn render_compact_markdown(report: &ProjectBusinessLogicReport) -> String {
             let safe_purpose = file.file_purpose.replace('*', r"\*");
             md.push_str(&format!("*{safe_purpose}*\n\n"));
         }
-        md.push_str("| Method | Purpose | Key Rules |\n|---|---|---|\n");
+        // Use confidence column when any method has confidence data
+        let has_confidence = file.methods.iter().any(|m| !m.confidence.is_empty());
+        if has_confidence {
+            md.push_str("| Method | Purpose | Key Rules | Confidence |\n|---|---|---|---|\n");
+        } else {
+            md.push_str("| Method | Purpose | Key Rules |\n|---|---|---|\n");
+        }
         for m in &file.methods {
             let rules_summary = if m.business_rules.is_empty() {
                 "—".to_string()
@@ -573,12 +734,22 @@ pub fn render_compact_markdown(report: &ProjectBusinessLogicReport) -> String {
                     .collect::<Vec<_>>()
                     .join("; ")
             };
-            md.push_str(&format!(
-                "| {} | {} | {} |\n",
-                escape_pipe(&m.method_name),
-                escape_pipe(&m.purpose),
-                rules_summary
-            ));
+            if has_confidence {
+                md.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    escape_pipe(&m.method_name),
+                    escape_pipe(&m.purpose),
+                    rules_summary,
+                    confidence_badge(&m.confidence),
+                ));
+            } else {
+                md.push_str(&format!(
+                    "| {} | {} | {} |\n",
+                    escape_pipe(&m.method_name),
+                    escape_pipe(&m.purpose),
+                    rules_summary
+                ));
+            }
         }
         md.push('\n');
     }
@@ -879,6 +1050,8 @@ public class OrderEntry : Page
             error_handling: "Shows error message on failure".to_string(),
             side_effects_detail: "Binds grid, updates Session".to_string(),
             content_hash: "abc".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
         };
 
         let doc = render_method_as_doc(&m);
@@ -915,6 +1088,8 @@ public class OrderEntry : Page
                     error_handling: String::new(),
                     side_effects_detail: String::new(),
                     content_hash: "h1".to_string(),
+                    confidence: String::new(),
+                    validation_warnings: vec![],
                 }],
                 analyzed_at: "2026-02-22T00:00:00Z".to_string(),
             }],
@@ -1031,6 +1206,8 @@ public class Foo : Page
                     error_handling: String::new(),
                     side_effects_detail: String::new(),
                     content_hash: "h".to_string(),
+                    confidence: String::new(),
+                    validation_warnings: vec![],
                 }],
                 analyzed_at: "2026-01-01T00:00:00Z".to_string(),
             }],
@@ -1042,5 +1219,189 @@ public class Foo : Page
             md.contains(r"\*"),
             "Asterisks in file_purpose should be escaped"
         );
+    }
+
+    // ── Phase 37: Validation Gate Tests ──────────────────────────────────
+
+    #[test]
+    fn validate_llm_perfect_agreement() {
+        let llm = MethodBusinessLogic {
+            file_path: "Page.aspx.vb".to_string(),
+            method_name: "Load".to_string(),
+            fqn: "Page.Load".to_string(),
+            purpose: "Loads customer data from database".to_string(),
+            steps: vec!["Query Customers table".to_string()],
+            business_rules: vec![],
+            data_flow: "Reads Customers table via SQL SELECT".to_string(),
+            error_handling: String::new(),
+            side_effects_detail: "Writes Session[\"UserRole\"]".to_string(),
+            content_hash: "h1".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        let det = llm.clone();
+        let effects = vec![
+            "SQL: SELECT Customers".to_string(),
+            "Session write: UserRole".to_string(),
+        ];
+
+        let result = validate_llm_output(&llm, &det, &effects);
+        assert_eq!(result.confidence, Confidence::High);
+        assert!(result.warnings.is_empty());
+    }
+
+    #[test]
+    fn validate_llm_misses_sql_effect() {
+        let llm = MethodBusinessLogic {
+            file_path: "Page.aspx.vb".to_string(),
+            method_name: "Load".to_string(),
+            fqn: "Page.Load".to_string(),
+            purpose: "Initializes the page".to_string(),
+            steps: vec![],
+            business_rules: vec![],
+            data_flow: String::new(), // LLM missed the SQL
+            error_handling: String::new(),
+            side_effects_detail: String::new(),
+            content_hash: "h1".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        let det = llm.clone();
+        let effects = vec!["SQL: SELECT Customers".to_string()];
+
+        let result = validate_llm_output(&llm, &det, &effects);
+        assert_eq!(result.confidence, Confidence::Medium);
+        assert!(result.warnings[0].contains("missed database access"));
+    }
+
+    #[test]
+    fn validate_llm_misses_session_and_redirect() {
+        let llm = MethodBusinessLogic {
+            file_path: "Page.aspx.vb".to_string(),
+            method_name: "Load".to_string(),
+            fqn: "Page.Load".to_string(),
+            purpose: "Does something".to_string(),
+            steps: vec![],
+            business_rules: vec![],
+            data_flow: String::new(),
+            error_handling: String::new(),
+            side_effects_detail: String::new(),
+            content_hash: "h1".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        let det = llm.clone();
+        let effects = vec![
+            "SQL: SELECT Orders".to_string(),
+            "Session write: CartID".to_string(),
+            "Redirect: Checkout.aspx".to_string(),
+        ];
+
+        let result = validate_llm_output(&llm, &det, &effects);
+        assert_eq!(result.confidence, Confidence::Low);
+        assert!(result.warnings.len() >= 3);
+    }
+
+    #[test]
+    fn validate_llm_mentions_unknown_table() {
+        let llm = MethodBusinessLogic {
+            file_path: "Page.aspx.vb".to_string(),
+            method_name: "Save".to_string(),
+            fqn: "Page.Save".to_string(),
+            purpose: "Saves data".to_string(),
+            steps: vec![],
+            business_rules: vec![],
+            data_flow: "Reads FROM UnknownTable, writes INTO AnotherTable".to_string(),
+            error_handling: String::new(),
+            side_effects_detail: String::new(),
+            content_hash: "h1".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        // Deterministic version only knows about Customers — LLM hallucinated the other tables
+        let det = MethodBusinessLogic {
+            file_path: "Page.aspx.vb".to_string(),
+            method_name: "Save".to_string(),
+            fqn: "Page.Save".to_string(),
+            purpose: "Saves data".to_string(),
+            steps: vec![],
+            business_rules: vec![],
+            data_flow: "SQL: SELECT Customers".to_string(),
+            error_handling: String::new(),
+            side_effects_detail: String::new(),
+            content_hash: "h1".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        let effects = vec!["SQL: SELECT Customers".to_string()];
+
+        let result = validate_llm_output(&llm, &det, &effects);
+        assert!(
+            result
+                .warnings
+                .iter()
+                .any(|w| w.contains("not found in static analysis")),
+            "Should flag tables not found in deterministic analysis: {:?}",
+            result.warnings
+        );
+    }
+
+    #[test]
+    fn validate_empty_llm_no_crash() {
+        let llm = MethodBusinessLogic {
+            file_path: "t.vb".to_string(),
+            method_name: "M".to_string(),
+            fqn: "T.M".to_string(),
+            purpose: String::new(),
+            steps: vec![],
+            business_rules: vec![],
+            data_flow: String::new(),
+            error_handling: String::new(),
+            side_effects_detail: String::new(),
+            content_hash: "h".to_string(),
+            confidence: String::new(),
+            validation_warnings: vec![],
+        };
+        let det = llm.clone();
+        let result = validate_llm_output(&llm, &det, &[]);
+        assert_eq!(result.confidence, Confidence::High);
+    }
+
+    #[test]
+    fn confidence_badge_renders_in_compact_markdown() {
+        let report = ProjectBusinessLogicReport {
+            project_id: "test".to_string(),
+            files_analyzed: 1,
+            methods_analyzed: 1,
+            methods_skipped_cached: 0,
+            llm_failures: 0,
+            file_summaries: vec![FileBusinessLogic {
+                file_path: "page.vb".to_string(),
+                class_name: "MyPage".to_string(),
+                file_purpose: "Test page".to_string(),
+                methods: vec![MethodBusinessLogic {
+                    file_path: "page.vb".to_string(),
+                    method_name: "Load".to_string(),
+                    fqn: "MyPage.Load".to_string(),
+                    purpose: "Loads data".to_string(),
+                    steps: vec![],
+                    business_rules: vec![],
+                    data_flow: String::new(),
+                    error_handling: String::new(),
+                    side_effects_detail: String::new(),
+                    content_hash: "h".to_string(),
+                    confidence: "High".to_string(),
+                    validation_warnings: vec![],
+                }],
+                analyzed_at: "2026-01-01T00:00:00Z".to_string(),
+            }],
+        };
+
+        let md = render_compact_markdown(&report);
+        assert!(
+            md.contains("Confidence"),
+            "Should have confidence column header"
+        );
+        assert!(md.contains("High"), "Should show confidence badge");
     }
 }

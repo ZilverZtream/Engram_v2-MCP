@@ -8949,6 +8949,13 @@ End Sub
 
         // ── Build ProjectFileBundle ───────────────────────────────────────
 
+        // Save code file contents for optional LLM enhancement (Phase 37)
+        let code_file_contents: Vec<(String, String)> = if req.use_llm {
+            code_files.clone()
+        } else {
+            vec![]
+        };
+
         let bundle = ProjectFileBundle {
             markup_files,
             js_files,
@@ -8967,7 +8974,8 @@ End Sub
 
         // ── Blocking phase: run all analysis ──────────────────────────────
 
-        let report = tokio::task::spawn_blocking(move || {
+        let use_llm = req.use_llm;
+        let mut report = tokio::task::spawn_blocking(move || {
             crate::services::full_project_migration_service::analyze_full_project(
                 &graph,
                 &pid,
@@ -8979,6 +8987,21 @@ End Sub
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // ── Phase 37: Optional LLM enhancement pass ─────────────────────
+
+        if use_llm {
+            let dreaming = self.state.dreaming.as_ref();
+            let file_contents_map: std::collections::HashMap<String, String> =
+                code_file_contents.into_iter().collect();
+            crate::services::full_project_migration_service::enhance_report_with_llm(
+                &mut report,
+                dreaming,
+                &file_contents_map,
+                2, // max_concurrent LLM calls
+            )
+            .await;
+        }
 
         // ── Output ────────────────────────────────────────────────────────
 
