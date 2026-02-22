@@ -78,6 +78,18 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `suggest_state_migration` | implemented |
 | `generate_characterization_tests` | implemented |
 | `generate_strangler_fig_config` | implemented |
+| `map_validation_controls` | implemented |
+| `map_auth_config` | implemented |
+| `map_page_lifecycle` | implemented |
+| `analyze_viewstate_deps` | implemented |
+| `map_ajax_regions` | implemented |
+| `trace_data_flow` | implemented |
+| `get_migration_dossier` | implemented |
+| `check_migration_coverage` | implemented |
+| `update_migration_status` | implemented |
+| `get_migration_progress` | implemented |
+| `suggest_migration_order` | implemented |
+| `analyze_full_project_migration` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Notes

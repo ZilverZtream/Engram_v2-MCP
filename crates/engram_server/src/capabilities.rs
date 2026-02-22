@@ -298,4 +298,54 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "generate_strangler_fig_config",
         status: CapabilityStatus::Implemented,
     },
+    // ── Phase 31: Migration Workflow Engine ────────────────────────────────
+    CapabilityFlag {
+        key: "map_validation_controls",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "map_auth_config",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "map_page_lifecycle",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "analyze_viewstate_deps",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "map_ajax_regions",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "trace_data_flow",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_migration_dossier",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "check_migration_coverage",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "update_migration_status",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_migration_progress",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "suggest_migration_order",
+        status: CapabilityStatus::Implemented,
+    },
+    // ── Phase 31: Full Project Migration ──────────────────────────────────
+    CapabilityFlag {
+        key: "analyze_full_project_migration",
+        status: CapabilityStatus::Implemented,
+    },
 ];

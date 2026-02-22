@@ -7399,6 +7399,1423 @@ End Sub
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
+
+    // ── Phase 31: Migration Workflow Engine Tools ─────────────────────────────
+
+    /// Map WebForms validation controls to modern equivalents.
+    #[tool(
+        name = "map_validation_controls",
+        description = "Parse ASP.NET validator controls (<asp:RequiredFieldValidator>, CompareValidator, RangeValidator, RegularExpressionValidator, CustomValidator, ValidationSummary) from an ASPX file and map each to DataAnnotations, FluentValidation, and Blazor equivalents. Groups validators by ValidationGroup and detects CausesValidation buttons."
+    )]
+    pub async fn map_validation_controls(
+        &self,
+        params: Parameters<MapValidationControlsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+
+        // Read ASPX content from disk
+        let aspx_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
+        })?;
+
+        // Try to read code-behind
+        let cb_path = find_codebehind_path(&aspx_full);
+        let cb_content = if let Some(ref p) = cb_path {
+            tokio::fs::read_to_string(p).await.ok()
+        } else {
+            None
+        };
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::validation_mapping_service::analyze_validation_controls(
+                &graph,
+                &pid,
+                &file_path,
+                &aspx_content,
+                cb_content.as_deref(),
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Validation Controls — {}\n\n\
+             **Total validators**: {} | **Complexity**: {}\n\n",
+            result.file_path, result.total_validators, result.migration_complexity
+        );
+
+        if !result.validators.is_empty() {
+            out.push_str("## Validators\n");
+            for v in &result.validators {
+                out.push_str(&format!(
+                    "- **{}** ({}) → validates `{}` | group: `{}`\n  - DataAnnotation: `{}`\n  - FluentValidation: `{}`\n  - Blazor: `{}`\n",
+                    v.validator_id, v.validator_type, v.control_to_validate,
+                    if v.validation_group.is_empty() { "(default)" } else { &v.validation_group },
+                    v.modern_data_annotation, v.modern_fluent_validation, v.modern_blazor,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.custom_validators.is_empty() {
+            out.push_str("## Custom Validators\n");
+            for cv in &result.custom_validators {
+                out.push_str(&format!(
+                    "- **{}** → validates `{}`\n  - Server handler: `{}`\n  - Client function: `{}`\n  - Approach: {}\n",
+                    cv.validator_id, cv.control_to_validate,
+                    cv.server_validate_handler.as_deref().unwrap_or("(none)"),
+                    cv.client_validation_function.as_deref().unwrap_or("(none)"),
+                    cv.modern_approach,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.validation_groups.is_empty() {
+            out.push_str("## Validation Groups\n");
+            for g in &result.validation_groups {
+                out.push_str(&format!(
+                    "- **{}**: {} validators, triggers: [{}]\n",
+                    g.group_name,
+                    g.validator_ids.len(),
+                    g.trigger_buttons.join(", "),
+                ));
+            }
+            out.push('\n');
+        }
+
+        if let Some(ref vs) = result.validation_summary {
+            out.push_str(&format!(
+                "## ValidationSummary\n- ID: `{}` | Display: `{}` | Group: `{}`\n\n",
+                vs.summary_id, vs.display_mode, vs.validation_group,
+            ));
+        }
+
+        if !result.causes_validation_buttons.is_empty() {
+            out.push_str("## CausesValidation Buttons\n");
+            for b in &result.causes_validation_buttons {
+                out.push_str(&format!(
+                    "- `{}` ({}) → group: `{}` | causes_validation: {}\n",
+                    b.control_id, b.control_type, b.validation_group, b.causes_validation,
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Map authentication and authorization configuration.
+    #[tool(
+        name = "map_auth_config",
+        description = "Parse web.config authentication/authorization sections (Forms, Windows, location rules, membership, roleManager) and scan code-behind files for FormsAuthentication, Membership, Roles, and session-based auth patterns. Maps everything to ASP.NET Core Identity equivalents."
+    )]
+    pub async fn map_auth_config(
+        &self,
+        params: Parameters<MapAuthConfigRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let project_dir = rec.directory.clone();
+
+        // Try to read web.config
+        let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
+        let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
+        // Also try Web.config (case-sensitive on Linux)
+        let webconfig_content = if webconfig_content.is_none() {
+            let alt = std::path::Path::new(&project_dir).join("Web.config");
+            tokio::fs::read_to_string(&alt).await.ok()
+        } else {
+            webconfig_content
+        };
+
+        // Collect code files to scan for auth patterns
+        let code_files = if let Some(ref scope) = req.file_scope {
+            // Only scan the specified file
+            let full = std::path::Path::new(&project_dir).join(scope);
+            match tokio::fs::read_to_string(&full).await {
+                Ok(content) => vec![(scope.clone(), content)],
+                Err(_) => vec![],
+            }
+        } else {
+            // Scan all code-behind files from graph nodes
+            let g = graph.clone();
+            let p = pid.clone();
+            let dir = project_dir.clone();
+            tokio::task::spawn_blocking(move || -> Vec<(String, String)> {
+                let file_nodes = g
+                    .query_nodes(&p, Some("file"), None, None, 50_000)
+                    .unwrap_or_default();
+                let mut files = Vec::new();
+                for node in &file_nodes {
+                    let path = &node.name;
+                    if path.ends_with(".vb")
+                        || path.ends_with(".cs")
+                        || path.ends_with(".aspx.vb")
+                        || path.ends_with(".aspx.cs")
+                    {
+                        let full = std::path::Path::new(&dir).join(path);
+                        if let Ok(content) = std::fs::read_to_string(&full) {
+                            files.push((path.clone(), content));
+                        }
+                    }
+                }
+                files
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
+
+        let result = tokio::task::spawn_blocking(move || {
+            let code_refs: Vec<(&str, &str)> = code_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+            crate::services::auth_config_service::analyze_auth_config(
+                &graph,
+                &pid,
+                webconfig_content.as_deref(),
+                &code_refs,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Authentication & Authorization Map\n\n\
+             **Auth mode**: {} | **Complexity**: {}\n\n",
+            result.auth_mode, result.migration_complexity,
+        );
+
+        if let Some(ref fa) = result.forms_auth {
+            out.push_str(&format!(
+                "## Forms Authentication\n\
+                 - Login URL: `{}`\n\
+                 - Default URL: `{}`\n\
+                 - Timeout: {} min\n\
+                 - Cookie: `{}`\n\n",
+                fa.login_url, fa.default_url, fa.timeout_minutes, fa.cookie_name,
+            ));
+        }
+
+        if let Some(ref wa) = result.windows_auth {
+            out.push_str(&format!(
+                "## Windows Authentication\n- Modern equivalent: {}\n\n",
+                wa.modern_equivalent,
+            ));
+        }
+
+        if !result.location_rules.is_empty() {
+            out.push_str("## Location Authorization Rules\n");
+            for lr in &result.location_rules {
+                out.push_str(&format!("### `{}`\n", lr.path));
+                if !lr.allow_roles.is_empty() {
+                    out.push_str(&format!("- Allow roles: {}\n", lr.allow_roles.join(", ")));
+                }
+                if !lr.allow_users.is_empty() {
+                    out.push_str(&format!("- Allow users: {}\n", lr.allow_users.join(", ")));
+                }
+                if !lr.deny_roles.is_empty() {
+                    out.push_str(&format!("- Deny roles: {}\n", lr.deny_roles.join(", ")));
+                }
+                if !lr.deny_users.is_empty() {
+                    out.push_str(&format!("- Deny users: {}\n", lr.deny_users.join(", ")));
+                }
+                out.push_str(&format!(
+                    "- Modern: `{}` / policy: `{}`\n\n",
+                    lr.modern_attribute, lr.modern_policy,
+                ));
+            }
+        }
+
+        if let Some(ref mc) = result.membership_config {
+            out.push_str(&format!(
+                "## Membership Provider\n- Provider: `{}`\n- Type: `{}`\n- Password format: {}\n- Min length: {}\n- Modern: {}\n\n",
+                mc.default_provider, mc.provider_type, mc.password_format,
+                mc.min_password_length, mc.modern_equivalent,
+            ));
+        }
+
+        if let Some(ref rp) = result.role_provider {
+            out.push_str(&format!(
+                "## Role Provider\n- Provider: `{}`\n- Type: `{}`\n- Modern: {}\n\n",
+                rp.default_provider, rp.provider_type, rp.modern_equivalent,
+            ));
+        }
+
+        if !result.code_auth_checks.is_empty() {
+            out.push_str("## Code-Level Auth Checks\n");
+            for c in &result.code_auth_checks {
+                out.push_str(&format!(
+                    "- `{}` ({}) in `{}:{}` → {}\n",
+                    c.expression, c.check_type, c.file_path, c.line_number, c.modern_equivalent,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.session_auth_patterns.is_empty() {
+            out.push_str("## Session-Based Auth Anti-Patterns\n");
+            for s in &result.session_auth_patterns {
+                out.push_str(&format!(
+                    "- `{}` ({}) key: `{}` in `{}` → {}\n",
+                    s.description, s.pattern_type, s.session_key, s.file_path, s.modern_equivalent,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.recommendations.is_empty() {
+            out.push_str("## Migration Recommendations\n");
+            for r in &result.recommendations {
+                out.push_str(&format!(
+                    "### {} ({})\n- {}\n- Modern: {}\n\n",
+                    r.category, r.severity, r.recommendation, r.modern_pattern,
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Map page lifecycle events to modern equivalents.
+    #[tool(
+        name = "map_page_lifecycle",
+        description = "Extract WebForms page lifecycle events (Page_Init, Page_Load, Page_PreRender, etc.) and control events from a code-behind file. Detects IsPostBack branching, implicit behaviors, and maps each to Blazor, React, and Angular equivalents."
+    )]
+    pub async fn map_page_lifecycle(
+        &self,
+        params: Parameters<MapPageLifecycleRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+
+        let cb_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", cb_full.display()), None)
+        })?;
+
+        // Try to find corresponding ASPX file
+        let aspx_path = find_aspx_for_codebehind(&cb_full);
+        let aspx_content = if let Some(ref p) = aspx_path {
+            tokio::fs::read_to_string(p).await.ok()
+        } else {
+            None
+        };
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::lifecycle_service::analyze_page_lifecycle(
+                &graph,
+                &pid,
+                &file_path,
+                &cb_content,
+                aspx_content.as_deref(),
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!("# Page Lifecycle — {}\n\n", result.file_path);
+
+        if let Some(ref bc) = result.base_class {
+            out.push_str(&format!("**Base class**: `{bc}`\n\n"));
+        }
+
+        if !result.lifecycle_events.is_empty() {
+            out.push_str("## Lifecycle Events\n");
+            for ev in &result.lifecycle_events {
+                out.push_str(&format!(
+                    "### {} → `{}`\n- IsPostBack branch: {}\n",
+                    ev.event_name, ev.handler_name, ev.has_ispostback_branch,
+                ));
+                if !ev.first_load_actions.is_empty() {
+                    out.push_str("- **First-load actions**:\n");
+                    for a in &ev.first_load_actions {
+                        out.push_str(&format!("  - {a}\n"));
+                    }
+                }
+                if !ev.postback_actions.is_empty() {
+                    out.push_str("- **Postback actions**:\n");
+                    for a in &ev.postback_actions {
+                        out.push_str(&format!("  - {a}\n"));
+                    }
+                }
+                if !ev.always_actions.is_empty() {
+                    out.push_str("- **Always actions**:\n");
+                    for a in &ev.always_actions {
+                        out.push_str(&format!("  - {a}\n"));
+                    }
+                }
+                out.push_str(&format!(
+                    "- Blazor: `{}`\n- React: `{}`\n- Angular: `{}`\n\n",
+                    ev.modern_blazor, ev.modern_react, ev.modern_angular,
+                ));
+            }
+        }
+
+        if !result.control_events.is_empty() {
+            out.push_str("## Control Events\n");
+            for ce in &result.control_events {
+                out.push_str(&format!(
+                    "- **{}** ({}) `{}` → `{}`\n  - Blazor: `{}`\n  - React: `{}`\n",
+                    ce.control_id,
+                    ce.control_type,
+                    ce.event_name,
+                    ce.handler_name,
+                    ce.modern_blazor,
+                    ce.modern_react,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.implicit_behaviors.is_empty() {
+            out.push_str("## Implicit Behaviors\n");
+            for ib in &result.implicit_behaviors {
+                out.push_str(&format!(
+                    "- **{}** ({}): {} → {}\n",
+                    ib.behavior, ib.severity, ib.webforms_mechanism, ib.modern_replacement,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.migration_notes.is_empty() {
+            out.push_str("## Migration Notes\n");
+            for n in &result.migration_notes {
+                out.push_str(&format!("- {n}\n"));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Analyze ViewState dependencies (explicit and implicit).
+    #[tool(
+        name = "analyze_viewstate_deps",
+        description = "Analyze explicit ViewState[\"key\"] usage and implicit control-level ViewState (TextBox.Text, GridView.DataSource, etc.) in a WebForms page. Generates modern state model recommendations."
+    )]
+    pub async fn analyze_viewstate_deps(
+        &self,
+        params: Parameters<AnalyzeViewStateDepsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+
+        let cb_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", cb_full.display()), None)
+        })?;
+
+        let aspx_path = find_aspx_for_codebehind(&cb_full);
+        let aspx_content = if let Some(ref p) = aspx_path {
+            tokio::fs::read_to_string(p).await.ok()
+        } else {
+            None
+        };
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::viewstate_service::analyze_viewstate_dependencies(
+                &graph,
+                &pid,
+                &file_path,
+                &cb_content,
+                aspx_content.as_deref(),
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# ViewState Dependencies — {}\n\n\
+             **Total state fields**: {} | **Complexity**: {}\n",
+            result.file_path, result.total_state_fields, result.migration_complexity,
+        );
+
+        if let Some(pv) = result.page_level_viewstate {
+            out.push_str(&format!(
+                "**Page-level EnableViewState**: {}\n",
+                if pv { "true" } else { "false (disabled)" }
+            ));
+        }
+        out.push('\n');
+
+        if !result.explicit_viewstate.is_empty() {
+            out.push_str("## Explicit ViewState Keys\n");
+            for vs in &result.explicit_viewstate {
+                out.push_str(&format!(
+                    "- **{}** ({})\n  - Readers: [{}]\n  - Writers: [{}]\n  - Lifecycle: {}\n  - Modern: `{}`\n",
+                    vs.key, vs.data_type_guess,
+                    vs.readers.join(", "), vs.writers.join(", "),
+                    vs.lifecycle, vs.modern_replacement,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.implicit_viewstate.is_empty() {
+            out.push_str("## Implicit ViewState (Control Properties)\n");
+            for iv in &result.implicit_viewstate {
+                out.push_str(&format!(
+                    "- **{}** (`{}`) — props: [{}] — {}\n  - {}\n",
+                    iv.control_id,
+                    iv.control_type,
+                    iv.properties_persisted.join(", "),
+                    iv.estimated_size_impact,
+                    iv.modern_replacement,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.viewstate_disabled_controls.is_empty() {
+            out.push_str("## ViewState Disabled Controls\n");
+            for c in &result.viewstate_disabled_controls {
+                out.push_str(&format!("- {c}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !result.heaviest_controls.is_empty() {
+            out.push_str("## Heaviest Controls\n");
+            for (id, ctrl_type, reason) in &result.heaviest_controls {
+                out.push_str(&format!("- `{id}` ({ctrl_type}): {reason}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !result.modern_state_model.is_empty() {
+            out.push_str("## Modern State Model\n");
+            for sm in &result.modern_state_model {
+                out.push_str(&format!(
+                    "- **{}** (source: {})\n  - Blazor: `{}`\n  - React: `{}`\n  - Persist: {}\n",
+                    sm.field_name,
+                    sm.source,
+                    sm.blazor_declaration,
+                    sm.react_declaration,
+                    sm.persist_across,
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Map UpdatePanel / AJAX regions to modern component boundaries.
+    #[tool(
+        name = "map_ajax_regions",
+        description = "Parse UpdatePanel, ScriptManager, AsyncPostBackTrigger, PostBackTrigger, Timer, and UpdateProgress controls from an ASPX file. Maps each region to modern component boundaries (Blazor components, React fetch, Angular HttpClient)."
+    )]
+    pub async fn map_ajax_regions(
+        &self,
+        params: Parameters<MapAjaxRegionsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+
+        let aspx_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
+        })?;
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::ajax_region_service::analyze_ajax_regions(
+                &graph,
+                &pid,
+                &file_path,
+                &aspx_content,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# AJAX Regions — {}\n\n\
+             **ScriptManager**: {} | **Partial rendering**: {} | **PageMethods**: {} | **Complexity**: {}\n\n",
+            result.file_path,
+            result.has_script_manager,
+            result.enable_partial_rendering,
+            result.enable_page_methods,
+            result.migration_complexity,
+        );
+
+        if !result.update_panels.is_empty() {
+            out.push_str("## UpdatePanels\n");
+            for up in &result.update_panels {
+                out.push_str(&format!(
+                    "### `{}`\n- Mode: {} | ChildrenAsTriggers: {}\n",
+                    up.panel_id, up.update_mode, up.children_as_triggers,
+                ));
+                if !up.async_triggers.is_empty() {
+                    out.push_str("- Async triggers:\n");
+                    for t in &up.async_triggers {
+                        out.push_str(&format!("  - `{}`.`{}`\n", t.control_id, t.event_name));
+                    }
+                }
+                if !up.postback_triggers.is_empty() {
+                    out.push_str("- Full postback triggers:\n");
+                    for t in &up.postback_triggers {
+                        out.push_str(&format!("  - `{t}`\n"));
+                    }
+                }
+                if !up.controls_inside.is_empty() {
+                    out.push_str(&format!(
+                        "- Contains {} controls\n",
+                        up.controls_inside.len()
+                    ));
+                }
+                out.push_str(&format!("- Modern: {}\n", up.modern_pattern));
+                out.push('\n');
+            }
+        }
+
+        if !result.timers.is_empty() {
+            out.push_str("## Timers\n");
+            for t in &result.timers {
+                out.push_str(&format!(
+                    "- `{}`: {}ms interval (enabled: {}) → {}\n",
+                    t.timer_id, t.interval_ms, t.enabled, t.modern_equivalent,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.update_progress_controls.is_empty() {
+            out.push_str("## UpdateProgress Controls\n");
+            for up in &result.update_progress_controls {
+                out.push_str(&format!(
+                    "- `{}` → associated panel: `{}`\n",
+                    up.progress_id,
+                    up.associated_update_panel.as_deref().unwrap_or("(any)"),
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.full_postback_controls.is_empty() {
+            out.push_str("## Full Postback Controls (outside UpdatePanels)\n");
+            for c in &result.full_postback_controls {
+                out.push_str(&format!("- {c}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !result.suggested_components.is_empty() {
+            out.push_str("## Suggested Modern Components\n");
+            for sc in &result.suggested_components {
+                out.push_str(&format!(
+                    "- **{}**: {}\n  - Controls: [{}]\n  - Blazor: `{}`\n",
+                    sc.name,
+                    sc.reason,
+                    sc.controls.join(", "),
+                    sc.blazor_pattern,
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Trace data flow from an event handler through SQL, state, and data binding.
+    #[tool(
+        name = "trace_data_flow",
+        description = "Trace the business logic flow from a named event handler (e.g. btnSearch_Click) through control reads, state access, SQL operations, data binding, and redirects. Supplements parsed code with graph edges."
+    )]
+    pub async fn trace_data_flow(
+        &self,
+        params: Parameters<TraceDataFlowRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+        let entry_point = req.entry_point.clone();
+
+        let cb_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", cb_full.display()), None)
+        })?;
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::data_flow_service::trace_data_flow(
+                &graph,
+                &pid,
+                &file_path,
+                &entry_point,
+                &cb_content,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Data Flow Trace — `{}`\n\n**Trigger**: {}\n\n",
+            result.entry_point, result.trigger,
+        );
+
+        if !result.steps.is_empty() {
+            out.push_str("## Flow Steps\n");
+            for (i, step) in result.steps.iter().enumerate() {
+                out.push_str(&format!(
+                    "{}. **{}** — `{}`\n",
+                    i + 1,
+                    step.step_type,
+                    step.description,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !result.tables_touched.is_empty() {
+            out.push_str(&format!(
+                "## Tables Touched\n{}\n\n",
+                result
+                    .tables_touched
+                    .iter()
+                    .map(|t| format!("- `{t}`"))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
+        }
+
+        if !result.state_reads.is_empty() || !result.state_writes.is_empty() {
+            out.push_str("## State Access\n");
+            for sr in &result.state_reads {
+                out.push_str(&format!("- READ `{}` ({})\n", sr.key, sr.state_type));
+            }
+            for sw in &result.state_writes {
+                out.push_str(&format!("- WRITE `{}` ({})\n", sw.key, sw.state_type));
+            }
+            out.push('\n');
+        }
+
+        if !result.controls_read.is_empty() || !result.controls_written.is_empty() {
+            out.push_str("## Control I/O\n");
+            for cr in &result.controls_read {
+                out.push_str(&format!("- INPUT ← `{cr}`\n"));
+            }
+            for cw in &result.controls_written {
+                out.push_str(&format!("- OUTPUT → `{cw}`\n"));
+            }
+            out.push('\n');
+        }
+
+        if !result.methods_called.is_empty() {
+            out.push_str(&format!(
+                "## Methods Called\n{}\n\n",
+                result
+                    .methods_called
+                    .iter()
+                    .map(|m| format!("- `{m}`"))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
+        }
+
+        out.push_str(&format!(
+            "## Modern Flow Hint\n{}\n",
+            result.modern_flow_hint,
+        ));
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Get a complete migration dossier for a single page.
+    #[tool(
+        name = "get_migration_dossier",
+        description = "Build a comprehensive migration dossier for a single WebForms page. Orchestrates lifecycle analysis, ViewState, AJAX regions, validation, auth config, blast radius, and scaffold generation into one report."
+    )]
+    pub async fn get_migration_dossier(
+        &self,
+        params: Parameters<GetMigrationDossierRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+        let target_stack = req.target_stack.clone();
+        let project_dir = rec.directory.clone();
+
+        // Read ASPX content
+        let aspx_full = std::path::Path::new(&project_dir).join(&file_path);
+        let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
+        })?;
+
+        // Read code-behind
+        let cb_path = find_codebehind_path(&aspx_full);
+        let cb_content = if let Some(ref p) = cb_path {
+            tokio::fs::read_to_string(p).await.map_err(|e| {
+                McpError::internal_error(
+                    format!("Failed to read code-behind {}: {e}", p.display()),
+                    None,
+                )
+            })?
+        } else {
+            String::new()
+        };
+
+        // Try to read web.config
+        let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
+        let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
+        let webconfig_content = if webconfig_content.is_none() {
+            let alt = std::path::Path::new(&project_dir).join("Web.config");
+            tokio::fs::read_to_string(&alt).await.ok()
+        } else {
+            webconfig_content
+        };
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::dossier_service::build_migration_dossier(
+                &graph,
+                &pid,
+                &file_path,
+                &aspx_content,
+                &cb_content,
+                webconfig_content.as_deref(),
+                &target_stack,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Migration Dossier — {}\n\n\
+             **Page type**: {} | **Target**: {} | **Complexity**: {}\n",
+            result.file_path, result.page_type, result.target_stack, result.estimated_complexity,
+        );
+
+        if let Some(ref bc) = result.inherits_class {
+            out.push_str(&format!("**Class**: `{bc}`\n"));
+        }
+        if let Some(ref mp) = result.master_page {
+            out.push_str(&format!("**Master page**: `{mp}`\n"));
+        }
+
+        out.push_str(&format!(
+            "\n**User controls**: {} | **Tables touched**: {} | **Risk**: {}/100\n\n",
+            result.user_controls.len(),
+            result.tables_touched.len(),
+            result.blast_radius_score,
+        ));
+
+        // Sub-service summaries
+        out.push_str(&format!(
+            "## Lifecycle\n{}\n\n## ViewState\n{}\n\n## AJAX\n{}\n\n## Validation\n{}\n\n## Auth\n{}\n\n",
+            serde_json::to_string_pretty(&result.lifecycle_summary).unwrap_or_default(),
+            serde_json::to_string_pretty(&result.viewstate_summary).unwrap_or_default(),
+            serde_json::to_string_pretty(&result.ajax_summary).unwrap_or_default(),
+            serde_json::to_string_pretty(&result.validation_summary).unwrap_or_default(),
+            serde_json::to_string_pretty(&result.auth_summary).unwrap_or_default(),
+        ));
+
+        if !result.risk_factors.is_empty() {
+            out.push_str("## Risk Factors\n");
+            for rf in &result.risk_factors {
+                out.push_str(&format!("- {rf}\n"));
+            }
+            out.push('\n');
+        }
+
+        if !result.migration_steps.is_empty() {
+            out.push_str("## Migration Steps\n");
+            for (i, step) in result.migration_steps.iter().enumerate() {
+                out.push_str(&format!("{}. {step}\n", i + 1));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Check migration coverage — what did the modern code miss?
+    #[tool(
+        name = "check_migration_coverage",
+        description = "Compare generated modern code against the graph-known elements (event handlers, SQL tables, state keys, data bindings, controls, API calls) of the original legacy file. Returns a coverage score and lists missing items."
+    )]
+    pub async fn check_migration_coverage(
+        &self,
+        params: Parameters<CheckMigrationCoverageRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let original_file = req.original_file.clone();
+        let modern_code = req.modern_code.clone();
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::coverage_service::check_migration_coverage(
+                &graph,
+                &pid,
+                &original_file,
+                &modern_code,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let pct = result.coverage_score * 100.0;
+        let mut out = format!(
+            "# Migration Coverage — {}\n\n\
+             **Score**: {:.1}% ({}/{} items covered)\n\n",
+            result.original_file, pct, result.covered_items, result.total_items,
+        );
+
+        fn format_category(
+            out: &mut String,
+            name: &str,
+            cat: &crate::services::coverage_service::CoverageCategory,
+        ) {
+            if cat.total == 0 {
+                return;
+            }
+            let pct = if cat.total > 0 {
+                (cat.covered as f64 / cat.total as f64) * 100.0
+            } else {
+                100.0
+            };
+            out.push_str(&format!(
+                "## {} ({}/{} = {:.0}%)\n",
+                name, cat.covered, cat.total, pct,
+            ));
+            if !cat.missing_names.is_empty() {
+                out.push_str("**Missing:**\n");
+                for m in &cat.missing_names {
+                    out.push_str(&format!("- {m}\n"));
+                }
+            }
+            out.push('\n');
+        }
+
+        format_category(&mut out, "Event Handlers", &result.event_handlers);
+        format_category(&mut out, "Data Bindings", &result.data_bindings);
+        format_category(&mut out, "SQL Queries", &result.sql_queries);
+        format_category(&mut out, "State Access", &result.state_access);
+        format_category(&mut out, "API Calls", &result.api_calls);
+        format_category(&mut out, "Controls", &result.controls);
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Update migration status for a file.
+    #[tool(
+        name = "update_migration_status",
+        description = "Set the migration status (not_started, in_progress, migrated, verified, blocked) for a specific file in a project. Stores notes, risk score, blocked reason, and blocking dependencies."
+    )]
+    pub async fn update_migration_status(
+        &self,
+        params: Parameters<UpdateMigrationStatusRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+        let store = self.state.migration_progress.clone();
+        let pid = req.project_id.clone();
+        let fp = req.file_path.clone();
+        let notes = req.notes.clone();
+        let risk = req.risk_score;
+        let blocked_reason = req.blocked_reason.clone();
+        let blocking_deps = req.blocking_dependencies.clone();
+
+        // Parse status string
+        let status = match req.status.to_lowercase().as_str() {
+            "not_started" => {
+                crate::services::migration_progress_service::MigrationStatus::NotStarted
+            }
+            "in_progress" => {
+                crate::services::migration_progress_service::MigrationStatus::InProgress
+            }
+            "migrated" => crate::services::migration_progress_service::MigrationStatus::Migrated,
+            "verified" => crate::services::migration_progress_service::MigrationStatus::Verified,
+            "blocked" => crate::services::migration_progress_service::MigrationStatus::Blocked,
+            other => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Invalid status '{other}'. Must be one of: not_started, in_progress, migrated, verified, blocked"
+                    ),
+                    None,
+                ));
+            }
+        };
+
+        tokio::task::spawn_blocking(move || {
+            store.update_status(
+                &pid,
+                &fp,
+                status,
+                &notes,
+                risk,
+                blocked_reason.as_deref(),
+                blocking_deps,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Updated `{}` → status: **{}**, notes: \"{}\"",
+            req.file_path, req.status, req.notes,
+        ))]))
+    }
+
+    /// Get migration progress for a project.
+    #[tool(
+        name = "get_migration_progress",
+        description = "Get an overview of migration progress for a project: total files, status breakdown, completion percentage, blocked items, recently updated files, and suggested next files to migrate."
+    )]
+    pub async fn get_migration_progress(
+        &self,
+        params: Parameters<GetMigrationProgressRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+        let store = self.state.migration_progress.clone();
+        let pid = req.project_id.clone();
+
+        let progress = tokio::task::spawn_blocking(move || store.get_progress(&pid))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&progress)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Migration Progress — {}\n\n\
+             **Total files**: {} | **Completion**: {:.1}%\n\n\
+             | Status | Count |\n|--------|-------|\n\
+             | Not Started | {} |\n\
+             | In Progress | {} |\n\
+             | Migrated | {} |\n\
+             | Verified | {} |\n\
+             | Blocked | {} |\n\n",
+            progress.project_id,
+            progress.total_files,
+            progress.completion_pct,
+            progress.not_started,
+            progress.in_progress,
+            progress.migrated,
+            progress.verified,
+            progress.blocked,
+        );
+
+        if !progress.by_file_type.is_empty() {
+            out.push_str("## By File Type\n");
+            for (ext, tp) in &progress.by_file_type {
+                out.push_str(&format!(
+                    "- `{}`: {}/{} ({:.0}%)\n",
+                    ext, tp.completed, tp.total, tp.pct,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if !progress.blocked_items.is_empty() {
+            out.push_str("## Blocked Files\n");
+            for bi in &progress.blocked_items {
+                out.push_str(&format!(
+                    "- **{}**: {}\n",
+                    bi.file_path,
+                    if bi.reason.is_empty() {
+                        "(no reason given)"
+                    } else {
+                        &bi.reason
+                    },
+                ));
+                if !bi.blocking_deps.is_empty() {
+                    out.push_str(&format!(
+                        "  - Blocked by: {}\n",
+                        bi.blocking_deps.join(", "),
+                    ));
+                }
+            }
+            out.push('\n');
+        }
+
+        if !progress.recently_updated.is_empty() {
+            out.push_str("## Recently Updated\n");
+            for ru in &progress.recently_updated {
+                out.push_str(&format!("- `{}` → {}\n", ru.file_path, ru.status,));
+            }
+            out.push('\n');
+        }
+
+        if !progress.suggested_next.is_empty() {
+            out.push_str("## Suggested Next (lowest risk)\n");
+            for s in &progress.suggested_next {
+                out.push_str(&format!("- {s}\n"));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Suggest optimal migration order based on dependency graph.
+    #[tool(
+        name = "suggest_migration_order",
+        description = "Compute a topologically sorted migration plan from the project's dependency graph. Groups files into parallelizable waves, detects dependency cycles, and identifies bottleneck files."
+    )]
+    pub async fn suggest_migration_order(
+        &self,
+        params: Parameters<SuggestMigrationOrderRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+
+        let plan = tokio::task::spawn_blocking(move || {
+            crate::services::migration_order_service::suggest_migration_order(&graph, &pid)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&plan)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        // The plan has a summary field — use it, then append details.
+        let mut out = format!(
+            "# Migration Order — {}\n\n**Total files**: {}\n\n",
+            plan.project_id, plan.total_files,
+        );
+
+        if !plan.summary.is_empty() {
+            out.push_str(&plan.summary);
+            out.push_str("\n\n");
+        }
+
+        for wave in &plan.waves {
+            out.push_str(&format!("## Wave {} — {}\n", wave.wave_number, wave.theme,));
+            if !wave.prerequisites.is_empty() {
+                out.push_str(&format!(
+                    "Prerequisites: {}\n",
+                    wave.prerequisites.join(", "),
+                ));
+            }
+            for wf in &wave.files {
+                out.push_str(&format!(
+                    "- `{}` ({}, deps: {}, dependents: {}) — {}\n",
+                    wf.path,
+                    wf.estimated_complexity,
+                    wf.dependency_count,
+                    wf.dependent_count,
+                    wf.reason,
+                ));
+            }
+            if wave.strangler_fig_checkpoint {
+                out.push_str("**Strangler fig checkpoint after this wave.**\n");
+            }
+            out.push('\n');
+        }
+
+        if !plan.circular_dependencies.is_empty() {
+            out.push_str("## Circular Dependencies\n");
+            for cycle in &plan.circular_dependencies {
+                out.push_str(&format!("- {}\n", cycle.join(" → ")));
+            }
+            out.push('\n');
+        }
+
+        if !plan.bottleneck_files.is_empty() {
+            out.push_str("## Bottleneck Files\n");
+            for bf in &plan.bottleneck_files {
+                out.push_str(&format!(
+                    "- `{}` — blocks {} downstream files: {}\n",
+                    bf.path, bf.blocks_count, bf.suggestion,
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    // ── Phase 31: Full Project Migration ──────────────────────────────────
+
+    /// Analyze an entire project for migration in one call.
+    #[tool(
+        name = "analyze_full_project_migration",
+        description = "Analyze an entire project for migration in one call. Produces a complete migration dossier for every page, project-wide auth/state/data-access analysis, topologically sorted migration waves, cross-cutting risk assessment, and actionable migration steps. This is the single tool needed to understand a legacy project before writing any migration code."
+    )]
+    pub async fn analyze_full_project_migration(
+        &self,
+        params: Parameters<AnalyzeFullProjectMigrationRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let req = params.0;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let target_stack = req.target_stack.clone();
+        let max_files = req.max_files;
+        let project_dir = rec.directory.clone();
+
+        // ── Async phase: discover and read all files from disk ────────────
+
+        // 1. Get all file nodes from the graph to discover markup files
+        let graph_clone = graph.clone();
+        let pid_clone = pid.clone();
+        let file_nodes = tokio::task::spawn_blocking(move || {
+            graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 10_000)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // 2. Identify markup files (.aspx, .ascx, .master)
+        let markup_extensions = [".aspx", ".ascx", ".master"];
+        let mut markup_paths: Vec<String> = file_nodes
+            .iter()
+            .filter_map(|n| {
+                let name = n.name.to_lowercase();
+                if markup_extensions.iter().any(|ext| name.ends_with(ext)) {
+                    Some(n.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // If graph has no file nodes, fall back to filesystem scan
+        if markup_paths.is_empty() {
+            if let Ok(mut entries) = tokio::fs::read_dir(&project_dir).await {
+                let mut discovered = Vec::new();
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        let ext_lower = ext.to_lowercase();
+                        if ext_lower == "aspx" || ext_lower == "ascx" || ext_lower == "master" {
+                            if let Some(rel) = path
+                                .strip_prefix(&project_dir)
+                                .ok()
+                                .and_then(|r| r.to_str())
+                            {
+                                discovered.push(rel.replace('\\', "/"));
+                            }
+                        }
+                    }
+                }
+                markup_paths = discovered;
+            }
+        }
+
+        // Cap at max_files
+        markup_paths.truncate(max_files);
+
+        // 3. Read all markup + code-behind files concurrently
+        use crate::services::full_project_migration_service::FileContent;
+
+        let read_futures: Vec<_> = markup_paths
+            .iter()
+            .map(|rel_path| {
+                let dir = project_dir.clone();
+                let rel = rel_path.clone();
+                async move {
+                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    let markup = tokio::fs::read_to_string(&full_path).await.ok()?;
+                    let cb_path = find_codebehind_path(&full_path);
+                    let cb_content = if let Some(ref p) = cb_path {
+                        tokio::fs::read_to_string(p).await.ok()
+                    } else {
+                        None
+                    };
+                    Some(FileContent {
+                        file_path: rel,
+                        markup_content: markup,
+                        codebehind_content: cb_content,
+                    })
+                }
+            })
+            .collect();
+
+        let file_contents: Vec<FileContent> = futures::future::join_all(read_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect();
+
+        // 4. Read web.config
+        let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
+        let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
+        let webconfig_content = if webconfig_content.is_none() {
+            let alt = std::path::Path::new(&project_dir).join("Web.config");
+            tokio::fs::read_to_string(&alt).await.ok()
+        } else {
+            webconfig_content
+        };
+
+        // 5. Collect all code-behind files for auth scanning
+        let code_files: Vec<(String, String)> = file_nodes
+            .iter()
+            .filter_map(|n| {
+                let name = n.name.to_lowercase();
+                if name.ends_with(".cs") || name.ends_with(".vb") {
+                    Some(n.name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                // Use std::fs since we already did the async part
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // ── Blocking phase: run all analysis ──────────────────────────────
+
+        let report = tokio::task::spawn_blocking(move || {
+            let code_refs: Vec<(&str, &str)> = code_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+
+            crate::services::full_project_migration_service::analyze_full_project(
+                &graph,
+                &pid,
+                &target_stack,
+                &file_contents,
+                webconfig_content.as_deref(),
+                &code_refs,
+                max_files,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // ── Output ────────────────────────────────────────────────────────
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            report.markdown_report,
+        )]))
+    }
+}
+
+/// Find the code-behind file for an ASPX file.
+/// Tries .aspx.vb, .aspx.cs, then strips .aspx and tries .vb, .cs.
+fn find_codebehind_path(aspx_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let s = aspx_path.to_string_lossy();
+    // .aspx.vb / .aspx.cs
+    for ext in &[".vb", ".cs"] {
+        let cb = std::path::PathBuf::from(format!("{s}{ext}"));
+        if cb.exists() {
+            return Some(cb);
+        }
+    }
+    // Strip extension and try .vb / .cs (handles .ascx, .master too)
+    if let Some(stem) = aspx_path.to_str() {
+        for base_ext in &[".aspx", ".ascx", ".master"] {
+            if let Some(stripped) = stem.strip_suffix(base_ext) {
+                for ext in &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs"] {
+                    let cb = std::path::PathBuf::from(format!("{stripped}{ext}"));
+                    if cb.exists() {
+                        return Some(cb);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Find the ASPX file for a code-behind file (reverse of find_codebehind_path).
+fn find_aspx_for_codebehind(cb_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let s = cb_path.to_string_lossy();
+    // Strip .vb or .cs from end — what remains should be .aspx, .ascx, or .master
+    for ext in &[".vb", ".cs"] {
+        if let Some(stripped) = s.strip_suffix(ext) {
+            let aspx = std::path::PathBuf::from(stripped);
+            if aspx.exists() {
+                return Some(aspx);
+            }
+        }
+    }
+    None
 }
 
 // -------------------- Server handler --------------------

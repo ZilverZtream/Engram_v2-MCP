@@ -1,3 +1,4 @@
+use crate::services::migration_progress_service::MigrationProgressStore;
 use dashmap::DashMap;
 use engram_core::{CheckpointStore, Config, MemoryBudget, PathContext, Registry};
 use engram_graph::GraphStore;
@@ -101,6 +102,9 @@ pub struct AppState {
 
     /// Durable checkpoint store for crash-safe job resume.
     pub checkpoints: Arc<CheckpointStore>,
+
+    /// Migration progress tracker (standalone Redb database).
+    pub migration_progress: Arc<MigrationProgressStore>,
 }
 
 impl AppState {
@@ -132,6 +136,13 @@ impl AppState {
         let checkpoint_path = cfg.data_dir.join("checkpoints").join("checkpoints.redb");
         let checkpoints = CheckpointStore::open(&checkpoint_path)?;
 
+        // Migration progress tracker
+        let progress_path = cfg
+            .data_dir
+            .join("migration_progress")
+            .join("migration_progress.redb");
+        let migration_progress = MigrationProgressStore::open(&progress_path)?;
+
         Ok((
             Self {
                 cfg: Arc::new(cfg),
@@ -151,6 +162,7 @@ impl AppState {
                 events_tx,
                 memory_budget: Arc::new(memory_budget),
                 checkpoints: Arc::new(checkpoints),
+                migration_progress: Arc::new(migration_progress),
             },
             events_rx,
         ))
