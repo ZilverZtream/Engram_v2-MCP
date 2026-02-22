@@ -86,6 +86,14 @@ pub enum EdgeKind {
     StateAffinity,
     /// VB method injects JavaScript into the page via RegisterStartupScript et al.
     InjectsScript,
+    /// Code-behind or Classic ASP calls a stored procedure (CommandType.StoredProcedure).
+    CallsStoredProcedure,
+    /// Stored procedure reads from a table (SELECT / JOIN).
+    StoredProcReadsTable,
+    /// Stored procedure writes to a table (INSERT / UPDATE / DELETE / MERGE).
+    StoredProcWritesTable,
+    /// An .aspx Content control fills a ContentPlaceHolder region in a .master page.
+    FillsRegion,
 }
 
 impl EdgeKind {
@@ -123,6 +131,10 @@ impl EdgeKind {
         EdgeKind::SpatialCall,
         EdgeKind::StateAffinity,
         EdgeKind::InjectsScript,
+        EdgeKind::CallsStoredProcedure,
+        EdgeKind::StoredProcReadsTable,
+        EdgeKind::StoredProcWritesTable,
+        EdgeKind::FillsRegion,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -160,6 +172,10 @@ impl EdgeKind {
             EdgeKind::SpatialCall => "spatial_call",
             EdgeKind::StateAffinity => "state_affinity",
             EdgeKind::InjectsScript => "injects_script",
+            EdgeKind::CallsStoredProcedure => "calls_stored_procedure",
+            EdgeKind::StoredProcReadsTable => "stored_proc_reads_table",
+            EdgeKind::StoredProcWritesTable => "stored_proc_writes_table",
+            EdgeKind::FillsRegion => "fills_region",
         }
     }
 
@@ -198,6 +214,10 @@ impl EdgeKind {
             "spatial_call" => Some(EdgeKind::SpatialCall),
             "state_affinity" => Some(EdgeKind::StateAffinity),
             "injects_script" => Some(EdgeKind::InjectsScript),
+            "calls_stored_procedure" => Some(EdgeKind::CallsStoredProcedure),
+            "stored_proc_reads_table" => Some(EdgeKind::StoredProcReadsTable),
+            "stored_proc_writes_table" => Some(EdgeKind::StoredProcWritesTable),
+            "fills_region" => Some(EdgeKind::FillsRegion),
             _ => None,
         }
     }
@@ -1907,7 +1927,11 @@ mod tests {
                 | EdgeKind::ParameterBinding
                 | EdgeKind::SpatialCall
                 | EdgeKind::StateAffinity
-                | EdgeKind::InjectsScript => all_set.contains(&ek),
+                | EdgeKind::InjectsScript
+                | EdgeKind::CallsStoredProcedure
+                | EdgeKind::StoredProcReadsTable
+                | EdgeKind::StoredProcWritesTable
+                | EdgeKind::FillsRegion => all_set.contains(&ek),
             }
         };
 
@@ -1919,7 +1943,7 @@ mod tests {
             );
         }
 
-        let variant_count = 33;
+        let variant_count = 37;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,
