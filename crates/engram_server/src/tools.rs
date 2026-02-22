@@ -5784,6 +5784,7 @@ End Sub
                 global_state_files: global_files,
                 database_files: db_files,
                 timestamp_ms: now,
+                solution_structure: None, // TODO: populate from parsed .sln if available
             };
             Ok(mig::generate_migration_plan(&input))
         })

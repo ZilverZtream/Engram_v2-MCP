@@ -8,6 +8,7 @@
 
 use engram_graph::{Edge, EdgeKind, GraphStore, Node};
 use engram_index::control_mapping;
+use engram_index::solution_parser::{self, SolutionStructure};
 use engram_index::sql_parser::{self, SqlAnalysis, SqlOp};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -68,6 +69,7 @@ struct FileContext {
 /// * `target_stack` — "blazor", "react", or "angular"
 /// * `include_tests` — whether to generate a test scaffold
 /// * `output_format` — "full" or "diff"
+/// * `solution_structure` — optional parsed .sln data for namespace/project context
 pub fn generate_scaffold(
     graph: &Arc<GraphStore>,
     project_id: &str,
@@ -76,10 +78,79 @@ pub fn generate_scaffold(
     include_tests: bool,
     _output_format: &str,
 ) -> anyhow::Result<ScaffoldResult> {
+    generate_scaffold_with_solution(
+        graph,
+        project_id,
+        file_path,
+        target_stack,
+        include_tests,
+        _output_format,
+        None,
+    )
+}
+
+/// Generate a migration scaffold with optional solution context.
+///
+/// When a `SolutionStructure` is provided, the scaffold:
+/// - Resolves the root namespace from the project file for proper `using`/`import` statements
+/// - Adds cross-project dependency warnings for files in shared libraries
+/// - Sets the `project_scope` in mapping report entries
+pub fn generate_scaffold_with_solution(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    file_path: &str,
+    target_stack: &str,
+    include_tests: bool,
+    _output_format: &str,
+    solution: Option<&SolutionStructure>,
+) -> anyhow::Result<ScaffoldResult> {
     let target = normalize_target(target_stack);
     let ctx = collect_file_context(graph, project_id, file_path)?;
     let mut warnings = Vec::new();
     let mut mapping_report = Vec::new();
+
+    // Phase 31: Solution-aware context
+    if let Some(sln) = solution {
+        if let Some(proj_name) = solution_parser::file_to_project(sln, file_path) {
+            // Add namespace resolution info
+            if let Some(ns) = solution_parser::resolve_namespace(sln, proj_name) {
+                mapping_report.push(MappingEntry {
+                    legacy_element: format!("Project: {proj_name}"),
+                    modern_element: format!("Namespace: {ns}"),
+                    category: "project_context".into(),
+                    notes: "Root namespace from .csproj/.vbproj".into(),
+                });
+            }
+
+            // Warn about shared library files with high blast radius
+            let multiplier = solution_parser::cross_project_multiplier(sln, proj_name);
+            if multiplier > 1.0 {
+                warnings.push(format!(
+                    "File is in shared library '{proj_name}' (referenced by {n} other projects, \
+                     blast radius multiplier: {multiplier:.1}x). Changes here affect multiple projects.",
+                    n = sln
+                        .dependency_graph
+                        .values()
+                        .filter(|deps| deps.contains(&proj_name.to_string()))
+                        .count()
+                ));
+            }
+
+            // Record cross-project dependencies for this file's project
+            if let Some(deps) = sln.dependency_graph.get(proj_name) {
+                for dep in deps {
+                    if let Some(dep_ns) = solution_parser::resolve_namespace(sln, dep) {
+                        mapping_report.push(MappingEntry {
+                            legacy_element: format!("ProjectReference: {dep}"),
+                            modern_element: format!("using {dep_ns};"),
+                            category: "project_dependency".into(),
+                            notes: format!("Add to imports — {file_path} depends on {dep}"),
+                        });
+                    }
+                }
+            }
+        }
+    }
 
     // ── Build component code ─────────────────────────────────────────────────
     let component_code = match target.as_str() {
@@ -1538,38 +1609,117 @@ fn generate_react_handler_body(ctx: &FileContext, fname: &str, code: &mut String
             "    // ASYNC NOTE: Legacy code used synchronous ADO.NET — now uses async fetch via repository hook."
         );
         for sql_edge in &handler_sql {
-            let op = classify_sql_op(sql_edge);
-            let table = extract_table_from_sql_edge(sql_edge);
-            let entity = to_pascal_case(&table);
-            let camel = to_camel_case(&table);
-            match op {
-                "SELECT" => {
-                    let _ = writeln!(
-                        code,
-                        "    const {camel}Data = await repository.get{entity}();"
-                    );
-                    let _ = writeln!(code, "    // TODO: update component state with {camel}Data");
+            // Phase 31: Try SQL parser first for specific method names
+            let sql_text = sql_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("sql").or_else(|| m.get("command_text")))
+                .and_then(|v| v.as_str());
+
+            if let Some(sql) = sql_text {
+                let analysis = sql_parser::analyze_sql(sql);
+                let method_name = sql_parser::generate_method_name(&analysis);
+                // Convert C#-style method name to JS camelCase
+                let js_method = to_camel_case(&method_name);
+                let params_call = analysis
+                    .parameters
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                match analysis.operation {
+                    SqlOp::Select => {
+                        let camel =
+                            to_camel_case(analysis.primary_table.as_deref().unwrap_or("data"));
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    const {camel}Data = await repository.{js_method}();"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "    const {camel}Data = await repository.{js_method}({params_call});"
+                            );
+                        }
+                        let _ =
+                            writeln!(code, "    // TODO: update component state with {camel}Data");
+                    }
+                    SqlOp::Insert => {
+                        let _ = writeln!(
+                            code,
+                            "    const formData = {{}}; // TODO: collect from form fields"
+                        );
+                        let _ = writeln!(code, "    await repository.{js_method}(formData);");
+                    }
+                    SqlOp::Update => {
+                        let _ = writeln!(
+                            code,
+                            "    await repository.{js_method}(formData); // TODO: populate formData"
+                        );
+                    }
+                    SqlOp::Delete => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    await repository.{js_method}(id); // TODO: resolve id from selection"
+                            );
+                        } else {
+                            let _ =
+                                writeln!(code, "    await repository.{js_method}({params_call});");
+                        }
+                    }
+                    SqlOp::Exec => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    const result = await repository.{js_method}();"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "    const result = await repository.{js_method}({params_call});"
+                            );
+                        }
+                    }
                 }
-                "INSERT" => {
-                    let _ = writeln!(
-                        code,
-                        "    const formData = {{}}; // TODO: collect from form fields"
-                    );
-                    let _ = writeln!(code, "    await repository.create{entity}(formData);");
+            } else {
+                // Fallback to generic method names
+                let op = classify_sql_op(sql_edge);
+                let table = extract_table_from_sql_edge(sql_edge);
+                let entity = to_pascal_case(&table);
+                let camel = to_camel_case(&table);
+                match op {
+                    "SELECT" => {
+                        let _ = writeln!(
+                            code,
+                            "    const {camel}Data = await repository.get{entity}();"
+                        );
+                        let _ =
+                            writeln!(code, "    // TODO: update component state with {camel}Data");
+                    }
+                    "INSERT" => {
+                        let _ = writeln!(
+                            code,
+                            "    const formData = {{}}; // TODO: collect from form fields"
+                        );
+                        let _ = writeln!(code, "    await repository.create{entity}(formData);");
+                    }
+                    "UPDATE" => {
+                        let _ = writeln!(
+                            code,
+                            "    await repository.update{entity}(formData); // TODO: populate formData"
+                        );
+                    }
+                    "DELETE" => {
+                        let _ = writeln!(
+                            code,
+                            "    await repository.delete{entity}(id); // TODO: resolve id from selection"
+                        );
+                    }
+                    _ => {}
                 }
-                "UPDATE" => {
-                    let _ = writeln!(
-                        code,
-                        "    await repository.update{entity}(formData); // TODO: populate formData"
-                    );
-                }
-                "DELETE" => {
-                    let _ = writeln!(
-                        code,
-                        "    await repository.delete{entity}(id); // TODO: resolve id from selection"
-                    );
-                }
-                _ => {}
             }
         }
         generated_any = true;
@@ -1646,37 +1796,116 @@ fn generate_angular_handler_body(ctx: &FileContext, fname: &str, code: &mut Stri
             "    // ASYNC NOTE: Legacy code used synchronous ADO.NET — now uses RxJS Observable via service."
         );
         for sql_edge in &handler_sql {
-            let op = classify_sql_op(sql_edge);
-            let table = extract_table_from_sql_edge(sql_edge);
-            let entity = to_pascal_case(&table);
-            let camel = to_camel_case(&table);
-            match op {
-                "SELECT" => {
-                    let _ = writeln!(
-                        code,
-                        "    this.service.get{entity}().subscribe(data => this.{camel}Data = data);"
-                    );
+            // Phase 31: Try SQL parser first for specific method names
+            let sql_text = sql_edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("sql").or_else(|| m.get("command_text")))
+                .and_then(|v| v.as_str());
+
+            if let Some(sql) = sql_text {
+                let analysis = sql_parser::analyze_sql(sql);
+                let method_name = sql_parser::generate_method_name(&analysis);
+                let js_method = to_camel_case(&method_name);
+                let params_call = analysis
+                    .parameters
+                    .iter()
+                    .map(|p| p.name.clone())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                match analysis.operation {
+                    SqlOp::Select => {
+                        let camel =
+                            to_camel_case(analysis.primary_table.as_deref().unwrap_or("data"));
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}().subscribe(data => this.{camel}Data = data);"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}({params_call}).subscribe(data => this.{camel}Data = data);"
+                            );
+                        }
+                    }
+                    SqlOp::Insert => {
+                        let _ =
+                            writeln!(code, "    const payload = {{}}; // TODO: collect from form");
+                        let _ = writeln!(
+                            code,
+                            "    this.service.{js_method}(payload).subscribe(() => this.loadData());"
+                        );
+                    }
+                    SqlOp::Update => {
+                        let _ = writeln!(
+                            code,
+                            "    this.service.{js_method}(payload).subscribe(() => this.loadData()); // TODO: populate payload"
+                        );
+                    }
+                    SqlOp::Delete => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}(id).subscribe(() => this.loadData()); // TODO: resolve id"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}({params_call}).subscribe(() => this.loadData());"
+                            );
+                        }
+                    }
+                    SqlOp::Exec => {
+                        if params_call.is_empty() {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}().subscribe(result => {{ /* handle result */ }});"
+                            );
+                        } else {
+                            let _ = writeln!(
+                                code,
+                                "    this.service.{js_method}({params_call}).subscribe(result => {{ /* handle result */ }});"
+                            );
+                        }
+                    }
                 }
-                "INSERT" => {
-                    let _ = writeln!(code, "    const payload = {{}}; // TODO: collect from form");
-                    let _ = writeln!(
-                        code,
-                        "    this.service.create{entity}(payload).subscribe(() => this.loadData());"
-                    );
+            } else {
+                // Fallback to generic method names
+                let op = classify_sql_op(sql_edge);
+                let table = extract_table_from_sql_edge(sql_edge);
+                let entity = to_pascal_case(&table);
+                let camel = to_camel_case(&table);
+                match op {
+                    "SELECT" => {
+                        let _ = writeln!(
+                            code,
+                            "    this.service.get{entity}().subscribe(data => this.{camel}Data = data);"
+                        );
+                    }
+                    "INSERT" => {
+                        let _ =
+                            writeln!(code, "    const payload = {{}}; // TODO: collect from form");
+                        let _ = writeln!(
+                            code,
+                            "    this.service.create{entity}(payload).subscribe(() => this.loadData());"
+                        );
+                    }
+                    "UPDATE" => {
+                        let _ = writeln!(
+                            code,
+                            "    this.service.update{entity}(payload).subscribe(() => this.loadData()); // TODO: populate payload"
+                        );
+                    }
+                    "DELETE" => {
+                        let _ = writeln!(
+                            code,
+                            "    this.service.delete{entity}(id).subscribe(() => this.loadData()); // TODO: resolve id"
+                        );
+                    }
+                    _ => {}
                 }
-                "UPDATE" => {
-                    let _ = writeln!(
-                        code,
-                        "    this.service.update{entity}(payload).subscribe(() => this.loadData()); // TODO: populate payload"
-                    );
-                }
-                "DELETE" => {
-                    let _ = writeln!(
-                        code,
-                        "    this.service.delete{entity}(id).subscribe(() => this.loadData()); // TODO: resolve id"
-                    );
-                }
-                _ => {}
             }
         }
         generated_any = true;

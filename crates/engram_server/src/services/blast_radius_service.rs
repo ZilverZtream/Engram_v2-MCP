@@ -7,6 +7,7 @@
 /// Returns a `BlastRadiusReport` with a 1-10 risk score, complexity breakdown,
 /// seam candidates (logical refactoring cut-points), and agentic guidance.
 use engram_graph::store::{EdgeKind, GraphStore};
+use engram_index::solution_parser::{self, SolutionStructure};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -448,6 +449,58 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     out
 }
 
+/// Compute blast radius with solution-aware cross-project multiplier.
+///
+/// When a `SolutionStructure` is provided and the target file belongs to a shared
+/// library (referenced by 2+ other projects), the risk score is scaled upward
+/// by `cross_project_multiplier()` (1.0x–3.0x).
+///
+/// Also injects a guidance item explaining the cross-project impact.
+pub fn compute_blast_radius_with_solution(
+    graph: &GraphStore,
+    project_id: &str,
+    target_id: &str,
+    generation: u64,
+    include_guidance: bool,
+    solution: Option<&SolutionStructure>,
+) -> anyhow::Result<BlastRadiusReport> {
+    let mut report =
+        compute_blast_radius(graph, project_id, target_id, generation, include_guidance)?;
+
+    if let Some(sln) = solution {
+        // Extract file path from target_id (strip "file:" prefix if present)
+        let file_path = target_id.strip_prefix("file:").unwrap_or(target_id);
+        if let Some(proj_name) = solution_parser::file_to_project(sln, file_path) {
+            let multiplier = solution_parser::cross_project_multiplier(sln, proj_name);
+            if multiplier > 1.0 {
+                // Scale the risk score
+                let scaled = (report.migration_risk as f32 * multiplier).round() as u8;
+                report.migration_risk = scaled.clamp(1, 10);
+                report.risk_band = risk_band(report.migration_risk);
+
+                // Add guidance about cross-project impact
+                let ref_count = sln
+                    .dependency_graph
+                    .values()
+                    .filter(|deps| deps.contains(&proj_name.to_string()))
+                    .count();
+                report.guidance.push(GuidanceItem {
+                    concern: "Cross-Project Shared Library".into(),
+                    severity: if multiplier >= 2.0 { "high" } else { "medium" }.into(),
+                    recommendation: format!(
+                        "File is in shared library '{proj_name}' referenced by {ref_count} project(s). \
+                         Risk multiplied by {multiplier:.1}x. Migrate this project in Wave 0 and \
+                         provide a stable API facade before migrating dependents."
+                    ),
+                    modern_pattern: Some("Shared Project → NuGet package with semver".into()),
+                });
+            }
+        }
+    }
+
+    Ok(report)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -501,5 +554,81 @@ mod tests {
         assert!(text.contains("7/10"));
         assert!(text.contains("High"));
         assert!(text.contains("SQL Risk"));
+    }
+
+    #[test]
+    fn cross_project_multiplier_scales_risk() {
+        use engram_index::solution_parser::build_solution_structure;
+
+        let sln_content = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web1", "Web1\Web1.csproj", "{B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web2", "Web2\Web2.csproj", "{C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Web3", "Web3\Web3.csproj", "{D}"
+EndProject
+"#;
+        let mut proj_files = std::collections::HashMap::new();
+        proj_files.insert(
+            "Common".to_string(),
+            "<Project><PropertyGroup><RootNamespace>Common</RootNamespace></PropertyGroup></Project>".to_string(),
+        );
+        // Web1, Web2, Web3 all reference Common
+        for name in ["Web1", "Web2", "Web3"] {
+            proj_files.insert(
+                name.to_string(),
+                format!(
+                    r#"<Project><PropertyGroup><RootNamespace>{name}</RootNamespace></PropertyGroup>
+                    <ItemGroup><ProjectReference Include="..\Common\Common.csproj" /></ItemGroup></Project>"#
+                ),
+            );
+        }
+
+        let structure = build_solution_structure(sln_content, &proj_files);
+
+        // Verify the multiplier: Common is referenced by 3 projects → 2.0x
+        let mult = engram_index::solution_parser::cross_project_multiplier(&structure, "Common");
+        assert!(
+            mult >= 2.0,
+            "Common referenced by 3 projects should have multiplier >= 2.0, got {mult}"
+        );
+
+        // Test a report with the multiplier applied
+        let mut report = BlastRadiusReport {
+            target: "file:Common/Utils.cs".into(),
+            target_type: "file".into(),
+            migration_risk: 5,
+            risk_band: RiskBand::Medium,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 3.0,
+                sql_concat_score: 4.0,
+                pagerank_score: 2.0,
+                state_coupling_score: 3.0,
+                gis_coupling_score: 0.0,
+                script_injection_score: 0.0,
+            },
+            seam_candidates: vec![],
+            guidance: vec![],
+            total_downstream: 10,
+        };
+
+        // Apply the multiplier manually (simulating what compute_blast_radius_with_solution does)
+        let file_path = report
+            .target
+            .strip_prefix("file:")
+            .unwrap_or(&report.target);
+        if let Some(proj_name) = solution_parser::file_to_project(&structure, file_path) {
+            let m = solution_parser::cross_project_multiplier(&structure, proj_name);
+            if m > 1.0 {
+                let scaled = (report.migration_risk as f32 * m).round() as u8;
+                report.migration_risk = scaled.clamp(1, 10);
+                report.risk_band = risk_band(report.migration_risk);
+            }
+        }
+
+        assert_eq!(report.migration_risk, 10, "5 * 2.0 = 10 (clamped)");
+        assert_eq!(report.risk_band, RiskBand::Critical);
     }
 }
