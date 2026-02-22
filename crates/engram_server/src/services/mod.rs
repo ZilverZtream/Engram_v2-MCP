@@ -3,6 +3,7 @@ pub mod auth_config_service;
 pub mod autonomous_decision_service;
 pub mod benchmark_service;
 pub mod blast_radius_service;
+pub mod business_logic_service;
 pub mod characterization_test_service;
 pub mod cognitive_service;
 pub mod coverage_service;

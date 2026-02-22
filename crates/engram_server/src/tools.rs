@@ -8992,6 +8992,221 @@ End Sub
             report.markdown_report,
         )]))
     }
+
+    // ── Phase 36: Business Logic Comprehension Tools ─────────────────────
+
+    /// Analyze business logic of methods using the local LLM.
+    /// Returns natural-language summaries of what each method does step by step.
+    #[tool(
+        name = "analyze_business_logic",
+        description = "Analyze the business logic of code-behind methods using the local LLM. \
+        Returns step-by-step explanations of what each method does, its business rules, \
+        data flow, error handling, and side effects. Results are cached in the DocStore \
+        for fast subsequent queries. Supports single method, single file, or full project analysis."
+    )]
+    pub async fn analyze_business_logic(
+        &self,
+        params: Parameters<crate::models::requests::AnalyzeBusinessLogicRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let p = params.0;
+        let rec = self.ensure_project_record(&p.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let dreaming = self.state.dreaming.as_ref();
+
+        // Build cached hashes from DocStore (if not force_refresh)
+        let cached_hashes: std::collections::HashMap<String, String> = if p.force_refresh {
+            std::collections::HashMap::new()
+        } else {
+            // TODO: In a future iteration, read existing business_logic docs from DocStore
+            // and build the FQN→content_hash map for cache invalidation.
+            std::collections::HashMap::new()
+        };
+
+        // Warn if method_name provided without file_path
+        if p.method_name.is_some() && p.file_path.is_none() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "Error: `method_name` requires `file_path` to be specified. \
+                 Provide both to analyze a specific method, or just `file_path` for all methods in a file.",
+            )]));
+        }
+
+        if let Some(file_path) = &p.file_path {
+            // Single file or single method mode
+            let full_path = std::path::Path::new(&project_dir).join(file_path);
+            let content = std::fs::read_to_string(&full_path)
+                .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
+
+            if let Some(method_name) = &p.method_name {
+                // Single method mode
+                let language = crate::services::business_logic_service::detect_language(&content);
+                let class_name =
+                    crate::services::business_logic_service::detect_class_name(&content);
+                let body_opt = if language == "vb" {
+                    crate::services::full_project_migration_service::extract_vb_method_body(
+                        &content,
+                        method_name,
+                    )
+                } else {
+                    crate::services::full_project_migration_service::extract_cs_method_body(
+                        &content,
+                        method_name,
+                    )
+                };
+
+                let Some((body, _start, _end, _lines)) = body_opt else {
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "Method '{method_name}' not found in {file_path}"
+                    ))]));
+                };
+
+                let result = crate::services::business_logic_service::analyze_method_logic(
+                    dreaming,
+                    file_path,
+                    method_name,
+                    &body,
+                    &class_name,
+                    language,
+                )
+                .await;
+
+                if p.output_json {
+                    let json = serde_json::to_string_pretty(&result)
+                        .unwrap_or_else(|e| format!("JSON serialization error: {e}"));
+                    return Ok(CallToolResult::success(vec![Content::text(json)]));
+                }
+
+                let md = crate::services::business_logic_service::render_method_as_doc(&result);
+                return Ok(CallToolResult::success(vec![Content::text(md)]));
+            }
+
+            // Single file mode
+            let (file_logic, analyzed, skipped) =
+                crate::services::business_logic_service::analyze_file_logic(
+                    dreaming,
+                    file_path,
+                    &content,
+                    &cached_hashes,
+                )
+                .await;
+
+            if p.output_json {
+                let json = serde_json::to_string_pretty(&file_logic)
+                    .unwrap_or_else(|e| format!("JSON serialization error: {e}"));
+                return Ok(CallToolResult::success(vec![Content::text(json)]));
+            }
+
+            let mut md = format!(
+                "# Business Logic — {}\n\n*{}*\n\n- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n\n",
+                file_logic.class_name, file_logic.file_purpose
+            );
+            for m in &file_logic.methods {
+                md.push_str(&crate::services::business_logic_service::render_method_as_doc(m));
+                md.push_str("---\n\n");
+            }
+            return Ok(CallToolResult::success(vec![Content::text(md)]));
+        }
+
+        // Full project mode
+        let code_paths = discover_files_recursive(
+            std::path::Path::new(&project_dir),
+            &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".vb", ".cs"],
+            500,
+        )
+        .await;
+
+        let code_files: Vec<(String, String)> = code_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        let code_refs: Vec<(&str, &str)> = code_files
+            .iter()
+            .map(|(p, c)| (p.as_str(), c.as_str()))
+            .collect();
+
+        let report = crate::services::business_logic_service::analyze_project_logic(
+            dreaming,
+            &p.project_id,
+            &code_refs,
+            &cached_hashes,
+            p.max_concurrent,
+        )
+        .await;
+
+        if p.output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .unwrap_or_else(|e| format!("JSON serialization error: {e}"));
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let md = crate::services::business_logic_service::render_compact_markdown(&report);
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+
+    /// Query business logic summaries using natural language search.
+    #[tool(
+        name = "query_business_logic",
+        description = "Search previously analyzed business logic summaries using natural language. \
+        Returns matching method summaries ranked by relevance. Run analyze_business_logic first \
+        to populate the summaries. Examples: 'How does customer validation work?', \
+        'What methods write to the Orders table?', 'What happens when Submit is clicked?'"
+    )]
+    pub async fn query_business_logic(
+        &self,
+        params: Parameters<crate::models::requests::QueryBusinessLogicRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        let p = params.0;
+        let ps = self.ensure_project_runtime(&p.project_id).await?;
+        let gen_ = self.get_active_generation(&p.project_id).await?;
+
+        // Search the business_logic namespace using hybrid search
+        let query = HybridQuery {
+            text: p.query.clone(),
+            project_id: p.project_id.clone(),
+            namespace: engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC.to_string(),
+            generation: gen_,
+            top_k: p.top_k,
+            fts_mode: "loose".to_string(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            use_mmr: false,
+        };
+
+        let hits = ps.search.search(&query, None).await.unwrap_or_default();
+
+        if hits.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No business logic summaries found. Run `analyze_business_logic` first to \
+                 generate LLM-powered method summaries, then query them here.",
+            )]));
+        }
+
+        let mut md = format!(
+            "# Business Logic Query Results\n\n**Query**: {}\n**Results**: {}\n\n",
+            p.query,
+            hits.len()
+        );
+
+        for (i, hit) in hits.iter().enumerate() {
+            let snippet = hit.snippet.as_deref().unwrap_or("(no content)");
+            md.push_str(&format!(
+                "### {}. {} (score: {:.3})\n\n{}\n\n---\n\n",
+                i + 1,
+                hit.path.as_str(),
+                hit.score,
+                snippet
+            ));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
 }
 
 /// Recursively discover files with specific extensions under a directory.
