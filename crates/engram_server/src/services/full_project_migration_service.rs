@@ -7214,7 +7214,9 @@ static VB_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|
     Regex::new(r"(?im)^\s*(?:Protected\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Public\s+)?(?:Private\s+)?(?:Friend\s+)?(?:Shared\s+)?(?:Async\s+)?(?:Sub|Function)\s+(\w+)").expect("vb_method_def")
 });
 static CS_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?im)^\s*(?:protected\s+)?(?:override\s+)?(?:virtual\s+)?(?:public\s+)?(?:private\s+)?(?:internal\s+)?(?:static\s+)?(?:async\s+)?(?:void|[\w<>\[\]]+)\s+(\w+)\s*\(").expect("cs_method_def")
+    // Supports generic return types with commas: Task<ActionResult>, Dictionary<string, int>,
+    // IEnumerable<KeyValuePair<string, int>>, Nullable<int>, List<T> etc.
+    Regex::new(r"(?im)^\s*(?:protected\s+)?(?:override\s+)?(?:virtual\s+)?(?:public\s+)?(?:private\s+)?(?:internal\s+)?(?:static\s+)?(?:async\s+)?(?:void|[\w]+(?:<[\w,\s<>\[\]?]+>)?(?:\[\])?)\s+(\w+)\s*\(").expect("cs_method_def")
 });
 static VB_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)MyBase\.(\w+)").expect("vb_calls_base"));
@@ -7253,89 +7255,108 @@ fn resolve_inheritance_chains(
     code_files: &[(&str, &str)],
     markup_files: &[FileContent],
 ) -> InheritanceChainReport {
-    // 1. Build class map: class_name → (parent_class, file_path, methods[], state_writes[])
+    // C# keyword blacklist for method name filtering
+    const CS_KEYWORDS: &[&str] = &[
+        "if",
+        "else",
+        "for",
+        "foreach",
+        "while",
+        "switch",
+        "catch",
+        "using",
+        "lock",
+        "return",
+        "new",
+        "class",
+        "struct",
+        "interface",
+        "enum",
+        "namespace",
+    ];
+
+    // 1. Build class map: class_name → (parent_class, file_path, methods[], state_writes[], base_calls[])
+    // SECOND-PASS FIX: Scope methods & state_writes to each class body, not the whole file.
     let mut class_map: std::collections::HashMap<
         String,
         (String, String, Vec<String>, Vec<String>, Vec<String>),
     > = std::collections::HashMap::new();
 
     for (path, content) in code_files {
-        // VB class definitions
-        for cap in VB_CLASS_INHERITS_RE.captures_iter(content) {
-            let class_name = cap[1].to_string();
-            let parent = cap[2].to_string();
+        let is_vb = path.to_lowercase().ends_with(".vb");
 
-            let methods: Vec<String> = VB_METHOD_DEF_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
+        // Collect all class starts (with their byte positions) to determine class boundaries
+        let mut class_ranges: Vec<(String, String, usize)> = Vec::new(); // (name, parent, start_pos)
 
-            let base_calls: Vec<String> = VB_CALLS_BASE_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
-
-            let state_writes: Vec<String> = SESSION_WRITE_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
-
-            class_map.insert(
-                class_name,
-                (parent, path.to_string(), methods, state_writes, base_calls),
-            );
+        if is_vb {
+            for cap in VB_CLASS_INHERITS_RE.captures_iter(content) {
+                let class_name = cap[1].to_string();
+                let parent = cap[2].to_string();
+                let start_pos = cap.get(0).map_or(0, |m| m.start());
+                class_ranges.push((class_name, parent, start_pos));
+            }
+        } else {
+            for cap in CS_CLASS_INHERITS_RE.captures_iter(content) {
+                let class_name = cap[1].to_string();
+                let parent = cap[2].to_string();
+                let start_pos = cap.get(0).map_or(0, |m| m.start());
+                class_ranges.push((class_name, parent, start_pos));
+            }
         }
 
-        // C# class definitions
-        for cap in CS_CLASS_INHERITS_RE.captures_iter(content) {
-            let class_name = cap[1].to_string();
-            let parent = cap[2].to_string();
+        // For each class, extract methods/state_writes only from its body region
+        for (ci, (class_name, parent, start_pos)) in class_ranges.iter().enumerate() {
+            let end_pos = class_ranges
+                .get(ci + 1)
+                .map(|(_, _, p)| *p)
+                .unwrap_or(content.len());
+            let class_body = &content[*start_pos..end_pos];
 
-            let methods: Vec<String> = CS_METHOD_DEF_RE
-                .captures_iter(content)
-                .filter_map(|c| {
-                    let name = c[1].to_string();
-                    // Filter out keywords
-                    if [
-                        "if",
-                        "else",
-                        "for",
-                        "foreach",
-                        "while",
-                        "switch",
-                        "catch",
-                        "using",
-                        "lock",
-                        "return",
-                        "new",
-                        "class",
-                        "struct",
-                        "interface",
-                        "enum",
-                        "namespace",
-                    ]
-                    .contains(&name.as_str())
-                    {
-                        None
-                    } else {
-                        Some(name)
-                    }
-                })
-                .collect();
+            let methods: Vec<String> = if is_vb {
+                VB_METHOD_DEF_RE
+                    .captures_iter(class_body)
+                    .map(|c| c[1].to_string())
+                    .collect()
+            } else {
+                CS_METHOD_DEF_RE
+                    .captures_iter(class_body)
+                    .filter_map(|c| {
+                        let name = c[1].to_string();
+                        if CS_KEYWORDS.contains(&name.as_str()) {
+                            None
+                        } else {
+                            Some(name)
+                        }
+                    })
+                    .collect()
+            };
 
-            let base_calls: Vec<String> = CS_CALLS_BASE_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
+            let base_calls: Vec<String> = if is_vb {
+                VB_CALLS_BASE_RE
+                    .captures_iter(class_body)
+                    .map(|c| c[1].to_string())
+                    .collect()
+            } else {
+                CS_CALLS_BASE_RE
+                    .captures_iter(class_body)
+                    .map(|c| c[1].to_string())
+                    .collect()
+            };
 
             let state_writes: Vec<String> = SESSION_WRITE_RE
-                .captures_iter(content)
+                .captures_iter(class_body)
                 .map(|c| c[1].to_string())
                 .collect();
 
             class_map.insert(
-                class_name,
-                (parent, path.to_string(), methods, state_writes, base_calls),
+                class_name.clone(),
+                (
+                    parent.clone(),
+                    path.to_string(),
+                    methods,
+                    state_writes,
+                    base_calls,
+                ),
             );
         }
     }
@@ -7494,19 +7515,45 @@ fn resolve_inheritance_chains(
 
 // ── Phase 34: packages.config Parser ─────────────────────────────────────────
 
-static PKG_CONFIG_ENTRY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)<package\s+id\s*=\s*"([^"]+)"\s+version\s*=\s*"([^"]+)"(?:\s+targetFramework\s*=\s*"([^"]+)")?(?:\s+developmentDependency\s*=\s*"(true)")?[^/]*/>"#)
-        .expect("pkg_config_entry")
+// packages.config element regex — matches the entire <package ... /> tag
+// regardless of attribute order. Individual attributes are extracted inside.
+static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?is)<package\s+([^>]+?)/>").expect("pkg_config_element")
+});
+static PKG_ATTR_ID_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bid\s*=\s*"([^"]+)""#).expect("pkg_attr_id"));
+static PKG_ATTR_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\bversion\s*=\s*"([^"]+)""#).expect("pkg_attr_ver")
+});
+static PKG_ATTR_TFM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\btargetFramework\s*=\s*"([^"]+)""#).expect("pkg_attr_tfm")
+});
+static PKG_ATTR_DEV_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\bdevelopmentDependency\s*=\s*"true""#).expect("pkg_attr_dev")
 });
 
+/// Parse packages.config XML. Handles any attribute order within `<package ... />` elements.
 fn parse_packages_config(content: &str) -> Vec<LegacyPackageRef> {
     let mut packages = Vec::new();
 
-    for cap in PKG_CONFIG_ENTRY_RE.captures_iter(content) {
-        let package_id = cap[1].to_string();
-        let version = cap[2].to_string();
-        let target_framework = cap.get(3).map_or("", |m| m.as_str()).to_string();
-        let is_dev = cap.get(4).is_some();
+    for element in PKG_CONFIG_ELEMENT_RE.captures_iter(content) {
+        let attrs = &element[1];
+
+        // id and version are required
+        let Some(id_cap) = PKG_ATTR_ID_RE.captures(attrs) else {
+            continue;
+        };
+        let Some(ver_cap) = PKG_ATTR_VER_RE.captures(attrs) else {
+            continue;
+        };
+
+        let package_id = id_cap[1].to_string();
+        let version = ver_cap[1].to_string();
+        let target_framework = PKG_ATTR_TFM_RE
+            .captures(attrs)
+            .map(|c| c[1].to_string())
+            .unwrap_or_default();
+        let is_dev = PKG_ATTR_DEV_RE.is_match(attrs);
 
         let modern_replacement = {
             let (repl, _, _, _) = lookup_modern_replacement(&package_id);
@@ -7527,11 +7574,21 @@ fn parse_packages_config(content: &str) -> Vec<LegacyPackageRef> {
 
 // ── Phase 34: Binding Redirect Parser ────────────────────────────────────────
 
-static BINDING_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(
-        r#"(?is)<dependentAssembly>\s*<assemblyIdentity\s+name\s*=\s*"([^"]+)"(?:\s+publicKeyToken\s*=\s*"([^"]+)")?[^/]*/>\s*<bindingRedirect\s+oldVersion\s*=\s*"([^"]+)"\s+newVersion\s*=\s*"([^"]+)"[^/]*/>\s*</dependentAssembly>"#,
-    )
-    .expect("binding_redirect")
+// Binding redirect parsing: matches the entire <dependentAssembly> block,
+// then extracts attributes individually for order-independence.
+static DEP_ASSEMBLY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?is)<dependentAssembly>\s*(.*?)\s*</dependentAssembly>").expect("dep_assembly")
+});
+static ASM_NAME_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bname\s*=\s*"([^"]+)""#).expect("asm_name"));
+static ASM_PKT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\bpublicKeyToken\s*=\s*"([^"]+)""#).expect("asm_pkt")
+});
+static BR_OLD_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\boldVersion\s*=\s*"([^"]+)""#).expect("br_old_ver")
+});
+static BR_NEW_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)\bnewVersion\s*=\s*"([^"]+)""#).expect("br_new_ver")
 });
 
 fn extract_binding_redirects(web_config: Option<&str>) -> Vec<BindingRedirect> {
@@ -7541,11 +7598,25 @@ fn extract_binding_redirects(web_config: Option<&str>) -> Vec<BindingRedirect> {
 
     let mut redirects = Vec::new();
 
-    for cap in BINDING_REDIRECT_RE.captures_iter(content) {
-        let assembly_name = cap[1].to_string();
-        let public_key_token = cap.get(2).map(|m| m.as_str().to_string());
-        let old_version = cap[3].to_string();
-        let new_version = cap[4].to_string();
+    for block in DEP_ASSEMBLY_RE.captures_iter(content) {
+        let inner = &block[1];
+
+        // Extract assemblyIdentity attributes (any order)
+        let Some(name_cap) = ASM_NAME_RE.captures(inner) else {
+            continue;
+        };
+        let assembly_name = name_cap[1].to_string();
+        let public_key_token = ASM_PKT_RE.captures(inner).map(|c| c[1].to_string());
+
+        // Extract bindingRedirect attributes (any order)
+        let Some(old_cap) = BR_OLD_VER_RE.captures(inner) else {
+            continue;
+        };
+        let Some(new_cap) = BR_NEW_VER_RE.captures(inner) else {
+            continue;
+        };
+        let old_version = old_cap[1].to_string();
+        let new_version = new_cap[1].to_string();
 
         let has_known = lookup_assembly_replacement(&assembly_name).0.is_some();
 
@@ -7585,11 +7656,18 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
         "End Function"
     };
 
-    // Find matching End Sub/Function using depth tracking
+    // Find matching End Sub/Function using depth tracking.
+    // Handles nested Sub/Function with access modifiers: Protected Sub Helper(), etc.
     let after_start = &content[start_offset..];
     let mut depth = 1i32;
     let mut end_pos = None;
     let upper_kind = kind.to_uppercase();
+
+    // Pre-compiled regex for nested VB Sub/Function declarations (handles access modifiers)
+    static VB_NESTED_OPEN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Async\s+)?(?:Sub|Function)\s+\w+")
+            .expect("vb_nested_open")
+    });
 
     for (i, line) in after_start.lines().enumerate() {
         if i == 0 {
@@ -7597,13 +7675,8 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
         }
         let trimmed = line.trim().to_uppercase();
 
-        // Count nested openings
-        if trimmed.starts_with("IF ") && trimmed.contains(" THEN") && !trimmed.ends_with(" THEN") {
-            // single-line If — don't count
-        } else if (trimmed.starts_with(&format!("SUB "))
-            || trimmed.starts_with(&format!("FUNCTION ")))
-            && !trimmed.starts_with("END ")
-        {
+        // Count nested Sub/Function openings (skip End Sub/End Function lines)
+        if !trimmed.starts_with("END ") && VB_NESTED_OPEN_RE.is_match(line.trim()) {
             depth += 1;
         }
 
@@ -7632,9 +7705,11 @@ fn extract_vb_method_body(content: &str, method_name: &str) -> Option<(String, u
 }
 
 /// Extract C# method body by tracking brace depth.
+/// Handles verbatim strings (`@"..."`), interpolated strings, block/line comments,
+/// and generic return types with commas (`Dictionary<string, int>`).
 fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u32, u32, u32)> {
     let pattern = format!(
-        r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:void|[\w<>\[\],]+)\s+{}\s*\(",
+        r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:void|[\w]+(?:<[\w,\s<>\[\]?]+>)?(?:\[\])?)\s+{}\s*\(",
         regex::escape(method_name)
     );
     let re = Regex::new(&pattern).ok()?;
@@ -7648,16 +7723,23 @@ fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u
     let brace_offset = after_sig.find('{')?;
     let body_start = m.end() + brace_offset;
 
-    // Track brace depth
+    // Track brace depth with proper string/comment awareness.
+    // Handles: line comments (//), block comments (/* */), regular strings ("..."),
+    // verbatim strings (@"..." where "" is the escape, not \"), char literals ('x'),
+    // and interpolated string prefixes ($", $@").
     let mut depth = 0i32;
     let mut in_string = false;
+    let mut in_verbatim_string = false;
     let mut in_char = false;
     let mut in_line_comment = false;
     let mut in_block_comment = false;
     let mut prev_char = ' ';
     let mut end_pos = None;
+    let body_chars: Vec<(usize, char)> = content[body_start..].char_indices().collect();
 
-    for (i, ch) in content[body_start..].char_indices() {
+    for idx in 0..body_chars.len() {
+        let (i, ch) = body_chars[idx];
+
         if in_line_comment {
             if ch == '\n' {
                 in_line_comment = false;
@@ -7672,9 +7754,27 @@ fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u
             prev_char = ch;
             continue;
         }
+        if in_verbatim_string {
+            if ch == '"' {
+                // In verbatim strings, "" is an escaped quote; single " ends the string
+                let next_ch = body_chars.get(idx + 1).map(|(_, c)| *c);
+                if next_ch == Some('"') {
+                    // Skip the escaped double-quote
+                    prev_char = ch;
+                    continue;
+                }
+                in_verbatim_string = false;
+            }
+            prev_char = ch;
+            continue;
+        }
         if in_string {
             if ch == '"' && prev_char != '\\' {
                 in_string = false;
+            } else if ch == '\\' && prev_char == '\\' {
+                // Double backslash: reset prev_char so next char isn't treated as escaped
+                prev_char = ' ';
+                continue;
             }
             prev_char = ch;
             continue;
@@ -7682,6 +7782,9 @@ fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u
         if in_char {
             if ch == '\'' && prev_char != '\\' {
                 in_char = false;
+            } else if ch == '\\' && prev_char == '\\' {
+                prev_char = ' ';
+                continue;
             }
             prev_char = ch;
             continue;
@@ -7695,7 +7798,12 @@ fn extract_cs_method_body(content: &str, method_name: &str) -> Option<(String, u
                 in_block_comment = true;
             }
             '"' => {
-                in_string = true;
+                // Check for verbatim string: @" or $@"
+                if prev_char == '@' {
+                    in_verbatim_string = true;
+                } else {
+                    in_string = true;
+                }
             }
             '\'' => {
                 in_char = true;
@@ -7770,69 +7878,100 @@ fn make_body_preview(body: &str, line_count: u32) -> String {
     }
 }
 
+// ── Phase 34 second-pass: LazyLock statics for compute_complexity_score ──────
+// Pre-compiled regexes avoid recompiling 18 patterns on every method body.
+
+static CX_IF_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bif\b").unwrap());
+static CX_ELSE_IF_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belse\s+if\b").unwrap());
+static CX_ELSEIF_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belseif\b").unwrap());
+static CX_SWITCH_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bswitch\b").unwrap());
+static CX_CASE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bcase\b").unwrap());
+static CX_SELECT_CASE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bselect\s+case\b").unwrap());
+
+static CX_FOR_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s").unwrap());
+static CX_FOREACH_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bforeach\b").unwrap());
+static CX_FOR_EACH_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s+each\b").unwrap());
+static CX_WHILE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bwhile\b").unwrap());
+static CX_DO_WHILE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s+while\b").unwrap());
+static CX_DO_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s*$").unwrap());
+
+static CX_TRY_BRACE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*\{").unwrap());
+static CX_TRY_EOL_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*$").unwrap());
+static CX_CATCH_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bcatch\b").unwrap());
+static CX_ON_ERROR_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bOn\s+Error\b").unwrap());
+
+static CX_SQL_SELECT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"SELECT\s"#).unwrap());
+static CX_SQL_INSERT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"INSERT\s"#).unwrap());
+static CX_SQL_UPDATE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"UPDATE\s"#).unwrap());
+static CX_SQL_DELETE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"DELETE\s"#).unwrap());
+static CX_CMD_TEXT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)CommandText\s*=").unwrap());
+static CX_SQL_CMD_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlCommand").unwrap());
+static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlDataAdapter").unwrap());
+
+static CX_SESSION_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).unwrap());
+
 /// Compute a heuristic complexity score for a method body.
+/// Uses pre-compiled LazyLock regexes to avoid per-call compilation overhead.
 fn compute_complexity_score(body: &str) -> u32 {
     let mut score: u32 = 0;
-    let lower = body.to_lowercase();
 
     // Branches (1 point each)
-    let branch_patterns = [
-        r"\bif\b",
-        r"\belse\s+if\b",
-        r"\belseif\b",
-        r"\bswitch\b",
-        r"\bcase\b",
-        r"\bselect\s+case\b",
-    ];
-    for pat in branch_patterns {
-        if let Ok(re) = Regex::new(&format!("(?i){pat}")) {
-            score += re.find_iter(&lower).count() as u32;
-        }
-    }
+    score += CX_IF_RE.find_iter(body).count() as u32;
+    score += CX_ELSE_IF_RE.find_iter(body).count() as u32;
+    score += CX_ELSEIF_RE.find_iter(body).count() as u32;
+    score += CX_SWITCH_RE.find_iter(body).count() as u32;
+    score += CX_CASE_RE.find_iter(body).count() as u32;
+    score += CX_SELECT_CASE_RE.find_iter(body).count() as u32;
 
     // Loops (1 point each)
-    let loop_patterns = [
-        r"\bfor\s",
-        r"\bforeach\b",
-        r"\bfor\s+each\b",
-        r"\bwhile\b",
-        r"\bdo\s+while\b",
-        r"\bdo\s*$",
-    ];
-    for pat in loop_patterns {
-        if let Ok(re) = Regex::new(&format!("(?im){pat}")) {
-            score += re.find_iter(body).count() as u32;
-        }
-    }
+    score += CX_FOR_RE.find_iter(body).count() as u32;
+    score += CX_FOREACH_RE.find_iter(body).count() as u32;
+    score += CX_FOR_EACH_RE.find_iter(body).count() as u32;
+    score += CX_WHILE_RE.find_iter(body).count() as u32;
+    score += CX_DO_WHILE_RE.find_iter(body).count() as u32;
+    score += CX_DO_RE.find_iter(body).count() as u32;
 
     // Error handlers (2 points each)
-    let err_patterns = [r"\btry\s*\{", r"\btry\s*$", r"\bcatch\b", r"\bOn\s+Error\b"];
-    for pat in err_patterns {
-        if let Ok(re) = Regex::new(&format!("(?im){pat}")) {
-            score += re.find_iter(body).count() as u32 * 2;
-        }
-    }
+    score += CX_TRY_BRACE_RE.find_iter(body).count() as u32 * 2;
+    score += CX_TRY_EOL_RE.find_iter(body).count() as u32 * 2;
+    score += CX_CATCH_RE.find_iter(body).count() as u32 * 2;
+    score += CX_ON_ERROR_RE.find_iter(body).count() as u32 * 2;
 
     // SQL strings (3 points each)
-    let sql_patterns = [
-        r#""SELECT\s"#,
-        r#""INSERT\s"#,
-        r#""UPDATE\s"#,
-        r#""DELETE\s"#,
-        r"CommandText\s*=",
-        r"SqlCommand",
-        r"SqlDataAdapter",
-    ];
-    for pat in sql_patterns {
-        if let Ok(re) = Regex::new(&format!("(?i){pat}")) {
-            score += re.find_iter(body).count() as u32 * 3;
-        }
-    }
+    score += CX_SQL_SELECT_RE.find_iter(body).count() as u32 * 3;
+    score += CX_SQL_INSERT_RE.find_iter(body).count() as u32 * 3;
+    score += CX_SQL_UPDATE_RE.find_iter(body).count() as u32 * 3;
+    score += CX_SQL_DELETE_RE.find_iter(body).count() as u32 * 3;
+    score += CX_CMD_TEXT_RE.find_iter(body).count() as u32 * 3;
+    score += CX_SQL_CMD_RE.find_iter(body).count() as u32 * 3;
+    score += CX_SQL_ADAPTER_RE.find_iter(body).count() as u32 * 3;
 
     // Session access (1 point each)
-    if let Ok(re) = Regex::new(r#"(?i)Session\s*[\(\[]"#) {
-        score += re.find_iter(body).count() as u32;
-    }
+    score += CX_SESSION_RE.find_iter(body).count() as u32;
 
     score
 }
@@ -7914,20 +8053,47 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
                 None
             };
 
-            // Derive xpath hint from element context
+            // Derive xpath hint from element context AND parent context.
+            // Look back in the content to find the parent XML element for nested <add> elements.
+            let parent_context = &content[..match_pos];
             let xpath_hint = if context.contains("<appSettings")
-                || context.contains("<add ") && context.contains("key=")
+                || (context.contains("<add ") && context.contains("key="))
+                || parent_context
+                    .rfind("<appSettings")
+                    .map_or(false, |p| !parent_context[p..].contains("</appSettings"))
             {
                 "configuration/appSettings".to_string()
-            } else if context.contains("connectionStrings") || context.contains("connectionString")
+            } else if context.contains("connectionStrings")
+                || context.contains("connectionString")
+                || parent_context
+                    .rfind("<connectionStrings")
+                    .map_or(false, |p| {
+                        !parent_context[p..].contains("</connectionStrings")
+                    })
             {
                 "configuration/connectionStrings".to_string()
             } else if context.contains("<compilation") {
                 "configuration/system.web/compilation".to_string()
             } else if context.contains("<customErrors") {
                 "configuration/system.web/customErrors".to_string()
+            } else if context.contains("<httpHandlers")
+                || context.contains("<handlers")
+                || parent_context
+                    .rfind("<handlers")
+                    .map_or(false, |p| !parent_context[p..].contains("</handlers"))
+            {
+                "configuration/system.webServer/handlers".to_string()
+            } else if context.contains("<httpModules")
+                || context.contains("<modules")
+                || parent_context
+                    .rfind("<modules")
+                    .map_or(false, |p| !parent_context[p..].contains("</modules"))
+            {
+                "configuration/system.webServer/modules".to_string()
             } else if context.contains("<system.webServer") {
                 "configuration/system.webServer".to_string()
+            } else if context.contains("<system.web") {
+                "configuration/system.web".to_string()
             } else {
                 "configuration/...".to_string()
             };
@@ -9754,5 +9920,248 @@ var cart = Session["cart"];
             resx.to_string(),
         )]);
         assert_eq!(inv.embedded_resource_count, 1);
+    }
+
+    // ── Second-pass improvement tests ────────────────────────────────────────
+
+    #[test]
+    fn cs_method_body_handles_verbatim_string() {
+        // Verbatim strings contain braces that should NOT count for depth
+        let code = r#"
+public class Foo : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        string sql = @"SELECT { brackets } FROM ""table""";
+        Response.Write("done");
+    }
+}
+"#;
+        let result = extract_cs_method_body(code, "Page_Load");
+        assert!(result.is_some(), "Should find Page_Load");
+        let (body, _, _, line_count) = result.unwrap();
+        assert!(
+            body.contains("@\"SELECT"),
+            "Body should contain verbatim string"
+        );
+        // Verbatim string braces should NOT cause premature/delayed body end
+        assert!(
+            body.contains("Response.Write"),
+            "Body should extend past verbatim string"
+        );
+    }
+
+    #[test]
+    fn cs_method_body_handles_generic_return_type() {
+        let code = r#"
+public class SomeService {
+    public async Task<ActionResult> GetData(int id) {
+        return Ok(id);
+    }
+
+    public Dictionary<string, int> BuildMap() {
+        return new Dictionary<string, int>();
+    }
+}
+"#;
+        let result = extract_cs_method_body(code, "GetData");
+        assert!(
+            result.is_some(),
+            "Should find GetData with Task<ActionResult> return type"
+        );
+        let (body, _, _, _) = result.unwrap();
+        assert!(body.contains("return Ok"));
+
+        let result2 = extract_cs_method_body(code, "BuildMap");
+        assert!(
+            result2.is_some(),
+            "Should find BuildMap with Dictionary<string, int> return type"
+        );
+    }
+
+    #[test]
+    fn vb_method_body_handles_nested_sub_with_modifiers() {
+        // VB with a nested Private Sub inside the main Sub
+        let code = r#"
+Public Class MyPage
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+        Dim x = 1
+        Call Helper()
+    End Sub
+
+    Private Sub Helper()
+        Dim y = 2
+    End Sub
+End Class
+"#;
+        let result = extract_vb_method_body(code, "Page_Load");
+        assert!(result.is_some());
+        let (body, _, _, _) = result.unwrap();
+        assert!(body.contains("Call Helper()"));
+        // Should NOT include Helper's body
+        assert!(
+            !body.contains("Dim y = 2"),
+            "Should not cross into Helper method body"
+        );
+    }
+
+    #[test]
+    fn packages_config_handles_attribute_order_variation() {
+        // Attributes in different order than id, version
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package version="5.2.7" id="Newtonsoft.Json" targetFramework="net461" />
+  <package targetFramework="net461" developmentDependency="true" id="NUnit" version="3.13.3" />
+</packages>"#;
+        let pkgs = parse_packages_config(xml);
+        assert_eq!(pkgs.len(), 2);
+        assert_eq!(pkgs[0].package_id, "Newtonsoft.Json");
+        assert_eq!(pkgs[0].version, "5.2.7");
+        assert_eq!(pkgs[0].target_framework, "net461");
+        assert!(!pkgs[0].is_dev_dependency);
+
+        assert_eq!(pkgs[1].package_id, "NUnit");
+        assert_eq!(pkgs[1].version, "3.13.3");
+        assert!(pkgs[1].is_dev_dependency);
+    }
+
+    #[test]
+    fn binding_redirects_handles_attribute_order_variation() {
+        let config = r#"
+<configuration>
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <dependentAssembly>
+        <assemblyIdentity publicKeyToken="30ad4fe6b2a6aeed" name="Newtonsoft.Json" culture="neutral" />
+        <bindingRedirect newVersion="13.0.0.0" oldVersion="0.0.0.0-13.0.0.0" />
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+</configuration>"#;
+        let redirects = extract_binding_redirects(Some(config));
+        assert_eq!(redirects.len(), 1);
+        assert_eq!(redirects[0].assembly_name, "Newtonsoft.Json");
+        assert_eq!(redirects[0].old_version_range, "0.0.0.0-13.0.0.0");
+        assert_eq!(redirects[0].new_version, "13.0.0.0");
+        assert_eq!(
+            redirects[0].public_key_token.as_deref(),
+            Some("30ad4fe6b2a6aeed")
+        );
+    }
+
+    #[test]
+    fn inheritance_per_class_method_scoping() {
+        // Two classes in one file — methods should be scoped to each class
+        let code = r#"
+public partial class PageA : BasePage {
+    protected void Page_Load(object sender, EventArgs e) { }
+    private void HelperA() { }
+}
+
+public partial class PageB : BasePage {
+    protected void Page_Init(object sender, EventArgs e) { }
+    private void HelperB() { }
+}
+"#;
+        let base_code = r#"
+public class BasePage : System.Web.UI.Page {
+    protected virtual void OnInit(EventArgs e) { base.OnInit(e); }
+}
+"#;
+        let markup_a = FileContent {
+            file_path: "PageA.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="MyApp.PageA" %>"#.to_string(),
+            codebehind_content: Some(code.to_string()),
+        };
+        let markup_b = FileContent {
+            file_path: "PageB.aspx".to_string(),
+            markup_content: r#"<%@ Page Inherits="MyApp.PageB" %>"#.to_string(),
+            codebehind_content: Some(code.to_string()),
+        };
+        let code_files: Vec<(&str, &str)> =
+            vec![("PageA.aspx.cs", code), ("BasePage.cs", base_code)];
+        let report = resolve_inheritance_chains(&code_files, &[markup_a, markup_b]);
+
+        // Check that PageA's chain exists and has scoped methods
+        let chain_a = report.chains.iter().find(|c| c.page_file == "PageA.aspx");
+        assert!(chain_a.is_some(), "Should find chain for PageA");
+
+        // PageA methods should include Page_Load but NOT Page_Init (that's PageB's)
+        if let Some(chain) = chain_a {
+            let lifecycle_method_names: Vec<&str> = chain
+                .inherited_lifecycle_methods
+                .iter()
+                .map(|(m, _)| m.as_str())
+                .collect();
+            // Page_Load comes from PageA, OnInit from BasePage
+            // HelperB should NOT appear
+            assert!(
+                !lifecycle_method_names.contains(&"Page_Init"),
+                "PageA chain should not include PageB's Page_Init"
+            );
+        }
+    }
+
+    #[test]
+    fn config_transform_xpath_handlers_modules() {
+        let transforms = parse_config_transforms(&[(
+            "web.Release.config".to_string(),
+            r#"<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="ExtHandler" path="*.ext" verb="*" xdt:Transform="Insert" />
+    </handlers>
+    <modules>
+      <add name="UrlRewrite" xdt:Transform="Insert" />
+    </modules>
+  </system.webServer>
+</configuration>"#
+                .to_string(),
+        )]);
+        assert!(
+            !transforms.environments.is_empty(),
+            "Should find transforms"
+        );
+        let env = &transforms.environments[0];
+        // Should have handler and module transforms
+        let handler_transform = env
+            .transforms
+            .iter()
+            .find(|t| t.xpath_hint.contains("handlers"));
+        let module_transform = env
+            .transforms
+            .iter()
+            .find(|t| t.xpath_hint.contains("modules"));
+        assert!(
+            handler_transform.is_some(),
+            "Should identify handlers xpath"
+        );
+        assert!(module_transform.is_some(), "Should identify modules xpath");
+    }
+
+    #[test]
+    fn complexity_score_combined_high() {
+        // Method with multiple complexity factors
+        let body = r#"
+            if (x > 0) {
+                foreach (var item in items) {
+                    try {
+                        string sql = "SELECT * FROM Users";
+                        SqlCommand cmd = new SqlCommand(sql);
+                        Session["UserData"] = result;
+                    } catch (Exception ex) {
+                        if (retries > 0) {
+                            while (retries-- > 0) { }
+                        }
+                    }
+                }
+            }
+        "#;
+        let score = compute_complexity_score(body);
+        // Should be significantly > 0:
+        // 2 ifs = 2, 1 foreach = 1, 1 try = 2, 1 catch = 2, 1 while = 1,
+        // 1 SELECT = 3, 1 SqlCommand = 3, 1 Session = 1 = total ~15
+        assert!(
+            score >= 12,
+            "Complex method should score >= 12, got {score}"
+        );
     }
 }

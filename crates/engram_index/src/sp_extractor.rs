@@ -412,19 +412,14 @@ fn find_as_keyword(text: &str) -> Option<usize> {
 }
 
 /// Trim trailing GO statement and anything after it.
+/// Single-pass implementation: tracks byte offset while iterating lines.
 fn trim_go_suffix(body: &str) -> &str {
-    // Look for GO on its own line (case-insensitive)
-    for (i, line) in body.lines().enumerate() {
+    let mut offset = 0usize;
+    for line in body.lines() {
         if line.trim().eq_ignore_ascii_case("GO") {
-            // Calculate byte offset of this line
-            let mut offset = 0;
-            for (j, l) in body.lines().enumerate() {
-                if j == i {
-                    return &body[..offset];
-                }
-                offset += l.len() + 1; // +1 for newline
-            }
+            return &body[..offset];
         }
+        offset += line.len() + 1; // +1 for newline separator
     }
     body
 }
@@ -773,6 +768,36 @@ fn is_sql_keyword(name: &str) -> bool {
         "openrowset",
         "over",
         "partition",
+        "cursor",
+        "fetch",
+        "next",
+        "prior",
+        "first",
+        "last",
+        "close",
+        "deallocate",
+        "scope_identity",
+        "identity",
+        "rowcount",
+        "nocount",
+        "asc",
+        "desc",
+        "default",
+        "check",
+        "unique",
+        "clustered",
+        "nonclustered",
+        "truncate",
+        "pivot",
+        "unpivot",
+        "cross_apply",
+        "outer_apply",
+        "tablesample",
+        "compute",
+        "option",
+        "recompile",
+        "inserted",
+        "deleted",
     ];
     KEYWORDS.iter().any(|kw| name.eq_ignore_ascii_case(kw))
 }
