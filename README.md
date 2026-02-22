@@ -550,10 +550,13 @@ not directly instantiate DbContext — use the injected IUnitOfWork instead.
 
 ## License
 
-This project is licensed under the **Business Source License 1.1 (BUSL-1.1)**.
+This project is licensed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`).
 
-- Non-commercial use (personal, educational, internal evaluation) is allowed.
-- Production/commercial use is restricted until the Change Date.
-- On the Change Date, this code transitions to Apache-2.0.
+- Noncommercial use (personal, hobby, learning, research, and other permitted noncommercial purposes) is allowed under PolyForm Noncommercial 1.0.0.
+- Commercial, business, or for-profit use is not allowed without a separate written commercial license.
+- If a company wants to use this code (including internal business use, product development, SaaS, services, or other revenue-generating work), it must obtain a commercial license.
+- Commercial licensing inquiries: `<YOUR_EMAIL_OR_CONTACT_URL>`
 
-See [`LICENSE`](LICENSE) for the full terms, including the Additional Use Grant and Change Date.
+Previous releases may remain under their original license terms. This licensing change applies from this release/version forward.
+
+See [`LICENSE`](LICENSE) for the full terms and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) for the commercial-use notice.
