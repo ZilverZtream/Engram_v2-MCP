@@ -35,6 +35,13 @@ static CODE_CMD_TEXT_RE: OnceLock<Regex> = OnceLock::new();
 static CODE_PARAM_ADD_RE: OnceLock<Regex> = OnceLock::new();
 static CODE_PARAM_ADDWITHVALUE_RE: OnceLock<Regex> = OnceLock::new();
 static SP_AS_KEYWORD_RE: OnceLock<Regex> = OnceLock::new();
+// THIRD-PASS: Enterprise Library / Data Application Block patterns
+static ENTLIB_EXEC_READER_RE: OnceLock<Regex> = OnceLock::new();
+static ENTLIB_EXEC_NONQUERY_RE: OnceLock<Regex> = OnceLock::new();
+static ENTLIB_EXEC_SCALAR_RE: OnceLock<Regex> = OnceLock::new();
+static ENTLIB_EXEC_DATASET_RE: OnceLock<Regex> = OnceLock::new();
+// THIRD-PASS: SqlDataAdapter constructor with SP name
+static SQL_ADAPTER_CTOR_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -851,19 +858,52 @@ pub fn extract_code_side_sp_calls(
         return (symbols, edges);
     };
 
-    // Only process if file uses stored procedures
-    if !cmd_type_re.is_match(source) {
+    // THIRD-PASS: Also check for Enterprise Library patterns
+    let entlib_reader_re = get_compiled_regex(
+        &ENTLIB_EXEC_READER_RE,
+        r#"(?i)\.ExecuteReader\s*\(\s*"(\w[\w.]*)"#,
+        "entlib_exec_reader",
+    );
+    let entlib_nonquery_re = get_compiled_regex(
+        &ENTLIB_EXEC_NONQUERY_RE,
+        r#"(?i)\.ExecuteNonQuery\s*\(\s*"(\w[\w.]*)"#,
+        "entlib_exec_nonquery",
+    );
+    let entlib_scalar_re = get_compiled_regex(
+        &ENTLIB_EXEC_SCALAR_RE,
+        r#"(?i)\.ExecuteScalar\s*\(\s*"(\w[\w.]*)"#,
+        "entlib_exec_scalar",
+    );
+    let entlib_dataset_re = get_compiled_regex(
+        &ENTLIB_EXEC_DATASET_RE,
+        r#"(?i)\.ExecuteDataSet\s*\(\s*"(\w[\w.]*)"#,
+        "entlib_exec_dataset",
+    );
+    // THIRD-PASS: SqlDataAdapter("sp_name", conn) pattern
+    let adapter_ctor_re = get_compiled_regex(
+        &SQL_ADAPTER_CTOR_RE,
+        r#"(?i)(?:New\s+)?SqlDataAdapter\s*\(\s*"(\w[\w.]*)"#,
+        "sql_adapter_ctor",
+    );
+
+    // Process if file uses stored procedures OR Enterprise Library patterns
+    let has_cmd_type = cmd_type_re.is_match(source);
+    let has_entlib = source.contains("ExecuteReader(\"")
+        || source.contains("ExecuteNonQuery(\"")
+        || source.contains("ExecuteScalar(\"")
+        || source.contains("ExecuteDataSet(\"");
+    let has_adapter_sp = source.contains("SqlDataAdapter(\"");
+
+    if !has_cmd_type && !has_entlib && !has_adapter_sp {
         return (symbols, edges);
     }
 
     // Extract SP names from CommandText assignments
-    let Some(cmd_text_re) = get_compiled_regex(
+    let cmd_text_re = get_compiled_regex(
         &CODE_CMD_TEXT_RE,
         r#"(?i)\.CommandText\s*=\s*"([^"]+)""#,
         "code_cmd_text",
-    ) else {
-        return (symbols, edges);
-    };
+    );
 
     // Extract parameters from Parameters.Add
     let param_add_re = get_compiled_regex(
@@ -882,27 +922,86 @@ pub fn extract_code_side_sp_calls(
     // Collect all SP name assignments
     let mut sp_calls: Vec<CodeSideSpCall> = Vec::new();
 
-    for cap in cmd_text_re.captures_iter(source) {
-        let sp_name = cap.get(1).map_or("", |m| m.as_str()).trim().to_string();
-        let match_pos = cap.get(0).map_or(0, |m| m.start());
-        let line = char_to_line(match_pos);
+    // Helper: check if a name looks like an SP name (not inline SQL)
+    let is_sp_name = |name: &str| -> bool {
+        let upper = name.to_uppercase();
+        !upper.starts_with("SELECT ")
+            && !upper.starts_with("INSERT ")
+            && !upper.starts_with("UPDATE ")
+            && !upper.starts_with("DELETE ")
+            && !upper.starts_with("EXEC ")
+            && !upper.contains(' ') // SP names don't have spaces
+    };
 
-        // Don't add SELECT/INSERT/etc. statements — only SP names
-        let upper = sp_name.to_uppercase();
-        if upper.starts_with("SELECT ")
-            || upper.starts_with("INSERT ")
-            || upper.starts_with("UPDATE ")
-            || upper.starts_with("DELETE ")
-            || upper.starts_with("EXEC ")
-        {
-            continue;
+    // 1. CommandText = "sp_name" (classic SqlCommand pattern)
+    if let Some(re) = cmd_text_re {
+        for cap in re.captures_iter(source) {
+            let sp_name = cap.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            let match_pos = cap.get(0).map_or(0, |m| m.start());
+            let line = char_to_line(match_pos);
+
+            if is_sp_name(&sp_name) {
+                sp_calls.push(CodeSideSpCall {
+                    sp_name,
+                    parameters: Vec::new(),
+                    line,
+                });
+            }
         }
+    }
 
-        sp_calls.push(CodeSideSpCall {
-            sp_name,
-            parameters: Vec::new(),
-            line,
-        });
+    // 2. THIRD-PASS: Enterprise Library patterns
+    //    db.ExecuteReader("usp_GetOrders", param1, param2)
+    //    db.ExecuteNonQuery("usp_SaveOrder", ...)
+    //    db.ExecuteScalar("usp_CountOrders", ...)
+    //    db.ExecuteDataSet("usp_GetReport", ...)
+    for entlib_re in [
+        entlib_reader_re,
+        entlib_nonquery_re,
+        entlib_scalar_re,
+        entlib_dataset_re,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for cap in entlib_re.captures_iter(source) {
+            let sp_name = cap.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            let match_pos = cap.get(0).map_or(0, |m| m.start());
+            let line = char_to_line(match_pos);
+
+            if is_sp_name(&sp_name)
+                && !sp_calls
+                    .iter()
+                    .any(|c| c.sp_name == sp_name && c.line == line)
+            {
+                sp_calls.push(CodeSideSpCall {
+                    sp_name,
+                    parameters: Vec::new(),
+                    line,
+                });
+            }
+        }
+    }
+
+    // 3. THIRD-PASS: SqlDataAdapter("sp_name", connection) pattern
+    if let Some(re) = adapter_ctor_re {
+        for cap in re.captures_iter(source) {
+            let sp_name = cap.get(1).map_or("", |m| m.as_str()).trim().to_string();
+            let match_pos = cap.get(0).map_or(0, |m| m.start());
+            let line = char_to_line(match_pos);
+
+            if is_sp_name(&sp_name)
+                && !sp_calls
+                    .iter()
+                    .any(|c| c.sp_name == sp_name && c.line == line)
+            {
+                sp_calls.push(CodeSideSpCall {
+                    sp_name,
+                    parameters: Vec::new(),
+                    line,
+                });
+            }
+        }
     }
 
     // For each SP call, look for nearby parameter bindings (within ±30 lines)
@@ -1496,5 +1595,99 @@ END
         assert!(defs[0].called_procedures.contains(&"usp_Step1".to_string()));
         assert!(defs[0].called_procedures.contains(&"usp_Step2".to_string()));
         assert!(defs[0].called_procedures.contains(&"usp_Step3".to_string()));
+    }
+
+    // ── Third-Pass Tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_enterprise_library_sp_calls() {
+        // THIRD-PASS: Enterprise Library patterns should be detected
+        let vb_code = r#"
+Imports Microsoft.Practices.EnterpriseLibrary.Data
+
+Public Class OrderRepository
+    Private db As Database = DatabaseFactory.CreateDatabase()
+
+    Public Function GetOrders(ByVal customerId As Integer) As DataSet
+        Return db.ExecuteDataSet("usp_GetCustomerOrders", customerId)
+    End Function
+
+    Public Sub SaveOrder(ByVal order As Order)
+        db.ExecuteNonQuery("usp_SaveOrder", order.Id, order.Name, order.Total)
+    End Sub
+
+    Public Function GetOrderCount() As Integer
+        Return CInt(db.ExecuteScalar("usp_CountOrders"))
+    End Function
+
+    Public Function GetOrderDetails(ByVal orderId As Integer) As IDataReader
+        Return db.ExecuteReader("usp_GetOrderDetails", orderId)
+    End Function
+End Class
+"#;
+        let rel = RelPath::new("OrderRepository.vb");
+        let (_, edges) = extract_code_side_sp_calls(&rel, vb_code);
+
+        let sp_names: Vec<String> = edges
+            .iter()
+            .filter(|e| e.kind == "calls_stored_procedure")
+            .map(|e| e.target_name.clone())
+            .collect();
+
+        assert!(
+            sp_names.contains(&"usp_GetCustomerOrders".to_string()),
+            "Should detect ExecuteDataSet SP call, got: {:?}",
+            sp_names
+        );
+        assert!(
+            sp_names.contains(&"usp_SaveOrder".to_string()),
+            "Should detect ExecuteNonQuery SP call"
+        );
+        assert!(
+            sp_names.contains(&"usp_CountOrders".to_string()),
+            "Should detect ExecuteScalar SP call"
+        );
+        assert!(
+            sp_names.contains(&"usp_GetOrderDetails".to_string()),
+            "Should detect ExecuteReader SP call"
+        );
+        assert_eq!(
+            sp_names.len(),
+            4,
+            "Should detect all 4 Enterprise Library SP calls"
+        );
+    }
+
+    #[test]
+    fn test_sqldataadapter_constructor_sp_call() {
+        // THIRD-PASS: SqlDataAdapter("sp_name", conn) pattern
+        let vb_code = r#"
+Imports System.Data.SqlClient
+
+Public Class DataHelper
+    Public Function GetData() As DataSet
+        Dim conn As New SqlConnection(connStr)
+        Dim da As New SqlDataAdapter("usp_GetAllProducts", conn)
+        da.SelectCommand.CommandType = CommandType.StoredProcedure
+        Dim ds As New DataSet()
+        da.Fill(ds)
+        Return ds
+    End Function
+End Class
+"#;
+        let rel = RelPath::new("DataHelper.vb");
+        let (_, edges) = extract_code_side_sp_calls(&rel, vb_code);
+
+        let sp_names: Vec<String> = edges
+            .iter()
+            .filter(|e| e.kind == "calls_stored_procedure")
+            .map(|e| e.target_name.clone())
+            .collect();
+
+        assert!(
+            sp_names.contains(&"usp_GetAllProducts".to_string()),
+            "Should detect SqlDataAdapter constructor SP call, got: {:?}",
+            sp_names
+        );
     }
 }
