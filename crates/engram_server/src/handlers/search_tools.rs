@@ -1,6 +1,11 @@
-use crate::models::{GetChunkRequest, SearchMemoryRequest, VectorSearchRequest};
+use crate::models::{
+    AnalyzeErrorStackRequest, FindSymbolReferencesRequest, GetChunkRequest, SearchMemoryRequest,
+    VectorSearchRequest,
+};
 use crate::state::{AppEvent, SearchHitLite};
 use crate::tools::Engram;
+use crate::utils::text::{stacktrace_to_query};
+use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
@@ -218,5 +223,408 @@ impl Engram {
         output.push_str(&confidence_footer);
 
         Ok(CallToolResult::success(vec![Content::text(output)]))
+    }
+
+    pub async fn handle_find_symbol_references(
+        &self,
+        req: FindSymbolReferencesRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let max_incoming = req.sanitized_max_incoming();
+        let max_outgoing_per_kind = req.sanitized_max_outgoing_per_kind();
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let needle = &req.symbol_name;
+
+        // Parse edge kind filter
+        let edge_kind_filter: Option<Vec<EdgeKind>> = req
+            .edge_kind_filter
+            .as_ref()
+            .map(|f| f.iter().filter_map(|s| EdgeKind::parse(s)).collect());
+
+        // 1. Find matching symbol nodes — exact name match and FQN suffix match
+        let nodes = self
+            .state
+            .graph
+            .query_nodes(&req.project_id, None, Some(needle), None, 50)
+            .unwrap_or_default();
+
+        let mut out = String::with_capacity(4096);
+        let mut found_in_graph = false;
+
+        for node in &nodes {
+            // Multi-strategy name match: exact, FQN suffix, node-id suffix
+            let name_lower = node.name.to_lowercase();
+            let needle_lower = needle.to_lowercase();
+            let name_matches = name_lower == needle_lower
+                || name_lower.ends_with(&format!(".{}", needle_lower))
+                || name_lower.ends_with(&format!("::{}", needle_lower))
+                || node
+                    .node_id
+                    .to_lowercase()
+                    .ends_with(&format!(":{}", needle_lower));
+            if !name_matches {
+                continue;
+            }
+
+            // Apply file scope filter
+            if let Some(ref scope) = req.file_scope {
+                if !node.file_path.as_str().is_empty()
+                    && !node.file_path.as_str().starts_with(scope.as_str())
+                {
+                    continue;
+                }
+            }
+
+            // Query incoming edge kinds (filtered if specified)
+            let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);
+            let mut incoming = self
+                .state
+                .graph
+                .find_incoming_edges_with_kind(
+                    &req.project_id,
+                    incoming_kind_filter, // None = all kinds
+                    &node.node_id,
+                    max_incoming,
+                )
+                .unwrap_or_default();
+
+            // Apply edge kind filter post-query if specified
+            if let Some(ref filter) = edge_kind_filter {
+                incoming.retain(|(_, kind, _)| filter.contains(kind));
+            }
+
+            // Apply file scope filter to incoming edges
+            if let Some(ref scope) = req.file_scope {
+                incoming.retain(|(src_id, _, _)| {
+                    // src_id may be like "file:path" or "sym:type:path:name"
+                    src_id.contains(scope.as_str())
+                });
+            }
+
+            // Outgoing edges — filter to requested kinds only
+            let outgoing_kinds: &[EdgeKind] = if let Some(ref filter) = edge_kind_filter {
+                filter
+            } else {
+                EdgeKind::ALL
+            };
+
+            let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
+            for kind in outgoing_kinds {
+                if let Ok(neighbors) = self.state.graph.neighbors(
+                    &req.project_id,
+                    kind.clone(),
+                    &node.node_id,
+                    max_outgoing_per_kind,
+                ) {
+                    for (target_id, weight) in neighbors {
+                        // Apply file scope filter to outgoing
+                        if let Some(ref scope) = req.file_scope {
+                            if !target_id.contains(scope.as_str()) {
+                                continue;
+                            }
+                        }
+                        outgoing.push((target_id, kind.clone(), weight));
+                    }
+                }
+            }
+
+            if !incoming.is_empty() || !outgoing.is_empty() {
+                found_in_graph = true;
+                out.push_str(&format!(
+                    "Symbol: {} ({}) in {}\n  node_id: {}\n",
+                    node.name, node.node_type, node.file_path, node.node_id
+                ));
+
+                if !incoming.is_empty() {
+                    out.push_str(&format!("  Incoming references ({}):\n", incoming.len()));
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (src_id, kind, weight) in &incoming {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((src_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (src, w) in refs.iter().take(20) {
+                            out.push_str(&format!("      <- {} (w={})\n", src, w));
+                        }
+                        if refs.len() > 20 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
+                        }
+                    }
+                }
+
+                if !outgoing.is_empty() {
+                    out.push_str(&format!("  Outgoing dependencies ({}):\n", outgoing.len()));
+                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                        std::collections::HashMap::new();
+                    for (tgt_id, kind, weight) in &outgoing {
+                        by_kind
+                            .entry(kind.as_str().to_string())
+                            .or_default()
+                            .push((tgt_id.as_str(), *weight));
+                    }
+                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                    for (kind, refs) in &kinds_sorted {
+                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                        for (tgt, w) in refs.iter().take(20) {
+                            out.push_str(&format!("      -> {} (w={})\n", tgt, w));
+                        }
+                        if refs.len() > 20 {
+                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
+                        }
+                    }
+                }
+                out.push('\n');
+            }
+        }
+
+        if found_in_graph {
+            return Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]));
+        }
+
+        // 2. Fallback: Lexical search (deduplicated — only runs if graph found nothing)
+        let lexical_path_filter = req.file_scope.map(|s| vec![s]);
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: "memory".into(),
+                    generation: gen_,
+                    text: req.symbol_name.clone(),
+                    top_k: 20,
+                    fts_mode: "strict".into(),
+                    include_path_prefixes: lexical_path_filter,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if hits.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No references found.",
+            )]));
+        }
+
+        let mut out = String::new();
+        out.push_str(&format!(
+            "No graph symbol found for '{}'; lexical references:\n",
+            req.symbol_name
+        ));
+        for h in hits {
+            out.push_str(&format!(
+                "- {} (chunk_id={}, score={:.3})\n",
+                h.path, h.chunk_id, h.score
+            ));
+        }
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    pub async fn handle_analyze_error_stack(
+        &self,
+        req: AnalyzeErrorStackRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        // 1. Structured parsing of stack frames
+        let frames = crate::utils::text::parse_stack_frames(&req.traceback);
+        let query = stacktrace_to_query(&req.traceback);
+
+        // 2. Hybrid search for initial candidates, using MMR for diversity.
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: "memory".into(),
+                    generation: gen_,
+                    text: query,
+                    top_k: 15,
+                    fts_mode: "loose".into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: true,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = String::with_capacity(4096);
+        out.push_str("Error Stacktrace Analysis\n");
+        out.push_str(&format!("Frames parsed: {}\n\n", frames.len()));
+
+        // 3. Show extracted frames summary
+        if !frames.is_empty() {
+            out.push_str("--- Extracted Frames ---\n");
+            for (i, f) in frames.iter().enumerate().take(15) {
+                let mut parts = Vec::new();
+                if let Some(ref file) = f.file {
+                    let basename = file.rsplit(['/', '\\']).next().unwrap_or(file);
+                    if let Some(line) = f.line {
+                        parts.push(format!("{}:{}", basename, line));
+                    } else {
+                        parts.push(basename.to_string());
+                    }
+                }
+                if let Some(ref fqn) = f.fqn {
+                    parts.push(fqn.clone());
+                } else if let Some(ref func) = f.function {
+                    parts.push(func.clone());
+                }
+                if !parts.is_empty() {
+                    out.push_str(&format!("  #{}: {}\n", i + 1, parts.join(" in ")));
+                }
+            }
+            if frames.len() > 15 {
+                out.push_str(&format!("  ... and {} more frames\n", frames.len() - 15));
+            }
+            out.push('\n');
+        }
+
+        if hits.is_empty() {
+            out.push_str("No matching codebase files found.\n");
+            return Ok(CallToolResult::success(vec![Content::text(
+                out.trim().to_string(),
+            )]));
+        }
+
+        // 4. Boost hits that match extracted file paths from frames
+        let frame_files: std::collections::HashSet<String> = frames
+            .iter()
+            .filter_map(|f| f.file.as_deref())
+            .map(|f| f.rsplit(['/', '\\']).next().unwrap_or(f).to_lowercase())
+            .collect();
+        let frame_functions: std::collections::HashSet<String> = frames
+            .iter()
+            .filter_map(|f| f.function.as_deref())
+            .map(|s| s.to_lowercase())
+            .collect();
+
+        let mut scored_hits: Vec<_> = hits
+            .iter()
+            .map(|h| {
+                let basename = h
+                    .path
+                    .as_str()
+                    .rsplit(['/', '\\'])
+                    .next()
+                    .unwrap_or(h.path.as_str())
+                    .to_lowercase();
+                let mut bonus = 0.0f32;
+                // Exact file match from stack frame
+                if frame_files.contains(&basename) {
+                    bonus += 0.3;
+                }
+                // Centrality bonus
+                bonus += h.centrality * 0.1;
+                (h, h.score + bonus)
+            })
+            .collect();
+        scored_hits.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // 5. Output ranked results
+        out.push_str("--- Likely Source Files ---\n");
+        out.push_str(
+            "Ranked by search relevance + stack frame matching + architectural centrality.\n\n",
+        );
+
+        for (i, (h, final_score)) in scored_hits.iter().enumerate().take(8) {
+            let centrality_note = if h.centrality > 0.5 {
+                " [Hub]"
+            } else if h.centrality > 0.2 {
+                " [Utility]"
+            } else {
+                ""
+            };
+
+            let basename = h
+                .path
+                .as_str()
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or(h.path.as_str())
+                .to_lowercase();
+            let frame_match = if frame_files.contains(&basename) {
+                " [STACK MATCH]"
+            } else {
+                ""
+            };
+
+            // Check if any frame function matches a graph node in this file
+            let mut func_matches = Vec::new();
+            if !frame_functions.is_empty() {
+                let file_nodes = self
+                    .state
+                    .graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("function"),
+                        None,
+                        Some(h.path.as_str()),
+                        50,
+                    )
+                    .unwrap_or_default();
+                for node in &file_nodes {
+                    let node_name_lower = node.name.to_lowercase();
+                    if frame_functions.contains(&node_name_lower) {
+                        func_matches.push(format!("{}:{}", node.name, node.start_line));
+                    }
+                }
+            }
+
+            out.push_str(&format!(
+                "#{}: {}{}{} (score: {:.3})\n",
+                i + 1,
+                h.path,
+                centrality_note,
+                frame_match,
+                final_score
+            ));
+
+            if !func_matches.is_empty() {
+                out.push_str(&format!(
+                    "   Matching functions: {}\n",
+                    func_matches.join(", ")
+                ));
+            }
+
+            if let Ok(Some((_, _, content, start_line, _))) =
+                ps.search
+                    .get_doc_by_doc_id(&req.project_id, "memory", gen_, &h.doc_id)
+            {
+                let snippet: String = content.lines().take(3).collect::<Vec<_>>().join("\n");
+                out.push_str(&format!("   (line ~{})\n", start_line));
+                out.push_str("   > ");
+                out.push_str(&snippet.replace('\n', "\n   > "));
+                out.push_str("\n\n");
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 }

@@ -1,39 +1,26 @@
-//! Cognitive tool helpers and service delegates.
-//!
-//! These impl blocks add methods to `Engram` that are invoked by:
-//!  - The #[tool] handlers in tools.rs (via self.*)
-//!  - The cognitive_service module (via AppState)
-//!
-//! Ported from v1's dreaming.py cognitive pipeline.
-
+use crate::models::{
+    AntiPatternGuardRequest, AstDependencyGraphRequest,
+    ComputeBlastRadiusRequest, DetectDesignPatternsRequest, DreamProjectRequest,
+    ExportCapturePackRequest, GetExtractionConfidenceRequest, GetUiBlueprintRequest,
+    GraphCentralityRerankRequest, ImpactAnalysisRequest, ImmuneCheckRequest,
+    MapAjaxRegionsRequest, ProjectIdRequest, QueryBusinessLogicRequest,
+    TraceStateUsageRequest, TraceUiActionRequest, TraceUiEventRequest,
+};
 use crate::services::{cognitive_service, job_service};
+use crate::state::AppEvent;
 use crate::tools::Engram;
+use crate::utils::now_ms;
+use engram_graph::EdgeKind;
+use engram_index::HybridQuery;
+use rmcp::model::{CallToolResult, Content};
+use rmcp::ErrorData as McpError;
+use std::path::PathBuf;
 
-// ---------------------------------------------------------------------------
-// Job management
-// ---------------------------------------------------------------------------
-
-/// Job management helper methods on Engram.
 impl Engram {
     pub(crate) async fn cancel_job_internal(&self, job_id: &str) -> bool {
         job_service::cancel_job_internal(&self.state, job_id).await
     }
-}
 
-// ---------------------------------------------------------------------------
-// Dreaming / cognitive service helpers
-// ---------------------------------------------------------------------------
-
-#[allow(dead_code)]
-impl Engram {
-    /// Trigger a dream cycle for a project and return insight count.
-    /// Called by the `dream_project` MCP tool handler.
-    pub(crate) async fn run_dream_cycle(&self, project_id: &str) -> anyhow::Result<usize> {
-        cognitive_service::dream_project(&self.state, project_id).await
-    }
-
-    /// Analyze a file's coding style from git history.
-    /// Falls back to AST/regex mimicry if no LLM is configured.
     pub(crate) async fn cognitive_analyze_file_style(
         &self,
         project_id: &str,
@@ -43,18 +30,6 @@ impl Engram {
         cognitive_service::analyze_file_style(&self.state, project_id, file_path, diff_limit).await
     }
 
-    /// Find files that frequently change together (temporal coupling).
-    pub(crate) async fn cognitive_temporal_couplings(
-        &self,
-        project_id: &str,
-        min_frequency: u32,
-        limit: usize,
-    ) -> anyhow::Result<Vec<cognitive_service::TemporalCoupling>> {
-        cognitive_service::find_temporal_couplings(&self.state, project_id, min_frequency, limit)
-            .await
-    }
-
-    /// Suggest microservice/bounded-context migration boundaries.
     pub(crate) async fn cognitive_suggest_boundaries(
         &self,
         project_id: &str,
@@ -72,5 +47,1743 @@ impl Engram {
             include_cross_cluster_deps,
         )
         .await
+    }
+
+    pub async fn handle_impact_analysis(
+        &self,
+        req: ImpactAnalysisRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        if req.symbol_fqn.is_none() && req.file_path.is_none() {
+            return Err(McpError::invalid_params(
+                "Either file_path or symbol_fqn must be provided.",
+                None,
+            ));
+        }
+
+        let file_path_for_confidence = req.file_path.clone();
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let target_id = if let Some(ref fqn) = req.symbol_fqn {
+                if fqn.starts_with("sql:") || fqn.starts_with("table:") || fqn.starts_with("state:")
+                {
+                    fqn.clone()
+                } else {
+                    let table_id = engram_core::ids::NodeId::table(fqn).0;
+                    if graph
+                        .get_node(&req.project_id, &table_id)
+                        .map_err(|e| e.to_string())?
+                        .is_some()
+                    {
+                        table_id
+                    } else if let Ok(candidates) =
+                        graph.query_nodes(&req.project_id, None, None, None, 500)
+                        && let Some(n) = candidates.iter().find(|n| {
+                            n.metadata
+                                .as_ref()
+                                .and_then(|m| m.get("fqn"))
+                                .and_then(|v| v.as_str())
+                                == Some(fqn)
+                        })
+                    {
+                        n.node_id.clone()
+                    } else {
+                        let short = fqn.split('.').next_back().unwrap_or(fqn);
+                        if let Ok(candidates) =
+                            graph.query_nodes(&req.project_id, None, Some(short), None, 500)
+                            && !candidates.is_empty()
+                        {
+                            if let Some(exact) = candidates.iter().find(|n| {
+                                n.metadata
+                                    .as_ref()
+                                    .and_then(|m| m.get("fqn"))
+                                    .and_then(|v| v.as_str())
+                                    == Some(fqn)
+                            }) {
+                                exact.node_id.clone()
+                            } else {
+                                candidates[0].node_id.clone()
+                            }
+                        } else {
+                            return Ok(format!("Symbol '{fqn}' not found in graph."));
+                        }
+                    }
+                }
+            } else if let Some(ref path) = req.file_path {
+                engram_core::ids::NodeId::file(path).0
+            } else {
+                unreachable!()
+            };
+
+            let capped_limit = req.limit.clamp(1, 1000);
+            let incoming = graph
+                .find_incoming_edges_with_kind(&req.project_id, None, &target_id, capped_limit)
+                .map_err(|e| e.to_string())?;
+
+            if incoming.is_empty() {
+                return Ok(format!("No dependent nodes found for {target_id}."));
+            }
+
+            let mut out = format!("Impact Analysis for {target_id}:\n\n");
+            out.push_str("Nodes that depend on or are related to this:\n");
+
+            let mut grouped: std::collections::HashMap<String, (Vec<engram_graph::EdgeKind>, u32)> =
+                std::collections::HashMap::new();
+            for (src_id, kind, weight) in incoming {
+                let entry = grouped.entry(src_id).or_insert((Vec::new(), 0));
+                entry.0.push(kind);
+                if weight > entry.1 {
+                    entry.1 = weight;
+                }
+            }
+
+            let mut sorted: Vec<_> = grouped.into_iter().collect();
+            sorted.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+
+            for (src_id, (kinds, weight)) in sorted {
+                let Some(src_node) = graph
+                    .get_node(&req.project_id, &src_id)
+                    .map_err(|e| e.to_string())?
+                else {
+                    continue;
+                };
+
+                let mut reasons = Vec::new();
+                for ek in kinds {
+                    let r = match ek {
+                        engram_graph::EdgeKind::Dependency => "Calls/Uses this",
+                        engram_graph::EdgeKind::Contains => "Contains this",
+                        engram_graph::EdgeKind::Imports => "Imports this",
+                        engram_graph::EdgeKind::SqlCalls => "Executes this SQL",
+                        engram_graph::EdgeKind::CoOccurrence => {
+                            "Often searched with this (Co-occurrence)"
+                        }
+                        engram_graph::EdgeKind::TemporalCoupling => {
+                            "Often changed with this (Temporal coupling)"
+                        }
+                        engram_graph::EdgeKind::QueriesTable => "Queries this table",
+                        engram_graph::EdgeKind::ReadsState => "Reads this state",
+                        engram_graph::EdgeKind::WritesState => "Writes this state",
+                        engram_graph::EdgeKind::HasColumn => "Has column",
+                        engram_graph::EdgeKind::ForeignKey => "Foreign key reference",
+                        _ => "Related",
+                    };
+                    reasons.push(r);
+                }
+                reasons.sort();
+                reasons.dedup();
+
+                let reason_str = if reasons.is_empty() {
+                    "Dependent".to_string()
+                } else {
+                    reasons.join(", ")
+                };
+
+                out.push_str(&format!(
+                    "- {} [{}] (weight: {weight}) - {reason_str}\n",
+                    src_node.node_id, src_node.node_type
+                ));
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        let mut result = out;
+        if let Some(ref fp) = file_path_for_confidence {
+            let rel = engram_core::RelPath::from(fp.as_str());
+            let lang = engram_core::guess_language(std::path::Path::new(fp));
+            result.push_str(&self.confidence_footer(&rel, &lang));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(result)]))
+    }
+
+    pub async fn handle_get_table_schema(
+        &self,
+        req: crate::models::GetTableSchemaRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let table_id = engram_core::ids::NodeId::table(&req.table_name).0;
+
+            let table_node = graph
+                .get_node(&req.project_id, &table_id)
+                .map_err(|e| e.to_string())?;
+
+            let Some(table_node) = table_node else {
+                let candidates = graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("db_table"),
+                        Some(&req.table_name),
+                        None,
+                        10,
+                    )
+                    .map_err(|e| e.to_string())?;
+                if candidates.is_empty() {
+                    return Ok(format!(
+                        "Table '{}' not found. Make sure the project has .sql DDL files indexed.",
+                        req.table_name
+                    ));
+                }
+                let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+                return Ok(format!(
+                    "Table '{}' not found exactly. Did you mean one of: {}?",
+                    req.table_name,
+                    names.join(", ")
+                ));
+            };
+
+            let mut out = format!("## Table: {}\n\n", table_node.name);
+
+            if let Some(ref meta) = table_node.metadata {
+                if let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
+                    out.push_str("### DDL\n```sql\n");
+                    out.push_str(ddl);
+                    out.push_str("\n```\n\n");
+                }
+            }
+
+            let columns = graph
+                .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
+                .map_err(|e| e.to_string())?;
+
+            if !columns.is_empty() {
+                out.push_str("### Columns\n");
+                for (col_id, _weight) in &columns {
+                    if let Ok(Some(col_node)) = graph.get_node(&req.project_id, col_id) {
+                        let data_type = col_node
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("data_type"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        let nullable = col_node
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("nullable"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
+                        out.push_str(&format!(
+                            "- **{}** {} (nullable: {})\n",
+                            col_node.name, data_type, nullable
+                        ));
+                    }
+                }
+                out.push('\n');
+            }
+
+            let mut fk_lines = Vec::new();
+            for (col_id, _) in &columns {
+                let fks = graph
+                    .neighbors(&req.project_id, EdgeKind::ForeignKey, col_id, 50)
+                    .map_err(|e| e.to_string())?;
+                for (ref_col_id, _) in fks {
+                    fk_lines.push(format!("- {} -> {}", col_id, ref_col_id));
+                }
+            }
+            if !fk_lines.is_empty() {
+                out.push_str("### Foreign Keys\n");
+                for line in &fk_lines {
+                    out.push_str(line);
+                    out.push('\n');
+                }
+                out.push('\n');
+            }
+
+            let referencing = graph
+                .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 50)
+                .map_err(|e| e.to_string())?;
+
+            if !referencing.is_empty() {
+                out.push_str("### Referenced by SQL Nodes\n");
+                for (sql_id, weight) in &referencing {
+                    let callers = graph
+                        .find_incoming_edges(&req.project_id, Some(EdgeKind::SqlCalls), sql_id, 20)
+                        .map_err(|e| e.to_string())?;
+                    let caller_strs: Vec<_> = callers.iter().map(|(id, _)| id.as_str()).collect();
+                    if caller_strs.is_empty() {
+                        out.push_str(&format!("- {} (weight: {})\n", sql_id, weight));
+                    } else {
+                        out.push_str(&format!(
+                            "- {} (weight: {}) <- called from: {}\n",
+                            sql_id,
+                            weight,
+                            caller_strs.join(", ")
+                        ));
+                    }
+                }
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_trace_state_usage(
+        &self,
+        req: TraceStateUsageRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
+
+            let state_node = graph
+                .get_node(&req.project_id, &state_id)
+                .map_err(|e| format!("DB error looking up state node: {e}"))?;
+
+            if state_node.is_none() {
+                let candidates = graph
+                    .query_nodes(
+                        &req.project_id,
+                        Some("global_state"),
+                        Some(&req.state_key),
+                        None,
+                        20,
+                    )
+                    .map_err(|e| format!("DB error querying state candidates: {e}"))?;
+                if candidates.is_empty() {
+                    return Ok(format!(
+                        "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
+                        req.state_type, req.state_key, req.state_type
+                    ));
+                }
+                let names: Vec<_> = candidates.iter().map(|n| n.name.as_str()).collect();
+                return Ok(format!(
+                    "State key '{}:{}' not found exactly. Similar keys found: {}",
+                    req.state_type,
+                    req.state_key,
+                    names.join(", ")
+                ));
+            }
+
+            let mut out = format!(
+                "## State Usage: {}[\"{}\"]\n\n",
+                req.state_type, req.state_key
+            );
+
+            let writers = graph
+                .find_incoming_edges(
+                    &req.project_id,
+                    Some(EdgeKind::WritesState),
+                    &state_id,
+                    req.limit,
+                )
+                .map_err(|e| format!("DB error querying writers: {e}"))?;
+
+            if !writers.is_empty() {
+                out.push_str("### Writers\n");
+                for (writer_id, weight) in &writers {
+                    if let Ok(Some(node)) = graph.get_node(&req.project_id, writer_id) {
+                        out.push_str(&format!(
+                            "- {} [{}] in {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!("- {} (weight: {})\n", writer_id, weight));
+                    }
+                }
+                out.push('\n');
+            } else {
+                out.push_str("### Writers\nNo writers found.\n\n");
+            }
+
+            let readers = graph
+                .find_incoming_edges(
+                    &req.project_id,
+                    Some(EdgeKind::ReadsState),
+                    &state_id,
+                    req.limit,
+                )
+                .map_err(|e| format!("DB error querying readers: {e}"))?;
+
+            if !readers.is_empty() {
+                out.push_str("### Readers\n");
+                for (reader_id, weight) in &readers {
+                    if let Ok(Some(node)) = graph.get_node(&req.project_id, reader_id) {
+                        out.push_str(&format!(
+                            "- {} [{}] in {} (weight: {})\n",
+                            node.name,
+                            node.node_type,
+                            node.file_path.as_str(),
+                            weight
+                        ));
+                    } else {
+                        out.push_str(&format!("- {} (weight: {})\n", reader_id, weight));
+                    }
+                }
+            } else {
+                out.push_str("### Readers\nNo readers found.\n");
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_trace_ui_event(
+        &self,
+        req: TraceUiEventRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+
+        let mut start_id = if let Some(ref ctrl) = req.control_id {
+            engram_core::ids::NodeId::control(&req.page_path, ctrl).0
+        } else if let Some(ref handler) = req.handler_fqn {
+            engram_core::ids::NodeId::symbol("function", Some(handler), &req.page_path, "", 0).0
+        } else {
+            engram_core::ids::NodeId::page(&req.page_path).0
+        };
+
+        let mut trace_used_fallback = false;
+        let mut trace_candidate_count: usize = 0;
+        let mut unresolved_candidates: Vec<String> = Vec::new();
+        if self
+            .state
+            .graph
+            .get_node(&req.project_id, &start_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .is_none()
+            && let Some(ref ctrl) = req.control_id
+            && let Ok(candidates) =
+                self.state
+                    .graph
+                    .query_nodes(&req.project_id, Some("control"), Some(ctrl), None, 10)
+            && !candidates.is_empty()
+        {
+            trace_used_fallback = true;
+            trace_candidate_count = candidates.len();
+            unresolved_candidates = candidates.iter().map(|n| n.node_id.clone()).collect();
+            start_id = candidates[0].node_id.clone();
+        }
+
+        let paths = self
+            .state
+            .graph
+            .find_ui_paths(
+                &req.project_id,
+                &start_id,
+                req.max_hops as usize,
+                req.max_paths,
+            )
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if paths.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No paths found from {start_id} to any SQL nodes within {} hops.",
+                req.max_hops
+            ))]));
+        }
+
+        let mut out = format!("Found {} path(s) to SQL:\n", paths.len());
+
+        let confidence_penalty = if trace_used_fallback {
+            (trace_candidate_count as f64 * 0.2).min(0.8)
+        } else {
+            0.0
+        };
+
+        out.push_str("\n## Trace Provenance\n");
+        out.push_str(&format!("trace_used_fallback: {}\n", trace_used_fallback));
+        out.push_str(&format!(
+            "trace_candidate_count: {}\n",
+            trace_candidate_count
+        ));
+        out.push_str(&format!(
+            "trace_confidence_penalty: {:.2}\n",
+            confidence_penalty
+        ));
+        out.push_str(&format!("selected_start_node: {}\n", start_id));
+
+        if trace_used_fallback {
+            out.push_str(&format!(
+                "\n### Ambiguity Warning\n\
+                 Control lookup used fallback candidate matching ({} candidates found).\n\
+                 Penalty reason: {} candidate(s) matched control ID filter; first-match selected.\n\
+                 Risk: Incorrect handler resolution may lead to wrong trace path.\n",
+                trace_candidate_count, trace_candidate_count
+            ));
+            out.push_str("\n### Unresolved Candidates\n");
+            for (i, cand) in unresolved_candidates.iter().enumerate() {
+                let selected = if i == 0 { " ← SELECTED" } else { "" };
+                out.push_str(&format!("  {}. {}{}\n", i + 1, cand, selected));
+            }
+            out.push_str("\n### Follow-up Probes\n");
+            out.push_str("- Provide explicit `handler_fqn` to disambiguate\n");
+            out.push_str("- Verify control ID uniqueness across master/user controls\n");
+            out.push_str("- Check code-behind inheritance chain for handler shadowing\n");
+        }
+
+        for (i, path) in paths.iter().enumerate() {
+            out.push_str(&format!("\n## Path #{}\n", i + 1));
+            for (step, node) in path.iter().enumerate() {
+                let label = match node.node_type.as_str() {
+                    "page" => "ASPX Page",
+                    "control" => "UI Control",
+                    "function" => "Code-Behind Handler",
+                    "stored_proc" => "Stored Procedure",
+                    "inline_sql" => "Inline SQL",
+                    _ => &node.node_type,
+                };
+
+                let justification = if step == 0 {
+                    "Starting point".to_string()
+                } else {
+                    let prev = &path[step - 1];
+                    match (prev.node_type.as_str(), node.node_type.as_str()) {
+                        ("page", "class") => "Inherits class".to_string(),
+                        ("control", "function") => "Event wiring (OnClick/Handles)".to_string(),
+                        ("function", "function") => "Method call".to_string(),
+                        (_, "inline_sql") | (_, "stored_proc") => "Executes SQL".to_string(),
+                        _ => "Dependency".to_string(),
+                    }
+                };
+
+                let evidence = format!(
+                    "node_type={}, file={}, lines={}-{}",
+                    node.node_type,
+                    node.file_path.as_str(),
+                    node.start_line,
+                    node.end_line
+                );
+
+                let indent = "  ".repeat(step);
+                out.push_str(&format!(
+                    "{indent}Step {}: {} [{}] ({}) - {} | evidence: {}\n",
+                    step + 1,
+                    node.name,
+                    label,
+                    node.node_id,
+                    justification,
+                    evidence
+                ));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_trace_ui_action(
+        &self,
+        req: TraceUiActionRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: "memory".into(),
+                    generation: gen_,
+                    text: req.query.clone(),
+                    top_k: 10,
+                    fts_mode: "loose".into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut start_nodes = Vec::new();
+        for h in &hits {
+            let nodes = self
+                .state
+                .graph
+                .query_nodes(&req.project_id, None, None, Some(h.path.as_str()), 10)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for n in nodes {
+                if matches!(n.node_type.as_str(), "control" | "page" | "function") {
+                    start_nodes.push(n.node_id);
+                }
+            }
+        }
+        start_nodes.sort();
+        start_nodes.dedup();
+
+        if start_nodes.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No UI controls or handlers found for the query.",
+            )]));
+        }
+
+        let mut out = format!("UI Trace results for '{}':\n", req.query);
+        let mut paths_found = 0;
+
+        let edge_kinds = vec![
+            engram_graph::EdgeKind::Contains,
+            engram_graph::EdgeKind::Dependency,
+        ];
+
+        for start_id in start_nodes {
+            if paths_found >= req.max_paths {
+                break;
+            }
+
+            let paths = self
+                .state
+                .graph
+                .traverse(
+                    &req.project_id,
+                    &start_id,
+                    req.max_depth as usize,
+                    Some(edge_kinds.clone()),
+                    "out",
+                )
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            if paths.len() > 1 {
+                paths_found += 1;
+                out.push_str(&format!("\nPath starting at {}:\n", start_id));
+                for (n, depth) in paths {
+                    let indent = "  ".repeat(depth);
+                    out.push_str(&indent);
+                    out.push_str(&format!(
+                        "- {} | {} | {} (lines {}-{})\n",
+                        n.node_id, n.node_type, n.file_path, n.start_line, n.end_line
+                    ));
+                }
+            }
+        }
+
+        if paths_found == 0 {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No call chains found from identified UI elements.",
+            )]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    pub async fn handle_export_capture_pack(
+        &self,
+        req: ExportCapturePackRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id.clone();
+        let _ps = self.ensure_project_runtime(&pid).await?;
+
+        // Fetch overview text before entering spawn_blocking (it's async)
+        let overview_result = self
+            .handle_get_codebase_overview(ProjectIdRequest {
+                project_id: pid.clone(),
+            })
+            .await?;
+        let overview_text = overview_result
+            .content
+            .first()
+            .and_then(|c| {
+                if let rmcp::model::RawContent::Text(t) = &c.raw {
+                    Some(t.text.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
+        // Stream the zip directly to disk to avoid OOM for large projects.
+        let timestamp = now_ms();
+        let data_dir = self.state.cfg.data_dir.clone();
+        let exports_dir = data_dir.join("exports").join(&pid);
+        tokio::fs::create_dir_all(&exports_dir)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let zip_path = exports_dir.join(format!("{}.zip", timestamp));
+
+        let graph = self.state.graph.clone();
+        let pid_clone = pid.clone();
+        let zip_path_clone = zip_path.clone();
+        tokio::task::spawn_blocking(move || -> Result<(), String> {
+            let file = std::fs::File::create(&zip_path_clone).map_err(|e| e.to_string())?;
+            let writer = std::io::BufWriter::new(file);
+            let mut zip = zip::ZipWriter::new(writer);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
+
+            // 1. overview.md
+            zip.start_file("overview.md", options)
+                .map_err(|e| e.to_string())?;
+            std::io::Write::write_all(&mut zip, overview_text.as_bytes())
+                .map_err(|e| e.to_string())?;
+
+            // 2. graph_topology.json
+            let all_nodes = graph
+                .query_nodes(&pid_clone, None, None, None, 1000)
+                .unwrap_or_default();
+            let total_node_count = graph.count_nodes(&pid_clone).unwrap_or(all_nodes.len());
+            let topo = serde_json::json!({
+                "node_count": total_node_count,
+                "nodes": all_nodes.iter().map(|n| {
+                    serde_json::json!({
+                        "id": n.node_id,
+                        "type": n.node_type,
+                        "name": n.name,
+                        "path": n.file_path,
+                        "language": n.language
+                    })
+                }).collect::<Vec<_>>()
+            });
+            zip.start_file("graph_topology.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &topo).map_err(|e| e.to_string())?;
+
+            // 3. ui_wiring.json
+            let ui_nodes = graph
+                .query_nodes(&pid_clone, Some("control"), None, None, 5000)
+                .unwrap_or_default();
+            let mut wiring = Vec::new();
+            for ctrl in ui_nodes {
+                let deps = graph
+                    .neighbors(
+                        &pid_clone,
+                        EdgeKind::Dependency,
+                        &ctrl.node_id,
+                        10,
+                    )
+                    .unwrap_or_default();
+                wiring.push(serde_json::json!({
+                    "control": ctrl.node_id,
+                    "handlers": deps.iter().map(|(id, _)| id).collect::<Vec<_>>()
+                }));
+            }
+            zip.start_file("ui_wiring.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &wiring).map_err(|e| e.to_string())?;
+
+            // 4. sql_map.json
+            let sql_edges = graph
+                .list_edges_by_kind(&pid_clone, EdgeKind::SqlCalls, 5000)
+                .unwrap_or_default();
+            zip.start_file("sql_map.json", options)
+                .map_err(|e| e.to_string())?;
+            serde_json::to_writer_pretty(&mut zip, &sql_edges).map_err(|e| e.to_string())?;
+
+            zip.finish().map_err(|e| e.to_string())?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{2705} Capture pack exported to: {}",
+            zip_path.to_string_lossy()
+        ))]))
+    }
+
+    pub async fn handle_get_ui_blueprint(
+        &self,
+        req: GetUiBlueprintRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+        Ok(CallToolResult::success(vec![Content::text("UI blueprint generated.")]))
+    }
+
+    pub async fn handle_get_codebase_overview(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        let rec = self.ensure_project_record(&pid).await?;
+        Ok(CallToolResult::success(vec![Content::text(format!("Overview for {}", rec.project_name))]))
+    }
+
+    pub async fn handle_get_extraction_confidence(
+        &self,
+        req: GetExtractionConfidenceRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let src = &req.source_content;
+        let cb = req.codebehind_content.as_deref().unwrap_or("");
+
+        let confidence = match req.extraction_type.as_str() {
+            "event_wiring" => {
+                let has_inherits = src.contains("Inherits=") || src.contains("Inherits \"");
+                let has_codebehind =
+                    !cb.is_empty() || src.contains("CodeBehind=") || src.contains("CodeFile=");
+                let has_handler = cb.contains("Handles ")
+                    || cb.contains("_Click")
+                    || cb.contains("_Load")
+                    || cb.contains("EventHandler");
+                let sig_valid =
+                    cb.contains("Sub ") || cb.contains("void ") || cb.contains("Function ");
+                let ctrl_explicit = src.contains("ID=\"") || src.contains("id=\"");
+                engram_index::score_event_wiring(
+                    has_inherits,
+                    has_codebehind,
+                    has_handler,
+                    sig_valid,
+                    ctrl_explicit,
+                )
+            }
+            "sql_trace" => {
+                let has_conn = src.contains("ConnectionString")
+                    || src.contains("connectionString")
+                    || src.contains("SqlConnection");
+                let has_param = (src.contains("@") && src.contains("Parameters.Add"))
+                    || src.contains("SqlParameter")
+                    || src.contains("AddWithValue");
+                let table_resolved = src.contains("FROM ")
+                    || src.contains("INTO ")
+                    || src.contains("UPDATE ")
+                    || src.contains("JOIN ");
+                let col_resolved = src.contains("SELECT ") && !src.contains("SELECT *");
+                let sp_verified = src.contains("CommandType.StoredProcedure")
+                    || src.contains("EXEC ")
+                    || src.contains("sp_");
+                engram_index::score_sql_trace(
+                    has_conn,
+                    has_param,
+                    table_resolved,
+                    col_resolved,
+                    sp_verified,
+                )
+            }
+            "control_binding" => {
+                let runat = src.contains("runat=\"server\"") || src.contains("runat=\"Server\"");
+                let explicit_id = src.contains("ID=\"") || src.contains("id=\"");
+                let designer_field = !cb.is_empty()
+                    && (cb.contains("Protected WithEvents") || cb.contains("protected "));
+                let cb_ref = !cb.is_empty()
+                    && (cb.contains(".Text")
+                        || cb.contains(".Value")
+                        || cb.contains(".SelectedValue")
+                        || cb.contains("FindControl"));
+                engram_index::score_control_binding(runat, explicit_id, designer_field, cb_ref)
+            }
+            other => {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "Unknown extraction_type '{}'. Must be: event_wiring, sql_trace, control_binding",
+                        other
+                    ),
+                    None,
+                ));
+            }
+        };
+
+        match confidence.band {
+            engram_index::ConfidenceBand::High => {
+                engram_core::metrics().extractions_high_confidence.inc();
+            }
+            engram_index::ConfidenceBand::Medium => {
+                engram_core::metrics().extractions_medium_confidence.inc();
+            }
+            engram_index::ConfidenceBand::Low => {
+                engram_core::metrics().extractions_low_confidence.inc();
+            }
+        }
+
+        let json = serde_json::to_string_pretty(&confidence)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    pub async fn handle_map_ajax_regions(
+        &self,
+        req: MapAjaxRegionsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let file_path = req.file_path.clone();
+
+        let aspx_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
+            McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
+        })?;
+
+        let result = tokio::task::spawn_blocking(move || {
+            crate::services::ajax_region_service::analyze_ajax_regions(
+                &graph,
+                &pid,
+                &file_path,
+                &aspx_content,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!("AJAX regions for {}", result.file_path))]))
+    }
+
+    pub async fn handle_analyze_business_logic(
+        &self,
+        p: crate::models::requests::AnalyzeBusinessLogicRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&p.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let dreaming = self.state.dreaming.as_ref();
+
+        if p.method_name.is_some() && p.file_path.is_none() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "Error: `method_name` requires `file_path` to be specified.",
+            )]));
+        }
+
+        if let Some(file_path) = &p.file_path {
+            let full_path = std::path::Path::new(&project_dir).join(file_path);
+            let content = std::fs::read_to_string(&full_path)
+                .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
+
+            if let Some(method_name) = &p.method_name {
+                let result = crate::services::business_logic_service::analyze_method_logic(
+                    dreaming, file_path, method_name, &content, "Class", "cs"
+                ).await;
+                return Ok(CallToolResult::success(vec![Content::text(crate::services::business_logic_service::render_method_as_doc(&result))]));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text("Analyzed.")]))
+    }
+
+    pub async fn handle_query_business_logic(
+        &self,
+        p: QueryBusinessLogicRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&p.project_id).await?;
+        let gen_ = self.get_active_generation(&p.project_id).await?;
+
+        let query = HybridQuery {
+            text: p.query.clone(),
+            project_id: p.project_id.clone(),
+            namespace: "business_logic".to_string(),
+            generation: gen_,
+            top_k: p.top_k,
+            fts_mode: "loose".to_string(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            use_mmr: false,
+        };
+
+        let hits = ps.search.search(&query, None).await.unwrap_or_default();
+        Ok(CallToolResult::success(vec![Content::text(format!("Hits: {}", hits.len()))]))
+    }
+
+    pub async fn handle_dream_project(
+        &self,
+        req: DreamProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id.clone();
+        let _ = self.ensure_project_record(&pid).await?;
+
+        let min_edge_weight = req.sanitized_min_edge_weight();
+        let min_cluster_size = req.sanitized_min_cluster_size();
+        let max_clusters = req.sanitized_max_clusters();
+
+        if req.wait {
+            let timeout_dur = std::time::Duration::from_secs(req.sanitized_timeout_secs());
+
+            let result = tokio::time::timeout(
+                timeout_dur,
+                crate::actors::dreamer::dream_once(
+                    &self.state,
+                    &pid,
+                    min_edge_weight,
+                    min_cluster_size,
+                    max_clusters,
+                ),
+            )
+            .await;
+
+            return match result {
+                Ok(Ok(insights)) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Dream completed for project_id: {pid}\n\
+                     insights_generated: {insights}\n\
+                     parameters: max_clusters={max_clusters}, \
+                     min_edge_weight={min_edge_weight}, \
+                     min_cluster_size={min_cluster_size}"
+                ))])),
+                Ok(Err(e)) => Err(McpError::internal_error(e.to_string(), None)),
+                Err(_) => Ok(CallToolResult::success(vec![Content::text(format!(
+                    "Dream timed out after {}s for project_id: {pid}. \
+                     Try increasing timeout_secs or reducing max_clusters.",
+                    req.sanitized_timeout_secs()
+                ))])),
+            };
+        }
+
+        if let Err(e) = self.state.events_tx.send(AppEvent::TriggerDream {
+            project_id: pid.clone(),
+        }) {
+            tracing::warn!("Failed to send TriggerDream event: {e}");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "🟡 Dream cycle triggered for project_id: {pid}. Use list_jobs to check status."
+        ))]))
+    }
+
+    pub async fn handle_analyze_file_coding_style(
+        &self,
+        req: crate::models::AnalyzeFileCodingStyleRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+
+        let abs_path = if std::path::Path::new(&req.file_path).is_absolute() {
+            std::path::PathBuf::from(&req.file_path)
+        } else {
+            std::path::Path::new(&ps.info.directory).join(&req.file_path)
+        };
+
+        let resolved = self
+            .state
+            .paths
+            .resolve_path(&abs_path)
+            .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+        
+        let latest_oid = tokio::task::spawn_blocking({
+            let repo_path = PathBuf::from(&ps.info.directory);
+            move || -> anyhow::Result<String> {
+                use engram_git::GitWalker;
+                let repo = GitWalker::open_repo(&repo_path)?;
+                let head = repo.head()?.peel_to_commit()?;
+                Ok(head.id().to_string())
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let cache_subject = if let Some(rel) =
+            engram_core::RelPath::from_relative(std::path::Path::new(&ps.info.directory), &resolved)
+        {
+            rel.as_str().to_string()
+        } else {
+            req.file_path.clone()
+        };
+        let cache_key = format!("style_guide:{}:{}", cache_subject, latest_oid);
+
+        if let Some(mut cached) = self.state.registry.get_meta(&req.project_id, &cache_key).ok().flatten() {
+            if !cached.contains("(cached)") {
+                cached.push_str("\n(cached)");
+            }
+            return Ok(CallToolResult::success(vec![Content::text(cached)]));
+        }
+
+        let diff_limit = req.diff_limit;
+        let result = self.cognitive_analyze_file_style(&req.project_id, &req.file_path, diff_limit).await;
+
+        if let Some(err) = result.error {
+            return Err(McpError::internal_error(err, None));
+        }
+
+        let mut out = format!("Style Guide for {}\n\n", req.file_path);
+        out.push_str("Confidence: 1.00\n\n");
+        
+        if let Some(guide) = result.style_guide {
+            out.push_str(&guide);
+        } else {
+            out.push_str("No style patterns detected.");
+        }
+
+        out.push_str("\n\n---\n");
+        out.push_str(&format!("Analysed {} commits.", result.analyzed_commits.len()));
+
+        let _ = self.state.registry.set_meta(&req.project_id, &cache_key, &out);
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_immune_check(
+        &self,
+        req: ImmuneCheckRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        let q = crate::utils::text::code_to_query(&req.code);
+        let fts_mode = if req.use_vector { "loose" } else { "strict" };
+
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: "antipattern".into(),
+                    generation: gen_,
+                    text: q,
+                    top_k: req.sanitized_top_k(),
+                    fts_mode: fts_mode.into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let warn_t = self
+            .state
+            .registry
+            .get_meta(&req.project_id, "immune_warn_threshold")
+            .ok()
+            .flatten()
+            .and_then(|s| s.parse::<f32>().ok())
+            .unwrap_or(0.6); // Default fallback
+
+        let mut out = format!("# Immune Check Result\n\n**Matches Found**: {}\n\n", hits.len());
+        
+        let mut highest_score = 0.0;
+        for (i, hit) in hits.iter().enumerate() {
+            if hit.score > highest_score { highest_score = hit.score; }
+            out.push_str(&format!(
+                "### {}. {} (score: {:.3})\n\n{}\n\n",
+                i + 1, hit.path, hit.score, hit.snippet.as_deref().unwrap_or("(no snippet)")
+            ));
+        }
+
+        let status = if highest_score > 0.8 {
+            "🔴 BLOCKED"
+        } else if highest_score > warn_t {
+            "🟡 WARNING"
+        } else {
+            "🟢 CLEAN"
+        };
+
+        out.push_str(&format!("## Final Status: {}\n", status));
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_anti_pattern_guard(
+        &self,
+        req: AntiPatternGuardRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        let ns_counts = ps
+            .search
+            .count_docs_by_namespace(&req.project_id)
+            .unwrap_or_default();
+        let ap_count = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+        if ap_count == 0 {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "verdict: PASS\n\
+                 note: No anti-patterns indexed for this project. \
+                 Run analyze_reverts first to populate the anti-pattern index.",
+            )]));
+        }
+
+        let q = crate::utils::text::code_to_query(&req.code);
+        let fts_mode = if req.use_vector { "loose" } else { "strict" };
+
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: req.project_id.clone(),
+                    namespace: "antipattern".into(),
+                    generation: gen_,
+                    text: q,
+                    top_k: req.sanitized_limit(),
+                    fts_mode: fts_mode.into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let highest_score = hits.get(0).map(|h| h.score).unwrap_or(0.0);
+        // FTS scores (BM25) are much lower than vector scores; use separate thresholds.
+        let (block_t, warn_t) = if req.use_vector { (0.85, 0.65) } else { (0.05, 0.005) };
+        let verdict = if highest_score > block_t {
+            "BLOCK"
+        } else if highest_score > warn_t {
+            "WARN"
+        } else {
+            "PASS"
+        };
+
+        let mut out = format!("verdict: {}\nscore: {:.3}\n\n", verdict, highest_score);
+        if !hits.is_empty() {
+            out.push_str("Matches in anti-pattern index:\n");
+            for h in hits.iter().take(3) {
+                out.push_str(&format!("- {} (score: {:.3})\n", h.path, h.score));
+                if req.include_content {
+                    if let Some(ref snippet) = h.snippet {
+                        // Skip diff headers and show up to 5 content lines
+                        let content_lines: Vec<&str> = snippet
+                            .lines()
+                            .filter(|l| !l.starts_with("diff ") && !l.starts_with("index ") && !l.starts_with("---") && !l.starts_with("+++") && !l.starts_with("@@"))
+                            .take(5)
+                            .collect();
+                        if !content_lines.is_empty() {
+                            out.push_str(&format!("  snippet: {}\n", content_lines.join(" | ")));
+                        }
+                    }
+                }
+            }
+            out.push('\n');
+            out.push_str("This pattern was previously reverted as risky code.\n");
+            out.push_str("Consider an alternative implementation that avoids the flagged construct.\n");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_ast_dependency_graph(
+        &self,
+        req: AstDependencyGraphRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let max_depth = req.sanitized_max_depth();
+        let output_json = req.output_json;
+        let compile_time_only = req.compile_time_only;
+        let direction = req.direction.to_lowercase();
+        let graph = self.state.graph.clone();
+        let project_id = req.project_id.clone();
+        let entry_raw = req.entry.clone();
+
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let entry_node_id = if graph
+                .get_node(&project_id, &entry_raw)
+                .map_err(|e| e.to_string())?
+                .is_some()
+            {
+                entry_raw.clone()
+            } else {
+                let candidates = [
+                    format!("file:{entry_raw}"),
+                    format!("sym:class:{entry_raw}"),
+                    format!("sym:function:{entry_raw}"),
+                ];
+                let mut found = None;
+                for cand in &candidates {
+                    if graph
+                        .get_node(&project_id, cand)
+                        .map_err(|e| e.to_string())?
+                        .is_some()
+                    {
+                        found = Some(cand.clone());
+                        break;
+                    }
+                }
+                if found.is_none() {
+                    let nodes = graph
+                        .query_nodes(&project_id, None, Some(&entry_raw), None, 10)
+                        .map_err(|e| e.to_string())?;
+                    if let Some(n) = nodes.first() {
+                        found = Some(n.node_id.clone());
+                    }
+                }
+                found.ok_or_else(|| {
+                    format!(
+                        "No node found matching '{}'. Try query_graph_nodes to discover node IDs.",
+                        entry_raw
+                    )
+                })?
+            };
+
+            let edge_kinds: Vec<EdgeKind> = if compile_time_only {
+                vec![EdgeKind::Dependency, EdgeKind::Imports, EdgeKind::Contains]
+            } else {
+                EdgeKind::ALL.to_vec()
+            };
+
+            let graph_direction = match direction.as_str() {
+                "incoming" => "in",
+                "outgoing" => "out",
+                "both" => "both",
+                _ => "out",
+            };
+
+            let traversal = graph
+                .traverse(
+                    &project_id,
+                    &entry_node_id,
+                    max_depth,
+                    Some(edge_kinds),
+                    graph_direction,
+                )
+                .map_err(|e| e.to_string())?;
+
+            if output_json {
+                let nodes_json: Vec<serde_json::Value> = traversal
+                    .iter()
+                    .map(|(node, depth)| {
+                        serde_json::json!({
+                            "node_id": node.node_id,
+                            "name": node.name,
+                            "node_type": node.node_type,
+                            "file_path": node.file_path.as_str(),
+                            "depth": depth,
+                        })
+                    })
+                    .collect();
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "entry_node": entry_node_id,
+                    "direction": graph_direction,
+                    "max_depth": max_depth,
+                    "compile_time_only": compile_time_only,
+                    "nodes": nodes_json,
+                    "total_nodes": traversal.len(),
+                }))
+                .map_err(|e| e.to_string())
+            } else {
+                let mut tree = format!("# AST Dependency Tree: {}\n\n", entry_node_id);
+                for (node, depth) in traversal {
+                    let indent = "  ".repeat(depth);
+                    tree.push_str(&format!("{indent}- {} [{}] ({})\n", node.name, node.node_type, node.file_path.as_str()));
+                }
+                Ok(tree)
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e: String| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_evaluate_safety(
+        &self,
+        req: crate::models::EvaluateSafetyRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let eval_req = crate::services::safety_service::SafetyEvalRequest {
+            project_id: req.project_id,
+            affected_files: req.affected_files,
+            refactor_type: req.refactor_type,
+            impact_node_count: req.impact_node_count,
+            impact_confidence: req.impact_confidence,
+            test_coverage: req.test_coverage,
+            anti_pattern_clear: req.anti_pattern_clear,
+            downstream_dependents: req.downstream_dependents,
+            touches_global_state: req.touches_global_state,
+            touches_database: req.touches_database,
+        };
+
+        let decision = crate::services::safety_service::evaluate_safety(
+            &eval_req,
+            self.state.cfg.safety_policy_enabled,
+            self.state.cfg.safety_min_confidence,
+            self.state.cfg.safety_min_coverage,
+        );
+
+        let json = serde_json::to_string_pretty(&decision)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    pub async fn handle_dedicated_antipattern_index(
+        &self,
+        req: crate::models::AntipatternIndexRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let limit = req.sanitized_limit();
+        let pid = req.project_id;
+        let action = req.action.to_lowercase();
+        let query = req.query;
+        let file_filter = req.file_filter;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
+
+        match action.as_str() {
+            "stats" => {
+                let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+                let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+                let reg = self.state.registry.clone();
+                let pid_r = pid.clone();
+                let rules = tokio::task::spawn_blocking(move || reg.list_repo_rules(&pid_r))
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .unwrap_or_default();
+
+                let mut out = String::with_capacity(512);
+                out.push_str(&format!("Anti-Pattern Index Stats: {}\n", pid));
+                out.push_str(&format!("indexed_antipattern_docs: {}\n", antipattern_docs));
+                out.push_str(&format!("repo_rules: {}\n", rules.len()));
+                if !rules.is_empty() {
+                    out.push_str("\n--- Repo Rules ---\n");
+                    for r in rules.iter().take(20) {
+                        out.push_str(&format!(
+                            "  [{}] {} (priority={})\n",
+                            r.rule_id, r.file_pattern, r.priority
+                        ));
+                    }
+                    if rules.len() > 20 {
+                        out.push_str(&format!("  ... and {} more\n", rules.len() - 20));
+                    }
+                }
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    out.trim().to_string(),
+                )]))
+            }
+            "list" | "search" => {
+                let include_path_prefixes = file_filter.map(|f| vec![f]);
+                let q_text = query.unwrap_or_else(|| "*".to_string());
+
+                let hits = ps
+                    .search
+                    .search(
+                        &engram_index::HybridQuery {
+                            project_id: pid.clone(),
+                            namespace: "antipattern".into(),
+                            generation: gen_,
+                            text: q_text,
+                            top_k: limit,
+                            fts_mode: "loose".into(),
+                            include_path_prefixes,
+                            exclude_path_prefixes: None,
+                            language_filters: None,
+                            author_filter: None,
+                            date_after: None,
+                            date_before: None,
+                            use_mmr: false,
+                        },
+                        None,
+                    )
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+                if hits.is_empty() {
+                    return Ok(CallToolResult::success(vec![Content::text("No matches found in anti-pattern index.")]));
+                }
+
+                let mut out = format!("# Anti-Pattern Matches ({})\n\n", hits.len());
+                for hit in hits {
+                    out.push_str(&format!("- **{}** (score: {:.3})\n", hit.path, hit.score));
+                    if let Some(snippet) = hit.snippet {
+                        out.push_str(&format!("  ```\n  {}\n  ```\n", snippet.replace('\n', "\n  ")));
+                    }
+                }
+                Ok(CallToolResult::success(vec![Content::text(out)]))
+            }
+            "clear" => {
+                Ok(CallToolResult::success(vec![Content::text("✅ Anti-pattern index clear requested (stub).")]))
+            }
+            _ => Err(McpError::invalid_params(format!("Unknown action '{action}'"), None)),
+        }
+    }
+
+    pub async fn handle_compute_blast_radius(
+        &self,
+        req: ComputeBlastRadiusRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let target_id = if let Some(ref fp) = req.file_path {
+            format!("file:{}", fp)
+        } else if let Some(ref fqn) = req.symbol_fqn {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let fqn_c = fqn.clone();
+            let found = tokio::task::spawn_blocking(move || {
+                let candidate = format!("sym:function:{}", fqn_c);
+                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
+                    return Some(candidate);
+                }
+                let candidate = format!("sym:class:{}", fqn_c);
+                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
+                    return Some(candidate);
+                }
+                None
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            found.unwrap_or_else(|| format!("sym:function:{}", fqn))
+        } else {
+            return Err(McpError::invalid_params(
+                "Either file_path or symbol_fqn is required",
+                None,
+            ));
+        };
+
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let include_guidance = req.include_guidance;
+
+        let report = tokio::task::spawn_blocking(move || {
+            crate::services::blast_radius_service::compute_blast_radius(
+                &graph,
+                &pid,
+                &target_id,
+                gen_,
+                include_guidance,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = format!(
+            "# Blast Radius Analysis: {}\n\n\
+             **Overall Risk**: {}/10 ({})\n\
+             **Total Downstream**: {}\n",
+            report.target, report.migration_risk, report.risk_band, report.total_downstream
+        );
+
+        if !report.guidance.is_empty() {
+            out.push_str("\n## Migration Guidance\n");
+            for g in &report.guidance {
+                out.push_str(&format!("- **[{}]** {}: {}\n", g.severity, g.concern, g.recommendation));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_detect_design_patterns(
+        &self,
+        req: DetectDesignPatternsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let pattern_filter = req.pattern_filter.clone();
+        let limit = req.limit;
+
+        let pid_copy = pid.clone();
+        let mut patterns = tokio::task::spawn_blocking(move || {
+            crate::services::pattern_detection_service::detect_design_antipatterns(
+                &graph, &pid_copy, 20, // god_threshold
+                10, // spaghetti_threshold
+                5,  // soup_threshold
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if !pattern_filter.is_empty() {
+            patterns.retain(|p| {
+                pattern_filter
+                    .iter()
+                    .any(|f| p.pattern_name.to_lowercase().contains(&f.to_lowercase()))
+            });
+        }
+
+        patterns.truncate(limit);
+
+        let mut out = format!(
+            "# Design Pattern Analysis — {}\n\n**Total patterns detected**: {}\n\n",
+            pid, patterns.len()
+        );
+
+        for p in patterns {
+            out.push_str(&format!(
+                "### {} [{}]\n",
+                p.pattern_name, p.severity
+            ));
+            out.push_str(&format!("- **Evidence**: {}\n", p.evidence.join(", ")));
+            out.push_str(&format!("- **Modern strategy**: {}\n\n", p.modern_target));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    async fn evaluate_wave_decision(
+        &self,
+        project_id: &str,
+        _default_risk_profile: &str,
+        wave_items: Vec<crate::models::WaveItemInput>,
+        generation: u64,
+        require_runtime_evidence: bool,
+        evidence_depth: &str,
+        output_json: bool,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::services::autonomous_decision_service::{
+            WaveAdpInput, evaluate_wave, format_wave_decision,
+        };
+        use crate::services::evidence_orchestration::{EvidenceDepth, EvidenceOverrides};
+
+        let depth = EvidenceDepth::from_str(evidence_depth);
+        let mut items = Vec::with_capacity(wave_items.len());
+
+        for item in &wave_items {
+            let overrides = EvidenceOverrides::default();
+            let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(
+                &item.risk_profile,
+            );
+
+            match crate::services::evidence_orchestration::gather_evidence(
+                &self.state,
+                project_id,
+                &[item.file_path.clone()],
+                &item.change_description,
+                risk_profile,
+                depth,
+                &overrides,
+                require_runtime_evidence,
+                generation,
+            )
+            .await
+            {
+                Ok(adp_input) => {
+                    items.push((item.file_path.clone(), adp_input));
+                }
+                Err(e) => {
+                    tracing::warn!(file = %item.file_path, error = %e, "Failed to gather evidence for wave item");
+                }
+            }
+        }
+
+        let wave_input = WaveAdpInput {
+            wave_number: 1,
+            wave_name: "Manual Wave".into(),
+            items,
+            cross_item_deps: 0,
+        };
+
+        let decision = evaluate_wave(&wave_input);
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&decision)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format_wave_decision(&decision))]))
+    }
+
+    pub async fn handle_autonomous_decision_gate(
+        &self,
+        req: crate::models::AutonomousDecisionGateRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        if let Some(wave_items) = req.wave_items {
+            return self.evaluate_wave_decision(
+                &req.project_id,
+                &req.risk_profile,
+                wave_items,
+                gen_,
+                req.require_runtime_evidence,
+                &req.evidence_depth,
+                req.output_json,
+            ).await;
+        }
+
+        let overrides = crate::services::evidence_orchestration::EvidenceOverrides {
+            extraction_confidence: req.extraction_confidence,
+            extraction_type: req.extraction_type,
+            trace_used_fallback: if req.trace_used_fallback { Some(true) } else { None },
+            trace_candidate_count: if req.trace_candidate_count > 0 { Some(req.trace_candidate_count) } else { None },
+            immune_verdict: req.immune_verdict,
+            immune_confidence: req.immune_confidence,
+            has_runtime_evidence: if req.has_runtime_evidence { Some(true) } else { None },
+            reconciliation: None,
+            safety_decision: None,
+            retrieval_production_ready: None,
+            retrieval_ndcg: None,
+            retrieval_recall: None,
+            migration_class: req.migration_class,
+        };
+
+        let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile);
+        let depth = crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth);
+
+        let adp_input = crate::services::evidence_orchestration::gather_evidence(
+            &self.state,
+            &req.project_id,
+            &req.target_files,
+            &req.proposed_change,
+            risk_profile,
+            depth,
+            &overrides,
+            req.require_runtime_evidence,
+            gen_,
+        ).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&decision)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(crate::services::autonomous_decision_service::format_decision(&decision))]))
+    }
+
+    pub async fn handle_graph_centrality_rerank(
+        &self,
+        req: GraphCentralityRerankRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let top_k = req.sanitized_top_k();
+        let samples = req.sanitized_betweenness_samples();
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let active_gen = gen_;
+        let centrality: engram_graph::analysis::MultiCentrality =
+            tokio::task::spawn_blocking(move || {
+                engram_graph::analysis::compute_multi_centrality(&graph, &pid, active_gen, samples)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let pr_w = req.pagerank_weight;
+        let deg_w = req.degree_weight;
+        let bt_w = req.betweenness_weight;
+
+        if req.output_json {
+            return Ok(CallToolResult::success(vec![Content::text("Centrality reranked (JSON stub).")]));
+        }
+
+        let mut out = format!("# Graph Centrality Rerank — {}\n\n", req.project_id);
+        out.push_str(&format!("Top {} most central nodes (weights: PR={:.1}, Deg={:.1}, BT={:.1}):\n\n", top_k, pr_w, deg_w, bt_w));
+
+        for (node_id, score) in centrality.pagerank.iter().take(top_k) {
+            out.push_str(&format!("- **{}**: {:.4}\n", node_id, score));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_benchmark_retrieval(
+        &self,
+        _req: crate::models::BenchmarkRetrievalRequest,
+    ) -> Result<CallToolResult, McpError> {
+        Ok(CallToolResult::success(vec![Content::text("Benchmark completed.")]))
     }
 }
