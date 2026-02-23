@@ -805,7 +805,85 @@ impl Engram {
         req: GetUiBlueprintRequest,
     ) -> Result<CallToolResult, McpError> {
         let _ = self.ensure_project_runtime(&req.project_id).await?;
-        Ok(CallToolResult::success(vec![Content::text("UI blueprint generated.")]))
+
+        let graph = self.state.graph.clone();
+        let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            let all_containers = graph
+                .query_nodes(&req.project_id, Some("ui_container"), None, Some(&req.file_path), 500)
+                .map_err(|e| e.to_string())?;
+
+            if all_containers.is_empty() {
+                return Ok(format!(
+                    "No UI layout data found for '{}'. Ensure the file has been indexed and contains container elements (Panel, Table, GroupBox, div).",
+                    req.file_path
+                ));
+            }
+
+            let mut tree = serde_json::Map::new();
+            tree.insert("file".into(), serde_json::Value::String(req.file_path.clone()));
+
+            let mut containers_json = Vec::new();
+            for container in &all_containers {
+                let mut cobj = serde_json::Map::new();
+                cobj.insert("id".into(), serde_json::Value::String(container.name.clone()));
+                cobj.insert("node_id".into(), serde_json::Value::String(container.node_id.clone()));
+
+                if let Some(ref meta) = container.metadata {
+                    for key in ["container_type", "layout_style", "logical_grouping", "css_class"] {
+                        if let Some(val) = meta.get(key).and_then(|v| v.as_str()) {
+                            cobj.insert(key.into(), serde_json::Value::String(val.to_string()));
+                        }
+                    }
+                }
+
+                let children = graph
+                    .neighbors(&req.project_id, EdgeKind::ContainsUi, &container.node_id, 200)
+                    .unwrap_or_default();
+
+                let mut children_json = Vec::new();
+                for (child_id, _weight) in &children {
+                    let mut child_obj = serde_json::Map::new();
+                    child_obj.insert("node_id".into(), serde_json::Value::String(child_id.clone()));
+
+                    if let Ok(Some(child_node)) = graph.get_node(&req.project_id, child_id) {
+                        child_obj.insert("name".into(), serde_json::Value::String(child_node.name.clone()));
+                        child_obj.insert("type".into(), serde_json::Value::String(child_node.node_type.clone()));
+
+                        if let Some(ref meta) = child_node.metadata {
+                            for key in ["ui_label", "row", "col", "logical_grouping", "x", "y"] {
+                                if let Some(val) = meta.get(key).and_then(|v| v.as_str()) {
+                                    child_obj.insert(key.into(), serde_json::Value::String(val.to_string()));
+                                }
+                            }
+                        }
+
+                        let neighbors = graph
+                            .neighbors(&req.project_id, EdgeKind::UiLayoutNeighbor, child_id, 5)
+                            .unwrap_or_default();
+                        if !neighbors.is_empty() {
+                            let next_ids: Vec<serde_json::Value> = neighbors
+                                .iter()
+                                .map(|(nid, _)| serde_json::Value::String(nid.clone()))
+                                .collect();
+                            child_obj.insert("next_in_tab_order".into(), serde_json::Value::Array(next_ids));
+                        }
+                    }
+                    children_json.push(serde_json::Value::Object(child_obj));
+                }
+
+                cobj.insert("children".into(), serde_json::Value::Array(children_json));
+                containers_json.push(serde_json::Value::Object(cobj));
+            }
+
+            tree.insert("containers".into(), serde_json::Value::Array(containers_json));
+            tree.insert("container_count".into(), serde_json::Value::Number(all_containers.len().into()));
+            serde_json::to_string_pretty(&tree).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     pub async fn handle_get_codebase_overview(
@@ -814,7 +892,182 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id;
         let rec = self.ensure_project_record(&pid).await?;
-        Ok(CallToolResult::success(vec![Content::text(format!("Overview for {}", rec.project_name))]))
+        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
+        let ps = self.ensure_project_runtime(&pid).await?;
+
+        let rules = self.state.registry.clone();
+        let pid_clone = pid.clone();
+        let rule_count = tokio::task::spawn_blocking(move || rules.list_repo_rules(&pid_clone))
+            .await
+            .ok()
+            .and_then(|r| r.ok())
+            .map(|v| v.len())
+            .unwrap_or(0);
+
+        let tantivy_docs = ps.search.count_docs(&pid).unwrap_or(0);
+        let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
+        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+        let history_docs = ns_counts.get("history").copied().unwrap_or(0);
+        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
+
+        let graph = self.state.graph.clone();
+        let pid_clone2 = pid.clone();
+        let active_gen = gen_;
+        let (node_type_counts, edge_kind_counts, centrality, state_usage_data, dead_code_count, test_file_count, total_file_count) =
+            tokio::task::spawn_blocking(move || {
+                let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
+                let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
+                let pr = engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
+
+                let state_nodes = graph.query_nodes(&pid_clone2, Some("global_state"), None, None, 100).unwrap_or_default();
+                let mut state_usage: Vec<(String, usize, usize)> = Vec::with_capacity(state_nodes.len());
+                for sn in &state_nodes {
+                    let reads = graph.find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200).map(|v| v.len()).unwrap_or(0);
+                    let writes = graph.find_incoming_edges(&pid_clone2, Some(EdgeKind::WritesState), &sn.node_id, 200).map(|v| v.len()).unwrap_or(0);
+                    state_usage.push((sn.name.clone(), reads, writes));
+                }
+                state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
+
+                let mut dead = 0usize;
+                let mut test_files = 0usize;
+                let file_nodes = graph.query_nodes(&pid_clone2, Some("file"), None, None, 5000).unwrap_or_default();
+                let total_files = file_nodes.len();
+                for f in &file_nodes {
+                    let path_lower = f.file_path.as_str().to_lowercase();
+                    if path_lower.contains("test") || path_lower.contains("spec") || path_lower.contains("_test.") {
+                        test_files += 1;
+                    }
+                }
+                let func_nodes = graph.query_nodes(&pid_clone2, Some("function"), None, None, 2000).unwrap_or_default();
+                for func in &func_nodes {
+                    let incoming = graph.find_incoming_edges(&pid_clone2, None, &func.node_id, 1).unwrap_or_default();
+                    if incoming.is_empty() { dead += 1; }
+                }
+                (ntc, ekc, pr, state_usage, dead, test_files, total_files)
+            })
+            .await
+            .unwrap_or_default();
+
+        let mut out = String::with_capacity(6144);
+        out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
+        out.push_str(&format!("project_id: {}\n", rec.project_id));
+        out.push_str(&format!("project_type: {}\n", rec.project_type));
+        out.push_str(&format!("directory: {}\n", rec.directory));
+        out.push_str(&format!("active_generation: {}\n", gen_));
+        out.push_str(&format!("repo_rules: {}\n", rule_count));
+        out.push_str(&format!("chunks_indexed: {}\n", tantivy_docs));
+        out.push_str(&format!("vectors_stored: {}\n", lancedb_rows));
+        out.push_str(&format!("history_docs: {}\n", history_docs));
+        out.push_str(&format!("antipattern_docs: {}\n", antipattern_docs));
+
+        if !lang_counts.is_empty() {
+            let mut lang_sorted: Vec<_> = lang_counts.into_iter().collect();
+            lang_sorted.sort_by(|a, b| b.1.cmp(&a.1));
+            out.push_str("\n--- Language Breakdown (chunks) ---\n");
+            for (lang, count) in &lang_sorted {
+                let pct = if tantivy_docs > 0 { (*count as f64 / tantivy_docs as f64 * 100.0) as u32 } else { 0 };
+                out.push_str(&format!("  {}: {} ({}%)\n", lang, count, pct));
+            }
+        }
+
+        if !node_type_counts.is_empty() {
+            let mut nts: Vec<_> = node_type_counts.iter().collect();
+            nts.sort_by(|a, b| b.1.cmp(a.1));
+            let total_nodes: usize = node_type_counts.values().sum();
+            out.push_str(&format!("\n--- Symbol Types ({} total) ---\n", total_nodes));
+            for (ntype, count) in &nts {
+                out.push_str(&format!("  {}: {}\n", ntype, count));
+            }
+        }
+
+        if !edge_kind_counts.is_empty() {
+            let mut eks: Vec<_> = edge_kind_counts.iter().collect();
+            eks.sort_by(|a, b| b.1.cmp(a.1));
+            let total_edges: usize = edge_kind_counts.values().sum();
+            out.push_str(&format!("\n--- Edge Types ({} total) ---\n", total_edges));
+            for (ekind, count) in eks.iter().take(15) {
+                out.push_str(&format!("  {}: {}\n", ekind, count));
+            }
+            if eks.len() > 15 {
+                out.push_str(&format!("  ... and {} more kinds\n", eks.len() - 15));
+            }
+        }
+
+        {
+            let files = node_type_counts.get("file").copied().unwrap_or(0);
+            let classes = node_type_counts.get("class").copied().unwrap_or(0);
+            let functions = node_type_counts.get("function").copied().unwrap_or(0);
+            let interfaces = node_type_counts.get("interface").copied().unwrap_or(0);
+            let db_tables = node_type_counts.get("db_table").copied().unwrap_or(0);
+            let web_services = node_type_counts.get("web_service").copied().unwrap_or(0);
+            let http_handlers = node_type_counts.get("http_handler").copied().unwrap_or(0);
+            let wcf_services = node_type_counts.get("wcf_service").copied().unwrap_or(0);
+            let controls = node_type_counts.get("control").copied().unwrap_or(0);
+            let ui_containers = node_type_counts.get("ui_container").copied().unwrap_or(0);
+            let app_settings = node_type_counts.get("app_setting").copied().unwrap_or(0);
+            let conn_strings = node_type_counts.get("connection_string").copied().unwrap_or(0);
+
+            out.push_str("\n--- Architecture ---\n");
+            if files > 0 { out.push_str(&format!("  Source files: {}\n", files)); }
+            if classes > 0 || interfaces > 0 { out.push_str(&format!("  Types: {} classes, {} interfaces\n", classes, interfaces)); }
+            if functions > 0 { out.push_str(&format!("  Functions/Methods: {}\n", functions)); }
+            if controls > 0 || ui_containers > 0 { out.push_str(&format!("  UI: {} controls, {} containers\n", controls, ui_containers)); }
+            if web_services + http_handlers + wcf_services > 0 {
+                out.push_str(&format!("  Service endpoints: {} ASMX, {} ASHX, {} WCF\n", web_services, http_handlers, wcf_services));
+            }
+            if db_tables > 0 { out.push_str(&format!("  Database tables: {}\n", db_tables)); }
+            if app_settings > 0 || conn_strings > 0 {
+                out.push_str(&format!("  Config: {} app settings, {} connection strings\n", app_settings, conn_strings));
+            }
+        }
+
+        out.push_str("\n--- Code Quality ---\n");
+        if total_file_count > 0 {
+            let test_pct = (test_file_count as f64 / total_file_count as f64 * 100.0) as u32;
+            out.push_str(&format!("  Test files: {} / {} ({}%)\n", test_file_count, total_file_count, test_pct));
+        }
+        if dead_code_count > 0 {
+            out.push_str(&format!("  Potential dead functions (zero incoming refs): {}\n", dead_code_count));
+        }
+        if antipattern_docs > 0 {
+            out.push_str(&format!("  Anti-patterns indexed: {}\n", antipattern_docs));
+        }
+
+        if let Some(metrics) = centrality {
+            let mut top_nodes: Vec<_> = metrics.pagerank.into_iter().collect();
+            top_nodes.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            out.push_str("\n--- Top Central Nodes (PageRank) ---\n");
+            for (id, score) in top_nodes.iter().take(10) {
+                out.push_str(&format!("  {} ({:.4})\n", id, score));
+            }
+        }
+
+        let table_nodes = self.state.graph.query_nodes(&pid, Some("db_table"), None, None, 100).unwrap_or_default();
+        if !table_nodes.is_empty() {
+            out.push_str(&format!("\n--- Database Tables ({}) ---\n", table_nodes.len()));
+            let names: Vec<_> = table_nodes.iter().take(20).map(|n| n.name.as_str()).collect();
+            out.push_str(&format!("  {}\n", names.join(", ")));
+            if table_nodes.len() > 20 { out.push_str(&format!("  ... and {} more\n", table_nodes.len() - 20)); }
+        }
+
+        if !state_usage_data.is_empty() {
+            out.push_str(&format!("\n--- Global State Keys ({} total) ---\n", state_usage_data.len()));
+            for (name, reads, writes) in state_usage_data.iter().take(10) {
+                out.push_str(&format!("  {} (reads={}, writes={})\n", name, reads, writes));
+            }
+            if state_usage_data.len() > 10 { out.push_str(&format!("  ... and {} more\n", state_usage_data.len() - 10)); }
+        }
+
+        let couplings = engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5).unwrap_or_default();
+        if !couplings.is_empty() {
+            out.push_str("\n--- Top Temporal Couplings ---\n");
+            for c in couplings {
+                out.push_str(&format!("  {} <-> {} (w={})\n", c.file_node_id, c.neighbor_node_id, c.weight));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 
     pub async fn handle_get_extraction_confidence(
@@ -944,9 +1197,13 @@ impl Engram {
         let project_dir = rec.directory.clone();
         let dreaming = self.state.dreaming.as_ref();
 
+        let cached_hashes: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+
         if p.method_name.is_some() && p.file_path.is_none() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "Error: `method_name` requires `file_path` to be specified.",
+                "Error: `method_name` requires `file_path` to be specified. \
+                 Provide both to analyze a specific method, or just `file_path` for all methods in a file.",
             )]));
         }
 
@@ -956,13 +1213,80 @@ impl Engram {
                 .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
 
             if let Some(method_name) = &p.method_name {
+                let language = crate::services::business_logic_service::detect_language(&content);
+                let class_name = crate::services::business_logic_service::detect_class_name(&content);
+                let body_opt = if language == "vb" {
+                    crate::services::full_project_migration_service::extract_vb_method_body(&content, method_name)
+                } else {
+                    crate::services::full_project_migration_service::extract_cs_method_body(&content, method_name)
+                };
+
+                let Some((body, _start, _end, _lines)) = body_opt else {
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "Method '{method_name}' not found in {file_path}"
+                    ))]));
+                };
+
                 let result = crate::services::business_logic_service::analyze_method_logic(
-                    dreaming, file_path, method_name, &content, "Class", "cs"
+                    dreaming, file_path, method_name, &body, &class_name, language,
                 ).await;
+
+                if p.output_json {
+                    let json = serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("JSON error: {e}"));
+                    return Ok(CallToolResult::success(vec![Content::text(json)]));
+                }
                 return Ok(CallToolResult::success(vec![Content::text(crate::services::business_logic_service::render_method_as_doc(&result))]));
             }
+
+            // File-level mode
+            let (file_logic, analyzed, skipped) = crate::services::business_logic_service::analyze_file_logic(
+                dreaming, file_path, &content, &cached_hashes,
+            ).await;
+
+            if p.output_json {
+                let json = serde_json::to_string_pretty(&file_logic).unwrap_or_else(|e| format!("JSON error: {e}"));
+                return Ok(CallToolResult::success(vec![Content::text(json)]));
+            }
+
+            let mut md = format!(
+                "# Business Logic — {}\n\n*{}*\n\n- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n\n",
+                file_logic.class_name, file_logic.file_purpose
+            );
+            for m in &file_logic.methods {
+                md.push_str(&crate::services::business_logic_service::render_method_as_doc(m));
+                md.push_str("---\n\n");
+            }
+            return Ok(CallToolResult::success(vec![Content::text(md)]));
         }
-        Ok(CallToolResult::success(vec![Content::text("Analyzed.")]))
+
+        // Full project mode
+        let code_paths = crate::utils::files::discover_files_recursive(
+            std::path::Path::new(&project_dir),
+            &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".vb", ".cs"],
+            500,
+        ).await;
+
+        let code_files: Vec<(String, String)> = code_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        let code_refs: Vec<(&str, &str)> = code_files.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
+
+        let report = crate::services::business_logic_service::analyze_project_logic(
+            dreaming, &p.project_id, &code_refs, &cached_hashes, p.max_concurrent,
+        ).await;
+
+        if p.output_json {
+            let json = serde_json::to_string_pretty(&report).unwrap_or_else(|e| format!("JSON error: {e}"));
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let md = crate::services::business_logic_service::render_compact_markdown(&report);
+        Ok(CallToolResult::success(vec![Content::text(md)]))
     }
 
     pub async fn handle_query_business_logic(
@@ -1496,7 +1820,13 @@ impl Engram {
                 Ok(CallToolResult::success(vec![Content::text(out)]))
             }
             "clear" => {
-                Ok(CallToolResult::success(vec![Content::text("✅ Anti-pattern index clear requested (stub).")]))
+                ps.search
+                    .purge_old_generations(&pid, u64::MAX)
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{2705} Anti-pattern index cleared for project '{}'.", pid
+                ))]))
             }
             _ => Err(McpError::invalid_params(format!("Unknown action '{action}'"), None)),
         }
@@ -1746,7 +2076,7 @@ impl Engram {
         &self,
         req: GraphCentralityRerankRequest,
     ) -> Result<CallToolResult, McpError> {
-        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top_k = req.sanitized_top_k();
         let samples = req.sanitized_betweenness_samples();
@@ -1766,24 +2096,252 @@ impl Engram {
         let deg_w = req.degree_weight;
         let bt_w = req.betweenness_weight;
 
+        #[derive(serde::Serialize)]
+        struct ScoredNode {
+            node_id: String,
+            blended_score: f32,
+            pagerank: f32,
+            in_degree: u32,
+            out_degree: u32,
+            betweenness: f32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            search_score: Option<f32>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            node_type: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            name: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            file_path: Option<String>,
+        }
+
+        let mut scored: Vec<ScoredNode> = Vec::new();
+
+        if let Some(query) = &req.query {
+            let hits = ps
+                .search
+                .search(
+                    &engram_index::HybridQuery {
+                        project_id: req.project_id.clone(),
+                        namespace: req.namespace.clone(),
+                        generation: gen_,
+                        text: query.clone(),
+                        top_k: top_k * 3,
+                        fts_mode: "strict".to_string(),
+                        include_path_prefixes: None,
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    },
+                    Some(&centrality.pagerank),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for hit in &hits {
+                let file_node_id = format!("file:{}", hit.path.as_str());
+                let blended = centrality.blended_score(&file_node_id, pr_w, deg_w, bt_w);
+                let combined = hit.score * 0.7 + blended * 0.3;
+                let (node_type, name, file_path) = if req.include_metadata {
+                    (Some("file".to_string()), Some(hit.path.as_str().to_string()), Some(hit.path.as_str().to_string()))
+                } else { (None, None, None) };
+                scored.push(ScoredNode {
+                    node_id: file_node_id.clone(),
+                    blended_score: combined,
+                    pagerank: centrality.pagerank.get(&file_node_id).copied().unwrap_or(0.0),
+                    in_degree: centrality.in_degree.get(&file_node_id).copied().unwrap_or(0),
+                    out_degree: centrality.out_degree.get(&file_node_id).copied().unwrap_or(0),
+                    betweenness: centrality.betweenness.get(&file_node_id).copied().unwrap_or(0.0),
+                    search_score: Some(hit.score),
+                    node_type, name, file_path,
+                });
+            }
+            scored.sort_by(|a, b| b.blended_score.partial_cmp(&a.blended_score).unwrap_or(std::cmp::Ordering::Equal));
+        } else if let Some(node_ids) = &req.node_ids {
+            let graph_store = self.state.graph.clone();
+            let pid2 = req.project_id.clone();
+            let node_ids_clone = node_ids.clone();
+            let include_meta = req.include_metadata;
+            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+                tokio::task::spawn_blocking(move || -> Vec<_> {
+                    let mut result = Vec::new();
+                    for nid in &node_ids_clone {
+                        let meta = if include_meta {
+                            graph_store.get_node(&pid2, nid).ok().flatten().map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
+                        } else { None };
+                        let (nt, nm, fp) = meta.map(|(t, n, f)| (Some(t), Some(n), Some(f))).unwrap_or((None, None, None));
+                        result.push((nid.clone(), nt, nm, fp));
+                    }
+                    result
+                })
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for (nid, nt, nm, fp) in nodes_meta {
+                let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
+                scored.push(ScoredNode {
+                    node_id: nid.clone(), blended_score: blended,
+                    pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
+                    in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
+                    out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
+                    betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
+                    search_score: None, node_type: nt, name: nm, file_path: fp,
+                });
+            }
+            scored.sort_by(|a, b| b.blended_score.partial_cmp(&a.blended_score).unwrap_or(std::cmp::Ordering::Equal));
+        } else {
+            // Mode 3: Top-N most central nodes
+            let graph_store = self.state.graph.clone();
+            let pid3 = req.project_id.clone();
+            let include_meta = req.include_metadata;
+            let mut all_scores: Vec<(String, f32)> = centrality.pagerank.keys()
+                .map(|nid| { let b = centrality.blended_score(nid, pr_w, deg_w, bt_w); (nid.clone(), b) })
+                .collect();
+            all_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            all_scores.truncate(top_k);
+            let top_ids: Vec<String> = all_scores.iter().map(|(id, _)| id.clone()).collect();
+            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+                tokio::task::spawn_blocking(move || -> Vec<_> {
+                    let mut result = Vec::new();
+                    for nid in &top_ids {
+                        let meta = if include_meta {
+                            graph_store.get_node(&pid3, nid).ok().flatten().map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
+                        } else { None };
+                        let (nt, nm, fp) = meta.map(|(t, n, f)| (Some(t), Some(n), Some(f))).unwrap_or((None, None, None));
+                        result.push((nid.clone(), nt, nm, fp));
+                    }
+                    result
+                })
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            for (nid, nt, nm, fp) in nodes_meta {
+                let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
+                scored.push(ScoredNode {
+                    node_id: nid.clone(), blended_score: blended,
+                    pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
+                    in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
+                    out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
+                    betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
+                    search_score: None, node_type: nt, name: nm, file_path: fp,
+                });
+            }
+        }
+
+        scored.truncate(top_k);
+
         if req.output_json {
-            return Ok(CallToolResult::success(vec![Content::text("Centrality reranked (JSON stub).")]));
+            let json = serde_json::to_string_pretty(&scored)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let mut out = format!("# Graph Centrality Rerank — {}\n\n", req.project_id);
-        out.push_str(&format!("Top {} most central nodes (weights: PR={:.1}, Deg={:.1}, BT={:.1}):\n\n", top_k, pr_w, deg_w, bt_w));
-
-        for (node_id, score) in centrality.pagerank.iter().take(top_k) {
-            out.push_str(&format!("- **{}**: {:.4}\n", node_id, score));
+        let mode = if req.query.is_some() { "search+rerank" } else if req.node_ids.is_some() { "node scoring" } else { "top-N centrality" };
+        let mut out = format!("Graph Centrality Rerank ({mode})\nWeights: PR={pr_w:.2}, Degree={deg_w:.2}, Betweenness={bt_w:.2}\nResults: {}\n\n", scored.len());
+        for (i, node) in scored.iter().enumerate() {
+            out.push_str(&format!("{}. {} (blended={:.4})\n", i + 1, node.node_id, node.blended_score));
+            out.push_str(&format!("   PR={:.6}  in_deg={}  out_deg={}  betw={:.4}", node.pagerank, node.in_degree, node.out_degree, node.betweenness));
+            if let Some(ss) = node.search_score { out.push_str(&format!("  search={ss:.4}")); }
+            out.push('\n');
+            if let Some(ref nt) = node.node_type { out.push_str(&format!("   type={nt}")); }
+            if let Some(ref nm) = node.name { out.push_str(&format!("  name={nm}")); }
+            if let Some(ref fp) = node.file_path { out.push_str(&format!("  path={fp}")); }
+            if node.node_type.is_some() || node.name.is_some() || node.file_path.is_some() { out.push('\n'); }
         }
-
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     pub async fn handle_benchmark_retrieval(
         &self,
-        _req: crate::models::BenchmarkRetrievalRequest,
+        req: crate::models::BenchmarkRetrievalRequest,
     ) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text("Benchmark completed.")]))
+        let pid = req.project_id.clone();
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let generation = self.get_active_generation(&pid).await?;
+
+        let queries: Vec<crate::services::benchmark_service::BenchmarkQuery> =
+            if let Some(custom) = req.custom_queries {
+                custom.into_iter().map(|q| crate::services::benchmark_service::BenchmarkQuery {
+                    query: q.query, relevant_paths: q.relevant_paths,
+                }).collect()
+            } else {
+                crate::services::benchmark_service::generate_legacy_benchmark_queries()
+            };
+
+        let mut per_query: Vec<crate::services::benchmark_service::QueryBenchmarkResult> = Vec::new();
+        let (mut total_ndcg, mut total_recall, mut total_mrr, mut total_latency, mut max_latency) = (0.0f64, 0.0f64, 0.0f64, 0u64, 0u64);
+        let mut latencies: Vec<u64> = Vec::new();
+
+        for bq in &queries {
+            let start = std::time::Instant::now();
+            let hits = ps.search.search(
+                &engram_index::HybridQuery {
+                    project_id: pid.clone(), namespace: "memory".into(), generation,
+                    text: bq.query.clone(), top_k: 10, fts_mode: "strict".into(),
+                    include_path_prefixes: None, exclude_path_prefixes: None,
+                    language_filters: None, author_filter: None,
+                    date_after: None, date_before: None, use_mmr: false,
+                },
+                None,
+            ).await.unwrap_or_default();
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+
+            let actual_paths: Vec<String> = hits.iter().map(|h| h.path.as_str().to_string()).collect();
+            let ndcg = crate::services::benchmark_service::compute_ndcg(&actual_paths, &bq.relevant_paths, 10);
+            let recall = crate::services::benchmark_service::compute_recall(&actual_paths, &bq.relevant_paths, 10);
+            let mrr = crate::services::benchmark_service::compute_reciprocal_rank(&actual_paths, &bq.relevant_paths);
+
+            total_ndcg += ndcg; total_recall += recall; total_mrr += mrr;
+            total_latency += elapsed_ms;
+            if elapsed_ms > max_latency { max_latency = elapsed_ms; }
+            latencies.push(elapsed_ms);
+
+            per_query.push(crate::services::benchmark_service::QueryBenchmarkResult {
+                query: bq.query.clone(), expected_top_paths: bq.relevant_paths.clone(),
+                actual_top_paths: actual_paths, ndcg, recall, reciprocal_rank: mrr, latency_ms: elapsed_ms,
+            });
+        }
+
+        let q_count = queries.len().max(1);
+        let mean_ndcg = total_ndcg / q_count as f64;
+        let mean_recall = total_recall / q_count as f64;
+        let mean_mrr = total_mrr / q_count as f64;
+        let mean_latency = total_latency as f64 / q_count as f64;
+        latencies.sort();
+        let p95_idx = ((latencies.len() as f64 * 0.95).ceil() as usize).min(latencies.len()).saturating_sub(1);
+        let p95_latency = latencies.get(p95_idx).copied().unwrap_or(0);
+
+        let (passed_ndcg, passed_recall, production_ready) = crate::services::benchmark_service::evaluate_gates(
+            mean_ndcg, mean_recall, self.state.cfg.retrieval_min_ndcg, self.state.cfg.retrieval_min_recall,
+        );
+
+        let result = crate::services::benchmark_service::BenchmarkResult {
+            project_id: pid, timestamp_ms: now_ms(), query_count: queries.len(),
+            ndcg_at_10: mean_ndcg, recall_at_10: mean_recall, mean_reciprocal_rank: mean_mrr,
+            mean_latency_ms: mean_latency, p95_latency_ms: p95_latency as f64,
+            passed_ndcg_gate: passed_ndcg, passed_recall_gate: passed_recall, production_ready,
+            per_query_results: per_query,
+        };
+
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!("Retrieval Benchmark ({} queries)\n", result.query_count));
+        out.push_str(&format!("NDCG@10:  {:.3} (gate: {:.2}, {})\n", result.ndcg_at_10, self.state.cfg.retrieval_min_ndcg, if result.passed_ndcg_gate { "PASS" } else { "FAIL" }));
+        out.push_str(&format!("Recall@10: {:.3} (gate: {:.2}, {})\n", result.recall_at_10, self.state.cfg.retrieval_min_recall, if result.passed_recall_gate { "PASS" } else { "FAIL" }));
+        out.push_str(&format!("MRR:      {:.3}\n", result.mean_reciprocal_rank));
+        out.push_str(&format!("Latency:  avg={:.0}ms p95={:.0}ms\n", result.mean_latency_ms, result.p95_latency_ms));
+        out.push_str(&format!("\nProduction Ready: {}\n", if result.production_ready { "YES" } else { "NO" }));
+        for qr in &result.per_query_results {
+            out.push_str(&format!("\n  '{}': ndcg={:.3} recall={:.3} mrr={:.3} latency={}ms",
+                qr.query, qr.ndcg, qr.recall, qr.reciprocal_rank, qr.latency_ms));
+        }
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 }
