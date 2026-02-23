@@ -1511,3 +1511,310 @@ pub struct GetJQueryInventoryRequest {
     #[serde(default)]
     pub output_json: bool,
 }
+
+/// Reconstruct session/state workflow flows from graph edges.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetSessionWorkflowsRequest {
+    pub project_id: String,
+    /// Filter to a specific scope: "session" | "application" | "cache" | "viewstate" | "cookie".
+    /// If omitted, returns all scopes.
+    #[serde(default)]
+    pub scope_filter: Option<String>,
+    /// Filter to a specific state key name (partial match, case-insensitive).
+    #[serde(default)]
+    pub key_filter: Option<String>,
+    /// Only include keys with problematic patterns (MissingWriter, MissingReader, ComplexWorkflow).
+    #[serde(default)]
+    pub warnings_only: bool,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Detect VB.NET → C# translation traps (14 categories of semantic differences).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetVbTranslationTrapsRequest {
+    pub project_id: String,
+    /// Specific .vb file to analyze. If omitted, analyzes all indexed .vb files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Filter to a specific risk type: "silent_bug" | "compile_error". If omitted, returns both.
+    #[serde(default)]
+    pub risk_filter: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38: The Access Layer ────────────────────────────────────────────────
+
+fn default_context_lines() -> u32 {
+    5
+}
+fn default_max_callers() -> usize {
+    3
+}
+
+/// Retrieve method metadata from the method index (sub-200ms per-method queries).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMethodInfoRequest {
+    pub project_id: String,
+    /// Fully qualified name (e.g., "MyNamespace.CheckoutPage.ProcessOrder"),
+    /// partial match (e.g., "CheckoutPage.ProcessOrder"), or just "ProcessOrder".
+    pub fqn_or_name: String,
+    /// If ambiguous, filter by file path (partial match).
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Retrieve the complete, untruncated source code of a method.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetFullMethodBodyRequest {
+    pub project_id: String,
+    /// Fully qualified name from method index. Mutually exclusive with file_path + line_start.
+    #[serde(default)]
+    pub fqn: Option<String>,
+    /// Explicit file path (alternative to FQN lookup).
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Start line (1-based). Required if file_path is used instead of fqn.
+    #[serde(default)]
+    pub line_start: Option<u32>,
+    /// End line (1-based). Required if file_path is used instead of fqn.
+    #[serde(default)]
+    pub line_end: Option<u32>,
+    /// Lines of context above/below the method. Default: 5.
+    #[serde(default = "default_context_lines")]
+    pub context_lines: u32,
+    /// Also return bodies of top callers. Default: false.
+    #[serde(default)]
+    pub include_caller_bodies: bool,
+    /// Maximum caller bodies to include. Default: 3.
+    #[serde(default = "default_max_callers")]
+    pub max_callers: usize,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+fn default_max_callers_50() -> usize {
+    50
+}
+
+/// "Everything I need before touching a method" — assembles method info, full body,
+/// callers, database footprint, session state, VB traps, sync hazards, blast radius,
+/// and business logic into a single response.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetMethodEditContextRequest {
+    pub project_id: String,
+    /// Relative path to the code file containing the method.
+    pub file_path: String,
+    /// Method name to analyze.
+    pub method_name: String,
+    /// Class name (optional, for disambiguation).
+    #[serde(default)]
+    pub class_name: Option<String>,
+    /// Include the complete, untruncated method body. Default: true.
+    #[serde(default = "default_true")]
+    pub include_full_body: bool,
+    /// Include full bodies of the top N callers. Default: true.
+    #[serde(default = "default_true")]
+    pub include_caller_bodies: bool,
+    /// Maximum callers to include. Default: 50.
+    #[serde(default = "default_max_callers_50")]
+    pub max_callers: usize,
+    /// Include business logic analysis from DocStore. Default: true.
+    #[serde(default = "default_true")]
+    pub include_business_logic: bool,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Full page context: control tree, all event handlers with bodies, data layer,
+/// state, AJAX, validation, auth, and coding style for a WebForms page.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetPageContextRequest {
+    pub project_id: String,
+    /// Path to the .aspx/.ascx/.master file.
+    pub aspx_file: String,
+    /// Include full bodies of all event handlers. Default: true.
+    #[serde(default = "default_true")]
+    pub include_method_bodies: bool,
+    /// Include master page structure analysis. Default: true.
+    #[serde(default = "default_true")]
+    pub include_master_page: bool,
+    /// Include code-behind analysis. Default: true.
+    #[serde(default = "default_true")]
+    pub include_codebehind: bool,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38-5: prepare_implementation_context ────────────────────────────────
+
+fn default_max_pattern_examples() -> usize {
+    3
+}
+
+/// Assemble everything an LLM needs to generate correct code for a method modification:
+/// coding style profile, pattern examples from callers, database schema for referenced tables,
+/// SP signatures, session state context, control mappings, VB traps, and sync hazards.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct PrepareImplementationContextRequest {
+    pub project_id: String,
+    /// The file containing the method to be modified.
+    pub file_path: String,
+    /// The method name to prepare context for.
+    pub method_name: String,
+    /// Optional class name for disambiguation.
+    #[serde(default)]
+    pub class_name: Option<String>,
+    /// Target framework for migration (e.g., "blazor", "razor-pages", "react").
+    /// If provided, control mappings will include migration-specific guidance.
+    #[serde(default)]
+    pub target_stack: Option<String>,
+    /// Include coding style analysis from git history. Default: true.
+    #[serde(default = "default_true")]
+    pub include_style_profile: bool,
+    /// Include pattern examples from callers. Default: true.
+    #[serde(default = "default_true")]
+    pub include_pattern_examples: bool,
+    /// Maximum number of caller-based pattern examples. Default: 3.
+    #[serde(default = "default_max_pattern_examples")]
+    pub max_pattern_examples: usize,
+    /// Include database schema for referenced tables. Default: true.
+    #[serde(default = "default_true")]
+    pub include_db_schema: bool,
+    /// Include SP signatures for called stored procedures. Default: true.
+    #[serde(default = "default_true")]
+    pub include_sp_signatures: bool,
+    /// Include session state flow context. Default: true.
+    #[serde(default = "default_true")]
+    pub include_state_context: bool,
+    /// Include control mappings for referenced controls. Default: true.
+    #[serde(default = "default_true")]
+    pub include_control_mappings: bool,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38-6: validate_generated_code ───────────────────────────────────────
+
+/// Validate generated/modified code against the project's extracted knowledge:
+/// SQL validity, VB trap avoidance, state key consistency, SP call correctness,
+/// control ID validity, caller compatibility, and sync hazard introduction.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ValidateGeneratedCodeRequest {
+    pub project_id: String,
+    /// The generated or modified code to validate.
+    pub code: String,
+    /// The language of the code: "vb" or "csharp". Default: "csharp".
+    #[serde(default = "default_csharp")]
+    pub language: String,
+    /// The file path this code is intended for (used for context resolution).
+    #[serde(default)]
+    pub target_file: Option<String>,
+    /// The method name being replaced/modified (used for caller compatibility check).
+    #[serde(default)]
+    pub original_method_name: Option<String>,
+    /// Known table names the original code accessed (used for SQL validation).
+    #[serde(default)]
+    pub expected_tables: Vec<String>,
+    /// Known SP names the original code called (used for SP validation).
+    #[serde(default)]
+    pub expected_sps: Vec<String>,
+    /// Known session keys the original code used (used for state consistency).
+    #[serde(default)]
+    pub expected_session_keys: Vec<String>,
+    /// Known control IDs that should be referenced (used for control validation).
+    #[serde(default)]
+    pub expected_control_ids: Vec<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+fn default_csharp() -> String {
+    "csharp".to_string()
+}
+
+// ── Phase 38-7: validate_sql_fragment ─────────────────────────────────────────
+
+/// Validate a SQL fragment against the project's schema knowledge: table/column
+/// existence, SP parameter types, join correctness, and common SQL anti-patterns.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ValidateSqlFragmentRequest {
+    pub project_id: String,
+    /// The SQL code to validate.
+    pub sql: String,
+    /// Context: which code file this SQL appears in (for cross-referencing).
+    #[serde(default)]
+    pub source_file: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38-8: find_tests_for_method ─────────────────────────────────────────
+
+/// Find existing tests that exercise a given method, by searching for references
+/// to the method name in test files (files matching *Test*, *Spec*, *_test*).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct FindTestsForMethodRequest {
+    pub project_id: String,
+    /// Fully qualified method name or partial name.
+    pub method_name: String,
+    /// Optional: specific file to narrow the search.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38-9: find_dead_methods ─────────────────────────────────────────────
+
+fn default_dead_method_limit() -> usize {
+    100
+}
+
+/// Find methods with zero callers, no Handles clause, and no lifecycle hooks —
+/// candidates for dead code removal.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct FindDeadMethodsRequest {
+    pub project_id: String,
+    /// Filter to a specific file path (partial match).
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Maximum results. Default: 100.
+    #[serde(default = "default_dead_method_limit")]
+    pub limit: usize,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+// ── Phase 38-10: check_edit_safety ────────────────────────────────────────────
+
+/// Standalone edit safety check: returns green/yellow/red verdict for a method
+/// without the full edit context overhead. Faster alternative to get_method_edit_context.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct CheckEditSafetyRequest {
+    pub project_id: String,
+    /// Relative path to the file containing the method.
+    pub file_path: String,
+    /// Method name.
+    pub method_name: String,
+    /// Optional class name for disambiguation.
+    #[serde(default)]
+    pub class_name: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
