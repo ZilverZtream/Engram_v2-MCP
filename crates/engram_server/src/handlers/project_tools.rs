@@ -1,10 +1,14 @@
-use crate::models::UpdateMemoryBankRequest;
-use crate::services::{ingest_service, project_service};
-use crate::state::{ProjectInfo, ProjectState};
+use crate::models::{
+    IndexProjectRequest, ProjectIdRequest, RepairProjectRequest, UpdateMemoryBankRequest,
+    UpdateProjectRequest, WatchProjectRequest,
+};
+use crate::services::{graph_service, ingest_service, project_service};
+use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 use crate::utils::files::exts_for_project_type;
-use crate::utils::now_ms;
-use engram_core::{Checkpoint, JobPhase, JobRecord, ProjectRecord};
+use crate::utils::{dir_size_bytes, format_bytes, now_ms};
+use engram_core::{Checkpoint, JobPhase, JobRecord, ProjectRecord, WatchRecord};
+use rmcp::model::{CallToolResult, Content};
 use rmcp::{ErrorData as McpError, handler::server::tool::Parameters};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -285,6 +289,179 @@ impl Engram {
                 progress_cb,
             )
             .await
+    }
+
+    pub async fn handle_index_project(
+        &self,
+        req: IndexProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let dir = match self.state.paths.resolve_path(&req.directory) {
+            Ok(p) => p,
+            Err(e) => {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{274C} {e}"
+                ))]));
+            }
+        };
+
+        // Dedupe + registry insert in a single Redb write transaction.
+        let dir_str = dir.to_string_lossy().to_string();
+        let project_id = Uuid::new_v4().to_string();
+        let project_name = req.project_name.clone();
+        let project_type = req.project_type.clone();
+        let now = now_ms();
+        let rec_candidate = ProjectRecord {
+            project_id: project_id.clone(),
+            project_name: project_name.clone(),
+            project_type: project_type.clone(),
+            directory: dir_str.clone(),
+            created_at_ms: now,
+            updated_at_ms: now,
+        };
+        let dedupe = req.dedupe_by_directory;
+        let reg = self.state.registry.clone();
+        let pid_for_meta = project_id.clone();
+        
+        let existing_opt =
+            tokio::task::spawn_blocking(move || -> anyhow::Result<Option<ProjectRecord>> {
+                if dedupe {
+                    let list = reg.list_projects()?;
+                    if let Some(existing) = list.into_iter().find(|p| p.directory == dir_str) {
+                        return Ok(Some(existing));
+                    }
+                }
+                reg.put_project(&rec_candidate)?;
+                reg.set_meta(&pid_for_meta, "active_generation", "1")?;
+                Ok(None)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if let Some(p) = existing_opt {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "\u{2705} Already indexed.\nproject_id: {}\nproject_name: {}\ndirectory: {}",
+                p.project_id, p.project_name, p.directory
+            ))]));
+        }
+        let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
+        let tantivy_dir = project_root.join("tantivy");
+        let lancedb_dir = project_root.join("lancedb");
+        tokio::fs::create_dir_all(&tantivy_dir).await.ok();
+        tokio::fs::create_dir_all(&lancedb_dir).await.ok();
+
+        let search = engram_index::HybridSearchEngine::new_with_budget(
+            tantivy_dir.clone(),
+            lancedb_dir.clone(),
+            &self.state.cfg,
+            Some(self.state.memory_budget.clone()),
+        )
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let search = std::sync::Arc::new(search);
+
+        // Runtime cache
+        let info = ProjectInfo {
+            project_id: project_id.clone(),
+            project_name,
+            project_type,
+            directory: dir.to_string_lossy().to_string(),
+            tantivy_dir: tantivy_dir.clone(),
+            lancedb_dir: lancedb_dir.clone(),
+        };
+        self.state
+            .put_project_cached(ProjectState {
+                info: info.clone(),
+                search: search.clone(),
+            })
+            .await;
+
+        if req.wait {
+            let exts = exts_for_project_type(&info.project_type);
+            let cancel = tokio_util::sync::CancellationToken::new();
+
+            let files = engram_index::ingest::iter_files(&dir, &exts);
+            if let Err(e) = self.enforce_project_byte_budget(&files).await {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{274C} {e}"
+                ))]));
+            }
+            if let Some(limit) = self.state.cfg.max_project_files
+                && files.len() as u64 > limit
+            {
+                return Ok(CallToolResult::success(vec![Content::text(format!(
+                    "\u{274C} Too many files: {} > limit {}",
+                    files.len(),
+                    limit
+                ))]));
+            }
+
+            let max_chunks = self.state.cfg.max_chunks_per_file;
+            let stats = self
+                .index_files_with_parse_guard(
+                    &search,
+                    &project_id,
+                    "memory",
+                    1,
+                    &dir,
+                    files,
+                    max_chunks,
+                    &cancel,
+                    |_, _| {},
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            self.process_ingest_stats(&project_id, 1, &stats)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            // Post-ingest graph enrichment passes
+            {
+                let graph = self.state.graph.clone();
+                let pid = project_id.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    let _ = graph_service::resolve_app_code_globals(&graph, &pid, 1);
+                    let _ = graph_service::link_binding_fields_to_columns(&graph, &pid, 1);
+                })
+                .await;
+            }
+
+            // Link unresolved edges
+            let graph = self.state.graph.clone();
+            let pid = project_id.clone();
+            tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid))
+                .await
+                .ok();
+
+            let report = self.generate_indexing_report(&stats);
+            let _ = self
+                .update_memory_bank(Parameters(UpdateMemoryBankRequest {
+                    project_id: project_id.clone(),
+                    section_id: Some("engram/index_report".into()),
+                    section: "Indexing Report".into(),
+                    content: report.clone(),
+                }))
+                .await;
+
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "\u{2705} Indexed project_id: {project_id}\n\n{report}"
+            ))]));
+        }
+
+        // Background job
+        let job_id = self
+            .spawn_job_index_directory(
+                project_id.clone(),
+                info.project_type.clone(),
+                dir,
+                tantivy_dir,
+                lancedb_dir,
+            )
+            .await?;
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{1F7E1} Index job started.\njob_id: {job_id}\nproject_id: {project_id}"
+        ))]))
     }
 
     pub(crate) async fn spawn_job_index_directory(
@@ -1043,5 +1220,765 @@ impl Engram {
             m.insert(job_id.clone(), handle);
         }
         Ok(job_id)
+    }
+
+    pub async fn handle_update_project(
+        &self,
+        req: UpdateProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let active_gen = self.get_active_generation(&req.project_id).await?;
+        let new_gen = active_gen.saturating_add(1);
+
+        if req.wait {
+            let cancel = tokio_util::sync::CancellationToken::new();
+            let summary = self
+                .update_project_impl(
+                    &req.project_id,
+                    new_gen,
+                    req.sanitized_max_commits(),
+                    req.index_antipatterns,
+                    &cancel,
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            return Ok(CallToolResult::success(vec![Content::text(summary)]));
+        }
+
+        let job_id = self
+            .spawn_job_update_project(
+                req.project_id.clone(),
+                new_gen,
+                req.sanitized_max_commits(),
+                req.index_antipatterns,
+            )
+            .await?;
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{1F7E1} Update job started.\njob_id: {job_id}\nproject_id: {}",
+            req.project_id
+        ))]))
+    }
+
+    pub async fn update_project_impl(
+        &self,
+        project_id: &str,
+        new_gen: u64,
+        max_commits: usize,
+        index_antipatterns: bool,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<String> {
+        let _update_guard = self.state.acquire_project_update_lock(project_id).await;
+
+        let ps = self
+            .ensure_project_runtime(project_id)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.message))?;
+
+        let exts = exts_for_project_type(&ps.info.project_type);
+        let pid = project_id.to_string();
+        let dir = PathBuf::from(&ps.info.directory);
+        let old_gen = new_gen.saturating_sub(1);
+
+        let (changed, deleted) = self
+            .get_incremental_changes(project_id, &dir, &exts)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        self.enforce_project_byte_budget(&changed).await?;
+
+        let memory_policy = engram_core::get_policy("memory")
+            .map(|p| p.versioning)
+            .unwrap_or(engram_core::NamespaceVersioning::Snapshot);
+
+        if memory_policy == engram_core::NamespaceVersioning::Snapshot {
+            let root_clone = dir.clone();
+            let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
+            let all_disk_files = tokio::task::spawn_blocking(move || {
+                let refs: Vec<&str> = exts_owned.iter().map(|s| s.as_str()).collect();
+                engram_index::ingest::iter_files(&root_clone, &refs)
+            })
+            .await?;
+
+            let changed_set: std::collections::HashSet<PathBuf> = changed.iter().cloned().collect();
+            let unchanged: Vec<engram_core::RelPath> = all_disk_files
+                .iter()
+                .filter(|p| !changed_set.contains(*p))
+                .map(|p| {
+                    engram_core::RelPath::from_relative(&dir, p)
+                        .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()))
+                })
+                .collect();
+
+            if old_gen > 0 && !unchanged.is_empty() {
+                ps.search
+                    .copy_generation_for_paths(
+                        project_id, "memory", old_gen, new_gen, &unchanged, cancel,
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!(e))?;
+            }
+        } else {
+            let mut to_delete = deleted;
+            for p in &changed {
+                let rel = engram_core::RelPath::from_relative(&dir, p)
+                    .unwrap_or_else(|| engram_core::RelPath::new(&p.to_string_lossy()));
+                to_delete.push(rel);
+            }
+            if !to_delete.is_empty() {
+                ps.search
+                    .delete_files(project_id, "memory", &to_delete)
+                    .await
+                    .map_err(|e| anyhow::anyhow!(e))?;
+            }
+        }
+
+        let max_chunks = self.state.cfg.max_chunks_per_file;
+        let stats = self
+            .index_files_with_parse_guard(
+                &ps.search,
+                &pid,
+                "memory",
+                new_gen,
+                &dir,
+                changed,
+                max_chunks,
+                cancel,
+                |_, _| {},
+            )
+            .await?;
+
+        self.process_ingest_stats(project_id, new_gen, &stats)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let _ = tokio::task::spawn_blocking(move || {
+                graph_service::link_sql_to_schema(&graph, &pid, generation)
+            })
+            .await;
+        }
+
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let _ = tokio::task::spawn_blocking(move || {
+                graph_service::resolve_app_code_globals(&graph, &pid, generation)
+            })
+            .await;
+        }
+
+        {
+            let graph = self.state.graph.clone();
+            let pid = project_id.to_string();
+            let generation = new_gen;
+            let _ = tokio::task::spawn_blocking(move || {
+                graph_service::link_binding_fields_to_columns(&graph, &pid, generation)
+            })
+            .await;
+        }
+
+        let graph = self.state.graph.clone();
+        let pid_clone = project_id.to_string();
+        tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid_clone))
+            .await
+            .ok();
+
+        let git_summary = self
+            .git_update_stream(
+                project_id,
+                &ps.info.directory,
+                new_gen,
+                max_commits,
+                index_antipatterns,
+                engram_git::history::MergeCommitPolicy::AllParents,
+                cancel,
+                Box::new(|_, _| {}),
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!(e.message))?;
+
+        {
+            let reg = self.state.registry.clone();
+            let pid_clone = project_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                reg.set_meta(&pid_clone, "active_generation", &new_gen.to_string())
+            })
+            .await
+            .map_err(|e| anyhow::anyhow!("set_meta join error: {e}"))?
+            .map_err(|e| anyhow::anyhow!("set_meta failed: {e}"))?;
+        }
+
+        ps.search
+            .purge_old_generations(project_id, new_gen)
+            .await
+            .ok();
+
+        Ok(format!(
+            "\u{2705} Updated project_id: {}\nactive_generation: {}\nfiles={} chunks={} bytes={}\n{}\n",
+            project_id, new_gen, stats.files, stats.chunks, stats.bytes, git_summary
+        ))
+    }
+
+    pub async fn handle_list_projects(&self) -> Result<CallToolResult, McpError> {
+        let reg = self.state.registry.clone();
+        let list = tokio::task::spawn_blocking(move || reg.list_projects())
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if list.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No projects indexed yet.".to_string(),
+            )]));
+        }
+
+        let mut out = String::new();
+        for p in list {
+            out.push_str(&format!(
+                "- {} | {} | {} | {}\n",
+                p.project_id, p.project_name, p.project_type, p.directory
+            ));
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_project_info(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        let reg = self.state.registry.clone();
+        let pid_clone = pid.clone();
+        let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_clone))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let Some(rec) = rec else {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "\u{274C} Unknown project_id: {pid}"
+            ))]));
+        };
+
+        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "project_id: {}\nname: {}\ntype: {}\ndirectory: {}\nactive_generation: {}",
+            rec.project_id, rec.project_name, rec.project_type, rec.directory, gen_
+        ))]))
+    }
+
+    pub async fn handle_project_health(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
+
+        // Graph stats (blocking — redb reads)
+        let graph = self.state.graph.clone();
+        let pid_clone = pid.clone();
+        let (graph_nodes, graph_edges, node_type_counts, _edge_kind_counts) =
+            tokio::task::spawn_blocking(move || {
+                let nodes = graph.count_nodes(&pid_clone).unwrap_or(0);
+                let edges = graph.count_edges(&pid_clone).unwrap_or(0);
+                let ntc = graph.count_nodes_by_type(&pid_clone).unwrap_or_default();
+                let ekc = graph.count_edges_by_kind(&pid_clone).unwrap_or_default();
+                (nodes, edges, ntc, ekc)
+            })
+            .await
+            .unwrap_or_default();
+
+        // Per-namespace doc counts
+        let ns_counts = ps.search.count_docs_by_namespace(&pid).unwrap_or_default();
+        let total_docs: usize = ns_counts.values().sum();
+        let memory_docs = ns_counts.get("memory").copied().unwrap_or(0);
+        let history_docs = ns_counts.get("history").copied().unwrap_or(0);
+        let antipattern_docs = ns_counts.get("antipattern").copied().unwrap_or(0);
+
+        // Language breakdown for quick reference
+        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
+
+        // Vector row count
+        let lancedb_rows = ps.search.count_vectors(&pid).await.unwrap_or(0);
+
+        // Disk usage: measure project data directory
+        let data_dir = self.state.cfg.data_dir.join("projects").join(&pid);
+        let disk_usage = tokio::task::spawn_blocking(move || dir_size_bytes(&data_dir))
+            .await
+            .unwrap_or(0);
+
+        // Active jobs for this project
+        let reg = self.state.registry.clone();
+        let pid_for_jobs = pid.clone();
+        let active_jobs = tokio::task::spawn_blocking(move || {
+            reg.list_jobs(Some(&pid_for_jobs)).unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+        let running_jobs: Vec<_> = active_jobs
+            .iter()
+            .filter(|j| j.status == "running" || j.status == "pending")
+            .collect();
+
+        // Active indexing count (global, for context)
+        let indexing_count = self
+            .state
+            .active_indexing_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+
+        // Build output
+        let mut out = String::with_capacity(2048);
+        out.push_str(&format!("Project Health: {}\n", pid));
+        out.push_str(&format!("directory: {}\n", ps.info.directory));
+        out.push_str(&format!("project_type: {}\n", ps.info.project_type));
+        out.push_str(&format!("active_generation: {}\n", gen_));
+
+        out.push_str("\n--- Index Stats ---\n");
+        out.push_str(&format!("graph_nodes: {}\n", graph_nodes));
+        out.push_str(&format!("graph_edges: {}\n", graph_edges));
+        out.push_str(&format!("tantivy_docs_total: {}\n", total_docs));
+        out.push_str(&format!("  memory: {}\n", memory_docs));
+        out.push_str(&format!("  history: {}\n", history_docs));
+        out.push_str(&format!("  antipattern: {}\n", antipattern_docs));
+        for (ns, count) in &ns_counts {
+            if ns != "memory" && ns != "history" && ns != "antipattern" {
+                out.push_str(&format!("  {}: {}\n", ns, count));
+            }
+        }
+        out.push_str(&format!("lancedb_vectors: {}\n", lancedb_rows));
+        out.push_str(&format!("disk_usage: {}\n", format_bytes(disk_usage)));
+
+        // Symbol type breakdown (top 5)
+        if !node_type_counts.is_empty() {
+            let mut nts: Vec<_> = node_type_counts.iter().collect();
+            nts.sort_by(|a, b| b.1.cmp(a.1));
+            out.push_str("\n--- Symbol Types (top 5) ---\n");
+            for (ntype, count) in nts.iter().take(5) {
+                out.push_str(&format!("  {}: {}\n", ntype, count));
+            }
+        }
+
+        // Language breakdown (top 5)
+        if !lang_counts.is_empty() {
+            let mut ls: Vec<_> = lang_counts.iter().collect();
+            ls.sort_by(|a, b| b.1.cmp(a.1));
+            out.push_str("\n--- Languages (top 5) ---\n");
+            for (lang, count) in ls.iter().take(5) {
+                out.push_str(&format!("  {}: {}\n", lang, count));
+            }
+        }
+
+        // Job status
+        if !running_jobs.is_empty() {
+            out.push_str(&format!("\n--- Active Jobs ({}) ---\n", running_jobs.len()));
+            for j in &running_jobs {
+                out.push_str(&format!("  {} [{}] {}\n", j.job_id, j.status, j.kind));
+            }
+        }
+        if indexing_count > 0 {
+            out.push_str(&format!(
+                "global_active_indexing_tasks: {}\n",
+                indexing_count
+            ));
+        }
+
+        // Integrity warnings with actionable suggestions
+        let mut warnings: Vec<String> = Vec::new();
+        if graph_nodes == 0 && memory_docs > 0 {
+            warnings.push(
+                "Graph is empty but Tantivy has docs — symbol extraction may have failed. Suggested: repair_project(scope='graph_only').".into(),
+            );
+        }
+        if memory_docs > 0 && lancedb_rows == 0 {
+            warnings.push(
+                "Vector index is empty but Tantivy has docs — embeddings may have failed. Suggested: repair_project(scope='vector_only').".into(),
+            );
+        }
+        if lancedb_rows > 0 && total_docs == 0 {
+            warnings.push(
+                "Tantivy is empty but LanceDB has rows — Tantivy may be corrupted. Suggested: repair_project(scope='tantivy_only').".into(),
+            );
+        }
+        if gen_ > 1 && total_docs == 0 && graph_nodes == 0 {
+            warnings.push(
+                "Generation > 1 but all indexes empty — project may need full re-indexing. Suggested: repair_project(wipe_and_reindex=true).".into(),
+            );
+        }
+        if memory_docs > 0 && graph_nodes > 0 {
+            // Check ratio: if graph nodes are disproportionately low vs docs
+            let ratio = graph_nodes as f64 / memory_docs as f64;
+            if ratio < 0.01 {
+                warnings.push(format!(
+                    "Graph/doc ratio is very low ({:.4}) — graph may be stale. Suggested: repair_project(scope='graph_only').",
+                    ratio
+                ));
+            }
+        }
+        // Check vector/doc ratio for embedding health
+        if memory_docs > 10 && lancedb_rows > 0 {
+            let vec_ratio = lancedb_rows as f64 / memory_docs as f64;
+            if vec_ratio < 0.5 {
+                warnings.push(format!(
+                    "Vector coverage is low ({:.0}%) — some chunks may not have embeddings. Suggested: repair_project(scope='vector_only').",
+                    vec_ratio * 100.0
+                ));
+            }
+        }
+        // Edge kind health: if graph has nodes but no edges
+        if graph_nodes > 10 && graph_edges == 0 {
+            warnings.push(
+                "Graph has nodes but no edges — edge extraction may have failed. Suggested: repair_project(scope='graph_only').".into(),
+            );
+        }
+        // Check for stale jobs
+        let stale_jobs: Vec<_> = active_jobs
+            .iter()
+            .filter(|j| j.status == "running")
+            .collect();
+        if stale_jobs.len() > 2 {
+            warnings.push(format!(
+                "{} jobs are still running — possible stale jobs. Check list_jobs and cancel_job if needed.",
+                stale_jobs.len()
+            ));
+        }
+
+        if warnings.is_empty() {
+            out.push_str("\n--- Status ---\nHealthy\n");
+        } else {
+            out.push_str(&format!("\n--- Warnings ({}) ---\n", warnings.len()));
+            for w in &warnings {
+                out.push_str(&format!("  ! {}\n", w));
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    pub async fn handle_repair_project(
+        &self,
+        req: RepairProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let max_commits = req.sanitized_max_commits();
+        let pid = req.project_id;
+        let scope = req.scope.to_lowercase();
+        let wipe_and_reindex = req.wipe_and_reindex;
+        let index_antipatterns = req.index_antipatterns;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let active_gen = self.get_active_generation(&pid).await?;
+        let mut steps: Vec<String> = Vec::new();
+
+        if wipe_and_reindex {
+            // Full wipe: delete graph data, purge search data, then re-index from scratch
+            let graph = self.state.graph.clone();
+            let pid_g = pid.clone();
+            tokio::task::spawn_blocking(move || graph.delete_project_data(&pid_g))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            steps.push("Wiped graph data.".into());
+
+            // Delete on-disk Tantivy + LanceDB directories and recreate
+            let tantivy_dir = ps.info.tantivy_dir.clone();
+            let lance_dir = ps.info.lancedb_dir.clone();
+            if let Err(e) = tokio::fs::remove_dir_all(&tantivy_dir).await {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    tracing::warn!("repair_project: could not remove tantivy dir: {e}");
+                }
+            }
+            if let Err(e) = tokio::fs::remove_dir_all(&lance_dir).await {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    tracing::warn!("repair_project: could not remove lance dir: {e}");
+                }
+            }
+            steps.push("Wiped Tantivy and LanceDB data.".into());
+
+            // Evict cached engine so it recreates on next access
+            self.state.projects.remove(&pid);
+            self.state.project_lru.remove(&pid);
+
+            // Reset generation to 1 and perform full index
+            let reg = self.state.registry.clone();
+            let pid_r = pid.clone();
+            let _ =
+                tokio::task::spawn_blocking(move || reg.set_meta(&pid_r, "active_generation", "1"))
+                    .await;
+
+            let cancel = tokio_util::sync::CancellationToken::new();
+            let summary = self
+                .update_project_impl(&pid, 1, max_commits, index_antipatterns, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            steps.push(format!("Full re-index completed.\n{}", summary));
+        } else {
+            match scope.as_str() {
+                "graph_only" => {
+                    // Purge and rebuild graph only (keep Tantivy/LanceDB intact)
+                    let graph = self.state.graph.clone();
+                    let pid_g = pid.clone();
+                    tokio::task::spawn_blocking(move || graph.delete_project_data(&pid_g))
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged graph data.".into());
+
+                    // Re-index to rebuild graph
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Graph rebuilt via re-index.\n{}", summary));
+                }
+                "tantivy_only" => {
+                    // Wipe Tantivy directory and re-index
+                    let tantivy_dir = ps.info.tantivy_dir.clone();
+                    if let Err(e) = tokio::fs::remove_dir_all(&tantivy_dir).await {
+                        if e.kind() != std::io::ErrorKind::NotFound {
+                            tracing::warn!("repair_project: could not remove tantivy dir: {e}");
+                        }
+                    }
+                    steps.push("Wiped Tantivy directory.".into());
+
+                    // Evict cache to force recreation
+                    self.state.projects.remove(&pid);
+                    self.state.project_lru.remove(&pid);
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Tantivy rebuilt via re-index.\n{}", summary));
+                }
+                "vector_only" => {
+                    // Wipe LanceDB directory and re-index vectors
+                    let lance_dir = ps.info.lancedb_dir.clone();
+                    if let Err(e) = tokio::fs::remove_dir_all(&lance_dir).await {
+                        if e.kind() != std::io::ErrorKind::NotFound {
+                            tracing::warn!("repair_project: could not remove lance dir: {e}");
+                        }
+                    }
+                    steps.push("Wiped LanceDB directory.".into());
+
+                    // Evict cache to force recreation
+                    self.state.projects.remove(&pid);
+                    self.state.project_lru.remove(&pid);
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Vectors rebuilt via re-index.\n{}", summary));
+                }
+                _ => {
+                    // Full scope (default): GC + incremental re-index
+                    let graph = self.state.graph.clone();
+                    let pid_gc = pid.clone();
+                    tokio::task::spawn_blocking(move || {
+                        graph.purge_old_generations(&pid_gc, active_gen)
+                    })
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged stale graph generations.".into());
+
+                    ps.search
+                        .purge_old_generations(&pid, active_gen)
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push("Purged stale search generations.".into());
+
+                    let new_gen = active_gen.saturating_add(1);
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let summary = self
+                        .update_project_impl(
+                            &pid,
+                            new_gen,
+                            max_commits,
+                            index_antipatterns,
+                            &cancel,
+                        )
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    steps.push(format!("Incremental re-index completed.\n{}", summary));
+                }
+            }
+        }
+
+        let mut out = String::with_capacity(512);
+        out.push_str(&format!(
+            "\u{2705} Project repaired (scope: {}).\n",
+            if wipe_and_reindex {
+                "wipe_and_reindex"
+            } else {
+                scope.as_str()
+            },
+        ));
+        for (i, step) in steps.iter().enumerate() {
+            out.push_str(&format!("{}. {}\n", i + 1, step));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    pub async fn handle_delete_project(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        project_service::validate_project_id(&pid).map_err(McpError::from)?;
+
+        // Cancel active jobs for this project (best-effort).
+
+        if let Ok(Ok(list)) = tokio::task::spawn_blocking({
+            let reg = self.state.registry.clone();
+
+            let pid = pid.clone();
+
+            move || reg.list_jobs(Some(&pid))
+        })
+        .await
+        {
+            for j in list {
+                let _ = self.cancel_job_internal(&j.job_id).await;
+            }
+        }
+
+        // Remove cache entry (DashMap — no async lock needed)
+        self.state.projects.remove(&pid);
+        self.state.project_lru.remove(&pid);
+
+        // Remove registry record + all metadata (memory bank, rules, watches, jobs, etc.)
+        {
+            let reg = self.state.registry.clone();
+            let pid2 = pid.clone();
+            tokio::task::spawn_blocking(move || reg.delete_all_for_project(&pid2))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        // Purge graph nodes/edges
+        {
+            let graph = self.state.graph.clone();
+            let pid2 = pid.clone();
+            tokio::task::spawn_blocking(move || graph.delete_project_data(&pid2))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        // Delete on-disk project dir. Use tokio::fs to avoid blocking the async
+        // executor — large LanceDB/Tantivy directories can take hundreds of ms.
+        let proj_dir = self.state.cfg.data_dir.join("projects").join(&pid);
+        if let Err(e) = tokio::fs::remove_dir_all(&proj_dir).await {
+            // Not an error if the directory never existed.
+            if e.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!("delete_project: could not remove {proj_dir:?}: {e}");
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{2705} Deleted project_id: {pid}"
+        ))]))
+    }
+
+    pub async fn handle_watch_project(
+        &self,
+        req: WatchProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id.clone();
+        let rec = self.ensure_project_record(&pid).await?;
+
+        let watch = WatchRecord {
+            watch_id: "default".into(),
+            directory: rec.directory.clone(),
+            enabled: req.enabled,
+            updated_at_ms: now_ms(),
+        };
+
+        let reg = self.state.registry.clone();
+        let pid2 = pid.clone();
+        tokio::task::spawn_blocking(move || reg.put_watch(&pid2, &watch))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Notify watcher actor
+        if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
+            project_id: pid.clone(),
+            directory: rec.directory.clone(),
+            enabled: req.enabled,
+        }) {
+            tracing::warn!("Failed to send WatchUpdate event: {e}");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{2705} watch_project: {}\nenabled: {}",
+            pid, req.enabled
+        ))]))
+    }
+
+    pub async fn handle_unwatch_project(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        let watch = WatchRecord {
+            watch_id: "default".into(),
+            directory: "".into(),
+            enabled: false,
+            updated_at_ms: now_ms(),
+        };
+        let reg = self.state.registry.clone();
+        let pid_clone = pid.clone();
+        tokio::task::spawn_blocking(move || reg.put_watch(&pid_clone, &watch))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // Notify watcher actor
+        if let Err(e) = self.state.events_tx.send(AppEvent::WatchUpdate {
+            project_id: pid.clone(),
+            directory: "".into(),
+            enabled: false,
+        }) {
+            tracing::warn!("Failed to send WatchUpdate event: {e}");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{2705} unwatch_project: {pid}"
+        ))]))
     }
 }

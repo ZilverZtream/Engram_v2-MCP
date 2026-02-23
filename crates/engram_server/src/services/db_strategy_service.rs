@@ -231,9 +231,37 @@ pub fn generate_repository_interfaces(
         .filter(|e| extract_file_from_edge(e) == file_path)
         .collect();
 
-    // Collect table → operations
+    let table_ops = collect_table_operations(&file_qt, &file_sql);
+    let table_columns = collect_table_columns(&file_rc, &file_sql);
+
+    let page_name = file_path
+        .replace('\\', "/")
+        .rsplit('/')
+        .next()
+        .unwrap_or(file_path)
+        .replace(".aspx.cs", "")
+        .replace(".aspx.vb", "")
+        .replace(".aspx", "")
+        .replace(".cs", "")
+        .replace(".vb", "");
+
+    let mut b = CSharpCodeBuilder::new();
+    generate_file_header(&mut b);
+    generate_dto_classes(&mut b, &table_columns);
+    generate_repo_interface(&mut b, &page_name, &table_ops);
+    generate_repo_implementation(&mut b, &page_name, &table_ops, &table_columns);
+
+    Ok(b.build())
+}
+
+fn collect_table_operations(
+    file_qt: &[&Edge],
+    file_sql: &[&Edge],
+) -> BTreeMap<String, HashSet<String>> {
     let mut table_ops: BTreeMap<String, HashSet<String>> = BTreeMap::new();
-    for e in &file_qt {
+
+    // Default to select for queried tables
+    for e in file_qt {
         let table = e
             .target_id
             .strip_prefix("table:")
@@ -242,12 +270,47 @@ pub fn generate_repository_interfaces(
         table_ops.entry(table).or_default().insert("select".into());
     }
 
-    // Collect columns per table (deduplicated, preserving insertion order)
+    // Enrich from parsed SQL
+    for e in file_sql {
+        let sql_text = extract_sql_text(e);
+        let analysis = analyze_sql(&sql_text);
+
+        let op_key = match analysis.operation {
+            SqlOp::Select => "select",
+            SqlOp::Insert => "insert",
+            SqlOp::Update => "update",
+            SqlOp::Delete => "delete",
+            SqlOp::Exec => "exec",
+        };
+
+        if let Some(table) = analysis.primary_table.as_deref() {
+            let table_clean = strip_brackets(table).to_string();
+            table_ops
+                .entry(table_clean)
+                .or_default()
+                .insert(op_key.into());
+        }
+
+        for join in &analysis.joined_tables {
+            let table_clean = strip_brackets(&join.table).to_string();
+            table_ops
+                .entry(table_clean)
+                .or_default()
+                .insert("select".into());
+        }
+    }
+    table_ops
+}
+
+fn collect_table_columns(
+    file_rc: &[&Edge],
+    file_sql: &[&Edge],
+) -> BTreeMap<String, Vec<String>> {
     let mut table_columns: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut seen_columns: HashSet<(String, String)> = HashSet::new();
 
     // 1. From ReadsColumn edges (graph-based)
-    for e in &file_rc {
+    for e in file_rc {
         let col = e
             .target_id
             .strip_prefix("col:")
@@ -265,55 +328,30 @@ pub fn generate_repository_interfaces(
         }
     }
 
-    // 2. From SQL parsing (SqlAnalysis-based) - Enriches operations and columns
-    for e in &file_sql {
+    // 2. From SQL parsing (SqlAnalysis-based)
+    for e in file_sql {
         let sql_text = extract_sql_text(e);
         let analysis = analyze_sql(&sql_text);
 
-        let op_key = match analysis.operation {
-            SqlOp::Select => "select",
-            SqlOp::Insert => "insert",
-            SqlOp::Update => "update",
-            SqlOp::Delete => "delete",
-            SqlOp::Exec => "exec",
-        };
-
         if let Some(table) = analysis.primary_table.as_deref() {
             let table_clean = strip_brackets(table).to_string();
-            table_ops.entry(table_clean.clone()).or_default().insert(op_key.into());
-
-            // Extract columns from analysis (for SELECT, INSERT columns, UPDATE SET)
             for col_ref in &analysis.selected_columns {
                 if col_ref.column_name != "*" {
                     let col_clean = strip_brackets(&col_ref.column_name).to_string();
                     if seen_columns.insert((table_clean.clone(), col_clean.clone())) {
-                        table_columns.entry(table_clean.clone()).or_default().push(col_clean);
+                        table_columns
+                            .entry(table_clean.clone())
+                            .or_default()
+                            .push(col_clean);
                     }
                 }
             }
         }
-
-        // Also check joined tables
-        for join in &analysis.joined_tables {
-             let table_clean = strip_brackets(&join.table).to_string();
-             table_ops.entry(table_clean.clone()).or_default().insert("select".into());
-        }
     }
+    table_columns
+}
 
-    let page_name = file_path
-        .replace('\\', "/")
-        .rsplit('/')
-        .next()
-        .unwrap_or(file_path)
-        .replace(".aspx.cs", "")
-        .replace(".aspx.vb", "")
-        .replace(".aspx", "")
-        .replace(".cs", "")
-        .replace(".vb", "");
-
-    let mut b = CSharpCodeBuilder::new();
-
-    // --- File header ---
+fn generate_file_header(b: &mut CSharpCodeBuilder) {
     b.line("using System;");
     b.line("using System.Collections.Generic;");
     b.line("using System.Data;");
@@ -321,9 +359,13 @@ pub fn generate_repository_interfaces(
     b.line("using System.Threading.Tasks;");
     b.line("using Dapper;");
     b.blank();
+}
 
-    // --- DTOs ---
-    for (table, columns) in &table_columns {
+fn generate_dto_classes(
+    b: &mut CSharpCodeBuilder,
+    table_columns: &BTreeMap<String, Vec<String>>,
+) {
+    for (table, columns) in table_columns {
         let class_name = to_pascal_case(table);
         b.open_block(&format!("public class {class_name}"));
         for col in columns {
@@ -334,10 +376,15 @@ pub fn generate_repository_interfaces(
         b.close_block();
         b.blank();
     }
+}
 
-    // --- Interface ---
+fn generate_repo_interface(
+    b: &mut CSharpCodeBuilder,
+    page_name: &str,
+    table_ops: &BTreeMap<String, HashSet<String>>,
+) {
     b.open_block(&format!("public interface I{page_name}Repository"));
-    for (table, ops) in &table_ops {
+    for (table, ops) in table_ops {
         let entity = to_pascal_case(table);
         if ops.contains("select") {
             b.line(&format!(
@@ -357,8 +404,14 @@ pub fn generate_repository_interfaces(
     }
     b.close_block();
     b.blank();
+}
 
-    // --- Repository Implementation (DI-based constructor) ---
+fn generate_repo_implementation(
+    b: &mut CSharpCodeBuilder,
+    page_name: &str,
+    table_ops: &BTreeMap<String, HashSet<String>>,
+    table_columns: &BTreeMap<String, Vec<String>>,
+) {
     b.open_block(&format!(
         "public class {page_name}Repository : I{page_name}Repository"
     ));
@@ -370,7 +423,7 @@ pub fn generate_repository_interfaces(
     b.line("_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));");
     b.close_block();
 
-    for (table, ops) in &table_ops {
+    for (table, ops) in table_ops {
         let entity = to_pascal_case(table);
         let columns_for_table = table_columns.get(table);
 
@@ -402,7 +455,6 @@ pub fn generate_repository_interfaces(
                 "public async Task<int> Create{entity}Async({entity} entity)"
             ));
             b.line("using var conn = new SqlConnection(_connectionString);");
-            // Generate real INSERT with column names from graph
             if let Some(cols) = columns_for_table {
                 let insert_cols: Vec<&str> = cols
                     .iter()
@@ -477,9 +529,7 @@ pub fn generate_repository_interfaces(
             b.close_block();
         }
     }
-
     b.close_block(); // class
-    Ok(b.build())
 }
 
 /// Score SQL injection risks for all files in a project.
