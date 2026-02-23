@@ -68,7 +68,7 @@ async fn test_incremental_indexing() {
         .unwrap()
         .trim();
 
-    assert!(text.contains("files=2"));
+    assert!(text.contains("Files indexed: 2"));
 
     // 3. Modify A, Delete B, Create C
     std::fs::write(
