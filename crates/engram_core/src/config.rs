@@ -519,6 +519,33 @@ impl Config {
             ));
         }
 
+        match self.adp_rollout_phase.as_str() {
+            "shadow" | "advisory" | "guarded" | "autonomous" => {}
+            other => {
+                return Err(EngramError::Config(format!(
+                    "adp_rollout_phase must be one of: shadow, advisory, guarded, autonomous (got {other})"
+                )));
+            }
+        }
+
+        match self.adp_default_evidence_depth.as_str() {
+            "fast" | "standard" | "deep" => {}
+            other => {
+                return Err(EngramError::Config(format!(
+                    "adp_default_evidence_depth must be one of: fast, standard, deep (got {other})"
+                )));
+            }
+        }
+
+        match self.scaffold_default_target_stack.as_str() {
+            "blazor" | "react" | "angular" => {}
+            other => {
+                return Err(EngramError::Config(format!(
+                    "scaffold_default_target_stack must be one of: blazor, react, angular (got {other})"
+                )));
+            }
+        }
+
         Ok(())
     }
 

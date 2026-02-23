@@ -16,6 +16,21 @@ use rmcp::{
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+fn is_safe_zip_member_path(name: &str) -> bool {
+    let p = std::path::Path::new(name);
+    if name.is_empty() || name.contains('\0') || p.is_absolute() {
+        return false;
+    }
+    !p.components().any(|c| {
+        matches!(
+            c,
+            std::path::Component::ParentDir
+                | std::path::Component::RootDir
+                | std::path::Component::Prefix(_)
+        )
+    })
+}
+
 /// Git-related helper methods on Engram.
 impl Engram {
     #[allow(clippy::too_many_arguments)]
@@ -546,7 +561,13 @@ impl Engram {
                 let mut prev_fingerprints: std::collections::HashMap<String, String> =
                     std::collections::HashMap::new();
 
+                const MAX_ARCHIVE_FILES: usize = 250_000;
+                const MAX_ENTRY_UNCOMPRESSED_BYTES: u64 = 32 * 1024 * 1024; // 32 MiB
+                const MAX_ARCHIVE_UNCOMPRESSED_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
+                const MAX_CHANGED_FILES_PER_SNAPSHOT: usize = 50_000;
+
                 let mut skipped_zips = 0usize;
+                let mut skipped_entries = 0usize;
                 for (i, entry) in zip_files.iter().enumerate() {
                     let path = entry.path();
                     let file = match std::fs::File::open(&path) {
@@ -568,15 +589,85 @@ impl Engram {
 
                     let mut current_fingerprints = std::collections::HashMap::new();
                     let mut changed_files = Vec::new();
+                    let mut archive_uncompressed_bytes: u64 = 0;
+
+                    if archive.len() > MAX_ARCHIVE_FILES {
+                        tracing::warn!(
+                            path = %path.display(),
+                            entries = archive.len(),
+                            max_entries = MAX_ARCHIVE_FILES,
+                            "Skipping oversized zip archive"
+                        );
+                        skipped_zips += 1;
+                        continue;
+                    }
 
                     for j in 0..archive.len() {
                         let mut f = archive.by_index(j)?;
                         if f.is_file() {
                             let name = f.name().to_string();
-                            // Compute a quick hash of the file in zip
+                            if !is_safe_zip_member_path(&name) {
+                                skipped_entries += 1;
+                                continue;
+                            }
+
+                            let entry_uncompressed = f.size();
+                            if entry_uncompressed > MAX_ENTRY_UNCOMPRESSED_BYTES {
+                                skipped_entries += 1;
+                                tracing::warn!(
+                                    path = %path.display(),
+                                    entry = %name,
+                                    entry_uncompressed,
+                                    max = MAX_ENTRY_UNCOMPRESSED_BYTES,
+                                    "Skipping oversized zip member"
+                                );
+                                continue;
+                            }
+
+                            archive_uncompressed_bytes = archive_uncompressed_bytes
+                                .saturating_add(entry_uncompressed);
+                            if archive_uncompressed_bytes > MAX_ARCHIVE_UNCOMPRESSED_BYTES {
+                                skipped_entries += 1;
+                                tracing::warn!(
+                                    path = %path.display(),
+                                    accumulated = archive_uncompressed_bytes,
+                                    max = MAX_ARCHIVE_UNCOMPRESSED_BYTES,
+                                    "Skipping remaining zip members: archive uncompressed budget exceeded"
+                                );
+                                break;
+                            }
+
+                            // Compute a hash with a hard read cap to prevent
+                            // decompression-bomb style stream expansion even if
+                            // metadata reports an unexpectedly small size.
                             let mut hasher = blake3::Hasher::new();
-                            std::io::copy(&mut f, &mut hasher)?;
+                            let mut limited = std::io::Read::take(
+                                &mut f,
+                                MAX_ENTRY_UNCOMPRESSED_BYTES.saturating_add(1),
+                            );
+                            let copied = std::io::copy(&mut limited, &mut hasher)?;
+                            if copied > MAX_ENTRY_UNCOMPRESSED_BYTES {
+                                skipped_entries += 1;
+                                tracing::warn!(
+                                    path = %path.display(),
+                                    entry = %name,
+                                    copied,
+                                    max = MAX_ENTRY_UNCOMPRESSED_BYTES,
+                                    "Skipping zip member that exceeded hard streaming cap"
+                                );
+                                continue;
+                            }
                             let hash = hasher.finalize().to_hex().to_string();
+
+                            if current_fingerprints.contains_key(&name) {
+                                skipped_entries += 1;
+                                tracing::warn!(
+                                    path = %path.display(),
+                                    entry = %name,
+                                    "Skipping duplicate zip member path in same archive"
+                                );
+                                continue;
+                            }
 
                             current_fingerprints.insert(name.clone(), hash.clone());
 
@@ -588,6 +679,15 @@ impl Engram {
                                 } else {
                                     // New file
                                     changed_files.push(engram_core::RelPath::new(&name));
+                                }
+
+                                if changed_files.len() >= MAX_CHANGED_FILES_PER_SNAPSHOT {
+                                    tracing::warn!(
+                                        path = %path.display(),
+                                        max = MAX_CHANGED_FILES_PER_SNAPSHOT,
+                                        "Reached changed-file cap for snapshot; truncating remaining diff tracking"
+                                    );
+                                    break;
                                 }
                             }
                         }
@@ -626,6 +726,12 @@ impl Engram {
                 );
                 if skipped_zips > 0 {
                     summary.push_str(&format!("\n\u{26a0}\u{fe0f} {} zip files were skipped (corrupt or unreadable).", skipped_zips));
+                }
+                if skipped_entries > 0 {
+                    summary.push_str(&format!(
+                        "\n\u{26a0}\u{fe0f} {} zip entries were skipped (unsafe path or size limit).",
+                        skipped_entries
+                    ));
                 }
                 Ok(summary)
             })
@@ -1002,5 +1108,24 @@ impl Engram {
         );
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_zip_member_path;
+
+    #[test]
+    fn zip_member_path_rejects_traversal_and_absolute() {
+        assert!(!is_safe_zip_member_path("../etc/passwd"));
+        assert!(!is_safe_zip_member_path("nested/../../escape.txt"));
+        assert!(!is_safe_zip_member_path("/abs/path.txt"));
+        assert!(!is_safe_zip_member_path("C:/windows/system32"));
+    }
+
+    #[test]
+    fn zip_member_path_accepts_normal_project_relative_paths() {
+        assert!(is_safe_zip_member_path("src/main.rs"));
+        assert!(is_safe_zip_member_path("App_Code/Service.vb"));
     }
 }
