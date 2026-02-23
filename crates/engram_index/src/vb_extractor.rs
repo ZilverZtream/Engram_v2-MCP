@@ -94,6 +94,11 @@ static MY_APPLICATION_RE: OnceLock<Regex> = OnceLock::new();
 static MY_USER_RE: OnceLock<Regex> = OnceLock::new();
 static MY_RESOURCES_RE: OnceLock<Regex> = OnceLock::new();
 static REDIM_RE: OnceLock<Regex> = OnceLock::new();
+static OBJECT_DECL_RE: OnceLock<Regex> = OnceLock::new();
+static FACTORY_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static RETURN_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static SET_ALIAS_RE: OnceLock<Regex> = OnceLock::new();
+static LATE_CALL_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -1210,15 +1215,170 @@ fn modern_equivalent_for_prog_id(prog_id: &str) -> &'static str {
     }
 }
 
+/// Candidate target for a late-bound Object method call.
+#[derive(Debug, Clone)]
+struct LateBindingCandidate {
+    target_name: String,
+    confidence: f32,
+    evidence: Vec<String>,
+}
+
+const LATE_BINDING_CONFIDENCE_THRESHOLD: f32 = 0.35;
+
+fn add_prog_id_candidate(
+    map: &mut HashMap<String, HashSet<String>>,
+    var_name: &str,
+    prog_id: &str,
+) {
+    if var_name.is_empty() || prog_id.is_empty() {
+        return;
+    }
+    map.entry(var_name.to_lowercase())
+        .or_default()
+        .insert(prog_id.to_string());
+}
+
+fn count_vb_call_args(args: Option<&str>) -> usize {
+    let Some(raw) = args else { return 0 };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return 0;
+    }
+    let mut count = 1;
+    let mut depth = 0usize;
+    for ch in trimmed.chars() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => count += 1,
+            _ => {}
+        }
+    }
+    count
+}
+
+fn score_late_binding_candidate(prog_id: &str, method: &str, arity: usize) -> LateBindingCandidate {
+    let prog_lower = prog_id.to_lowercase();
+    let method_lower = method.to_lowercase();
+    let mut confidence = 0.25f32;
+    let mut evidence = vec![format!("prog_id={prog_id}"), format!("method={method}")];
+
+    if prog_lower.contains("excel") {
+        confidence += 0.20;
+        evidence.push("namespace_hint=excel".to_string());
+        if ["open", "save", "quit", "cells", "workbooks", "worksheets"]
+            .contains(&method_lower.as_str())
+        {
+            confidence += 0.20;
+            evidence.push("method_name_match=excel_automation".to_string());
+        }
+    } else if prog_lower.contains("word") {
+        confidence += 0.20;
+        evidence.push("namespace_hint=word".to_string());
+        if ["open", "save", "quit", "documents", "content"].contains(&method_lower.as_str()) {
+            confidence += 0.20;
+            evidence.push("method_name_match=word_automation".to_string());
+        }
+    } else if prog_lower.contains("adodb") {
+        confidence += 0.15;
+        evidence.push("namespace_hint=adodb".to_string());
+        if ["open", "execute", "close", "recordset"].contains(&method_lower.as_str()) {
+            confidence += 0.20;
+            evidence.push("method_name_match=adodb".to_string());
+        }
+    } else if prog_lower.contains("filesystemobject") {
+        confidence += 0.15;
+        evidence.push("namespace_hint=filesystem".to_string());
+        if [
+            "copyfile",
+            "movefile",
+            "deletefile",
+            "fileexists",
+            "createfolder",
+        ]
+        .contains(&method_lower.as_str())
+        {
+            confidence += 0.20;
+            evidence.push("method_name_match=fso".to_string());
+        }
+    } else {
+        confidence += 0.10;
+        evidence.push("namespace_hint=generic_com".to_string());
+    }
+
+    if arity > 0 {
+        confidence += 0.05;
+        evidence.push(format!("arity={arity}"));
+    } else {
+        evidence.push("arity=0".to_string());
+    }
+
+    confidence = confidence.clamp(0.0, 1.0);
+
+    LateBindingCandidate {
+        target_name: format!("com_interop:{}:{}", prog_id, method),
+        confidence,
+        evidence,
+    }
+}
+
+fn extract_late_bound_candidates(
+    source: &str,
+    var_candidates: &HashMap<String, HashSet<String>>,
+) -> Vec<(String, String, usize, usize, Vec<LateBindingCandidate>)> {
+    let mut out = Vec::new();
+    let Some(re_call) = get_compiled_regex(
+        &LATE_CALL_RE,
+        r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?",
+        "late_bound_call",
+    ) else {
+        return out;
+    };
+
+    for cap in re_call.captures_iter(source) {
+        let var_name = cap.get(1).map_or("", |m| m.as_str());
+        let method = cap.get(2).map_or("", |m| m.as_str());
+        let Some(full_match) = cap.get(0) else {
+            continue;
+        };
+        let var_lower = var_name.to_lowercase();
+        let Some(prog_ids) = var_candidates.get(&var_lower) else {
+            continue;
+        };
+        let arity = count_vb_call_args(cap.get(3).map(|m| m.as_str()));
+
+        let mut scored: Vec<LateBindingCandidate> = prog_ids
+            .iter()
+            .map(|pid| score_late_binding_candidate(pid, method, arity))
+            .filter(|candidate| candidate.confidence >= LATE_BINDING_CONFIDENCE_THRESHOLD)
+            .collect();
+
+        if scored.is_empty() {
+            continue;
+        }
+
+        scored.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
+        out.push((
+            var_name.to_string(),
+            method.to_string(),
+            arity,
+            full_match.start(),
+            scored,
+        ));
+    }
+
+    out
+}
+
 /// Detect `CreateObject()`, `GetObject()`, and `CallByName()` as COM interop / late binding.
 /// Tracks CreateObject return value assignments (e.g. `Set obj = CreateObject("...")`)
-/// and propagates the ProgId through subsequent `obj.Method(...)` calls.
-/// Emits `anti_pattern` edges + `insight` nodes.
+/// and propagates candidate ProgIds through subsequent `obj.Method(...)` calls.
+/// Emits `anti_pattern` edges + probabilistic dependency edges.
 fn extract_late_binding(
     source: &str,
     all_scopes: &[ScopeEntry],
 ) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-    let mut symbols = Vec::new();
+    let symbols = Vec::new();
     let mut edges = Vec::new();
     let line_idx = LineIndex::new(source);
 
@@ -1241,69 +1401,80 @@ fn extract_late_binding(
 
     let mut prog_ids_seen: HashSet<String> = HashSet::new();
 
-    // ── Pass 1: Build variable→ProgId mapping from CreateObject/GetObject assignments ──
-    // Tracks `Dim x = CreateObject("ProgId")`, `Set x = CreateObject("ProgId")`,
-    // `x = CreateObject("ProgId")` patterns.
-    let mut var_to_prog_id: HashMap<String, String> = HashMap::new();
+    // ── Pass 1: Build variable→candidate ProgIds from assignment provenance ──
+    let mut var_to_prog_ids: HashMap<String, HashSet<String>> = HashMap::new();
 
-    // Regex for assignment: `(Set )? <var> = CreateObject("progid")`
-    // Also handles `Dim <var> As Object = CreateObject("progid")` in one line
-    static CREATE_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
-    let re_assign = get_compiled_regex(
-        &CREATE_ASSIGN_RE,
+    let re_create_assign = get_compiled_regex(
+        &FACTORY_ASSIGN_RE,
         r#"(?i)(?:Set\s+|Dim\s+)?(\w+)\s*(?:As\s+\w+\s*)?=\s*CreateObject\s*\(\s*"([^"]+)"\s*\)"#,
         "create_assign",
     );
-    if let Some(re) = re_assign {
+    if let Some(re) = re_create_assign {
         for cap in re.captures_iter(source) {
-            let var_name = cap.get(1).map_or("", |m| m.as_str());
-            let prog_id = cap.get(2).map_or("", |m| m.as_str());
-            if !var_name.is_empty() && !prog_id.is_empty() {
-                var_to_prog_id.insert(var_name.to_lowercase(), prog_id.to_string());
-            }
+            add_prog_id_candidate(
+                &mut var_to_prog_ids,
+                cap.get(1).map_or("", |m| m.as_str()),
+                cap.get(2).map_or("", |m| m.as_str()),
+            );
         }
     }
-    // Also track GetObject assignments
-    static GET_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+
     let re_get_assign = get_compiled_regex(
-        &GET_ASSIGN_RE,
+        &RETURN_ASSIGN_RE,
         r#"(?i)(?:Set\s+|Dim\s+)?(\w+)\s*(?:As\s+\w+\s*)?=\s*GetObject\s*\(\s*"([^"]*)"(?:\s*,\s*"([^"]+)")?\s*\)"#,
         "get_assign",
     );
     if let Some(re) = re_get_assign {
         for cap in re.captures_iter(source) {
-            let var_name = cap.get(1).map_or("", |m| m.as_str());
             let prog_id = cap.get(3).or(cap.get(2)).map_or("", |m| m.as_str());
-            if !var_name.is_empty() && !prog_id.is_empty() {
-                var_to_prog_id.insert(var_name.to_lowercase(), prog_id.to_string());
-            }
+            add_prog_id_candidate(
+                &mut var_to_prog_ids,
+                cap.get(1).map_or("", |m| m.as_str()),
+                prog_id,
+            );
         }
     }
 
-    // Track secondary assignments: `Set y = x` where x has a known ProgId
-    // (propagate through one level of aliasing)
-    static SET_ALIAS_RE: OnceLock<Regex> = OnceLock::new();
-    let re_alias = get_compiled_regex(
+    // Heuristic: factory method naming implies COM-like return value.
+    if let Some(re) = get_compiled_regex(
+        &OBJECT_DECL_RE,
+        r#"(?im)^\s*(?:Set\s+|Dim\s+)?(\w+)\s*(?:As\s+Object\s*)?=\s*(\w*(?:Factory|Provider|Client))\.(\w+)\s*\("#,
+        "factory_method_assign",
+    ) {
+        for cap in re.captures_iter(source) {
+            let var = cap.get(1).map_or("", |m| m.as_str());
+            let owner = cap.get(2).map_or("", |m| m.as_str());
+            let method = cap.get(3).map_or("", |m| m.as_str());
+            if var.is_empty() || owner.is_empty() {
+                continue;
+            }
+            let synthetic_prog_id = format!("{}.{method}", owner);
+            add_prog_id_candidate(&mut var_to_prog_ids, var, &synthetic_prog_id);
+        }
+    }
+
+    if let Some(re_alias) = get_compiled_regex(
         &SET_ALIAS_RE,
-        r"(?i)(?:Set\s+)(\w+)\s*=\s*(\w+)\s*$",
+        r"(?im)^\s*(?:Set\s+)?(\w+)\s*=\s*(\w+)\s*$",
         "set_alias",
-    );
-    if let Some(re) = re_alias {
-        // Collect in a separate pass to avoid borrow issues
-        let aliases: Vec<(String, String)> = re
+    ) {
+        let aliases: Vec<(String, String)> = re_alias
             .captures_iter(source)
-            .filter_map(|cap| {
+            .flat_map(|cap| {
                 let target = cap.get(1).map_or("", |m| m.as_str()).to_lowercase();
                 let src = cap.get(2).map_or("", |m| m.as_str()).to_lowercase();
-                if let Some(pid) = var_to_prog_id.get(&src) {
-                    Some((target, pid.clone()))
-                } else {
-                    None
-                }
+                var_to_prog_ids
+                    .get(&src)
+                    .into_iter()
+                    .flat_map(move |prog_ids| {
+                        prog_ids
+                            .iter()
+                            .map(move |pid| (target.clone(), pid.clone()))
+                    })
             })
             .collect();
         for (target, pid) in aliases {
-            var_to_prog_id.insert(target, pid);
+            var_to_prog_ids.entry(target).or_default().insert(pid);
         }
     }
 
@@ -1317,14 +1488,15 @@ fn extract_late_binding(
 
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
-            let modern_eq = modern_equivalent_for_prog_id(prog_id);
-
             let mut meta = HashMap::new();
-            meta.insert("prog_id".to_string(), prog_id.to_string());
-            meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
             meta.insert(
                 "pattern".to_string(),
                 "com_interop_createobject".to_string(),
+            );
+            meta.insert("prog_id".to_string(), prog_id.to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                modern_equivalent_for_prog_id(prog_id).to_string(),
             );
 
             edges.push(ExtractedEdge {
@@ -1339,19 +1511,7 @@ fn extract_late_binding(
                 metadata: Some(meta),
             });
 
-            if prog_ids_seen.insert(prog_id.to_lowercase()) {
-                let mut sym_meta = HashMap::new();
-                sym_meta.insert("prog_id".to_string(), prog_id.to_string());
-                sym_meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
-
-                symbols.push(ExtractedSymbol {
-                    name: format!("com_interop_usage:{}", prog_id),
-                    kind: "insight",
-                    start_line: line_num,
-                    end_line: line_num,
-                    metadata: Some(sym_meta),
-                });
-            }
+            prog_ids_seen.insert(prog_id.to_lowercase());
         }
     }
 
@@ -1359,19 +1519,19 @@ fn extract_late_binding(
     if let Some(re) = re_get {
         for cap in re.captures_iter(source) {
             let full_match = cap.get(0).expect("full match always exists");
-            let path_or_empty = cap.get(1).map_or("", |m| m.as_str());
-            let prog_id = cap.get(2).map_or(path_or_empty, |m| m.as_str());
+            let prog_id = cap.get(2).or(cap.get(1)).map_or("", |m| m.as_str());
             let byte_offset = full_match.start();
             let line_num = line_idx.line_of(byte_offset);
 
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
-            let modern_eq = modern_equivalent_for_prog_id(prog_id);
-
             let mut meta = HashMap::new();
-            meta.insert("prog_id".to_string(), prog_id.to_string());
             meta.insert("pattern".to_string(), "com_interop_getobject".to_string());
-            meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
+            meta.insert("prog_id".to_string(), prog_id.to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                modern_equivalent_for_prog_id(prog_id).to_string(),
+            );
 
             edges.push(ExtractedEdge {
                 source_name: src_name.to_string(),
@@ -1384,22 +1544,22 @@ fn extract_late_binding(
                 kind: "anti_pattern",
                 metadata: Some(meta),
             });
+
+            prog_ids_seen.insert(prog_id.to_lowercase());
         }
     }
 
-    // Scan for CallByName
     if let Some(re) = re_callbyname {
-        for mat in re.find_iter(source) {
-            let byte_offset = mat.start();
+        for m in re.find_iter(source) {
+            let byte_offset = m.start();
             let line_num = line_idx.line_of(byte_offset);
-
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
             let mut meta = HashMap::new();
             meta.insert("pattern".to_string(), "late_binding_callbyname".to_string());
             meta.insert(
                 "modern_equivalent".to_string(),
-                "Use strongly-typed interface or dynamic keyword".to_string(),
+                "Direct interface dispatch or reflection with explicit contract".to_string(),
             );
 
             edges.push(ExtractedEdge {
@@ -1416,7 +1576,6 @@ fn extract_late_binding(
         }
     }
 
-    // Scan for Dim x As Object (late-bound variable declarations)
     if let Some(re) = re_late_bound {
         for cap in re.captures_iter(source) {
             let full_match = cap.get(0).expect("full match always exists");
@@ -1430,12 +1589,10 @@ fn extract_late_binding(
             meta.insert("variable".to_string(), var_name.to_string());
             meta.insert("pattern".to_string(), "late_bound_variable".to_string());
 
-            // If we resolved this variable's ProgId, include it
-            if let Some(prog_id) = var_to_prog_id.get(&var_name.to_lowercase()) {
-                meta.insert("resolved_prog_id".to_string(), prog_id.clone());
+            if let Some(prog_ids) = var_to_prog_ids.get(&var_name.to_lowercase()) {
                 meta.insert(
-                    "modern_equivalent".to_string(),
-                    modern_equivalent_for_prog_id(prog_id).to_string(),
+                    "resolved_prog_id".to_string(),
+                    prog_ids.iter().cloned().collect::<Vec<_>>().join("|"),
                 );
             } else {
                 meta.insert(
@@ -1458,55 +1615,68 @@ fn extract_late_binding(
         }
     }
 
-    // ── Pass 2: Detect method calls on tracked variables (`obj.Method(...)`) ──
-    // For each variable with a known ProgId, find `<var>.<method>` calls and
-    // emit late-bound call edges that reference the resolved ProgId.
-    if !var_to_prog_id.is_empty() {
-        static LATE_CALL_RE: OnceLock<Regex> = OnceLock::new();
-        let re_call = get_compiled_regex(
-            &LATE_CALL_RE,
-            r"(?i)\b(\w+)\.(\w+)\s*(?:\(|$)",
-            "late_bound_call",
-        );
-        if let Some(re) = re_call {
-            for cap in re.captures_iter(source) {
-                let var_name = cap.get(1).map_or("", |m| m.as_str());
-                let method = cap.get(2).map_or("", |m| m.as_str());
-                let var_lower = var_name.to_lowercase();
+    // Keep anti-pattern edges + add probabilistic dependency edges for blast radius analysis.
+    for (var_name, method, arity, byte_offset, candidates) in
+        extract_late_bound_candidates(source, &var_to_prog_ids)
+    {
+        let line_num = line_idx.line_of(byte_offset);
+        let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
-                if let Some(prog_id) = var_to_prog_id.get(&var_lower) {
-                    let full_match = cap.get(0).expect("full match always exists");
-                    let byte_offset = full_match.start();
-                    let line_num = line_idx.line_of(byte_offset);
+        if let Some(best) = candidates.first() {
+            let mut anti_meta = HashMap::new();
+            anti_meta.insert("pattern".to_string(), "late_bound_method_call".to_string());
+            anti_meta.insert("variable".to_string(), var_name.clone());
+            anti_meta.insert("method".to_string(), method.clone());
+            anti_meta.insert("resolved_prog_id".to_string(), best.target_name.clone());
+            let best_prog_id = best
+                .target_name
+                .strip_prefix("com_interop:")
+                .and_then(|rest| rest.split(':').next())
+                .unwrap_or("unknown");
+            anti_meta.insert(
+                "modern_equivalent".to_string(),
+                modern_equivalent_for_prog_id(best_prog_id).to_string(),
+            );
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: best.target_name.clone(),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(anti_meta),
+            });
+        }
 
-                    let (src_name, src_kind, src_line) =
-                        find_best_enclosing_scope(all_scopes, byte_offset);
+        for candidate in candidates {
+            let mut meta = HashMap::new();
+            meta.insert("resolution".to_string(), "probabilistic".to_string());
+            meta.insert(
+                "confidence".to_string(),
+                format!("{:.2}", candidate.confidence),
+            );
+            meta.insert("evidence".to_string(), candidate.evidence.join(";"));
+            meta.insert("variable".to_string(), var_name.clone());
+            meta.insert("method".to_string(), method.clone());
+            meta.insert("arity".to_string(), arity.to_string());
 
-                    let modern_eq = modern_equivalent_for_prog_id(prog_id);
-
-                    let mut meta = HashMap::new();
-                    meta.insert("pattern".to_string(), "late_bound_method_call".to_string());
-                    meta.insert("variable".to_string(), var_name.to_string());
-                    meta.insert("method".to_string(), method.to_string());
-                    meta.insert("resolved_prog_id".to_string(), prog_id.clone());
-                    meta.insert("modern_equivalent".to_string(), modern_eq.to_string());
-
-                    edges.push(ExtractedEdge {
-                        source_name: src_name.to_string(),
-                        source_kind: src_kind,
-                        source_start_line: src_line,
-                        source_language: "vb",
-                        target_name: format!("com_interop:{}:{}", prog_id, method),
-                        target_kind: Some("insight"),
-                        target_start_line: Some(line_num),
-                        kind: "anti_pattern",
-                        metadata: Some(meta),
-                    });
-                }
-            }
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: candidate.target_name,
+                target_kind: Some("function"),
+                target_start_line: Some(line_num),
+                kind: "dependency",
+                metadata: Some(meta),
+            });
         }
     }
 
+    let _ = prog_ids_seen;
     (symbols, edges)
 }
 
@@ -4142,6 +4312,86 @@ End Namespace
             order.source_name.contains("LoadOrder"),
             "OrderId should be attributed to LoadOrder, got: {}",
             order.source_name
+        );
+    }
+
+    #[test]
+    fn test_late_binding_dependency_single_candidate() {
+        let code = r#"
+Namespace Legacy
+    Public Class Worker
+        Public Sub Run()
+            Dim app As Object = CreateObject("Excel.Application")
+            app.Quit()
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Worker.vb"), code);
+        let deps: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "dependency" && e.target_name.contains("Excel.Application:Quit"))
+            .collect();
+        assert_eq!(deps.len(), 1, "expected one probabilistic dependency edge");
+        let meta = deps[0].metadata.as_ref().expect("dependency metadata");
+        assert_eq!(
+            meta.get("resolution").map(String::as_str),
+            Some("probabilistic")
+        );
+        let confidence = meta
+            .get("confidence")
+            .and_then(|v| v.parse::<f32>().ok())
+            .unwrap_or(0.0);
+        assert!(
+            confidence >= LATE_BINDING_CONFIDENCE_THRESHOLD,
+            "confidence should respect threshold"
+        );
+        let evidence = meta.get("evidence").cloned().unwrap_or_default();
+        assert!(evidence.contains("prog_id=Excel.Application"));
+        assert!(evidence.contains("method=Quit"));
+        assert!(evidence.contains("arity=0"));
+    }
+
+    #[test]
+    fn test_late_binding_dependency_multiple_candidates() {
+        let code = r#"
+Namespace Legacy
+    Public Class Worker
+        Public Sub Run()
+            Dim obj As Object
+            obj = CreateObject("Excel.Application")
+            obj = CreateObject("Word.Application")
+            obj.Save("file")
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("WorkerMulti.vb"), code);
+        let deps: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "dependency" && e.target_name.contains(":Save"))
+            .collect();
+        assert_eq!(deps.len(), 2, "expected two candidate dependency edges");
+
+        let targets: std::collections::HashSet<_> =
+            deps.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(targets.contains("com_interop:Excel.Application:Save"));
+        assert!(targets.contains("com_interop:Word.Application:Save"));
+
+        for edge in deps {
+            let meta = edge.metadata.as_ref().expect("dependency metadata");
+            assert_eq!(
+                meta.get("resolution").map(String::as_str),
+                Some("probabilistic")
+            );
+            assert!(meta.get("evidence").is_some(), "evidence should be present");
+        }
+
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.kind == "anti_pattern" && e.target_name.contains(":Save")),
+            "anti_pattern edge must still be emitted"
         );
     }
 
