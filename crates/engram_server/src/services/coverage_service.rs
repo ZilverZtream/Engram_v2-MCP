@@ -94,6 +94,11 @@ pub struct MigrationCoverageReport {
 static WORD_RE_CACHE: LazyLock<std::sync::Mutex<std::collections::HashMap<String, Regex>>> =
     LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 
+/// Maximum number of compiled regexes kept in `WORD_RE_CACHE`.  When the limit
+/// is reached the entire cache is cleared (cheap O(n) eviction) so memory is
+/// bounded even on projects with thousands of unique identifiers.
+const WORD_RE_CACHE_MAX: usize = 512;
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /// Check migration coverage for a single file.
@@ -272,7 +277,7 @@ pub fn check_migration_coverage(
         + api_calls.covered
         + controls.covered;
 
-    let missing_count = total_items - covered_count;
+    let missing_count = total_items.saturating_sub(covered_count);
 
     let coverage_score = if total_items == 0 {
         1.0 // nothing to migrate → trivially complete
@@ -720,19 +725,29 @@ fn word_match(needle: &str, haystack: &str) -> bool {
     // identifier-like names (no slashes, dots, etc.)
     if needle.chars().all(|c| c.is_alphanumeric() || c == '_') {
         let pattern = format!(r"(?i)\b{}\b", regex::escape(needle));
-        let regex = {
+        // Fix #2: clone the Regex out of the cache and release the lock *before*
+        // calling is_match — avoids holding the mutex while doing regex work.
+        // Fix #3: evict the whole cache once it exceeds WORD_RE_CACHE_MAX so the
+        // HashMap cannot grow without bound on large projects.
+        let maybe_re: Option<Regex> = {
             let mut cache = WORD_RE_CACHE.lock().unwrap_or_else(|e| e.into_inner());
             if !cache.contains_key(needle) {
-                if let Ok(re) = Regex::new(&pattern) {
-                    cache.insert(needle.to_string(), re);
-                } else {
-                    // Fallback: substring was already confirmed above
-                    return true;
+                match Regex::new(&pattern) {
+                    Ok(re) => {
+                        if cache.len() >= WORD_RE_CACHE_MAX {
+                            cache.clear();
+                        }
+                        cache.insert(needle.to_string(), re);
+                    }
+                    Err(_) => {
+                        // Pattern invalid; substring match already confirmed above
+                        return true;
+                    }
                 }
             }
-            cache.get(needle).map(|re| re.is_match(haystack))
+            cache.get(needle).cloned()
         };
-        return regex.unwrap_or(true);
+        return maybe_re.map_or(true, |re| re.is_match(haystack));
     }
     // Non-identifier path (e.g. URL segment): substring match already confirmed
     true
@@ -1072,7 +1087,7 @@ mod tests {
         } else {
             covered as f64 / total as f64
         };
-        let missing = total - covered;
+        let missing = total.saturating_sub(covered);
         let assessment = match score {
             s if s >= 1.0 => {
                 "Complete: all graph-known elements are represented in modern code".to_string()
