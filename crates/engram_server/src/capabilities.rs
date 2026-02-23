@@ -378,4 +378,54 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "get_jquery_inventory",
         status: CapabilityStatus::Implemented,
     },
+    CapabilityFlag {
+        key: "get_session_workflows",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_vb_translation_traps",
+        status: CapabilityStatus::Implemented,
+    },
+    // ── Phase 38: The Access Layer ──────────────────────────────────────────
+    CapabilityFlag {
+        key: "get_method_info",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_full_method_body",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_method_edit_context",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_page_context",
+        status: CapabilityStatus::Implemented,
+    },
+    // ── Phase 38-5 through 38-10 ────────────────────────────────────────────
+    CapabilityFlag {
+        key: "prepare_implementation_context",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "validate_generated_code",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "validate_sql_fragment",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "find_tests_for_method",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "find_dead_methods",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "check_edit_safety",
+        status: CapabilityStatus::Implemented,
+    },
 ];

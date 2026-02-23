@@ -3240,6 +3240,15 @@ fn build_report_summary(
 
 // ── Gap 1: Code-behind method inventory ─────────────────────────────────────
 
+/// Public wrapper for classify_method_kind, used by access_layer_tools.
+pub fn classify_method_kind_pub(
+    name: &str,
+    effects: &[String],
+    metadata: &Option<serde_json::Value>,
+) -> MethodKind {
+    classify_method_kind(name, effects, metadata)
+}
+
 fn classify_method_kind(
     name: &str,
     effects: &[String],

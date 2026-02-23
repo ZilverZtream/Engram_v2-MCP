@@ -2683,4 +2683,248 @@ impl Engram {
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
+
+    // ── 37-W6: get_session_workflows ──────────────────────────────────────────
+
+    pub async fn handle_get_session_workflows(
+        &self,
+        req: crate::models::GetSessionWorkflowsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _rec = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let project_id = req.project_id.clone();
+        let scope_filter = req.scope_filter.clone();
+        let key_filter = req.key_filter.clone();
+        let warnings_only = req.warnings_only;
+        let output_json = req.output_json;
+
+        let result = tokio::task::spawn_blocking(move || {
+            use crate::services::session_workflow_service::{
+                FlowPattern, reconstruct_session_workflows,
+            };
+
+            let mut report = reconstruct_session_workflows(&graph, &project_id);
+
+            // Apply scope filter
+            if let Some(ref scope) = scope_filter {
+                let scope_lower = scope.to_lowercase();
+                report
+                    .workflows
+                    .retain(|f| f.scope.to_string().to_lowercase() == scope_lower);
+                report.total_keys = report.workflows.len();
+                report.cross_page_chains = report
+                    .workflows
+                    .iter()
+                    .filter(|f| {
+                        let all_files: std::collections::HashSet<&str> = f
+                            .writers
+                            .iter()
+                            .chain(f.readers.iter())
+                            .map(|op| op.file.as_str())
+                            .collect();
+                        all_files.len() > 1
+                    })
+                    .count();
+            }
+
+            // Apply key filter (case-insensitive partial match)
+            if let Some(ref key_pat) = key_filter {
+                let pat_lower = key_pat.to_lowercase();
+                report
+                    .workflows
+                    .retain(|f| f.key.to_lowercase().contains(&pat_lower));
+                report.total_keys = report.workflows.len();
+            }
+
+            // Warnings-only filter
+            if warnings_only {
+                report.workflows.retain(|f| {
+                    matches!(
+                        f.pattern,
+                        FlowPattern::MissingWriter
+                            | FlowPattern::MissingReader
+                            | FlowPattern::ComplexWorkflow
+                    )
+                });
+                report.total_keys = report.workflows.len();
+            }
+
+            (report, output_json)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let (report, output_json) = result;
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let md =
+            crate::services::session_workflow_service::render_session_workflows_markdown(&report);
+        if md.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No session/state workflows found. Ensure the project has been indexed with WebForms extraction enabled.",
+            )]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+
+    // ── 37-W7: get_vb_translation_traps ───────────────────────────────────────
+
+    pub async fn handle_get_vb_translation_traps(
+        &self,
+        req: crate::models::GetVbTranslationTrapsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let file_path = req.file_path.clone();
+        let risk_filter = req.risk_filter.clone();
+        let output_json = req.output_json;
+
+        let result = tokio::task::spawn_blocking(move || {
+            use engram_index::vb_translation_traps::detect_vb_translation_traps;
+
+            // Collect VB files
+            let vb_files: Vec<(String, String)> = if let Some(ref specific) = file_path {
+                let full = std::path::Path::new(&project_dir).join(specific);
+                match std::fs::read_to_string(&full) {
+                    Ok(content) => vec![(specific.clone(), content)],
+                    Err(e) => {
+                        return Err(format!("Cannot read file '{}': {}", specific, e));
+                    }
+                }
+            } else {
+                // Discover all .vb files
+                let mut files = Vec::new();
+                fn walk_vb(
+                    dir: &std::path::Path,
+                    base: &std::path::Path,
+                    out: &mut Vec<(String, String)>,
+                ) {
+                    let Ok(entries) = std::fs::read_dir(dir) else {
+                        return;
+                    };
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            let name = path.file_name().unwrap_or_default().to_string_lossy();
+                            if name.starts_with('.')
+                                || name == "node_modules"
+                                || name == "bin"
+                                || name == "obj"
+                                || name == "packages"
+                            {
+                                continue;
+                            }
+                            walk_vb(&path, base, out);
+                        } else if path
+                            .extension()
+                            .map(|e| e.eq_ignore_ascii_case("vb"))
+                            .unwrap_or(false)
+                        {
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                let rel = path.strip_prefix(base).unwrap_or(&path);
+                                out.push((rel.to_string_lossy().to_string(), content));
+                            }
+                        }
+                    }
+                }
+                walk_vb(
+                    std::path::Path::new(&project_dir),
+                    std::path::Path::new(&project_dir),
+                    &mut files,
+                );
+                files
+            };
+
+            let code_refs: Vec<(&str, &str)> = vb_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+            let mut report = detect_vb_translation_traps(&code_refs);
+
+            // Apply risk filter
+            if let Some(ref rf) = risk_filter {
+                let rf_lower = rf.to_lowercase();
+                report.traps.retain(|t| t.risk.to_lowercase() == rf_lower);
+                report.total_traps = report.traps.len();
+                report.silent_bug_count = report
+                    .traps
+                    .iter()
+                    .filter(|t| t.risk == "silent_bug")
+                    .count();
+                report.compile_error_count = report
+                    .traps
+                    .iter()
+                    .filter(|t| t.risk == "compile_error")
+                    .count();
+                // Recompute by-category
+                report.traps_by_category.clear();
+                for t in &report.traps {
+                    *report.traps_by_category.entry(t.trap.clone()).or_insert(0) += 1;
+                }
+            }
+
+            Ok(report)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let report = result.map_err(|e| McpError::invalid_params(e, None))?;
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        // Render markdown
+        let mut md = String::with_capacity(4_000);
+        md.push_str("# VB.NET Translation Traps\n\n");
+        md.push_str(&format!(
+            "- **Files analyzed**: {}\n- **Total traps**: {}\n- **Silent bugs**: {} ⚠️\n- **Compile errors**: {}\n\n",
+            report.files_analyzed, report.total_traps, report.silent_bug_count, report.compile_error_count
+        ));
+
+        if !report.traps_by_category.is_empty() {
+            md.push_str("## Traps by Category\n\n");
+            md.push_str("| Category | Count |\n");
+            md.push_str("|----------|-------|\n");
+            for (cat, count) in &report.traps_by_category {
+                md.push_str(&format!("| {} | {} |\n", cat, count));
+            }
+            md.push('\n');
+        }
+
+        if !report.traps.is_empty() {
+            md.push_str("## All Traps\n\n");
+            md.push_str("| Location | Category | Risk | VB Code | Guidance |\n");
+            md.push_str("|----------|----------|------|---------|----------|\n");
+            for t in &report.traps {
+                md.push_str(&format!(
+                    "| {} | {} | {} | `{}` | {} |\n",
+                    t.location.replace('|', "\\|"),
+                    t.trap.replace('|', "\\|"),
+                    if t.risk == "silent_bug" {
+                        "⚠️ silent_bug"
+                    } else {
+                        "🔴 compile_error"
+                    },
+                    t.vb_code.replace('|', "\\|").replace('`', "'"),
+                    t.guidance.replace('|', "\\|"),
+                ));
+            }
+            md.push('\n');
+        }
+
+        if report.total_traps == 0 {
+            md.push_str("No VB.NET translation traps detected.\n");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
 }

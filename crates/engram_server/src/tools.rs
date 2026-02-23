@@ -773,6 +773,128 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         self.handle_get_jquery_inventory(params.0).await
     }
+
+    #[tool(
+        description = "Reconstruct session/state workflows: trace how Session, Application, ViewState, Cache, and Cookie keys flow across pages. Detects MissingWriter, MissingReader, and complex cross-page chains."
+    )]
+    pub async fn get_session_workflows(
+        &self,
+        params: Parameters<GetSessionWorkflowsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_session_workflows(params.0).await
+    }
+
+    #[tool(
+        description = "Detect VB.NET → C# translation traps: 14 categories of semantic differences (silent bugs like Nothing/ValueType, Is vs =; compile errors like On Error GoTo, ReDim Preserve, My.* namespace)."
+    )]
+    pub async fn get_vb_translation_traps(
+        &self,
+        params: Parameters<GetVbTranslationTrapsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_vb_translation_traps(params.0).await
+    }
+
+    // ── Phase 38: The Access Layer ────────────────────────────────────────────
+
+    #[tool(
+        description = "Fast per-method metadata lookup from the method index. Returns signature, callers, callees, DB tables, session keys, complexity, VB traps, and method kind. Sub-200ms."
+    )]
+    pub async fn get_method_info(
+        &self,
+        params: Parameters<GetMethodInfoRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_method_info(params.0).await
+    }
+
+    #[tool(
+        description = "Retrieve the complete, untruncated source code of a method. Supports FQN lookup or explicit file:line range. Optionally includes caller bodies for pattern understanding."
+    )]
+    pub async fn get_full_method_body(
+        &self,
+        params: Parameters<GetFullMethodBodyRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_full_method_body(params.0).await
+    }
+
+    #[tool(
+        description = "Pre-edit oracle: assembles method info, full body, all callers, database footprint, session state flows, VB traps, sync hazards, blast radius, and business logic into one response. Call this BEFORE modifying any method."
+    )]
+    pub async fn get_method_edit_context(
+        &self,
+        params: Parameters<GetMethodEditContextRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_method_edit_context(params.0).await
+    }
+
+    #[tool(
+        description = "Full page context for a WebForms page: control tree, all event handlers with complete bodies, data layer, session state, AJAX regions, validation, auth requirements. The starting point for all WebForms work."
+    )]
+    pub async fn get_page_context(
+        &self,
+        params: Parameters<GetPageContextRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_page_context(params.0).await
+    }
+
+    #[tool(
+        description = "LLM context packer: assembles coding style profile, pattern examples from callers, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, and sync hazards — everything an LLM needs to generate correct code in one call."
+    )]
+    pub async fn prepare_implementation_context(
+        &self,
+        params: Parameters<PrepareImplementationContextRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_prepare_implementation_context(params.0).await
+    }
+
+    #[tool(
+        description = "Post-generation safety net: validates generated code against the project's extracted knowledge. Checks SQL table/column references, VB trap avoidance, state key consistency, SP call correctness, control ID validity, caller compatibility, and sync hazard introduction. Returns pass/warn/fail per category."
+    )]
+    pub async fn validate_generated_code(
+        &self,
+        params: Parameters<ValidateGeneratedCodeRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_validate_generated_code(params.0).await
+    }
+
+    #[tool(
+        description = "Validate a SQL fragment against the project's schema knowledge: table/column existence, SP parameter types, join correctness, and common SQL anti-patterns."
+    )]
+    pub async fn validate_sql_fragment(
+        &self,
+        params: Parameters<ValidateSqlFragmentRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_validate_sql_fragment(params.0).await
+    }
+
+    #[tool(
+        description = "Find existing tests that exercise a given method by searching for references in test files (*Test*, *Spec*, *_test*)."
+    )]
+    pub async fn find_tests_for_method(
+        &self,
+        params: Parameters<FindTestsForMethodRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_tests_for_method(params.0).await
+    }
+
+    #[tool(
+        description = "Find dead methods: functions with zero callers, no Handles clause, and not lifecycle hooks. Candidates for safe removal during migration."
+    )]
+    pub async fn find_dead_methods(
+        &self,
+        params: Parameters<FindDeadMethodsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_dead_methods(params.0).await
+    }
+
+    #[tool(
+        description = "Standalone edit safety check: returns green/yellow/red verdict for a method based on blast radius, caller count, session writes, triggers, and complexity. Faster than get_method_edit_context when you only need the verdict."
+    )]
+    pub async fn check_edit_safety(
+        &self,
+        params: Parameters<CheckEditSafetyRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_check_edit_safety(params.0).await
+    }
 }
 
 #[tool_handler]
