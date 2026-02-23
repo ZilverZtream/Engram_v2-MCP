@@ -33,11 +33,13 @@ fn extract_dir_attr(tag: &str, attr: &str) -> Option<String> {
 // ── SqlDataSource / ObjectDataSource regex ────────────────────────────────────
 
 static RE_SQL_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:SqlDataSource\b([^>]*)(?:/\s*>|>(.*?)</asp:SqlDataSource\s*>)").unwrap()
+    // Use (?:[^>]|"[^"]*"|'[^']*')* to allow > inside quoted attributes (e.g. <%$ ... %>)
+    Regex::new(r#"(?is)<asp:SqlDataSource\b((?:[^>"']|"[^"]*"|'[^']*')*)(?:/\s*>|>(.*?)</asp:SqlDataSource\s*>)"#).unwrap()
 });
 
-static RE_OBJ_DATA_SOURCE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<asp:ObjectDataSource\b([^>]*)(?:/\s*>|>)").unwrap());
+static RE_OBJ_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?is)<asp:ObjectDataSource\b((?:[^>"']|"[^"]*"|'[^']*')*)(?:/\s*>|>)"#).unwrap()
+});
 
 static RE_ACCESS_DATA_SOURCE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)<asp:AccessDataSource\b([^>]*)(?:/\s*>|>)").unwrap());

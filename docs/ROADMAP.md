@@ -90,6 +90,8 @@ The matrix below is generated from capability flags and acts as the roadmap base
 | `get_migration_progress` | implemented |
 | `suggest_migration_order` | implemented |
 | `analyze_full_project_migration` | implemented |
+| `analyze_business_logic` | implemented |
+| `query_business_logic` | implemented |
 <!-- CAPABILITIES_MATRIX:END -->
 
 ## Focus areas
@@ -99,6 +101,27 @@ The matrix below is generated from capability flags and acts as the roadmap base
   - `graph_centrality_rerank`: multi-algorithm centrality (PageRank + degree + betweenness approximation), 3 modes (search+rerank, node scoring, top-N), configurable algorithm weights, Brandes k-pivot betweenness.
 
 ## Changelog
+
+### Phase 37: Intelligence Amplification (6 tickets)
+- **Async LLM Enhancement Pass**: `use_llm: true` flag on `analyze_full_project_migration` upgrades deterministic business logic summaries with LLM-powered step-by-step analysis as an async post-processing step, validated against static analysis with High/Medium/Low confidence scoring
+- **LLM Validation Gate** (`business_logic_service.rs`): Cross-validates LLM output against deterministic static analysis across 9 effect categories (SQL, Session, Redirect, ViewState, Cache, Application, Cookie, Email, File I/O); detects hallucinated table references; assigns confidence scores
+- **Stored Procedure Deep Analysis** (`database_intelligence_service.rs`): Deterministic SP summaries (purpose, parameters, tables read/written, side effects), SP→SP call chain detection with cycle detection, maximal-only chain emission, trigger detection (AFTER/INSTEAD OF/FOR with DML event types)
+- **Database Schema Ingestion** (`database_intelligence_service.rs`): Balanced-parenthesis SQL parser for CREATE TABLE/VIEW, column extraction (type, nullable, default, computed), PK/FK constraints with ON DELETE/UPDATE actions, CHECK constraints, schema cross-referencing against code-level table references with full column inventory
+- **Session Workflow Reconstruction** (`session_workflow_service.rs`): Synthesizes WritesState/ReadsState graph edges into per-key workflow narratives with scope detection (Session/Application/Cache/ViewState/Cookie), flow pattern classification (7 patterns), cross-page chain counting, operation deduplication
+- **Confidence Dashboard** (`full_project_migration_service.rs`): 6-dimension migration intelligence matrix (Code Structure, Business Logic, Database, Session Workflows, Data Access, External Integrations) with coverage metrics, confidence badges, and rendered markdown section in the full report
+
+### Phase 36: LLM-Powered Business Logic Comprehension (2 tools, 1 service, 17 tests)
+- **New tool**: `analyze_business_logic` — LLM-powered method-level analysis via local Ollama (Qwen 2.5 Coder 14B) producing structured summaries: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM available. Content-hash caching prevents re-analysis of unchanged methods. Supports method, file, or project scope
+- **New tool**: `query_business_logic` — semantic search over previously analyzed business logic summaries stored in DocStore `business_logic` namespace
+- **New service**: `business_logic_service.rs` — `analyze_method_logic`, `analyze_file_logic`, `analyze_project_logic`, `deterministic_method_summary`, `parse_llm_response`, `render_compact_markdown`, `render_method_as_doc`
+- **New namespace**: `business_logic` (GlobalMutable, KeepForever) in `namespaces.rs`
+- **Report integration**: Business logic summaries embedded in `analyze_full_project_migration` report with per-file class-level purpose and method-level detail tables
+
+### Phase 35: Last-Mile Accuracy (4 bug fixes + 4 new features, 58+ new tests)
+- **VB Translation Traps**: Module-level detection, ByRef semantics, implicit conversions, Nothing vs null, On Error Resume Next, optional parameters, late binding, With blocks, ReDim Preserve
+- **jQuery Inventory**: Comprehensive jQuery/jQuery UI widget detection, AJAX call tracing, event handler extraction, plugin identification, selector pattern analysis
+- **Inherited Effects**: Base class method analysis, inheritance chain traversal, virtual/override pattern detection, shared code-behind analysis
+- **Cross-Layer AJAX Tracing**: End-to-end tracing from jQuery `$.ajax()` through WebMethod/PageMethod/ASMX endpoints to SQL operations with data contract extraction
 
 ### Phase 31: Migration Workflow Engine (12 tools, 11 services)
 - **12 new tools**: `map_validation_controls`, `map_auth_config`, `map_page_lifecycle`, `analyze_viewstate_deps`, `map_ajax_regions`, `trace_data_flow`, `get_migration_dossier`, `check_migration_coverage`, `update_migration_status`, `get_migration_progress`, `suggest_migration_order`, `analyze_full_project_migration`

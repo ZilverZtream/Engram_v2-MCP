@@ -116,7 +116,7 @@ Engram MCP v2 keeps v1 tool names and basic intent, with expanded parameters.
 - `suggest_migration_order(project_id, output_json=false)` — computes topologically sorted migration plan via Kahn's algorithm, groups files into parallelizable waves, detects dependency cycles, identifies bottleneck files
 
 ### Full project analysis
-- `analyze_full_project_migration(project_id, target_stack="blazor", max_files=200, output_json=false)` — the single-call migration analysis tool. Reads all markup + code-behind files concurrently, then orchestrates migration_order + state_migration + auth_config + db_strategy + per-file dossiers. Produces comprehensive FullProjectMigrationReport with CrossCuttingSummary (shared SQL tables, shared state keys, shared user controls, risk distribution, complexity distribution) and rendered markdown report covering Executive Summary, Auth, State Management, Data Access, Wave Plan, Cross-Cutting Concerns, Page-by-Page Dossiers, and Risk Assessment
+- `analyze_full_project_migration(project_id, target_stack="blazor", max_files=200, use_llm=false, output_json=false)` — the single-call migration analysis tool. Reads all markup + code-behind files concurrently, then orchestrates migration_order + state_migration + auth_config + db_strategy + per-file dossiers. When `use_llm=true`, deterministic business logic summaries are upgraded with LLM-powered step-by-step explanations and validated against static analysis. Produces comprehensive FullProjectMigrationReport with CrossCuttingSummary (shared SQL tables, shared state keys, shared user controls, risk distribution, complexity distribution), Confidence Dashboard (6 intelligence dimensions), and rendered markdown report covering Executive Summary, Auth, State Management, Data Access, Wave Plan, Cross-Cutting Concerns, Page-by-Page Dossiers, Business Logic, and Risk Assessment
 
 ## ADP Infrastructure (Phase 27)
 
@@ -147,6 +147,19 @@ Config fields: `adp_rollout_phase` (default: `"shadow"`), `adp_kill_switch` (def
 - `RuntimeEvent` — typed event: `ControlInteraction`, `Route`, `SqlExecution`, `StateMutation`
 - `RuntimeEvidenceBatch` — collection of events with `validate_batch()` schema validation
 - `ReconciliationResult` — per-path reconciliation with `Confirmed`/`Contradicted`/`Unmatched` statuses
+
+## LLM-Powered Business Logic (Phase 36)
+- `analyze_business_logic(project_id, file_path=null, method_name=null, max_concurrent=2, output_json=false)` — LLM-powered method-level business logic analysis via local Ollama (Qwen 2.5 Coder 14B). Produces structured summaries per method: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM is configured. Content-hash caching prevents re-analysis of unchanged methods. Operates at method, file, or full-project scope
+- `query_business_logic(project_id, query, top_k=5)` — semantic search over previously analyzed business logic summaries stored in the DocStore `business_logic` namespace. Returns matching method summaries ranked by relevance
+
+## Intelligence Amplification (Phase 37)
+- `analyze_full_project_migration` — enhanced with `use_llm=false` parameter. When `use_llm=true` and an LLM backend is configured, deterministic business logic summaries are upgraded with LLM-powered step-by-step explanations as an async post-processing pass, validated against static analysis for confidence scoring (High/Medium/Low)
+
+### Phase 37 internal services (not directly exposed as tools)
+- **Database Intelligence** (`database_intelligence_service.rs`): deterministic SP business logic summaries, SP→SP call chain detection with cycle detection, trigger detection (AFTER/INSTEAD OF/FOR with event types), CREATE TABLE/VIEW parsing with balanced parentheses, column extraction (type, nullable, default, computed), PK/FK/CHECK constraints, schema cross-referencing against code tables
+- **Session Workflow Reconstruction** (`session_workflow_service.rs`): synthesizes WritesState/ReadsState graph edges into per-key workflow narratives with scope detection, flow pattern classification (Linear/Branching/Accumulation/MissingWriter/MissingReader/ComplexWorkflow/SinglePage), cross-page chain counting
+- **LLM Validation Gate** (`business_logic_service.rs`): cross-validates LLM output against deterministic static analysis effects across 9 categories (SQL, Session, Redirect, ViewState, Cache, Application, Cookie, Email, File I/O), detects hallucinated table references, assigns confidence scores
+- **Confidence Dashboard** (in `full_project_migration_service.rs`): migration intelligence matrix covering 6 dimensions (Code Structure, Business Logic, Database, Session Workflows, Data Access, External Integrations) with per-dimension coverage metrics and confidence badges
 
 ### Notes
 - All tools are fully implemented and compile. See `capabilities.rs` for the status matrix.

@@ -7,7 +7,6 @@
 use engram_graph::{Edge, EdgeKind, GraphStore};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::fmt::Write;
 use std::sync::Arc;
 
 // ─── Data access pattern classification ───────────────────────────────────────
@@ -231,11 +230,6 @@ pub fn generate_repository_interfaces(
         .filter(|e| extract_file_from_edge(e) == file_path)
         .collect();
 
-    let mut code = String::with_capacity(2048);
-    let _ = writeln!(code, "using System.Threading.Tasks;");
-    let _ = writeln!(code, "using System.Collections.Generic;");
-    let _ = writeln!(code);
-
     // Collect table → operations
     let mut table_ops: BTreeMap<String, HashSet<String>> = BTreeMap::new();
     for e in &file_qt {
@@ -267,8 +261,9 @@ pub fn generate_repository_interfaces(
         }
     }
 
-    // Collect columns per table
+    // Collect columns per table (deduplicated, preserving insertion order)
     let mut table_columns: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut seen_columns: HashSet<(String, String)> = HashSet::new();
     for e in &file_rc {
         let col = e
             .target_id
@@ -282,7 +277,9 @@ pub fn generate_repository_interfaces(
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown")
             .to_string();
-        table_columns.entry(table).or_default().push(col);
+        if seen_columns.insert((table.clone(), col.clone())) {
+            table_columns.entry(table).or_default().push(col);
+        }
     }
 
     let page_name = file_path
@@ -296,144 +293,175 @@ pub fn generate_repository_interfaces(
         .replace(".cs", "")
         .replace(".vb", "");
 
-    // Generate DTOs
+    let mut b = CSharpCodeBuilder::new();
+
+    // --- File header ---
+    b.line("using System;");
+    b.line("using System.Collections.Generic;");
+    b.line("using System.Data;");
+    b.line("using System.Data.SqlClient;");
+    b.line("using System.Threading.Tasks;");
+    b.line("using Dapper;");
+    b.blank();
+
+    // --- DTOs ---
     for (table, columns) in &table_columns {
         let class_name = to_pascal_case(table);
-        let _ = writeln!(code, "public class {class_name}");
-        let _ = writeln!(code, "{{");
+        b.open_block(&format!("public class {class_name}"));
         for col in columns {
             let prop_name = to_pascal_case(col);
             let prop_type = infer_csharp_type(col);
-            let _ = writeln!(code, "    public {prop_type} {prop_name} {{ get; set; }}");
+            b.line(&format!("public {prop_type} {prop_name} {{ get; set; }}"));
         }
-        let _ = writeln!(code, "}}");
-        let _ = writeln!(code);
+        b.close_block();
+        b.blank();
     }
 
-    // Generate interface
-    let _ = writeln!(code, "public interface I{page_name}Repository");
-    let _ = writeln!(code, "{{");
-
+    // --- Interface ---
+    b.open_block(&format!("public interface I{page_name}Repository"));
     for (table, ops) in &table_ops {
         let entity = to_pascal_case(table);
         if ops.contains("select") {
-            let _ = writeln!(
-                code,
-                "    Task<IEnumerable<{entity}>> GetAll{entity}Async();"
-            );
-            let _ = writeln!(code, "    Task<{entity}?> Get{entity}ByIdAsync(int id);");
+            b.line(&format!(
+                "Task<IEnumerable<{entity}>> GetAll{entity}Async();"
+            ));
+            b.line(&format!("Task<{entity}?> Get{entity}ByIdAsync(int id);"));
         }
         if ops.contains("insert") {
-            let _ = writeln!(code, "    Task<int> Create{entity}Async({entity} entity);");
+            b.line(&format!("Task<int> Create{entity}Async({entity} entity);"));
         }
         if ops.contains("update") {
-            let _ = writeln!(code, "    Task Update{entity}Async({entity} entity);");
+            b.line(&format!("Task Update{entity}Async({entity} entity);"));
         }
         if ops.contains("delete") {
-            let _ = writeln!(code, "    Task Delete{entity}Async(int id);");
+            b.line(&format!("Task Delete{entity}Async(int id);"));
         }
     }
+    b.close_block();
+    b.blank();
 
-    let _ = writeln!(code, "}}");
-    let _ = writeln!(code);
-
-    // Generate Dapper implementation skeleton
-    let _ = writeln!(
-        code,
+    // --- Repository Implementation (DI-based constructor) ---
+    b.open_block(&format!(
         "public class {page_name}Repository : I{page_name}Repository"
-    );
-    let _ = writeln!(code, "{{");
-    let _ = writeln!(code, "    private readonly string _connectionString;");
-    let _ = writeln!(code);
-    let _ = writeln!(
-        code,
-        "    public {page_name}Repository(string connectionString)"
-    );
-    let _ = writeln!(code, "    {{");
-    let _ = writeln!(code, "        _connectionString = connectionString;");
-    let _ = writeln!(code, "    }}");
+    ));
+    b.line("private readonly string _connectionString;");
+    b.blank();
+    b.open_block(&format!(
+        "public {page_name}Repository(string connectionString)"
+    ));
+    b.line("_connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));");
+    b.close_block();
 
     for (table, ops) in &table_ops {
         let entity = to_pascal_case(table);
-        if ops.contains("select") {
-            let _ = writeln!(code);
-            let _ = writeln!(
-                code,
-                "    public async Task<IEnumerable<{entity}>> GetAll{entity}Async()"
-            );
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        using var conn = new SqlConnection(_connectionString);"
-            );
-            let _ = writeln!(
-                code,
-                "        return await conn.QueryAsync<{entity}>(\"SELECT * FROM {table}\");"
-            );
-            let _ = writeln!(code, "    }}");
+        let columns_for_table = table_columns.get(table);
 
-            let _ = writeln!(code);
-            let _ = writeln!(
-                code,
-                "    public async Task<{entity}?> Get{entity}ByIdAsync(int id)"
-            );
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        using var conn = new SqlConnection(_connectionString);"
-            );
-            let _ = writeln!(
-                code,
-                "        return await conn.QuerySingleOrDefaultAsync<{entity}>(\"SELECT * FROM {table} WHERE Id = @Id\", new {{ Id = id }});"
-            );
-            let _ = writeln!(code, "    }}");
+        if ops.contains("select") {
+            b.blank();
+            b.open_block(&format!(
+                "public async Task<IEnumerable<{entity}>> GetAll{entity}Async()"
+            ));
+            b.line("using var conn = new SqlConnection(_connectionString);");
+            b.line(&format!(
+                "return await conn.QueryAsync<{entity}>(\"SELECT * FROM [{table}]\");"
+            ));
+            b.close_block();
+
+            b.blank();
+            b.open_block(&format!(
+                "public async Task<{entity}?> Get{entity}ByIdAsync(int id)"
+            ));
+            b.line("using var conn = new SqlConnection(_connectionString);");
+            b.line(&format!(
+                "return await conn.QuerySingleOrDefaultAsync<{entity}>(\"SELECT * FROM [{table}] WHERE Id = @Id\", new {{ Id = id }});"
+            ));
+            b.close_block();
         }
+
         if ops.contains("insert") {
-            let _ = writeln!(code);
-            let _ = writeln!(
-                code,
-                "    public async Task<int> Create{entity}Async({entity} entity)"
-            );
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        // TODO: generate INSERT columns from DTO properties"
-            );
-            let _ = writeln!(code, "        throw new NotImplementedException();");
-            let _ = writeln!(code, "    }}");
+            b.blank();
+            b.open_block(&format!(
+                "public async Task<int> Create{entity}Async({entity} entity)"
+            ));
+            b.line("using var conn = new SqlConnection(_connectionString);");
+            // Generate real INSERT with column names from graph
+            if let Some(cols) = columns_for_table {
+                let insert_cols: Vec<&str> = cols
+                    .iter()
+                    .filter(|c| !c.to_lowercase().ends_with("id") || cols.len() == 1)
+                    .map(|c| c.as_str())
+                    .collect();
+                if insert_cols.is_empty() {
+                    b.line(&format!(
+                        "return await conn.ExecuteScalarAsync<int>(\"INSERT INTO [{table}] DEFAULT VALUES; SELECT SCOPE_IDENTITY();\");"
+                    ));
+                } else {
+                    let col_list = insert_cols.join("], [");
+                    let param_list = insert_cols
+                        .iter()
+                        .map(|c| format!("@{}", to_pascal_case(c)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    b.line(&format!(
+                        "return await conn.ExecuteScalarAsync<int>(\"INSERT INTO [{table}] ([{col_list}]) VALUES ({param_list}); SELECT SCOPE_IDENTITY();\", entity);"
+                    ));
+                }
+            } else {
+                b.line(&format!(
+                    "return await conn.ExecuteScalarAsync<int>(\"INSERT INTO [{table}] DEFAULT VALUES; SELECT SCOPE_IDENTITY();\");"
+                ));
+            }
+            b.close_block();
         }
+
         if ops.contains("update") {
-            let _ = writeln!(code);
-            let _ = writeln!(
-                code,
-                "    public async Task Update{entity}Async({entity} entity)"
-            );
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        // TODO: generate UPDATE columns from DTO properties"
-            );
-            let _ = writeln!(code, "        throw new NotImplementedException();");
-            let _ = writeln!(code, "    }}");
+            b.blank();
+            b.open_block(&format!(
+                "public async Task Update{entity}Async({entity} entity)"
+            ));
+            b.line("using var conn = new SqlConnection(_connectionString);");
+            if let Some(cols) = columns_for_table {
+                let update_cols: Vec<&str> = cols
+                    .iter()
+                    .filter(|c| c.to_lowercase() != "id")
+                    .map(|c| c.as_str())
+                    .collect();
+                if update_cols.is_empty() {
+                    b.line("// No non-ID columns detected — review manually");
+                    b.line(&format!(
+                        "await conn.ExecuteAsync(\"UPDATE [{table}] SET /* columns */ WHERE Id = @Id\", entity);"
+                    ));
+                } else {
+                    let set_clause = update_cols
+                        .iter()
+                        .map(|c| format!("[{c}] = @{}", to_pascal_case(c)))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    b.line(&format!(
+                        "await conn.ExecuteAsync(\"UPDATE [{table}] SET {set_clause} WHERE Id = @Id\", entity);"
+                    ));
+                }
+            } else {
+                b.line(&format!(
+                    "await conn.ExecuteAsync(\"UPDATE [{table}] SET /* columns */ WHERE Id = @Id\", entity);"
+                ));
+            }
+            b.close_block();
         }
+
         if ops.contains("delete") {
-            let _ = writeln!(code);
-            let _ = writeln!(code, "    public async Task Delete{entity}Async(int id)");
-            let _ = writeln!(code, "    {{");
-            let _ = writeln!(
-                code,
-                "        using var conn = new SqlConnection(_connectionString);"
-            );
-            let _ = writeln!(
-                code,
-                "        await conn.ExecuteAsync(\"DELETE FROM {table} WHERE Id = @Id\", new {{ Id = id }});"
-            );
-            let _ = writeln!(code, "    }}");
+            b.blank();
+            b.open_block(&format!("public async Task Delete{entity}Async(int id)"));
+            b.line("using var conn = new SqlConnection(_connectionString);");
+            b.line(&format!(
+                "await conn.ExecuteAsync(\"DELETE FROM [{table}] WHERE Id = @Id\", new {{ Id = id }});"
+            ));
+            b.close_block();
         }
     }
 
-    let _ = writeln!(code, "}}");
-    Ok(code)
+    b.close_block(); // class
+    Ok(b.build())
 }
 
 /// Score SQL injection risks for all files in a project.
@@ -678,6 +706,61 @@ fn to_pascal_case(s: &str) -> String {
     }
     result
 }
+
+// ─── C# Code Builder ──────────────────────────────────────────────────────────
+
+/// Structured C# code builder that manages indentation levels and brace matching.
+/// Eliminates raw string concatenation for code generation — all output goes through
+/// `line()`, `open_block()`, and `close_block()` to guarantee syntactically valid nesting.
+struct CSharpCodeBuilder {
+    buf: String,
+    indent: usize,
+}
+
+impl CSharpCodeBuilder {
+    fn new() -> Self {
+        Self {
+            buf: String::with_capacity(4096),
+            indent: 0,
+        }
+    }
+
+    /// Emit a single line at the current indentation level.
+    fn line(&mut self, text: &str) {
+        for _ in 0..self.indent {
+            self.buf.push_str("    ");
+        }
+        self.buf.push_str(text);
+        self.buf.push('\n');
+    }
+
+    /// Emit an opening brace block: `text\n{\n` and increase indent.
+    fn open_block(&mut self, header: &str) {
+        self.line(header);
+        self.line("{");
+        self.indent += 1;
+    }
+
+    /// Emit a closing brace `}\n` and decrease indent.
+    fn close_block(&mut self) {
+        if self.indent > 0 {
+            self.indent -= 1;
+        }
+        self.line("}");
+    }
+
+    /// Emit a blank line.
+    fn blank(&mut self) {
+        self.buf.push('\n');
+    }
+
+    /// Consume the builder and return the generated code.
+    fn build(self) -> String {
+        self.buf
+    }
+}
+
+// ─── Type inference ───────────────────────────────────────────────────────────
 
 fn infer_csharp_type(col_name: &str) -> &'static str {
     let lower = col_name.to_lowercase();

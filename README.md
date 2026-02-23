@@ -151,6 +151,28 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 - **Migration Wave Planner**: Kahn's algorithm topological sort producing parallelizable migration waves with cycle detection and bottleneck identification
 - **Full Project Analysis** (`analyze_full_project_migration`): The single-call "give me everything" tool — reads all markup + code-behind files concurrently, orchestrates migration order, state migration, auth config, data access classification, and per-file dossiers in one call. Produces a `FullProjectMigrationReport` with cross-cutting summary (shared SQL tables, shared state keys, shared user controls, risk distribution) and a comprehensive rendered markdown report
 
+### Last-Mile Accuracy (Phase 35)
+
+- **VB Translation Traps**: Module-level detection, ByRef semantics, implicit conversions, Nothing vs null, On Error Resume Next patterns, optional parameter handling, late binding, With blocks, ReDim Preserve
+- **jQuery Inventory**: Comprehensive jQuery/jQuery UI widget detection, AJAX call tracing, event handler extraction, plugin identification, selector pattern analysis
+- **Inherited Effects**: Base class method analysis, inheritance chain traversal, virtual/override pattern detection, shared code-behind analysis
+- **Cross-Layer AJAX Tracing**: End-to-end tracing from jQuery `$.ajax()` through WebMethod/PageMethod/ASMX endpoints to SQL operations with data contract extraction
+
+### LLM-Powered Business Logic Comprehension (Phase 36)
+
+- **Business Logic Analysis** (`analyze_business_logic`): LLM-powered method-level analysis via local Ollama (Qwen 2.5 Coder 14B) producing structured summaries: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM available. Content-hash caching prevents re-analysis of unchanged methods
+- **Business Logic Query** (`query_business_logic`): Semantic search over previously analyzed business logic summaries stored in DocStore
+- **Report Integration**: Business logic summaries embedded in full migration report with per-file class-level purpose and method-level detail tables
+
+### Intelligence Amplification (Phase 37)
+
+- **Async LLM Enhancement Pass**: Optional `use_llm: true` flag on `analyze_full_project_migration` upgrades deterministic business logic summaries with LLM-powered step-by-step analysis as an async post-processing step
+- **LLM Validation Gate**: Cross-validates LLM output against deterministic static analysis effects — checks 9 categories (SQL, Session, Redirect, ViewState, Cache, Application, Cookie, Email, File I/O) for missed effects, detects hallucinated table references, and assigns High/Medium/Low confidence scores
+- **Stored Procedure Deep Analysis**: Deterministic SP business logic summaries (purpose, parameters, tables read/written, side effects), SP→SP call chain detection with cycle detection, trigger detection (AFTER/INSTEAD OF/FOR with event types)
+- **Database Schema Ingestion**: Parses CREATE TABLE/VIEW statements with balanced parenthesis handling, extracts columns (type, nullable, default, computed), primary keys, foreign keys (with ON DELETE/UPDATE actions), CHECK constraints, and cross-references schema against code-level table references
+- **Session Workflow Reconstruction**: Synthesizes WritesState/ReadsState graph edges into per-key workflow narratives with scope detection (Session/Application/Cache/ViewState/Cookie), flow pattern classification (Linear/Branching/Accumulation/MissingWriter/MissingReader/ComplexWorkflow/SinglePage), and cross-page chain counting
+- **Confidence Dashboard**: Migration Intelligence Confidence matrix covering 6 dimensions (Code Structure, Business Logic, Database, Session Workflows, Data Access, External Integrations) with per-dimension coverage metrics and confidence badges
+
 ---
 
 ## Installation
@@ -418,7 +440,9 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
 | `update_migration_status` | Track per-file migration status (not_started/in_progress/done/blocked) with blocking dependencies |
 | `get_migration_progress` | Retrieve overall migration progress for a project |
 | `suggest_migration_order` | Topological sort via Kahn's algorithm producing parallelizable waves with cycle detection |
-| `analyze_full_project_migration` | **One-call full project analysis**: reads all markup + code-behind files, orchestrates migration order, state, auth, data access, and per-file dossiers into a single comprehensive report with cross-cutting summary |
+| `analyze_full_project_migration` | **One-call full project analysis**: reads all markup + code-behind files, orchestrates migration order, state, auth, data access, and per-file dossiers into a single comprehensive report with cross-cutting summary. Optional `use_llm=true` enables async LLM-powered business logic enhancement with validation gate |
+| `analyze_business_logic` | LLM-powered method-level business logic analysis via Ollama with structured output (PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS). Deterministic fallback when no LLM. Content-hash caching. Supports method/file/project scope |
+| `query_business_logic` | Semantic search over analyzed business logic summaries in the DocStore |
 
 ### Utilities
 

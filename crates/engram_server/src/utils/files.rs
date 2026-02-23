@@ -48,6 +48,34 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     }
 }
 
+/// Normalize path separators `\` to `/` in a pattern, but preserve escape
+/// sequences `\*`, `\?`, and `\\` which are glob metachar escapes.
+fn normalize_pattern_separators(p: &str) -> String {
+    let mut result = String::with_capacity(p.len());
+    let chars: Vec<char> = p.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '\\' && i + 1 < chars.len() {
+            let next = chars[i + 1];
+            if next == '*' || next == '?' {
+                // Escape sequence — keep the backslash as escape
+                result.push('\\');
+                result.push(next);
+                i += 2;
+                continue;
+            }
+        }
+        if chars[i] == '\\' {
+            // Path separator — normalize to forward slash
+            result.push('/');
+        } else {
+            result.push(chars[i]);
+        }
+        i += 1;
+    }
+    result
+}
+
 pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
     // Glob-style wildcard matcher supporting:
     // - `*` for 0+ characters
@@ -60,7 +88,8 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
     }
 
     let text = file_path.replace('\\', "/");
-    let pat = pattern.trim().replace('\\', "/");
+    // Normalize path separators in pattern, but preserve escape sequences (\* \? \\)
+    let pat = normalize_pattern_separators(pattern.trim());
 
     // Guardrail against pathological O(m*n) input that can starve worker threads.
     const MAX_PATTERN_CHARS: usize = 2_048;
