@@ -132,6 +132,10 @@ pub struct PageContextResult {
     pub master_page: Option<String>,
     pub content_placeholders: Vec<String>,
     pub language: String,
+    pub ui_coverage_confidence: f32,
+    pub dynamic_ui_detected: bool,
+    pub dynamic_ui_evidence: Vec<String>,
+    pub runtime_controls_warning: Option<String>,
     pub controls: Vec<ControlInfo>,
     pub methods: Vec<PageMethodSummary>,
     pub tables_used: Vec<String>,
@@ -367,6 +371,24 @@ fn meta_csv(node: &Node, key: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn meta_bool(node: &Node, key: &str) -> bool {
+    node.metadata
+        .as_ref()
+        .and_then(|m| m.get(key))
+        .and_then(|v| v.as_str())
+        .map(|v| v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn edge_meta_str(edge: &engram_graph::Edge, key: &str) -> String {
+    edge.metadata
+        .as_ref()
+        .and_then(|m| m.get(key))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// Build MethodInfoResult from a graph Node + edge lookups.
@@ -1022,7 +1044,23 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
     if ctx.vb_trap_count > 0 {
         md.push_str(&format!("- **VB traps**: {} detected\n", ctx.vb_trap_count));
     }
+    md.push_str(&format!(
+        "- **UI coverage confidence**: {:.0}%\n",
+        ctx.ui_coverage_confidence * 100.0
+    ));
     md.push('\n');
+
+    if let Some(ref warning) = ctx.runtime_controls_warning {
+        md.push_str("> [!WARNING]\n");
+        md.push_str(&format!("> {}\n\n", warning));
+        if !ctx.dynamic_ui_evidence.is_empty() {
+            md.push_str("> Evidence:\n");
+            for evidence in &ctx.dynamic_ui_evidence {
+                md.push_str(&format!("> - {}\n", evidence));
+            }
+            md.push('\n');
+        }
+    }
 
     // Controls
     if !ctx.controls.is_empty() {
@@ -1933,6 +1971,85 @@ impl Engram {
                 _ => 4,
             });
 
+            // Runtime UI caveat detection for dynamic controls / wiring.
+            let all_dependency_edges = graph
+                .list_edges_by_kind(&project_id, EdgeKind::Dependency, 5000)
+                .unwrap_or_default();
+
+            let mut dynamic_ui_evidence: Vec<String> = Vec::new();
+            let mut add_handler_count = 0usize;
+            let mut lifecycle_dynamic_methods: Vec<String> = Vec::new();
+            let mut synthetic_dynamic_controls: Vec<String> = Vec::new();
+
+            let mut method_names: HashSet<String> = HashSet::new();
+            let mut method_ids: HashSet<String> = HashSet::new();
+            for node in &method_nodes {
+                method_names.insert(node.name.to_ascii_lowercase());
+                method_ids.insert(node.node_id.clone());
+            }
+
+            for edge in &all_dependency_edges {
+                let edge_kind = edge_meta_str(edge, "kind");
+                let wiring = edge_meta_str(edge, "wiring");
+                let is_related = method_ids.contains(&edge.source_id)
+                    || method_ids.contains(&edge.target_id)
+                    || method_nodes.iter().any(|n| {
+                        edge.source_id.ends_with(&format!(".{}", n.name))
+                            || edge.target_id.ends_with(&format!(".{}", n.name))
+                    });
+
+                if is_related
+                    && edge_kind.eq_ignore_ascii_case("event_wiring")
+                    && wiring.eq_ignore_ascii_case("AddHandler")
+                {
+                    add_handler_count += 1;
+                }
+            }
+
+            for name in ["page_init", "oninit", "createchildcontrols"] {
+                if method_names.contains(name) {
+                    lifecycle_dynamic_methods.push(name.to_string());
+                }
+            }
+
+            let control_nodes = graph
+                .query_nodes(&project_id, Some("control"), None, Some(&cb_path), 1000)
+                .unwrap_or_default();
+            for control in control_nodes {
+                if meta_bool(&control, "dynamic_control") {
+                    synthetic_dynamic_controls.push(control.name);
+                }
+            }
+
+            if add_handler_count > 0 {
+                dynamic_ui_evidence.push(format!(
+                    "Detected {} AddHandler event_wiring edge(s) in related graph edges.",
+                    add_handler_count
+                ));
+            }
+            if !lifecycle_dynamic_methods.is_empty() {
+                dynamic_ui_evidence.push(format!(
+                    "Lifecycle method(s) commonly used for runtime UI creation found: {}.",
+                    lifecycle_dynamic_methods.join(", ")
+                ));
+            }
+            if !synthetic_dynamic_controls.is_empty() {
+                dynamic_ui_evidence.push(format!(
+                    "Synthetic dynamic controls indexed: {}.",
+                    synthetic_dynamic_controls.join(", ")
+                ));
+            }
+
+            let dynamic_ui_detected = !dynamic_ui_evidence.is_empty();
+            let ui_coverage_confidence = if dynamic_ui_detected {
+                (0.90_f32 - (dynamic_ui_evidence.len() as f32 * 0.12)).clamp(0.45, 0.85)
+            } else {
+                0.95
+            };
+            let runtime_controls_warning = dynamic_ui_detected.then_some(
+                "Runtime controls likely present; static ASPX tree incomplete.".to_string(),
+            );
+
             // 8. AJAX analysis
             let ajax_map = crate::services::ajax_region_service::analyze_ajax_regions(
                 &graph,
@@ -2024,6 +2141,10 @@ impl Engram {
                 master_page,
                 content_placeholders,
                 language,
+                ui_coverage_confidence,
+                dynamic_ui_detected,
+                dynamic_ui_evidence,
+                runtime_controls_warning,
                 controls,
                 methods,
                 tables_used,
