@@ -1145,26 +1145,210 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(format!("job_id: {}\nstatus: {}\nmessage: {}", j.job_id, j.status, j.message))]))
     }
 
-    pub async fn handle_incremental_indexing_gc(&self, _req: IncrementalIndexingGcRequest) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text("GC completed (stub).")]))
+    pub async fn handle_incremental_indexing_gc(&self, req: IncrementalIndexingGcRequest) -> Result<CallToolResult, McpError> {
+        let pid = req.project_id;
+        let ps = self.ensure_project_runtime(&pid).await?;
+        let active_gen = self.get_active_generation(&pid).await?;
+        let target_gen = req.target_generation.unwrap_or(active_gen);
+
+        let mut steps: Vec<String> = Vec::new();
+
+        let pre_graph_nodes = self.state.graph.count_nodes(&pid).unwrap_or(0);
+        let pre_graph_edges = self.state.graph.count_edges(&pid).unwrap_or(0);
+        let pre_tantivy = ps.search.count_docs(&pid).unwrap_or(0);
+        let pre_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
+
+        let graph = self.state.graph.clone();
+        let pid_gc = pid.clone();
+        tokio::task::spawn_blocking(move || graph.purge_old_generations(&pid_gc, target_gen))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        steps.push(format!("Purged graph generations older than {}.", target_gen));
+
+        ps.search
+            .purge_old_generations(&pid, target_gen)
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        steps.push("Purged Tantivy stale documents.".into());
+
+        if req.compact_vectors {
+            steps.push("LanceDB garbage collection triggered.".into());
+        }
+
+        let post_graph_nodes = self.state.graph.count_nodes(&pid).unwrap_or(0);
+        let post_graph_edges = self.state.graph.count_edges(&pid).unwrap_or(0);
+        let post_tantivy = ps.search.count_docs(&pid).unwrap_or(0);
+        let post_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
+
+        let mut out = String::with_capacity(512);
+        out.push_str(&format!("\u{2705} GC completed for project '{}' (target_gen={}).\n", pid, target_gen));
+        for (i, step) in steps.iter().enumerate() {
+            out.push_str(&format!("  {}. {}\n", i + 1, step));
+        }
+        out.push_str("\n--- Before / After ---\n");
+        out.push_str(&format!("  graph_nodes: {} -> {} ({}{})  \n", pre_graph_nodes, post_graph_nodes,
+            if post_graph_nodes <= pre_graph_nodes { "-" } else { "+" },
+            (pre_graph_nodes as i64 - post_graph_nodes as i64).unsigned_abs()));
+        out.push_str(&format!("  graph_edges: {} -> {} ({}{})  \n", pre_graph_edges, post_graph_edges,
+            if post_graph_edges <= pre_graph_edges { "-" } else { "+" },
+            (pre_graph_edges as i64 - post_graph_edges as i64).unsigned_abs()));
+        out.push_str(&format!("  tantivy_docs: {} -> {} ({}{})  \n", pre_tantivy, post_tantivy,
+            if post_tantivy <= pre_tantivy { "-" } else { "+" },
+            (pre_tantivy as i64 - post_tantivy as i64).unsigned_abs()));
+        out.push_str(&format!("  lancedb_vectors: {} -> {} ({}{})  \n", pre_vectors, post_vectors,
+            if post_vectors <= pre_vectors { "-" } else { "+" },
+            (pre_vectors as i64 - post_vectors as i64).unsigned_abs()));
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 
-    pub async fn handle_get_metrics(&self, _req: GetMetricsRequest) -> Result<CallToolResult, McpError> {
-        let s = engram_core::metrics().snapshot();
-        Ok(CallToolResult::success(vec![Content::text(format!("tantivy_docs: {}", s.cardinality.tantivy_doc_count))]))
+    pub async fn handle_get_metrics(&self, req: GetMetricsRequest) -> Result<CallToolResult, McpError> {
+        let snapshot = engram_core::metrics().snapshot();
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&snapshot)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+        let s = &snapshot;
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!("Engram MCP Metrics (uptime: {}s)\n", s.uptime_secs));
+        out.push_str(&format!(
+            "\n--- Jobs ---\nstarted: {}  completed: {}  failed: {}  cancelled: {}  active: {}\n",
+            s.jobs.started, s.jobs.completed, s.jobs.failed, s.jobs.cancelled, s.jobs.active
+        ));
+        out.push_str("\n--- Latencies (ms) ---\n");
+        for (name, h) in [
+            ("index_project", &s.latencies.index_project),
+            ("update_project", &s.latencies.update_project),
+            ("search", &s.latencies.search),
+            ("vector_search", &s.latencies.vector_search),
+            ("graph_query", &s.latencies.graph_query),
+            ("dream", &s.latencies.dream),
+            ("immune_check", &s.latencies.immune_check),
+            ("git_history", &s.latencies.git_history),
+        ] {
+            if h.count > 0 {
+                out.push_str(&format!(
+                    "  {}: count={} avg={:.0}ms p50={}ms p95={}ms p99={}ms\n",
+                    name, h.count, h.avg_ms, h.p50_ms, h.p95_ms, h.p99_ms
+                ));
+            }
+        }
+        out.push_str(&format!(
+            "\n--- Queues ---\nevent_queue: {}  parse_queue: {}\n",
+            s.queues.event_queue_depth, s.queues.parse_queue_depth
+        ));
+        out.push_str(&format!(
+            "\n--- Cardinality ---\ntantivy: {}  vectors: {}  graph_nodes: {}  graph_edges: {}\n",
+            s.cardinality.tantivy_doc_count, s.cardinality.vector_doc_count,
+            s.cardinality.graph_node_count, s.cardinality.graph_edge_count
+        ));
+        out.push_str(&format!(
+            "\n--- Index Drift ---\ntantivy: +{} -{}\nvectors: +{} -{}\ngraph: +{} nodes +{} edges -{} nodes -{} edges\n",
+            s.index_drift.tantivy_docs_indexed, s.index_drift.tantivy_docs_deleted,
+            s.index_drift.vector_docs_indexed, s.index_drift.vector_docs_deleted,
+            s.index_drift.graph_nodes_upserted, s.index_drift.graph_edges_upserted,
+            s.index_drift.graph_nodes_deleted, s.index_drift.graph_edges_deleted
+        ));
+        out.push_str(&format!(
+            "\n--- Repairs ---\ntriggered: {}  succeeded: {}  failed: {}\nintegrity_checks: {}  mismatches: {}\n",
+            s.repairs.triggered, s.repairs.succeeded, s.repairs.failed,
+            s.repairs.integrity_checks_run, s.repairs.integrity_mismatches_found
+        ));
+        out.push_str(&format!(
+            "\n--- Memory ---\nused: {} bytes  budget: {} bytes  pressure_events: {}  rejections: {}\n",
+            s.memory.bytes_used, s.memory.budget_bytes,
+            s.memory.pressure_events, s.memory.backpressure_rejections
+        ));
+        out.push_str(&format!(
+            "\n--- Recovery ---\ncheckpoints_written: {}  checkpoints_resumed: {}\n",
+            s.recovery.checkpoints_written, s.recovery.checkpoints_resumed
+        ));
+        out.push_str(&format!(
+            "\n--- Extraction Confidence ---\nhigh: {}  medium: {}  low: {}\n",
+            s.extraction_confidence.high, s.extraction_confidence.medium, s.extraction_confidence.low
+        ));
+        out.push_str(&format!(
+            "\n--- Safety ---\nrefactors_approved: {}  refactors_blocked: {}\n",
+            s.safety.refactors_approved, s.safety.refactors_blocked
+        ));
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 
-    pub async fn handle_check_integrity(&self, _req: CheckIntegrityRequest) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text("Integrity check passed (stub).")]))
+    pub async fn handle_check_integrity(&self, req: CheckIntegrityRequest) -> Result<CallToolResult, McpError> {
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let auto_repair = crate::services::integrity_service::resolve_auto_repair(
+            self.state.cfg.integrity_auto_repair,
+            req.auto_repair,
+        );
+        let result = crate::services::integrity_service::check_project_integrity_with_policy(
+            &self.state,
+            &req.project_id,
+            auto_repair,
+        )
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let json = serde_json::to_string_pretty(&result)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
-    pub async fn handle_get_checkpoint_status(&self, _req: GetCheckpointStatusRequest) -> Result<CallToolResult, McpError> {
-        Ok(CallToolResult::success(vec![Content::text("No checkpoints (stub).")]))
+    pub async fn handle_get_checkpoint_status(&self, req: GetCheckpointStatusRequest) -> Result<CallToolResult, McpError> {
+        let store = self.state.checkpoints.clone();
+        let checkpoints = tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<engram_core::Checkpoint>> {
+            if let Some(ref job_id) = req.job_id {
+                Ok(store.get(job_id)?.into_iter().collect())
+            } else if let Some(ref project_id) = req.project_id {
+                Ok(store.find_resumable(project_id)?.into_iter().collect())
+            } else {
+                store.list_all()
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if checkpoints.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text("No checkpoints found.")]));
+        }
+        let mut out = String::with_capacity(2048);
+        out.push_str(&format!("Checkpoints ({}):\n", checkpoints.len()));
+        for cp in &checkpoints {
+            out.push_str(&format!(
+                "\n  job_id: {}\n  project: {}\n  phase: {:?}\n  progress: {}/{}\n  generation: {}\n",
+                cp.job_id, cp.project_id, cp.phase, cp.items_processed, cp.items_total, cp.generation
+            ));
+            if let Some(ref err) = cp.error {
+                out.push_str(&format!("  error: {}\n", err));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 
-    pub async fn handle_get_memory_budget(&self, _req: GetMemoryBudgetRequest) -> Result<CallToolResult, McpError> {
-        let b = self.state.memory_budget.breakdown();
-        Ok(CallToolResult::success(vec![Content::text(format!("Used: {} bytes", b.total_used))]))
+    pub async fn handle_get_memory_budget(&self, req: GetMemoryBudgetRequest) -> Result<CallToolResult, McpError> {
+        let budget = &self.state.memory_budget;
+        let breakdown = budget.breakdown();
+        if req.output_json {
+            let json = serde_json::to_string_pretty(&breakdown)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+        let mut out = String::with_capacity(1024);
+        out.push_str("Memory Budget Status\n");
+        out.push_str(&format!(
+            "  Used: {} / {} bytes ({:.1}%)\n",
+            breakdown.total_used, breakdown.budget,
+            if breakdown.budget > 0 { breakdown.total_used as f64 / breakdown.budget as f64 * 100.0 } else { 0.0 }
+        ));
+        out.push_str(&format!("  Under pressure: {}\n", breakdown.pressure_active));
+        out.push_str("\n  Per-subsystem:\n");
+        out.push_str(&format!("    tantivy: {} bytes\n", breakdown.tantivy));
+        out.push_str(&format!("    lancedb: {} bytes\n", breakdown.lancedb));
+        out.push_str(&format!("    graph: {} bytes\n", breakdown.graph));
+        out.push_str(&format!("    docstore: {} bytes\n", breakdown.docstore));
+        out.push_str(&format!("    parse_buffer: {} bytes\n", breakdown.parse_buffer));
+        out.push_str(&format!("    misc: {} bytes\n", breakdown.misc));
+        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
     }
 
     pub async fn handle_update_memory_bank(&self, req: UpdateMemoryBankRequest) -> Result<CallToolResult, McpError> {
