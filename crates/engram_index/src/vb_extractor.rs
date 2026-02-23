@@ -49,6 +49,12 @@ static SQL_EXEC_CALL_RE: OnceLock<Regex> = OnceLock::new();
 static SQL_ADAPTER_RE: OnceLock<Regex> = OnceLock::new();
 static SQL_PROC_TYPE_RE: OnceLock<Regex> = OnceLock::new();
 static ADDHANDLER_RE: OnceLock<Regex> = OnceLock::new();
+static CONTROL_ALLOC_RE: OnceLock<Regex> = OnceLock::new();
+static CONTROL_ALLOC_AS_NEW_RE: OnceLock<Regex> = OnceLock::new();
+static CONTROL_ID_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static CONTROL_ADD_RE: OnceLock<Regex> = OnceLock::new();
+static METHOD_START_RE: OnceLock<Regex> = OnceLock::new();
+static METHOD_END_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_NS_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_TYPE_RE: OnceLock<Regex> = OnceLock::new();
 static REGEX_MEMBER_RE: OnceLock<Regex> = OnceLock::new();
@@ -629,6 +635,14 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     // AddHandler wiring (runtime event binding, common in dynamically-created controls)
     if ci_contains_fast(source.as_bytes(), b"AddHandler") {
         edges.extend(extract_addhandler(&fqn_maps, source));
+    }
+    if ci_contains_fast(source.as_bytes(), b"New")
+        && ci_contains_fast(source.as_bytes(), b"Controls.Add")
+    {
+        let (dynamic_symbols, dynamic_edges) =
+            extract_dynamic_runtime_controls(&fqn_maps, source, &all_scopes);
+        symbols.extend(dynamic_symbols);
+        edges.extend(dynamic_edges);
     }
     // Tree-sitter enhanced SQL extraction: captures full concatenated
     // CommandText assignments (e.g., "SELECT ... " & variable & " ...").
@@ -2327,6 +2341,208 @@ pub fn extract_addhandler(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge
     edges
 }
 
+#[derive(Debug, Clone)]
+struct DynamicControlState {
+    control_type: String,
+    id: Option<String>,
+    added_to_controls: bool,
+    first_line: u32,
+}
+
+fn extract_dynamic_runtime_controls(
+    fqn_maps: &FqnMaps,
+    source: &str,
+    all_scopes: &[ScopeEntry],
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let Some(alloc_re) = get_compiled_regex(
+        &CONTROL_ALLOC_RE,
+        r"(?ix)\b(?:Dim\s+)?(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*New\s+(?P<typ>[A-Za-z_][A-Za-z0-9_.]*)\s*\(",
+        "vb_dynamic_control_alloc",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(alloc_as_new_re) = get_compiled_regex(
+        &CONTROL_ALLOC_AS_NEW_RE,
+        r"(?ix)\bDim\s+(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s+As\s+New\s+(?P<typ>[A-Za-z_][A-Za-z0-9_.]*)\s*\(",
+        "vb_dynamic_control_alloc_as_new",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(id_re) = get_compiled_regex(
+        &CONTROL_ID_ASSIGN_RE,
+        r#"(?ix)\b(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.ID\s*=\s*"(?P<id>[^"]+)""#,
+        "vb_dynamic_control_id_assign",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(add_re) = get_compiled_regex(
+        &CONTROL_ADD_RE,
+        r"(?ix)\b(?:[A-Za-z_][A-Za-z0-9_]*\.)?Controls\.Add\s*\(\s*(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*\)",
+        "vb_dynamic_control_add",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(addhandler_re) = get_compiled_regex(
+        &ADDHANDLER_RE,
+        r"(?ix)
+            \bAddHandler\s+
+            (?P<ctrl>[A-Za-z_][A-Za-z0-9_]*)\.(?P<evt>[A-Za-z_][A-Za-z0-9_]*)
+            \s*,\s*AddressOf\s+
+            (?P<handler>[A-Za-z_][A-Za-z0-9_.]*)
+            ",
+        "vb_addhandler",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(method_start_re) = get_compiled_regex(
+        &METHOD_START_RE,
+        r"(?ix)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b",
+        "vb_method_start",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(method_end_re) = get_compiled_regex(
+        &METHOD_END_RE,
+        r"(?ix)^\s*End\s+(?:Sub|Function)\b",
+        "vb_method_end",
+    ) else {
+        return (Vec::new(), Vec::new());
+    };
+
+    let mut symbols = Vec::new();
+    let mut edges = Vec::new();
+    let mut vars: HashMap<String, DynamicControlState> = HashMap::new();
+    let mut emitted: HashSet<String> = HashSet::new();
+    let mut current_method_fqn: Option<String> = None;
+
+    for (line_no, line) in join_logical_lines_with_start_line(source) {
+        if let Some(caps) = method_start_re.captures(&line) {
+            vars.clear();
+            emitted.clear();
+            current_method_fqn = Some(fqn_maps.resolve(&caps["name"]));
+        }
+        if method_end_re.is_match(&line) {
+            vars.clear();
+            emitted.clear();
+            current_method_fqn = None;
+        }
+        let Some(method_fqn) = current_method_fqn.clone() else {
+            continue;
+        };
+
+        if let Some(caps) = alloc_re
+            .captures(&line)
+            .or_else(|| alloc_as_new_re.captures(&line))
+        {
+            vars.insert(
+                caps["var"].to_lowercase(),
+                DynamicControlState {
+                    control_type: caps["typ"].to_string(),
+                    id: None,
+                    added_to_controls: false,
+                    first_line: line_no,
+                },
+            );
+        }
+
+        if let Some(caps) = id_re.captures(&line)
+            && let Some(state) = vars.get_mut(&caps["var"].to_lowercase())
+        {
+            state.id = Some(caps["id"].to_string());
+        }
+
+        if let Some(caps) = add_re.captures(&line)
+            && let Some(state) = vars.get_mut(&caps["var"].to_lowercase())
+        {
+            state.added_to_controls = true;
+        }
+
+        for caps in addhandler_re.captures_iter(&line) {
+            let key = caps["ctrl"].to_lowercase();
+            let Some(state) = vars.get(&key) else {
+                continue;
+            };
+            if !state.added_to_controls {
+                continue;
+            }
+            let Some(control_id) = &state.id else {
+                continue;
+            };
+            let synth_id = format!("dynamic_control:{}:{}", method_fqn, control_id);
+
+            if emitted.insert(synth_id.clone()) {
+                let mut symbol_meta = HashMap::from([
+                    ("fqn".into(), synth_id.clone()),
+                    ("dynamic_control".into(), "true".into()),
+                    ("created_in".into(), method_fqn.clone()),
+                    ("control_type".into(), state.control_type.clone()),
+                    ("id".into(), control_id.clone()),
+                ]);
+                let method_name = method_fqn.split('.').next_back().unwrap_or_default();
+                if let Some((stage, _)) = webforms_lifecycle_info(method_name) {
+                    symbol_meta.insert("lifecycle_stage".into(), stage.into());
+                } else if method_name.eq_ignore_ascii_case("CreateChildControls") {
+                    symbol_meta.insert("lifecycle_stage".into(), "CreateChildControls".into());
+                }
+
+                symbols.push(ExtractedSymbol {
+                    name: synth_id.clone(),
+                    kind: "control",
+                    start_line: state.first_line,
+                    end_line: state.first_line,
+                    metadata: Some(symbol_meta),
+                });
+
+                let class_fqn = method_fqn
+                    .rsplit_once('.')
+                    .map(|(class, _)| class)
+                    .unwrap_or("file");
+                let (class_line, class_kind) = all_scopes
+                    .iter()
+                    .find(|s| s.fqn == class_fqn)
+                    .map(|s| (s.line, s.kind))
+                    .unwrap_or((line_no, "class"));
+                edges.push(ExtractedEdge {
+                    source_name: class_fqn.to_string(),
+                    source_kind: class_kind,
+                    source_start_line: class_line,
+                    source_language: "vb",
+                    target_name: synth_id.clone(),
+                    target_kind: Some("control"),
+                    target_start_line: Some(state.first_line),
+                    kind: "contains",
+                    metadata: None,
+                });
+            }
+
+            let handler_raw = caps["handler"].to_string();
+            let handler_short = handler_raw.split('.').next_back().unwrap_or(&handler_raw);
+            let handler_fqn = fqn_maps.resolve(handler_short);
+            let mut meta = HashMap::from([
+                ("event".into(), caps["evt"].to_string()),
+                ("wiring".into(), "AddHandler".into()),
+                ("dynamic_control".into(), "true".into()),
+            ]);
+            if handler_fqn != handler_short {
+                meta.insert("fqn".into(), handler_fqn);
+            }
+            edges.push(ExtractedEdge {
+                source_name: synth_id,
+                source_kind: "control",
+                source_start_line: line_no,
+                source_language: "vb",
+                target_name: handler_short.to_string(),
+                target_kind: Some("function"),
+                target_start_line: Some(line_no),
+                kind: "event_wiring",
+                metadata: Some(meta),
+            });
+        }
+    }
+
+    (symbols, edges)
+}
+
 /// Strip an inline VB.NET comment while respecting string literal boundaries.
 ///
 /// In VB.NET, `'` (apostrophe) starts a comment — unless it appears inside
@@ -2402,6 +2618,48 @@ fn join_logical_lines(source: &str) -> Vec<String> {
     if !current.is_empty() {
         result.push(current);
     }
+    result
+}
+
+fn join_logical_lines_with_start_line(source: &str) -> Vec<(u32, String)> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut current_start_line = 1_u32;
+    let mut in_continuation = false;
+
+    for (idx, raw_line) in source.lines().enumerate() {
+        let line_no = (idx + 1) as u32;
+        let code_part = strip_vb_comment(raw_line);
+        let trimmed_end = code_part.trim_end();
+        let has_continuation = trimmed_end.ends_with(" _");
+
+        let segment = if has_continuation {
+            trimmed_end
+                .strip_suffix('_')
+                .unwrap_or(trimmed_end)
+                .trim_end()
+        } else {
+            raw_line
+        };
+
+        if !in_continuation {
+            current_start_line = line_no;
+        }
+
+        current.push_str(segment);
+        if has_continuation {
+            current.push(' ');
+            in_continuation = true;
+        } else {
+            result.push((current_start_line, std::mem::take(&mut current)));
+            in_continuation = false;
+        }
+    }
+
+    if !current.is_empty() {
+        result.push((current_start_line, current));
+    }
+
     result
 }
 
@@ -3365,6 +3623,101 @@ End Namespace
     }
 
     // ── Line continuation tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_dynamic_control_synthesizer_page_init_with_continuations() {
+        let code = r#"
+Namespace Web
+    Public Class SearchPage
+        Inherits System.Web.UI.Page
+
+        Protected Sub Page_Init(sender As Object, e As EventArgs)
+            Dim btn As New Button() _ ' runtime control allocation
+            btn.ID = "btnRun" _ ' keep ID
+            Me.Controls.Add(btn)
+            AddHandler btn.Click, _ ' wire click
+                AddressOf Me.HandleRun
+        End Sub
+
+        Private Sub HandleRun(sender As Object, e As EventArgs)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, edges) = extract_vb(Path::new("SearchPage.aspx.vb"), code);
+        let dynamic_symbol = symbols
+            .iter()
+            .find(|s| {
+                s.kind == "control" && s.name == "dynamic_control:Web.SearchPage.Page_Init:btnRun"
+            })
+            .expect("Should emit synthetic control symbol");
+        let meta = dynamic_symbol.metadata.as_ref().unwrap();
+        assert_eq!(meta["dynamic_control"], "true");
+        assert_eq!(meta["created_in"], "Web.SearchPage.Page_Init");
+        assert_eq!(meta["lifecycle_stage"], "Init");
+        assert_eq!(meta["control_type"], "Button");
+        assert_eq!(meta["id"], "btnRun");
+
+        let contains = edges
+            .iter()
+            .find(|e| e.kind == "contains" && e.target_name == dynamic_symbol.name)
+            .expect("Should emit class -> dynamic control containment edge");
+        assert_eq!(contains.source_name, "Web.SearchPage");
+
+        let wiring = edges
+            .iter()
+            .find(|e| e.kind == "event_wiring" && e.source_name == dynamic_symbol.name)
+            .expect("Should emit AddHandler edge from synthetic control");
+        assert_eq!(wiring.target_name, "HandleRun");
+        assert_eq!(wiring.metadata.as_ref().unwrap()["event"], "Click");
+        assert_eq!(wiring.metadata.as_ref().unwrap()["dynamic_control"], "true");
+    }
+
+    #[test]
+    fn test_dynamic_control_synthesizer_createchildcontrols_gridview() {
+        let code = r#"
+Namespace Web
+    Public Class ProductList
+        Inherits UserControl
+
+        Protected Overrides Sub CreateChildControls()
+            Dim grid = New GridView() ' created at runtime
+            ' assign id and add to control tree
+            grid.ID = "gridProducts"
+            Controls.Add(grid)
+            AddHandler grid.RowDataBound, AddressOf OnRowDataBound
+        End Sub
+
+        Private Sub OnRowDataBound(sender As Object, e As EventArgs)
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (symbols, edges) = extract_vb(Path::new("ProductList.ascx.vb"), code);
+        let dynamic_symbol = symbols
+            .iter()
+            .find(|s| {
+                s.kind == "control"
+                    && s.name == "dynamic_control:Web.ProductList.CreateChildControls:gridProducts"
+            })
+            .expect("Should synthesize GridView control symbol");
+        let meta = dynamic_symbol.metadata.as_ref().unwrap();
+        assert_eq!(meta["lifecycle_stage"], "CreateChildControls");
+        assert_eq!(meta["control_type"], "GridView");
+
+        assert!(edges.iter().any(|e| {
+            e.kind == "contains"
+                && e.source_name == "Web.ProductList"
+                && e.target_name == dynamic_symbol.name
+        }));
+
+        let wiring = edges
+            .iter()
+            .find(|e| e.kind == "event_wiring" && e.source_name == dynamic_symbol.name)
+            .expect("Should emit runtime control event wiring");
+        assert_eq!(wiring.metadata.as_ref().unwrap()["event"], "RowDataBound");
+        assert_eq!(wiring.target_name, "OnRowDataBound");
+    }
 
     #[test]
     fn test_join_logical_lines_continuation() {
