@@ -665,7 +665,8 @@ mod tests {
 
     fn make_graph() -> Arc<GraphStore> {
         let dir = tempfile::tempdir().unwrap();
-        Arc::new(GraphStore::open(dir.path()).unwrap())
+        let db_path = dir.path().join("graph.redb");
+        Arc::new(GraphStore::open(&db_path).unwrap())
     }
 
     #[test]

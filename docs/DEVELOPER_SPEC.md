@@ -331,6 +331,46 @@ Builds the complete migration analysis workflow — from individual analysis pri
 - Helper functions in tools.rs: `find_codebehind_path()`, `find_aspx_for_codebehind()`
 - `futures` workspace dependency added to `engram_server` for concurrent file I/O
 
+## Phase 35: Last-Mile Accuracy (4 bug fixes + 4 features, 58+ new tests)
+
+Closes four extraction accuracy gaps: VB translation traps (module-level, ByRef, implicit conversions, Nothing, On Error), jQuery inventory (widgets, AJAX calls, event handlers, plugins), inherited effects (base class methods, inheritance chains, virtual/override), and cross-layer AJAX tracing (jQuery → WebMethod/PageMethod/ASMX → SQL).
+
+## Phase 36: LLM-Powered Business Logic (2 tools, 1 service, 17 tests)
+
+### New modules
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `business_logic_service.rs` | `engram_server` | LLM-powered method analysis + deterministic fallback, content-hash caching, DocStore storage |
+
+### New request structs
+
+| Struct | Parameters |
+|--------|------------|
+| `AnalyzeBusinessLogicRequest` | project_id, file_path, method_name, max_concurrent, output_json |
+| `QueryBusinessLogicRequest` | project_id, query, top_k |
+
+### New namespace
+
+`business_logic` (GlobalMutable, KeepForever) in `namespaces.rs`.
+
+## Phase 37: Intelligence Amplification (6 tickets)
+
+### New modules
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `database_intelligence_service.rs` | `engram_server` | SP summaries, call chains, triggers, schema parsing, cross-referencing |
+| `session_workflow_service.rs` | `engram_server` | Per-key workflow narratives from WritesState/ReadsState edges |
+
+### Modified modules
+
+| Module | Change |
+|--------|--------|
+| `business_logic_service.rs` | LLM validation gate (9-category cross-validation, hallucination detection) |
+| `full_project_migration_service.rs` | `use_llm` flag, async LLM enhancement pass, confidence dashboard, DB intelligence, session workflow sections |
+| `AnalyzeFullProjectMigrationRequest` | Added `use_llm: bool` parameter |
+
 ## Source-of-truth sync rule
 
 When changing feature maturity:
