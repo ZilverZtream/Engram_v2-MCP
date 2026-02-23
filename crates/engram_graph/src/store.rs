@@ -230,6 +230,40 @@ impl FromStr for EdgeKind {
     }
 }
 
+mod optional_json_string {
+    use serde::{Deserializer, Serializer, Deserialize};
+    use serde::ser::Error as SerError;
+    use serde::de::Error as DeError;
+    use serde_json::Value as JsonValue;
+
+    pub fn serialize<S>(value: &Option<JsonValue>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match value {
+            Some(v) => {
+                let s = serde_json::to_string(v).map_err(S::Error::custom)?;
+                serializer.serialize_some(&s)
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<JsonValue>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<String> = Option::deserialize(deserializer)?;
+        match s {
+            Some(str_val) => {
+                let v = serde_json::from_str(&str_val).map_err(D::Error::custom)?;
+                Ok(Some(v))
+            }
+            None => Ok(None),
+        }
+    }
+}
+
 // ─── Node / Edge ─────────────────────────────────────────────────────────────
 // NOTE: `skip_serializing_if` is intentionally absent — bincode requires all
 // fields to be serialized in a fixed positional layout. The `#[serde(default)]`
@@ -247,7 +281,7 @@ pub struct Node {
     pub start_line: u32,
     pub end_line: u32,
     pub generation: u64,
-    #[serde(default)]
+    #[serde(default, with = "optional_json_string")]
     pub metadata: Option<JsonValue>,
 }
 
@@ -260,7 +294,7 @@ pub struct Edge {
     pub edge_kind: EdgeKind,
     pub weight: u32,
     pub generation: u64,
-    #[serde(default)]
+    #[serde(default, with = "optional_json_string")]
     pub metadata: Option<JsonValue>,
     pub updated_at_ms: u64,
 }
