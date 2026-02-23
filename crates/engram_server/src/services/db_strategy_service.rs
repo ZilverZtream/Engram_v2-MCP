@@ -5,6 +5,7 @@
 //! to classify each file's data access pattern and produce migration recommendations.
 
 use engram_graph::{Edge, EdgeKind, GraphStore};
+use engram_index::sql_parser::{analyze_sql, SqlOp};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
@@ -241,29 +242,11 @@ pub fn generate_repository_interfaces(
         table_ops.entry(table).or_default().insert("select".into());
     }
 
-    // Determine operation types from SQL content
-    for e in &file_sql {
-        let sql_text = extract_sql_text(e).to_uppercase();
-        let tables: Vec<String> = table_ops.keys().cloned().collect();
-        for table in &tables {
-            if sql_text.contains(&table.to_uppercase()) {
-                let ops = table_ops.entry(table.clone()).or_default();
-                if sql_text.contains("INSERT") {
-                    ops.insert("insert".into());
-                }
-                if sql_text.contains("UPDATE") {
-                    ops.insert("update".into());
-                }
-                if sql_text.contains("DELETE") {
-                    ops.insert("delete".into());
-                }
-            }
-        }
-    }
-
     // Collect columns per table (deduplicated, preserving insertion order)
     let mut table_columns: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut seen_columns: HashSet<(String, String)> = HashSet::new();
+
+    // 1. From ReadsColumn edges (graph-based)
     for e in &file_rc {
         let col = e
             .target_id
@@ -279,6 +262,41 @@ pub fn generate_repository_interfaces(
             .to_string();
         if seen_columns.insert((table.clone(), col.clone())) {
             table_columns.entry(table).or_default().push(col);
+        }
+    }
+
+    // 2. From SQL parsing (SqlAnalysis-based) - Enriches operations and columns
+    for e in &file_sql {
+        let sql_text = extract_sql_text(e);
+        let analysis = analyze_sql(&sql_text);
+
+        let op_key = match analysis.operation {
+            SqlOp::Select => "select",
+            SqlOp::Insert => "insert",
+            SqlOp::Update => "update",
+            SqlOp::Delete => "delete",
+            SqlOp::Exec => "exec",
+        };
+
+        if let Some(table) = analysis.primary_table.as_deref() {
+            let table_clean = strip_brackets(table).to_string();
+            table_ops.entry(table_clean.clone()).or_default().insert(op_key.into());
+
+            // Extract columns from analysis (for SELECT, INSERT columns, UPDATE SET)
+            for col_ref in &analysis.selected_columns {
+                if col_ref.column_name != "*" {
+                    let col_clean = strip_brackets(&col_ref.column_name).to_string();
+                    if seen_columns.insert((table_clean.clone(), col_clean.clone())) {
+                        table_columns.entry(table_clean.clone()).or_default().push(col_clean);
+                    }
+                }
+            }
+        }
+
+        // Also check joined tables
+        for join in &analysis.joined_tables {
+             let table_clean = strip_brackets(&join.table).to_string();
+             table_ops.entry(table_clean.clone()).or_default().insert("select".into());
         }
     }
 
@@ -687,6 +705,10 @@ fn severity_order(s: &str) -> u8 {
         "safe" => 4,
         _ => 5,
     }
+}
+
+fn strip_brackets(s: &str) -> &str {
+    s.trim_start_matches('[').trim_end_matches(']')
 }
 
 fn to_pascal_case(s: &str) -> String {
