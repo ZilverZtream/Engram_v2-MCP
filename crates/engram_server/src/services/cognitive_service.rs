@@ -279,6 +279,7 @@ fn collect_file_diffs(
     )?;
 
     let target = RelPath::new(file_path);
+    let is_dir = std::path::Path::new(directory).join(file_path).is_dir();
     let mut out: Vec<(String, String, String)> = Vec::new();
 
     for oid in oids.iter().rev() {
@@ -287,16 +288,33 @@ fn collect_file_diffs(
         }
         let commit = repo.find_commit(*oid)?;
         let changed = GitWalker::files_changed_in_commit(&repo, *oid)?;
-        let touches_file = changed.iter().any(|fc| fc.path() == &target);
-        if !touches_file {
+        
+        let touches_target = changed.iter().any(|fc| {
+            let p = fc.path().as_str();
+            if is_dir {
+                p.starts_with(target.as_str())
+            } else {
+                fc.path() == &target
+            }
+        });
+
+        if !touches_target {
             continue;
         }
 
         let per_file = GitWalker::diff_text_for_commit(&repo, *oid, 4096)?;
         for (path, diff_text) in per_file {
-            if path == target && !diff_text.trim().is_empty() {
+            let matched = if is_dir {
+                path.as_str().starts_with(target.as_str())
+            } else {
+                path == target
+            };
+
+            if matched && !diff_text.trim().is_empty() {
                 let msg = commit.message().unwrap_or("").to_string();
                 out.push((oid.to_string(), msg, diff_text));
+                // For directories, we might want multiple files from same commit, 
+                // but let's stick to one diff text block for simplicity like v1.
                 break;
             }
         }

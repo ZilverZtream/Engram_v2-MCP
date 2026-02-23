@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 fn default_exts() -> Vec<&'static str> {
     vec![
         "rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "cs", "vb", "c", "cpp", "cc", "cxx",
@@ -7,15 +9,6 @@ fn default_exts() -> Vec<&'static str> {
 }
 
 /// Return the file extensions to index for a given project_type.
-///
-/// WebForms presets include the full set of legacy ASP.NET file types:
-///   - `.aspx` / `.ascx` / `.master` — WebForms pages, user controls, master pages
-///   - `.asmx`  — ASMX Web Service endpoints
-///   - `.ashx`  — Generic HTTP Handlers
-///   - `.svc`   — WCF Service Host endpoints
-///   - `.asax`  — Global Application File (Global.asax)
-///   - `.config` / `.xml` / `.rdlc` — configuration and report definitions
-///   - `.sql`   — stored procedures and DDL scripts
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     if [
         "dotnetwebformscs",
@@ -77,21 +70,13 @@ fn normalize_pattern_separators(p: &str) -> String {
 }
 
 pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
-    // Glob-style wildcard matcher supporting:
-    // - `*` for 0+ characters
-    // - `?` for exactly one character
-    // - `\` to escape a literal `*`, `?`, or `\`
-    //
-    // Matching is done against normalized path separators.
     if pattern.trim().is_empty() {
         return false;
     }
 
     let text = file_path.replace('\\', "/");
-    // Normalize path separators in pattern, but preserve escape sequences (\* \? \\)
     let pat = normalize_pattern_separators(pattern.trim());
 
-    // Guardrail against pathological O(m*n) input that can starve worker threads.
     const MAX_PATTERN_CHARS: usize = 2_048;
     const MAX_TEXT_CHARS: usize = 8_192;
     if pat.chars().count() > MAX_PATTERN_CHARS || text.chars().count() > MAX_TEXT_CHARS {
@@ -110,7 +95,6 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
         if c == '\\' {
             escaped = true;
         } else {
-            // Collapse adjacent `*` tokens to avoid needless DP state growth.
             if c == '*' && tokens.last().copied() == Some(('*', true)) {
                 continue;
             }
@@ -148,9 +132,107 @@ pub fn pattern_match(file_path: &str, pattern: &str) -> bool {
     dp[tokens.len()][text_chars.len()]
 }
 
+/// Recursively discover files with specific extensions under a directory.
+pub async fn discover_files_recursive(
+    dir: &Path,
+    extensions: &[&str],
+    max_files: usize,
+) -> Vec<String> {
+    use std::collections::VecDeque;
+
+    let skip_dirs: std::collections::HashSet<&str> = [
+        "bin",
+        "obj",
+        "node_modules",
+        ".git",
+        "packages",
+        ".vs",
+        ".svn",
+        "debug",
+        "release",
+    ]
+    .into_iter()
+    .collect();
+
+    let mut queue: VecDeque<PathBuf> = VecDeque::new();
+    queue.push_back(dir.to_path_buf());
+
+    let mut results = Vec::new();
+
+    while let Some(current_dir) = queue.pop_front() {
+        if results.len() >= max_files {
+            break;
+        }
+        let mut entries = match tokio::fs::read_dir(&current_dir).await {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if results.len() >= max_files {
+                break;
+            }
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if !skip_dirs.contains(name.to_lowercase().as_str()) {
+                        queue.push_back(path);
+                    }
+                }
+            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                let ext_with_dot = format!(".{}", ext.to_lowercase());
+                if extensions.iter().any(|e| e.to_lowercase() == ext_with_dot) {
+                    if let Some(rel) = path.strip_prefix(dir).ok().and_then(|r| r.to_str()) {
+                        results.push(rel.replace('\\', "/"));
+                    }
+                }
+            }
+        }
+    }
+
+    results
+}
+
+/// Find the code-behind file for an ASPX file.
+pub fn find_codebehind_path(aspx_path: &Path) -> Option<PathBuf> {
+    let s = aspx_path.to_string_lossy();
+    for ext in &[".vb", ".cs"] {
+        let cb = PathBuf::from(format!("{s}{ext}"));
+        if cb.exists() {
+            return Some(cb);
+        }
+    }
+    if let Some(stem) = aspx_path.to_str() {
+        for base_ext in &[".aspx", ".ascx", ".master"] {
+            if let Some(stripped) = stem.strip_suffix(base_ext) {
+                for ext in &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs"] {
+                    let cb = PathBuf::from(format!("{stripped}{ext}"));
+                    if cb.exists() {
+                        return Some(cb);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Find the ASPX file for a code-behind file.
+pub fn find_aspx_for_codebehind(cb_path: &Path) -> Option<PathBuf> {
+    let s = cb_path.to_string_lossy();
+    for ext in &[".vb", ".cs"] {
+        if let Some(stripped) = s.strip_suffix(ext) {
+            let aspx = PathBuf::from(stripped);
+            if aspx.exists() {
+                return Some(aspx);
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{exts_for_project_type, pattern_match};
+    use super::*;
 
     #[test]
     fn matches_glob_wildcards() {

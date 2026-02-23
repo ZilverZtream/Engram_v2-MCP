@@ -61,8 +61,14 @@ pub async fn process_ingest_stats(
 
     for rel_path in &stats.all_files {
         if !is_safe_project_relative_path(rel_path.as_str()) {
+            let reason = if std::path::Path::new(rel_path.as_str()).is_absolute() {
+                "absolute path rejected"
+            } else {
+                "unsafe relative path (traversal or null byte)"
+            };
             anyhow::bail!(
-                "process_ingest_stats: unsafe relative path in all_files: {}",
+                "process_ingest_stats: {} in all_files: {}",
+                reason,
                 rel_path.as_str()
             );
         }

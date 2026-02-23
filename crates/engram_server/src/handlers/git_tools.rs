@@ -1,10 +1,19 @@
+use crate::models::{
+    AnalyzeRevertsRequest, AnalyzeTemporalCouplingsRequest, IndexGitHistoryRequest,
+    IngestZipHistoryRequest, SearchHistoryRequest,
+};
 use crate::tools::Engram;
 use crate::utils::now_ms;
-use engram_core::JobRecord;
+use engram_core::{JobRecord, RepoRule};
 use engram_git::history::GitWalker;
+use engram_graph::EdgeKind;
+use engram_index::HybridQuery;
 use git2::Oid;
-use rmcp::ErrorData as McpError;
-use std::path::PathBuf;
+use rmcp::{
+    model::{CallToolResult, Content},
+    ErrorData as McpError,
+};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 /// Git-related helper methods on Engram.
@@ -436,5 +445,562 @@ impl Engram {
             m.insert(job_id.clone(), handle);
         }
         Ok(job_id)
+    }
+
+    pub async fn handle_index_git_history(
+        &self,
+        req: IndexGitHistoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+
+        if req.wait {
+            let active_gen = self.get_active_generation(&req.project_id).await?;
+            let cancel = tokio_util::sync::CancellationToken::new();
+            let summary = self
+                .git_update_stream(
+                    &req.project_id,
+                    &ps.info.directory,
+                    active_gen,
+                    req.sanitized_max_commits(),
+                    req.index_antipatterns,
+                    engram_git::history::MergeCommitPolicy::AllParents,
+                    &cancel,
+                    Box::new(|_, _| {}),
+                )
+                .await?;
+            return Ok(CallToolResult::success(vec![Content::text(summary)]));
+        }
+
+        let pid_clone = req.project_id.clone();
+        let job_id = self
+            .spawn_job_git_history(
+                pid_clone,
+                req.sanitized_max_commits(),
+                req.index_antipatterns,
+            )
+            .await?;
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{1F7E1} Git history job started.\njob_id: {job_id}"
+        ))]))
+    }
+
+    pub async fn handle_ingest_zip_history(
+        &self,
+        req: IngestZipHistoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let active_gen = self.get_active_generation(&req.project_id).await?;
+
+        let dir = self
+            .state
+            .paths
+            .resolve_path(&req.directory)
+            .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+
+        let graph = self.state.graph.clone();
+        let project_id = req.project_id.clone();
+
+        if req.wait {
+            let summary = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                let mut zip_files: Vec<_> = std::fs::read_dir(&dir)?
+                    .filter_map(|e| e.ok())
+                    .filter(|e| {
+                        e.path()
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .map(|s| s.to_lowercase())
+                            == Some("zip".to_string())
+                    })
+                    .collect();
+
+                fn extract_first_number(s: &str) -> u64 {
+                    let digits: String = s
+                        .chars()
+                        .skip_while(|c| !c.is_ascii_digit())
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect();
+                    digits.parse().unwrap_or(u64::MAX)
+                }
+                zip_files.sort_by_cached_key(|entry| {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let num = extract_first_number(&name);
+                    (num, name)
+                });
+
+                if zip_files.len() < 2 {
+                    return Ok("Need at least 2 zip files to compute pseudo-history.".to_string());
+                }
+
+                let all_non_numeric = zip_files.iter().all(|e| {
+                    extract_first_number(&e.file_name().to_string_lossy()) == u64::MAX
+                });
+                if all_non_numeric {
+                    tracing::warn!(
+                        "ingest_zip_history: no numeric prefixes found in zip filenames — \
+                         falling back to alphabetical ordering which may not be chronological. \
+                         Rename files as 01_name.zip, 02_name.zip … for correct ordering."
+                    );
+                }
+
+                let mut temporal_edges = 0;
+                let mut prev_fingerprints: std::collections::HashMap<String, String> =
+                    std::collections::HashMap::new();
+
+                let mut skipped_zips = 0usize;
+                for (i, entry) in zip_files.iter().enumerate() {
+                    let path = entry.path();
+                    let file = match std::fs::File::open(&path) {
+                        Ok(f) => f,
+                        Err(e) => {
+                            tracing::warn!(path = %path.display(), error = %e, "Skipping unreadable zip file");
+                            skipped_zips += 1;
+                            continue;
+                        }
+                    };
+                    let mut archive = match zip::ZipArchive::new(file) {
+                        Ok(a) => a,
+                        Err(e) => {
+                            tracing::warn!(path = %path.display(), error = %e, "Skipping corrupt/invalid zip file");
+                            skipped_zips += 1;
+                            continue;
+                        }
+                    };
+
+                    let mut current_fingerprints = std::collections::HashMap::new();
+                    let mut changed_files = Vec::new();
+
+                    for j in 0..archive.len() {
+                        let mut f = archive.by_index(j)?;
+                        if f.is_file() {
+                            let name = f.name().to_string();
+                            // Compute a quick hash of the file in zip
+                            let mut hasher = blake3::Hasher::new();
+                            std::io::copy(&mut f, &mut hasher)?;
+                            let hash = hasher.finalize().to_hex().to_string();
+
+                            current_fingerprints.insert(name.clone(), hash.clone());
+
+                            if i > 0 {
+                                if let Some(prev_hash) = prev_fingerprints.get(&name) {
+                                    if *prev_hash != hash {
+                                        changed_files.push(engram_core::RelPath::new(&name));
+                                    }
+                                } else {
+                                    // New file
+                                    changed_files.push(engram_core::RelPath::new(&name));
+                                }
+                            }
+                        }
+                    }
+
+                    if !changed_files.is_empty() {
+                        let pairs = engram_git::temporal::file_pairs(&changed_files, 100);
+                        let batch: Vec<(engram_graph::EdgeKind, String, String, u32)> = pairs
+                            .iter()
+                            .map(|(a, b)| {
+                                (
+                                    engram_graph::EdgeKind::TemporalCoupling,
+                                    format!("file:{}", a),
+                                    format!("file:{}", b),
+                                    1u32,
+                                )
+                            })
+                            .collect();
+                        temporal_edges += batch.len();
+                        graph.batch_increment_undirected_edges(
+                            &project_id,
+                            engram_core::namespaces::NAMESPACE_HISTORY,
+                            "text",
+                            active_gen,
+                            &batch,
+                        )?;
+                    }
+
+                    prev_fingerprints = current_fingerprints;
+                }
+
+                let mut summary = format!(
+                    "\u{2705} Ingested {} snapshots, added {} temporal edges.",
+                    zip_files.len().saturating_sub(skipped_zips),
+                    temporal_edges
+                );
+                if skipped_zips > 0 {
+                    summary.push_str(&format!("\n\u{26a0}\u{fe0f} {} zip files were skipped (corrupt or unreadable).", skipped_zips));
+                }
+                Ok(summary)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            return Ok(CallToolResult::success(vec![Content::text(summary)]));
+        }
+
+        Err(McpError::internal_error(
+            "Background job for ingest_zip_history not implemented yet. Use wait=true.",
+            None,
+        ))
+    }
+
+    pub async fn handle_search_history(
+        &self,
+        req: SearchHistoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let content_limit = req.max_content_chars;
+        let limit = req.sanitized_limit();
+
+        // Validate fts_mode
+        let fts_mode = match req.fts_mode.as_str() {
+            "strict" | "loose" | "regex" => req.fts_mode.clone(),
+            _ => "strict".into(),
+        };
+
+        // Map path filters
+        let include_path_prefixes = req.file_filter.map(|f| vec![f]);
+        let exclude_path_prefixes = req.exclude_paths;
+        let project_id = req.project_id;
+        let query = req.query;
+        let author_filter = req.author_filter;
+        let date_after = req.date_after;
+        let date_before = req.date_before;
+        let use_mmr = req.use_mmr;
+
+        let hits = ps
+            .search
+            .search(
+                &HybridQuery {
+                    project_id: project_id.clone(),
+                    namespace: "history".into(),
+                    generation: gen_,
+                    text: query.clone(),
+                    top_k: limit,
+                    fts_mode,
+                    include_path_prefixes,
+                    exclude_path_prefixes,
+                    language_filters: None,
+                    author_filter,
+                    date_after,
+                    date_before,
+                    use_mmr,
+                },
+                None,
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if hits.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No history hits found.",
+            )]));
+        }
+
+        let mut out = String::with_capacity(4096);
+        out.push_str(&format!(
+            "History search results ({} hits, gen {}):\n",
+            hits.len(),
+            gen_
+        ));
+
+        for (i, h) in hits.iter().enumerate() {
+            out.push_str(&format!("\n--- #{} ---\n", i + 1));
+            out.push_str(&format!("score: {:.3}\n", h.score));
+            out.push_str(&format!("path: {}\n", h.path));
+
+            if let Ok(Some((_, _, content, _, _))) =
+                ps.search
+                    .get_doc_by_doc_id(&project_id, "history", gen_, &h.doc_id)
+            {
+                // Extract structured commit metadata from content header
+                let mut commit_hash = None;
+                let mut author = None;
+                let mut date = None;
+                let mut message = None;
+                let mut diff_start = 0;
+
+                for (line_idx, line) in content.lines().enumerate() {
+                    if line.starts_with("commit ") && commit_hash.is_none() {
+                        commit_hash = Some(line.trim_start_matches("commit ").trim());
+                    } else if line.starts_with("Author: ") && author.is_none() {
+                        author = Some(line.trim_start_matches("Author: ").trim());
+                    } else if line.starts_with("Date: ") && date.is_none() {
+                        date = Some(line.trim_start_matches("Date: ").trim());
+                    } else if line.starts_with("    ") && message.is_none() && commit_hash.is_some()
+                    {
+                        message = Some(line.trim());
+                    } else if line.starts_with("diff ") || line.starts_with("---") {
+                        diff_start = content
+                            .lines()
+                            .take(line_idx)
+                            .map(|l| l.len() + 1)
+                            .sum::<usize>();
+                        break;
+                    }
+                }
+
+                if let Some(hash) = commit_hash {
+                    out.push_str(&format!("commit: {}\n", hash));
+                }
+                if let Some(auth) = author {
+                    out.push_str(&format!("author: {}\n", auth));
+                }
+                if let Some(d) = date {
+                    out.push_str(&format!("date: {}\n", d));
+                }
+                if let Some(msg) = message {
+                    out.push_str(&format!("message: {}\n", msg));
+                }
+
+                // Show diff content if requested
+                if content_limit > 0 {
+                    let diff_content = if diff_start > 0 && diff_start < content.len() {
+                        &content[diff_start..]
+                    } else {
+                        &content
+                    };
+                    out.push_str("content:\n");
+                    if diff_content.chars().count() > content_limit {
+                        out.push_str(&diff_content.chars().take(content_limit).collect::<String>());
+                        out.push_str("... (truncated)");
+                    } else {
+                        out.push_str(diff_content);
+                    }
+                    out.push('\n');
+                }
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
+    }
+
+    pub async fn handle_analyze_temporal_couplings(
+        &self,
+        req: AnalyzeTemporalCouplingsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let couplings = if let Some(ref file_path) = req.file_path {
+            // Focused search
+            let node_id = if file_path.starts_with("file:") {
+                file_path.clone()
+            } else {
+                format!("file:{file_path}")
+            };
+            engram_graph::algorithms::coupling::file_temporal_couplings(
+                &self.state.graph,
+                &req.project_id,
+                &node_id,
+                req.sanitized_min_frequency() as u32,
+                req.sanitized_limit(),
+            )
+        } else {
+            // Global search
+            engram_graph::algorithms::coupling::top_project_couplings(
+                &self.state.graph,
+                &req.project_id,
+                req.sanitized_limit(),
+            )
+        }
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if couplings.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No temporal neighbors found for the given criteria.",
+            )]));
+        }
+
+        let mut out = String::new();
+        if let Some(ref fp) = req.file_path {
+            out.push_str(&format!("Temporal couplings for {fp}:\n"));
+        } else {
+            out.push_str("Top temporal couplings:\n");
+        }
+
+        for c in couplings {
+            out.push_str(&format!(
+                "- {} <-> {} (weight={})\n",
+                c.file_node_id, c.neighbor_node_id, c.weight
+            ));
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    pub async fn handle_analyze_reverts(
+        &self,
+        req: AnalyzeRevertsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let active_gen = self.get_active_generation(&req.project_id).await?;
+
+        // Phase 1 (CPU-bound): walk commits and extract revert data in a blocking thread.
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        struct RevertData {
+            rule_id: String,
+            file_pattern: String,
+            diff_text: String,
+            original_commit: String,
+            file_path: engram_core::RelPath,
+        }
+
+        let revert_data = tokio::task::spawn_blocking({
+            let directory = ps.info.directory.clone();
+            let max_commits = req.max_commits;
+            let cancel_clone = cancel.clone();
+
+            move || -> anyhow::Result<Vec<RevertData>> {
+                let repo = GitWalker::open_repo(Path::new(&directory))?;
+                let mut data = Vec::new();
+
+                GitWalker::walk_commits_streaming(
+                    &repo,
+                    None,
+                    max_commits,
+                    engram_git::history::MergeCommitPolicy::AllParents,
+                    &cancel_clone,
+                    |oid, _curr, _total| {
+                        let docs =
+                            GitWalker::extract_antipatterns_from_reverts(&repo, oid, 50_000)?;
+                        for doc in docs {
+                            data.push(RevertData {
+                                rule_id: format!("immune_{}", doc.original_commit),
+                                file_pattern: format!("**/{}", doc.file_path),
+                                diff_text: doc.diff_text,
+                                original_commit: doc.original_commit.to_string(),
+                                file_path: doc.file_path,
+                            });
+                        }
+                        Ok(())
+                    },
+                )?;
+
+                Ok(data)
+            }
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let reverts_found = revert_data.len();
+
+        // Phase 2 (async): Generate LLM-powered descriptive rules + build IndexDocs.
+        let dreaming = self.state.dreaming.clone();
+        let mut anti_docs = Vec::with_capacity(revert_data.len());
+        let mut rules_added = 0;
+
+        for rd in &revert_data {
+            // Try LLM-based analysis of the reverted diff to produce a descriptive rule
+            let diff_snippet = if rd.diff_text.len() > 2000 {
+                &rd.diff_text[..2000]
+            } else {
+                &rd.diff_text
+            };
+
+            let prompt = format!(
+                "Analyze this reverted code diff and explain in 1-2 concise sentences why this pattern should be avoided. \
+                 Focus on the root cause — what went wrong and what developers should do instead.\n\n\
+                 File: {}\nOriginal commit: {}\n\nDiff:\n```\n{}\n```\n\n\
+                 Respond with ONLY the rule text (no preamble).",
+                rd.file_path, rd.original_commit, diff_snippet
+            );
+
+            let llm_analysis = dreaming
+                .generate_text(&prompt, 200, std::time::Duration::from_secs(15))
+                .await;
+
+            let rule_text = if llm_analysis.is_empty() {
+                // Deterministic fallback with more detail than before
+                format!(
+                    "AVOID: Pattern in {} was reverted (commit {}). The change was rolled back indicating it introduced a regression. Review carefully before reintroducing similar changes.",
+                    rd.file_path, rd.original_commit
+                )
+            } else {
+                format!(
+                    "AVOID (reverted in {}): {}",
+                    rd.original_commit, llm_analysis
+                )
+            };
+
+            let rule = RepoRule {
+                rule_id: rd.rule_id.clone(),
+                file_pattern: rd.file_pattern.clone(),
+                rule_text,
+                priority: 10,
+                updated_at_ms: now_ms(),
+            };
+            self.state
+                .registry
+                .put_repo_rule(&req.project_id, &rule)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            rules_added += 1;
+
+            // Build IndexDoc for Tantivy
+            let immune_content_hash = engram_core::ContentHash::compute(rd.diff_text.as_bytes());
+            let immune_doc_id_str =
+                engram_core::DocIdStr::compute(rd.file_path.as_str(), 0, 0, &immune_content_hash).0;
+
+            anti_docs.push(engram_index::IndexDoc {
+                generation: active_gen,
+                chunk_id: engram_index::chunk_id_from_content_hash(&immune_content_hash),
+                doc_id: immune_doc_id_str,
+                content_hash: immune_content_hash.0,
+                path: rd.file_path.clone(),
+                language: "code".into(),
+                content: rd.diff_text.clone(),
+                namespace: "antipattern".into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+            });
+        }
+
+        // Phase 3 (async): index the anti-pattern docs
+        let docs_indexed = anti_docs.len();
+        if !anti_docs.is_empty() {
+            ps.search
+                .index_docs(&req.project_id, &anti_docs, &cancel)
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        // Phase 4: Build graph edges connecting affected files to anti-pattern nodes
+        let mut ap_edges = Vec::new();
+        for rd in &revert_data {
+            // Create an AntiPattern edge from file → anti-pattern marker
+            ap_edges.push(engram_graph::Edge {
+                source_id: format!("file:{}", rd.file_path),
+                target_id: format!("antipattern:{}", rd.rule_id),
+                namespace: "antipattern".into(),
+                language: "code".into(),
+                edge_kind: EdgeKind::AntiPattern,
+                weight: 1,
+                generation: active_gen,
+                metadata: None,
+                updated_at_ms: now_ms(),
+            });
+        }
+        let edges_created = ap_edges.len();
+        if !ap_edges.is_empty() {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let _ = tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &ap_edges)).await;
+        }
+
+        // Record metrics
+        engram_core::metrics()
+            .tantivy_docs_indexed
+            .add(docs_indexed as u64);
+
+        let summary = format!(
+            "\u{2705} Immune System active.\n\
+             Reverts analyzed: {reverts_found}\n\
+             Anti-patterns indexed: {docs_indexed}\n\
+             Repo rules generated: {rules_added}\n\
+             Graph edges created: {edges_created}",
+        );
+
+        Ok(CallToolResult::success(vec![Content::text(summary)]))
     }
 }
