@@ -20,13 +20,16 @@ impl RelPath {
         let trimmed = normalized.trim_matches('/');
 
         let mut parts: Vec<&str> = Vec::new();
+        let mut attempted_root_escape = false;
         for raw in trimmed.split('/') {
             let seg = raw.trim();
             if seg.is_empty() || seg == "." {
                 continue;
             }
             if seg == ".." {
-                parts.pop();
+                if parts.pop().is_none() {
+                    attempted_root_escape = true;
+                }
                 continue;
             }
             if seg.contains('\0') || seg.chars().any(|c| c.is_control()) {
@@ -35,7 +38,14 @@ impl RelPath {
             parts.push(seg);
         }
 
-        Self(parts.join("/"))
+        if attempted_root_escape {
+            // Preserve safety invariant: a RelPath must never silently remap an
+            // out-of-root traversal attempt into an apparently safe in-root path.
+            // Emit an empty path sentinel so callers can reject/skip explicitly.
+            Self(String::new())
+        } else {
+            Self(parts.join("/"))
+        }
     }
 
     /// Create a RelPath from an absolute path relative to a root.
@@ -120,7 +130,7 @@ mod tests {
     #[test]
     fn test_rel_path_traversal_normalized() {
         assert_eq!(RelPath::new("src/../lib.rs").as_str(), "lib.rs");
-        assert_eq!(RelPath::new("../../etc/passwd").as_str(), "etc/passwd");
+        assert_eq!(RelPath::new("../../etc/passwd").as_str(), "");
     }
 
     #[test]

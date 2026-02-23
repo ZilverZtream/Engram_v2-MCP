@@ -154,6 +154,11 @@ pub async fn discover_files_recursive(
     .into_iter()
     .collect();
 
+    let normalized_exts: std::collections::HashSet<String> = extensions
+        .iter()
+        .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
+        .collect();
+
     let mut queue: VecDeque<PathBuf> = VecDeque::new();
     queue.push_back(dir.to_path_buf());
 
@@ -172,15 +177,28 @@ pub async fn discover_files_recursive(
                 break;
             }
             let path = entry.path();
-            if path.is_dir() {
+            let Ok(ft) = entry.file_type().await else {
+                continue;
+            };
+
+            if ft.is_symlink() {
+                // Security: never follow symlinks during recursive discovery.
+                // This prevents escaping the project root and symlink-loop DoS.
+                continue;
+            }
+
+            if ft.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                     if !skip_dirs.contains(name.to_lowercase().as_str()) {
                         queue.push_back(path);
                     }
                 }
-            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let ext_with_dot = format!(".{}", ext.to_lowercase());
-                if extensions.iter().any(|e| e.to_lowercase() == ext_with_dot) {
+            } else if ft.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let ext_normalized = ext.to_ascii_lowercase();
+                    if !normalized_exts.contains(&ext_normalized) {
+                        continue;
+                    }
                     if let Some(rel) = path.strip_prefix(dir).ok().and_then(|r| r.to_str()) {
                         results.push(rel.replace('\\', "/"));
                     }
