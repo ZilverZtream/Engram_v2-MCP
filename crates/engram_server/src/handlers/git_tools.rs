@@ -10,8 +10,8 @@ use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use git2::Oid;
 use rmcp::{
-    model::{CallToolResult, Content},
     ErrorData as McpError,
+    model::{CallToolResult, Content},
 };
 use std::path::{Path, PathBuf};
 use uuid::Uuid;

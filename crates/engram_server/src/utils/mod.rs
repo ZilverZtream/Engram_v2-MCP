@@ -2,8 +2,8 @@ pub mod files;
 pub mod text;
 
 pub use files::{
-    discover_files_recursive, exts_for_project_type, find_aspx_for_codebehind, find_codebehind_path,
-    pattern_match,
+    discover_files_recursive, exts_for_project_type, find_aspx_for_codebehind,
+    find_codebehind_path, pattern_match,
 };
 pub use text::{code_to_query, stacktrace_to_query};
 

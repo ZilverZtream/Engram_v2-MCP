@@ -1436,3 +1436,78 @@ pub struct QueryBusinessLogicRequest {
     #[serde(default = "default_limit_5")]
     pub top_k: usize,
 }
+
+// ── Phase 37: Wiring — Expose Existing Services ──────────────────────────────
+
+fn default_sp_limit() -> usize {
+    50
+}
+fn default_min_severity() -> String {
+    "medium".to_string()
+}
+
+/// Full database analysis: schema, stored procedures, triggers, call chains.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AnalyzeDatabaseIntelligenceRequest {
+    pub project_id: String,
+    /// Optional: path to a specific .sql file to analyze in isolation.
+    /// If omitted, uses all .sql files already indexed for the project.
+    #[serde(default)]
+    pub sql_file_path: Option<String>,
+    /// Maximum stored procedures to summarize (avoid runaway cost). Default: 50.
+    #[serde(default = "default_sp_limit")]
+    pub sp_limit: usize,
+    /// Output as JSON instead of Markdown report. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Retrieve deep analysis for a single stored procedure by name.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetSpDetailsRequest {
+    pub project_id: String,
+    /// Name of the stored procedure.
+    pub sp_name: String,
+    /// If true, re-analyze even if cached. Default: false.
+    #[serde(default)]
+    pub force_refresh: bool,
+}
+
+/// Get all triggers for a project, optionally filtered by table.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ListTriggersRequest {
+    pub project_id: String,
+    /// Filter to triggers on a specific table name.
+    #[serde(default)]
+    pub table_name: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Detect synchronous patterns hazardous for async/await migration.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct AnalyzeSyncHazardsRequest {
+    pub project_id: String,
+    /// Specific file to analyze. If omitted, scans all indexed .vb/.cs files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Only return hazards at or above this severity: "medium" | "high" | "critical". Default: "medium".
+    #[serde(default = "default_min_severity")]
+    pub min_severity: String,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Get jQuery usage inventory for a project.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct GetJQueryInventoryRequest {
+    pub project_id: String,
+    /// Filter to files matching this glob pattern (e.g., "*.js" or "checkout*").
+    #[serde(default)]
+    pub file_filter: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}

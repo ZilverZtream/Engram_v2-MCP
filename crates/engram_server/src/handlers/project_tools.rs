@@ -9,10 +9,10 @@ use crate::services::{graph_service, ingest_service, project_service};
 use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 use crate::utils::files::exts_for_project_type;
-use crate::utils::{now_ms};
+use crate::utils::now_ms;
 use engram_core::{Checkpoint, JobPhase, JobRecord, MemorySection, ProjectRecord, WatchRecord};
-use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
+use rmcp::model::{CallToolResult, Content};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -38,10 +38,7 @@ fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
     rels.iter()
         .filter(|r| {
             let p = std::path::Path::new(r.as_str());
-            !p.is_absolute()
-                && !r.contains("..")
-                && !r.starts_with('/')
-                && !r.starts_with('\\')
+            !p.is_absolute() && !r.contains("..") && !r.starts_with('/') && !r.starts_with('\\')
         })
         .map(|r| root.join(r))
         .collect()
@@ -592,13 +589,23 @@ impl Engram {
                                     max_chunks,
                                     &token,
                                     move |curr, total| {
-                                        let pct = if total == 0 { 100 } else { ((curr as f32 / total as f32) * 100.0) as u8 };
-                                        let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
-                                        if pct.saturating_sub(prev) < 5 && curr != total { return; }
+                                        let pct = if total == 0 {
+                                            100
+                                        } else {
+                                            ((curr as f32 / total as f32) * 100.0) as u8
+                                        };
+                                        let prev =
+                                            last_pct.load(std::sync::atomic::Ordering::Relaxed);
+                                        if pct.saturating_sub(prev) < 5 && curr != total {
+                                            return;
+                                        }
                                         last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
-                                        if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
+                                        if let Ok(Some(mut job)) =
+                                            reg_for_cb.get_job(&job_id_for_cb)
+                                        {
                                             job.progress_pct = pct;
-                                            job.message = format!("Indexing: {}/{} files", curr, total);
+                                            job.message =
+                                                format!("Indexing: {}/{} files", curr, total);
                                             job.updated_at_ms = now_ms();
                                             let _ = reg_for_cb.put_job(&job);
                                         }
@@ -619,9 +626,15 @@ impl Engram {
                                 max_chunks,
                                 &token,
                                 move |curr, total| {
-                                    let pct = if total == 0 { 100 } else { ((curr as f32 / total as f32) * 100.0) as u8 };
+                                    let pct = if total == 0 {
+                                        100
+                                    } else {
+                                        ((curr as f32 / total as f32) * 100.0) as u8
+                                    };
                                     let prev = last_pct.load(std::sync::atomic::Ordering::Relaxed);
-                                    if pct.saturating_sub(prev) < 5 && curr != total { return; }
+                                    if pct.saturating_sub(prev) < 5 && curr != total {
+                                        return;
+                                    }
                                     last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
                                     if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
                                         job.progress_pct = pct;
@@ -637,7 +650,9 @@ impl Engram {
                 Err(e) => Err(e),
             };
 
-            state_for_spawn.active_indexing_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            state_for_spawn
+                .active_indexing_count
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
             state_for_spawn.evict_cache_overshoot().await;
 
             let mut status = "done";
@@ -646,23 +661,53 @@ impl Engram {
 
             let engram = Engram::new(state_for_spawn.clone());
             if token.is_cancelled() {
-                engram.write_checkpoint(&job_id_for_job, &project_id_for_job, 1, &directory, JobPhase::Failed, 0, 0, None).await;
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        1,
+                        &directory,
+                        JobPhase::Failed,
+                        0,
+                        0,
+                        None,
+                    )
+                    .await;
                 status = "cancelled";
                 msg = "cancelled by user".to_string();
                 progress = 0;
             } else if let Ok(stats) = &res {
                 let pid = project_id_for_job.clone();
-                engram.write_checkpoint(&job_id_for_job, &project_id_for_job, 1, &directory, JobPhase::VectorIndexing, stats.chunks as u64, stats.chunks as u64, None).await;
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        1,
+                        &directory,
+                        JobPhase::VectorIndexing,
+                        stats.chunks as u64,
+                        stats.chunks as u64,
+                        None,
+                    )
+                    .await;
                 if let Err(e) = engram.process_ingest_stats(&pid, 1, stats).await {
                     status = "failed";
                     msg = format!("Graph processing failed: {}", e);
                     progress = 0;
                 } else {
                     let _ = graph_service::resolve_app_code_globals(&engram.state.graph, &pid, 1);
-                    let _ = graph_service::link_binding_fields_to_columns(&engram.state.graph, &pid, 1);
+                    let _ =
+                        graph_service::link_binding_fields_to_columns(&engram.state.graph, &pid, 1);
                     let _ = engram.state.graph.resolve_symbol_edges(&pid);
                     let report = engram.generate_indexing_report(stats);
-                    let _ = engram.handle_update_memory_bank(UpdateMemoryBankRequest { project_id: pid.clone(), section_id: Some("engram/index_report".into()), section: "Indexing Report".into(), content: report }).await;
+                    let _ = engram
+                        .handle_update_memory_bank(UpdateMemoryBankRequest {
+                            project_id: pid.clone(),
+                            section_id: Some("engram/index_report".into()),
+                            section: "Indexing Report".into(),
+                            content: report,
+                        })
+                        .await;
                 }
             } else if let Err(e) = res {
                 status = "failed";
@@ -684,11 +729,20 @@ impl Engram {
             };
             let _ = tokio::task::spawn_blocking(move || reg2.put_job(&jr)).await;
 
-            { let mut m = active_jobs.write().await; m.remove(&job_id_for_job); }
-            { let mut m = cancellation_tokens.write().await; m.remove(&job_id_for_job); }
+            {
+                let mut m = active_jobs.write().await;
+                m.remove(&job_id_for_job);
+            }
+            {
+                let mut m = cancellation_tokens.write().await;
+                m.remove(&job_id_for_job);
+            }
         });
 
-        { let mut m = self.state.active_jobs.write().await; m.insert(job_id.clone(), handle); }
+        {
+            let mut m = self.state.active_jobs.write().await;
+            m.insert(job_id.clone(), handle);
+        }
         Ok(job_id)
     }
 
@@ -741,7 +795,9 @@ impl Engram {
 
             let res = async {
                 let engram = Engram::new(state.clone());
-                let ps = engram.ensure_project_runtime(&project_id_for_job).await
+                let ps = engram
+                    .ensure_project_runtime(&project_id_for_job)
+                    .await
                     .map_err(|e| anyhow::anyhow!(e.message))?;
 
                 let dir = PathBuf::from(&ps.info.directory);
@@ -752,7 +808,9 @@ impl Engram {
                     .await?;
 
                 if !deleted.is_empty() {
-                    ps.search.delete_files(&project_id_for_job, "memory", &deleted).await?;
+                    ps.search
+                        .delete_files(&project_id_for_job, "memory", &deleted)
+                        .await?;
                 }
 
                 let stats = engram
@@ -769,23 +827,32 @@ impl Engram {
                     )
                     .await?;
 
-                engram.process_ingest_stats(&project_id_for_job, new_gen, &stats).await?;
-                let _ = graph_service::link_sql_to_schema(&engram.state.graph, &project_id_for_job, new_gen);
+                engram
+                    .process_ingest_stats(&project_id_for_job, new_gen, &stats)
+                    .await?;
+                let _ = graph_service::link_sql_to_schema(
+                    &engram.state.graph,
+                    &project_id_for_job,
+                    new_gen,
+                );
                 let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
 
-                let _ = engram.git_update_stream(
-                    &project_id_for_job,
-                    &ps.info.directory,
-                    new_gen,
-                    max_commits,
-                    index_antipatterns,
-                    engram_git::history::MergeCommitPolicy::AllParents,
-                    &token,
-                    Box::new(|_, _| {}),
-                ).await;
+                let _ = engram
+                    .git_update_stream(
+                        &project_id_for_job,
+                        &ps.info.directory,
+                        new_gen,
+                        max_commits,
+                        index_antipatterns,
+                        engram_git::history::MergeCommitPolicy::AllParents,
+                        &token,
+                        Box::new(|_, _| {}),
+                    )
+                    .await;
 
                 Ok::<(), anyhow::Error>(())
-            }.await;
+            }
+            .await;
 
             let final_status = if token.is_cancelled() {
                 "cancelled"
@@ -794,7 +861,7 @@ impl Engram {
             } else {
                 status
             };
-            
+
             let final_msg = if token.is_cancelled() {
                 "cancelled by user".to_string()
             } else if let Err(e) = res {
@@ -804,7 +871,11 @@ impl Engram {
             };
 
             if final_status == "done" {
-                let _ = state.registry.set_meta(&project_id_for_job, "active_generation", &new_gen.to_string());
+                let _ = state.registry.set_meta(
+                    &project_id_for_job,
+                    "active_generation",
+                    &new_gen.to_string(),
+                );
             }
 
             let jr2 = JobRecord {
@@ -819,11 +890,20 @@ impl Engram {
                 updated_at_ms: now_ms(),
             };
             let _ = tokio::task::spawn_blocking(move || state.registry.put_job(&jr2)).await;
-            { let mut m = state.active_jobs.write().await; m.remove(&job_id_for_job); }
-            { let mut m = state.cancellation_tokens.write().await; m.remove(&job_id_for_job); }
+            {
+                let mut m = state.active_jobs.write().await;
+                m.remove(&job_id_for_job);
+            }
+            {
+                let mut m = state.cancellation_tokens.write().await;
+                m.remove(&job_id_for_job);
+            }
         });
 
-        { let mut m = self.state.active_jobs.write().await; m.insert(job_id.clone(), handle); }
+        {
+            let mut m = self.state.active_jobs.write().await;
+            m.insert(job_id.clone(), handle);
+        }
         Ok(job_id)
     }
 
@@ -968,8 +1048,9 @@ impl Engram {
         {
             let graph = self.state.graph.clone();
             let pid2 = pid.clone();
-            let _ =
-                tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid2)).await.ok();
+            let _ = tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid2))
+                .await
+                .ok();
         }
 
         let git_summary = self
@@ -1016,24 +1097,47 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if list.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text("No projects indexed.")]));
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No projects indexed.",
+            )]));
         }
 
         let mut out = String::new();
         for p in list {
-            out.push_str(&format!("- {} | {} | {}\n", p.project_id, p.project_name, p.directory));
+            out.push_str(&format!(
+                "- {} | {} | {}\n",
+                p.project_id, p.project_name, p.directory
+            ));
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_project_info(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
-        let rec = self.state.registry.get_project(&req.project_id).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let Some(rec) = rec else { return Err(McpError::invalid_params("Unknown project", None)); };
-        let gen_ = self.get_active_generation(&req.project_id).await.unwrap_or(1);
-        Ok(CallToolResult::success(vec![Content::text(format!("project_id: {}\nname: {}\ndirectory: {}\nactive_generation: {}", rec.project_id, rec.project_name, rec.directory, gen_))]))
+    pub async fn handle_project_info(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self
+            .state
+            .registry
+            .get_project(&req.project_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let Some(rec) = rec else {
+            return Err(McpError::invalid_params("Unknown project", None));
+        };
+        let gen_ = self
+            .get_active_generation(&req.project_id)
+            .await
+            .unwrap_or(1);
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "project_id: {}\nname: {}\ndirectory: {}\nactive_generation: {}",
+            rec.project_id, rec.project_name, rec.directory, gen_
+        ))]))
     }
 
-    pub async fn handle_project_health(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_project_health(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let generation = self.get_active_generation(&pid).await.unwrap_or(1);
@@ -1063,89 +1167,176 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_repair_project(&self, req: RepairProjectRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_repair_project(
+        &self,
+        req: RepairProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id.clone();
         let _ = self.ensure_project_record(&pid).await?;
-        
+
         // Full repair implementation
-        let rec = self.state.registry.get_project(&pid).map_err(|e| McpError::internal_error(e.to_string(), None))?.unwrap();
+        let rec = self
+            .state
+            .registry
+            .get_project(&pid)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .unwrap();
         let dir = PathBuf::from(&rec.directory);
-        
+
         if req.wipe_and_reindex {
             self.state.projects.remove(&pid);
             self.state.graph.delete_project_data(&pid).ok();
         }
-        
+
         let ps = self.ensure_project_runtime(&pid).await?;
         let current_gen = self.get_active_generation(&pid).await.unwrap_or(1);
         let new_gen = current_gen + 1;
-        
+
         let exts = exts_for_project_type(&rec.project_type);
         let files = engram_index::ingest::iter_files(&dir, &exts);
         let cancel = tokio_util::sync::CancellationToken::new();
-        
-        let stats = self.index_files_with_parse_guard(&ps.search, &pid, "memory", new_gen, &dir, files, self.state.cfg.max_chunks_per_file, &cancel, |_,_| {}).await
+
+        let stats = self
+            .index_files_with_parse_guard(
+                &ps.search,
+                &pid,
+                "memory",
+                new_gen,
+                &dir,
+                files,
+                self.state.cfg.max_chunks_per_file,
+                &cancel,
+                |_, _| {},
+            )
+            .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            
+
         self.process_ingest_stats(&pid, new_gen, &stats).await.ok();
-        let _ = self.state.registry.set_meta(&pid, "active_generation", &new_gen.to_string());
-        
-        Ok(CallToolResult::success(vec![Content::text(format!("\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}", stats.files, stats.chunks))]))
+        let _ = self
+            .state
+            .registry
+            .set_meta(&pid, "active_generation", &new_gen.to_string());
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}",
+            stats.files, stats.chunks
+        ))]))
     }
 
-    pub async fn handle_delete_project(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_delete_project(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id;
-        
+
         // The data directory for a project is usually at {data_dir}/projects/{pid}
         let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
 
         self.state.projects.remove(&pid);
-        self.state.registry.delete_all_for_project(&pid).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        self.state.graph.delete_project_data(&pid).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        
+        self.state
+            .registry
+            .delete_all_for_project(&pid)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        self.state
+            .graph
+            .delete_project_data(&pid)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
         if project_dir.exists() {
             let _ = std::fs::remove_dir_all(project_dir);
         }
 
-        Ok(CallToolResult::success(vec![Content::text(format!("✅ Deleted project_id: {pid}"))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "✅ Deleted project_id: {pid}"
+        ))]))
     }
 
-    pub async fn handle_watch_project(&self, req: WatchProjectRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_watch_project(
+        &self,
+        req: WatchProjectRequest,
+    ) -> Result<CallToolResult, McpError> {
         let rec = self.ensure_project_record(&req.project_id).await?;
-        let watch = WatchRecord { watch_id: "default".into(), directory: rec.directory.clone(), enabled: req.enabled, updated_at_ms: now_ms() };
-        self.state.registry.put_watch(&req.project_id, &watch).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let _ = self.state.events_tx.send(AppEvent::WatchUpdate { project_id: req.project_id, directory: rec.directory, enabled: req.enabled });
-        Ok(CallToolResult::success(vec![Content::text("✅ Watch updated.")]))
+        let watch = WatchRecord {
+            watch_id: "default".into(),
+            directory: rec.directory.clone(),
+            enabled: req.enabled,
+            updated_at_ms: now_ms(),
+        };
+        self.state
+            .registry
+            .put_watch(&req.project_id, &watch)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let _ = self.state.events_tx.send(AppEvent::WatchUpdate {
+            project_id: req.project_id,
+            directory: rec.directory,
+            enabled: req.enabled,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            "✅ Watch updated.",
+        )]))
     }
 
-    pub async fn handle_unwatch_project(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
-        let _ = self.state.events_tx.send(AppEvent::WatchUpdate { project_id: req.project_id, directory: "".into(), enabled: false });
-        Ok(CallToolResult::success(vec![Content::text("✅ Unwatched.")]))
+    pub async fn handle_unwatch_project(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let _ = self.state.events_tx.send(AppEvent::WatchUpdate {
+            project_id: req.project_id,
+            directory: "".into(),
+            enabled: false,
+        });
+        Ok(CallToolResult::success(vec![Content::text(
+            "✅ Unwatched.",
+        )]))
     }
 
     pub async fn handle_list_jobs(&self, req: ListJobsRequest) -> Result<CallToolResult, McpError> {
-        let jobs = self.state.registry.list_jobs(req.project_id.as_deref()).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let jobs = self
+            .state
+            .registry
+            .list_jobs(req.project_id.as_deref())
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::new();
-        for j in jobs { out.push_str(&format!("- {} | {} | {}\n", j.job_id, j.kind, j.status)); }
+        for j in jobs {
+            out.push_str(&format!("- {} | {} | {}\n", j.job_id, j.kind, j.status));
+        }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_cancel_job(&self, req: CancelJobRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_cancel_job(
+        &self,
+        req: CancelJobRequest,
+    ) -> Result<CallToolResult, McpError> {
         let ok = self.cancel_job_internal(&req.job_id).await;
-        Ok(CallToolResult::success(vec![Content::text(if ok { 
-            format!("✅ cancelled job_id: {}", req.job_id) 
-        } else { 
-            format!("❌ job_id not active: {}", req.job_id) 
+        Ok(CallToolResult::success(vec![Content::text(if ok {
+            format!("✅ cancelled job_id: {}", req.job_id)
+        } else {
+            format!("❌ job_id not active: {}", req.job_id)
         })]))
     }
 
-    pub async fn handle_get_job_status(&self, req: CancelJobRequest) -> Result<CallToolResult, McpError> {
-        let job = self.state.registry.get_job(&req.job_id).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let Some(j) = job else { return Err(McpError::invalid_params("Unknown job", None)); };
-        Ok(CallToolResult::success(vec![Content::text(format!("job_id: {}\nstatus: {}\nmessage: {}", j.job_id, j.status, j.message))]))
+    pub async fn handle_get_job_status(
+        &self,
+        req: CancelJobRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let job = self
+            .state
+            .registry
+            .get_job(&req.job_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let Some(j) = job else {
+            return Err(McpError::invalid_params("Unknown job", None));
+        };
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "job_id: {}\nstatus: {}\nmessage: {}",
+            j.job_id, j.status, j.message
+        ))]))
     }
 
-    pub async fn handle_incremental_indexing_gc(&self, req: IncrementalIndexingGcRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_incremental_indexing_gc(
+        &self,
+        req: IncrementalIndexingGcRequest,
+    ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let active_gen = self.get_active_generation(&pid).await?;
@@ -1164,7 +1355,10 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        steps.push(format!("Purged graph generations older than {}.", target_gen));
+        steps.push(format!(
+            "Purged graph generations older than {}.",
+            target_gen
+        ));
 
         ps.search
             .purge_old_generations(&pid, target_gen)
@@ -1182,27 +1376,67 @@ impl Engram {
         let post_vectors = ps.search.count_vectors(&pid).await.unwrap_or(0);
 
         let mut out = String::with_capacity(512);
-        out.push_str(&format!("\u{2705} GC completed for project '{}' (target_gen={}).\n", pid, target_gen));
+        out.push_str(&format!(
+            "\u{2705} GC completed for project '{}' (target_gen={}).\n",
+            pid, target_gen
+        ));
         for (i, step) in steps.iter().enumerate() {
             out.push_str(&format!("  {}. {}\n", i + 1, step));
         }
         out.push_str("\n--- Before / After ---\n");
-        out.push_str(&format!("  graph_nodes: {} -> {} ({}{})  \n", pre_graph_nodes, post_graph_nodes,
-            if post_graph_nodes <= pre_graph_nodes { "-" } else { "+" },
-            (pre_graph_nodes as i64 - post_graph_nodes as i64).unsigned_abs()));
-        out.push_str(&format!("  graph_edges: {} -> {} ({}{})  \n", pre_graph_edges, post_graph_edges,
-            if post_graph_edges <= pre_graph_edges { "-" } else { "+" },
-            (pre_graph_edges as i64 - post_graph_edges as i64).unsigned_abs()));
-        out.push_str(&format!("  tantivy_docs: {} -> {} ({}{})  \n", pre_tantivy, post_tantivy,
-            if post_tantivy <= pre_tantivy { "-" } else { "+" },
-            (pre_tantivy as i64 - post_tantivy as i64).unsigned_abs()));
-        out.push_str(&format!("  lancedb_vectors: {} -> {} ({}{})  \n", pre_vectors, post_vectors,
-            if post_vectors <= pre_vectors { "-" } else { "+" },
-            (pre_vectors as i64 - post_vectors as i64).unsigned_abs()));
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        out.push_str(&format!(
+            "  graph_nodes: {} -> {} ({}{})  \n",
+            pre_graph_nodes,
+            post_graph_nodes,
+            if post_graph_nodes <= pre_graph_nodes {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_graph_nodes as i64 - post_graph_nodes as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  graph_edges: {} -> {} ({}{})  \n",
+            pre_graph_edges,
+            post_graph_edges,
+            if post_graph_edges <= pre_graph_edges {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_graph_edges as i64 - post_graph_edges as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  tantivy_docs: {} -> {} ({}{})  \n",
+            pre_tantivy,
+            post_tantivy,
+            if post_tantivy <= pre_tantivy {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_tantivy as i64 - post_tantivy as i64).unsigned_abs()
+        ));
+        out.push_str(&format!(
+            "  lancedb_vectors: {} -> {} ({}{})  \n",
+            pre_vectors,
+            post_vectors,
+            if post_vectors <= pre_vectors {
+                "-"
+            } else {
+                "+"
+            },
+            (pre_vectors as i64 - post_vectors as i64).unsigned_abs()
+        ));
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
-    pub async fn handle_get_metrics(&self, req: GetMetricsRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_get_metrics(
+        &self,
+        req: GetMetricsRequest,
+    ) -> Result<CallToolResult, McpError> {
         let snapshot = engram_core::metrics().snapshot();
         if req.output_json {
             let json = serde_json::to_string_pretty(&snapshot)
@@ -1211,7 +1445,10 @@ impl Engram {
         }
         let s = &snapshot;
         let mut out = String::with_capacity(4096);
-        out.push_str(&format!("Engram MCP Metrics (uptime: {}s)\n", s.uptime_secs));
+        out.push_str(&format!(
+            "Engram MCP Metrics (uptime: {}s)\n",
+            s.uptime_secs
+        ));
         out.push_str(&format!(
             "\n--- Jobs ---\nstarted: {}  completed: {}  failed: {}  cancelled: {}  active: {}\n",
             s.jobs.started, s.jobs.completed, s.jobs.failed, s.jobs.cancelled, s.jobs.active
@@ -1240,8 +1477,10 @@ impl Engram {
         ));
         out.push_str(&format!(
             "\n--- Cardinality ---\ntantivy: {}  vectors: {}  graph_nodes: {}  graph_edges: {}\n",
-            s.cardinality.tantivy_doc_count, s.cardinality.vector_doc_count,
-            s.cardinality.graph_node_count, s.cardinality.graph_edge_count
+            s.cardinality.tantivy_doc_count,
+            s.cardinality.vector_doc_count,
+            s.cardinality.graph_node_count,
+            s.cardinality.graph_edge_count
         ));
         out.push_str(&format!(
             "\n--- Index Drift ---\ntantivy: +{} -{}\nvectors: +{} -{}\ngraph: +{} nodes +{} edges -{} nodes -{} edges\n",
@@ -1266,16 +1505,23 @@ impl Engram {
         ));
         out.push_str(&format!(
             "\n--- Extraction Confidence ---\nhigh: {}  medium: {}  low: {}\n",
-            s.extraction_confidence.high, s.extraction_confidence.medium, s.extraction_confidence.low
+            s.extraction_confidence.high,
+            s.extraction_confidence.medium,
+            s.extraction_confidence.low
         ));
         out.push_str(&format!(
             "\n--- Safety ---\nrefactors_approved: {}  refactors_blocked: {}\n",
             s.safety.refactors_approved, s.safety.refactors_blocked
         ));
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
-    pub async fn handle_check_integrity(&self, req: CheckIntegrityRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_check_integrity(
+        &self,
+        req: CheckIntegrityRequest,
+    ) -> Result<CallToolResult, McpError> {
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
         let auto_repair = crate::services::integrity_service::resolve_auto_repair(
             self.state.cfg.integrity_auto_repair,
@@ -1293,23 +1539,29 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(json)]))
     }
 
-    pub async fn handle_get_checkpoint_status(&self, req: GetCheckpointStatusRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_get_checkpoint_status(
+        &self,
+        req: GetCheckpointStatusRequest,
+    ) -> Result<CallToolResult, McpError> {
         let store = self.state.checkpoints.clone();
-        let checkpoints = tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<engram_core::Checkpoint>> {
-            if let Some(ref job_id) = req.job_id {
-                Ok(store.get(job_id)?.into_iter().collect())
-            } else if let Some(ref project_id) = req.project_id {
-                Ok(store.find_resumable(project_id)?.into_iter().collect())
-            } else {
-                store.list_all()
-            }
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let checkpoints =
+            tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<engram_core::Checkpoint>> {
+                if let Some(ref job_id) = req.job_id {
+                    Ok(store.get(job_id)?.into_iter().collect())
+                } else if let Some(ref project_id) = req.project_id {
+                    Ok(store.find_resumable(project_id)?.into_iter().collect())
+                } else {
+                    store.list_all()
+                }
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if checkpoints.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text("No checkpoints found.")]));
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No checkpoints found.",
+            )]));
         }
         let mut out = String::with_capacity(2048);
         out.push_str(&format!("Checkpoints ({}):\n", checkpoints.len()));
@@ -1322,10 +1574,15 @@ impl Engram {
                 out.push_str(&format!("  error: {}\n", err));
             }
         }
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
-    pub async fn handle_get_memory_budget(&self, req: GetMemoryBudgetRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_get_memory_budget(
+        &self,
+        req: GetMemoryBudgetRequest,
+    ) -> Result<CallToolResult, McpError> {
         let budget = &self.state.memory_budget;
         let breakdown = budget.breakdown();
         if req.output_json {
@@ -1337,21 +1594,37 @@ impl Engram {
         out.push_str("Memory Budget Status\n");
         out.push_str(&format!(
             "  Used: {} / {} bytes ({:.1}%)\n",
-            breakdown.total_used, breakdown.budget,
-            if breakdown.budget > 0 { breakdown.total_used as f64 / breakdown.budget as f64 * 100.0 } else { 0.0 }
+            breakdown.total_used,
+            breakdown.budget,
+            if breakdown.budget > 0 {
+                breakdown.total_used as f64 / breakdown.budget as f64 * 100.0
+            } else {
+                0.0
+            }
         ));
-        out.push_str(&format!("  Under pressure: {}\n", breakdown.pressure_active));
+        out.push_str(&format!(
+            "  Under pressure: {}\n",
+            breakdown.pressure_active
+        ));
         out.push_str("\n  Per-subsystem:\n");
         out.push_str(&format!("    tantivy: {} bytes\n", breakdown.tantivy));
         out.push_str(&format!("    lancedb: {} bytes\n", breakdown.lancedb));
         out.push_str(&format!("    graph: {} bytes\n", breakdown.graph));
         out.push_str(&format!("    docstore: {} bytes\n", breakdown.docstore));
-        out.push_str(&format!("    parse_buffer: {} bytes\n", breakdown.parse_buffer));
+        out.push_str(&format!(
+            "    parse_buffer: {} bytes\n",
+            breakdown.parse_buffer
+        ));
         out.push_str(&format!("    misc: {} bytes\n", breakdown.misc));
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
-    pub async fn handle_update_memory_bank(&self, req: UpdateMemoryBankRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_update_memory_bank(
+        &self,
+        req: UpdateMemoryBankRequest,
+    ) -> Result<CallToolResult, McpError> {
         let _ = self.ensure_project_record(&req.project_id).await?;
 
         let section_id = req.section_id.unwrap_or_else(|| req.section.clone());
@@ -1403,7 +1676,11 @@ impl Engram {
         };
 
         ps.search
-            .index_docs(&req.project_id, &[doc], &tokio_util::sync::CancellationToken::new())
+            .index_docs(
+                &req.project_id,
+                &[doc],
+                &tokio_util::sync::CancellationToken::new(),
+            )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
@@ -1412,40 +1689,95 @@ impl Engram {
         ))]))
     }
 
-    pub async fn handle_list_memory_bank(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
-        let secs = self.state.registry.list_memory_sections(&req.project_id).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    pub async fn handle_list_memory_bank(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let secs = self
+            .state
+            .registry
+            .list_memory_sections(&req.project_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::new();
-        for s in secs { out.push_str(&format!("- {} | {}\n", s.section_id, s.title)); }
+        for s in secs {
+            out.push_str(&format!("- {} | {}\n", s.section_id, s.title));
+        }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_read_memory_bank(&self, req: MemorySectionRequest) -> Result<CallToolResult, McpError> {
-        let sec = self.state.registry.get_memory_section(&req.project_id, &req.section).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let Some(s) = sec else { return Ok(CallToolResult::success(vec![Content::text("Not found.")])); };
+    pub async fn handle_read_memory_bank(
+        &self,
+        req: MemorySectionRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let sec = self
+            .state
+            .registry
+            .get_memory_section(&req.project_id, &req.section)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let Some(s) = sec else {
+            return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
+        };
         Ok(CallToolResult::success(vec![Content::text(s.content)]))
     }
 
-    pub async fn handle_delete_memory_bank(&self, req: MemorySectionRequest) -> Result<CallToolResult, McpError> {
-        self.state.registry.delete_memory_section(&req.project_id, &req.section).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    pub async fn handle_delete_memory_bank(
+        &self,
+        req: MemorySectionRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.state
+            .registry
+            .delete_memory_section(&req.project_id, &req.section)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         Ok(CallToolResult::success(vec![Content::text("✅ Deleted.")]))
     }
 
-    pub async fn handle_add_repo_rule(&self, req: AddRepoRuleRequest) -> Result<CallToolResult, McpError> {
+    pub async fn handle_add_repo_rule(
+        &self,
+        req: AddRepoRuleRequest,
+    ) -> Result<CallToolResult, McpError> {
         let rule_id = req.rule_id.unwrap_or_else(|| Uuid::new_v4().to_string());
-        let rule = engram_core::RepoRule { rule_id: rule_id.clone(), file_pattern: req.file_pattern, rule_text: req.rule_text, priority: req.priority, updated_at_ms: now_ms() };
-        self.state.registry.put_repo_rule(&req.project_id, &rule).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        Ok(CallToolResult::success(vec![Content::text(format!("✅ Added rule: {rule_id}"))]))
+        let rule = engram_core::RepoRule {
+            rule_id: rule_id.clone(),
+            file_pattern: req.file_pattern,
+            rule_text: req.rule_text,
+            priority: req.priority,
+            updated_at_ms: now_ms(),
+        };
+        self.state
+            .registry
+            .put_repo_rule(&req.project_id, &rule)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "✅ Added rule: {rule_id}"
+        ))]))
     }
 
-    pub async fn handle_list_repo_rules(&self, req: ProjectIdRequest) -> Result<CallToolResult, McpError> {
-        let rules = self.state.registry.list_repo_rules(&req.project_id).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+    pub async fn handle_list_repo_rules(
+        &self,
+        req: ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rules = self
+            .state
+            .registry
+            .list_repo_rules(&req.project_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::new();
-        for r in rules { out.push_str(&format!("- {} | {}\n", r.rule_id, r.file_pattern)); }
+        for r in rules {
+            out.push_str(&format!("- {} | {}\n", r.rule_id, r.file_pattern));
+        }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_delete_repo_rule(&self, req: DeleteRepoRuleRequest) -> Result<CallToolResult, McpError> {
-        self.state.registry.delete_repo_rule(&req.project_id, &req.rule_id).map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        Ok(CallToolResult::success(vec![Content::text("✅ Deleted rule.")]))
+    pub async fn handle_delete_repo_rule(
+        &self,
+        req: DeleteRepoRuleRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.state
+            .registry
+            .delete_repo_rule(&req.project_id, &req.rule_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(
+            "✅ Deleted rule.",
+        )]))
     }
 }

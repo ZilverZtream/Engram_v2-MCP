@@ -357,4 +357,25 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "query_business_logic",
         status: CapabilityStatus::Implemented,
     },
+    // ── Phase 37: Wiring — Expose Existing Services ─────────────────────────
+    CapabilityFlag {
+        key: "analyze_database_intelligence",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_sp_details",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "list_triggers",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "analyze_sync_hazards",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_jquery_inventory",
+        status: CapabilityStatus::Implemented,
+    },
 ];

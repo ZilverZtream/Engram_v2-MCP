@@ -1919,9 +1919,8 @@ static ASAX_CLASS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
 static JS_SCRIPT_SRC_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).unwrap()
 });
-static JS_INLINE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?i)<script(?![^>]*\bsrc\s*=)[^>]*>").unwrap()
-});
+static JS_INLINE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)<script(?![^>]*\bsrc\s*=)[^>]*>").unwrap());
 static JS_JQUERY_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").unwrap());
 
@@ -1942,9 +1941,8 @@ static ASP_INCLUDE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| 
 // Report summary (build_report_summary)
 static RPT_DATASET_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).unwrap());
-static RPT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).unwrap()
-});
+static RPT_PARAM_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).unwrap());
 static RPT_SUBREPORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).unwrap()
 });
@@ -2060,7 +2058,9 @@ fn extract_webconfig_inventory(
                 mode: WC_MODE_RE
                     .captures(attrs)
                     .map_or("InProc".into(), |c| c[1].to_string()),
-                timeout_minutes: WC_TIMEOUT_RE.captures(attrs).and_then(|c| c[1].parse().ok()),
+                timeout_minutes: WC_TIMEOUT_RE
+                    .captures(attrs)
+                    .and_then(|c| c[1].parse().ok()),
                 cookieless: WC_COOKIELESS_RE.captures(attrs).map(|c| c[1].to_string()),
                 custom_provider: WC_PROVIDER_RE.captures(attrs).map(|c| c[1].to_string()),
             }
@@ -8003,6 +8003,23 @@ fn build_sp_catalog(
         procedures_called_from_code: called_from_code,
         uncalled_procedures: uncalled,
     }
+}
+
+/// Public wrapper for building a stored procedure catalog from SQL + code files.
+/// Used by standalone tools (e.g., `analyze_database_intelligence`) that need the catalog
+/// without running the full project migration analysis.
+/// `sp_limit` caps the number of procedures to include (0 = unlimited).
+pub fn build_sp_catalog_public(
+    sql_files: &[(String, String)],
+    code_files: &[(&str, &str)],
+    sp_limit: usize,
+) -> StoredProcedureCatalog {
+    let mut catalog = build_sp_catalog(sql_files, code_files);
+    if sp_limit > 0 && catalog.procedures.len() > sp_limit {
+        catalog.procedures.truncate(sp_limit);
+        catalog.total_procedures = catalog.procedures.len();
+    }
+    catalog
 }
 
 // ── Phase 34: Inheritance Chain Resolution ───────────────────────────────────

@@ -53,8 +53,7 @@ static RE_REGISTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?is)<%@\s+Register\b([^%]*)%>"#).unwrap());
 
 /// Matches attribute-name tokens (`word=`) inside control tag bodies.
-static RE_ATTR_NAME: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).unwrap());
+static RE_ATTR_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).unwrap());
 
 fn extract_aspx_attr(tag: &str, attr: &str) -> String {
     // Manual case-insensitive attribute extraction — avoids compiling a new
@@ -73,7 +72,8 @@ fn extract_aspx_attr(tag: &str, attr: &str) -> String {
             }
         }
         // Expect optional whitespace + '=' + optional whitespace + '"'
-        let after = tag[abs + attr_lower.len()..].trim_start_matches(|c: char| c.is_ascii_whitespace());
+        let after =
+            tag[abs + attr_lower.len()..].trim_start_matches(|c: char| c.is_ascii_whitespace());
         if !after.starts_with('=') {
             search_start = abs + attr_lower.len();
             continue;

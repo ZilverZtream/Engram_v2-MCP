@@ -1,10 +1,9 @@
 use crate::models::{
-    AntiPatternGuardRequest, AstDependencyGraphRequest,
-    ComputeBlastRadiusRequest, DetectDesignPatternsRequest, DreamProjectRequest,
-    ExportCapturePackRequest, GetExtractionConfidenceRequest, GetUiBlueprintRequest,
-    GraphCentralityRerankRequest, ImpactAnalysisRequest, ImmuneCheckRequest,
-    MapAjaxRegionsRequest, ProjectIdRequest, QueryBusinessLogicRequest,
-    TraceStateUsageRequest, TraceUiActionRequest, TraceUiEventRequest,
+    AntiPatternGuardRequest, AstDependencyGraphRequest, ComputeBlastRadiusRequest,
+    DetectDesignPatternsRequest, DreamProjectRequest, ExportCapturePackRequest,
+    GetExtractionConfidenceRequest, GetUiBlueprintRequest, GraphCentralityRerankRequest,
+    ImmuneCheckRequest, ImpactAnalysisRequest, MapAjaxRegionsRequest, ProjectIdRequest,
+    QueryBusinessLogicRequest, TraceStateUsageRequest, TraceUiActionRequest, TraceUiEventRequest,
 };
 use crate::services::{cognitive_service, job_service};
 use crate::state::AppEvent;
@@ -12,8 +11,8 @@ use crate::tools::Engram;
 use crate::utils::now_ms;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
-use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
+use rmcp::model::{CallToolResult, Content};
 use std::path::PathBuf;
 
 impl Engram {
@@ -763,12 +762,7 @@ impl Engram {
             let mut wiring = Vec::new();
             for ctrl in ui_nodes {
                 let deps = graph
-                    .neighbors(
-                        &pid_clone,
-                        EdgeKind::Dependency,
-                        &ctrl.node_id,
-                        10,
-                    )
+                    .neighbors(&pid_clone, EdgeKind::Dependency, &ctrl.node_id, 10)
                     .unwrap_or_default();
                 wiring.push(serde_json::json!({
                     "control": ctrl.node_id,
@@ -914,40 +908,67 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid_clone2 = pid.clone();
         let active_gen = gen_;
-        let (node_type_counts, edge_kind_counts, centrality, state_usage_data, dead_code_count, test_file_count, total_file_count) =
-            tokio::task::spawn_blocking(move || {
-                let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
-                let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
-                let pr = engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
+        let (
+            node_type_counts,
+            edge_kind_counts,
+            centrality,
+            state_usage_data,
+            dead_code_count,
+            test_file_count,
+            total_file_count,
+        ) = tokio::task::spawn_blocking(move || {
+            let ntc = graph.count_nodes_by_type(&pid_clone2).unwrap_or_default();
+            let ekc = graph.count_edges_by_kind(&pid_clone2).unwrap_or_default();
+            let pr = engram_graph::analysis::compute_pagerank(&graph, &pid_clone2, active_gen).ok();
 
-                let state_nodes = graph.query_nodes(&pid_clone2, Some("global_state"), None, None, 100).unwrap_or_default();
-                let mut state_usage: Vec<(String, usize, usize)> = Vec::with_capacity(state_nodes.len());
-                for sn in &state_nodes {
-                    let reads = graph.find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200).map(|v| v.len()).unwrap_or(0);
-                    let writes = graph.find_incoming_edges(&pid_clone2, Some(EdgeKind::WritesState), &sn.node_id, 200).map(|v| v.len()).unwrap_or(0);
-                    state_usage.push((sn.name.clone(), reads, writes));
-                }
-                state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
+            let state_nodes = graph
+                .query_nodes(&pid_clone2, Some("global_state"), None, None, 100)
+                .unwrap_or_default();
+            let mut state_usage: Vec<(String, usize, usize)> =
+                Vec::with_capacity(state_nodes.len());
+            for sn in &state_nodes {
+                let reads = graph
+                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::ReadsState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                let writes = graph
+                    .find_incoming_edges(&pid_clone2, Some(EdgeKind::WritesState), &sn.node_id, 200)
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                state_usage.push((sn.name.clone(), reads, writes));
+            }
+            state_usage.sort_by(|a, b| (b.1 + b.2).cmp(&(a.1 + a.2)));
 
-                let mut dead = 0usize;
-                let mut test_files = 0usize;
-                let file_nodes = graph.query_nodes(&pid_clone2, Some("file"), None, None, 5000).unwrap_or_default();
-                let total_files = file_nodes.len();
-                for f in &file_nodes {
-                    let path_lower = f.file_path.as_str().to_lowercase();
-                    if path_lower.contains("test") || path_lower.contains("spec") || path_lower.contains("_test.") {
-                        test_files += 1;
-                    }
+            let mut dead = 0usize;
+            let mut test_files = 0usize;
+            let file_nodes = graph
+                .query_nodes(&pid_clone2, Some("file"), None, None, 5000)
+                .unwrap_or_default();
+            let total_files = file_nodes.len();
+            for f in &file_nodes {
+                let path_lower = f.file_path.as_str().to_lowercase();
+                if path_lower.contains("test")
+                    || path_lower.contains("spec")
+                    || path_lower.contains("_test.")
+                {
+                    test_files += 1;
                 }
-                let func_nodes = graph.query_nodes(&pid_clone2, Some("function"), None, None, 2000).unwrap_or_default();
-                for func in &func_nodes {
-                    let incoming = graph.find_incoming_edges(&pid_clone2, None, &func.node_id, 1).unwrap_or_default();
-                    if incoming.is_empty() { dead += 1; }
+            }
+            let func_nodes = graph
+                .query_nodes(&pid_clone2, Some("function"), None, None, 2000)
+                .unwrap_or_default();
+            for func in &func_nodes {
+                let incoming = graph
+                    .find_incoming_edges(&pid_clone2, None, &func.node_id, 1)
+                    .unwrap_or_default();
+                if incoming.is_empty() {
+                    dead += 1;
                 }
-                (ntc, ekc, pr, state_usage, dead, test_files, total_files)
-            })
-            .await
-            .unwrap_or_default();
+            }
+            (ntc, ekc, pr, state_usage, dead, test_files, total_files)
+        })
+        .await
+        .unwrap_or_default();
 
         let mut out = String::with_capacity(6144);
         out.push_str(&format!("Codebase Overview: {}\n", rec.project_name));
@@ -966,7 +987,11 @@ impl Engram {
             lang_sorted.sort_by(|a, b| b.1.cmp(&a.1));
             out.push_str("\n--- Language Breakdown (chunks) ---\n");
             for (lang, count) in &lang_sorted {
-                let pct = if tantivy_docs > 0 { (*count as f64 / tantivy_docs as f64 * 100.0) as u32 } else { 0 };
+                let pct = if tantivy_docs > 0 {
+                    (*count as f64 / tantivy_docs as f64 * 100.0) as u32
+                } else {
+                    0
+                };
                 out.push_str(&format!("  {}: {} ({}%)\n", lang, count, pct));
             }
         }
@@ -1006,29 +1031,60 @@ impl Engram {
             let controls = node_type_counts.get("control").copied().unwrap_or(0);
             let ui_containers = node_type_counts.get("ui_container").copied().unwrap_or(0);
             let app_settings = node_type_counts.get("app_setting").copied().unwrap_or(0);
-            let conn_strings = node_type_counts.get("connection_string").copied().unwrap_or(0);
+            let conn_strings = node_type_counts
+                .get("connection_string")
+                .copied()
+                .unwrap_or(0);
 
             out.push_str("\n--- Architecture ---\n");
-            if files > 0 { out.push_str(&format!("  Source files: {}\n", files)); }
-            if classes > 0 || interfaces > 0 { out.push_str(&format!("  Types: {} classes, {} interfaces\n", classes, interfaces)); }
-            if functions > 0 { out.push_str(&format!("  Functions/Methods: {}\n", functions)); }
-            if controls > 0 || ui_containers > 0 { out.push_str(&format!("  UI: {} controls, {} containers\n", controls, ui_containers)); }
-            if web_services + http_handlers + wcf_services > 0 {
-                out.push_str(&format!("  Service endpoints: {} ASMX, {} ASHX, {} WCF\n", web_services, http_handlers, wcf_services));
+            if files > 0 {
+                out.push_str(&format!("  Source files: {}\n", files));
             }
-            if db_tables > 0 { out.push_str(&format!("  Database tables: {}\n", db_tables)); }
+            if classes > 0 || interfaces > 0 {
+                out.push_str(&format!(
+                    "  Types: {} classes, {} interfaces\n",
+                    classes, interfaces
+                ));
+            }
+            if functions > 0 {
+                out.push_str(&format!("  Functions/Methods: {}\n", functions));
+            }
+            if controls > 0 || ui_containers > 0 {
+                out.push_str(&format!(
+                    "  UI: {} controls, {} containers\n",
+                    controls, ui_containers
+                ));
+            }
+            if web_services + http_handlers + wcf_services > 0 {
+                out.push_str(&format!(
+                    "  Service endpoints: {} ASMX, {} ASHX, {} WCF\n",
+                    web_services, http_handlers, wcf_services
+                ));
+            }
+            if db_tables > 0 {
+                out.push_str(&format!("  Database tables: {}\n", db_tables));
+            }
             if app_settings > 0 || conn_strings > 0 {
-                out.push_str(&format!("  Config: {} app settings, {} connection strings\n", app_settings, conn_strings));
+                out.push_str(&format!(
+                    "  Config: {} app settings, {} connection strings\n",
+                    app_settings, conn_strings
+                ));
             }
         }
 
         out.push_str("\n--- Code Quality ---\n");
         if total_file_count > 0 {
             let test_pct = (test_file_count as f64 / total_file_count as f64 * 100.0) as u32;
-            out.push_str(&format!("  Test files: {} / {} ({}%)\n", test_file_count, total_file_count, test_pct));
+            out.push_str(&format!(
+                "  Test files: {} / {} ({}%)\n",
+                test_file_count, total_file_count, test_pct
+            ));
         }
         if dead_code_count > 0 {
-            out.push_str(&format!("  Potential dead functions (zero incoming refs): {}\n", dead_code_count));
+            out.push_str(&format!(
+                "  Potential dead functions (zero incoming refs): {}\n",
+                dead_code_count
+            ));
         }
         if antipattern_docs > 0 {
             out.push_str(&format!("  Anti-patterns indexed: {}\n", antipattern_docs));
@@ -1043,31 +1099,59 @@ impl Engram {
             }
         }
 
-        let table_nodes = self.state.graph.query_nodes(&pid, Some("db_table"), None, None, 100).unwrap_or_default();
+        let table_nodes = self
+            .state
+            .graph
+            .query_nodes(&pid, Some("db_table"), None, None, 100)
+            .unwrap_or_default();
         if !table_nodes.is_empty() {
-            out.push_str(&format!("\n--- Database Tables ({}) ---\n", table_nodes.len()));
-            let names: Vec<_> = table_nodes.iter().take(20).map(|n| n.name.as_str()).collect();
+            out.push_str(&format!(
+                "\n--- Database Tables ({}) ---\n",
+                table_nodes.len()
+            ));
+            let names: Vec<_> = table_nodes
+                .iter()
+                .take(20)
+                .map(|n| n.name.as_str())
+                .collect();
             out.push_str(&format!("  {}\n", names.join(", ")));
-            if table_nodes.len() > 20 { out.push_str(&format!("  ... and {} more\n", table_nodes.len() - 20)); }
+            if table_nodes.len() > 20 {
+                out.push_str(&format!("  ... and {} more\n", table_nodes.len() - 20));
+            }
         }
 
         if !state_usage_data.is_empty() {
-            out.push_str(&format!("\n--- Global State Keys ({} total) ---\n", state_usage_data.len()));
+            out.push_str(&format!(
+                "\n--- Global State Keys ({} total) ---\n",
+                state_usage_data.len()
+            ));
             for (name, reads, writes) in state_usage_data.iter().take(10) {
-                out.push_str(&format!("  {} (reads={}, writes={})\n", name, reads, writes));
+                out.push_str(&format!(
+                    "  {} (reads={}, writes={})\n",
+                    name, reads, writes
+                ));
             }
-            if state_usage_data.len() > 10 { out.push_str(&format!("  ... and {} more\n", state_usage_data.len() - 10)); }
+            if state_usage_data.len() > 10 {
+                out.push_str(&format!("  ... and {} more\n", state_usage_data.len() - 10));
+            }
         }
 
-        let couplings = engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5).unwrap_or_default();
+        let couplings =
+            engram_graph::algorithms::coupling::top_project_couplings(&self.state.graph, &pid, 5)
+                .unwrap_or_default();
         if !couplings.is_empty() {
             out.push_str("\n--- Top Temporal Couplings ---\n");
             for c in couplings {
-                out.push_str(&format!("  {} <-> {} (w={})\n", c.file_node_id, c.neighbor_node_id, c.weight));
+                out.push_str(&format!(
+                    "  {} <-> {} (w={})\n",
+                    c.file_node_id, c.neighbor_node_id, c.weight
+                ));
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 
     pub async fn handle_get_extraction_confidence(
@@ -1186,7 +1270,10 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!("AJAX regions for {}", result.file_path))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "AJAX regions for {}",
+            result.file_path
+        ))]))
     }
 
     pub async fn handle_analyze_business_logic(
@@ -1214,11 +1301,18 @@ impl Engram {
 
             if let Some(method_name) = &p.method_name {
                 let language = crate::services::business_logic_service::detect_language(&content);
-                let class_name = crate::services::business_logic_service::detect_class_name(&content);
+                let class_name =
+                    crate::services::business_logic_service::detect_class_name(&content);
                 let body_opt = if language == "vb" {
-                    crate::services::full_project_migration_service::extract_vb_method_body(&content, method_name)
+                    crate::services::full_project_migration_service::extract_vb_method_body(
+                        &content,
+                        method_name,
+                    )
                 } else {
-                    crate::services::full_project_migration_service::extract_cs_method_body(&content, method_name)
+                    crate::services::full_project_migration_service::extract_cs_method_body(
+                        &content,
+                        method_name,
+                    )
                 };
 
                 let Some((body, _start, _end, _lines)) = body_opt else {
@@ -1228,23 +1322,38 @@ impl Engram {
                 };
 
                 let result = crate::services::business_logic_service::analyze_method_logic(
-                    dreaming, file_path, method_name, &body, &class_name, language,
-                ).await;
+                    dreaming,
+                    file_path,
+                    method_name,
+                    &body,
+                    &class_name,
+                    language,
+                )
+                .await;
 
                 if p.output_json {
-                    let json = serde_json::to_string_pretty(&result).unwrap_or_else(|e| format!("JSON error: {e}"));
+                    let json = serde_json::to_string_pretty(&result)
+                        .unwrap_or_else(|e| format!("JSON error: {e}"));
                     return Ok(CallToolResult::success(vec![Content::text(json)]));
                 }
-                return Ok(CallToolResult::success(vec![Content::text(crate::services::business_logic_service::render_method_as_doc(&result))]));
+                return Ok(CallToolResult::success(vec![Content::text(
+                    crate::services::business_logic_service::render_method_as_doc(&result),
+                )]));
             }
 
             // File-level mode
-            let (file_logic, analyzed, skipped) = crate::services::business_logic_service::analyze_file_logic(
-                dreaming, file_path, &content, &cached_hashes,
-            ).await;
+            let (file_logic, analyzed, skipped) =
+                crate::services::business_logic_service::analyze_file_logic(
+                    dreaming,
+                    file_path,
+                    &content,
+                    &cached_hashes,
+                )
+                .await;
 
             if p.output_json {
-                let json = serde_json::to_string_pretty(&file_logic).unwrap_or_else(|e| format!("JSON error: {e}"));
+                let json = serde_json::to_string_pretty(&file_logic)
+                    .unwrap_or_else(|e| format!("JSON error: {e}"));
                 return Ok(CallToolResult::success(vec![Content::text(json)]));
             }
 
@@ -1264,7 +1373,8 @@ impl Engram {
             std::path::Path::new(&project_dir),
             &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".vb", ".cs"],
             500,
-        ).await;
+        )
+        .await;
 
         let code_files: Vec<(String, String)> = code_paths
             .into_iter()
@@ -1274,14 +1384,23 @@ impl Engram {
             })
             .collect();
 
-        let code_refs: Vec<(&str, &str)> = code_files.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
+        let code_refs: Vec<(&str, &str)> = code_files
+            .iter()
+            .map(|(p, c)| (p.as_str(), c.as_str()))
+            .collect();
 
         let report = crate::services::business_logic_service::analyze_project_logic(
-            dreaming, &p.project_id, &code_refs, &cached_hashes, p.max_concurrent,
-        ).await;
+            dreaming,
+            &p.project_id,
+            &code_refs,
+            &cached_hashes,
+            p.max_concurrent,
+        )
+        .await;
 
         if p.output_json {
-            let json = serde_json::to_string_pretty(&report).unwrap_or_else(|e| format!("JSON error: {e}"));
+            let json = serde_json::to_string_pretty(&report)
+                .unwrap_or_else(|e| format!("JSON error: {e}"));
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
@@ -1313,7 +1432,10 @@ impl Engram {
         };
 
         let hits = ps.search.search(&query, None).await.unwrap_or_default();
-        Ok(CallToolResult::success(vec![Content::text(format!("Hits: {}", hits.len()))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Hits: {}",
+            hits.len()
+        ))]))
     }
 
     pub async fn handle_dream_project(
@@ -1387,7 +1509,7 @@ impl Engram {
             .paths
             .resolve_path(&abs_path)
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-        
+
         let latest_oid = tokio::task::spawn_blocking({
             let repo_path = PathBuf::from(&ps.info.directory);
             move || -> anyhow::Result<String> {
@@ -1410,7 +1532,13 @@ impl Engram {
         };
         let cache_key = format!("style_guide:{}:{}", cache_subject, latest_oid);
 
-        if let Some(mut cached) = self.state.registry.get_meta(&req.project_id, &cache_key).ok().flatten() {
+        if let Some(mut cached) = self
+            .state
+            .registry
+            .get_meta(&req.project_id, &cache_key)
+            .ok()
+            .flatten()
+        {
             if !cached.contains("(cached)") {
                 cached.push_str("\n(cached)");
             }
@@ -1418,7 +1546,9 @@ impl Engram {
         }
 
         let diff_limit = req.diff_limit;
-        let result = self.cognitive_analyze_file_style(&req.project_id, &req.file_path, diff_limit).await;
+        let result = self
+            .cognitive_analyze_file_style(&req.project_id, &req.file_path, diff_limit)
+            .await;
 
         if let Some(err) = result.error {
             return Err(McpError::internal_error(err, None));
@@ -1426,7 +1556,7 @@ impl Engram {
 
         let mut out = format!("Style Guide for {}\n\n", req.file_path);
         out.push_str("Confidence: 1.00\n\n");
-        
+
         if let Some(guide) = result.style_guide {
             out.push_str(&guide);
         } else {
@@ -1434,9 +1564,15 @@ impl Engram {
         }
 
         out.push_str("\n\n---\n");
-        out.push_str(&format!("Analysed {} commits.", result.analyzed_commits.len()));
+        out.push_str(&format!(
+            "Analysed {} commits.",
+            result.analyzed_commits.len()
+        ));
 
-        let _ = self.state.registry.set_meta(&req.project_id, &cache_key, &out);
+        let _ = self
+            .state
+            .registry
+            .set_meta(&req.project_id, &cache_key, &out);
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -1483,14 +1619,22 @@ impl Engram {
             .and_then(|s| s.parse::<f32>().ok())
             .unwrap_or(0.6); // Default fallback
 
-        let mut out = format!("# Immune Check Result\n\n**Matches Found**: {}\n\n", hits.len());
-        
+        let mut out = format!(
+            "# Immune Check Result\n\n**Matches Found**: {}\n\n",
+            hits.len()
+        );
+
         let mut highest_score = 0.0;
         for (i, hit) in hits.iter().enumerate() {
-            if hit.score > highest_score { highest_score = hit.score; }
+            if hit.score > highest_score {
+                highest_score = hit.score;
+            }
             out.push_str(&format!(
                 "### {}. {} (score: {:.3})\n\n{}\n\n",
-                i + 1, hit.path, hit.score, hit.snippet.as_deref().unwrap_or("(no snippet)")
+                i + 1,
+                hit.path,
+                hit.score,
+                hit.snippet.as_deref().unwrap_or("(no snippet)")
             ));
         }
 
@@ -1555,7 +1699,11 @@ impl Engram {
 
         let highest_score = hits.get(0).map(|h| h.score).unwrap_or(0.0);
         // FTS scores (BM25) are much lower than vector scores; use separate thresholds.
-        let (block_t, warn_t) = if req.use_vector { (0.85, 0.65) } else { (0.05, 0.005) };
+        let (block_t, warn_t) = if req.use_vector {
+            (0.85, 0.65)
+        } else {
+            (0.05, 0.005)
+        };
         let verdict = if highest_score > block_t {
             "BLOCK"
         } else if highest_score > warn_t {
@@ -1574,7 +1722,13 @@ impl Engram {
                         // Skip diff headers and show up to 5 content lines
                         let content_lines: Vec<&str> = snippet
                             .lines()
-                            .filter(|l| !l.starts_with("diff ") && !l.starts_with("index ") && !l.starts_with("---") && !l.starts_with("+++") && !l.starts_with("@@"))
+                            .filter(|l| {
+                                !l.starts_with("diff ")
+                                    && !l.starts_with("index ")
+                                    && !l.starts_with("---")
+                                    && !l.starts_with("+++")
+                                    && !l.starts_with("@@")
+                            })
                             .take(5)
                             .collect();
                         if !content_lines.is_empty() {
@@ -1585,7 +1739,9 @@ impl Engram {
             }
             out.push('\n');
             out.push_str("This pattern was previously reverted as risky code.\n");
-            out.push_str("Consider an alternative implementation that avoids the flagged construct.\n");
+            out.push_str(
+                "Consider an alternative implementation that avoids the flagged construct.\n",
+            );
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -1692,7 +1848,12 @@ impl Engram {
                 let mut tree = format!("# AST Dependency Tree: {}\n\n", entry_node_id);
                 for (node, depth) in traversal {
                     let indent = "  ".repeat(depth);
-                    tree.push_str(&format!("{indent}- {} [{}] ({})\n", node.name, node.node_type, node.file_path.as_str()));
+                    tree.push_str(&format!(
+                        "{indent}- {} [{}] ({})\n",
+                        node.name,
+                        node.node_type,
+                        node.file_path.as_str()
+                    ));
                 }
                 Ok(tree)
             }
@@ -1807,14 +1968,19 @@ impl Engram {
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
                 if hits.is_empty() {
-                    return Ok(CallToolResult::success(vec![Content::text("No matches found in anti-pattern index.")]));
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        "No matches found in anti-pattern index.",
+                    )]));
                 }
 
                 let mut out = format!("# Anti-Pattern Matches ({})\n\n", hits.len());
                 for hit in hits {
                     out.push_str(&format!("- **{}** (score: {:.3})\n", hit.path, hit.score));
                     if let Some(snippet) = hit.snippet {
-                        out.push_str(&format!("  ```\n  {}\n  ```\n", snippet.replace('\n', "\n  ")));
+                        out.push_str(&format!(
+                            "  ```\n  {}\n  ```\n",
+                            snippet.replace('\n', "\n  ")
+                        ));
                     }
                 }
                 Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -1825,10 +1991,14 @@ impl Engram {
                     .await
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 Ok(CallToolResult::success(vec![Content::text(format!(
-                    "\u{2705} Anti-pattern index cleared for project '{}'.", pid
+                    "\u{2705} Anti-pattern index cleared for project '{}'.",
+                    pid
                 ))]))
             }
-            _ => Err(McpError::invalid_params(format!("Unknown action '{action}'"), None)),
+            _ => Err(McpError::invalid_params(
+                format!("Unknown action '{action}'"),
+                None,
+            )),
         }
     }
 
@@ -1892,7 +2062,10 @@ impl Engram {
         if !report.guidance.is_empty() {
             out.push_str("\n## Migration Guidance\n");
             for g in &report.guidance {
-                out.push_str(&format!("- **[{}]** {}: {}\n", g.severity, g.concern, g.recommendation));
+                out.push_str(&format!(
+                    "- **[{}]** {}: {}\n",
+                    g.severity, g.concern, g.recommendation
+                ));
             }
         }
 
@@ -1932,14 +2105,12 @@ impl Engram {
 
         let mut out = format!(
             "# Design Pattern Analysis — {}\n\n**Total patterns detected**: {}\n\n",
-            pid, patterns.len()
+            pid,
+            patterns.len()
         );
 
         for p in patterns {
-            out.push_str(&format!(
-                "### {} [{}]\n",
-                p.pattern_name, p.severity
-            ));
+            out.push_str(&format!("### {} [{}]\n", p.pattern_name, p.severity));
             out.push_str(&format!("- **Evidence**: {}\n", p.evidence.join(", ")));
             out.push_str(&format!("- **Modern strategy**: {}\n\n", p.modern_target));
         }
@@ -2008,7 +2179,9 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(format_wave_decision(&decision))]))
+        Ok(CallToolResult::success(vec![Content::text(
+            format_wave_decision(&decision),
+        )]))
     }
 
     pub async fn handle_autonomous_decision_gate(
@@ -2019,25 +2192,39 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
         if let Some(wave_items) = req.wave_items {
-            return self.evaluate_wave_decision(
-                &req.project_id,
-                &req.risk_profile,
-                wave_items,
-                gen_,
-                req.require_runtime_evidence,
-                &req.evidence_depth,
-                req.output_json,
-            ).await;
+            return self
+                .evaluate_wave_decision(
+                    &req.project_id,
+                    &req.risk_profile,
+                    wave_items,
+                    gen_,
+                    req.require_runtime_evidence,
+                    &req.evidence_depth,
+                    req.output_json,
+                )
+                .await;
         }
 
         let overrides = crate::services::evidence_orchestration::EvidenceOverrides {
             extraction_confidence: req.extraction_confidence,
             extraction_type: req.extraction_type,
-            trace_used_fallback: if req.trace_used_fallback { Some(true) } else { None },
-            trace_candidate_count: if req.trace_candidate_count > 0 { Some(req.trace_candidate_count) } else { None },
+            trace_used_fallback: if req.trace_used_fallback {
+                Some(true)
+            } else {
+                None
+            },
+            trace_candidate_count: if req.trace_candidate_count > 0 {
+                Some(req.trace_candidate_count)
+            } else {
+                None
+            },
             immune_verdict: req.immune_verdict,
             immune_confidence: req.immune_confidence,
-            has_runtime_evidence: if req.has_runtime_evidence { Some(true) } else { None },
+            has_runtime_evidence: if req.has_runtime_evidence {
+                Some(true)
+            } else {
+                None
+            },
             reconciliation: None,
             safety_decision: None,
             retrieval_production_ready: None,
@@ -2046,8 +2233,10 @@ impl Engram {
             migration_class: req.migration_class,
         };
 
-        let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile);
-        let depth = crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth);
+        let risk_profile =
+            crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile);
+        let depth =
+            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth);
 
         let adp_input = crate::services::evidence_orchestration::gather_evidence(
             &self.state,
@@ -2059,7 +2248,9 @@ impl Engram {
             &overrides,
             req.require_runtime_evidence,
             gen_,
-        ).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        )
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
 
@@ -2069,7 +2260,9 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(crate::services::autonomous_decision_service::format_decision(&decision))]))
+        Ok(CallToolResult::success(vec![Content::text(
+            crate::services::autonomous_decision_service::format_decision(&decision),
+        )]))
     }
 
     pub async fn handle_graph_centrality_rerank(
@@ -2145,20 +2338,48 @@ impl Engram {
                 let blended = centrality.blended_score(&file_node_id, pr_w, deg_w, bt_w);
                 let combined = hit.score * 0.7 + blended * 0.3;
                 let (node_type, name, file_path) = if req.include_metadata {
-                    (Some("file".to_string()), Some(hit.path.as_str().to_string()), Some(hit.path.as_str().to_string()))
-                } else { (None, None, None) };
+                    (
+                        Some("file".to_string()),
+                        Some(hit.path.as_str().to_string()),
+                        Some(hit.path.as_str().to_string()),
+                    )
+                } else {
+                    (None, None, None)
+                };
                 scored.push(ScoredNode {
                     node_id: file_node_id.clone(),
                     blended_score: combined,
-                    pagerank: centrality.pagerank.get(&file_node_id).copied().unwrap_or(0.0),
-                    in_degree: centrality.in_degree.get(&file_node_id).copied().unwrap_or(0),
-                    out_degree: centrality.out_degree.get(&file_node_id).copied().unwrap_or(0),
-                    betweenness: centrality.betweenness.get(&file_node_id).copied().unwrap_or(0.0),
+                    pagerank: centrality
+                        .pagerank
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0.0),
+                    in_degree: centrality
+                        .in_degree
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0),
+                    out_degree: centrality
+                        .out_degree
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0),
+                    betweenness: centrality
+                        .betweenness
+                        .get(&file_node_id)
+                        .copied()
+                        .unwrap_or(0.0),
                     search_score: Some(hit.score),
-                    node_type, name, file_path,
+                    node_type,
+                    name,
+                    file_path,
                 });
             }
-            scored.sort_by(|a, b| b.blended_score.partial_cmp(&a.blended_score).unwrap_or(std::cmp::Ordering::Equal));
+            scored.sort_by(|a, b| {
+                b.blended_score
+                    .partial_cmp(&a.blended_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
         } else if let Some(node_ids) = &req.node_ids {
             let graph_store = self.state.graph.clone();
             let pid2 = req.project_id.clone();
@@ -2168,10 +2389,17 @@ impl Engram {
                 tokio::task::spawn_blocking(move || -> Vec<_> {
                     let mut result = Vec::new();
                     for nid in &node_ids_clone {
-                        let meta = if include_meta {
-                            graph_store.get_node(&pid2, nid).ok().flatten().map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
-                        } else { None };
-                        let (nt, nm, fp) = meta.map(|(t, n, f)| (Some(t), Some(n), Some(f))).unwrap_or((None, None, None));
+                        let meta =
+                            if include_meta {
+                                graph_store.get_node(&pid2, nid).ok().flatten().map(|n| {
+                                    (n.node_type, n.name, n.file_path.as_str().to_string())
+                                })
+                            } else {
+                                None
+                            };
+                        let (nt, nm, fp) = meta
+                            .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                            .unwrap_or((None, None, None));
                         result.push((nid.clone(), nt, nm, fp));
                     }
                     result
@@ -2182,22 +2410,35 @@ impl Engram {
             for (nid, nt, nm, fp) in nodes_meta {
                 let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
                 scored.push(ScoredNode {
-                    node_id: nid.clone(), blended_score: blended,
+                    node_id: nid.clone(),
+                    blended_score: blended,
                     pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
                     in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
                     out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
                     betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
-                    search_score: None, node_type: nt, name: nm, file_path: fp,
+                    search_score: None,
+                    node_type: nt,
+                    name: nm,
+                    file_path: fp,
                 });
             }
-            scored.sort_by(|a, b| b.blended_score.partial_cmp(&a.blended_score).unwrap_or(std::cmp::Ordering::Equal));
+            scored.sort_by(|a, b| {
+                b.blended_score
+                    .partial_cmp(&a.blended_score)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
         } else {
             // Mode 3: Top-N most central nodes
             let graph_store = self.state.graph.clone();
             let pid3 = req.project_id.clone();
             let include_meta = req.include_metadata;
-            let mut all_scores: Vec<(String, f32)> = centrality.pagerank.keys()
-                .map(|nid| { let b = centrality.blended_score(nid, pr_w, deg_w, bt_w); (nid.clone(), b) })
+            let mut all_scores: Vec<(String, f32)> = centrality
+                .pagerank
+                .keys()
+                .map(|nid| {
+                    let b = centrality.blended_score(nid, pr_w, deg_w, bt_w);
+                    (nid.clone(), b)
+                })
                 .collect();
             all_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             all_scores.truncate(top_k);
@@ -2206,10 +2447,17 @@ impl Engram {
                 tokio::task::spawn_blocking(move || -> Vec<_> {
                     let mut result = Vec::new();
                     for nid in &top_ids {
-                        let meta = if include_meta {
-                            graph_store.get_node(&pid3, nid).ok().flatten().map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
-                        } else { None };
-                        let (nt, nm, fp) = meta.map(|(t, n, f)| (Some(t), Some(n), Some(f))).unwrap_or((None, None, None));
+                        let meta =
+                            if include_meta {
+                                graph_store.get_node(&pid3, nid).ok().flatten().map(|n| {
+                                    (n.node_type, n.name, n.file_path.as_str().to_string())
+                                })
+                            } else {
+                                None
+                            };
+                        let (nt, nm, fp) = meta
+                            .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                            .unwrap_or((None, None, None));
                         result.push((nid.clone(), nt, nm, fp));
                     }
                     result
@@ -2220,12 +2468,16 @@ impl Engram {
             for (nid, nt, nm, fp) in nodes_meta {
                 let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
                 scored.push(ScoredNode {
-                    node_id: nid.clone(), blended_score: blended,
+                    node_id: nid.clone(),
+                    blended_score: blended,
                     pagerank: centrality.pagerank.get(&nid).copied().unwrap_or(0.0),
                     in_degree: centrality.in_degree.get(&nid).copied().unwrap_or(0),
                     out_degree: centrality.out_degree.get(&nid).copied().unwrap_or(0),
                     betweenness: centrality.betweenness.get(&nid).copied().unwrap_or(0.0),
-                    search_score: None, node_type: nt, name: nm, file_path: fp,
+                    search_score: None,
+                    node_type: nt,
+                    name: nm,
+                    file_path: fp,
                 });
             }
         }
@@ -2238,17 +2490,44 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let mode = if req.query.is_some() { "search+rerank" } else if req.node_ids.is_some() { "node scoring" } else { "top-N centrality" };
-        let mut out = format!("Graph Centrality Rerank ({mode})\nWeights: PR={pr_w:.2}, Degree={deg_w:.2}, Betweenness={bt_w:.2}\nResults: {}\n\n", scored.len());
+        let mode = if req.query.is_some() {
+            "search+rerank"
+        } else if req.node_ids.is_some() {
+            "node scoring"
+        } else {
+            "top-N centrality"
+        };
+        let mut out = format!(
+            "Graph Centrality Rerank ({mode})\nWeights: PR={pr_w:.2}, Degree={deg_w:.2}, Betweenness={bt_w:.2}\nResults: {}\n\n",
+            scored.len()
+        );
         for (i, node) in scored.iter().enumerate() {
-            out.push_str(&format!("{}. {} (blended={:.4})\n", i + 1, node.node_id, node.blended_score));
-            out.push_str(&format!("   PR={:.6}  in_deg={}  out_deg={}  betw={:.4}", node.pagerank, node.in_degree, node.out_degree, node.betweenness));
-            if let Some(ss) = node.search_score { out.push_str(&format!("  search={ss:.4}")); }
+            out.push_str(&format!(
+                "{}. {} (blended={:.4})\n",
+                i + 1,
+                node.node_id,
+                node.blended_score
+            ));
+            out.push_str(&format!(
+                "   PR={:.6}  in_deg={}  out_deg={}  betw={:.4}",
+                node.pagerank, node.in_degree, node.out_degree, node.betweenness
+            ));
+            if let Some(ss) = node.search_score {
+                out.push_str(&format!("  search={ss:.4}"));
+            }
             out.push('\n');
-            if let Some(ref nt) = node.node_type { out.push_str(&format!("   type={nt}")); }
-            if let Some(ref nm) = node.name { out.push_str(&format!("  name={nm}")); }
-            if let Some(ref fp) = node.file_path { out.push_str(&format!("  path={fp}")); }
-            if node.node_type.is_some() || node.name.is_some() || node.file_path.is_some() { out.push('\n'); }
+            if let Some(ref nt) = node.node_type {
+                out.push_str(&format!("   type={nt}"));
+            }
+            if let Some(ref nm) = node.name {
+                out.push_str(&format!("  name={nm}"));
+            }
+            if let Some(ref fp) = node.file_path {
+                out.push_str(&format!("  path={fp}"));
+            }
+            if node.node_type.is_some() || node.name.is_some() || node.file_path.is_some() {
+                out.push('\n');
+            }
         }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -2263,44 +2542,83 @@ impl Engram {
 
         let queries: Vec<crate::services::benchmark_service::BenchmarkQuery> =
             if let Some(custom) = req.custom_queries {
-                custom.into_iter().map(|q| crate::services::benchmark_service::BenchmarkQuery {
-                    query: q.query, relevant_paths: q.relevant_paths,
-                }).collect()
+                custom
+                    .into_iter()
+                    .map(|q| crate::services::benchmark_service::BenchmarkQuery {
+                        query: q.query,
+                        relevant_paths: q.relevant_paths,
+                    })
+                    .collect()
             } else {
                 crate::services::benchmark_service::generate_legacy_benchmark_queries()
             };
 
-        let mut per_query: Vec<crate::services::benchmark_service::QueryBenchmarkResult> = Vec::new();
-        let (mut total_ndcg, mut total_recall, mut total_mrr, mut total_latency, mut max_latency) = (0.0f64, 0.0f64, 0.0f64, 0u64, 0u64);
+        let mut per_query: Vec<crate::services::benchmark_service::QueryBenchmarkResult> =
+            Vec::new();
+        let (mut total_ndcg, mut total_recall, mut total_mrr, mut total_latency, mut max_latency) =
+            (0.0f64, 0.0f64, 0.0f64, 0u64, 0u64);
         let mut latencies: Vec<u64> = Vec::new();
 
         for bq in &queries {
             let start = std::time::Instant::now();
-            let hits = ps.search.search(
-                &engram_index::HybridQuery {
-                    project_id: pid.clone(), namespace: "memory".into(), generation,
-                    text: bq.query.clone(), top_k: 10, fts_mode: "strict".into(),
-                    include_path_prefixes: None, exclude_path_prefixes: None,
-                    language_filters: None, author_filter: None,
-                    date_after: None, date_before: None, use_mmr: false,
-                },
-                None,
-            ).await.unwrap_or_default();
+            let hits = ps
+                .search
+                .search(
+                    &engram_index::HybridQuery {
+                        project_id: pid.clone(),
+                        namespace: "memory".into(),
+                        generation,
+                        text: bq.query.clone(),
+                        top_k: 10,
+                        fts_mode: "strict".into(),
+                        include_path_prefixes: None,
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    },
+                    None,
+                )
+                .await
+                .unwrap_or_default();
             let elapsed_ms = start.elapsed().as_millis() as u64;
 
-            let actual_paths: Vec<String> = hits.iter().map(|h| h.path.as_str().to_string()).collect();
-            let ndcg = crate::services::benchmark_service::compute_ndcg(&actual_paths, &bq.relevant_paths, 10);
-            let recall = crate::services::benchmark_service::compute_recall(&actual_paths, &bq.relevant_paths, 10);
-            let mrr = crate::services::benchmark_service::compute_reciprocal_rank(&actual_paths, &bq.relevant_paths);
+            let actual_paths: Vec<String> =
+                hits.iter().map(|h| h.path.as_str().to_string()).collect();
+            let ndcg = crate::services::benchmark_service::compute_ndcg(
+                &actual_paths,
+                &bq.relevant_paths,
+                10,
+            );
+            let recall = crate::services::benchmark_service::compute_recall(
+                &actual_paths,
+                &bq.relevant_paths,
+                10,
+            );
+            let mrr = crate::services::benchmark_service::compute_reciprocal_rank(
+                &actual_paths,
+                &bq.relevant_paths,
+            );
 
-            total_ndcg += ndcg; total_recall += recall; total_mrr += mrr;
+            total_ndcg += ndcg;
+            total_recall += recall;
+            total_mrr += mrr;
             total_latency += elapsed_ms;
-            if elapsed_ms > max_latency { max_latency = elapsed_ms; }
+            if elapsed_ms > max_latency {
+                max_latency = elapsed_ms;
+            }
             latencies.push(elapsed_ms);
 
             per_query.push(crate::services::benchmark_service::QueryBenchmarkResult {
-                query: bq.query.clone(), expected_top_paths: bq.relevant_paths.clone(),
-                actual_top_paths: actual_paths, ndcg, recall, reciprocal_rank: mrr, latency_ms: elapsed_ms,
+                query: bq.query.clone(),
+                expected_top_paths: bq.relevant_paths.clone(),
+                actual_top_paths: actual_paths,
+                ndcg,
+                recall,
+                reciprocal_rank: mrr,
+                latency_ms: elapsed_ms,
             });
         }
 
@@ -2310,18 +2628,31 @@ impl Engram {
         let mean_mrr = total_mrr / q_count as f64;
         let mean_latency = total_latency as f64 / q_count as f64;
         latencies.sort();
-        let p95_idx = ((latencies.len() as f64 * 0.95).ceil() as usize).min(latencies.len()).saturating_sub(1);
+        let p95_idx = ((latencies.len() as f64 * 0.95).ceil() as usize)
+            .min(latencies.len())
+            .saturating_sub(1);
         let p95_latency = latencies.get(p95_idx).copied().unwrap_or(0);
 
-        let (passed_ndcg, passed_recall, production_ready) = crate::services::benchmark_service::evaluate_gates(
-            mean_ndcg, mean_recall, self.state.cfg.retrieval_min_ndcg, self.state.cfg.retrieval_min_recall,
-        );
+        let (passed_ndcg, passed_recall, production_ready) =
+            crate::services::benchmark_service::evaluate_gates(
+                mean_ndcg,
+                mean_recall,
+                self.state.cfg.retrieval_min_ndcg,
+                self.state.cfg.retrieval_min_recall,
+            );
 
         let result = crate::services::benchmark_service::BenchmarkResult {
-            project_id: pid, timestamp_ms: now_ms(), query_count: queries.len(),
-            ndcg_at_10: mean_ndcg, recall_at_10: mean_recall, mean_reciprocal_rank: mean_mrr,
-            mean_latency_ms: mean_latency, p95_latency_ms: p95_latency as f64,
-            passed_ndcg_gate: passed_ndcg, passed_recall_gate: passed_recall, production_ready,
+            project_id: pid,
+            timestamp_ms: now_ms(),
+            query_count: queries.len(),
+            ndcg_at_10: mean_ndcg,
+            recall_at_10: mean_recall,
+            mean_reciprocal_rank: mean_mrr,
+            mean_latency_ms: mean_latency,
+            p95_latency_ms: p95_latency as f64,
+            passed_ndcg_gate: passed_ndcg,
+            passed_recall_gate: passed_recall,
+            production_ready,
             per_query_results: per_query,
         };
 
@@ -2332,16 +2663,47 @@ impl Engram {
         }
 
         let mut out = String::with_capacity(4096);
-        out.push_str(&format!("Retrieval Benchmark ({} queries)\n", result.query_count));
-        out.push_str(&format!("NDCG@10:  {:.3} (gate: {:.2}, {})\n", result.ndcg_at_10, self.state.cfg.retrieval_min_ndcg, if result.passed_ndcg_gate { "PASS" } else { "FAIL" }));
-        out.push_str(&format!("Recall@10: {:.3} (gate: {:.2}, {})\n", result.recall_at_10, self.state.cfg.retrieval_min_recall, if result.passed_recall_gate { "PASS" } else { "FAIL" }));
+        out.push_str(&format!(
+            "Retrieval Benchmark ({} queries)\n",
+            result.query_count
+        ));
+        out.push_str(&format!(
+            "NDCG@10:  {:.3} (gate: {:.2}, {})\n",
+            result.ndcg_at_10,
+            self.state.cfg.retrieval_min_ndcg,
+            if result.passed_ndcg_gate {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        ));
+        out.push_str(&format!(
+            "Recall@10: {:.3} (gate: {:.2}, {})\n",
+            result.recall_at_10,
+            self.state.cfg.retrieval_min_recall,
+            if result.passed_recall_gate {
+                "PASS"
+            } else {
+                "FAIL"
+            }
+        ));
         out.push_str(&format!("MRR:      {:.3}\n", result.mean_reciprocal_rank));
-        out.push_str(&format!("Latency:  avg={:.0}ms p95={:.0}ms\n", result.mean_latency_ms, result.p95_latency_ms));
-        out.push_str(&format!("\nProduction Ready: {}\n", if result.production_ready { "YES" } else { "NO" }));
+        out.push_str(&format!(
+            "Latency:  avg={:.0}ms p95={:.0}ms\n",
+            result.mean_latency_ms, result.p95_latency_ms
+        ));
+        out.push_str(&format!(
+            "\nProduction Ready: {}\n",
+            if result.production_ready { "YES" } else { "NO" }
+        ));
         for qr in &result.per_query_results {
-            out.push_str(&format!("\n  '{}': ndcg={:.3} recall={:.3} mrr={:.3} latency={}ms",
-                qr.query, qr.ndcg, qr.recall, qr.reciprocal_rank, qr.latency_ms));
+            out.push_str(&format!(
+                "\n  '{}': ndcg={:.3} recall={:.3} mrr={:.3} latency={}ms",
+                qr.query, qr.ndcg, qr.recall, qr.reciprocal_rank, qr.latency_ms
+            ));
         }
-        Ok(CallToolResult::success(vec![Content::text(out.trim().to_string())]))
+        Ok(CallToolResult::success(vec![Content::text(
+            out.trim().to_string(),
+        )]))
     }
 }

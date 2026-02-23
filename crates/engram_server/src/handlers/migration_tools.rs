@@ -1,19 +1,23 @@
 use crate::models::{
-    AnalyzeFullProjectMigrationRequest, AnalyzeViewStateDepsRequest, CheckMigrationCoverageRequest,
+    AnalyzeDatabaseIntelligenceRequest, AnalyzeFullProjectMigrationRequest,
+    AnalyzeSyncHazardsRequest, AnalyzeViewStateDepsRequest, CheckMigrationCoverageRequest,
     GenerateCharacterizationTestsRequest, GenerateInstrumentationCodeRequest,
     GenerateMigrationBlueprintRequest, GenerateMigrationPlanRequest,
     GenerateMigrationScaffoldRequest, GenerateStranglerFigRequest, GetInstrumentationPackRequest,
-    GetMigrationDossierRequest, GetMigrationProgressRequest, IngestInstrumentationLogsRequest,
-    MapAuthConfigRequest, MapPageLifecycleRequest,
-    MapValidationControlsRequest, ReconcileRuntimeEvidenceRequest,
-    SuggestMigrationBoundariesRequest, SuggestMigrationOrderRequest, SuggestStateMigrationRequest,
-    TraceDataFlowRequest, UpdateMigrationStatusRequest,
+    GetJQueryInventoryRequest, GetMigrationDossierRequest, GetMigrationProgressRequest,
+    GetSpDetailsRequest, IngestInstrumentationLogsRequest, ListTriggersRequest,
+    MapAuthConfigRequest, MapPageLifecycleRequest, MapValidationControlsRequest,
+    ReconcileRuntimeEvidenceRequest, SuggestMigrationBoundariesRequest,
+    SuggestMigrationOrderRequest, SuggestStateMigrationRequest, TraceDataFlowRequest,
+    UpdateMigrationStatusRequest,
 };
 use crate::services::{full_project_migration_service as full_mig, graph_service};
 use crate::tools::Engram;
-use crate::utils::files::{discover_files_recursive, find_codebehind_path, find_aspx_for_codebehind};
-use rmcp::model::{CallToolResult, Content};
+use crate::utils::files::{
+    discover_files_recursive, find_aspx_for_codebehind, find_codebehind_path,
+};
 use rmcp::ErrorData as McpError;
+use rmcp::model::{CallToolResult, Content};
 use std::path::Path;
 
 impl Engram {
@@ -582,14 +586,21 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             crate::services::data_flow_service::trace_data_flow(
-                &graph, &pid, &file_path, &entry_point, &cb_content,
+                &graph,
+                &pid,
+                &file_path,
+                &entry_point,
+                &cb_content,
             )
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!("Trace: {:?}", result.steps))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Trace: {:?}",
+            result.steps
+        ))]))
     }
 
     pub async fn handle_get_migration_dossier(
@@ -617,14 +628,23 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             crate::services::dossier_service::build_migration_dossier(
-                &graph, &pid, &file_path, &aspx_content, &cb_content, None, &target_stack,
+                &graph,
+                &pid,
+                &file_path,
+                &aspx_content,
+                &cb_content,
+                None,
+                &target_stack,
             )
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!("Dossier for {}", result.file_path))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Dossier for {}",
+            result.file_path
+        ))]))
     }
 
     pub async fn handle_check_migration_coverage(
@@ -638,14 +658,20 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             crate::services::coverage_service::check_migration_coverage(
-                &graph, &pid, &original_file, &modern_code,
+                &graph,
+                &pid,
+                &original_file,
+                &modern_code,
             )
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!("Coverage: {:.1}%", result.coverage_score * 100.0))]))
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Coverage: {:.1}%",
+            result.coverage_score * 100.0
+        ))]))
     }
 
     pub async fn handle_update_migration_status(
@@ -1146,7 +1172,9 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(report.markdown_report)]))
+        Ok(CallToolResult::success(vec![Content::text(
+            report.markdown_report,
+        )]))
     }
 
     pub async fn handle_reconcile_runtime_evidence(
@@ -1187,7 +1215,13 @@ impl Engram {
         if !report.confirmed_paths.is_empty() {
             out.push_str("## Confirmed Paths\n");
             for p in &report.confirmed_paths {
-                out.push_str(&format!("- {} → {} [{}] (evidence: {})\n", p.source, p.target, p.edge_kind, p.runtime_evidence.as_deref().unwrap_or("confirmed")));
+                out.push_str(&format!(
+                    "- {} → {} [{}] (evidence: {})\n",
+                    p.source,
+                    p.target,
+                    p.edge_kind,
+                    p.runtime_evidence.as_deref().unwrap_or("confirmed")
+                ));
             }
             out.push('\n');
         }
@@ -1195,7 +1229,10 @@ impl Engram {
         if !report.contradicted_paths.is_empty() {
             out.push_str("## Contradicted Paths\n");
             for p in &report.contradicted_paths {
-                out.push_str(&format!("- {} → {} [{}] (source/target seen but not this path)\n", p.source, p.target, p.edge_kind));
+                out.push_str(&format!(
+                    "- {} → {} [{}] (source/target seen but not this path)\n",
+                    p.source, p.target, p.edge_kind
+                ));
             }
             out.push('\n');
         }
@@ -1473,7 +1510,10 @@ impl Engram {
         };
 
         let result = tokio::task::spawn_blocking(move || {
-            let code_files_refs: Vec<(&str, &str)> = code_files.iter().map(|(p, c)| (p.as_str(), c.as_str())).collect();
+            let code_files_refs: Vec<(&str, &str)> = code_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
             crate::services::auth_config_service::analyze_auth_config(
                 &graph,
                 &pid,
@@ -1497,7 +1537,10 @@ impl Engram {
         if !result.recommendations.is_empty() {
             out.push_str("\n## Recommendations\n");
             for rec in &result.recommendations {
-                out.push_str(&format!("- **[{}]** {}: {}\n", rec.severity, rec.category, rec.recommendation));
+                out.push_str(&format!(
+                    "- **[{}]** {}: {}\n",
+                    rec.severity, rec.category, rec.recommendation
+                ));
             }
             out.push('\n');
         }
@@ -1614,9 +1657,1028 @@ impl Engram {
             for field in &result.modern_state_model {
                 out.push_str(&format!("### {}\n", field.field_name));
                 out.push_str(&format!("- **Source**: {}\n", field.source));
-                out.push_str(&format!("- **Modern strategy**: {}\n", field.blazor_declaration));
+                out.push_str(&format!(
+                    "- **Modern strategy**: {}\n",
+                    field.blazor_declaration
+                ));
                 out.push('\n');
             }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    // ── Phase 37: Wiring — Expose Existing Services ──────────────────────────
+
+    /// 37-W1: Full database intelligence report.
+    pub async fn handle_analyze_database_intelligence(
+        &self,
+        req: AnalyzeDatabaseIntelligenceRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let sp_limit = req.sp_limit;
+        let output_json = req.output_json;
+        let sql_file_path = req.sql_file_path.clone();
+
+        // ── Discover SQL files ──────────────────────────────────────────────
+        let sql_files: Vec<(String, String)> = if let Some(ref specific_path) = sql_file_path {
+            let full = std::path::Path::new(&project_dir).join(specific_path);
+            match tokio::fs::read_to_string(&full).await {
+                Ok(content) => vec![(specific_path.clone(), content)],
+                Err(e) => {
+                    return Err(McpError::invalid_params(
+                        format!("Cannot read SQL file '{}': {}", specific_path, e),
+                        None,
+                    ));
+                }
+            }
+        } else {
+            let discovered =
+                discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+            let mut files = Vec::with_capacity(discovered.len());
+            for rel in discovered {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                if let Ok(content) = std::fs::read_to_string(&full) {
+                    files.push((rel, content));
+                }
+            }
+            files
+        };
+
+        if sql_files.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No .sql files found. Place a database.sql (or other .sql files) in the project directory and re-run.",
+            )]));
+        }
+
+        // ── Discover code files for SP cross-referencing ────────────────────
+        let graph_clone = graph.clone();
+        let pid_clone = pid.clone();
+        let file_nodes = tokio::task::spawn_blocking(move || {
+            graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 50_000)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut code_paths: Vec<String> = Vec::new();
+        for n in &file_nodes {
+            let lower = n.name.to_lowercase();
+            if lower.ends_with(".vb") || lower.ends_with(".cs") {
+                code_paths.push(n.name.clone());
+            }
+        }
+
+        // Fallback: disk discovery if graph is empty
+        if code_paths.is_empty() {
+            let disc = discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                &[".vb", ".cs"],
+                5_000,
+            )
+            .await;
+            code_paths = disc;
+        }
+
+        let code_files: Vec<(String, String)> = code_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        // ── Build SP catalog + database intelligence in blocking task ───────
+        let sql_files_owned = sql_files;
+        let result = tokio::task::spawn_blocking(move || {
+            use crate::services::full_project_migration_service as full_mig;
+
+            let code_refs: Vec<(&str, &str)> = code_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+
+            // Build SP catalog (reuse the same function the full report uses)
+            let sp_catalog =
+                full_mig::build_sp_catalog_public(&sql_files_owned, &code_refs, sp_limit);
+
+            // Collect code tables for cross-referencing
+            let mut code_tables = std::collections::HashSet::new();
+            for sp in &sp_catalog.procedures {
+                for t in &sp.tables_read {
+                    code_tables.insert(t.clone());
+                }
+                for t in &sp.tables_written {
+                    code_tables.insert(t.clone());
+                }
+            }
+
+            // Also collect table references from graph edges (QueriesTable edges)
+            if let Ok(edges) =
+                graph.list_edges_by_kind(&pid, engram_graph::EdgeKind::QueriesTable, 50_000)
+            {
+                for e in &edges {
+                    code_tables.insert(e.target_id.clone());
+                }
+            }
+
+            let intel = crate::services::database_intelligence_service::build_database_intelligence(
+                &sp_catalog,
+                &sql_files_owned,
+                &code_tables,
+            );
+
+            (sp_catalog, intel)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let (_sp_catalog, intel) = result;
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&intel)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let md =
+            crate::services::database_intelligence_service::render_database_intelligence_markdown(
+                &intel,
+            );
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+
+    /// 37-W2: Deep analysis for a single stored procedure.
+    pub async fn handle_get_sp_details(
+        &self,
+        req: GetSpDetailsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let sp_name = req.sp_name.clone();
+
+        // Discover SQL files
+        let sql_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+
+        let sql_files: Vec<(String, String)> = sql_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        if sql_files.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No .sql files found in project.",
+            )]));
+        }
+
+        // Discover code files for caller detection
+        let code_disc =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".vb", ".cs"], 5_000)
+                .await;
+        let code_files: Vec<(String, String)> = code_disc
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        let result = tokio::task::spawn_blocking(move || {
+            use crate::services::database_intelligence_service as dbi;
+
+            // Find the SP body across all SQL files using two-step approach
+            // (Rust regex crate does not support lookahead assertions)
+            let header_re = regex::Regex::new(&format!(
+                r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?{}\]?\b",
+                regex::escape(&sp_name)
+            ))
+            .map_err(|e| format!("Invalid SP name regex: {}", e))?;
+            let next_object_re = regex::Regex::new(
+                r"(?ims)\bCREATE\s+(?:OR\s+ALTER\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER|VIEW)\b",
+            )
+            .unwrap();
+
+            let mut sp_body: Option<String> = None;
+            let mut sp_source_file: Option<String> = None;
+            for (path, content) in &sql_files {
+                if let Some(hdr) = header_re.find(content) {
+                    let start = hdr.start();
+                    // Find the next CREATE after the header to delimit body
+                    let rest = &content[hdr.end()..];
+                    let end = next_object_re
+                        .find(rest)
+                        .map(|m| hdr.end() + m.start())
+                        .unwrap_or(content.len());
+                    sp_body = Some(content[start..end].trim_end().to_string());
+                    sp_source_file = Some(path.clone());
+                    break;
+                }
+            }
+
+            let sp_body = match sp_body {
+                Some(b) => b,
+                None => {
+                    return Err(format!(
+                        "Stored procedure '{}' not found in any .sql file.",
+                        sp_name
+                    ));
+                }
+            };
+
+            // Deterministic summary
+            let logic = dbi::deterministic_sp_summary(&sp_name, &sp_body);
+
+            // Detect SP call chains
+            let chains = dbi::detect_sp_call_chains(&sql_files);
+
+            // Find chains involving this SP
+            let relevant_chains: Vec<&dbi::SpCallChain> = chains
+                .iter()
+                .filter(|c| c.chain.iter().any(|name| name.eq_ignore_ascii_case(&sp_name)))
+                .collect();
+
+            // Detect triggers on tables this SP writes to
+            let triggers = dbi::detect_triggers(&sql_files);
+            let affected_triggers: Vec<&dbi::TriggerInfo> = triggers
+                .iter()
+                .filter(|t| {
+                    logic.data_tables.iter().any(|dt| {
+                        dt.eq_ignore_ascii_case(&t.target_table)
+                    })
+                })
+                .collect();
+
+            // Find code callers via SP extractor
+            let mut called_by_code: Vec<String> = Vec::new();
+            for (path, content) in &code_files {
+                let rel = engram_core::RelPath::new(path);
+                let (_, edges) = engram_index::sp_extractor::extract_code_side_sp_calls(&rel, content);
+                for edge in &edges {
+                    if edge.kind == "calls_stored_procedure"
+                        && edge.target_name.eq_ignore_ascii_case(&sp_name)
+                    {
+                        called_by_code.push(path.clone());
+                        break;
+                    }
+                }
+            }
+
+            // Find reverse SP callers (other SPs that EXEC this one)
+            let mut called_by_sps: Vec<String> = Vec::new();
+            let exec_re = regex::Regex::new(&format!(
+                r"(?i)\b(?:EXEC(?:UTE)?)\s+\[?(?:dbo\.)?\]?\[?{}\]?\b",
+                regex::escape(&sp_name)
+            ))
+            .map_err(|e| format!("Invalid EXEC regex: {}", e))?;
+            {
+                // Look for other SP bodies that call this one
+                let sp_def_re = regex::Regex::new(
+                    r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
+                ).unwrap();
+                for (_path, content) in &sql_files {
+                    for cap in sp_def_re.captures_iter(content) {
+                        let other_name = cap[1].to_string();
+                        if other_name.eq_ignore_ascii_case(&sp_name) {
+                            continue; // skip self
+                        }
+                        // Delimit body: from end of header to next CREATE object (any type)
+                        let start = cap.get(0).unwrap().end();
+                        let remaining = &content[start..];
+                        let end = next_object_re
+                            .find(remaining)
+                            .map(|m| m.start())
+                            .unwrap_or(remaining.len());
+                        let other_body = &remaining[..end];
+                        if exec_re.is_match(other_body) {
+                            called_by_sps.push(other_name);
+                        }
+                    }
+                }
+            }
+            called_by_sps.sort();
+            called_by_sps.dedup();
+
+            // Also check graph for callers via incoming SqlCalls edges
+            if let Ok(incoming) = graph.find_incoming_edges(
+                &pid,
+                Some(engram_graph::EdgeKind::SqlCalls),
+                &sp_name,
+                500,
+            ) {
+                for (source_id, _weight) in &incoming {
+                    if !called_by_code.contains(source_id) {
+                        called_by_code.push(source_id.clone());
+                    }
+                }
+            }
+
+            called_by_code.sort();
+            called_by_code.dedup();
+
+            // Determine complexity
+            let complexity = if logic.side_effects.iter().any(|s| s.contains("dynamic SQL"))
+                || logic.side_effects.iter().any(|s| s.contains("cursor"))
+                || logic.calls_other_sps.len() > 3
+                || logic.data_tables.len() > 5
+            {
+                "high"
+            } else if logic.calls_other_sps.len() > 1
+                || logic.data_tables.len() > 3
+                || logic.side_effects.iter().any(|s| s.contains("transaction"))
+            {
+                "medium"
+            } else {
+                "low"
+            };
+
+            // Build response markdown
+            let mut out = format!("# Stored Procedure: {}\n\n", sp_name);
+            if let Some(ref src) = sp_source_file {
+                out.push_str(&format!("**Source file**: {}\n", src));
+            }
+            out.push_str(&format!("**Complexity**: {}\n", complexity));
+            out.push_str(&format!("**Content hash**: {}\n\n", logic.content_hash));
+
+            out.push_str("## Purpose\n\n");
+            out.push_str(&logic.purpose);
+            out.push_str("\n\n");
+
+            if !logic.parameters.is_empty() {
+                out.push_str("## Parameters\n\n");
+                for p in &logic.parameters {
+                    out.push_str(&format!("- `{}`\n", p));
+                }
+                out.push('\n');
+            }
+
+            if !logic.steps.is_empty() {
+                out.push_str("## Steps\n\n");
+                for (i, s) in logic.steps.iter().enumerate() {
+                    out.push_str(&format!("{}. {}\n", i + 1, s));
+                }
+                out.push('\n');
+            }
+
+            // Tables written (via DML statements)
+            let write_re = regex::Regex::new(
+                r"(?i)\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
+            ).unwrap();
+            let tables_written: std::collections::HashSet<String> = write_re
+                .captures_iter(&sp_body)
+                .map(|c| c[1].to_string())
+                .collect();
+
+            // Tables read = all referenced tables minus written-only tables
+            let tables_read: Vec<String> = logic
+                .data_tables
+                .iter()
+                .filter(|t| {
+                    !tables_written
+                        .iter()
+                        .any(|w| w.eq_ignore_ascii_case(t))
+                })
+                .cloned()
+                .collect();
+            let tables_written_sorted: Vec<String> = {
+                let mut v: Vec<String> = tables_written.into_iter().collect();
+                v.sort();
+                v
+            };
+
+            out.push_str("## Tables Read\n\n");
+            if tables_read.is_empty() {
+                out.push_str("_(none detected)_\n\n");
+            } else {
+                for t in &tables_read {
+                    out.push_str(&format!("- {}\n", t));
+                }
+                out.push('\n');
+            }
+
+            out.push_str("## Tables Written\n\n");
+            if tables_written_sorted.is_empty() {
+                out.push_str("_(none detected)_\n\n");
+            } else {
+                for t in &tables_written_sorted {
+                    out.push_str(&format!("- {}\n", t));
+                }
+                out.push('\n');
+            }
+
+            if !logic.calls_other_sps.is_empty() {
+                out.push_str("## Calls Other Stored Procedures\n\n");
+                for sp in &logic.calls_other_sps {
+                    out.push_str(&format!("- `{}`\n", sp));
+                }
+                out.push('\n');
+            }
+
+            if !called_by_sps.is_empty() {
+                out.push_str("## Called By Other Stored Procedures\n\n");
+                for sp in &called_by_sps {
+                    out.push_str(&format!("- `{}`\n", sp));
+                }
+                out.push('\n');
+            }
+
+            if !called_by_code.is_empty() {
+                out.push_str("## Called From Code Files\n\n");
+                for f in &called_by_code {
+                    out.push_str(&format!("- {}\n", f));
+                }
+                out.push('\n');
+            }
+
+            if !affected_triggers.is_empty() {
+                out.push_str("## Triggers That May Fire\n\n");
+                out.push_str("| Trigger | Table | Event | Type |\n");
+                out.push_str("|---------|-------|-------|------|\n");
+                for t in &affected_triggers {
+                    out.push_str(&format!(
+                        "| {} | {} | {} | {} |\n",
+                        t.name.replace('|', "\\|"),
+                        t.target_table.replace('|', "\\|"),
+                        t.event_types.join(", ").replace('|', "\\|"),
+                        t.trigger_type.replace('|', "\\|"),
+                    ));
+                }
+                out.push('\n');
+            }
+
+            if !logic.side_effects.is_empty() {
+                out.push_str("## Side Effects & Warnings\n\n");
+                for s in &logic.side_effects {
+                    out.push_str(&format!("- {}\n", s));
+                }
+                out.push('\n');
+            }
+
+            if !relevant_chains.is_empty() {
+                out.push_str("## SP Call Chains Involving This Procedure\n\n");
+                for chain in &relevant_chains {
+                    let marker = if chain.is_cycle { " ⚠️ CYCLE" } else { "" };
+                    out.push_str(&format!(
+                        "- {}{}\n",
+                        chain.chain.join(" → "),
+                        marker,
+                    ));
+                }
+                out.push('\n');
+            }
+
+            Ok(out)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e, None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(result)]))
+    }
+
+    /// 37-W3: List all triggers, optionally filtered by table.
+    pub async fn handle_list_triggers(
+        &self,
+        req: ListTriggersRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let table_filter = req.table_name.clone();
+        let output_json = req.output_json;
+
+        // Discover SQL files
+        let sql_paths =
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+
+        let sql_files: Vec<(String, String)> = sql_paths
+            .into_iter()
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        if sql_files.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No .sql files found in project.",
+            )]));
+        }
+
+        let result = tokio::task::spawn_blocking(move || {
+            use crate::services::database_intelligence_service as dbi;
+
+            let mut triggers = dbi::detect_triggers(&sql_files);
+
+            // Filter by table if requested
+            if let Some(ref table) = table_filter {
+                triggers.retain(|t| t.target_table.eq_ignore_ascii_case(table));
+            }
+
+            // Collect code tables that write to trigger target tables
+            // for cross-reference (which code paths indirectly fire each trigger)
+
+            // Pre-fetch SqlCalls edges once (not per-trigger)
+            let sql_call_edges = graph
+                .list_edges_by_kind(&pid, engram_graph::EdgeKind::SqlCalls, 5_000)
+                .unwrap_or_default();
+
+            let mut trigger_code_paths: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
+            for trigger in &triggers {
+                let table_lower = trigger.target_table.to_lowercase();
+                // Check graph for code that writes to this table via incoming QueriesTable edges
+                if let Ok(incoming) = graph.find_incoming_edges(
+                    &pid,
+                    Some(engram_graph::EdgeKind::QueriesTable),
+                    &trigger.target_table,
+                    500,
+                ) {
+                    for (source_id, _weight) in &incoming {
+                        trigger_code_paths
+                            .entry(trigger.name.clone())
+                            .or_default()
+                            .push(source_id.clone());
+                    }
+                }
+                // Cross-reference SqlCalls edges that target this table
+                for e in &sql_call_edges {
+                    if e.target_id.to_lowercase().contains(&table_lower) {
+                        trigger_code_paths
+                            .entry(trigger.name.clone())
+                            .or_default()
+                            .push(e.source_id.clone());
+                    }
+                }
+            }
+            // Dedup code paths
+            for paths in trigger_code_paths.values_mut() {
+                paths.sort();
+                paths.dedup();
+            }
+
+            (triggers, trigger_code_paths)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let (triggers, trigger_code_paths) = result;
+
+        if triggers.is_empty() {
+            let msg = if let Some(ref table) = req.table_name {
+                format!("No triggers found on table '{}'.", table)
+            } else {
+                "No triggers found in SQL files.".to_string()
+            };
+            return Ok(CallToolResult::success(vec![Content::text(msg)]));
+        }
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&triggers)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!("# Database Triggers ({})\n\n", triggers.len());
+        out.push_str("| Trigger | Table | Event | Type | Body Summary |\n");
+        out.push_str("|---------|-------|-------|------|-------------|\n");
+        for t in &triggers {
+            out.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                t.name,
+                t.target_table,
+                t.event_types.join(", "),
+                t.trigger_type,
+                t.body_summary.replace('|', "\\|"),
+            ));
+        }
+        out.push('\n');
+
+        // Show code paths that indirectly fire each trigger
+        let mut has_code_refs = false;
+        for t in &triggers {
+            if let Some(paths) = trigger_code_paths.get(&t.name) {
+                if !paths.is_empty() {
+                    if !has_code_refs {
+                        out.push_str("## Code Paths That Fire Triggers\n\n");
+                        has_code_refs = true;
+                    }
+                    out.push_str(&format!("### {} (on {})\n\n", t.name, t.target_table));
+                    for p in paths {
+                        out.push_str(&format!("- {}\n", p));
+                    }
+                    out.push('\n');
+                }
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// 37-W4: Detect sync-over-async hazards.
+    pub async fn handle_analyze_sync_hazards(
+        &self,
+        req: AnalyzeSyncHazardsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let min_severity = req.min_severity.to_lowercase();
+        let output_json = req.output_json;
+
+        // Validate min_severity
+        let severity_threshold = match min_severity.as_str() {
+            "medium" => 0,
+            "high" => 1,
+            "critical" => 2,
+            _ => {
+                return Err(McpError::invalid_params(
+                    "min_severity must be one of: \"medium\", \"high\", \"critical\"",
+                    None,
+                ));
+            }
+        };
+
+        // Collect files to analyze
+        let files_to_scan: Vec<(String, String, bool)> = if let Some(ref specific) = req.file_path {
+            let full = std::path::Path::new(&project_dir).join(specific);
+            match tokio::fs::read_to_string(&full).await {
+                Ok(content) => {
+                    let is_vb = specific.to_lowercase().ends_with(".vb");
+                    vec![(specific.clone(), content, is_vb)]
+                }
+                Err(e) => {
+                    return Err(McpError::invalid_params(
+                        format!("Cannot read file '{}': {}", specific, e),
+                        None,
+                    ));
+                }
+            }
+        } else {
+            // Scan all .vb/.cs files
+            let disc = discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                &[".vb", ".cs"],
+                5_000,
+            )
+            .await;
+            let mut files = Vec::with_capacity(disc.len());
+            for rel in disc {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                if let Ok(content) = std::fs::read_to_string(&full) {
+                    let is_vb = rel.to_lowercase().ends_with(".vb");
+                    files.push((rel, content, is_vb));
+                }
+            }
+            files
+        };
+
+        if files_to_scan.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No .vb or .cs files found to analyze.",
+            )]));
+        }
+
+        let result = tokio::task::spawn_blocking(move || {
+            use engram_index::sync_hazard_detector::{HazardSeverity, detect_sync_hazards};
+
+            let files_scanned = files_to_scan.len();
+
+            let severity_num = |s: &HazardSeverity| -> u8 {
+                match s {
+                    HazardSeverity::Medium => 0,
+                    HazardSeverity::High => 1,
+                    HazardSeverity::Critical => 2,
+                }
+            };
+
+            // Run detection on all files, keeping only those with qualifying hazards
+            let mut per_file_reports: Vec<(
+                String,
+                engram_index::sync_hazard_detector::SyncHazardReport,
+            )> = Vec::new();
+
+            for (path, content, is_vb) in &files_to_scan {
+                let report = detect_sync_hazards(content, *is_vb);
+                let has_qualifying = report
+                    .hazards
+                    .iter()
+                    .any(|h| severity_num(&h.severity) >= severity_threshold);
+                if has_qualifying {
+                    per_file_reports.push((path.clone(), report));
+                }
+            }
+
+            // Sort files by number of hazards (most hazardous first)
+            per_file_reports.sort_by(|a, b| b.1.hazards.len().cmp(&a.1.hazards.len()));
+
+            // Compute totals from retained files only (accurate counts)
+            let mut total_critical = 0usize;
+            let mut total_high = 0usize;
+            let mut total_medium = 0usize;
+            for (_, report) in &per_file_reports {
+                for h in &report.hazards {
+                    if severity_num(&h.severity) >= severity_threshold {
+                        match h.severity {
+                            HazardSeverity::Critical => total_critical += 1,
+                            HazardSeverity::High => total_high += 1,
+                            HazardSeverity::Medium => total_medium += 1,
+                        }
+                    }
+                }
+            }
+
+            (
+                per_file_reports,
+                total_critical,
+                total_high,
+                total_medium,
+                files_scanned,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let (per_file_reports, total_critical, total_high, total_medium, files_scanned) = result;
+
+        if output_json {
+            let json_data: Vec<serde_json::Value> = per_file_reports
+                .iter()
+                .map(|(path, report)| {
+                    serde_json::json!({
+                        "file_path": path,
+                        "async_readiness": report.async_readiness,
+                        "critical_count": report.critical_count,
+                        "high_count": report.high_count,
+                        "medium_count": report.medium_count,
+                        "hazards": report.hazards,
+                    })
+                })
+                .collect();
+            let json = serde_json::to_string_pretty(&serde_json::json!({
+                "files_scanned": files_scanned,
+                "total_critical": total_critical,
+                "total_high": total_high,
+                "total_medium": total_medium,
+                "files_with_hazards": per_file_reports.len(),
+                "reports": json_data,
+            }))
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = format!(
+            "# Sync Hazard Analysis\n\n\
+             **Files scanned**: {} | **Files with hazards**: {}\n\
+             **Critical**: {} | **High**: {} | **Medium**: {}\n\
+             **Min severity filter**: {}\n\n",
+            files_scanned,
+            per_file_reports.len(),
+            total_critical,
+            total_high,
+            total_medium,
+            min_severity,
+        );
+
+        if per_file_reports.is_empty() {
+            out.push_str("No sync hazards found above the severity threshold. The codebase is relatively clean for async migration.\n");
+        } else {
+            for (path, report) in &per_file_reports {
+                out.push_str(&format!(
+                    "## {} (readiness: {:.0}%)\n\n",
+                    path,
+                    report.async_readiness * 100.0,
+                ));
+                out.push_str(
+                    "| Line | Pattern | Severity | Risk | Matched | Modern Equivalent |\n",
+                );
+                out.push_str(
+                    "|------|---------|----------|------|---------|-------------------|\n",
+                );
+
+                for h in &report.hazards {
+                    let sev_num: u8 = match h.severity {
+                        engram_index::sync_hazard_detector::HazardSeverity::Medium => 0,
+                        engram_index::sync_hazard_detector::HazardSeverity::High => 1,
+                        engram_index::sync_hazard_detector::HazardSeverity::Critical => 2,
+                    };
+                    if sev_num < severity_threshold {
+                        continue;
+                    }
+                    let matched_clean = h.matched_text.replace('|', "\\|");
+                    let modern_clean = h.modern_equivalent.replace('|', "\\|");
+                    out.push_str(&format!(
+                        "| {} | {} | {} | {:?} | `{}` | {} |\n",
+                        h.line_number,
+                        h.pattern_type,
+                        h.severity,
+                        h.migration_risk,
+                        if matched_clean.len() > 60 {
+                            format!("{}...", &matched_clean[..57])
+                        } else {
+                            matched_clean
+                        },
+                        modern_clean,
+                    ));
+                }
+                out.push('\n');
+            }
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// 37-W5: jQuery usage inventory.
+    pub async fn handle_get_jquery_inventory(
+        &self,
+        req: GetJQueryInventoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = rec.directory.clone();
+        let file_filter = req.file_filter.clone();
+        let output_json = req.output_json;
+
+        // Discover JS + markup files
+        let (js_disc, markup_disc) = tokio::join!(
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".js"], 5_000,),
+            discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                &[".aspx", ".ascx", ".master", ".html", ".htm"],
+                5_000,
+            ),
+        );
+
+        // Apply file filter if present
+        let filter_matches = |path: &str| -> bool {
+            if let Some(ref filter) = file_filter {
+                let path_lower = path.to_lowercase();
+                let filter_lower = filter.to_lowercase();
+                // Support simple glob-like filtering
+                if filter_lower.starts_with('*') {
+                    path_lower.ends_with(&filter_lower[1..])
+                } else if filter_lower.ends_with('*') {
+                    let base = Path::new(path)
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy();
+                    base.to_lowercase()
+                        .starts_with(&filter_lower[..filter_lower.len() - 1])
+                } else {
+                    path_lower.contains(&filter_lower)
+                }
+            } else {
+                true
+            }
+        };
+
+        let js_files: Vec<(String, String)> = js_disc
+            .into_iter()
+            .filter(|p| filter_matches(p))
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        let markup_files: Vec<(String, String)> = markup_disc
+            .into_iter()
+            .filter(|p| filter_matches(p))
+            .filter_map(|rel| {
+                let full = std::path::Path::new(&project_dir).join(&rel);
+                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+            })
+            .collect();
+
+        if js_files.is_empty() && markup_files.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "No JS or markup files found matching the filter.",
+            )]));
+        }
+
+        let result = tokio::task::spawn_blocking(move || {
+            let js_refs: Vec<(&str, &str)> = js_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+            let markup_refs: Vec<(&str, &str)> = markup_files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+            engram_index::jquery_inventory::build_jquery_inventory(&js_refs, &markup_refs)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&result)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut out = String::with_capacity(4096);
+        out.push_str("# jQuery Inventory\n\n");
+        out.push_str(&format!(
+            "**Files analyzed**: {} | **Total usages**: {}\n\n",
+            result.files_analyzed, result.total_usages,
+        ));
+
+        // Core version
+        if let Some(ref ver) = result.core_version {
+            out.push_str(&format!("## jQuery Core: v{}", ver));
+            if result.core_vulnerable {
+                out.push_str(" ⚠️ VULNERABLE");
+            }
+            out.push('\n');
+            if !result.vulnerability_notes.is_empty() {
+                for note in &result.vulnerability_notes {
+                    out.push_str(&format!("- {}\n", note));
+                }
+            }
+            out.push('\n');
+        } else {
+            out.push_str("## jQuery Core: _version not detected_\n\n");
+        }
+
+        // UI Widgets
+        if !result.ui_widgets.is_empty() {
+            out.push_str("## jQuery UI Widgets\n\n");
+            out.push_str("| Widget | File | Line | Modern Equivalent | Complexity |\n");
+            out.push_str("|--------|------|------|-------------------|------------|\n");
+            for w in &result.ui_widgets {
+                out.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    w.name.replace('|', "\\|"),
+                    w.file_path.replace('|', "\\|"),
+                    w.line_number,
+                    w.modern_equivalent.replace('|', "\\|"),
+                    w.migration_complexity,
+                ));
+            }
+            out.push('\n');
+        }
+
+        // Third-party plugins
+        if !result.third_party_plugins.is_empty() {
+            out.push_str("## Third-Party Plugins\n\n");
+            out.push_str("| Plugin | File | Line | Modern Equivalent | Complexity |\n");
+            out.push_str("|--------|------|------|-------------------|------------|\n");
+            for p in &result.third_party_plugins {
+                out.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    p.name.replace('|', "\\|"),
+                    p.file_path.replace('|', "\\|"),
+                    p.line_number,
+                    p.modern_equivalent.replace('|', "\\|"),
+                    p.migration_complexity,
+                ));
+            }
+            out.push('\n');
+        }
+
+        // Custom plugins
+        if !result.custom_plugins.is_empty() {
+            out.push_str("## Custom Plugins\n\n");
+            out.push_str("| Plugin | File | Line |\n");
+            out.push_str("|--------|------|------|\n");
+            for p in &result.custom_plugins {
+                out.push_str(&format!(
+                    "| {} | {} | {} |\n",
+                    p.name.replace('|', "\\|"),
+                    p.file_path.replace('|', "\\|"),
+                    p.line_number,
+                ));
+            }
+            out.push('\n');
+        }
+
+        // Deprecated patterns
+        if !result.deprecated_patterns.is_empty() {
+            out.push_str("## Deprecated Patterns\n\n");
+            out.push_str("| Pattern | File | Line | Recommendation | Complexity |\n");
+            out.push_str("|---------|------|------|----------------|------------|\n");
+            for d in &result.deprecated_patterns {
+                out.push_str(&format!(
+                    "| {} | {} | {} | {} | {} |\n",
+                    d.name.replace('|', "\\|"),
+                    d.file_path.replace('|', "\\|"),
+                    d.line_number,
+                    d.modern_equivalent.replace('|', "\\|"),
+                    d.migration_complexity,
+                ));
+            }
+            out.push('\n');
+        }
+
+        if result.total_usages == 0 {
+            out.push_str("No jQuery usage detected in the analyzed files.\n");
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
