@@ -5,8 +5,8 @@ use crate::tools::Engram;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use rmcp::{
-    model::{CallToolResult, Content},
     ErrorData as McpError,
+    model::{CallToolResult, Content},
 };
 
 /// Graph tool helper methods on Engram.

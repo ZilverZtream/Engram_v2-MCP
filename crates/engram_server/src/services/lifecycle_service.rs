@@ -190,9 +190,8 @@ static RE_PAGE_DIRECTIVE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)<%@\s+(?:Page|Control|Master)\b([^%]*)%>").unwrap());
 
 /// Matches `<asp:SomeControl … ID="theId" …>` — used to enrich control types from markup.
-static RE_ENRICH_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).unwrap()
-});
+static RE_ENRICH_CONTROL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).unwrap());
 
 fn extract_directive_attr(tag: &str, attr: &str) -> Option<String> {
     let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));

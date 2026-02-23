@@ -231,9 +231,9 @@ impl FromStr for EdgeKind {
 }
 
 mod optional_json_string {
-    use serde::{Deserializer, Serializer, Deserialize};
-    use serde::ser::Error as SerError;
     use serde::de::Error as DeError;
+    use serde::ser::Error as SerError;
+    use serde::{Deserialize, Deserializer, Serializer};
     use serde_json::Value as JsonValue;
 
     pub fn serialize<S>(value: &Option<JsonValue>, serializer: S) -> Result<S::Ok, S::Error>

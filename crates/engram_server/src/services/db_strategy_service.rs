@@ -5,7 +5,7 @@
 //! to classify each file's data access pattern and produce migration recommendations.
 
 use engram_graph::{Edge, EdgeKind, GraphStore};
-use engram_index::sql_parser::{analyze_sql, SqlOp};
+use engram_index::sql_parser::{SqlOp, analyze_sql};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
@@ -302,10 +302,7 @@ fn collect_table_operations(
     table_ops
 }
 
-fn collect_table_columns(
-    file_rc: &[&Edge],
-    file_sql: &[&Edge],
-) -> BTreeMap<String, Vec<String>> {
+fn collect_table_columns(file_rc: &[&Edge], file_sql: &[&Edge]) -> BTreeMap<String, Vec<String>> {
     let mut table_columns: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut seen_columns: HashSet<(String, String)> = HashSet::new();
 
@@ -361,10 +358,7 @@ fn generate_file_header(b: &mut CSharpCodeBuilder) {
     b.blank();
 }
 
-fn generate_dto_classes(
-    b: &mut CSharpCodeBuilder,
-    table_columns: &BTreeMap<String, Vec<String>>,
-) {
+fn generate_dto_classes(b: &mut CSharpCodeBuilder, table_columns: &BTreeMap<String, Vec<String>>) {
     for (table, columns) in table_columns {
         let class_name = to_pascal_case(table);
         b.open_block(&format!("public class {class_name}"));

@@ -288,7 +288,7 @@ fn collect_file_diffs(
         }
         let commit = repo.find_commit(*oid)?;
         let changed = GitWalker::files_changed_in_commit(&repo, *oid)?;
-        
+
         let touches_target = changed.iter().any(|fc| {
             let p = fc.path().as_str();
             if is_dir {
@@ -313,7 +313,7 @@ fn collect_file_diffs(
             if matched && !diff_text.trim().is_empty() {
                 let msg = commit.message().unwrap_or("").to_string();
                 out.push((oid.to_string(), msg, diff_text));
-                // For directories, we might want multiple files from same commit, 
+                // For directories, we might want multiple files from same commit,
                 // but let's stick to one diff text block for simplicity like v1.
                 break;
             }

@@ -4,11 +4,11 @@ use crate::models::{
 };
 use crate::state::{AppEvent, SearchHitLite};
 use crate::tools::Engram;
-use crate::utils::text::{stacktrace_to_query};
+use crate::utils::text::stacktrace_to_query;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
-use rmcp::model::{CallToolResult, Content};
 use rmcp::ErrorData as McpError;
+use rmcp::model::{CallToolResult, Content};
 
 impl Engram {
     pub async fn handle_search_memory(
@@ -178,10 +178,7 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
-    pub async fn handle_get_chunk(
-        &self,
-        req: GetChunkRequest,
-    ) -> Result<CallToolResult, McpError> {
+    pub async fn handle_get_chunk(&self, req: GetChunkRequest) -> Result<CallToolResult, McpError> {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
