@@ -121,6 +121,14 @@ static RE_ASP_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?is)<asp:(\w+)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#).unwrap()
 });
 
+// Button-like controls used to find full-postback triggers outside UpdatePanels
+static RE_BUTTONS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?is)<asp:(Button|LinkButton|ImageButton)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#,
+    )
+    .unwrap()
+});
+
 // ── Attribute helpers ─────────────────────────────────────────────────────
 
 fn extract_attr(tag: &str, attr: &str) -> String {
@@ -414,12 +422,7 @@ fn find_full_postback_controls(content: &str, panels: &[UpdatePanelInfo]) -> Vec
         .collect();
 
     // Find all button-like controls in the full markup
-    let re_buttons = Regex::new(
-        r#"(?is)<asp:(Button|LinkButton|ImageButton)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#,
-    )
-    .unwrap();
-
-    re_buttons
+    RE_BUTTONS
         .captures_iter(content)
         .map(|cap| cap[2].to_string())
         .filter(|id| !inside_ids.contains(id.as_str()))

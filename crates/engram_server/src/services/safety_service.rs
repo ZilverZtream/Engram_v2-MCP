@@ -541,6 +541,10 @@ mod tests {
                 (false, false) => matrix.true_deny += 1,
                 (false, true) => {
                     matrix.false_allow += 1;
+                    // Force a read so the compiler recognises the counter has been
+                    // updated (the rate calculation below is unreachable after panic,
+                    // but keeping the increment makes future soft-failure refactors safe).
+                    let _ = matrix.false_allow;
                     panic!(
                         "FALSE ALLOW on high-risk scenario '{}' (risk_class={}): {:?}",
                         s.name, s.risk_class, decision.summary

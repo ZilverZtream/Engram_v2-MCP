@@ -48,13 +48,47 @@ static RE_TABLE_FROM_SQL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+[\[`]?(\w+)[\]`]?").unwrap()
 });
 
+/// Matches `<%@ Register … %>` directives in ASPX markup.
+static RE_REGISTER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?is)<%@\s+Register\b([^%]*)%>"#).unwrap());
+
+/// Matches attribute-name tokens (`word=`) inside control tag bodies.
+static RE_ATTR_NAME: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).unwrap());
+
 fn extract_aspx_attr(tag: &str, attr: &str) -> String {
-    let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
-    Regex::new(&pattern)
-        .ok()
-        .and_then(|re| re.captures(tag))
-        .map(|c| c[1].to_string())
-        .unwrap_or_default()
+    // Manual case-insensitive attribute extraction — avoids compiling a new
+    // Regex on every call since all callers pass plain ASCII identifier names.
+    let tag_lower = tag.to_ascii_lowercase();
+    let attr_lower = attr.to_ascii_lowercase();
+    let mut search_start = 0;
+    while let Some(idx) = tag_lower[search_start..].find(attr_lower.as_str()) {
+        let abs = search_start + idx;
+        // Require a word boundary before the attribute name
+        if abs > 0 {
+            let prev = tag_lower.as_bytes()[abs - 1];
+            if prev.is_ascii_alphanumeric() || prev == b'_' {
+                search_start = abs + attr_lower.len();
+                continue;
+            }
+        }
+        // Expect optional whitespace + '=' + optional whitespace + '"'
+        let after = tag[abs + attr_lower.len()..].trim_start_matches(|c: char| c.is_ascii_whitespace());
+        if !after.starts_with('=') {
+            search_start = abs + attr_lower.len();
+            continue;
+        }
+        let after_eq = after[1..].trim_start_matches(|c: char| c.is_ascii_whitespace());
+        if !after_eq.starts_with('"') {
+            search_start = abs + attr_lower.len();
+            continue;
+        }
+        // Extract the value between the opening and closing '"'
+        let value_part = &after_eq[1..];
+        let end = value_part.find('"').unwrap_or(value_part.len());
+        return value_part[..end].to_string();
+    }
+    String::new()
 }
 
 // ── Result structs ────────────────────────────────────────────────────────────
@@ -451,8 +485,7 @@ fn collect_user_controls(
     }
 
     // Second: parse <%@ Register %> directives directly from markup
-    let re_register = Regex::new(r#"(?is)<%@\s+Register\b([^%]*)%>"#).unwrap();
-    for cap in re_register.captures_iter(aspx_content) {
+    for cap in RE_REGISTER.captures_iter(aspx_content) {
         let tag = &cap[1];
         let prefix = extract_aspx_attr(tag, "TagPrefix");
         let tag_name = extract_aspx_attr(tag, "TagName");
@@ -501,11 +534,10 @@ fn collect_control_properties(content: &str, prefix: &str, tag_name: &str) -> Ve
         Ok(r) => r,
         Err(_) => return Vec::new(),
     };
-    let re_attr = Regex::new(r#"(\w+)\s*="#).unwrap();
     let mut props: Vec<String> = Vec::new();
     for cap in re.captures_iter(content) {
         let attrs = &cap[1];
-        for attr_cap in re_attr.captures_iter(attrs) {
+        for attr_cap in RE_ATTR_NAME.captures_iter(attrs) {
             let name = attr_cap[1].to_string();
             if !matches!(
                 name.to_lowercase().as_str(),
@@ -1930,7 +1962,7 @@ mod tests {
         assert!(has_inline_sql, "Expected inline SQL from code-behind");
 
         // Risk factors should mention data sources or SQL
-        let risk_text = dossier.risk_factors.join(" ").to_lowercase();
+        let _risk_text = dossier.risk_factors.join(" ").to_lowercase();
         // May warn about unparameterized SQL if any was found without @param
         // (the inline SELECT * has @cid so it is parameterized — no unparameterized warning needed)
         // Complexity must be at least Low for a page with data sources

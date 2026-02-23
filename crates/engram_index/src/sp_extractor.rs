@@ -1149,7 +1149,7 @@ BEGIN
     SET @StatusMessage = 'Order created successfully'
 END
 "#;
-        let rel = RelPath::new("sp/create_order.sql");
+        let _rel = RelPath::new("sp/create_order.sql");
         let defs = parse_sp_definitions(sql);
 
         assert_eq!(defs.len(), 1);
@@ -1197,7 +1197,7 @@ BEGIN
     FETCH NEXT @PageSize ROWS ONLY
 END
 "#;
-        let rel = RelPath::new("sp/search.sql");
+        let _rel = RelPath::new("sp/search.sql");
         let defs = parse_sp_definitions(sql);
 
         assert_eq!(defs.len(), 1);
@@ -1352,7 +1352,7 @@ BEGIN
     EXEC sp_executesql @sql, N'@val NVARCHAR(500)', @SearchValue
 END
 "#;
-        let rel = RelPath::new("sp/dynamic.sql");
+        let _rel = RelPath::new("sp/dynamic.sql");
         let defs = parse_sp_definitions(sql);
 
         assert_eq!(defs.len(), 1);
@@ -1385,7 +1385,7 @@ BEGIN
     DEALLOCATE order_cursor
 END
 "#;
-        let rel = RelPath::new("sp/batch.sql");
+        let _rel = RelPath::new("sp/batch.sql");
         let defs = parse_sp_definitions(sql);
 
         assert_eq!(defs.len(), 1);
@@ -1451,7 +1451,7 @@ BEGIN
       AND (@DepartmentId IS NULL OR r.DepartmentId = @DepartmentId)
 END
 "#;
-        let rel = RelPath::new("sp/alter_report.sql");
+        let _rel = RelPath::new("sp/alter_report.sql");
         let defs = parse_sp_definitions(sql);
 
         assert_eq!(defs.len(), 1);

@@ -29,7 +29,18 @@ fn to_rel_paths(root: &Path, files: &[PathBuf]) -> Vec<String> {
 }
 
 fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
-    rels.iter().map(|r| root.join(r)).collect()
+    rels.iter()
+        .filter(|r| {
+            // Reject absolute paths and any path that escapes the root via `..` components.
+            // These originate from checkpoint state, but we validate defensively.
+            let p = std::path::Path::new(r.as_str());
+            !p.is_absolute()
+                && !r.contains("..")
+                && !r.starts_with('/')
+                && !r.starts_with('\\')
+        })
+        .map(|r| root.join(r))
+        .collect()
 }
 
 /// Project lifecycle helper methods on Engram.

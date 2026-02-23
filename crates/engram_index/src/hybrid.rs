@@ -1870,7 +1870,12 @@ pub fn chunk_id_from_content_hash(h: &ContentHash) -> u64 {
     }
     let mut bytes = [0u8; 8];
     for i in 0..8 {
-        bytes[i] = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).unwrap_or(0);
+        match u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16) {
+            Ok(b) => bytes[i] = b,
+            // Any invalid hex digit makes the entire hash undecodable; return
+            // the canonical "missing" sentinel (0) rather than a corrupt partial ID.
+            Err(_) => return 0,
+        }
     }
     u64::from_le_bytes(bytes)
 }

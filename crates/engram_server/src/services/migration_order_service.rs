@@ -195,9 +195,10 @@ fn find_cycle(
         }
         // Iterative DFS with explicit call stack to avoid recursion overflow
         let mut call_stack: Vec<(String, usize)> = vec![(start.clone(), 0)];
-        while let Some((node, idx)) = call_stack.last_mut() {
-            let node = node.clone();
-            if *idx == 0 {
+        while let Some(top) = call_stack.last() {
+            let node = top.0.clone();
+            let idx = top.1;
+            if idx == 0 {
                 if visited.contains(&node) {
                     call_stack.pop();
                     continue;
@@ -207,9 +208,10 @@ fn find_cycle(
                 stack.push(node.clone());
             }
             let neighbors = adj.get(&node).map(|v| v.as_slice()).unwrap_or(&[]);
-            if *idx < neighbors.len() {
-                let next = neighbors[*idx].clone();
-                *call_stack.last_mut().unwrap() = (node.clone(), *idx + 1);
+            if idx < neighbors.len() {
+                let next = neighbors[idx].clone();
+                // Advance the child index before we potentially push a new frame
+                call_stack.last_mut().unwrap().1 = idx + 1;
                 if !remaining.contains(&next) {
                     // Neighbor not in remaining subgraph, skip
                     continue;

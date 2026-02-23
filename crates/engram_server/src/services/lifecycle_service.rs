@@ -189,6 +189,11 @@ static RE_CS_CONTROL_EVENT: LazyLock<Regex> = LazyLock::new(|| {
 static RE_PAGE_DIRECTIVE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?is)<%@\s+(?:Page|Control|Master)\b([^%]*)%>").unwrap());
 
+/// Matches `<asp:SomeControl … ID="theId" …>` — used to enrich control types from markup.
+static RE_ENRICH_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).unwrap()
+});
+
 fn extract_directive_attr(tag: &str, attr: &str) -> Option<String> {
     let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
     Regex::new(&pattern)
@@ -200,19 +205,17 @@ fn extract_directive_attr(tag: &str, attr: &str) -> Option<String> {
 // ── Main analysis function ────────────────────────────────────────────────
 
 pub fn analyze_page_lifecycle(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
+    _graph: &Arc<GraphStore>,
+    _project_id: &str,
     file_path: &str,
     codebehind_content: &str,
     aspx_content: Option<&str>,
 ) -> anyhow::Result<PageLifecycleMap> {
     let mut lifecycle_events = Vec::new();
     let mut control_events = Vec::new();
-    let mut implicit_behaviors = Vec::new();
     let mut migration_notes = Vec::new();
 
     let is_vb = file_path.ends_with(".vb");
-    let lines: Vec<&str> = codebehind_content.lines().collect();
 
     // ── Parse page directives from ASPX ──
 
@@ -400,7 +403,7 @@ pub fn analyze_page_lifecycle(
 
     // ── Generate implicit behaviors ──
 
-    implicit_behaviors =
+    let implicit_behaviors =
         build_implicit_behaviors(&lifecycle_events, &control_events, &page_directives);
 
     // ── Build migration notes ──
@@ -828,9 +831,8 @@ fn is_postback_trigger_event(event_name: &str) -> bool {
 }
 
 fn enrich_control_types(aspx: &str, events: &mut [ControlEventMapping]) {
-    let re = Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).unwrap();
     let mut type_map = std::collections::HashMap::new();
-    for cap in re.captures_iter(aspx) {
+    for cap in RE_ENRICH_CONTROL.captures_iter(aspx) {
         type_map.insert(cap[2].to_string(), cap[1].to_string());
     }
     for event in events.iter_mut() {
@@ -841,7 +843,7 @@ fn enrich_control_types(aspx: &str, events: &mut [ControlEventMapping]) {
 }
 
 fn build_implicit_behaviors(
-    lifecycle: &[LifecycleEventMapping],
+    _lifecycle: &[LifecycleEventMapping],
     control_events: &[ControlEventMapping],
     directives: &PageDirectiveInfo,
 ) -> Vec<ImplicitBehavior> {

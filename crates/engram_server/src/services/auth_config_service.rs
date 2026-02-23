@@ -168,6 +168,14 @@ static RE_PRINCIPAL_PERMISSION: LazyLock<Regex> = LazyLock::new(|| {
 static RE_AUTHORIZE_ATTR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)\[Authorize\s*(?:\([^)]*\))?\s*\]"#).unwrap());
 
+/// Matches a global `<authorization>…</authorization>` block outside any `<location>` element.
+static RE_GLOBAL_AUTH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?is)<authorization>(.*?)</authorization>").unwrap());
+
+/// Matches `<add …/>` elements used inside membership/role-manager provider bodies.
+static RE_ADD_TAG: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?is)<add\b([^>]*?)/>").unwrap());
+
 fn extract_xml_attr(tag: &str, attr: &str) -> String {
     let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
     Regex::new(&pattern)
@@ -208,7 +216,9 @@ pub fn analyze_auth_config(
     let mut role_provider = None;
     let mut code_auth_checks = Vec::new();
     let mut session_auth_patterns = Vec::new();
-    let mut recommendations = Vec::new();
+    // `recommendations` is computed once at the end; declared here to keep the
+    // struct assembly block tidy, initialized by build_recommendations below.
+    let recommendations;
 
     // ── Parse web.config ──
 
@@ -306,8 +316,7 @@ pub fn analyze_auth_config(
         // Also check for global <authorization> outside <location>
         // Use a simple approach: find <authorization> blocks not inside <location>
         let config_no_locations = RE_LOCATION.replace_all(config, "");
-        let global_auth_re = Regex::new(r"(?is)<authorization>(.*?)</authorization>").unwrap();
-        for auth_cap in global_auth_re.captures_iter(&config_no_locations) {
+        for auth_cap in RE_GLOBAL_AUTH.captures_iter(&config_no_locations) {
             let body = &auth_cap[1];
             let mut allow_roles = Vec::new();
             let mut allow_users = Vec::new();
@@ -351,13 +360,12 @@ pub fn analyze_auth_config(
             let body = &cap[2];
             let default_provider = extract_xml_attr(tag, "defaultProvider");
 
-            let add_re = Regex::new(r"(?is)<add\b([^>]*?)/>").unwrap();
             let mut provider_type = String::new();
             let mut pwd_format = "Hashed".to_string();
             let mut min_pwd = 7u32;
             let mut require_email = true;
 
-            for add_cap in add_re.captures_iter(body) {
+            for add_cap in RE_ADD_TAG.captures_iter(body) {
                 let add_tag = &add_cap[1];
                 let ptype = extract_xml_attr(add_tag, "type");
                 if !ptype.is_empty() {
@@ -392,9 +400,8 @@ pub fn analyze_auth_config(
             let body = &cap[2];
             let default_provider = extract_xml_attr(tag, "defaultProvider");
 
-            let add_re = Regex::new(r"(?is)<add\b([^>]*?)/>").unwrap();
             let mut provider_type = String::new();
-            for add_cap in add_re.captures_iter(body) {
+            for add_cap in RE_ADD_TAG.captures_iter(body) {
                 let ptype = extract_xml_attr(&add_cap[1], "type");
                 if !ptype.is_empty() {
                     provider_type = ptype;

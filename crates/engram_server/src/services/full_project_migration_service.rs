@@ -1857,6 +1857,100 @@ fn build_cross_cutting_summary(
     }
 }
 
+// ── Phase 32: Pre-compiled regex statics ──────────────────────────────────────
+// Each function in this section previously compiled between 1 and 19 Regex
+// objects on every call.  Moving them to LazyLock statics compiles each pattern
+// exactly once at first use and eliminates all per-call allocation.
+
+// web.config inventory (extract_webconfig_inventory)
+static WC_ADD_KEY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)""#).unwrap()
+});
+static WC_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*(?:providerName\s*=\s*"([^"]*)")?"#).unwrap()
+});
+static WC_HANDLER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<add\s+(?:[^>]*?)verb\s*=\s*"([^"]*)"[^>]*path\s*=\s*"([^"]*)"[^>]*type\s*=\s*"([^"]*)""#).unwrap()
+});
+static WC_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*type\s*=\s*"([^"]*)""#).unwrap()
+});
+static WC_CE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<customErrors\s+mode\s*=\s*"([^"]+)"(?:[^>]*defaultRedirect\s*=\s*"([^"]*)")?"#)
+        .unwrap()
+});
+static WC_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<error\s+statusCode\s*=\s*"([^"]+)"[^>]*redirect\s*=\s*"([^"]*)""#).unwrap()
+});
+static WC_COMP_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<compilation\s+([^>]*?)/?>"#).unwrap());
+static WC_TF_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"targetFramework\s*=\s*"([^"]+)""#).unwrap());
+static WC_ASM_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+assembly\s*=\s*"([^"]+)""#).unwrap());
+static WC_SS_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<sessionState\s+([^>]*?)/?>"#).unwrap());
+static WC_MODE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"mode\s*=\s*"([^"]+)""#).unwrap());
+static WC_TIMEOUT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"timeout\s*=\s*"(\d+)""#).unwrap());
+static WC_COOKIELESS_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"cookieless\s*=\s*"([^"]+)""#).unwrap());
+static WC_PROVIDER_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"customProvider\s*=\s*"([^"]+)""#).unwrap());
+static WC_PAGES_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<pages\s+([^>]*?)/?>"#).unwrap());
+static WC_THEME_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"theme\s*=\s*"([^"]+)""#).unwrap());
+static WC_MP_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"masterPageFile\s*=\s*"([^"]+)""#).unwrap());
+static WC_NS_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+namespace\s*=\s*"([^"]+)""#).unwrap());
+static WC_CTRL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<add\s+tagPrefix\s*=\s*"([^"]+)"[^>]*namespace\s*=\s*"([^"]+)""#).unwrap()
+});
+
+// Global.asax class extractor (extract_global_asax_info)
+static ASAX_CLASS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)(?:Class|Inherits\s*=\s*["'])(\S+?)(?:["']|\s)"#).unwrap()
+});
+
+// JS analysis (build_js_analysis)
+static JS_SCRIPT_SRC_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).unwrap()
+});
+static JS_INLINE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)<script(?![^>]*\bsrc\s*=)[^>]*>").unwrap()
+});
+static JS_JQUERY_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").unwrap());
+
+// Classic ASP summary (build_classic_asp_summary)
+static ASP_CREATE_OBJ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)Server\.CreateObject\s*\(\s*"([^"]+)""#).unwrap()
+});
+static ASP_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)(?:\.Execute|\.CommandText|SELECT\s|INSERT\s|UPDATE\s|DELETE\s)").unwrap()
+});
+static ASP_STATE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"(?i)(?:Session|Application|Request\.Cookies|Response\.Cookies)\s*\(").unwrap()
+});
+static ASP_INCLUDE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"(?i)<!--\s*#include\s+(?:file|virtual)\s*=\s*"([^"]+)""#).unwrap()
+});
+
+// Report summary (build_report_summary)
+static RPT_DATASET_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).unwrap());
+static RPT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).unwrap()
+});
+static RPT_SUBREPORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).unwrap()
+});
+static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).unwrap());
+
 // ── Phase 32: Analysis functions ──────────────────────────────────────────────
 
 /// Extract web.config inventory: appSettings, connectionStrings, handlers,
@@ -1865,13 +1959,10 @@ fn extract_webconfig_inventory(
     web_config: &str,
     code_files: &[(&str, &str)],
 ) -> WebConfigInventory {
-    use regex::Regex;
-
     // ── appSettings ──
-    let add_re = Regex::new(r#"<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)""#).unwrap();
     let appsettings_section = extract_xml_section(web_config, "appSettings");
     let mut app_settings: Vec<AppSettingEntry> = Vec::new();
-    for cap in add_re.captures_iter(&appsettings_section) {
+    for cap in WC_ADD_KEY_RE.captures_iter(&appsettings_section) {
         let key = cap[1].to_string();
         let raw_value = &cap[2];
         let value_preview = mask_sensitive_value(&key, raw_value);
@@ -1884,12 +1975,9 @@ fn extract_webconfig_inventory(
     }
 
     // ── connectionStrings ──
-    let conn_re = Regex::new(
-        r#"<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*(?:providerName\s*=\s*"([^"]*)")?"#
-    ).unwrap();
     let conn_section = extract_xml_section(web_config, "connectionStrings");
     let mut connection_strings: Vec<ConnectionStringEntry> = Vec::new();
-    for cap in conn_re.captures_iter(&conn_section) {
+    for cap in WC_CONN_RE.captures_iter(&conn_section) {
         let name = cap[1].to_string();
         let cs_value = &cap[2];
         let provider = cap
@@ -1907,12 +1995,9 @@ fn extract_webconfig_inventory(
     }
 
     // ── httpHandlers / system.webServer handlers ──
-    let handler_re = Regex::new(
-        r#"<add\s+(?:[^>]*?)verb\s*=\s*"([^"]*)"[^>]*path\s*=\s*"([^"]*)"[^>]*type\s*=\s*"([^"]*)""#
-    ).unwrap();
     let handler_section = extract_xml_section(web_config, "httpHandlers")
         + &extract_xml_section(web_config, "handlers");
-    let http_handlers: Vec<HandlerRegistration> = handler_re
+    let http_handlers: Vec<HandlerRegistration> = WC_HANDLER_RE
         .captures_iter(&handler_section)
         .map(|cap| HandlerRegistration {
             verb: cap[1].to_string(),
@@ -1922,10 +2007,9 @@ fn extract_webconfig_inventory(
         .collect();
 
     // ── httpModules / system.webServer modules ──
-    let module_re = Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*type\s*=\s*"([^"]*)""#).unwrap();
     let module_section = extract_xml_section(web_config, "httpModules")
         + &extract_xml_section(web_config, "modules");
-    let http_modules: Vec<ModuleRegistration> = module_re
+    let http_modules: Vec<ModuleRegistration> = WC_MODULE_RE
         .captures_iter(&module_section)
         .map(|cap| ModuleRegistration {
             name: cap[1].to_string(),
@@ -1935,16 +2019,9 @@ fn extract_webconfig_inventory(
 
     // ── customErrors ──
     let custom_errors = {
-        let ce_re = Regex::new(
-            r#"<customErrors\s+mode\s*=\s*"([^"]+)"(?:[^>]*defaultRedirect\s*=\s*"([^"]*)")?"#,
-        )
-        .unwrap();
-        let error_re =
-            Regex::new(r#"<error\s+statusCode\s*=\s*"([^"]+)"[^>]*redirect\s*=\s*"([^"]*)""#)
-                .unwrap();
         let ce_section = extract_xml_section(web_config, "customErrors");
-        ce_re.captures(&ce_section).map(|cap| {
-            let redirects: Vec<(String, String)> = error_re
+        WC_CE_RE.captures(&ce_section).map(|cap| {
+            let redirects: Vec<(String, String)> = WC_ERROR_RE
                 .captures_iter(&ce_section)
                 .map(|ec| (ec[1].to_string(), ec[2].to_string()))
                 .collect();
@@ -1958,15 +2035,12 @@ fn extract_webconfig_inventory(
 
     // ── compilation ──
     let compilation = {
-        let comp_re = Regex::new(r#"<compilation\s+([^>]*?)/?>"#).unwrap();
-        comp_re.captures(web_config).map(|cap| {
+        WC_COMP_RE.captures(web_config).map(|cap| {
             let attrs = &cap[1];
             let debug = attrs.contains(r#"debug="true""#);
-            let tf_re = Regex::new(r#"targetFramework\s*=\s*"([^"]+)""#).unwrap();
-            let target_framework = tf_re.captures(attrs).map(|c| c[1].to_string());
-            let asm_re = Regex::new(r#"<add\s+assembly\s*=\s*"([^"]+)""#).unwrap();
+            let target_framework = WC_TF_RE.captures(attrs).map(|c| c[1].to_string());
             let comp_section = extract_xml_section(web_config, "compilation");
-            let assemblies: Vec<String> = asm_re
+            let assemblies: Vec<String> = WC_ASM_RE
                 .captures_iter(&comp_section)
                 .map(|c| c[1].to_string())
                 .collect();
@@ -1980,44 +2054,32 @@ fn extract_webconfig_inventory(
 
     // ── sessionState ──
     let session_state = {
-        let ss_re = Regex::new(r#"<sessionState\s+([^>]*?)/?>"#).unwrap();
-        ss_re.captures(web_config).map(|cap| {
+        WC_SS_RE.captures(web_config).map(|cap| {
             let attrs = &cap[1];
-            let mode_re = Regex::new(r#"mode\s*=\s*"([^"]+)""#).unwrap();
-            let timeout_re = Regex::new(r#"timeout\s*=\s*"(\d+)""#).unwrap();
-            let cookieless_re = Regex::new(r#"cookieless\s*=\s*"([^"]+)""#).unwrap();
-            let provider_re = Regex::new(r#"customProvider\s*=\s*"([^"]+)""#).unwrap();
             SessionStateConfig {
-                mode: mode_re
+                mode: WC_MODE_RE
                     .captures(attrs)
                     .map_or("InProc".into(), |c| c[1].to_string()),
-                timeout_minutes: timeout_re.captures(attrs).and_then(|c| c[1].parse().ok()),
-                cookieless: cookieless_re.captures(attrs).map(|c| c[1].to_string()),
-                custom_provider: provider_re.captures(attrs).map(|c| c[1].to_string()),
+                timeout_minutes: WC_TIMEOUT_RE.captures(attrs).and_then(|c| c[1].parse().ok()),
+                cookieless: WC_COOKIELESS_RE.captures(attrs).map(|c| c[1].to_string()),
+                custom_provider: WC_PROVIDER_RE.captures(attrs).map(|c| c[1].to_string()),
             }
         })
     };
 
     // ── pages ──
     let pages_config = {
-        let pages_re = Regex::new(r#"<pages\s+([^>]*?)/?>"#).unwrap();
-        pages_re.captures(web_config).map(|cap| {
+        WC_PAGES_RE.captures(web_config).map(|cap| {
             let attrs = &cap[1];
-            let theme_re = Regex::new(r#"theme\s*=\s*"([^"]+)""#).unwrap();
-            let mp_re = Regex::new(r#"masterPageFile\s*=\s*"([^"]+)""#).unwrap();
-            let ns_re = Regex::new(r#"<add\s+namespace\s*=\s*"([^"]+)""#).unwrap();
-            let ctrl_re =
-                Regex::new(r#"<add\s+tagPrefix\s*=\s*"([^"]+)"[^>]*namespace\s*=\s*"([^"]+)""#)
-                    .unwrap();
             let pages_section = extract_xml_section(web_config, "pages");
             PagesConfig {
-                theme: theme_re.captures(attrs).map(|c| c[1].to_string()),
-                master_page_file: mp_re.captures(attrs).map(|c| c[1].to_string()),
-                namespaces: ns_re
+                theme: WC_THEME_RE.captures(attrs).map(|c| c[1].to_string()),
+                master_page_file: WC_MP_RE.captures(attrs).map(|c| c[1].to_string()),
+                namespaces: WC_NS_RE
                     .captures_iter(&pages_section)
                     .map(|c| c[1].to_string())
                     .collect(),
-                controls: ctrl_re
+                controls: WC_CTRL_RE
                     .captures_iter(&pages_section)
                     .map(|c| format!("{}:{}", &c[1], &c[2]))
                     .collect(),
@@ -2038,13 +2100,34 @@ fn extract_webconfig_inventory(
 }
 
 /// Helper: extract a named XML section (tag body, non-greedy).
+///
+/// Uses a plain string search instead of compiling a new `Regex` on every call
+/// (this helper is invoked ~10 times per `extract_webconfig_inventory` call).
+/// XML section tag names are always simple ASCII identifiers so case-folding and
+/// string comparison is sufficient.
 fn extract_xml_section(xml: &str, tag: &str) -> String {
-    let pattern = format!(r"(?si)<{tag}[^>]*>(.*?)</{tag}>");
-    regex::Regex::new(&pattern)
-        .ok()
-        .and_then(|re| re.captures(xml))
-        .map(|c| c[1].to_string())
-        .unwrap_or_default()
+    let xml_lower = xml.to_ascii_lowercase();
+    let tag_lower = tag.to_ascii_lowercase();
+
+    // Find opening tag: `<tag_lower` followed by either `>` or whitespace (attributes)
+    let open_prefix = format!("<{tag_lower}");
+    let Some(open_start) = xml_lower.find(open_prefix.as_str()) else {
+        return String::new();
+    };
+    // Advance past the tag name to the first `>`
+    let Some(open_end_rel) = xml_lower[open_start..].find('>') else {
+        return String::new();
+    };
+    let body_start = open_start + open_end_rel + 1;
+
+    // Find closing tag
+    let close_tag = format!("</{tag_lower}>");
+    let Some(close_start_rel) = xml_lower[body_start..].find(close_tag.as_str()) else {
+        return String::new();
+    };
+    let body_end = body_start + close_start_rel;
+
+    xml[body_start..body_end].to_string()
 }
 
 /// Mask potentially sensitive config values (API keys, passwords, etc.)
@@ -2119,8 +2202,7 @@ fn extract_global_asax_info(markup_content: &str, codebehind_content: &str) -> G
     }
 
     // Extract class name
-    let class_re = Regex::new(r#"(?i)(?:Class|Inherits\s*=\s*["'])(\S+?)(?:["']|\s)"#).unwrap();
-    let codebehind_class = class_re.captures(&combined).map(|c| c[1].to_string());
+    let codebehind_class = ASAX_CLASS_RE.captures(&combined).map(|c| c[1].to_string());
 
     // Event methods to look for
     let event_names = [
@@ -2595,9 +2677,8 @@ fn build_js_analysis(
     }
 
     // From markup: scan <script src="..."> tags
-    let script_src_re = regex::Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).unwrap();
     for fc in markup_files {
-        for cap in script_src_re.captures_iter(&fc.markup_content) {
+        for cap in JS_SCRIPT_SRC_RE.captures_iter(&fc.markup_content) {
             let js_ref = cap[1].to_string();
             let js_list = page_js_deps.entry(fc.file_path.clone()).or_default();
             if !js_list.contains(&js_ref) {
@@ -2607,19 +2688,17 @@ fn build_js_analysis(
     }
 
     // Detect inline <script> blocks (not src= external files)
-    let inline_re = regex::Regex::new(r"(?i)<script(?![^>]*\bsrc\s*=)[^>]*>").unwrap();
     let mut inline_script_files = Vec::new();
     for fc in markup_files {
-        if inline_re.is_match(&fc.markup_content) {
+        if JS_INLINE_RE.is_match(&fc.markup_content) {
             inline_script_files.push(fc.file_path.clone());
         }
     }
 
     // Detect jQuery version hint from JS files
-    let jquery_re = regex::Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").unwrap();
     let mut jquery_version_hint = None;
     for (path, _content) in js_files {
-        if let Some(cap) = jquery_re.captures(&path.to_lowercase()) {
+        if let Some(cap) = JS_JQUERY_RE.captures(&path.to_lowercase()) {
             jquery_version_hint = Some(cap[1].to_string());
             break;
         }
@@ -2980,18 +3059,8 @@ fn build_classic_asp_summary(
     let mut includes = Vec::new();
 
     // Scan ASP file contents for patterns
-    let create_obj_re = regex::Regex::new(r#"(?i)Server\.CreateObject\s*\(\s*"([^"]+)""#).unwrap();
-    let sql_re =
-        regex::Regex::new(r"(?i)(?:\.Execute|\.CommandText|SELECT\s|INSERT\s|UPDATE\s|DELETE\s)")
-            .unwrap();
-    let state_re =
-        regex::Regex::new(r"(?i)(?:Session|Application|Request\.Cookies|Response\.Cookies)\s*\(")
-            .unwrap();
-    let include_re =
-        regex::Regex::new(r#"(?i)<!--\s*#include\s+(?:file|virtual)\s*=\s*"([^"]+)""#).unwrap();
-
     for (path, content) in asp_files {
-        for cap in create_obj_re.captures_iter(content) {
+        for cap in ASP_CREATE_OBJ_RE.captures_iter(content) {
             let prog_id = cap[1].to_string();
             if prog_id.to_lowercase().contains("adodb") {
                 ado_connections += 1;
@@ -3001,9 +3070,9 @@ fn build_classic_asp_summary(
                 prog_id,
             });
         }
-        sql_statements += sql_re.find_iter(content).count();
-        state_accesses += state_re.find_iter(content).count();
-        for cap in include_re.captures_iter(content) {
+        sql_statements += ASP_SQL_RE.find_iter(content).count();
+        state_accesses += ASP_STATE_RE.find_iter(content).count();
+        for cap in ASP_INCLUDE_RE.captures_iter(content) {
             includes.push(IncludeRef {
                 source_file: path.clone(),
                 included_file: cap[1].to_string(),
@@ -3087,25 +3156,19 @@ fn build_report_summary(
     let mut has_binary_rpt = false;
 
     // Parse SSRS report files (.rdl, .rdlc)
-    let dataset_re = regex::Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).unwrap();
-    let param_re = regex::Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).unwrap();
-    let subreport_re =
-        regex::Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).unwrap();
-    let datasource_re = regex::Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).unwrap();
-
     for (path, content) in report_files {
         let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
         if ext == "rdl" || ext == "rdlc" {
-            let datasets: Vec<String> = dataset_re
+            let datasets: Vec<String> = RPT_DATASET_RE
                 .captures_iter(content)
                 .map(|c| c[1].to_string())
                 .collect();
-            let param_count = param_re.find_iter(content).count();
-            let subreports: Vec<String> = subreport_re
+            let param_count = RPT_PARAM_RE.find_iter(content).count();
+            let subreports: Vec<String> = RPT_SUBREPORT_RE
                 .captures_iter(content)
                 .map(|c| c[1].to_string())
                 .collect();
-            for cap in datasource_re.captures_iter(content) {
+            for cap in RPT_DATASOURCE_RE.captures_iter(content) {
                 let ds = cap[1].to_string();
                 if !shared_data_sources.contains(&ds) {
                     shared_data_sources.push(ds);
@@ -9104,7 +9167,10 @@ fn make_body_preview(body: &str, line_count: u32) -> String {
             .rev()
             .map(|l| dedent(l))
             .collect();
-        let remaining = line_count as usize - 15;
+        // Use the actual number of shown lines so the count is correct even if
+        // take(10)/take(5) yielded fewer lines than expected.
+        let shown = first_10.len() + last_5.len();
+        let remaining = (line_count as usize).saturating_sub(shown);
         format!(
             "{}\n    ... ({remaining} more lines) ...\n{}",
             first_10.join("\n"),
