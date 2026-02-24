@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use reqwest::StatusCode;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::time::Duration;
 use thiserror::Error;
@@ -386,6 +387,61 @@ impl OpenAiCompatibleProvider {
     }
 }
 
+const RETRY_MAX_ATTEMPTS: u32 = 3;
+const RETRY_BASE_DELAY_MS: u64 = 500;
+const RETRY_MAX_DELAY_MS: u64 = 8_000;
+
+fn parse_retry_after(headers: &HeaderMap) -> Option<Duration> {
+    let value = headers
+        .get(reqwest::header::RETRY_AFTER)?
+        .to_str()
+        .ok()?
+        .trim();
+
+    if let Ok(seconds) = value.parse::<u64>() {
+        return Some(Duration::from_secs(seconds));
+    }
+
+    let retry_at = httpdate::parse_http_date(value).ok()?;
+    let now = std::time::SystemTime::now();
+    let wait = retry_at.duration_since(now).unwrap_or_default();
+    Some(wait)
+}
+
+fn is_retryable_status(status: Option<StatusCode>) -> bool {
+    matches!(
+        status,
+        Some(StatusCode::REQUEST_TIMEOUT | StatusCode::TOO_MANY_REQUESTS)
+    ) || status.is_some_and(|s| s.is_server_error())
+}
+
+fn fallback_backoff_delay(attempt: u32) -> Duration {
+    let exp = 1_u64 << attempt.saturating_sub(1).min(6);
+    let base = RETRY_BASE_DELAY_MS.saturating_mul(exp);
+    let jitter_ms = ((attempt as u64)
+        .saturating_mul(1_103_515_245)
+        .wrapping_add(12_345)
+        % 251)
+        + 25;
+    Duration::from_millis(base.saturating_add(jitter_ms).min(RETRY_MAX_DELAY_MS))
+}
+
+fn select_retry_delay(
+    attempt: u32,
+    status: Option<StatusCode>,
+    headers: Option<&HeaderMap>,
+) -> Option<Duration> {
+    if !is_retryable_status(status) {
+        return None;
+    }
+    if let Some(headers) = headers
+        && let Some(delay) = parse_retry_after(headers)
+    {
+        return Some(delay.min(Duration::from_millis(RETRY_MAX_DELAY_MS)));
+    }
+    Some(fallback_backoff_delay(attempt))
+}
+
 #[async_trait]
 impl LlmProvider for OpenAiCompatibleProvider {
     fn name(&self) -> &'static str {
@@ -430,7 +486,9 @@ impl LlmProvider for OpenAiCompatibleProvider {
             "temperature": options.temperature,
         });
 
-        with_retry(async || {
+        let mut last_err: Option<LlmError> = None;
+
+        for attempt in 1..=RETRY_MAX_ATTEMPTS {
             let mut request = self
                 .client
                 .post(&url)
@@ -440,36 +498,81 @@ impl LlmProvider for OpenAiCompatibleProvider {
                 request = request.header(name, value);
             }
 
-            let resp = request
-                .send()
-                .await
-                .map_err(|e| map_reqwest_error("openai", e))?;
+            let resp = request.send().await;
+            let resp = match resp {
+                Ok(resp) => resp,
+                Err(err) => {
+                    let mapped = map_reqwest_error("openai", err);
+                    let status = mapped
+                        .status_code()
+                        .and_then(|code| StatusCode::from_u16(code).ok());
+                    if attempt < RETRY_MAX_ATTEMPTS {
+                        if let Some(delay) = select_retry_delay(attempt, status, None) {
+                            tracing::warn!(
+                                attempt,
+                                status_code = status.map(|s| s.as_u16()),
+                                delay_ms = delay.as_millis() as u64,
+                                "retrying openai-compatible request after transport error"
+                            );
+                            tokio::time::sleep(delay).await;
+                            continue;
+                        }
+                    }
+                    last_err = Some(mapped);
+                    break;
+                }
+            };
             let status = resp.status();
+            if let Some(delay) = select_retry_delay(attempt, Some(status), Some(resp.headers()))
+                && attempt < RETRY_MAX_ATTEMPTS
+            {
+                tracing::warn!(
+                    attempt,
+                    status_code = status.as_u16(),
+                    delay_ms = delay.as_millis() as u64,
+                    "retrying openai-compatible request after retryable status"
+                );
+                tokio::time::sleep(delay).await;
+                continue;
+            }
+
             if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                return Err(LlmError::RateLimited {
+                last_err = Some(LlmError::RateLimited {
                     provider: Some("openai".into()),
                     status_code: Some(status.as_u16()),
-                    retry_exhausted: false,
+                    retry_exhausted: attempt == RETRY_MAX_ATTEMPTS,
                     message: format!("HTTP {status}"),
                 });
+                break;
+            }
+            if status == reqwest::StatusCode::REQUEST_TIMEOUT {
+                last_err = Some(LlmError::Timeout {
+                    provider: Some("openai".into()),
+                    status_code: Some(status.as_u16()),
+                    retry_exhausted: attempt == RETRY_MAX_ATTEMPTS,
+                    message: format!("HTTP {status}"),
+                });
+                break;
             }
             if status.is_server_error() {
-                return Err(LlmError::Upstream5xx {
+                last_err = Some(LlmError::Upstream5xx {
                     provider: Some("openai".into()),
                     status_code: Some(status.as_u16()),
-                    retry_exhausted: false,
+                    retry_exhausted: attempt == RETRY_MAX_ATTEMPTS,
                     message: format!("HTTP {status}"),
                 });
+                break;
             }
             if status == reqwest::StatusCode::UNAUTHORIZED
                 || status == reqwest::StatusCode::FORBIDDEN
             {
-                return Err(LlmError::Auth {
+                last_err = Some(LlmError::Auth {
                     provider: Some("openai".into()),
                     status_code: Some(status.as_u16()),
                     retry_exhausted: false,
                     message: format!("HTTP {status}"),
                 });
+                break;
             }
             let resp = resp
                 .error_for_status()
@@ -486,16 +589,25 @@ impl LlmProvider for OpenAiCompatibleProvider {
                 .trim()
                 .to_string();
             if text.is_empty() {
-                return Err(LlmError::InvalidResponse {
+                last_err = Some(LlmError::InvalidResponse {
                     provider: Some("openai".into()),
                     status_code: Some(status.as_u16()),
                     retry_exhausted: false,
                     message: "returned empty choices[0].message.content".into(),
                 });
+                break;
             }
-            Ok(LlmResponse { text })
-        })
-        .await
+            return Ok(LlmResponse { text });
+        }
+
+        Err(last_err
+            .unwrap_or_else(|| LlmError::Transport {
+                provider: Some("openai".into()),
+                status_code: None,
+                retry_exhausted: true,
+                message: "OpenAI-compatible request failed after retries".into(),
+            })
+            .with_retry_exhausted(true))
     }
 }
 
@@ -621,4 +733,38 @@ where
             message: "LLM call failed after retries".into(),
         })
         .with_retry_exhausted(true))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_delay_uses_retry_after_header_seconds() {
+        let mut headers = HeaderMap::new();
+        headers.insert(reqwest::header::RETRY_AFTER, HeaderValue::from_static("7"));
+
+        let delay = select_retry_delay(1, Some(StatusCode::TOO_MANY_REQUESTS), Some(&headers));
+
+        assert_eq!(delay, Some(Duration::from_secs(7)));
+    }
+
+    #[test]
+    fn retry_delay_falls_back_to_exponential_jitter_and_caps() {
+        let delay_1 = select_retry_delay(1, Some(StatusCode::TOO_MANY_REQUESTS), None)
+            .expect("retry delay expected");
+        let delay_2 = select_retry_delay(2, Some(StatusCode::TOO_MANY_REQUESTS), None)
+            .expect("retry delay expected");
+        let delay_20 = select_retry_delay(20, Some(StatusCode::INTERNAL_SERVER_ERROR), None)
+            .expect("retry delay expected");
+
+        assert!(delay_2 > delay_1);
+        assert!(delay_20 <= Duration::from_millis(RETRY_MAX_DELAY_MS));
+    }
+
+    #[test]
+    fn retry_delay_not_selected_for_non_retryable_status() {
+        let delay = select_retry_delay(1, Some(StatusCode::BAD_REQUEST), None);
+        assert!(delay.is_none());
+    }
 }
