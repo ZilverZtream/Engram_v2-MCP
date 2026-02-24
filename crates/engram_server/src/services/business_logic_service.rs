@@ -11,6 +11,7 @@ use std::time::Duration;
 
 use engram_core::ids::ContentHash;
 use engram_ml::DreamingEngine;
+use engram_ml::llm_provider::LlmError;
 use regex::Regex;
 use serde::Serialize;
 
@@ -463,9 +464,16 @@ pub async fn analyze_method_logic(
         .replace("{method_name}", method_name)
         .replace("{method_body}", method_body);
 
-    let raw = dreaming
+    let raw = match dreaming
         .generate_text(&prompt, 1024, Duration::from_secs(120))
-        .await;
+        .await
+    {
+        Ok(raw) => raw,
+        Err(err) => {
+            log_llm_failure("business_logic.method_analysis", &fqn, &err);
+            String::new()
+        }
+    };
 
     if raw.is_empty() {
         tracing::warn!("LLM returned empty response for {fqn}");
@@ -579,9 +587,16 @@ pub async fn analyze_file_logic(
             .replace("{language}", lang_full)
             .replace("{method_list}", &method_list);
 
-        dreaming
+        match dreaming
             .generate_text(&prompt, 128, Duration::from_secs(30))
             .await
+        {
+            Ok(text) => text,
+            Err(err) => {
+                log_llm_failure("business_logic.file_purpose", file_path, &err);
+                String::new()
+            }
+        }
     };
 
     let file_logic = FileBusinessLogic {
@@ -593,6 +608,18 @@ pub async fn analyze_file_logic(
     };
 
     (file_logic, analyzed_count, skipped_count)
+}
+
+fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
+    tracing::warn!(
+        operation = operation,
+        target = target,
+        provider = err.provider().unwrap_or("unknown"),
+        status_code = err.status_code(),
+        retry_exhausted = err.retry_exhausted(),
+        error = %err,
+        "LLM generation failed; using fallback"
+    );
 }
 
 /// Analyze all code-behind files in a project with caching.
