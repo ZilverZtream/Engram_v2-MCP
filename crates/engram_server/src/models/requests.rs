@@ -118,6 +118,7 @@ pub const MAX_IMMUNE_TOP_K: usize = 200;
 pub const MAX_SYMBOL_REFS: usize = 500;
 pub const MAX_AST_DEPTH: usize = 12;
 pub const MAX_ANTIPATTERN_RESULTS: usize = 200;
+pub const MAX_TRACE_PATHS: usize = 100;
 
 // -------------------- Project lifecycle --------------------
 
@@ -736,6 +737,12 @@ impl TraverseGraphRequest {
     }
 }
 
+impl QueryGraphNodesRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_SEARCH_RESULTS)
+    }
+}
+
 impl IndexGitHistoryRequest {
     pub fn sanitized_max_commits(&self) -> usize {
         self.max_commits.clamp(1, MAX_GIT_COMMITS)
@@ -782,6 +789,38 @@ impl DreamProjectRequest {
 impl AnalyzeFileCodingStyleRequest {
     pub fn sanitized_diff_limit(&self) -> usize {
         self.diff_limit.clamp(1, MAX_DIFF_LIMIT)
+    }
+}
+
+impl DetectDesignPatternsRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_ANTIPATTERN_RESULTS)
+    }
+}
+
+impl TraceUiActionRequest {
+    pub fn sanitized_max_depth(&self) -> usize {
+        (self.max_depth as usize).clamp(1, MAX_GRAPH_HOPS)
+    }
+
+    pub fn sanitized_max_paths(&self) -> usize {
+        self.max_paths.clamp(1, MAX_TRACE_PATHS)
+    }
+}
+
+impl TraceUiEventRequest {
+    pub fn sanitized_max_hops(&self) -> usize {
+        (self.max_hops as usize).clamp(1, MAX_GRAPH_HOPS)
+    }
+
+    pub fn sanitized_max_paths(&self) -> usize {
+        self.max_paths.clamp(1, MAX_TRACE_PATHS)
+    }
+}
+
+impl FindDeadMethodsRequest {
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_SYMBOL_REFS)
     }
 }
 

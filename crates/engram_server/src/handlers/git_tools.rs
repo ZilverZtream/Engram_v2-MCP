@@ -953,7 +953,7 @@ impl Engram {
 
         let revert_data = tokio::task::spawn_blocking({
             let directory = ps.info.directory.clone();
-            let max_commits = req.max_commits;
+            let max_commits = req.sanitized_max_commits();
             let cancel_clone = cancel.clone();
 
             move || -> anyhow::Result<Vec<RevertData>> {
