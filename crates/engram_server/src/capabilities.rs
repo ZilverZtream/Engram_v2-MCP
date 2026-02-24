@@ -206,6 +206,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "ingest_runtime_artifacts",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_migration_blueprint",
         status: CapabilityStatus::Implemented,
     },

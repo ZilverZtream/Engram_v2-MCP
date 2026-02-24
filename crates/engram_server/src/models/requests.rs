@@ -691,6 +691,29 @@ pub struct IngestInstrumentationLogsRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeArtifactKindRequest {
+    IisLog,
+    CustomTrace,
+    PageLifecycleSnapshot,
+    SqlProfilerExport,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct RuntimeArtifactInputRequest {
+    pub kind: RuntimeArtifactKindRequest,
+    pub content: String,
+    #[serde(default)]
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct IngestRuntimeArtifactsRequest {
+    pub project_id: String,
+    pub artifacts: Vec<RuntimeArtifactInputRequest>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 pub struct GetInstrumentationPackResult {
     pub snippet: String,
     pub instructions: String,

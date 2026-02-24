@@ -94,6 +94,10 @@ pub enum EdgeKind {
     StoredProcWritesTable,
     /// An .aspx Content control fills a ContentPlaceHolder region in a .master page.
     FillsRegion,
+    /// Runtime-observed control interaction/event not guaranteed by static analysis.
+    ObservedRuntimeControl,
+    /// Runtime-observed SQL execution (query/SP) captured from logs/profilers.
+    ObservedRuntimeSql,
 }
 
 impl EdgeKind {
@@ -135,6 +139,8 @@ impl EdgeKind {
         EdgeKind::StoredProcReadsTable,
         EdgeKind::StoredProcWritesTable,
         EdgeKind::FillsRegion,
+        EdgeKind::ObservedRuntimeControl,
+        EdgeKind::ObservedRuntimeSql,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -176,6 +182,8 @@ impl EdgeKind {
             EdgeKind::StoredProcReadsTable => "stored_proc_reads_table",
             EdgeKind::StoredProcWritesTable => "stored_proc_writes_table",
             EdgeKind::FillsRegion => "fills_region",
+            EdgeKind::ObservedRuntimeControl => "observed_runtime_control",
+            EdgeKind::ObservedRuntimeSql => "observed_runtime_sql",
         }
     }
 
@@ -218,6 +226,8 @@ impl EdgeKind {
             "stored_proc_reads_table" => Some(EdgeKind::StoredProcReadsTable),
             "stored_proc_writes_table" => Some(EdgeKind::StoredProcWritesTable),
             "fills_region" => Some(EdgeKind::FillsRegion),
+            "observed_runtime_control" => Some(EdgeKind::ObservedRuntimeControl),
+            "observed_runtime_sql" => Some(EdgeKind::ObservedRuntimeSql),
             _ => None,
         }
     }
@@ -1965,7 +1975,9 @@ mod tests {
                 | EdgeKind::CallsStoredProcedure
                 | EdgeKind::StoredProcReadsTable
                 | EdgeKind::StoredProcWritesTable
-                | EdgeKind::FillsRegion => all_set.contains(&ek),
+                | EdgeKind::FillsRegion
+                | EdgeKind::ObservedRuntimeControl
+                | EdgeKind::ObservedRuntimeSql => all_set.contains(&ek),
             }
         };
 
@@ -1977,7 +1989,7 @@ mod tests {
             );
         }
 
-        let variant_count = 37;
+        let variant_count = 39;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,

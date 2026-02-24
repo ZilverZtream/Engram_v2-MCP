@@ -136,11 +136,13 @@ pub struct PageContextResult {
     pub dynamic_ui_detected: bool,
     pub dynamic_ui_evidence: Vec<String>,
     pub runtime_controls_warning: Option<String>,
+    pub runtime_observed_edges: usize,
     pub controls: Vec<ControlInfo>,
     pub methods: Vec<PageMethodSummary>,
     pub tables_used: Vec<String>,
     pub stored_procs_called: Vec<String>,
     pub session_keys: Vec<String>,
+    pub runtime_sql_observations: Vec<String>,
     pub update_panels: Vec<UpdatePanelSummary>,
     pub has_script_manager: bool,
     pub vb_trap_count: usize,
@@ -158,6 +160,7 @@ pub struct ControlInfo {
     pub event_handler: Option<String>,
     pub causes_validation: Option<bool>,
     pub validation_group: Option<String>,
+    pub observed_at_runtime: bool,
 }
 
 /// A method in the code-behind with optional full body.
@@ -171,6 +174,7 @@ pub struct PageMethodSummary {
     pub handles_clause: Vec<String>,
     pub effects: Vec<String>,
     pub full_body: Option<String>,
+    pub observed_at_runtime: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -389,6 +393,21 @@ fn edge_meta_str(edge: &engram_graph::Edge, key: &str) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string()
+}
+
+fn edge_has_runtime_provenance(edge: &engram_graph::Edge) -> bool {
+    if matches!(
+        edge.edge_kind,
+        EdgeKind::ObservedRuntimeControl | EdgeKind::ObservedRuntimeSql
+    ) {
+        return true;
+    }
+    edge.metadata
+        .as_ref()
+        .and_then(|m| m.get("source"))
+        .and_then(|v| v.as_str())
+        .map(|v| v.contains("runtime"))
+        .unwrap_or(false)
 }
 
 /// Build MethodInfoResult from a graph Node + edge lookups.
@@ -891,6 +910,7 @@ fn extract_aspx_controls(aspx_content: &str) -> Vec<ControlInfo> {
                 event_handler,
                 causes_validation,
                 validation_group,
+                observed_at_runtime: false,
             });
         }
     }
@@ -1069,8 +1089,13 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
         md.push_str("|----|------|------|---------------|------------|\n");
         for c in &ctx.controls {
             md.push_str(&format!(
-                "| `{}` | {} | {} | {} | {} |\n",
+                "| `{}`{} | {} | {} | {} | {} |\n",
                 c.server_id,
+                if c.observed_at_runtime {
+                    " 🟢 observed at runtime"
+                } else {
+                    ""
+                },
                 c.control_type,
                 c.line,
                 c.event_handler.as_deref().unwrap_or("—"),
@@ -1107,8 +1132,16 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
         md.push_str("## Methods\n\n");
         for m in &ctx.methods {
             md.push_str(&format!(
-                "### `{}` ({}) — lines {}–{}\n",
-                m.name, m.kind, m.line_start, m.line_end
+                "### `{}`{} ({}) — lines {}–{}\n",
+                m.name,
+                if m.observed_at_runtime {
+                    " 🟢 observed at runtime"
+                } else {
+                    ""
+                },
+                m.kind,
+                m.line_start,
+                m.line_end
             ));
             if !m.handles_clause.is_empty() {
                 md.push_str(&format!("Handles: {}\n", m.handles_clause.join(", ")));
@@ -1135,6 +1168,14 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
         md.push_str("## Stored Procedures\n\n");
         for sp in &ctx.stored_procs_called {
             md.push_str(&format!("- `{}`\n", sp));
+        }
+        md.push('\n');
+    }
+
+    if !ctx.runtime_sql_observations.is_empty() {
+        md.push_str("## Runtime SQL Observations\n\n");
+        for sql in &ctx.runtime_sql_observations {
+            md.push_str(&format!("- `{}` (observed at runtime)\n", sql));
         }
         md.push('\n');
     }
@@ -1922,12 +1963,30 @@ impl Engram {
             };
 
             // 6. Extract controls from ASPX (server controls with runat="server")
-            let controls = extract_aspx_controls(&aspx_content);
+            let mut controls = extract_aspx_controls(&aspx_content);
 
             // 7. Get all methods from the code-behind via graph
             let method_nodes = graph
                 .query_nodes(&project_id, Some("function"), None, Some(&cb_path), 500)
                 .unwrap_or_default();
+            let observed_runtime_control_edges = graph
+                .list_edges_by_kind(&project_id, EdgeKind::ObservedRuntimeControl, 5000)
+                .unwrap_or_default();
+            let observed_runtime_sql_edges = graph
+                .list_edges_by_kind(&project_id, EdgeKind::ObservedRuntimeSql, 5000)
+                .unwrap_or_default();
+
+            let mut runtime_method_sources: HashSet<String> = HashSet::new();
+            let mut runtime_control_targets: HashSet<String> = HashSet::new();
+            for e in observed_runtime_control_edges
+                .iter()
+                .chain(observed_runtime_sql_edges.iter())
+            {
+                runtime_method_sources.insert(e.source_id.clone());
+            }
+            for e in &observed_runtime_control_edges {
+                runtime_control_targets.insert(e.target_id.clone());
+            }
 
             let mut methods: Vec<PageMethodSummary> = Vec::new();
             for node in &method_nodes {
@@ -1959,6 +2018,7 @@ impl Engram {
                     handles_clause: handles,
                     effects,
                     full_body,
+                    observed_at_runtime: runtime_method_sources.contains(&node.node_id),
                 });
             }
 
@@ -1970,6 +2030,15 @@ impl Engram {
                 "DataAccess" => 3,
                 _ => 4,
             });
+
+            for c in &mut controls {
+                let synthetic_id = format!("control:{}:{}", aspx_file, c.server_id);
+                c.observed_at_runtime = runtime_control_targets.contains(&synthetic_id)
+                    || observed_runtime_control_edges.iter().any(|e| {
+                        e.target_id.ends_with(&format!(":{}", c.server_id))
+                            || e.target_id.ends_with(&format!(".{}", c.server_id))
+                    });
+            }
 
             // Runtime UI caveat detection for dynamic controls / wiring.
             let all_dependency_edges = graph
@@ -2077,6 +2146,7 @@ impl Engram {
             let mut tables_set: HashSet<String> = HashSet::new();
             let mut sps_set: HashSet<String> = HashSet::new();
             let mut session_set: HashSet<String> = HashSet::new();
+            let mut runtime_sql_set: HashSet<String> = HashSet::new();
 
             for node in &method_nodes {
                 let node_suffix = format!(".{}", node.name);
@@ -2099,14 +2169,21 @@ impl Engram {
                         session_set.insert(e.target_id.clone());
                     }
                 }
+                for e in &observed_runtime_sql_edges {
+                    if e.source_id == node.node_id || e.source_id.ends_with(&node_suffix) {
+                        runtime_sql_set.insert(e.target_id.clone());
+                    }
+                }
             }
 
             let mut tables_used: Vec<String> = tables_set.into_iter().collect();
             let mut sps_called: Vec<String> = sps_set.into_iter().collect();
             let mut session_keys: Vec<String> = session_set.into_iter().collect();
+            let mut runtime_sql_observations: Vec<String> = runtime_sql_set.into_iter().collect();
             tables_used.sort();
             sps_called.sort();
             session_keys.sort();
+            runtime_sql_observations.sort();
 
             // 10. VB traps for the entire code-behind
             let vb_traps = if let Some(ref content) = cb_content {
@@ -2145,11 +2222,14 @@ impl Engram {
                 dynamic_ui_detected,
                 dynamic_ui_evidence,
                 runtime_controls_warning,
+                runtime_observed_edges: observed_runtime_control_edges.len()
+                    + observed_runtime_sql_edges.len(),
                 controls,
                 methods,
                 tables_used,
                 stored_procs_called: sps_called,
                 session_keys,
+                runtime_sql_observations,
                 update_panels: ajax_map
                     .as_ref()
                     .map(|a| {
@@ -2491,7 +2571,7 @@ impl Engram {
 
                 let aspx_full = Path::new(&project_dir).join(aspx_base);
                 if let Ok(aspx_content) = std::fs::read_to_string(&aspx_full) {
-                    let controls = extract_aspx_controls(&aspx_content);
+                    let mut controls = extract_aspx_controls(&aspx_content);
 
                     for ctrl in &controls {
                         // Check if this control is referenced by the target method

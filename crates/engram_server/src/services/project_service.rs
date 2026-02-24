@@ -143,6 +143,21 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
         report.push_str(&format!("  - {}: {}\n", kind, count));
     }
 
+    let observed_runtime_total: usize = edge_kinds
+        .iter()
+        .filter(|(kind, _)| {
+            let k = kind.to_string();
+            k.contains("observed_runtime")
+        })
+        .map(|(_, count)| **count)
+        .sum();
+    if observed_runtime_total > 0 {
+        report.push_str(&format!(
+            "- Runtime-observed edges: {} 🟢 observed at runtime\n",
+            observed_runtime_total
+        ));
+    }
+
     if !stats.skipped_files.is_empty() {
         report.push_str("\n## Skipped Files\n");
         for (path, reason) in stats.skipped_files.iter().take(50) {
