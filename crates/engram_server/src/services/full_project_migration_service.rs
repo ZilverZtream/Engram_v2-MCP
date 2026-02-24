@@ -125,6 +125,10 @@ pub struct CrossCuttingSummary {
     pub total_resource_languages: usize,
     pub total_master_page_regions: usize,
     pub total_legacy_packages: usize,
+    pub option_strict_on_files: usize,
+    pub option_strict_off_files: usize,
+    pub dynamic_dispatch_methods: usize,
+    pub dynamic_dispatch_risk_tier: String,
 }
 
 /// An item (table, state key, control) shared across multiple files.
@@ -696,6 +700,18 @@ pub struct VbTranslationReport {
     pub total_flags: usize,
     pub flags_by_category: BTreeMap<String, usize>,
     pub highest_risk_files: Vec<(String, usize)>,
+    pub dynamic_dispatch: DynamicDispatchSummary,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DynamicDispatchSummary {
+    pub option_strict_on_files: usize,
+    pub option_strict_off_files: usize,
+    pub methods_with_dynamic_dispatch: usize,
+    pub late_binding_call_count: usize,
+    pub object_var_count: usize,
+    pub callbyname_count: usize,
+    pub dynamic_dispatch_risk_tier: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1311,6 +1327,7 @@ pub fn analyze_full_project(
         &config_transforms,
         &resource_inventory,
         &master_page_regions,
+        &vb_translation,
     );
 
     // ── 5. Build the wave lookup (file_path → wave number) ────────────────
@@ -1692,6 +1709,7 @@ fn build_cross_cutting_summary(
     cfg_transforms: &ConfigTransformReport,
     res_inv: &ResourceInventory,
     master_regions: &MasterPageRegionMap,
+    vb_translation: &VbTranslationReport,
 ) -> CrossCuttingSummary {
     let mut complexity_distribution: BTreeMap<String, usize> = BTreeMap::new();
     let mut risk_distribution: BTreeMap<String, usize> = BTreeMap::new();
@@ -1854,6 +1872,15 @@ fn build_cross_cutting_summary(
         total_resource_languages: res_inv.languages_detected.len(),
         total_master_page_regions: master_regions.regions.len(),
         total_legacy_packages: dep_inv.legacy_packages.len(),
+        option_strict_on_files: vb_translation.dynamic_dispatch.option_strict_on_files,
+        option_strict_off_files: vb_translation.dynamic_dispatch.option_strict_off_files,
+        dynamic_dispatch_methods: vb_translation
+            .dynamic_dispatch
+            .methods_with_dynamic_dispatch,
+        dynamic_dispatch_risk_tier: vb_translation
+            .dynamic_dispatch
+            .dynamic_dispatch_risk_tier
+            .clone(),
     }
 }
 
@@ -4779,6 +4806,21 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
     let mut cs_files = 0usize;
     let mut translation_flags: Vec<VbTranslationFlag> = Vec::new();
     let mut file_flag_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut option_strict_on_files = 0usize;
+    let mut option_strict_off_files = 0usize;
+    let mut methods_with_dynamic_dispatch = 0usize;
+    let mut late_binding_call_count = 0usize;
+    let mut object_var_count = 0usize;
+    let mut callbyname_count = 0usize;
+
+    let option_strict_re = Regex::new(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b").ok();
+    let method_re = Regex::new(
+        r"(?is)\b(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\b.*?\bEnd\s+(?:Sub|Function)\b",
+    )
+    .ok();
+    let object_decl_re = Regex::new(r"(?i)\bDim\s+(\w+)\s+As\s+Object\b").ok();
+    let callbyname_re = Regex::new(r"(?i)\bCallByName\s*\(").ok();
+    let late_call_re = Regex::new(r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?").ok();
 
     for (path, content) in code_files {
         let is_vb = path.to_lowercase().ends_with(".vb");
@@ -4792,6 +4834,52 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
         // Only scan VB files for VB-specific constructs
         if !is_vb {
             continue;
+        }
+
+        if let Some(re) = &option_strict_re {
+            let mut file_option = None;
+            for cap in re.captures_iter(content) {
+                file_option = cap.get(1).map(|m| m.as_str().to_ascii_lowercase());
+            }
+            match file_option.as_deref() {
+                Some("on") => option_strict_on_files += 1,
+                Some("off") => option_strict_off_files += 1,
+                _ => {}
+            }
+        }
+
+        if let (Some(mre), Some(obj_re), Some(cbn_re), Some(call_re)) =
+            (&method_re, &object_decl_re, &callbyname_re, &late_call_re)
+        {
+            for method_match in mre.find_iter(content) {
+                let body = method_match.as_str();
+                let mut method_object_vars = std::collections::HashSet::new();
+                let mut method_object_var_count = 0usize;
+
+                for cap in obj_re.captures_iter(body) {
+                    if let Some(v) = cap.get(1).map(|m| m.as_str()) {
+                        method_object_var_count += 1;
+                        method_object_vars.insert(v.to_lowercase());
+                    }
+                }
+
+                let method_callbyname = cbn_re.find_iter(body).count();
+                let method_late_calls = call_re
+                    .captures_iter(body)
+                    .filter(|cap| {
+                        cap.get(1)
+                            .map(|m| method_object_vars.contains(&m.as_str().to_lowercase()))
+                            .unwrap_or(false)
+                    })
+                    .count();
+
+                if method_object_var_count > 0 || method_callbyname > 0 || method_late_calls > 0 {
+                    methods_with_dynamic_dispatch += 1;
+                }
+                object_var_count += method_object_var_count;
+                callbyname_count += method_callbyname;
+                late_binding_call_count += method_late_calls;
+            }
         }
 
         for def in &flag_defs {
@@ -4823,6 +4911,15 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
     highest_risk.sort_by(|a, b| b.1.cmp(&a.1));
     highest_risk.truncate(10);
 
+    let dynamic_dispatch_risk_tier =
+        if option_strict_off_files > 0 || callbyname_count > 0 || late_binding_call_count >= 5 {
+            "high"
+        } else if methods_with_dynamic_dispatch > 0 || object_var_count > 0 {
+            "medium"
+        } else {
+            "low"
+        };
+
     VbTranslationReport {
         is_vb_project: vb_files > cs_files,
         vb_file_count: vb_files,
@@ -4832,6 +4929,15 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
         translation_flags,
         flags_by_category,
         highest_risk_files: highest_risk,
+        dynamic_dispatch: DynamicDispatchSummary {
+            option_strict_on_files,
+            option_strict_off_files,
+            methods_with_dynamic_dispatch,
+            late_binding_call_count,
+            object_var_count,
+            callbyname_count,
+            dynamic_dispatch_risk_tier: dynamic_dispatch_risk_tier.to_string(),
+        },
     }
 }
 
@@ -5469,6 +5575,14 @@ fn render_markdown(
             cross.critical_risk_files.join(", ")
         ));
     }
+    if vb_trans.vb_file_count > 0 {
+        md.push_str(&format!(
+            "- **Dynamic-dispatch risk tier**: {} (Option Strict Off files: {}, dynamic methods: {})\n",
+            cross.dynamic_dispatch_risk_tier,
+            cross.option_strict_off_files,
+            cross.dynamic_dispatch_methods
+        ));
+    }
     md.push_str("\n");
 
     // ── Phase 33: Project Dependencies (Gap 3) ───────────────────────────
@@ -5583,6 +5697,22 @@ fn render_markdown(
         md.push_str(&format!(
             "**Translation flags**: {} across files\n\n",
             vb_trans.total_flags
+        ));
+        md.push_str(&format!(
+            "**Dynamic-dispatch risk tier**: {}\n",
+            vb_trans.dynamic_dispatch.dynamic_dispatch_risk_tier
+        ));
+        md.push_str(&format!(
+            "**Option Strict**: On in {} file(s), Off in {} file(s)\n",
+            vb_trans.dynamic_dispatch.option_strict_on_files,
+            vb_trans.dynamic_dispatch.option_strict_off_files
+        ));
+        md.push_str(&format!(
+            "**Dynamic-dispatch counters**: {} late-bound call(s), {} `As Object` declaration(s), {} `CallByName` call(s) across {} method(s)\n\n",
+            vb_trans.dynamic_dispatch.late_binding_call_count,
+            vb_trans.dynamic_dispatch.object_var_count,
+            vb_trans.dynamic_dispatch.callbyname_count,
+            vb_trans.dynamic_dispatch.methods_with_dynamic_dispatch
         ));
 
         if !vb_trans.flags_by_category.is_empty() {
@@ -9809,6 +9939,28 @@ mod tests {
         }
     }
 
+    fn empty_vb_translation() -> VbTranslationReport {
+        VbTranslationReport {
+            is_vb_project: false,
+            vb_file_count: 0,
+            cs_file_count: 0,
+            mixed_language: false,
+            translation_flags: vec![],
+            total_flags: 0,
+            flags_by_category: BTreeMap::new(),
+            highest_risk_files: vec![],
+            dynamic_dispatch: DynamicDispatchSummary {
+                option_strict_on_files: 0,
+                option_strict_off_files: 0,
+                methods_with_dynamic_dispatch: 0,
+                late_binding_call_count: 0,
+                object_var_count: 0,
+                callbyname_count: 0,
+                dynamic_dispatch_risk_tier: "low".into(),
+            },
+        }
+    }
+
     #[test]
     fn cross_cutting_empty_dossiers() {
         let state = StateMigrationReport {
@@ -9841,6 +9993,7 @@ mod tests {
             &empty_config_transforms(),
             &empty_resource_inv(),
             &empty_master_regions(),
+            &empty_vb_translation(),
         );
         assert_eq!(cross.total_pages_analyzed, 0);
         assert!(cross.shared_sql_tables.is_empty());
@@ -9891,6 +10044,7 @@ mod tests {
             &empty_config_transforms(),
             &empty_resource_inv(),
             &empty_master_regions(),
+            &empty_vb_translation(),
         );
 
         // "Users" appears in Page1 and Page2 → shared
@@ -10066,6 +10220,7 @@ mod tests {
             &empty_config_transforms(),
             &empty_resource_inv(),
             &empty_master_regions(),
+            &empty_vb_translation(),
         );
 
         assert_eq!(cross.total_methods, 2);
@@ -10099,6 +10254,27 @@ End Module
                 .any(|f| f.pattern.contains("Module"))
         );
         assert!(flags.total_flags > 0);
+    }
+
+    #[test]
+    fn vb_translation_tracks_dynamic_dispatch_risk() {
+        let vb_code = r#"
+Option Strict Off
+Public Class Legacy
+    Public Sub M()
+        Dim obj As Object
+        obj.DoWork()
+        CallByName(obj, "DoWork", CallType.Method)
+    End Sub
+End Class
+"#;
+        let flags = analyze_vb_translation_flags(&[("Legacy.vb", vb_code)]);
+        assert_eq!(flags.dynamic_dispatch.option_strict_off_files, 1);
+        assert_eq!(flags.dynamic_dispatch.methods_with_dynamic_dispatch, 1);
+        assert_eq!(flags.dynamic_dispatch.object_var_count, 1);
+        assert_eq!(flags.dynamic_dispatch.callbyname_count, 1);
+        assert_eq!(flags.dynamic_dispatch.late_binding_call_count, 1);
+        assert_eq!(flags.dynamic_dispatch.dynamic_dispatch_risk_tier, "high");
     }
 
     #[test]
