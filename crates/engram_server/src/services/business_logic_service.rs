@@ -13,7 +13,7 @@ use engram_core::ids::ContentHash;
 use engram_ml::DreamingEngine;
 use engram_ml::llm_provider::LlmError;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::full_project_migration_service::{
     MethodInfo, MethodKind, extract_cs_method_body, extract_vb_method_body,
@@ -30,16 +30,17 @@ Method: {method_name}
 {method_body}
 ```
 
-Respond in this exact format (plain text only, no markdown, no backticks, no bold):
-PURPOSE: <one sentence explaining what this method does>
-STEPS:
-1. <first action>
-2. <next action>
-RULES:
-- <business rule or condition>
-DATA: <what data it reads/writes - table and field names>
-ERRORS: <error handling behavior>
-EFFECTS: <state changes: DB writes, session, UI, redirects>"#;
+Respond with STRICT JSON only (no markdown, no prose, no backticks).
+Use exactly these keys and keep them stable:
+{
+  "purpose": "<one sentence explaining what this method does>",
+  "steps": ["<first action>", "<next action>"],
+  "business_rules": ["<business rule or condition>"],
+  "data_flow": "<what data it reads/writes - table and field names>",
+  "error_handling": "<error handling behavior>",
+  "side_effects_detail": "<state changes: DB writes, session, UI, redirects>"
+}
+Do not include any keys other than the six keys above."#;
 
 const FILE_PURPOSE_PROMPT: &str = r#"This {language} class has the following methods:
 {method_list}
@@ -67,6 +68,9 @@ pub struct MethodBusinessLogic {
     /// Warnings from cross-validation of LLM output against deterministic effects.
     #[serde(default)]
     pub validation_warnings: Vec<String>,
+    /// Diagnostic text stored when strict JSON parsing fails.
+    #[serde(default)]
+    pub parse_diagnostic: String,
 }
 
 // ── Ticket 37.2: LLM Validation Gate ─────────────────────────────────────────
@@ -233,14 +237,21 @@ pub struct ProjectBusinessLogicReport {
 
 // ── LLM Response Parsing ─────────────────────────────────────────────────────
 
-static PURPOSE_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)^PURPOSE:\s*(.+)$").expect("PURPOSE_RE"));
-static STEPS_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)^\d+\.\s*(.+)$").expect("STEPS_RE"));
-static RULES_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)^-\s*(.+)$").expect("RULES_RE"));
-// Note: DATA/ERRORS/EFFECTS use extract_section_text() instead of single-line regex
-// to support multi-line LLM responses for these sections.
+#[derive(Debug, Default, Deserialize)]
+struct LlmMethodAnalysis {
+    #[serde(default)]
+    purpose: String,
+    #[serde(default)]
+    steps: Vec<String>,
+    #[serde(default)]
+    business_rules: Vec<String>,
+    #[serde(default)]
+    data_flow: String,
+    #[serde(default)]
+    error_handling: String,
+    #[serde(default)]
+    side_effects_detail: String,
+}
 
 /// Parse a structured LLM response into a `MethodBusinessLogic`.
 pub fn parse_llm_response(
@@ -250,95 +261,58 @@ pub fn parse_llm_response(
     fqn: &str,
     content_hash: &str,
 ) -> MethodBusinessLogic {
-    let purpose = PURPOSE_RE
-        .captures(raw)
-        .map(|c| c[1].trim().to_string())
-        .unwrap_or_default();
-
-    // Extract steps: numbered lines between STEPS: and the next section header
-    let steps = extract_section_items(raw, "STEPS:", &STEPS_RE);
-    // Extract rules: bulleted lines between RULES: and the next section header
-    let rules = extract_section_items(raw, "RULES:", &RULES_RE);
-
-    // Extract DATA/ERRORS/EFFECTS as section text (supports multi-line LLM output)
-    let data_flow = extract_section_text(raw, "DATA:");
-    let error_handling = extract_section_text(raw, "ERRORS:");
-    let side_effects_detail = extract_section_text(raw, "EFFECTS:");
-
-    // If parsing got nothing useful, store the raw text as purpose (truncated)
-    let final_purpose = if purpose.is_empty() && !raw.trim().is_empty() {
-        let truncated: String = raw.chars().take(300).collect();
-        if raw.chars().count() > 300 {
-            format!("{truncated}…")
-        } else {
-            truncated
-        }
-    } else {
-        purpose
+    let (parsed, parse_diagnostic) = match serde_json::from_str::<LlmMethodAnalysis>(raw) {
+        Ok(parsed) => (parsed, String::new()),
+        Err(_) => (
+            deterministic_summary_from_raw(raw),
+            truncate_for_diagnostic(raw, 1000),
+        ),
     };
 
     MethodBusinessLogic {
         file_path: file_path.to_string(),
         method_name: method_name.to_string(),
         fqn: fqn.to_string(),
-        purpose: final_purpose,
-        steps,
-        business_rules: rules,
-        data_flow,
-        error_handling,
-        side_effects_detail,
+        purpose: parsed.purpose,
+        steps: parsed.steps,
+        business_rules: parsed.business_rules,
+        data_flow: parsed.data_flow,
+        error_handling: parsed.error_handling,
+        side_effects_detail: parsed.side_effects_detail,
         content_hash: content_hash.to_string(),
         confidence: String::new(),
         validation_warnings: vec![],
+        parse_diagnostic,
     }
 }
 
-/// Extract items (numbered or bulleted) from a labeled section of the LLM response.
-fn extract_section_items(raw: &str, section_label: &str, item_re: &Regex) -> Vec<String> {
-    // Find section start
-    let lower = raw.to_lowercase();
-    let label_lower = section_label.to_lowercase();
-    let Some(start) = lower.find(&label_lower) else {
-        return vec![];
-    };
-    let section_start = start + section_label.len();
-
-    // Find next section header (PURPOSE:, STEPS:, RULES:, DATA:, ERRORS:, EFFECTS:)
-    let section_end = find_next_section(raw, section_start);
-    let section = &raw[section_start..section_end];
-
-    item_re
-        .captures_iter(section)
-        .map(|c| c[1].trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect()
+fn truncate_for_diagnostic(raw: &str, max_len: usize) -> String {
+    let mut truncated: String = raw.chars().take(max_len).collect();
+    if raw.chars().count() > max_len {
+        truncated.push('…');
+    }
+    truncated
 }
 
-/// Find the start of the next labeled section after `offset`.
-fn find_next_section(raw: &str, offset: usize) -> usize {
-    static SECTION_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?im)^(?:PURPOSE|STEPS|RULES|DATA|ERRORS|EFFECTS):").expect("SECTION_RE")
-    });
-    let tail = &raw[offset..];
-    SECTION_RE
-        .find(tail)
-        .map(|m| offset + m.start())
-        .unwrap_or(raw.len())
-}
-
-/// Extract all text from a labeled section (e.g. DATA:, ERRORS:, EFFECTS:) until the next section.
-/// Supports both single-line and multi-line content.
-fn extract_section_text(raw: &str, section_label: &str) -> String {
-    let lower = raw.to_lowercase();
-    let label_lower = section_label.to_lowercase();
-    let Some(start) = lower.find(&label_lower) else {
-        return String::new();
+fn deterministic_summary_from_raw(raw: &str) -> LlmMethodAnalysis {
+    let cleaned = raw.replace(['\n', '\r'], " ");
+    let normalized = cleaned.split_whitespace().collect::<Vec<_>>().join(" ");
+    let purpose = if normalized.is_empty() {
+        String::new()
+    } else {
+        normalized
+            .split_terminator(['.', '!', '?'])
+            .find_map(|sentence| {
+                let s = sentence.trim();
+                (!s.is_empty()).then(|| truncate_for_diagnostic(s, 220))
+            })
+            .unwrap_or_else(|| truncate_for_diagnostic(&normalized, 220))
     };
-    let content_start = start + section_label.len();
-    let section_end = find_next_section(raw, content_start);
-    let text = raw[content_start..section_end].trim();
-    // Strip any markdown formatting the LLM might add
-    text.replace("**", "").replace("```", "").to_string()
+
+    LlmMethodAnalysis {
+        purpose,
+        ..LlmMethodAnalysis::default()
+    }
 }
 
 // ── Deterministic Fallback ───────────────────────────────────────────────────
@@ -429,6 +403,7 @@ pub fn deterministic_method_summary(
         content_hash: body_hash,
         confidence: String::new(),
         validation_warnings: vec![],
+        parse_diagnostic: String::new(),
     }
 }
 
@@ -490,6 +465,7 @@ pub async fn analyze_method_logic(
             content_hash: body_hash,
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
     }
 
@@ -861,21 +837,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_llm_response_well_formed() {
-        let raw = r#"PURPOSE: Loads customer data from the database and populates the grid control based on the current user's role.
-STEPS:
-1. Check if the page is a postback; if so, exit early
-2. Read the current user's role from Session["UserRole"]
-3. Query the Customers table filtered by region
-4. Bind the results to grdCustomers DataGrid
-5. Set lblStatus.Text to show the record count
-RULES:
-- If user is not authenticated, redirect to Login.aspx
-- Admin users see all customers; regular users see only their region
-- If no records found, show "No customers match your criteria" message
-DATA: Reads from Customers table (CustomerID, Name, Region, Status), filtered by UserRegion from Session
-ERRORS: On database exception, logs error and shows "Unable to load customer data" in lblError
-EFFECTS: Writes to Session["LastViewedRegion"], updates grdCustomers.DataSource, sets lblStatus.Text"#;
+    fn test_parse_llm_response_valid_json() {
+        let raw = r#"{
+  "purpose": "Loads customer data from the database and populates the grid control.",
+  "steps": [
+    "Check if the page is a postback; if so, exit early",
+    "Read the current user's role from Session[\"UserRole\"]",
+    "Query the Customers table filtered by region"
+  ],
+  "business_rules": [
+    "If user is not authenticated, redirect to Login.aspx",
+    "Admin users see all customers; regular users see only their region"
+  ],
+  "data_flow": "Reads from Customers table and Session values.",
+  "error_handling": "On database exception, log error and show user-friendly message.",
+  "side_effects_detail": "Writes Session[\"LastViewedRegion\"], updates grid datasource."
+}"#;
 
         let result = parse_llm_response(
             raw,
@@ -888,43 +865,44 @@ EFFECTS: Writes to Session["LastViewedRegion"], updates grdCustomers.DataSource,
         assert_eq!(result.method_name, "Page_Load");
         assert_eq!(result.fqn, "CustomerList.Page_Load");
         assert!(result.purpose.contains("Loads customer data"));
-        assert_eq!(result.steps.len(), 5);
-        assert!(result.steps[0].contains("postback"));
-        assert_eq!(result.business_rules.len(), 3);
-        assert!(result.business_rules[0].contains("authenticated"));
+        assert_eq!(result.steps.len(), 3);
+        assert_eq!(result.business_rules.len(), 2);
         assert!(result.data_flow.contains("Customers table"));
         assert!(result.error_handling.contains("database exception"));
         assert!(result.side_effects_detail.contains("Session"));
+        assert!(result.parse_diagnostic.is_empty());
     }
 
     #[test]
-    fn test_parse_malformed_response_raw_text() {
-        let raw = "This method loads customer data and displays it in a grid.";
-        let result = parse_llm_response(raw, "test.vb", "DoStuff", "Test.DoStuff", "hash1");
-
-        // Should fall back to storing raw text as purpose
-        assert!(result.purpose.contains("loads customer data"));
-        assert!(result.steps.is_empty());
-        assert!(result.business_rules.is_empty());
-    }
-
-    #[test]
-    fn test_parse_partial_response_missing_sections() {
-        let raw = r#"PURPOSE: Saves the form data to the database.
-STEPS:
-1. Validates input fields
-2. Calls SaveCustomer stored procedure
-EFFECTS: Writes to Customers table"#;
+    fn test_parse_llm_response_missing_optional_fields() {
+        let raw = r#"{
+  "purpose": "Saves the form data to the database.",
+  "steps": ["Validates input fields", "Calls SaveCustomer stored procedure"],
+  "side_effects_detail": "Writes to Customers table"
+}"#;
 
         let result =
             parse_llm_response(raw, "edit.vb", "btnSave_Click", "Edit.btnSave_Click", "h2");
 
         assert!(result.purpose.contains("Saves the form data"));
         assert_eq!(result.steps.len(), 2);
-        assert!(result.business_rules.is_empty()); // RULES section missing
-        assert!(result.data_flow.is_empty()); // DATA section missing
-        assert!(result.error_handling.is_empty()); // ERRORS section missing
+        assert!(result.business_rules.is_empty());
+        assert!(result.data_flow.is_empty());
+        assert!(result.error_handling.is_empty());
         assert!(result.side_effects_detail.contains("Customers table"));
+        assert!(result.parse_diagnostic.is_empty());
+    }
+
+    #[test]
+    fn test_parse_llm_response_malformed_json_fallback() {
+        let raw = r#"{"purpose": "This method loads customer data","steps":["#;
+        let result = parse_llm_response(raw, "test.vb", "DoStuff", "Test.DoStuff", "hash1");
+
+        assert!(result.purpose.contains("This method loads customer data"));
+        assert!(result.steps.is_empty());
+        assert!(result.business_rules.is_empty());
+        assert!(result.data_flow.is_empty());
+        assert_eq!(result.parse_diagnostic, raw);
     }
 
     #[test]
@@ -1079,6 +1057,7 @@ public class OrderEntry : Page
             content_hash: "abc".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
 
         let doc = render_method_as_doc(&m);
@@ -1117,6 +1096,7 @@ public class OrderEntry : Page
                     content_hash: "h1".to_string(),
                     confidence: String::new(),
                     validation_warnings: vec![],
+                    parse_diagnostic: String::new(),
                 }],
                 analyzed_at: "2026-02-22T00:00:00Z".to_string(),
             }],
@@ -1127,37 +1107,6 @@ public class OrderEntry : Page
         assert!(md.contains("_Default"));
         assert!(md.contains("Initializes the dashboard"));
         assert!(md.contains("Auth required"));
-    }
-
-    #[test]
-    fn test_parse_multiline_data_section() {
-        let raw = r#"PURPOSE: Saves customer and order data.
-STEPS:
-1. Validate inputs
-2. Save to database
-DATA: Reads from Customers table (CustomerID, Name)
-Writes to Orders table (OrderID, Amount, CustomerID)
-Also updates AuditLog table
-ERRORS: Shows error on failure
-EFFECTS: Updates Customers, Orders, AuditLog tables"#;
-
-        let result = parse_llm_response(raw, "test.vb", "Save", "Test.Save", "hash");
-        // Multi-line DATA should be captured fully
-        assert!(result.data_flow.contains("Customers table"));
-        assert!(result.data_flow.contains("Orders table"));
-        assert!(result.data_flow.contains("AuditLog"));
-    }
-
-    #[test]
-    fn test_parse_purpose_truncation_indicator() {
-        // A raw response with no recognizable sections and >300 chars
-        let long_text = "A".repeat(400);
-        let result = parse_llm_response(&long_text, "t.vb", "M", "T.M", "h");
-        assert!(
-            result.purpose.ends_with('…'),
-            "Truncated purpose should end with ellipsis"
-        );
-        assert!(result.purpose.len() < 400);
     }
 
     #[test]
@@ -1235,6 +1184,7 @@ public class Foo : Page
                     content_hash: "h".to_string(),
                     confidence: String::new(),
                     validation_warnings: vec![],
+                    parse_diagnostic: String::new(),
                 }],
                 analyzed_at: "2026-01-01T00:00:00Z".to_string(),
             }],
@@ -1265,6 +1215,7 @@ public class Foo : Page
             content_hash: "h1".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         let det = llm.clone();
         let effects = vec![
@@ -1292,6 +1243,7 @@ public class Foo : Page
             content_hash: "h1".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         let det = llm.clone();
         let effects = vec!["SQL: SELECT Customers".to_string()];
@@ -1316,6 +1268,7 @@ public class Foo : Page
             content_hash: "h1".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         let det = llm.clone();
         let effects = vec![
@@ -1344,6 +1297,7 @@ public class Foo : Page
             content_hash: "h1".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         // Deterministic version only knows about Customers — LLM hallucinated the other tables
         let det = MethodBusinessLogic {
@@ -1359,6 +1313,7 @@ public class Foo : Page
             content_hash: "h1".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         let effects = vec!["SQL: SELECT Customers".to_string()];
 
@@ -1388,6 +1343,7 @@ public class Foo : Page
             content_hash: "h".to_string(),
             confidence: String::new(),
             validation_warnings: vec![],
+            parse_diagnostic: String::new(),
         };
         let det = llm.clone();
         let result = validate_llm_output(&llm, &det, &[]);
@@ -1419,6 +1375,7 @@ public class Foo : Page
                     content_hash: "h".to_string(),
                     confidence: "High".to_string(),
                     validation_warnings: vec![],
+                    parse_diagnostic: String::new(),
                 }],
                 analyzed_at: "2026-01-01T00:00:00Z".to_string(),
             }],
