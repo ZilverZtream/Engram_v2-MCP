@@ -55,6 +55,16 @@ pub struct ComplexityBreakdown {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UncertaintyBreakdown {
+    /// Dynamic control/event synthesis and runtime UI composition uncertainty. 0-10.
+    pub dynamic_ui_uncertainty_score: f32,
+    /// Late-bound/member-resolution uncertainty. 0-10.
+    pub late_binding_uncertainty_score: f32,
+    /// Dynamic SQL/table-inference uncertainty. 0-10.
+    pub dynamic_sql_uncertainty_score: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SeamCandidate {
     pub node_id: String,
     pub node_type: String,
@@ -77,9 +87,38 @@ pub struct BlastRadiusReport {
     pub migration_risk: u8,
     pub risk_band: RiskBand,
     pub complexity_breakdown: ComplexityBreakdown,
+    pub uncertainty_breakdown: UncertaintyBreakdown,
     pub seam_candidates: Vec<SeamCandidate>,
     pub guidance: Vec<GuidanceItem>,
     pub total_downstream: usize,
+}
+
+fn meta_bool(metadata: Option<&serde_json::Value>, key: &str) -> bool {
+    metadata
+        .and_then(|m| m.get(key))
+        .and_then(|v| match v {
+            serde_json::Value::Bool(b) => Some(*b),
+            serde_json::Value::String(s) => Some(matches!(s.as_str(), "true" | "1" | "yes")),
+            serde_json::Value::Number(n) => Some(n.as_i64().unwrap_or_default() > 0),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+
+fn meta_str_eq(metadata: Option<&serde_json::Value>, key: &str, expected: &str) -> bool {
+    metadata
+        .and_then(|m| m.get(key))
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|value| value.eq_ignore_ascii_case(expected))
+}
+
+fn meta_f32(metadata: Option<&serde_json::Value>, key: &str) -> Option<f32> {
+    let value = metadata?.get(key)?;
+    match value {
+        serde_json::Value::Number(n) => n.as_f64().map(|v| v as f32),
+        serde_json::Value::String(s) => s.parse::<f32>().ok(),
+        _ => None,
+    }
 }
 
 // ── Weights ──────────────────────────────────────────────────────────────────
@@ -206,13 +245,75 @@ pub fn compute_blast_radius(
             .unwrap_or(0);
     let script_injection_score = normalize_score(script_count, 5);
 
+    // Runtime uncertainty: dynamic UI, late binding, and probabilistic SQL/table inference.
+    let touching_edges = graph
+        .list_edges(project_id, None)?
+        .into_iter()
+        .filter(|edge| edge.source_id == target_id || edge.target_id == target_id)
+        .collect::<Vec<_>>();
+
+    let node_meta = node.as_ref().and_then(|n| n.metadata.as_ref());
+    let mut dynamic_ui_signals = usize::from(meta_bool(node_meta, "dynamic_control"));
+    let mut late_binding_signals = usize::from(meta_bool(node_meta, "has_late_binding"));
+    let mut probabilistic_resolution_signals =
+        usize::from(meta_str_eq(node_meta, "resolution", "probabilistic"));
+    let mut table_inference_confidences = Vec::new();
+    if let Some(conf) = meta_f32(node_meta, "table_inference_confidence") {
+        table_inference_confidences.push(conf);
+    }
+
+    for edge in &touching_edges {
+        let meta = edge.metadata.as_ref();
+        if meta_bool(meta, "dynamic_control") {
+            dynamic_ui_signals += 1;
+        }
+        if meta_bool(meta, "has_late_binding") {
+            late_binding_signals += 1;
+        }
+        if meta_str_eq(meta, "resolution", "probabilistic") {
+            probabilistic_resolution_signals += 1;
+        }
+        if let Some(conf) = meta_f32(meta, "table_inference_confidence") {
+            table_inference_confidences.push(conf);
+        }
+    }
+
+    let dynamic_ui_uncertainty_score = normalize_score(dynamic_ui_signals, 4);
+    let late_binding_uncertainty_score =
+        normalize_score(late_binding_signals + probabilistic_resolution_signals, 4);
+    let low_confidence_table_signals = table_inference_confidences
+        .iter()
+        .copied()
+        .filter(|confidence| *confidence < 0.80)
+        .count();
+    let avg_table_unknown = if table_inference_confidences.is_empty() {
+        0.0
+    } else {
+        let avg_confidence = table_inference_confidences.iter().sum::<f32>()
+            / table_inference_confidences.len() as f32;
+        (1.0 - avg_confidence.clamp(0.0, 1.0)) * 10.0
+    };
+    let dynamic_sql_uncertainty_score = (normalize_score(
+        low_confidence_table_signals + probabilistic_resolution_signals,
+        4,
+    ) * 0.7
+        + avg_table_unknown * 0.3)
+        .min(10.0);
+    let uncertainty_composite = (dynamic_ui_uncertainty_score * 0.35
+        + late_binding_uncertainty_score * 0.35
+        + dynamic_sql_uncertainty_score * 0.30)
+        .min(10.0);
+
     // 5. Composite risk score
-    let raw_score = handles_clause_score * WEIGHT_HANDLES
+    let base_weighted_score = handles_clause_score * WEIGHT_HANDLES
         + sql_concat_score * WEIGHT_SQL
         + pagerank_score * WEIGHT_PAGERANK
         + state_coupling_score * WEIGHT_STATE
         + gis_coupling_score * WEIGHT_GIS
         + script_injection_score * WEIGHT_SCRIPT;
+    let blended_score = (base_weighted_score * 0.80) + (uncertainty_composite * 0.20);
+    let unresolved_uplift = ((uncertainty_composite - 3.0).max(0.0) * 0.20).min(1.5);
+    let raw_score = (blended_score + unresolved_uplift).min(10.0);
     let migration_risk = (raw_score.round() as u8).clamp(1, 10);
 
     // 6. Total downstream count
@@ -348,6 +449,19 @@ pub fn compute_blast_radius(
                 modern_pattern: Some("React useEffect + fetch API / SignalR".into()),
             });
         }
+        if uncertainty_composite > 5.0 {
+            guidance.push(GuidanceItem {
+                concern: "Runtime Uncertainty (Dynamic Behavior)".into(),
+                severity: if uncertainty_composite > 7.0 {
+                    "high"
+                } else {
+                    "medium"
+                }
+                .into(),
+                recommendation: "Add runtime instrumentation and migration guards for dynamic controls, probabilistic resolution, and inferred SQL table targets before cutover.".into(),
+                modern_pattern: Some("Feature flags + telemetry-backed rollout checkpoints".into()),
+            });
+        }
     }
 
     Ok(BlastRadiusReport {
@@ -362,6 +476,11 @@ pub fn compute_blast_radius(
             state_coupling_score,
             gis_coupling_score,
             script_injection_score,
+        },
+        uncertainty_breakdown: UncertaintyBreakdown {
+            dynamic_ui_uncertainty_score,
+            late_binding_uncertainty_score,
+            dynamic_sql_uncertainty_score,
         },
         seam_candidates,
         guidance,
@@ -410,6 +529,21 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     out.push_str(&format!(
         "  Script Injection: {:.1}/10\n",
         bd.script_injection_score
+    ));
+
+    out.push_str("Uncertainty Breakdown:\n");
+    let ud = &report.uncertainty_breakdown;
+    out.push_str(&format!(
+        "  Dynamic UI:       {:.1}/10\n",
+        ud.dynamic_ui_uncertainty_score
+    ));
+    out.push_str(&format!(
+        "  Late Binding:     {:.1}/10\n",
+        ud.late_binding_uncertainty_score
+    ));
+    out.push_str(&format!(
+        "  Dynamic SQL:      {:.1}/10\n",
+        ud.dynamic_sql_uncertainty_score
     ));
 
     if !report.seam_candidates.is_empty() {
@@ -541,6 +675,11 @@ mod tests {
                 gis_coupling_score: 2.0,
                 script_injection_score: 3.0,
             },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 2.0,
+                late_binding_uncertainty_score: 1.0,
+                dynamic_sql_uncertainty_score: 4.0,
+            },
             seam_candidates: vec![],
             guidance: vec![GuidanceItem {
                 concern: "SQL Risk".into(),
@@ -608,6 +747,11 @@ EndProject
                 state_coupling_score: 3.0,
                 gis_coupling_score: 0.0,
                 script_injection_score: 0.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
             },
             seam_candidates: vec![],
             guidance: vec![],
