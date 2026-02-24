@@ -41,6 +41,7 @@ struct RuntimeEvidenceRow {
 struct NodeLookup {
     by_file: HashMap<String, String>,
     by_class: HashMap<String, String>,
+    by_method_in_file: HashMap<(String, String), String>,
     by_method: HashMap<String, String>,
     by_control: HashMap<String, String>,
 }
@@ -49,13 +50,120 @@ fn normalize(v: &str) -> String {
     v.trim().to_ascii_lowercase()
 }
 
+fn is_key_char(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'
+}
+
+fn next_kv_boundary(line: &str, start: usize) -> usize {
+    let mut i = start;
+    while i < line.len() {
+        let rest = &line[i..];
+        let Some(ch) = rest.chars().next() else { break };
+        if matches!(ch, '|' | ',' | ';' | '\t') {
+            let mut j = i + ch.len_utf8();
+            while j < line.len() {
+                let Some(ws) = line[j..].chars().next() else {
+                    break;
+                };
+                if ws.is_whitespace() {
+                    j += ws.len_utf8();
+                } else {
+                    break;
+                }
+            }
+
+            let key_start = j;
+            while j < line.len() {
+                let Some(kc) = line[j..].chars().next() else {
+                    break;
+                };
+                if is_key_char(kc) {
+                    j += kc.len_utf8();
+                } else {
+                    break;
+                }
+            }
+
+            if j > key_start {
+                while j < line.len() {
+                    let Some(ws) = line[j..].chars().next() else {
+                        break;
+                    };
+                    if ws.is_whitespace() {
+                        j += ws.len_utf8();
+                    } else {
+                        break;
+                    }
+                }
+                if line[j..].starts_with('=') {
+                    return i;
+                }
+            }
+        }
+        i += ch.len_utf8();
+    }
+    line.len()
+}
+
 fn add_kv_hints(line: &str, row: &mut RuntimeEvidenceRow) {
-    for token in line.split(['|', ',', ';', '\t']) {
-        let mut it = token.splitn(2, '=');
-        let Some(k) = it.next() else { continue };
-        let Some(v) = it.next() else { continue };
-        let key = normalize(k);
-        let val = v.trim().trim_matches('"').to_string();
+    let mut i = 0;
+    while i < line.len() {
+        while i < line.len() {
+            let Some(ch) = line[i..].chars().next() else {
+                break;
+            };
+            if matches!(ch, '|' | ',' | ';' | '\t') || ch.is_whitespace() {
+                i += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if i >= line.len() {
+            break;
+        }
+
+        let key_start = i;
+        while i < line.len() {
+            let Some(ch) = line[i..].chars().next() else {
+                break;
+            };
+            if is_key_char(ch) {
+                i += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if i == key_start {
+            let Some(ch) = line[i..].chars().next() else {
+                break;
+            };
+            i += ch.len_utf8();
+            continue;
+        }
+
+        while i < line.len() {
+            let Some(ch) = line[i..].chars().next() else {
+                break;
+            };
+            if ch.is_whitespace() {
+                i += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if !line[i..].starts_with('=') {
+            continue;
+        }
+        i += 1;
+
+        let key = normalize(&line[key_start..i - 1]);
+        let end = next_kv_boundary(line, i);
+        let val = line[i..end].trim().trim_matches('"').to_string();
+        i = if end < line.len() { end + 1 } else { end };
+
         if val.is_empty() {
             continue;
         }
@@ -100,9 +208,11 @@ fn parse_rows(artifact: &RuntimeArtifactInput) -> Vec<RuntimeEvidenceRow> {
 
 fn build_lookup(nodes: &[Node]) -> NodeLookup {
     let mut lu = NodeLookup::default();
+    let mut by_method_candidates: HashMap<String, HashSet<String>> = HashMap::new();
     for n in nodes {
+        let file_key = normalize(n.file_path.as_str());
         lu.by_file
-            .entry(normalize(n.file_path.as_str()))
+            .entry(file_key.clone())
             .or_insert_with(|| n.node_id.clone());
 
         if n.node_type.eq_ignore_ascii_case("class") {
@@ -111,9 +221,14 @@ fn build_lookup(nodes: &[Node]) -> NodeLookup {
                 .or_insert_with(|| n.node_id.clone());
         }
         if n.node_type.eq_ignore_ascii_case("function") {
-            lu.by_method
-                .entry(normalize(&n.name))
+            let method_key = normalize(&n.name);
+            lu.by_method_in_file
+                .entry((file_key.clone(), method_key.clone()))
                 .or_insert_with(|| n.node_id.clone());
+            by_method_candidates
+                .entry(method_key)
+                .or_default()
+                .insert(n.node_id.clone());
         }
         if n.node_type.eq_ignore_ascii_case("control") {
             lu.by_control
@@ -121,13 +236,33 @@ fn build_lookup(nodes: &[Node]) -> NodeLookup {
                 .or_insert_with(|| n.node_id.clone());
         }
     }
+
+    for (method_key, ids) in by_method_candidates {
+        if ids.len() == 1 {
+            if let Some(node_id) = ids.into_iter().next() {
+                lu.by_method.insert(method_key, node_id);
+            }
+        }
+    }
+
     lu
 }
 
 fn find_best_source(row: &RuntimeEvidenceRow, lu: &NodeLookup) -> Option<String> {
-    row.method_hint
+    row.file_hint
         .as_ref()
-        .and_then(|v| lu.by_method.get(&normalize(v)).cloned())
+        .and_then(|file| {
+            row.method_hint.as_ref().and_then(|method| {
+                lu.by_method_in_file
+                    .get(&(normalize(file), normalize(method)))
+                    .cloned()
+            })
+        })
+        .or_else(|| {
+            row.method_hint
+                .as_ref()
+                .and_then(|v| lu.by_method.get(&normalize(v)).cloned())
+        })
         .or_else(|| {
             row.class_hint
                 .as_ref()
@@ -279,5 +414,66 @@ mod tests {
         assert_eq!(rows[0].method_hint.as_deref(), Some("Save"));
         assert_eq!(rows[0].control_hint.as_deref(), Some("btnSave"));
         assert!(rows[0].sql_text.is_some());
+    }
+
+    #[test]
+    fn preserves_sql_with_commas_semicolons_and_equals() {
+        let rows = parse_rows(&RuntimeArtifactInput {
+            kind: RuntimeArtifactKind::SqlProfilerExport,
+            content:
+                "file=Report.aspx,sql=SELECT id, name FROM users WHERE role='Admin'; method=Run"
+                    .into(),
+            label: None,
+        });
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].file_hint.as_deref(), Some("Report.aspx"));
+        assert_eq!(rows[0].method_hint.as_deref(), Some("Run"));
+        assert_eq!(
+            rows[0].sql_text.as_deref(),
+            Some("SELECT id, name FROM users WHERE role='Admin'")
+        );
+    }
+
+    #[test]
+    fn resolves_method_hint_by_file_before_global_name() {
+        let users = Node {
+            node_id: "fn:users:save".into(),
+            node_type: "function".into(),
+            name: "Save".into(),
+            namespace: "code".into(),
+            language: "vb".into(),
+            file_path: "Users.aspx.vb".into(),
+            start_line: 1,
+            end_line: 10,
+            generation: 1,
+            metadata: None,
+        };
+        let orders = Node {
+            node_id: "fn:orders:save".into(),
+            node_type: "function".into(),
+            name: "Save".into(),
+            namespace: "code".into(),
+            language: "vb".into(),
+            file_path: "Orders.aspx.vb".into(),
+            start_line: 1,
+            end_line: 10,
+            generation: 1,
+            metadata: None,
+        };
+
+        let lu = build_lookup(&[users, orders]);
+        let row = RuntimeEvidenceRow {
+            file_hint: Some("Orders.aspx.vb".into()),
+            class_hint: None,
+            method_hint: Some("Save".into()),
+            control_hint: None,
+            sql_text: Some("DELETE FROM Orders".into()),
+        };
+
+        assert_eq!(
+            find_best_source(&row, &lu).as_deref(),
+            Some("fn:orders:save")
+        );
+        assert!(!lu.by_method.contains_key("save"));
     }
 }
