@@ -2,6 +2,7 @@ use crate::llm_provider::{
     LlmGenerateOptions, LlmProvider, OllamaProvider, OpenAiCompatibleProvider, OpenRouterProvider,
 };
 use regex::Regex;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -135,6 +136,33 @@ pub struct LlmBackend {
 }
 
 impl LlmBackend {
+    fn resolve_openai_headers(cfg: &engram_core::Config, mut headers: HeaderMap) -> HeaderMap {
+        if let Some(referer) = &cfg.llm_http_referer
+            && let Ok(value) = HeaderValue::from_str(referer)
+        {
+            headers.insert(HeaderName::from_static("http-referer"), value);
+        }
+
+        if let Some(title) = &cfg.llm_x_title
+            && let Ok(value) = HeaderValue::from_str(title)
+        {
+            headers.insert(HeaderName::from_static("x-title"), value);
+        }
+
+        if let Some(extra) = &cfg.llm_extra_headers {
+            for (key, value) in extra {
+                if let (Ok(name), Ok(value)) = (
+                    HeaderName::from_bytes(key.as_bytes()),
+                    HeaderValue::from_str(value),
+                ) {
+                    headers.insert(name, value);
+                }
+            }
+        }
+
+        headers
+    }
+
     /// Build an `LlmBackend` from the project `Config`.
     pub fn from_config(cfg: &engram_core::Config) -> Self {
         let client = reqwest::Client::builder()
@@ -143,7 +171,12 @@ impl LlmBackend {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        match cfg.llm_backend.as_str() {
+        let backend = cfg
+            .llm_provider
+            .as_deref()
+            .unwrap_or(cfg.llm_backend.as_str());
+
+        match backend {
             "ollama" => {
                 let url = cfg
                     .llm_ollama_url
@@ -170,10 +203,12 @@ impl LlmBackend {
                     .llm_model
                     .clone()
                     .unwrap_or_else(|| "gpt-4o-mini".into());
+                let headers = Self::resolve_openai_headers(cfg, HeaderMap::new());
                 Self {
-                    provider: Some(Arc::new(OpenAiCompatibleProvider::new(
-                        client, api_key, api_base, model,
-                    ))),
+                    provider: Some(Arc::new(
+                        OpenAiCompatibleProvider::new(client, api_key, api_base, model)
+                            .with_headers(headers),
+                    )),
                 }
             }
             "openrouter" => {
@@ -190,9 +225,11 @@ impl LlmBackend {
                     .llm_model
                     .clone()
                     .unwrap_or_else(|| "openai/gpt-4o-mini".into());
+                let headers =
+                    Self::resolve_openai_headers(cfg, OpenRouterProvider::default_headers());
                 Self {
                     provider: Some(Arc::new(OpenRouterProvider::new(
-                        client, api_key, api_base, model,
+                        client, api_key, api_base, model, headers,
                     ))),
                 }
             }

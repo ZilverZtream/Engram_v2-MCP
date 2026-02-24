@@ -1,6 +1,7 @@
 use crate::types::{EngramError, Result};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,6 +39,9 @@ pub struct Config {
     /// "none" (deterministic fallback), "ollama", or "openai"
     #[serde(default)]
     pub llm_backend: String,
+    /// Optional provider metadata for OpenAI-compatible backends (e.g. "openrouter")
+    #[serde(default)]
+    pub llm_provider: Option<String>,
     /// Model name for LLM generation (e.g. "llama3.2", "gpt-4o-mini")
     #[serde(default)]
     pub llm_model: Option<String>,
@@ -50,6 +54,15 @@ pub struct Config {
     /// Base URL for OpenAI-compatible LLM API (falls back to openai_api_base if not set)
     #[serde(default)]
     pub llm_openai_api_base: Option<String>,
+    /// Optional HTTP-Referer metadata header for OpenAI-compatible requests
+    #[serde(default)]
+    pub llm_http_referer: Option<String>,
+    /// Optional X-Title metadata header for OpenAI-compatible requests
+    #[serde(default)]
+    pub llm_x_title: Option<String>,
+    /// Additional headers for OpenAI-compatible LLM requests
+    #[serde(default)]
+    pub llm_extra_headers: Option<HashMap<String, String>>,
 
     #[serde(default = "default_max_concurrent_jobs")]
     pub max_concurrent_jobs: usize,
@@ -389,10 +402,14 @@ impl Default for Config {
             openai_api_key: None,
             openai_api_base: None,
             llm_backend: String::new(),
+            llm_provider: None,
             llm_model: None,
             llm_ollama_url: None,
             llm_openai_api_key: None,
             llm_openai_api_base: None,
+            llm_http_referer: None,
+            llm_x_title: None,
+            llm_extra_headers: None,
             max_concurrent_jobs: default_max_concurrent_jobs(),
             max_chunks_per_file: default_max_chunks_per_file(),
             max_commits_per_watch: default_max_commits_per_watch(),
@@ -543,6 +560,63 @@ impl Config {
                 return Err(EngramError::Config(format!(
                     "scaffold_default_target_stack must be one of: blazor, react, angular (got {other})"
                 )));
+            }
+        }
+
+        if let Some(provider) = &self.llm_provider {
+            match provider.as_str() {
+                "openai" | "openrouter" => {}
+                other => {
+                    return Err(EngramError::Config(format!(
+                        "llm_provider must be one of: openai, openrouter (got {other})"
+                    )));
+                }
+            }
+        }
+
+        if let Some(referer) = &self.llm_http_referer {
+            if referer.trim().is_empty() {
+                return Err(EngramError::Config(
+                    "llm_http_referer cannot be empty when set".into(),
+                ));
+            }
+            if !(referer.starts_with("http://") || referer.starts_with("https://")) {
+                return Err(EngramError::Config(format!(
+                    "llm_http_referer must start with http:// or https:// (got {referer})"
+                )));
+            }
+        }
+
+        if let Some(title) = &self.llm_x_title {
+            if title.trim().is_empty() {
+                return Err(EngramError::Config(
+                    "llm_x_title cannot be empty when set".into(),
+                ));
+            }
+            if title.contains('\n') || title.contains('\r') {
+                return Err(EngramError::Config(
+                    "llm_x_title cannot contain newlines".into(),
+                ));
+            }
+        }
+
+        if let Some(extra_headers) = &self.llm_extra_headers {
+            for (key, value) in extra_headers {
+                if key.trim().is_empty() {
+                    return Err(EngramError::Config(
+                        "llm_extra_headers contains an empty header name".into(),
+                    ));
+                }
+                if !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+                    return Err(EngramError::Config(format!(
+                        "llm_extra_headers contains invalid header name: {key}"
+                    )));
+                }
+                if value.contains(['\n', '\r', '\0']) {
+                    return Err(EngramError::Config(format!(
+                        "llm_extra_headers contains invalid header value for {key}"
+                    )));
+                }
             }
         }
 

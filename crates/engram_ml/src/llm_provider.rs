@@ -200,8 +200,16 @@ impl OpenRouterProvider {
         api_key: String,
         api_base: Option<String>,
         model: String,
+        extra_headers: HeaderMap,
     ) -> Self {
         let base = api_base.unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
+        Self {
+            inner: OpenAiCompatibleProvider::new(client, api_key, base, model)
+                .with_headers(extra_headers),
+        }
+    }
+
+    pub fn default_headers() -> HeaderMap {
         let mut headers = HeaderMap::new();
         headers.insert(
             HeaderName::from_static("http-referer"),
@@ -211,10 +219,7 @@ impl OpenRouterProvider {
             HeaderName::from_static("x-title"),
             HeaderValue::from_static("Engram"),
         );
-        Self {
-            inner: OpenAiCompatibleProvider::new(client, api_key, base, model)
-                .with_headers(headers),
-        }
+        headers
     }
 }
 
