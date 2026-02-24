@@ -620,7 +620,20 @@ pub async fn analyze_project_logic(
         let content_owned = content.to_string();
 
         let handle = tokio::spawn(async move {
-            let _permit = sem.acquire().await.expect("semaphore closed");
+            let Ok(_permit) = sem.acquire().await else {
+                // Semaphore was closed (can occur during shutdown); skip this file.
+                return (
+                    FileBusinessLogic {
+                        file_path: path_owned,
+                        class_name: String::new(),
+                        file_purpose: String::new(),
+                        methods: Vec::new(),
+                        analyzed_at: String::new(),
+                    },
+                    0usize,
+                    1usize,
+                );
+            };
             analyze_file_logic(&dream, &path_owned, &content_owned, &cache).await
         });
         handles.push(handle);

@@ -144,6 +144,7 @@ impl PathContext {
 /// - Absolute paths (starting with `/`, `\`, or a drive letter like `C:`)
 /// - Parent-directory components (`..`)
 /// - NUL bytes (which would truncate paths on some OSes)
+/// - Symlinks in any path component (prevents symlink-traversal out of `base_dir`)
 ///
 /// Returns the joined `base_dir/sub_path` on success.
 pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
@@ -173,7 +174,28 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
         }
     }
 
-    Ok(base_dir.join(rel))
+    let joined = base_dir.join(rel);
+
+    // Reject symlinks in any existing component of the joined path.
+    // A symlink inside the project directory can point outside base_dir even
+    // though the lexical path looks safe.  Walk each prefix incrementally so
+    // that intermediate symlinks (not just the final component) are caught.
+    let mut partial = base_dir.to_path_buf();
+    for component in rel.components() {
+        partial.push(component);
+        if partial.exists() {
+            match std::fs::symlink_metadata(&partial) {
+                Ok(meta) if meta.file_type().is_symlink() => {
+                    return Err(EngramError::PathNotAllowed(format!(
+                        "symlink not allowed in path: {partial:?}"
+                    )));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(joined)
 }
 
 /// Validate that a composite-key component contains no separator characters.
@@ -236,6 +258,25 @@ mod tests {
         let base = Path::new("C:\\project");
         let result = safe_join(base, "src\\main.rs");
         assert!(result.is_ok());
+    }
+
+    // ── safe_join symlink rejection ───────────────────────────────────────
+
+    #[test]
+    #[cfg(unix)]
+    fn safe_join_rejects_symlink_component() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base = tmp.path();
+        // Create a real subdir so `base/src` exists
+        std::fs::create_dir(base.join("src")).unwrap();
+        // Create a symlink inside the project: base/src/link → /tmp (outside base)
+        symlink("/tmp", base.join("src/link")).unwrap();
+        let result = safe_join(base, "src/link/secret.txt");
+        assert!(
+            result.is_err(),
+            "safe_join should reject a path that traverses a symlink"
+        );
     }
 
     // ── validate_key_component ─────────────────────────────────────────────

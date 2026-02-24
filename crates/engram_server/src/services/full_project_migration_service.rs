@@ -1558,7 +1558,21 @@ pub async fn enhance_report_with_llm(
         let cache = cached.clone();
 
         let handle = tokio::spawn(async move {
-            let _permit = sem.acquire().await.expect("semaphore closed");
+            let Ok(_permit) = sem.acquire().await else {
+                // Semaphore was closed (can occur during shutdown); skip this file.
+                return (
+                    file_path.clone(),
+                    super::business_logic_service::FileBusinessLogic {
+                        file_path,
+                        class_name: String::new(),
+                        file_purpose: String::new(),
+                        methods: Vec::new(),
+                        analyzed_at: String::new(),
+                    },
+                    0usize,
+                    1usize,
+                );
+            };
             let (file_logic, analyzed, skipped) =
                 analyze_file_logic(&dream, &file_path, &content, &cache).await;
             (file_path, file_logic, analyzed, skipped)

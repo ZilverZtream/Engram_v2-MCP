@@ -359,7 +359,18 @@ impl HybridSearchEngine {
                     self.embedder.dimension(),
                 )?;
 
-                crate::vector::upsert_vectors(&table, vec![batch]).await?;
+                // Propagate LanceDB errors so the caller knows indexing is
+                // incomplete and can retry.  Tantivy pk-based upserts are
+                // idempotent, so retrying the full batch repairs both stores.
+                // Silently swallowing this error (the previous behaviour) left
+                // Tantivy and LanceDB permanently diverged with no recovery
+                // signal to the caller (C-2 fix).
+                crate::vector::upsert_vectors(&table, vec![batch]).await.map_err(|e| {
+                    anyhow::anyhow!(
+                        "LanceDB vector upsert failed; lexical index was committed \
+                         but vector index was not updated — retry to repair: {e:#}"
+                    )
+                })?;
             }
         }
 
@@ -608,7 +619,30 @@ impl HybridSearchEngine {
             return Ok(());
         }
 
-        // 1. Tantivy
+        // 1. LanceDB first — attempt before Tantivy commits so that a LanceDB
+        //    failure leaves Tantivy in its pre-delete state (no cross-store divergence).
+        #[cfg(feature = "vector")]
+        {
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            if self
+                .lance_conn
+                .table_names()
+                .execute()
+                .await?
+                .contains(&table_name)
+            {
+                let table = self.lance_conn.open_table(&table_name).execute().await?;
+                for p in paths {
+                    // Escape single quotes in path (SQL injection safety)
+                    let safe_path = p.as_str().replace('\'', "''");
+                    let safe_ns = namespace.replace('\'', "''");
+                    let filter = format!("namespace = '{}' AND path = '{}'", safe_ns, safe_path);
+                    table.delete(&filter).await?;
+                }
+            }
+        }
+
+        // 2. Tantivy — commit only after LanceDB succeeds (or the vector feature is absent).
         {
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
                 self.tantivy_index.writer(self.tantivy_writer_memory)?;
@@ -635,27 +669,6 @@ impl HybridSearchEngine {
             writer.commit()?;
         }
 
-        // 2. LanceDB
-        #[cfg(feature = "vector")]
-        {
-            let table_name = format!("project_{}", project_id.replace('-', "_"));
-            if self
-                .lance_conn
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
-                let table = self.lance_conn.open_table(&table_name).execute().await?;
-                for p in paths {
-                    // Escape single quotes in path (SQL injection safety)
-                    let safe_path = p.as_str().replace('\'', "''");
-                    let safe_ns = namespace.replace('\'', "''");
-                    let filter = format!("namespace = '{}' AND path = '{}'", safe_ns, safe_path);
-                    table.delete(&filter).await?;
-                }
-            }
-        }
         Ok(())
     }
 
@@ -1593,11 +1606,22 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         if q.use_mmr && hits.len() > q.top_k {
             let chunk_ids: Vec<u64> = hits.iter().map(|h| h.chunk_id).collect();
-            let vectors = self
-                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
-                .await
-                .unwrap_or_default();
-            hits = self.mmr_rerank(hits, &vectors, q.top_k, 0.7);
+            // M-4 fix: skip MMR and log a warning on LanceDB failure instead
+            // of silently running reranking with an empty vector map (which
+            // produces degenerate rankings where all cosine similarities are
+            // 0.0, defeating the diversity objective entirely).
+            match self.get_vectors_by_chunk_ids(&q.project_id, &chunk_ids).await {
+                Ok(vectors) => {
+                    hits = self.mmr_rerank(hits, &vectors, q.top_k, 0.7);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        project_id = %q.project_id,
+                        "MMR reranking skipped — failed to load vectors from LanceDB: {e:#}"
+                    );
+                    hits.truncate(q.top_k);
+                }
+            }
         }
 
         hits.truncate(q.top_k);

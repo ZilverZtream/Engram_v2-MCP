@@ -119,6 +119,9 @@ pub const MAX_SYMBOL_REFS: usize = 500;
 pub const MAX_AST_DEPTH: usize = 12;
 pub const MAX_ANTIPATTERN_RESULTS: usize = 200;
 pub const MAX_TRACE_PATHS: usize = 100;
+/// Maximum byte length of a SQL fragment passed to `validate_sql_fragment`.
+/// Prevents memory exhaustion from unbounded `to_lowercase()` + regex passes.
+pub const MAX_SQL_LENGTH: usize = 1_000_000;
 
 // -------------------- Project lifecycle --------------------
 

@@ -444,7 +444,19 @@ impl Engram {
                 updated_at_ms: now,
             };
             let reg_final = state.registry.clone();
-            let _ = tokio::task::spawn_blocking(move || reg_final.put_job(&jr2)).await;
+            // M-2 fix: log errors instead of silently discarding them.
+            // A failure here leaves the job perpetually in "running" state.
+            match tokio::task::spawn_blocking(move || reg_final.put_job(&jr2)).await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => tracing::warn!(
+                    job_id = %job_id_for_job,
+                    "failed to persist final job state: {e:#}"
+                ),
+                Err(e) => tracing::warn!(
+                    job_id = %job_id_for_job,
+                    "spawn_blocking panicked writing final job state: {e}"
+                ),
+            }
 
             {
                 let mut m = state.active_jobs.write().await;
@@ -1099,7 +1111,18 @@ impl Engram {
         if !ap_edges.is_empty() {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
-            let _ = tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &ap_edges)).await;
+            // H-1 fix: propagate errors so the caller knows the graph is out
+            // of sync rather than silently returning success with stale state.
+            tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &ap_edges))
+                .await
+                .map_err(|e| McpError::internal_error(
+                    format!("spawn_blocking join error persisting anti-pattern edges: {e}"),
+                    None,
+                ))?
+                .map_err(|e| McpError::internal_error(
+                    format!("failed to persist anti-pattern edges to graph: {e:#}"),
+                    None,
+                ))?;
         }
 
         // Record metrics
