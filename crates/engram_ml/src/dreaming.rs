@@ -1,3 +1,6 @@
+use crate::llm_provider::{
+    LlmGenerateOptions, LlmProvider, OllamaProvider, OpenAiCompatibleProvider, OpenRouterProvider,
+};
 use regex::Regex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -126,23 +129,20 @@ pub struct MigrationBoundary {
 // ---------------------------------------------------------------------------
 
 /// Which LLM backend to use for text generation.
-#[derive(Debug, Clone)]
-pub enum LlmBackend {
-    /// No LLM — use deterministic fallback only.
-    None,
-    /// Local Ollama server (default: http://localhost:11434).
-    Ollama { url: String, model: String },
-    /// OpenAI-compatible API.
-    OpenAI {
-        api_key: String,
-        api_base: String,
-        model: String,
-    },
+#[derive(Clone, Default)]
+pub struct LlmBackend {
+    provider: Option<Arc<dyn LlmProvider>>,
 }
 
 impl LlmBackend {
     /// Build an `LlmBackend` from the project `Config`.
     pub fn from_config(cfg: &engram_core::Config) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .connect_timeout(Duration::from_secs(10))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
         match cfg.llm_backend.as_str() {
             "ollama" => {
                 let url = cfg
@@ -151,7 +151,9 @@ impl LlmBackend {
                     .or_else(|| cfg.ollama_url.clone())
                     .unwrap_or_else(|| "http://localhost:11434".into());
                 let model = cfg.llm_model.clone().unwrap_or_else(|| "llama3.2".into());
-                LlmBackend::Ollama { url, model }
+                Self {
+                    provider: Some(Arc::new(OllamaProvider::new(client, url, model))),
+                }
             }
             "openai" => {
                 let api_key = cfg
@@ -168,14 +170,38 @@ impl LlmBackend {
                     .llm_model
                     .clone()
                     .unwrap_or_else(|| "gpt-4o-mini".into());
-                LlmBackend::OpenAI {
-                    api_key,
-                    api_base,
-                    model,
+                Self {
+                    provider: Some(Arc::new(OpenAiCompatibleProvider::new(
+                        client, api_key, api_base, model,
+                    ))),
                 }
             }
-            _ => LlmBackend::None,
+            "openrouter" => {
+                let api_key = cfg
+                    .llm_openai_api_key
+                    .clone()
+                    .or_else(|| cfg.openai_api_key.clone())
+                    .unwrap_or_default();
+                let api_base = cfg
+                    .llm_openai_api_base
+                    .clone()
+                    .or_else(|| cfg.openai_api_base.clone());
+                let model = cfg
+                    .llm_model
+                    .clone()
+                    .unwrap_or_else(|| "openai/gpt-4o-mini".into());
+                Self {
+                    provider: Some(Arc::new(OpenRouterProvider::new(
+                        client, api_key, api_base, model,
+                    ))),
+                }
+            }
+            _ => Self::default(),
         }
+    }
+
+    fn provider(&self) -> Option<Arc<dyn LlmProvider>> {
+        self.provider.as_ref().map(Arc::clone)
     }
 }
 
@@ -191,8 +217,7 @@ pub struct DreamingEngine {
 /// Inner handle so the engine is Clone/Default even when holding the config.
 #[derive(Clone)]
 struct LlmBackendHandle {
-    backend: Arc<LlmBackend>,
-    client: reqwest::Client,
+    provider: Arc<dyn LlmProvider>,
 }
 
 impl DreamingEngine {
@@ -203,17 +228,9 @@ impl DreamingEngine {
     /// Create a dreaming engine with a real LLM backend configured from Config.
     pub fn with_config(cfg: &engram_core::Config) -> Self {
         let backend = LlmBackend::from_config(cfg);
-        let llm = match &backend {
-            LlmBackend::None => None,
-            _ => Some(LlmBackendHandle {
-                backend: Arc::new(backend),
-                client: reqwest::Client::builder()
-                    .timeout(Duration::from_secs(120))
-                    .connect_timeout(Duration::from_secs(10))
-                    .build()
-                    .unwrap_or_else(|_| reqwest::Client::new()),
-            }),
-        };
+        let llm = backend
+            .provider()
+            .map(|provider| LlmBackendHandle { provider });
         Self { llm }
     }
 
@@ -366,7 +383,7 @@ impl DreamingEngine {
 
         let prompt = CLUSTER_SUMMARY_PROMPT.replace("{snippets}", &snippets);
         let raw = self
-            .call_llm_with_backend(&handle.client, &handle.backend, &prompt, 512)
+            .call_llm_with_backend(&handle.provider, &prompt, 512)
             .await?;
 
         Ok(parse_llm_cluster_response(&raw, context_blobs))
@@ -377,28 +394,20 @@ impl DreamingEngine {
         let Some(handle) = &self.llm else {
             anyhow::bail!("no LLM backend configured");
         };
-        self.call_llm_with_backend(&handle.client, &handle.backend, prompt, max_tokens)
+        self.call_llm_with_backend(&handle.provider, prompt, max_tokens)
             .await
     }
 
     async fn call_llm_with_backend(
         &self,
-        client: &reqwest::Client,
-        backend: &LlmBackend,
+        provider: &Arc<dyn LlmProvider>,
         prompt: &str,
         max_tokens: u32,
     ) -> anyhow::Result<String> {
-        match backend {
-            LlmBackend::None => anyhow::bail!("LLM backend is None"),
-            LlmBackend::Ollama { url, model } => {
-                call_ollama_generate(client, url, model, prompt, max_tokens).await
-            }
-            LlmBackend::OpenAI {
-                api_key,
-                api_base,
-                model,
-            } => call_openai_chat(client, api_base, api_key, model, prompt, max_tokens).await,
-        }
+        let response = provider
+            .generate(prompt, LlmGenerateOptions::new(max_tokens))
+            .await?;
+        Ok(response.text)
     }
 
     /// Deterministic, local "dream" summarizer — always available as fallback.
@@ -572,151 +581,6 @@ fn parse_llm_cluster_response(raw: &str, context_blobs: &[String]) -> DreamInsig
         summary_markdown,
         key_terms,
     }
-}
-
-// ---------------------------------------------------------------------------
-// HTTP helpers — Ollama chat and OpenAI chat completions
-// ---------------------------------------------------------------------------
-
-/// Call Ollama's /api/generate endpoint (non-streaming).
-async fn call_ollama_generate(
-    client: &reqwest::Client,
-    base_url: &str,
-    model: &str,
-    prompt: &str,
-    max_tokens: u32,
-) -> anyhow::Result<String> {
-    if model.trim().is_empty() {
-        anyhow::bail!("Ollama model cannot be empty");
-    }
-    if base_url.trim().is_empty() {
-        anyhow::bail!("Ollama base URL cannot be empty");
-    }
-
-    let url = format!("{}/api/generate", base_url.trim_end_matches('/'));
-    let body = serde_json::json!({
-        "model": model,
-        "prompt": prompt,
-        "stream": false,
-        "options": {
-            "num_predict": max_tokens,
-            "temperature": 0.3,
-        }
-    });
-
-    let mut last_err: Option<anyhow::Error> = None;
-    for attempt in 0..3u32 {
-        if attempt > 0 {
-            let backoff = Duration::from_millis(500_u64.saturating_mul(1_u64 << attempt));
-            tokio::time::sleep(backoff).await;
-        }
-        match client.post(&url).json(&body).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                if status.is_server_error()
-                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
-                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
-                {
-                    last_err = Some(anyhow::anyhow!("Ollama generate HTTP {status}"));
-                    continue;
-                }
-                let data: serde_json::Value = resp
-                    .error_for_status()?
-                    .json()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Ollama generate JSON parse: {e}"))?;
-                let text = data["response"].as_str().unwrap_or("").trim().to_string();
-                if text.is_empty() {
-                    last_err = Some(anyhow::anyhow!(
-                        "Ollama generate returned empty response payload"
-                    ));
-                    continue;
-                }
-                return Ok(text);
-            }
-            Err(e) => {
-                last_err = Some(anyhow::anyhow!("Ollama generate request: {e}"));
-            }
-        }
-    }
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Ollama generate failed after retries")))
-}
-
-/// Call OpenAI's /chat/completions endpoint.
-async fn call_openai_chat(
-    client: &reqwest::Client,
-    api_base: &str,
-    api_key: &str,
-    model: &str,
-    prompt: &str,
-    max_tokens: u32,
-) -> anyhow::Result<String> {
-    if api_key.trim().is_empty() {
-        anyhow::bail!("OpenAI API key cannot be empty when llm_backend=openai");
-    }
-    if model.trim().is_empty() {
-        anyhow::bail!("OpenAI model cannot be empty");
-    }
-    if api_base.trim().is_empty() {
-        anyhow::bail!("OpenAI API base URL cannot be empty");
-    }
-
-    let url = format!("{}/chat/completions", api_base.trim_end_matches('/'));
-    let body = serde_json::json!({
-        "model": model,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": max_tokens,
-        "temperature": 0.3,
-    });
-
-    let mut last_err: Option<anyhow::Error> = None;
-    for attempt in 0..3u32 {
-        if attempt > 0 {
-            let backoff = Duration::from_millis(500_u64.saturating_mul(1_u64 << attempt));
-            tokio::time::sleep(backoff).await;
-        }
-        match client
-            .post(&url)
-            .bearer_auth(api_key)
-            .json(&body)
-            .send()
-            .await
-        {
-            Ok(resp) => {
-                let status = resp.status();
-                if status.is_server_error()
-                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
-                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
-                {
-                    last_err = Some(anyhow::anyhow!("OpenAI chat HTTP {status}"));
-                    continue;
-                }
-                let data: serde_json::Value = resp
-                    .error_for_status()?
-                    .json()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("OpenAI chat JSON parse: {e}"))?;
-                let text = data["choices"][0]["message"]["content"]
-                    .as_str()
-                    .unwrap_or("")
-                    .trim()
-                    .to_string();
-                if text.is_empty() {
-                    last_err = Some(anyhow::anyhow!(
-                        "OpenAI chat returned empty choices[0].message.content"
-                    ));
-                    continue;
-                }
-                return Ok(text);
-            }
-            Err(e) => {
-                last_err = Some(anyhow::anyhow!("OpenAI chat request: {e}"));
-            }
-        }
-    }
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI chat failed after retries")))
 }
 
 // ---------------------------------------------------------------------------
