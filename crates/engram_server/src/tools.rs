@@ -434,6 +434,16 @@ impl Engram {
         self.handle_ingest_instrumentation_logs(params.0).await
     }
 
+    #[tool(
+        description = "Ingest runtime artifacts (IIS logs, traces, lifecycle snapshots, SQL profiler exports) and merge runtime/static graph evidence."
+    )]
+    pub async fn ingest_runtime_artifacts(
+        &self,
+        params: Parameters<IngestRuntimeArtifactsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_runtime_artifacts(params.0).await
+    }
+
     #[tool(description = "Compile migration blueprint.")]
     pub async fn generate_migration_blueprint(
         &self,
