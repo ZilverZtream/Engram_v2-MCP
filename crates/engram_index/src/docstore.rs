@@ -172,14 +172,26 @@ impl DocStore {
             return Ok(());
         }
         validate_key_component(project_id, "project_id")?;
-        let wtx = self.db.begin_write()?;
-        {
-            let mut t = wtx.open_table(DOC_BY_ID)?;
-            for rec in recs {
+        // M-5 fix: validate and serialise ALL records BEFORE opening the write
+        // transaction.  Previously, a bad record at position N caused the whole
+        // transaction (including the N-1 valid records already staged) to be
+        // rolled back with no way for the caller to identify which record failed
+        // or recover the valid prefix.  Separating validation from the write
+        // transaction means only genuinely invalid batches are rejected upfront.
+        let serialized: Vec<(String, Vec<u8>)> = recs
+            .iter()
+            .map(|rec| {
                 validate_key_component(&rec.namespace, "namespace")?;
                 validate_key_component(&rec.doc_id, "doc_id")?;
                 let key = format!("{}\0{}\0{}", project_id, rec.namespace, rec.doc_id);
                 let val = ser_bincode(rec)?;
+                Ok((key, val))
+            })
+            .collect::<anyhow::Result<_>>()?;
+        let wtx = self.db.begin_write()?;
+        {
+            let mut t = wtx.open_table(DOC_BY_ID)?;
+            for (key, val) in &serialized {
                 t.insert(key.as_str(), val.as_slice())?;
             }
         }

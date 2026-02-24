@@ -25,10 +25,10 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
         // Offload blocking Redb write to the blocking pool
         let reg = state.registry.clone();
         let jid = job_id.to_string();
-        let _ = tokio::task::spawn_blocking(move || {
+        if let Err(e) = tokio::task::spawn_blocking(move || {
             let now = now_ms();
             let jr = JobRecord {
-                job_id: jid,
+                job_id: jid.clone(),
                 kind: "unknown".into(),
                 project_id: None,
                 status: "cancelled".into(),
@@ -38,9 +38,14 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
                 created_at_ms: now,
                 updated_at_ms: now,
             };
-            let _ = reg.put_job(&jr);
+            if let Err(e) = reg.put_job(&jr) {
+                tracing::warn!(job_id = %jid, "failed to persist cancelled-job tombstone: {e}");
+            }
         })
-        .await;
+        .await
+        {
+            tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone: {e}");
+        }
         true
     } else {
         false

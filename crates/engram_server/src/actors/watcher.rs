@@ -43,12 +43,25 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                 && let Ok(canon) = state.paths.resolve_path(&p.directory)
             {
                 tracing::info!("Watcher: restoring for {} at {}", pid, canon.display());
-                if let Some(mut watcher) = create_watcher(pid.clone(), tx_notify.clone())
-                    && watcher
-                        .watch(canon.as_path(), RecursiveMode::Recursive)
-                        .is_ok()
-                {
-                    watchers.insert(pid, watcher);
+                match create_watcher(pid.clone(), tx_notify.clone()) {
+                    None => {
+                        tracing::error!(
+                            "Watcher: failed to create watcher for {} at {} — project will not be watched",
+                            pid,
+                            canon.display()
+                        );
+                    }
+                    Some(mut watcher) => {
+                        if let Err(e) = watcher.watch(canon.as_path(), RecursiveMode::Recursive) {
+                            tracing::error!(
+                                "Watcher: failed to watch {} at {}: {e} — project will not be watched",
+                                pid,
+                                canon.display()
+                            );
+                        } else {
+                            watchers.insert(pid, watcher);
+                        }
+                    }
                 }
             }
         }
@@ -66,28 +79,55 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                 }
                 for pid in to_trigger {
                     update_cancels.remove(&pid);
-                    // Skip if an update task is already running for this project.
-                    {
-                        let guard = in_flight.lock().await;
+                    // Atomically check-and-claim the in-flight slot.  Both the
+                    // check and the insert happen inside the same lock guard, so
+                    // no concurrent ticker tick can sneak between them (C-1 fix).
+                    let already_running = {
+                        let mut guard = in_flight.lock().await;
                         if guard.contains(&pid) {
-                            pending_updates.insert(pid.clone(), Instant::now() + debounce_duration);
-                            tracing::debug!(
-                                "Watcher: update already in-flight for {}, rescheduling",
-                                pid
-                            );
-                            continue;
+                            true
+                        } else {
+                            guard.insert(pid.clone());
+                            false
                         }
+                    };
+                    if already_running {
+                        pending_updates.insert(pid.clone(), Instant::now() + debounce_duration);
+                        tracing::debug!(
+                            "Watcher: update already in-flight for {}, rescheduling",
+                            pid
+                        );
+                        continue;
                     }
                     pending_updates.remove(&pid);
 
                     tracing::info!("Watcher: triggering update for project {}", pid);
                     let state_clone = state.clone();
                     let in_flight_clone = in_flight.clone();
-                    // Mark as in-flight before spawning.
-                    in_flight.lock().await.insert(pid.clone());
                     let cancel = tokio_util::sync::CancellationToken::new();
                     update_cancels.insert(pid.clone(), cancel.clone());
                     tokio::spawn(async move {
+                        // RAII guard: removes the in-flight marker when this task
+                        // exits for any reason — including panics (H-4 fix).
+                        // Uses try_lock() in Drop so the synchronous destructor
+                        // never deadlocks; if the lock is contended the entry
+                        // will be cleaned up on the next successful lock attempt.
+                        struct InFlightGuard {
+                            map: Arc<tokio::sync::Mutex<std::collections::HashSet<String>>>,
+                            pid: String,
+                        }
+                        impl Drop for InFlightGuard {
+                            fn drop(&mut self) {
+                                if let Ok(mut g) = self.map.try_lock() {
+                                    g.remove(&self.pid);
+                                }
+                            }
+                        }
+                        let _guard = InFlightGuard {
+                            map: in_flight_clone,
+                            pid: pid.clone(),
+                        };
+
                         let active_gen = {
                             let reg = state_clone.registry.clone();
                             let pid_clone = pid.clone();
@@ -102,11 +142,16 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                         let new_gen = active_gen.saturating_add(1);
                         let max_commits = state_clone.cfg.max_commits_per_watch;
                         let engram = crate::tools::Engram::new(state_clone);
-                        let _ = engram
+                        if let Err(e) = engram
                             .update_project_impl(&pid, new_gen, max_commits, false, &cancel)
-                            .await;
-                        // Clear in-flight marker so future debounce ticks can re-trigger.
-                        in_flight_clone.lock().await.remove(&pid);
+                            .await
+                        {
+                            tracing::error!(
+                                project_id = %pid,
+                                "watcher-triggered update failed: {e:#}"
+                            );
+                        }
+                        // _guard drops here, removing the in-flight marker.
                     });
                 }
             }
@@ -119,10 +164,24 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                                 match state.paths.resolve_path(&directory) {
                                     Ok(canon) => {
                                         tracing::info!("Watcher: enabling for {} at {}", project_id, canon.display());
-                                        if let Some(mut watcher) = create_watcher(project_id.clone(), tx_notify.clone())
-                                            && watcher.watch(canon.as_path(), RecursiveMode::Recursive).is_ok() {
-                                                watchers.insert(project_id, watcher);
+                                        match create_watcher(project_id.clone(), tx_notify.clone()) {
+                                            None => {
+                                                tracing::error!(
+                                                    "Watcher: failed to create watcher for {} at {} — project will not be watched",
+                                                    project_id, canon.display()
+                                                );
                                             }
+                                            Some(mut watcher) => {
+                                                if let Err(e) = watcher.watch(canon.as_path(), RecursiveMode::Recursive) {
+                                                    tracing::error!(
+                                                        "Watcher: failed to watch {} at {}: {e} — project will not be watched",
+                                                        project_id, canon.display()
+                                                    );
+                                                } else {
+                                                    watchers.insert(project_id, watcher);
+                                                }
+                                            }
+                                        }
                                     }
                                     Err(e) => {
                                         tracing::error!("Watcher: cannot enable for {}: {}", project_id, e);

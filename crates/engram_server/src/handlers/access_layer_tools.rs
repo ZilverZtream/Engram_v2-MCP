@@ -7,8 +7,8 @@
 use crate::models::{
     CheckEditSafetyRequest, FindDeadMethodsRequest, FindTestsForMethodRequest,
     GetFullMethodBodyRequest, GetMethodEditContextRequest, GetMethodInfoRequest,
-    GetPageContextRequest, PrepareImplementationContextRequest, ValidateGeneratedCodeRequest,
-    ValidateSqlFragmentRequest,
+    GetPageContextRequest, MAX_SQL_LENGTH, PrepareImplementationContextRequest,
+    ValidateGeneratedCodeRequest, ValidateSqlFragmentRequest,
 };
 use crate::services::full_project_migration_service as full_mig;
 use crate::tools::Engram;
@@ -326,6 +326,11 @@ pub struct DeadMethodInfo {
     pub method_kind: String,
     pub line_count: u32,
     pub access_level: String,
+    /// Non-empty when static analysis alone cannot confirm the method is truly
+    /// unreachable — e.g. public methods that may be invoked via reflection,
+    /// `Type.GetMethod(...).Invoke(...)`, dynamic binding, or callers in
+    /// assemblies not present in this project.  (L-2 fix)
+    pub confidence_note: String,
 }
 
 // ── Internal Helpers ─────────────────────────────────────────────────────────
@@ -584,8 +589,8 @@ fn read_lines_from_file(
     let end_idx = (line_end.min(total)) as usize;
     let body: String = lines.get(start_idx..end_idx).unwrap_or(&[]).join("\n");
 
-    // Context above
-    let ctx_start = line_start.saturating_sub(context_lines + 1) as usize;
+    // Context above — use saturating_add to avoid u32 overflow when context_lines == u32::MAX
+    let ctx_start = line_start.saturating_sub(context_lines.saturating_add(1)) as usize;
     let ctx_end = start_idx;
     let context: String = lines.get(ctx_start..ctx_end).unwrap_or(&[]).join("\n");
 
@@ -2285,9 +2290,25 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            render_page_context_markdown(&ctx),
-        )]))
+        // M-6 fix: cap the rendered Markdown to prevent multi-megabyte
+        // responses on projects with many edges (10 kinds × up to 5 000 edges
+        // each = up to 50 000 rows, which can exceed several MB and cause MCP
+        // transport timeouts or OOM on the client side).
+        const MAX_PAGE_CONTEXT_BYTES: usize = 2_000_000; // 2 MB soft cap
+        let mut md = render_page_context_markdown(&ctx);
+        if md.len() > MAX_PAGE_CONTEXT_BYTES {
+            md.truncate(MAX_PAGE_CONTEXT_BYTES);
+            // Snap back to the last newline so we don't cut mid-table-row.
+            if let Some(nl) = md.rfind('\n') {
+                md.truncate(nl + 1);
+            }
+            md.push_str(
+                "\n\n> ⚠️ **Response truncated** — too many edges to display in full. \
+                 Use `output_json: true` or narrow the query to a specific method.\n",
+            );
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(md)]))
     }
 
     // ── 38-5: prepare_implementation_context ─────────────────────────────
@@ -3153,6 +3174,16 @@ impl Engram {
         &self,
         req: ValidateSqlFragmentRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.sql.len() > MAX_SQL_LENGTH {
+            return Err(McpError::invalid_params(
+                format!(
+                    "sql exceeds maximum length of {} bytes (got {})",
+                    MAX_SQL_LENGTH,
+                    req.sql.len()
+                ),
+                None,
+            ));
+        }
         let _rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
@@ -3291,10 +3322,20 @@ impl Engram {
             }
 
             // 5. String concatenation SQL injection risk
+            // L-1 fix: broadened patterns to catch single-quoted strings,
+            // leading/trailing concat (not just "lit" + var + "lit"), VB-style
+            // & operator, C# string interpolation, and String.Format().
+            // Previous patterns only matched the symmetric "lit"+var+"lit"
+            // form and missed the much more common trailing/leading variants.
             let concat_patterns = [
-                r#""\s*\+\s*\w+\s*\+\s*""#,     // "..." + var + "..."
-                r#""\s*&\s*\w+\s*&\s*""#,        // "..." & var & "..."  (VB)
-                r#"\$"\{[^}]+\}"#,               // $"{var}" (C# interpolation)
+                // String literal immediately followed by + or & (leading concat)
+                r#"["']\s*[\+&]\s*\w"#,
+                // + or & immediately followed by a string literal (trailing concat)
+                r#"\w\s*[\+&]\s*["']"#,
+                // C# string interpolation: $"...{var}..." or $'...{var}...'
+                r#"\$\s*["'][^"']*\{[^}]+\}"#,
+                // String.Format / string.Format (C#/VB)
+                r#"(?i)string\s*\.\s*Format\s*\("#,
             ];
             for pat in &concat_patterns {
                 if let Ok(re) = regex::Regex::new(pat)
@@ -3533,6 +3574,22 @@ impl Engram {
                     .len();
 
                 if caller_count == 0 {
+                    // L-2 fix: public methods with no static callers may still
+                    // be live if called via reflection, dynamic binding, or
+                    // from assemblies not included in this project.  Surface a
+                    // confidence note so callers don't blindly delete them.
+                    let access = meta_str(node, "access_level");
+                    let confidence_note = if access.eq_ignore_ascii_case("public")
+                        || access.eq_ignore_ascii_case("protected")
+                    {
+                        "Low confidence: non-private method — may be invoked via \
+                         reflection, Type.GetMethod(), dynamic binding, or from \
+                         an assembly not present in this project. Verify before removing."
+                            .to_string()
+                    } else {
+                        String::new()
+                    };
+
                     dead_methods.push(DeadMethodInfo {
                         fqn: fqn_from_node(node),
                         file_path: node.file_path.as_str().to_string(),
@@ -3544,7 +3601,8 @@ impl Engram {
                         } else {
                             1
                         },
-                        access_level: meta_str(node, "access_level"),
+                        access_level: access,
+                        confidence_note,
                     });
 
                     if dead_methods.len() >= limit {
@@ -3589,11 +3647,29 @@ impl Engram {
         if report.dead_methods.is_empty() {
             md.push_str("No dead methods found.\n");
         } else {
-            md.push_str("| FQN | File | Lines | Kind | Access |\n");
-            md.push_str("|-----|------|-------|------|--------|\n");
-            for m in &report.dead_methods {
+            let low_confidence_count = report
+                .dead_methods
+                .iter()
+                .filter(|m| !m.confidence_note.is_empty())
+                .count();
+            if low_confidence_count > 0 {
                 md.push_str(&format!(
-                    "| `{}` | `{}` | {}–{} ({}) | {} | {} |\n",
+                    "> ⚠️ **{} of {} results are low-confidence** (public/protected methods — \
+                     may be reflection-invoked). Review `confidence_note` before removing.\n\n",
+                    low_confidence_count,
+                    report.dead_methods.len(),
+                ));
+            }
+            md.push_str("| FQN | File | Lines | Kind | Access | Confidence |\n");
+            md.push_str("|-----|------|-------|------|--------|------------|\n");
+            for m in &report.dead_methods {
+                let confidence = if m.confidence_note.is_empty() {
+                    "High".to_string()
+                } else {
+                    format!("⚠️ Low — {}", m.confidence_note)
+                };
+                md.push_str(&format!(
+                    "| `{}` | `{}` | {}–{} ({}) | {} | {} | {} |\n",
                     m.fqn,
                     m.file_path,
                     m.line_start,
@@ -3601,6 +3677,7 @@ impl Engram {
                     m.line_count,
                     m.method_kind,
                     m.access_level,
+                    confidence,
                 ));
             }
         }

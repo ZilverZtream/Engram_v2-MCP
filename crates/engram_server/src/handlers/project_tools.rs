@@ -35,12 +35,13 @@ fn to_rel_paths(root: &Path, files: &[PathBuf]) -> Vec<String> {
 }
 
 fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
+    // H-2 fix: use safe_join instead of lexical-only string checks.
+    // The previous filter could be bypassed via Windows drive-letter paths
+    // (e.g. "C:foo"), UNC paths, or symlinks already present inside the root.
+    // safe_join canonicalises intermediate components and rejects symlinks that
+    // escape the root directory.
     rels.iter()
-        .filter(|r| {
-            let p = std::path::Path::new(r.as_str());
-            !p.is_absolute() && !r.contains("..") && !r.starts_with('/') && !r.starts_with('\\')
-        })
-        .map(|r| root.join(r))
+        .filter_map(|r| engram_core::safe_join(root, r).ok())
         .collect()
 }
 
@@ -143,9 +144,9 @@ impl Drop for JobCleanupGuard {
             let reg = state.registry.clone();
             let jid = job_id.clone();
             let pid = project_id.clone();
-            let _ = tokio::task::spawn_blocking(move || {
+            if let Err(e) = tokio::task::spawn_blocking(move || {
                 let jr = engram_core::JobRecord {
-                    job_id: jid,
+                    job_id: jid.clone(),
                     kind: kind.into(),
                     project_id: pid,
                     status: "failed".into(),
@@ -155,9 +156,14 @@ impl Drop for JobCleanupGuard {
                     created_at_ms: created_at,
                     updated_at_ms: now_ms(),
                 };
-                let _ = reg.put_job(&jr);
+                if let Err(e) = reg.put_job(&jr) {
+                    tracing::warn!(job_id = %jid, "failed to persist failure tombstone in job cleanup guard: {e}");
+                }
             })
-            .await;
+            .await
+            {
+                tracing::warn!(job_id = %job_id, "spawn_blocking panicked in job cleanup guard tombstone write: {e}");
+            }
 
             // Remove from active tracking maps (order: jobs before tokens to
             // mirror the lock-order convention in cancel_job_internal).
