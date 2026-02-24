@@ -23,7 +23,7 @@ impl Engram {
                     Some(&req.node_type),
                     Some(&req.name_pattern),
                     Some(&req.file_path),
-                    req.limit,
+                    req.sanitized_limit(),
                 )
                 .map_err(|e| e.to_string())?;
 

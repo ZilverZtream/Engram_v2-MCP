@@ -3464,7 +3464,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let file_filter = req.file_path.clone();
-        let limit = req.limit;
+        let limit = req.sanitized_limit();
         let output_json = req.output_json;
 
         let result = tokio::task::spawn_blocking(move || {
