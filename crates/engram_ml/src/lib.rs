@@ -3,6 +3,7 @@
 pub mod dreaming;
 pub mod embed;
 pub mod immune;
+pub mod llm_provider;
 pub mod mimicry;
 
 pub use dreaming::{DreamInsight, DreamingEngine, MigrationBoundary};
