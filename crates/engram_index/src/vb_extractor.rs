@@ -70,6 +70,11 @@ static UI_MUTATION_RE: OnceLock<Regex> = OnceLock::new();
 static FIELD_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 // Tree-sitter enhanced CommandText assignment detection
 static CMD_TEXT_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static SQL_VAR_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static STRING_BUILDER_DECL_RE: OnceLock<Regex> = OnceLock::new();
+static STRING_BUILDER_APPEND_RE: OnceLock<Regex> = OnceLock::new();
+static STRING_BUILDER_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
+static SQL_TABLE_RE: OnceLock<Regex> = OnceLock::new();
 
 // Server-to-client script injection patterns
 static REGISTER_STARTUP_SCRIPT_RE: OnceLock<Regex> = OnceLock::new();
@@ -758,18 +763,47 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         symbols.extend(dynamic_symbols);
         edges.extend(dynamic_edges);
     }
-    // Tree-sitter enhanced SQL extraction: captures full concatenated
-    // CommandText assignments (e.g., "SELECT ... " & variable & " ...").
+    // Enhanced SQL extraction for CommandText/sql assignments + StringBuilder patterns.
     let ts_sql_results = extract_ts_command_text(&tree, source);
-    let ts_cmd_positions: Vec<usize> = ts_sql_results.iter().map(|(_, pos)| *pos).collect();
-    for (sql_text, pos) in &ts_sql_results {
+    let mut sql_candidates = ts_sql_results;
+    sql_candidates.extend(extract_sql_var_assignments(source));
+    sql_candidates.extend(extract_string_builder_sql(source));
+
+    let ts_cmd_positions: Vec<usize> = sql_candidates.iter().map(|(_, pos)| *pos).collect();
+    let mut seen_sql_hashes: HashSet<u64> = HashSet::new();
+    for (flattened, pos) in &sql_candidates {
+        let normalized = normalize_sql_tokens(&flattened.reconstructed);
+        if normalized.is_empty() {
+            continue;
+        }
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            normalized.to_ascii_lowercase().hash(&mut h);
+            h.finish()
+        };
+        if !seen_sql_hashes.insert(hash) {
+            continue;
+        }
+
         let (src_name, src_kind, src_line) = find_best_enclosing_scope(&all_scopes, *pos);
-        let (target_id, target_kind_str) = classify_sql(sql_text);
-        let snippet: String = sql_text.chars().take(SQL_SNIPPET_MAX_LEN).collect();
-        let meta = HashMap::from([
+        let (target_id, target_kind_str) = classify_sql(&normalized);
+        let snippet: String = normalized.chars().take(SQL_SNIPPET_MAX_LEN).collect();
+        let (tables, confidence, inferred) = infer_tables_from_sql(&normalized);
+        let placeholders = flattened.placeholders.join(",");
+        let mut meta = HashMap::from([
             ("sql_snippet".into(), snippet),
-            ("extraction".into(), "tree_sitter_concat".into()),
+            ("extraction".into(), "expression_flatten".into()),
+            ("sql_reconstructed".into(), normalized.clone()),
+            ("sql_dynamic_placeholders".into(), placeholders),
+            (
+                "table_inference_confidence".into(),
+                format!("{confidence:.2}"),
+            ),
         ]);
+        if inferred {
+            meta.insert("inferred".into(), "true".into());
+        }
         edges.push(ExtractedEdge {
             source_name: src_name.to_string(),
             source_kind: src_kind,
@@ -781,6 +815,26 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             kind: "sql_calls",
             metadata: Some(meta),
         });
+
+        for table in tables {
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: table.to_lowercase(),
+                target_kind: Some("db_table"),
+                target_start_line: None,
+                kind: "queries_table",
+                metadata: Some(HashMap::from([
+                    ("inferred".into(), inferred.to_string()),
+                    (
+                        "table_inference_confidence".into(),
+                        format!("{confidence:.2}"),
+                    ),
+                ])),
+            });
+        }
     }
 
     // Regex SQL extraction: handles SqlCommand constructors, EXEC, DataAdapter,
@@ -793,6 +847,41 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             edge.source_name = src_name.to_string();
             edge.source_kind = src_kind;
             edge.source_start_line = src_line;
+
+            let mut inferred = false;
+            let mut confidence = "0.00".to_string();
+            let mut tables: Vec<String> = Vec::new();
+            if let Some(meta) = edge.metadata.as_ref() {
+                inferred = meta.get("inferred").is_some_and(|v| v == "true");
+                confidence = meta
+                    .get("table_inference_confidence")
+                    .cloned()
+                    .unwrap_or_else(|| "0.00".into());
+                if let Some(ts) = meta.get("inferred_tables") {
+                    tables = ts
+                        .split(',')
+                        .filter(|s| !s.trim().is_empty())
+                        .map(|s| s.trim().to_string())
+                        .collect();
+                }
+            }
+            for table in tables {
+                edges.push(ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: table.to_lowercase(),
+                    target_kind: Some("db_table"),
+                    target_start_line: None,
+                    kind: "queries_table",
+                    metadata: Some(HashMap::from([
+                        ("inferred".into(), inferred.to_string()),
+                        ("table_inference_confidence".into(), confidence.clone()),
+                    ])),
+                });
+            }
+
             edges.push(edge);
         }
     }
@@ -2485,6 +2574,124 @@ fn classify_sql(sql: &str) -> (String, &'static str) {
     }
 }
 
+#[derive(Debug, Clone)]
+struct SqlFlattened {
+    reconstructed: String,
+    placeholders: Vec<String>,
+}
+
+fn flatten_sql_expr(expr: &str) -> SqlFlattened {
+    let parts = split_concat_parts(expr);
+    let mut reconstructed = String::new();
+    let mut placeholders = Vec::new();
+
+    for part in parts {
+        let trimmed = part.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with('"') {
+            if let Some(content) = extract_vb_string_literal(trimmed) {
+                reconstructed.push_str(&content);
+            }
+            continue;
+        }
+
+        if let Some(call_name) = infer_call_name(trimmed) {
+            let ph = format!("{{call:{call_name}}}");
+            reconstructed.push_str(&ph);
+            placeholders.push(ph);
+        } else if let Some(var_name) = infer_var_name(trimmed) {
+            let ph = format!("{{var:{var_name}}}");
+            reconstructed.push_str(&ph);
+            placeholders.push(ph);
+        }
+    }
+
+    SqlFlattened {
+        reconstructed,
+        placeholders,
+    }
+}
+
+fn infer_call_name(expr: &str) -> Option<String> {
+    let expr = expr.trim();
+    let open = expr.find('(')?;
+    let before = expr[..open].trim();
+    let name = before.rsplit('.').next().unwrap_or(before).trim();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
+fn infer_var_name(expr: &str) -> Option<String> {
+    let expr = expr.trim();
+    let mut end = 0;
+    for (i, ch) in expr.char_indices() {
+        if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+            end = i + ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    let token = expr[..end].trim();
+    let ident = token.rsplit('.').next().unwrap_or(token).trim();
+    if ident.is_empty()
+        || !ident
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+    {
+        None
+    } else {
+        Some(ident.to_string())
+    }
+}
+
+fn normalize_sql_tokens(sql: &str) -> String {
+    sql.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn infer_tables_from_sql(sql: &str) -> (Vec<String>, f32, bool) {
+    let normalized = normalize_sql_tokens(sql);
+    let Some(re) = get_compiled_regex(
+        &SQL_TABLE_RE,
+        r"(?i)(?:FROM|JOIN|INTO|UPDATE)\s+((?:\[?\w+\]?\.)?(?:\[?\w+\]?|\{[^}]+\}))",
+        "vb_sql_table_ref",
+    ) else {
+        return (Vec::new(), 0.0, true);
+    };
+
+    let mut tables = Vec::new();
+    let mut inferred = false;
+    for cap in re.captures_iter(&normalized) {
+        let raw = cap.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+        if raw.is_empty() {
+            continue;
+        }
+        let table = raw.trim_matches('[').trim_matches(']').to_string();
+        if table.starts_with('{') {
+            inferred = true;
+            continue;
+        }
+        if !tables.iter().any(|t| t.eq_ignore_ascii_case(&table)) {
+            tables.push(table);
+        }
+    }
+
+    let has_placeholders = normalized.contains("{var:") || normalized.contains("{call:");
+    let confidence = if tables.is_empty() {
+        0.0
+    } else if has_placeholders {
+        0.72
+    } else {
+        0.95
+    };
+    (tables, confidence, inferred || has_placeholders)
+}
+
 /// Extract and clean the stored procedure name after EXEC/EXECUTE.
 /// Strips all SQL bracket-quoting characters ([ and ]) from the name,
 /// so [dbo].sp_Proc becomes dbo.sp_Proc.
@@ -2955,7 +3162,7 @@ fn join_logical_lines_with_start_line(source: &str) -> Vec<(u32, String)> {
 /// Produces: `SELECT * FROM Users WHERE id = {dynamic}`
 ///
 /// Returns `Vec<(sql_text, byte_position)>`.
-fn extract_ts_command_text(tree: &tree_sitter::Tree, source: &str) -> Vec<(String, usize)> {
+fn extract_ts_command_text(tree: &tree_sitter::Tree, source: &str) -> Vec<(SqlFlattened, usize)> {
     let mut results = Vec::new();
 
     let Some(re) = get_compiled_regex(
@@ -2984,9 +3191,9 @@ fn extract_ts_command_text(tree: &tree_sitter::Tree, source: &str) -> Vec<(Strin
         }
 
         // Extract SQL from the potentially concatenated expression.
-        let sql = extract_sql_from_concat_expr(rhs_text);
-        if !sql.trim().is_empty() {
-            results.push((sql, m.start()));
+        let flattened = flatten_sql_expr(rhs_text);
+        if !flattened.reconstructed.trim().is_empty() {
+            results.push((flattened, m.start()));
         }
     }
 
@@ -3047,36 +3254,104 @@ fn find_assignment_rhs_end(
     current.end_byte().min(max_end)
 }
 
-/// Extract SQL from a potentially concatenated VB.NET expression.
-///
-/// Parses string literals and replaces non-literal parts with `{dynamic}`.
-///
-/// Example: `"SELECT * FROM Users WHERE id = " & userId.ToString()`
-/// becomes: `SELECT * FROM Users WHERE id = {dynamic}`
-fn extract_sql_from_concat_expr(expr: &str) -> String {
-    let parts = split_concat_parts(expr);
-    let mut sql = String::new();
+fn extract_sql_var_assignments(source: &str) -> Vec<(SqlFlattened, usize)> {
+    let Some(re) = get_compiled_regex(
+        &SQL_VAR_ASSIGN_RE,
+        r"(?im)^\s*(?:Dim\s+)?(?:sql|query)\w*\s*=\s*(.+)$",
+        "vb_sql_var_assign",
+    ) else {
+        return Vec::new();
+    };
 
-    for part in parts {
-        let trimmed = part.trim();
-        if trimmed.is_empty() {
+    let mut out = Vec::new();
+    for cap in re.captures_iter(source) {
+        let Some(anchor) = cap.get(0) else {
             continue;
-        }
-
-        if trimmed.starts_with('"') {
-            // String literal — extract content.
-            if let Some(content) = extract_vb_string_literal(trimmed) {
-                sql.push_str(&content);
-            } else {
-                sql.push_str("{dynamic}");
-            }
-        } else {
-            // Non-literal part (variable, function call, etc.)
-            sql.push_str("{dynamic}");
+        };
+        let Some(expr) = cap.get(1) else {
+            continue;
+        };
+        let flattened = flatten_sql_expr(expr.as_str());
+        if !flattened.reconstructed.trim().is_empty() {
+            out.push((flattened, anchor.start()));
         }
     }
+    out
+}
 
-    sql
+fn extract_string_builder_sql(source: &str) -> Vec<(SqlFlattened, usize)> {
+    let Some(decl_re) = get_compiled_regex(
+        &STRING_BUILDER_DECL_RE,
+        r"(?im)^\s*(?:Dim\s+)?(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*New\s+StringBuilder(?:\((?P<seed>[^)]*)\))?",
+        "vb_string_builder_decl",
+    ) else {
+        return Vec::new();
+    };
+    let Some(append_re) = get_compiled_regex(
+        &STRING_BUILDER_APPEND_RE,
+        r"(?im)^\s*(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.Append(?:Line)?\s*\((?P<expr>[^)]*)\)",
+        "vb_string_builder_append",
+    ) else {
+        return Vec::new();
+    };
+    let Some(assign_re) = get_compiled_regex(
+        &STRING_BUILDER_ASSIGN_RE,
+        r"(?im)^\s*(?:\w+\.)?CommandText\s*=\s*(?P<var>[A-Za-z_][A-Za-z0-9_]*)\.ToString\s*\(\s*\)",
+        "vb_string_builder_assign",
+    ) else {
+        return Vec::new();
+    };
+
+    let mut builders: HashMap<String, (String, Vec<String>, usize)> = HashMap::new();
+    for cap in decl_re.captures_iter(source) {
+        let var = cap
+            .name("var")
+            .map(|m| m.as_str().to_lowercase())
+            .unwrap_or_default();
+        let seed = cap
+            .name("seed")
+            .map(|m| flatten_sql_expr(m.as_str()))
+            .unwrap_or(SqlFlattened {
+                reconstructed: String::new(),
+                placeholders: Vec::new(),
+            });
+        let pos = cap.get(0).map(|m| m.start()).unwrap_or(0);
+        builders.insert(var, (seed.reconstructed, seed.placeholders, pos));
+    }
+
+    for cap in append_re.captures_iter(source) {
+        let var = cap
+            .name("var")
+            .map(|m| m.as_str().to_lowercase())
+            .unwrap_or_default();
+        let Some(entry) = builders.get_mut(&var) else {
+            continue;
+        };
+        let Some(expr) = cap.name("expr") else {
+            continue;
+        };
+        let flat = flatten_sql_expr(expr.as_str());
+        entry.0.push_str(&flat.reconstructed);
+        entry.1.extend(flat.placeholders);
+    }
+
+    let mut out = Vec::new();
+    for cap in assign_re.captures_iter(source) {
+        let var = cap
+            .name("var")
+            .map(|m| m.as_str().to_lowercase())
+            .unwrap_or_default();
+        if let Some((reconstructed, placeholders, pos)) = builders.get(&var) {
+            out.push((
+                SqlFlattened {
+                    reconstructed: reconstructed.clone(),
+                    placeholders: placeholders.clone(),
+                },
+                *pos,
+            ));
+        }
+    }
+    out
 }
 
 /// Split a VB expression by concatenation operators (`&` and `+`).
@@ -3227,18 +3502,30 @@ fn regex_extract_sql(source: &str, ts_cmd_text_positions: &[usize]) -> Vec<(Extr
                 return;
             }
 
+            let normalized = normalize_sql_tokens(trimmed);
             let (target_id, target_kind_str) = if force_sp {
-                let clean = sql
+                let clean = normalized
                     .chars()
                     .filter(|&c| c != '[' && c != ']')
                     .collect::<String>();
                 (format!("sql:stored_proc:{clean}"), "stored_proc")
             } else {
-                classify_sql(trimmed)
+                classify_sql(&normalized)
             };
 
-            let snippet: String = trimmed.chars().take(SQL_SNIPPET_MAX_LEN).collect();
-            let meta = HashMap::from([("sql_snippet".into(), snippet)]);
+            let snippet: String = normalized.chars().take(SQL_SNIPPET_MAX_LEN).collect();
+            let (tables, confidence, inferred) = infer_tables_from_sql(&normalized);
+            let meta = HashMap::from([
+                ("sql_snippet".into(), snippet),
+                ("sql_reconstructed".into(), normalized),
+                ("sql_dynamic_placeholders".into(), "".into()),
+                (
+                    "table_inference_confidence".into(),
+                    format!("{confidence:.2}"),
+                ),
+                ("inferred".into(), inferred.to_string()),
+                ("inferred_tables".into(), tables.join(",")),
+            ]);
             results.push((
                 ExtractedEdge {
                     source_name: "file".into(),
@@ -3831,6 +4118,71 @@ Dim cmd2 As New SqlCommand("sp_GetOrders")
         assert_eq!(kind, "stored_proc");
     }
 
+    #[test]
+    fn test_sql_concat_reconstruction_metadata() {
+        let code = r#"
+Class Repo
+    Sub Run(userId As Integer)
+        Dim sql = "SELECT * FROM Users WHERE id = " & userId & " AND t = " & GetTableName()
+        cmd.CommandText = sql
+    End Sub
+End Class
+"#;
+        let (_syms, edges) = extract_vb(Path::new("Repo.vb"), code);
+        let sql_edge = edges
+            .iter()
+            .find(|e| e.kind == "sql_calls")
+            .expect("sql edge");
+        let meta = sql_edge.metadata.as_ref().expect("metadata");
+        assert!(meta["sql_reconstructed"].contains("{var:userId}"));
+        assert!(meta["sql_reconstructed"].contains("{call:GetTableName}"));
+        assert!(meta["sql_dynamic_placeholders"].contains("{var:userId}"));
+    }
+
+    #[test]
+    fn test_sql_string_builder_and_queries_table_inferred() {
+        let code = r#"
+Class Repo
+    Sub Run(userId As Integer)
+        Dim sb = New StringBuilder("SELECT * FROM Orders WHERE 1=1")
+        If userId > 0 Then
+            sb.Append(" AND UserId = " & userId)
+        End If
+        cmd.CommandText = sb.ToString()
+    End Sub
+End Class
+"#;
+        let (_syms, edges) = extract_vb(Path::new("Repo.vb"), code);
+        assert!(edges.iter().any(|e| e.kind == "sql_calls"));
+        let qt = edges
+            .iter()
+            .find(|e| e.kind == "queries_table" && e.target_name == "orders")
+            .expect("queries_table orders");
+        let m = qt.metadata.as_ref().expect("qt metadata");
+        assert!(m.contains_key("inferred"));
+        assert!(m.contains_key("table_inference_confidence"));
+    }
+
+    #[test]
+    fn test_sql_conditional_append_pattern() {
+        let code = r#"
+Class Repo
+    Sub Run(includeInactive As Boolean)
+        Dim sql = "SELECT * FROM Customers"
+        If includeInactive Then
+            sql = sql & " WHERE IsActive = 0"
+        End If
+        cmd.CommandText = sql
+    End Sub
+End Class
+"#;
+        let (_syms, edges) = extract_vb(Path::new("Repo.vb"), code);
+        assert!(
+            edges
+                .iter()
+                .any(|e| e.kind == "queries_table" && e.target_name == "customers")
+        );
+    }
     #[test]
     fn test_vb_expanded_query() {
         let code = r#"
