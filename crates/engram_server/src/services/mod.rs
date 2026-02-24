@@ -25,6 +25,7 @@ pub mod migration_progress_service;
 pub mod migration_service;
 pub mod pattern_detection_service;
 pub mod project_service;
+pub mod runtime_observation_service;
 pub mod safety_service;
 pub mod scaffold_service;
 pub mod search_service;
