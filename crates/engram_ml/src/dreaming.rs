@@ -1,5 +1,6 @@
 use crate::llm_provider::{
-    LlmGenerateOptions, LlmProvider, OllamaProvider, OpenAiCompatibleProvider, OpenRouterProvider,
+    LlmError, LlmGenerateOptions, LlmProvider, OllamaProvider, OpenAiCompatibleProvider,
+    OpenRouterProvider,
 };
 use regex::Regex;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -330,18 +331,25 @@ impl DreamingEngine {
     }
 
     /// Send a free-form prompt to the configured LLM backend and return the response.
-    /// Returns an empty string if no LLM is configured, the call fails, or it times out.
-    pub async fn generate_text(&self, prompt: &str, max_tokens: u32, max_wait: Duration) -> String {
+    /// Returns a typed `LlmError` if no backend is configured, the call fails, or it times out.
+    pub async fn generate_text(
+        &self,
+        prompt: &str,
+        max_tokens: u32,
+        max_wait: Duration,
+    ) -> Result<String, LlmError> {
         match timeout(max_wait, self.call_llm(prompt, max_tokens)).await {
-            Ok(Ok(text)) => text.trim().to_string(),
-            Ok(Err(e)) => {
-                tracing::debug!("LLM text generation failed: {e:#}");
-                String::new()
-            }
-            Err(_) => {
-                tracing::debug!("LLM text generation timed out");
-                String::new()
-            }
+            Ok(Ok(text)) => Ok(text.trim().to_string()),
+            Ok(Err(e)) => Err(e),
+            Err(_) => Err(LlmError::Timeout {
+                provider: self.llm.as_ref().map(|h| h.provider.name().to_string()),
+                status_code: None,
+                retry_exhausted: false,
+                message: format!(
+                    "LLM text generation timed out after {} ms",
+                    max_wait.as_millis()
+                ),
+            }),
         }
     }
 
@@ -427,9 +435,14 @@ impl DreamingEngine {
     }
 
     /// Low-level LLM call — uses whatever backend is configured.
-    async fn call_llm(&self, prompt: &str, max_tokens: u32) -> anyhow::Result<String> {
+    async fn call_llm(&self, prompt: &str, max_tokens: u32) -> Result<String, LlmError> {
         let Some(handle) = &self.llm else {
-            anyhow::bail!("no LLM backend configured");
+            return Err(LlmError::Transport {
+                provider: None,
+                status_code: None,
+                retry_exhausted: false,
+                message: "no LLM backend configured".into(),
+            });
         };
         self.call_llm_with_backend(&handle.provider, prompt, max_tokens)
             .await
@@ -440,7 +453,7 @@ impl DreamingEngine {
         provider: &Arc<dyn LlmProvider>,
         prompt: &str,
         max_tokens: u32,
-    ) -> anyhow::Result<String> {
+    ) -> Result<String, LlmError> {
         let response = provider
             .generate(prompt, LlmGenerateOptions::new(max_tokens))
             .await?;

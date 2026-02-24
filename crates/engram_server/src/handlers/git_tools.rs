@@ -8,6 +8,7 @@ use engram_core::{JobRecord, RepoRule};
 use engram_git::history::GitWalker;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
+use engram_ml::llm_provider::LlmError;
 use git2::Oid;
 use rmcp::{
     ErrorData as McpError,
@@ -1011,9 +1012,16 @@ impl Engram {
                 rd.file_path, rd.original_commit, diff_snippet
             );
 
-            let llm_analysis = dreaming
+            let llm_analysis = match dreaming
                 .generate_text(&prompt, 200, std::time::Duration::from_secs(15))
-                .await;
+                .await
+            {
+                Ok(text) => text,
+                Err(err) => {
+                    log_llm_failure("git_tools.revert_antipattern", &rd.rule_id, &err);
+                    String::new()
+                }
+            };
 
             let rule_text = if llm_analysis.is_empty() {
                 // Deterministic fallback with more detail than before
@@ -1109,6 +1117,18 @@ impl Engram {
 
         Ok(CallToolResult::success(vec![Content::text(summary)]))
     }
+}
+
+fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
+    tracing::warn!(
+        operation = operation,
+        target = target,
+        provider = err.provider().unwrap_or("unknown"),
+        status_code = err.status_code(),
+        retry_exhausted = err.retry_exhausted(),
+        error = %err,
+        "LLM generation failed; using fallback"
+    );
 }
 
 #[cfg(test)]
