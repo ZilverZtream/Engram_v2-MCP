@@ -1529,9 +1529,10 @@ impl Engram {
                         || path.ends_with(".aspx.vb")
                         || path.ends_with(".aspx.cs"))
                         && let Ok(full) = safe_join(Path::new(&dir), path)
-                            && let Ok(content) = std::fs::read_to_string(&full) {
-                                files.push((path.clone(), content));
-                            }
+                        && let Ok(content) = std::fs::read_to_string(&full)
+                    {
+                        files.push((path.clone(), content));
+                    }
                 }
                 files
             })
@@ -1734,9 +1735,10 @@ impl Engram {
             let mut files = Vec::with_capacity(discovered.len());
             for rel in discovered {
                 if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
-                    && let Ok(content) = std::fs::read_to_string(&full) {
-                        files.push((rel, content));
-                    }
+                    && let Ok(content) = std::fs::read_to_string(&full)
+                {
+                    files.push((rel, content));
+                }
             }
             files
         };
@@ -2300,17 +2302,18 @@ impl Engram {
         let mut has_code_refs = false;
         for t in &triggers {
             if let Some(paths) = trigger_code_paths.get(&t.name)
-                && !paths.is_empty() {
-                    if !has_code_refs {
-                        out.push_str("## Code Paths That Fire Triggers\n\n");
-                        has_code_refs = true;
-                    }
-                    out.push_str(&format!("### {} (on {})\n\n", t.name, t.target_table));
-                    for p in paths {
-                        out.push_str(&format!("- {}\n", p));
-                    }
-                    out.push('\n');
+                && !paths.is_empty()
+            {
+                if !has_code_refs {
+                    out.push_str("## Code Paths That Fire Triggers\n\n");
+                    has_code_refs = true;
                 }
+                out.push_str(&format!("### {} (on {})\n\n", t.name, t.target_table));
+                for p in paths {
+                    out.push_str(&format!("- {}\n", p));
+                }
+                out.push('\n');
+            }
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -2366,10 +2369,11 @@ impl Engram {
             let mut files = Vec::with_capacity(disc.len());
             for rel in disc {
                 if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
-                    && let Ok(content) = std::fs::read_to_string(&full) {
-                        let is_vb = rel.to_lowercase().ends_with(".vb");
-                        files.push((rel, content, is_vb));
-                    }
+                    && let Ok(content) = std::fs::read_to_string(&full)
+                {
+                    let is_vb = rel.to_lowercase().ends_with(".vb");
+                    files.push((rel, content, is_vb));
+                }
             }
             files
         };
@@ -2562,8 +2566,7 @@ impl Engram {
                         .file_name()
                         .unwrap_or_default()
                         .to_string_lossy();
-                    base.to_lowercase()
-                        .starts_with(prefix)
+                    base.to_lowercase().starts_with(prefix)
                 } else {
                     path_lower.contains(&filter_lower)
                 }
@@ -2859,10 +2862,11 @@ impl Engram {
                             .extension()
                             .map(|e| e.eq_ignore_ascii_case("vb"))
                             .unwrap_or(false)
-                            && let Ok(content) = std::fs::read_to_string(&path) {
-                                let rel = path.strip_prefix(base).unwrap_or(&path);
-                                out.push((rel.to_string_lossy().to_string(), content));
-                            }
+                            && let Ok(content) = std::fs::read_to_string(&path)
+                        {
+                            let rel = path.strip_prefix(base).unwrap_or(&path);
+                            out.push((rel.to_string_lossy().to_string(), content));
+                        }
                     }
                 }
                 walk_vb(

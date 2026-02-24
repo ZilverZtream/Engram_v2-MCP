@@ -246,11 +246,12 @@ impl Engram {
             let mut out = format!("## Table: {}\n\n", table_node.name);
 
             if let Some(ref meta) = table_node.metadata
-                && let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
-                    out.push_str("### DDL\n```sql\n");
-                    out.push_str(ddl);
-                    out.push_str("\n```\n\n");
-                }
+                && let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str())
+            {
+                out.push_str("### DDL\n```sql\n");
+                out.push_str(ddl);
+                out.push_str("\n```\n\n");
+            }
 
             let columns = graph
                 .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
@@ -1723,23 +1724,24 @@ impl Engram {
             for h in hits.iter().take(3) {
                 out.push_str(&format!("- {} (score: {:.3})\n", h.path, h.score));
                 if req.include_content
-                    && let Some(ref snippet) = h.snippet {
-                        // Skip diff headers and show up to 5 content lines
-                        let content_lines: Vec<&str> = snippet
-                            .lines()
-                            .filter(|l| {
-                                !l.starts_with("diff ")
-                                    && !l.starts_with("index ")
-                                    && !l.starts_with("---")
-                                    && !l.starts_with("+++")
-                                    && !l.starts_with("@@")
-                            })
-                            .take(5)
-                            .collect();
-                        if !content_lines.is_empty() {
-                            out.push_str(&format!("  snippet: {}\n", content_lines.join(" | ")));
-                        }
+                    && let Some(ref snippet) = h.snippet
+                {
+                    // Skip diff headers and show up to 5 content lines
+                    let content_lines: Vec<&str> = snippet
+                        .lines()
+                        .filter(|l| {
+                            !l.starts_with("diff ")
+                                && !l.starts_with("index ")
+                                && !l.starts_with("---")
+                                && !l.starts_with("+++")
+                                && !l.starts_with("@@")
+                        })
+                        .take(5)
+                        .collect();
+                    if !content_lines.is_empty() {
+                        out.push_str(&format!("  snippet: {}\n", content_lines.join(" | ")));
                     }
+                }
             }
             out.push('\n');
             out.push_str("This pattern was previously reverted as risky code.\n");
@@ -2390,27 +2392,27 @@ impl Engram {
             let pid2 = req.project_id.clone();
             let node_ids_clone = node_ids.clone();
             let include_meta = req.include_metadata;
-            let nodes_meta: Vec<NodeMetaTuple> =
-                tokio::task::spawn_blocking(move || -> Vec<_> {
-                    let mut result = Vec::new();
-                    for nid in &node_ids_clone {
-                        let meta =
-                            if include_meta {
-                                graph_store.get_node(&pid2, nid).ok().flatten().map(|n| {
-                                    (n.node_type, n.name, n.file_path.as_str().to_string())
-                                })
-                            } else {
-                                None
-                            };
-                        let (nt, nm, fp) = meta
-                            .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
-                            .unwrap_or((None, None, None));
-                        result.push((nid.clone(), nt, nm, fp));
-                    }
-                    result
-                })
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let nodes_meta: Vec<NodeMetaTuple> = tokio::task::spawn_blocking(move || -> Vec<_> {
+                let mut result = Vec::new();
+                for nid in &node_ids_clone {
+                    let meta = if include_meta {
+                        graph_store
+                            .get_node(&pid2, nid)
+                            .ok()
+                            .flatten()
+                            .map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
+                    } else {
+                        None
+                    };
+                    let (nt, nm, fp) = meta
+                        .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                        .unwrap_or((None, None, None));
+                    result.push((nid.clone(), nt, nm, fp));
+                }
+                result
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
             for (nid, nt, nm, fp) in nodes_meta {
                 let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);
@@ -2448,27 +2450,27 @@ impl Engram {
             all_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             all_scores.truncate(top_k);
             let top_ids: Vec<String> = all_scores.iter().map(|(id, _)| id.clone()).collect();
-            let nodes_meta: Vec<NodeMetaTuple> =
-                tokio::task::spawn_blocking(move || -> Vec<_> {
-                    let mut result = Vec::new();
-                    for nid in &top_ids {
-                        let meta =
-                            if include_meta {
-                                graph_store.get_node(&pid3, nid).ok().flatten().map(|n| {
-                                    (n.node_type, n.name, n.file_path.as_str().to_string())
-                                })
-                            } else {
-                                None
-                            };
-                        let (nt, nm, fp) = meta
-                            .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
-                            .unwrap_or((None, None, None));
-                        result.push((nid.clone(), nt, nm, fp));
-                    }
-                    result
-                })
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let nodes_meta: Vec<NodeMetaTuple> = tokio::task::spawn_blocking(move || -> Vec<_> {
+                let mut result = Vec::new();
+                for nid in &top_ids {
+                    let meta = if include_meta {
+                        graph_store
+                            .get_node(&pid3, nid)
+                            .ok()
+                            .flatten()
+                            .map(|n| (n.node_type, n.name, n.file_path.as_str().to_string()))
+                    } else {
+                        None
+                    };
+                    let (nt, nm, fp) = meta
+                        .map(|(t, n, f)| (Some(t), Some(n), Some(f)))
+                        .unwrap_or((None, None, None));
+                    result.push((nid.clone(), nt, nm, fp));
+                }
+                result
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
             for (nid, nt, nm, fp) in nodes_meta {
                 let blended = centrality.blended_score(&nid, pr_w, deg_w, bt_w);

@@ -32,37 +32,49 @@ impl StateStore {
 
         let lower = normalized.to_lowercase();
         if lower.starts_with("session:") || lower.starts_with("session[") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Session, key)
         } else if lower.starts_with("viewstate:") || lower.starts_with("viewstate[") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::ViewState, key)
         } else if lower.starts_with("application:") || lower.starts_with("application[") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Application, key)
         } else if lower.starts_with("cache:") || lower.starts_with("cache[") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Cache, key)
         } else if lower.contains("cookie") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or(&normalized)
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Cookie, key)
         } else if lower.contains("querystring") {
-            let key = normalized.split_once([':', '[']).map(|x| x.1)
+            let key = normalized
+                .split_once([':', '['])
+                .map(|x| x.1)
                 .unwrap_or(&normalized)
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();

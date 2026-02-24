@@ -199,38 +199,37 @@ pub fn trace_data_flow(
         if let Some(m) = RE_STATE_WRITE.find(trimmed) {
             let after_eq = trimmed[m.end()..].trim_start();
             let is_double_eq = after_eq.starts_with('=');
-            if !is_double_eq
-                && let Some(cap) = RE_STATE_WRITE.captures(trimmed) {
-                    let state_type = cap[1].to_string();
-                    let key = cap[2].to_string();
-                    let rhs = trimmed[m.end()..].trim().to_string();
+            if !is_double_eq && let Some(cap) = RE_STATE_WRITE.captures(trimmed) {
+                let state_type = cap[1].to_string();
+                let key = cap[2].to_string();
+                let rhs = trimmed[m.end()..].trim().to_string();
 
-                    let sai = StateAccessInfo {
-                        state_type: state_type.clone(),
-                        key: key.clone(),
-                        direction: "write".into(),
-                        method_context: entry_point.to_string(),
-                    };
-                    // Avoid duplicate entries
-                    if !state_writes
-                        .iter()
-                        .any(|s: &StateAccessInfo| s.key == key && s.state_type == state_type)
-                    {
-                        state_writes.push(sai);
-                    }
+                let sai = StateAccessInfo {
+                    state_type: state_type.clone(),
+                    key: key.clone(),
+                    direction: "write".into(),
+                    method_context: entry_point.to_string(),
+                };
+                // Avoid duplicate entries
+                if !state_writes
+                    .iter()
+                    .any(|s: &StateAccessInfo| s.key == key && s.state_type == state_type)
+                {
+                    state_writes.push(sai);
+                }
 
-                    let mut details = HashMap::new();
-                    details.insert("value_expr".into(), rhs.clone());
-                    steps.push(DataFlowStep {
-                        sequence: seq,
-                        step_type: "WriteState".into(),
-                        description: format!("Write {state_type}[\"{key}\"] = {rhs}"),
-                        source: rhs,
-                        target: format!("{state_type}[\"{key}\"]"),
-                        details,
-                    });
-                    continue;
-                } // end !is_double_eq
+                let mut details = HashMap::new();
+                details.insert("value_expr".into(), rhs.clone());
+                steps.push(DataFlowStep {
+                    sequence: seq,
+                    step_type: "WriteState".into(),
+                    description: format!("Write {state_type}[\"{key}\"] = {rhs}"),
+                    source: rhs,
+                    target: format!("{state_type}[\"{key}\"]"),
+                    details,
+                });
+                continue;
+            } // end !is_double_eq
         }
 
         // ── State reads ───────────────────────────────────────────────────────
@@ -689,11 +688,13 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        if line.contains(method_name) && line.contains('(')
-            && (RE_METHOD_START_VB.is_match(line) || line.contains(method_name)) {
-                start_line = Some(i);
-                break;
-            }
+        if line.contains(method_name)
+            && line.contains('(')
+            && (RE_METHOD_START_VB.is_match(line) || line.contains(method_name))
+        {
+            start_line = Some(i);
+            break;
+        }
     }
 
     let start = match start_line {
@@ -717,34 +718,36 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
 fn extract_sql_hint(line: &str) -> String {
     // Grab first double-quoted string
     if let Some(start) = line.find('"')
-        && let Some(end) = line[start + 1..].find('"') {
-            let candidate = &line[start + 1..start + 1 + end];
-            let upper = candidate.to_uppercase();
-            if upper.starts_with("SELECT")
-                || upper.starts_with("INSERT")
-                || upper.starts_with("UPDATE")
-                || upper.starts_with("DELETE")
-                || upper.starts_with("EXEC")
-                || upper.starts_with("sp_")
-                || upper.starts_with("SP_")
-            {
-                return candidate.to_string();
-            }
+        && let Some(end) = line[start + 1..].find('"')
+    {
+        let candidate = &line[start + 1..start + 1 + end];
+        let upper = candidate.to_uppercase();
+        if upper.starts_with("SELECT")
+            || upper.starts_with("INSERT")
+            || upper.starts_with("UPDATE")
+            || upper.starts_with("DELETE")
+            || upper.starts_with("EXEC")
+            || upper.starts_with("sp_")
+            || upper.starts_with("SP_")
+        {
+            return candidate.to_string();
         }
+    }
     // Try single-quoted
     if let Some(start) = line.find('\'')
-        && let Some(end) = line[start + 1..].find('\'') {
-            let candidate = &line[start + 1..start + 1 + end];
-            let upper = candidate.to_uppercase();
-            if upper.starts_with("SELECT")
-                || upper.starts_with("INSERT")
-                || upper.starts_with("UPDATE")
-                || upper.starts_with("DELETE")
-                || upper.starts_with("EXEC")
-            {
-                return candidate.to_string();
-            }
+        && let Some(end) = line[start + 1..].find('\'')
+    {
+        let candidate = &line[start + 1..start + 1 + end];
+        let upper = candidate.to_uppercase();
+        if upper.starts_with("SELECT")
+            || upper.starts_with("INSERT")
+            || upper.starts_with("UPDATE")
+            || upper.starts_with("DELETE")
+            || upper.starts_with("EXEC")
+        {
+            return candidate.to_string();
         }
+    }
     String::new()
 }
 

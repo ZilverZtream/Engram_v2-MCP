@@ -18,16 +18,55 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
-        // 1. Fetch PageRank centrality for boosting (project-wide)
-        let graph = self.state.graph.clone();
-        let pid_for_centrality = req.project_id.clone();
-        let active_gen = gen_;
-        let centrality = tokio::task::spawn_blocking(move || {
-            engram_graph::analysis::compute_pagerank(&graph, &pid_for_centrality, active_gen)
-        })
-        .await
-        .ok()
-        .and_then(|r| r.ok());
+        // 1. Fetch PageRank centrality for boosting (project-wide).
+        //
+        // Fix 5: Running compute_pagerank synchronously on every search request
+        // can block Tokio's thread pool for seconds on large graphs and cause a
+        // denial-of-service cascade. We instead maintain a short-lived in-memory
+        // TTL cache keyed by (project_id, generation).
+        //
+        // Hot path: cache hit → zero I/O, zero blocking.
+        // Cold path: cache miss → current request degrades gracefully (no boost),
+        //   and a background task populates the cache for subsequent searches.
+        const PAGERANK_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(300);
+        let cache_key = format!("{}:{}", req.project_id, gen_);
+
+        let centrality: Option<std::sync::Arc<engram_graph::analysis::CentralityMetrics>> = {
+            if let Some(entry) = self.state.pagerank_cache.get(&cache_key) {
+                if entry.value().0.elapsed() < PAGERANK_CACHE_TTL {
+                    Some(entry.value().1.clone())
+                } else {
+                    // Stale: evict and trigger a background refresh below.
+                    drop(entry);
+                    self.state.pagerank_cache.remove(&cache_key);
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        // On cache miss launch a background task so the next search gets the
+        // boost. Use `entry().or_insert_with` so two concurrent misses don't
+        // both insert (last-writer wins is harmless, but we prefer idempotency).
+        if centrality.is_none() {
+            let graph_bg = self.state.graph.clone();
+            let pid_bg = req.project_id.clone();
+            let gen_bg = gen_;
+            let cache_bg = self.state.pagerank_cache.clone();
+            let key_bg = cache_key;
+            tokio::spawn(async move {
+                if let Ok(Ok(metrics)) = tokio::task::spawn_blocking(move || {
+                    engram_graph::analysis::compute_pagerank(&graph_bg, &pid_bg, gen_bg)
+                })
+                .await
+                {
+                    cache_bg.entry(key_bg).or_insert_with(|| {
+                        (std::time::Instant::now(), std::sync::Arc::new(metrics))
+                    });
+                }
+            });
+        }
 
         // 2. Perform Hybrid Search with Boost
         let hits = ps
@@ -48,7 +87,9 @@ impl Engram {
                     date_before: None,
                     use_mmr: req.use_mmr,
                 },
-                centrality.as_ref().map(|c| &c.pagerank),
+                // `centrality` is `Option<Arc<CentralityMetrics>>`; deref through
+                // the Arc to obtain `Option<&CentralityMetrics>` for the call.
+                centrality.as_deref().map(|c| &c.pagerank),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -163,15 +204,16 @@ impl Engram {
             ));
 
             if req.include_content
-                && let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) {
-                    if content.chars().count() > max_chars {
-                        out.push_str(&content.chars().take(max_chars).collect::<String>());
-                        out.push_str("... (truncated)\n");
-                    } else {
-                        out.push_str(&content);
-                        out.push('\n');
-                    }
+                && let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk)
+            {
+                if content.chars().count() > max_chars {
+                    out.push_str(&content.chars().take(max_chars).collect::<String>());
+                    out.push_str("... (truncated)\n");
+                } else {
+                    out.push_str(&content);
+                    out.push('\n');
                 }
+            }
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -190,23 +232,26 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
         };
 
-        // Inject repo rules if requested.
-        let mut display_content = if req.inject_rules {
-            self.inject_repo_rules(&req.project_id, &path, &content)
-                .await
+        // Fix 7: Apply the logical slice FIRST on the syntactically valid source
+        // before any rule injection. Rule injection prepends `[Repo Constraint]:
+        // …` lines that are not valid syntax in Rust, JS, Python, etc. Passing
+        // that mutated string to Tree-sitter makes the AST-based slicer fail.
+        // Rules are semantic annotations and must be layered *after* parsing.
+        let mut display_content: String = if let Some(ref slice_type) = req.logical_slice
+            && slice_type != "all"
+            && !slice_type.is_empty()
+        {
+            crate::services::slice_service::apply_logical_slice(&content, slice_type, &lang)
         } else {
             content.to_string()
         };
 
-        // Apply logical slice if requested.
-        if let Some(ref slice_type) = req.logical_slice
-            && slice_type != "all" && !slice_type.is_empty() {
-                display_content = crate::services::slice_service::apply_logical_slice(
-                    &display_content,
-                    slice_type,
-                    &lang,
-                );
-            }
+        // Inject repo rules (if requested) onto the already-sliced output.
+        if req.inject_rules {
+            display_content = self
+                .inject_repo_rules(&req.project_id, &path, &display_content)
+                .await;
+        }
 
         // Compute confidence footer for WebForms files.
         let confidence_footer = self.confidence_footer(&path, &lang);
@@ -230,151 +275,208 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let needle = &req.symbol_name;
 
-        // Parse edge kind filter
+        // Parse edge kind filter (pure computation, no I/O).
         let edge_kind_filter: Option<Vec<EdgeKind>> = req
             .edge_kind_filter
             .as_ref()
             .map(|f| f.iter().filter_map(|s| EdgeKind::parse(s)).collect());
 
-        // 1. Find matching symbol nodes — exact name match and FQN suffix match
-        let nodes = self
-            .state
-            .graph
-            .query_nodes(&req.project_id, None, Some(needle), None, 50)
-            .unwrap_or_default();
+        // Fix 6: All GraphStore operations are synchronous Redb reads that block
+        // the calling OS thread.  Move every graph query for this symbol into a
+        // single `spawn_blocking` so Tokio's async executor is never stalled.
+        //
+        // Fix 8: The previous code had
+        //   `let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);`
+        // which *always* evaluates to `None` regardless of the filter value, so
+        // `find_incoming_edges_with_kind` always returned all-kind edges.  The
+        // post-query `.retain` then yielded 0 results if the fetched edges didn't
+        // happen to include the requested kinds within the limit window.
+        //
+        // The correct approach: always fetch with `kind = None` (all kinds) but
+        // over-fetch proportionally to the number of requested kinds so the
+        // post-query retain has enough candidates.  Then truncate to `max_incoming`.
 
-        let mut out = String::with_capacity(4096);
-        let mut found_in_graph = false;
+        // Determine the incoming over-fetch limit.
+        let incoming_fetch_limit = match &edge_kind_filter {
+            Some(f) if !f.is_empty() => max_incoming
+                .saturating_mul(f.len())
+                .min(max_incoming.saturating_mul(EdgeKind::ALL.len())),
+            _ => max_incoming,
+        };
 
-        for node in &nodes {
-            // Multi-strategy name match: exact, FQN suffix, node-id suffix
-            let name_lower = node.name.to_lowercase();
-            let needle_lower = needle.to_lowercase();
-            let name_matches = name_lower == needle_lower
-                || name_lower.ends_with(&format!(".{}", needle_lower))
-                || name_lower.ends_with(&format!("::{}", needle_lower))
-                || node
-                    .node_id
-                    .to_lowercase()
-                    .ends_with(&format!(":{}", needle_lower));
-            if !name_matches {
-                continue;
-            }
+        // Build the outgoing kind list as an owned Vec so it can cross the
+        // spawn_blocking boundary (EdgeKind::ALL is &'static but a filter Vec<_>
+        // is not; we unify them here).
+        let outgoing_kinds_owned: Vec<EdgeKind> = edge_kind_filter
+            .clone()
+            .unwrap_or_else(|| EdgeKind::ALL.to_vec());
 
-            // Apply file scope filter
-            if let Some(ref scope) = req.file_scope
-                && !node.file_path.as_str().is_empty()
-                    && !node.file_path.as_str().starts_with(scope.as_str())
-                {
-                    continue;
-                }
+        // Minimal per-node result type that uses only owned, Send-safe values.
+        struct NodeGraphResult {
+            name: String,
+            node_type: String,
+            file_path: String, // RelPath rendered to string
+            node_id: String,
+            incoming: Vec<(String, EdgeKind, u32)>,
+            outgoing: Vec<(String, EdgeKind, u32)>,
+        }
 
-            // Query incoming edge kinds (filtered if specified)
-            let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);
-            let mut incoming = self
-                .state
-                .graph
-                .find_incoming_edges_with_kind(
-                    &req.project_id,
-                    incoming_kind_filter, // None = all kinds
-                    &node.node_id,
-                    max_incoming,
-                )
-                .unwrap_or_default();
+        let graph_b = self.state.graph.clone();
+        let project_id_b = req.project_id.clone();
+        let needle_b = needle.to_string();
+        let ekf_b = edge_kind_filter.clone();
+        let file_scope_b = req.file_scope.clone();
 
-            // Apply edge kind filter post-query if specified
-            if let Some(ref filter) = edge_kind_filter {
-                incoming.retain(|(_, kind, _)| filter.contains(kind));
-            }
+        // Execute all blocking graph I/O in one dedicated OS thread.
+        let (graph_results, found_in_graph): (Vec<NodeGraphResult>, bool) =
+            tokio::task::spawn_blocking(move || {
+                let nodes = graph_b
+                    .query_nodes(&project_id_b, None, Some(&needle_b), None, 50)
+                    .unwrap_or_default();
 
-            // Apply file scope filter to incoming edges
-            if let Some(ref scope) = req.file_scope {
-                incoming.retain(|(src_id, _, _)| {
-                    // src_id may be like "file:path" or "sym:type:path:name"
-                    src_id.contains(scope.as_str())
-                });
-            }
+                let needle_lower = needle_b.to_lowercase();
+                let mut results: Vec<NodeGraphResult> = Vec::new();
 
-            // Outgoing edges — filter to requested kinds only
-            let outgoing_kinds: &[EdgeKind] = if let Some(ref filter) = edge_kind_filter {
-                filter
-            } else {
-                EdgeKind::ALL
-            };
+                for node in nodes {
+                    // Multi-strategy name match: exact, FQN suffix, node-id suffix.
+                    let name_lower = node.name.to_lowercase();
+                    let name_matches = name_lower == needle_lower
+                        || name_lower.ends_with(&format!(".{}", needle_lower))
+                        || name_lower.ends_with(&format!("::{}", needle_lower))
+                        || node
+                            .node_id
+                            .to_lowercase()
+                            .ends_with(&format!(":{}", needle_lower));
+                    if !name_matches {
+                        continue;
+                    }
 
-            let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
-            for kind in outgoing_kinds {
-                if let Ok(neighbors) = self.state.graph.neighbors(
-                    &req.project_id,
-                    kind.clone(),
-                    &node.node_id,
-                    max_outgoing_per_kind,
-                ) {
-                    for (target_id, weight) in neighbors {
-                        // Apply file scope filter to outgoing
-                        if let Some(ref scope) = req.file_scope
-                            && !target_id.contains(scope.as_str()) {
-                                continue;
+                    // File scope filter on the node itself.
+                    let fp_str = node.file_path.as_str().to_string();
+                    if let Some(ref scope) = file_scope_b
+                        && !fp_str.is_empty()
+                        && !fp_str.starts_with(scope.as_str())
+                    {
+                        continue;
+                    }
+
+                    // Fix 8: Fetch all incoming kinds unconditionally; the
+                    // post-query retain handles kind-level filtering.  Over-fetch
+                    // to ensure enough candidates survive the retain step.
+                    let mut incoming = graph_b
+                        .find_incoming_edges_with_kind(
+                            &project_id_b,
+                            None, // always fetch all kinds
+                            &node.node_id,
+                            incoming_fetch_limit,
+                        )
+                        .unwrap_or_default();
+
+                    if let Some(ref filter) = ekf_b {
+                        incoming.retain(|(_, kind, _)| filter.contains(kind));
+                    }
+                    incoming.truncate(max_incoming);
+
+                    if let Some(ref scope) = file_scope_b {
+                        incoming.retain(|(src_id, _, _)| src_id.contains(scope.as_str()));
+                    }
+
+                    // Outgoing edges for each requested kind.
+                    let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
+                    for kind in &outgoing_kinds_owned {
+                        if let Ok(neighbors) = graph_b.neighbors(
+                            &project_id_b,
+                            kind.clone(),
+                            &node.node_id,
+                            max_outgoing_per_kind,
+                        ) {
+                            for (target_id, weight) in neighbors {
+                                if let Some(ref scope) = file_scope_b
+                                    && !target_id.contains(scope.as_str())
+                                {
+                                    continue;
+                                }
+                                outgoing.push((target_id, kind.clone(), weight));
                             }
-                        outgoing.push((target_id, kind.clone(), weight));
+                        }
+                    }
+
+                    if !incoming.is_empty() || !outgoing.is_empty() {
+                        results.push(NodeGraphResult {
+                            name: node.name,
+                            node_type: node.node_type,
+                            file_path: fp_str,
+                            node_id: node.node_id,
+                            incoming,
+                            outgoing,
+                        });
+                    }
+                }
+
+                let found = !results.is_empty();
+                (results, found)
+            })
+            .await
+            .unwrap_or((Vec::new(), false));
+
+        // Format output from the non-blocking data collected above.
+        let mut out = String::with_capacity(4096);
+
+        for nr in &graph_results {
+            out.push_str(&format!(
+                "Symbol: {} ({}) in {}\n  node_id: {}\n",
+                nr.name, nr.node_type, nr.file_path, nr.node_id
+            ));
+
+            if !nr.incoming.is_empty() {
+                out.push_str(&format!("  Incoming references ({}):\n", nr.incoming.len()));
+                let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                    std::collections::HashMap::new();
+                for (src_id, kind, weight) in &nr.incoming {
+                    by_kind
+                        .entry(kind.as_str().to_string())
+                        .or_default()
+                        .push((src_id.as_str(), *weight));
+                }
+                let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                for (kind, refs) in &kinds_sorted {
+                    out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                    for (src, w) in refs.iter().take(20) {
+                        out.push_str(&format!("      <- {} (w={})\n", src, w));
+                    }
+                    if refs.len() > 20 {
+                        out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
                     }
                 }
             }
 
-            if !incoming.is_empty() || !outgoing.is_empty() {
-                found_in_graph = true;
+            if !nr.outgoing.is_empty() {
                 out.push_str(&format!(
-                    "Symbol: {} ({}) in {}\n  node_id: {}\n",
-                    node.name, node.node_type, node.file_path, node.node_id
+                    "  Outgoing dependencies ({}):\n",
+                    nr.outgoing.len()
                 ));
-
-                if !incoming.is_empty() {
-                    out.push_str(&format!("  Incoming references ({}):\n", incoming.len()));
-                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
-                        std::collections::HashMap::new();
-                    for (src_id, kind, weight) in &incoming {
-                        by_kind
-                            .entry(kind.as_str().to_string())
-                            .or_default()
-                            .push((src_id.as_str(), *weight));
+                let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
+                    std::collections::HashMap::new();
+                for (tgt_id, kind, weight) in &nr.outgoing {
+                    by_kind
+                        .entry(kind.as_str().to_string())
+                        .or_default()
+                        .push((tgt_id.as_str(), *weight));
+                }
+                let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
+                kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
+                for (kind, refs) in &kinds_sorted {
+                    out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
+                    for (tgt, w) in refs.iter().take(20) {
+                        out.push_str(&format!("      -> {} (w={})\n", tgt, w));
                     }
-                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
-                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-                    for (kind, refs) in &kinds_sorted {
-                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                        for (src, w) in refs.iter().take(20) {
-                            out.push_str(&format!("      <- {} (w={})\n", src, w));
-                        }
-                        if refs.len() > 20 {
-                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
-                        }
+                    if refs.len() > 20 {
+                        out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
                     }
                 }
-
-                if !outgoing.is_empty() {
-                    out.push_str(&format!("  Outgoing dependencies ({}):\n", outgoing.len()));
-                    let mut by_kind: std::collections::HashMap<String, Vec<(&str, u32)>> =
-                        std::collections::HashMap::new();
-                    for (tgt_id, kind, weight) in &outgoing {
-                        by_kind
-                            .entry(kind.as_str().to_string())
-                            .or_default()
-                            .push((tgt_id.as_str(), *weight));
-                    }
-                    let mut kinds_sorted: Vec<_> = by_kind.into_iter().collect();
-                    kinds_sorted.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
-                    for (kind, refs) in &kinds_sorted {
-                        out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
-                        for (tgt, w) in refs.iter().take(20) {
-                            out.push_str(&format!("      -> {} (w={})\n", tgt, w));
-                        }
-                        if refs.len() > 20 {
-                            out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
-                        }
-                    }
-                }
-                out.push('\n');
             }
+            out.push('\n');
         }
 
         if found_in_graph {

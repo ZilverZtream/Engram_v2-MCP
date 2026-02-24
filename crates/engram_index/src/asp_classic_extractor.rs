@@ -678,9 +678,10 @@ fn extract_com_database(
         && let Some(insight) = symbols
             .iter_mut()
             .find(|s| s.name == "classic_asp_file" && s.kind == "insight")
-            && let Some(ref mut meta) = insight.metadata {
-                meta.insert("uses_response_write".to_string(), "true".to_string());
-            }
+        && let Some(ref mut meta) = insight.metadata
+    {
+        meta.insert("uses_response_write".to_string(), "true".to_string());
+    }
 }
 
 // ── Include Directive Detection ──────────────────────────────────────────────
@@ -810,9 +811,10 @@ fn extract_table_from_sql(sql: &str) -> String {
     );
     if let Some(re) = re
         && let Some(cap) = re.captures(sql)
-            && let Some(m) = cap.get(1) {
-                return m.as_str().to_string();
-            }
+        && let Some(m) = cap.get(1)
+    {
+        return m.as_str().to_string();
+    }
     // Fallback: use the entire SQL snippet (truncated) as the target name.
     truncate_sql(sql)
 }

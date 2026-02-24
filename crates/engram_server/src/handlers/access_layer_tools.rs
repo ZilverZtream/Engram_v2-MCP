@@ -2592,74 +2592,73 @@ impl Engram {
                     .unwrap_or(&file_path);
 
                 if let Ok(aspx_full) = safe_join(Path::new(&project_dir), aspx_base)
-                    && let Ok(aspx_content) = std::fs::read_to_string(&aspx_full) {
-                        let controls = extract_aspx_controls(&aspx_content);
+                    && let Ok(aspx_content) = std::fs::read_to_string(&aspx_full)
+                {
+                    let controls = extract_aspx_controls(&aspx_content);
 
-                        for ctrl in &controls {
-                            // Check if this control is referenced by the target method
-                            // (via Handles clause, effects, or body reference)
-                            let is_relevant = method_info
-                                .handles_clause
-                                .iter()
-                                .any(|h| h.contains(&ctrl.server_id))
-                                || method_body
-                                    .as_ref()
-                                    .map(|b| b.contains(&ctrl.server_id))
-                                    .unwrap_or(false);
+                    for ctrl in &controls {
+                        // Check if this control is referenced by the target method
+                        // (via Handles clause, effects, or body reference)
+                        let is_relevant = method_info
+                            .handles_clause
+                            .iter()
+                            .any(|h| h.contains(&ctrl.server_id))
+                            || method_body
+                                .as_ref()
+                                .map(|b| b.contains(&ctrl.server_id))
+                                .unwrap_or(false);
 
-                            if is_relevant {
-                                // Look up the control mapping
-                                let mapping =
-                                    engram_index::control_mapping::lookup(&ctrl.control_type);
+                        if is_relevant {
+                            // Look up the control mapping
+                            let mapping = engram_index::control_mapping::lookup(&ctrl.control_type);
 
-                                let target_str = target_stack.as_deref().unwrap_or("blazor");
-                                let modern_equivalent = mapping
-                                    .map(|m| match target_str {
-                                        "blazor" => m.blazor_equivalent.to_string(),
-                                        "react" => m.react_equivalent.to_string(),
-                                        "angular" => m.angular_equivalent.to_string(),
-                                        _ => m.blazor_equivalent.to_string(),
-                                    })
-                                    .unwrap_or_else(|| format!("<!-- {} -->", ctrl.control_type));
+                            let target_str = target_stack.as_deref().unwrap_or("blazor");
+                            let modern_equivalent = mapping
+                                .map(|m| match target_str {
+                                    "blazor" => m.blazor_equivalent.to_string(),
+                                    "react" => m.react_equivalent.to_string(),
+                                    "angular" => m.angular_equivalent.to_string(),
+                                    _ => m.blazor_equivalent.to_string(),
+                                })
+                                .unwrap_or_else(|| format!("<!-- {} -->", ctrl.control_type));
 
-                                let migration_notes: Vec<String> = mapping
-                                    .map(|m| {
-                                        let mut notes = Vec::new();
-                                        if !m.notes.is_empty() {
-                                            notes.push(m.notes.to_string());
-                                        }
-                                        for diff in m.breaking_differences {
-                                            notes.push(format!("BREAKING: {}", diff));
-                                        }
-                                        if m.requires_databind_on_postback {
-                                            notes.push(
-                                                "Requires explicit databinding on postback"
-                                                    .to_string(),
-                                            );
-                                        }
-                                        notes
-                                    })
-                                    .unwrap_or_default();
+                            let migration_notes: Vec<String> = mapping
+                                .map(|m| {
+                                    let mut notes = Vec::new();
+                                    if !m.notes.is_empty() {
+                                        notes.push(m.notes.to_string());
+                                    }
+                                    for diff in m.breaking_differences {
+                                        notes.push(format!("BREAKING: {}", diff));
+                                    }
+                                    if m.requires_databind_on_postback {
+                                        notes.push(
+                                            "Requires explicit databinding on postback".to_string(),
+                                        );
+                                    }
+                                    notes
+                                })
+                                .unwrap_or_default();
 
-                                let event_mappings: Vec<(String, String)> = mapping
-                                    .map(|m| {
-                                        m.event_map
-                                            .iter()
-                                            .map(|(from, to)| (from.to_string(), to.to_string()))
-                                            .collect()
-                                    })
-                                    .unwrap_or_default();
+                            let event_mappings: Vec<(String, String)> = mapping
+                                .map(|m| {
+                                    m.event_map
+                                        .iter()
+                                        .map(|(from, to)| (from.to_string(), to.to_string()))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
 
-                                control_mappings.push(ControlMappingSnippet {
-                                    control_id: ctrl.server_id.clone(),
-                                    legacy_type: ctrl.control_type.clone(),
-                                    modern_equivalent,
-                                    event_mappings,
-                                    migration_notes,
-                                });
-                            }
+                            control_mappings.push(ControlMappingSnippet {
+                                control_id: ctrl.server_id.clone(),
+                                legacy_type: ctrl.control_type.clone(),
+                                modern_equivalent,
+                                event_mappings,
+                                migration_notes,
+                            });
                         }
                     }
+                }
             }
 
             // 8. VB translation traps relevant to this method
@@ -3408,11 +3407,11 @@ impl Engram {
                             Some(EdgeKind::Dependency),
                             &tc.node_id,
                             500,
-                        )
-                            && incoming.iter().any(|(src, _, _)| src == &tm.node_id) {
-                                references_target = true;
-                                break;
-                            }
+                        ) && incoming.iter().any(|(src, _, _)| src == &tm.node_id)
+                        {
+                            references_target = true;
+                            break;
+                        }
                     }
 
                     // Also check by name containment in the test method name

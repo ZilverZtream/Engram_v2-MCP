@@ -446,10 +446,12 @@ fn collect_event_handlers(
 
     for (node_id, _weight) in &contains_neighbors {
         if let Some(node) = graph.get_node(project_id, node_id)?
-            && node.node_type == "function" && !node.name.is_empty()
-                && seen.insert(node.name.clone()) {
-                    names.push(node.name.clone());
-                }
+            && node.node_type == "function"
+            && !node.name.is_empty()
+            && seen.insert(node.name.clone())
+        {
+            names.push(node.name.clone());
+        }
     }
 
     // Also collect function nodes directly associated with the file
@@ -792,9 +794,7 @@ fn extract_state_key(target_id: &str) -> String {
     for prefix in &["session[", "viewstate[", "application[", "cache["] {
         if s.to_lowercase().starts_with(prefix) {
             let rest = &s[prefix.len()..];
-            return rest
-                .trim_end_matches([']', '"', '\''])
-                .to_string();
+            return rest.trim_end_matches([']', '"', '\'']).to_string();
         }
     }
     // Try "Session:" / colon style
@@ -819,9 +819,11 @@ fn strip_control_prefix(name: &str) -> String {
     ];
     for prefix in PREFIXES {
         if let Some(rest) = name.strip_prefix(prefix)
-            && !rest.is_empty() && rest.chars().next().is_some_and(|c| c.is_uppercase()) {
-                return rest.to_string();
-            }
+            && !rest.is_empty()
+            && rest.chars().next().is_some_and(|c| c.is_uppercase())
+        {
+            return rest.to_string();
+        }
     }
     name.to_string()
 }
@@ -873,9 +875,10 @@ fn strip_state_prefix(name: &str) -> String {
             // Handle Store[Key] pattern: extract just the key inside brackets
             if let Some(bracket_start) = remainder.find('[')
                 && let Some(bracket_end) = remainder.find(']')
-                    && bracket_end > bracket_start + 1 {
-                        return remainder[bracket_start + 1..bracket_end].to_string();
-                    }
+                && bracket_end > bracket_start + 1
+            {
+                return remainder[bracket_start + 1..bracket_end].to_string();
+            }
             // Fallback: strip brackets from ends
             return remainder
                 .trim_matches(|c: char| c == '[' || c == ']')

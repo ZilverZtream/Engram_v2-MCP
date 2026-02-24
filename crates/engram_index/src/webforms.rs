@@ -641,9 +641,10 @@ fn extract_service_directives(
 
         // Populate the shared inherits FQN if we haven't yet (from Page/Control/Master pass).
         if page_inherits_fqn.is_none()
-            && let Some(ref fqn) = class_fqn {
-                *page_inherits_fqn = Some(fqn.clone());
-            }
+            && let Some(ref fqn) = class_fqn
+        {
+            *page_inherits_fqn = Some(fqn.clone());
+        }
 
         // ── Emit symbol ──────────────────────────────────────────────────────
         let mut sym_meta = HashMap::new();
@@ -924,15 +925,16 @@ fn extract_user_control_tags(
     let mut prefix_lookup: HashMap<(String, String), String> = HashMap::new();
     for entry in register_table {
         if let Some(ref src) = entry.src_rel_path
-            && !entry.tag_name.is_empty() {
-                prefix_lookup.insert(
-                    (
-                        entry.tag_prefix.to_lowercase(),
-                        entry.tag_name.to_lowercase(),
-                    ),
-                    src.clone(),
-                );
-            }
+            && !entry.tag_name.is_empty()
+        {
+            prefix_lookup.insert(
+                (
+                    entry.tag_prefix.to_lowercase(),
+                    entry.tag_name.to_lowercase(),
+                ),
+                src.clone(),
+            );
+        }
     }
 
     if prefix_lookup.is_empty() {
@@ -1127,60 +1129,62 @@ fn extract_datasource_controls(
                 ];
                 for (cmd_name, re_opt) in cmd_regexes {
                     if let Some(re) = re_opt
-                        && let Some(c) = re.captures(attrs) {
-                            let sql = c[1].trim().to_string();
-                            if sql.is_empty() {
-                                continue;
-                            }
-
-                            let (sql_target, sql_kind) = classify_markup_sql(&sql);
-                            let mut meta = HashMap::new();
-                            meta.insert("command".into(), cmd_name.to_string());
-                            meta.insert("sql_snippet".into(), truncate_sql(&sql));
-                            meta.insert("sql_kind".into(), sql_kind.to_string());
-
-                            edges.push(ExtractedEdge {
-                                source_name: ds_id.clone(),
-                                source_kind: "control",
-                                source_start_line: line,
-                                source_language: "aspx",
-                                target_name: sql_target,
-                                target_kind: Some(sql_kind),
-                                target_start_line: None,
-                                kind: "sql_calls",
-                                metadata: Some(meta),
-                            });
+                        && let Some(c) = re.captures(attrs)
+                    {
+                        let sql = c[1].trim().to_string();
+                        if sql.is_empty() {
+                            continue;
                         }
+
+                        let (sql_target, sql_kind) = classify_markup_sql(&sql);
+                        let mut meta = HashMap::new();
+                        meta.insert("command".into(), cmd_name.to_string());
+                        meta.insert("sql_snippet".into(), truncate_sql(&sql));
+                        meta.insert("sql_kind".into(), sql_kind.to_string());
+
+                        edges.push(ExtractedEdge {
+                            source_name: ds_id.clone(),
+                            source_kind: "control",
+                            source_start_line: line,
+                            source_language: "aspx",
+                            target_name: sql_target,
+                            target_kind: Some(sql_kind),
+                            target_start_line: None,
+                            kind: "sql_calls",
+                            metadata: Some(meta),
+                        });
+                    }
                 }
             }
             "ObjectDataSource" | "LinqDataSource" | "EntityDataSource" => {
                 // Extract TypeName (the backing class)
                 if let Some(re) = type_name_re
-                    && let Some(c) = re.captures(attrs) {
-                        let type_name = c[1].trim().to_string();
-                        if !type_name.is_empty() {
-                            let simple = type_name
-                                .split('.')
-                                .next_back()
-                                .unwrap_or(&type_name)
-                                .to_string();
-                            let mut meta = HashMap::new();
-                            meta.insert("fqn".into(), type_name.clone());
-                            meta.insert("datasource_type".into(), ds_type.clone());
+                    && let Some(c) = re.captures(attrs)
+                {
+                    let type_name = c[1].trim().to_string();
+                    if !type_name.is_empty() {
+                        let simple = type_name
+                            .split('.')
+                            .next_back()
+                            .unwrap_or(&type_name)
+                            .to_string();
+                        let mut meta = HashMap::new();
+                        meta.insert("fqn".into(), type_name.clone());
+                        meta.insert("datasource_type".into(), ds_type.clone());
 
-                            edges.push(ExtractedEdge {
-                                source_name: ds_id.clone(),
-                                source_kind: "control",
-                                source_start_line: line,
-                                source_language: "aspx",
-                                target_name: simple,
-                                target_kind: Some("class"),
-                                target_start_line: None,
-                                kind: "codebehind_class",
-                                metadata: Some(meta),
-                            });
-                        }
+                        edges.push(ExtractedEdge {
+                            source_name: ds_id.clone(),
+                            source_kind: "control",
+                            source_start_line: line,
+                            source_language: "aspx",
+                            target_name: simple,
+                            target_kind: Some("class"),
+                            target_start_line: None,
+                            kind: "codebehind_class",
+                            metadata: Some(meta),
+                        });
                     }
+                }
 
                 // Extract method bindings
                 let method_regexes: &[(&str, Option<&Regex>)] = &[
@@ -1191,30 +1195,31 @@ fn extract_datasource_controls(
                 ];
                 for (method_attr, re_opt) in method_regexes {
                     if let Some(re) = re_opt
-                        && let Some(c) = re.captures(attrs) {
-                            let method = c[1].trim().to_string();
-                            if method.is_empty() {
-                                continue;
-                            }
-
-                            let mut meta = HashMap::new();
-                            meta.insert("event".into(), method_attr.to_string());
-                            if let Some(ifqn) = page_inherits_fqn {
-                                meta.insert("fqn".into(), format!("{}.{}", ifqn, method));
-                            }
-
-                            edges.push(ExtractedEdge {
-                                source_name: ds_id.clone(),
-                                source_kind: "control",
-                                source_start_line: line,
-                                source_language: "aspx",
-                                target_name: method,
-                                target_kind: Some("function"),
-                                target_start_line: None,
-                                kind: "event_wiring",
-                                metadata: Some(meta),
-                            });
+                        && let Some(c) = re.captures(attrs)
+                    {
+                        let method = c[1].trim().to_string();
+                        if method.is_empty() {
+                            continue;
                         }
+
+                        let mut meta = HashMap::new();
+                        meta.insert("event".into(), method_attr.to_string());
+                        if let Some(ifqn) = page_inherits_fqn {
+                            meta.insert("fqn".into(), format!("{}.{}", ifqn, method));
+                        }
+
+                        edges.push(ExtractedEdge {
+                            source_name: ds_id.clone(),
+                            source_kind: "control",
+                            source_start_line: line,
+                            source_language: "aspx",
+                            target_name: method,
+                            target_kind: Some("function"),
+                            target_start_line: None,
+                            kind: "event_wiring",
+                            metadata: Some(meta),
+                        });
+                    }
                 }
             }
             _ => {}
@@ -1611,9 +1616,10 @@ fn extract_datasource_parameters(
         }
         // Include the source field/key for richer context.
         if let Some(prop) = attrs.get("propertyname")
-            && !prop.is_empty() {
-                meta.insert("property_name".into(), prop.clone());
-            }
+            && !prop.is_empty()
+        {
+            meta.insert("property_name".into(), prop.clone());
+        }
 
         edges.push(ExtractedEdge {
             source_name,

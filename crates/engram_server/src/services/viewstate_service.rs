@@ -216,11 +216,13 @@ static RE_EXPLICIT_VS_CS: LazyLock<Regex> =
 static RE_EXPLICIT_VS_VB: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"ViewState\s*\(\s*"([^"]*)"\s*\)"#).expect("valid regex"));
 
-static RE_CONTROL_TAG: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*>"#).expect("valid regex"));
+static RE_CONTROL_TAG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*>"#).expect("valid regex")
+});
 
-static RE_CONTROL_TAG_SELFCLOSE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*/>"#).expect("valid regex"));
+static RE_CONTROL_TAG_SELFCLOSE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*/>"#).expect("valid regex")
+});
 
 static RE_ENABLE_VS_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -230,11 +232,13 @@ static RE_ENABLE_VS_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static RE_PAGE_VS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)<%@\s+(?:Page|Control)\b[^%]*EnableViewState\s*=\s*"(true|false)""#).expect("valid regex")
+    Regex::new(r#"(?i)<%@\s+(?:Page|Control)\b[^%]*EnableViewState\s*=\s*"(true|false)""#)
+        .expect("valid regex")
 });
 
-static RE_METHOD_CONTEXT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)(?:Sub|void|Function|Task)\s+(\w+)\s*\(").expect("valid regex"));
+static RE_METHOD_CONTEXT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?im)(?:Sub|void|Function|Task)\s+(\w+)\s*\(").expect("valid regex")
+});
 
 // ── Main analysis function ────────────────────────────────────────────────
 
@@ -562,7 +566,11 @@ fn to_camel_case(s: &str) -> String {
         return String::new();
     }
     let mut chars = s.chars();
-    let first = chars.next().expect("non-empty checked").to_lowercase().to_string();
+    let first = chars
+        .next()
+        .expect("non-empty checked")
+        .to_lowercase()
+        .to_string();
     format!("{first}{}", chars.collect::<String>())
 }
 
@@ -571,7 +579,11 @@ fn capitalize(s: &str) -> String {
         return String::new();
     }
     let mut chars = s.chars();
-    let first = chars.next().expect("non-empty checked").to_uppercase().to_string();
+    let first = chars
+        .next()
+        .expect("non-empty checked")
+        .to_uppercase()
+        .to_string();
     format!("{first}{}", chars.collect::<String>())
 }
 

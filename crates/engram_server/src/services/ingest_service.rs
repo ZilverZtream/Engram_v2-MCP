@@ -319,8 +319,7 @@ pub async fn process_ingest_stats(
             .0
         };
 
-        let target_id = if edge.target_name == "file" || edge.target_kind == Some("file")
-        {
+        let target_id = if edge.target_name == "file" || edge.target_kind == Some("file") {
             let path = if edge.target_name == "file" {
                 rel_path.as_str()
             } else {

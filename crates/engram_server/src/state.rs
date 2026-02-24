@@ -105,6 +105,22 @@ pub struct AppState {
 
     /// Migration progress tracker (standalone Redb database).
     pub migration_progress: Arc<MigrationProgressStore>,
+
+    /// In-memory TTL cache for per-project PageRank centrality scores.
+    ///
+    /// Prevents issuing a `spawn_blocking` Redb read (or full graph recomputation)
+    /// on every search request. Key: `"{project_id}:{generation}"`. Entries are
+    /// considered stale after `PAGERANK_CACHE_TTL` seconds (defined in search_tools)
+    /// and evicted on next access, triggering a background refresh.
+    pub pagerank_cache: Arc<
+        DashMap<
+            String,
+            (
+                std::time::Instant,
+                Arc<engram_graph::analysis::CentralityMetrics>,
+            ),
+        >,
+    >,
 }
 
 impl AppState {
@@ -163,6 +179,7 @@ impl AppState {
                 memory_budget: Arc::new(memory_budget),
                 checkpoints: Arc::new(checkpoints),
                 migration_progress: Arc::new(migration_progress),
+                pagerank_cache: Arc::new(DashMap::new()),
             },
             events_rx,
         ))

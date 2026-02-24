@@ -425,8 +425,7 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
         let contract_tests: Vec<ContractTest> = seams
             .iter()
             .filter(|s| {
-                s.modern_endpoint == cluster.name
-                    || cluster.files.contains(&s.modern_endpoint)
+                s.modern_endpoint == cluster.name || cluster.files.contains(&s.modern_endpoint)
             })
             .take(5) // Limit contract tests per wave
             .map(|s| ContractTest {

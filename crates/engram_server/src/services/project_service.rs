@@ -283,12 +283,13 @@ pub async fn get_incremental_changes(
                         }
                     } else if stored_size == size
                         && let Some(ref sh) = stored_hash
-                            && let Some(ref current_hash) = stream_hash(&p)
-                                && current_hash == sh {
-                                    is_changed = false;
-                                }
-                            // If >100 MB and size same but mtime different, treat as
-                            // changed so it gets re-indexed once.
+                        && let Some(ref current_hash) = stream_hash(&p)
+                        && current_hash == sh
+                    {
+                        is_changed = false;
+                    }
+                    // If >100 MB and size same but mtime different, treat as
+                    // changed so it gets re-indexed once.
                 }
 
                 if is_changed {

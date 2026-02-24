@@ -536,10 +536,11 @@ pub async fn analyze_file_logic(
 
         // Check cache
         if let Some(cached_hash) = cached_hashes.get(&fqn)
-            && *cached_hash == body_hash {
-                skipped_count += 1;
-                continue;
-            }
+            && *cached_hash == body_hash
+        {
+            skipped_count += 1;
+            continue;
+        }
 
         let result =
             analyze_method_logic(dreaming, file_path, name, &body, &class_name, language).await;

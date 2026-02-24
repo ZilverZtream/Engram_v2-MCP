@@ -119,20 +119,22 @@ fn extract_attr(attrs: &str, name: &str) -> Option<String> {
     // Try double-quoted first, then single-quoted.
     let dq_pattern = format!(r#"(?i)\b{}\s*=\s*"([^"]*)""#, esc);
     if let Ok(re) = Regex::new(&dq_pattern)
-        && let Some(caps) = re.captures(attrs) {
-            let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
-            if !val.is_empty() {
-                return Some(val);
-            }
+        && let Some(caps) = re.captures(attrs)
+    {
+        let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
+        if !val.is_empty() {
+            return Some(val);
         }
+    }
     let sq_pattern = format!(r"(?i)\b{}\s*=\s*'([^']*)'", esc);
     if let Ok(re) = Regex::new(&sq_pattern)
-        && let Some(caps) = re.captures(attrs) {
-            let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
-            if !val.is_empty() {
-                return Some(val);
-            }
+        && let Some(caps) = re.captures(attrs)
+    {
+        let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
+        if !val.is_empty() {
+            return Some(val);
         }
+    }
     None
 }
 
@@ -1246,19 +1248,19 @@ fn infer_logical_grouping(control_id: &str) -> Option<String> {
         &GROUP_PREFIX_RE,
         r"^(?:pnl|grp|grb|panel|group)_?([A-Za-z][A-Za-z0-9_]*)",
         "dle_group_prefix",
-    )
-        && let Some(cap) = re.captures(id) {
-            let raw = cap[1].trim_matches('_');
-            if raw.is_empty() {
-                return None;
-            }
-            let mut chars = raw.chars();
-            if let Some(first) = chars.next() {
-                let mut normalized = first.to_uppercase().to_string();
-                normalized.push_str(chars.as_str());
-                return Some(normalized);
-            }
+    ) && let Some(cap) = re.captures(id)
+    {
+        let raw = cap[1].trim_matches('_');
+        if raw.is_empty() {
+            return None;
         }
+        let mut chars = raw.chars();
+        if let Some(first) = chars.next() {
+            let mut normalized = first.to_uppercase().to_string();
+            normalized.push_str(chars.as_str());
+            return Some(normalized);
+        }
+    }
 
     None
 }
@@ -1402,9 +1404,9 @@ mod tests {
         // Should detect table as ui_container
         let table_container = syms.iter().find(|s| {
             s.kind == "ui_container"
-                && s.metadata.as_ref().is_some_and(|m| {
-                    m.get("container_type").map(|s| s.as_str()) == Some("table")
-                })
+                && s.metadata
+                    .as_ref()
+                    .is_some_and(|m| m.get("container_type").map(|s| s.as_str()) == Some("table"))
         });
         assert!(table_container.is_some(), "missing table ui_container");
 

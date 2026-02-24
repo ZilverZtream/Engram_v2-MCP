@@ -103,7 +103,8 @@ static RE_VALIDATION_SUMMARY: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static RE_BUTTON_TAGS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:(Button|LinkButton|ImageButton)\b([^>]*?)(/\s*>|>)").expect("valid regex")
+    Regex::new(r"(?is)<asp:(Button|LinkButton|ImageButton)\b([^>]*?)(/\s*>|>)")
+        .expect("valid regex")
 });
 
 fn extract_attr(tag: &str, attr: &str) -> String {
@@ -323,9 +324,10 @@ pub fn analyze_validation_controls(
 
     for btn in &causes_validation_buttons {
         if btn.causes_validation
-            && let Some(g) = groups.get_mut(&btn.validation_group) {
-                g.trigger_buttons.push(btn.control_id.clone());
-            }
+            && let Some(g) = groups.get_mut(&btn.validation_group)
+        {
+            g.trigger_buttons.push(btn.control_id.clone());
+        }
     }
 
     let validation_groups: Vec<ValidationGroupInfo> = groups.into_values().collect();
@@ -461,17 +463,19 @@ fn build_custom_validator_approach(
 
         // Try to find the handler body in code-behind
         if let Some(cb) = codebehind_content
-            && let Some(summary) = extract_handler_summary(cb, handler) {
-                parts.push(format!("Handler logic: {summary}"));
-            }
+            && let Some(summary) = extract_handler_summary(cb, handler)
+        {
+            parts.push(format!("Handler logic: {summary}"));
+        }
     }
 
     if let Some(client) = client_fn
-        && !client.is_empty() {
-            parts.push(format!(
+        && !client.is_empty()
+    {
+        parts.push(format!(
                 "Client: Migrate {client}() JavaScript function to Blazor validation component or React/Angular form validation"
             ));
-        }
+    }
 
     if parts.is_empty() {
         "Manual review required: no handler or client function detected".to_string()
