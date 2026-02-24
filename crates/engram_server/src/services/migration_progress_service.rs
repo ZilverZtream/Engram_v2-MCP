@@ -275,9 +275,10 @@ impl MigrationProgressStore {
             }
             let fs: FileStatus = serde_json::from_str(v.value())?;
             if let Some(ref filter) = status_filter
-                && &fs.status != filter {
-                    continue;
-                }
+                && &fs.status != filter
+            {
+                continue;
+            }
             out.push(fs);
         }
         Ok(out)

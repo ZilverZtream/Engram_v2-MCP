@@ -1261,9 +1261,10 @@ fn index_runtime_events(events: &[RuntimeEvent]) -> HashMap<String, Vec<&Runtime
             .or_default()
             .push(event);
         if let Some(ref t) = event.target
-            && !t.is_empty() {
-                index.entry(t.clone()).or_default().push(event);
-            }
+            && !t.is_empty()
+        {
+            index.entry(t.clone()).or_default().push(event);
+        }
     }
     index
 }
@@ -1280,57 +1281,61 @@ fn check_runtime_hit(
 
     // For SQL paths, look for sql_execution events
     if kind == "sql_calls"
-        && let Some(events) = source_events {
-            for evt in events {
-                if matches!(evt.event_type, RuntimeEventType::SqlExecution) {
-                    let t = evt.target.as_deref().unwrap_or("");
-                    if t.contains(target) {
-                        return Some(format!("Runtime SQL: {} ({})", t, evt.timestamp));
-                    }
+        && let Some(events) = source_events
+    {
+        for evt in events {
+            if matches!(evt.event_type, RuntimeEventType::SqlExecution) {
+                let t = evt.target.as_deref().unwrap_or("");
+                if t.contains(target) {
+                    return Some(format!("Runtime SQL: {} ({})", t, evt.timestamp));
                 }
             }
         }
+    }
 
     // For state access, look for state_mutation events
     if (kind == "reads_state" || kind == "writes_state")
-        && let Some(events) = target_events {
-            for evt in events {
-                if matches!(evt.event_type, RuntimeEventType::StateMutation) {
-                    let t = evt.target.as_deref().unwrap_or("");
-                    return Some(format!(
-                        "Runtime state: {} at {} ({})",
-                        t, evt.source_path, evt.timestamp
-                    ));
-                }
+        && let Some(events) = target_events
+    {
+        for evt in events {
+            if matches!(evt.event_type, RuntimeEventType::StateMutation) {
+                let t = evt.target.as_deref().unwrap_or("");
+                return Some(format!(
+                    "Runtime state: {} at {} ({})",
+                    t, evt.source_path, evt.timestamp
+                ));
             }
         }
+    }
 
     // For dependencies (navigation), look for route events
     if kind == "dependency"
-        && let Some(events) = target_events {
-            for evt in events {
-                if matches!(evt.event_type, RuntimeEventType::Route) {
-                    return Some(format!(
-                        "Runtime route: {} ({})",
-                        evt.source_path, evt.timestamp
-                    ));
-                }
+        && let Some(events) = target_events
+    {
+        for evt in events {
+            if matches!(evt.event_type, RuntimeEventType::Route) {
+                return Some(format!(
+                    "Runtime route: {} ({})",
+                    evt.source_path, evt.timestamp
+                ));
             }
         }
+    }
 
     // For postbacks, look for control_interaction events
     if kind == "triggers_postback"
-        && let Some(events) = source_events {
-            for evt in events {
-                if matches!(evt.event_type, RuntimeEventType::ControlInteraction) {
-                    let t = evt.target.as_deref().unwrap_or("");
-                    return Some(format!(
-                        "Runtime postback: {} → {} ({})",
-                        evt.source_path, t, evt.timestamp
-                    ));
-                }
+        && let Some(events) = source_events
+    {
+        for evt in events {
+            if matches!(evt.event_type, RuntimeEventType::ControlInteraction) {
+                let t = evt.target.as_deref().unwrap_or("");
+                return Some(format!(
+                    "Runtime postback: {} → {} ({})",
+                    evt.source_path, t, evt.timestamp
+                ));
             }
         }
+    }
 
     None
 }

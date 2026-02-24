@@ -189,19 +189,21 @@ pub async fn discover_files_recursive(
 
             if ft.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str())
-                    && !skip_dirs.contains(name.to_lowercase().as_str()) {
-                        queue.push_back(path);
-                    }
-            } else if ft.is_file()
-                && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    let ext_normalized = ext.to_ascii_lowercase();
-                    if !normalized_exts.contains(&ext_normalized) {
-                        continue;
-                    }
-                    if let Some(rel) = path.strip_prefix(dir).ok().and_then(|r| r.to_str()) {
-                        results.push(rel.replace('\\', "/"));
-                    }
+                    && !skip_dirs.contains(name.to_lowercase().as_str())
+                {
+                    queue.push_back(path);
                 }
+            } else if ft.is_file()
+                && let Some(ext) = path.extension().and_then(|e| e.to_str())
+            {
+                let ext_normalized = ext.to_ascii_lowercase();
+                if !normalized_exts.contains(&ext_normalized) {
+                    continue;
+                }
+                if let Some(rel) = path.strip_prefix(dir).ok().and_then(|r| r.to_str()) {
+                    results.push(rel.replace('\\', "/"));
+                }
+            }
         }
     }
 

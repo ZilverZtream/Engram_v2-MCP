@@ -17,8 +17,7 @@ use super::full_project_migration_service::StoredProcedureCatalog;
 // ── Structs ──────────────────────────────────────────────────────────────────
 
 /// Complete database intelligence report.
-#[derive(Debug, Clone, Serialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct DatabaseIntelligence {
     pub sp_logic: Vec<SpBusinessLogic>,
     pub sp_call_chains: Vec<SpCallChain>,
@@ -26,7 +25,6 @@ pub struct DatabaseIntelligence {
     pub schema: SchemaReport,
     pub warnings: Vec<String>,
 }
-
 
 /// Business logic summary for a stored procedure.
 #[derive(Debug, Clone, Serialize)]
@@ -563,9 +561,10 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
                 } else if upper.starts_with("INDEX") || upper.starts_with("UNIQUE") {
                     indexes.push(trimmed.to_string());
                 } else if !trimmed.is_empty()
-                    && let Some(col) = parse_column_def(trimmed) {
-                        columns.push(col);
-                    }
+                    && let Some(col) = parse_column_def(trimmed)
+                {
+                    columns.push(col);
+                }
             }
 
             tables.push(SchemaTable {
@@ -827,12 +826,13 @@ pub fn cross_reference_schema(
         // Surface computed columns
         for col in &table.columns {
             if col.is_computed
-                && let Some(expr) = &col.computed_expression {
-                    business_rules.push(format!(
-                        "Table '{}' column '{}' is computed: {} — do not INSERT into it",
-                        table.name, col.name, expr
-                    ));
-                }
+                && let Some(expr) = &col.computed_expression
+            {
+                business_rules.push(format!(
+                    "Table '{}' column '{}' is computed: {} — do not INSERT into it",
+                    table.name, col.name, expr
+                ));
+            }
             // Surface defaults
             if let Some(default) = &col.default_value {
                 business_rules.push(format!(
@@ -967,7 +967,12 @@ fn find_sp_body<'a>(sql_files: &'a [(String, String)], sp_name: &str) -> Option<
         // Collect all SP positions first to find boundaries
         let sp_positions: Vec<(String, usize)> = SP_BODY_RE
             .captures_iter(content)
-            .map(|cap| (cap[1].to_string(), cap.get(0).expect("group 0 always present").start()))
+            .map(|cap| {
+                (
+                    cap[1].to_string(),
+                    cap.get(0).expect("group 0 always present").start(),
+                )
+            })
             .collect();
 
         for (i, (name, start)) in sp_positions.iter().enumerate() {

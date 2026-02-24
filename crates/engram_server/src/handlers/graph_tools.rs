@@ -323,14 +323,15 @@ impl Engram {
                         &req.namespace,
                         gen_,
                         &hit.doc_id,
-                    ) {
-                        let preview: String = content.chars().take(max_content_chars).collect();
-                        out.push_str(&format!("  L{}: {}", start_line, preview));
-                        if content.chars().count() > max_content_chars {
-                            out.push_str("...");
-                        }
-                        out.push('\n');
+                    )
+                {
+                    let preview: String = content.chars().take(max_content_chars).collect();
+                    out.push_str(&format!("  L{}: {}", start_line, preview));
+                    if content.chars().count() > max_content_chars {
+                        out.push_str("...");
                     }
+                    out.push('\n');
+                }
             }
         }
 

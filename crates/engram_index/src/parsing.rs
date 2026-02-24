@@ -619,10 +619,11 @@ impl SymbolExtractor {
 
                 // Tag WebForms lifecycle methods with stage + sequence metadata.
                 if kind == "function"
-                    && let Some((stage, seq)) = webforms_lifecycle_info(&name) {
-                        meta.insert("lifecycle_stage".into(), stage.into());
-                        meta.insert("lifecycle_sequence".into(), seq.to_string());
-                    }
+                    && let Some((stage, seq)) = webforms_lifecycle_info(&name)
+                {
+                    meta.insert("lifecycle_stage".into(), stage.into());
+                    meta.insert("lifecycle_sequence".into(), seq.to_string());
+                }
 
                 symbols.push(ExtractedSymbol {
                     name: name.clone(),

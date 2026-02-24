@@ -44,6 +44,136 @@ fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
         .collect()
 }
 
+// ─── Panic-safe job cleanup guard ────────────────────────────────────────────
+
+/// RAII guard that commits critical bookkeeping even when a `tokio::spawn` task
+/// terminates abnormally (panic, `abort()`, or early `?`-return before the
+/// normal cleanup path).
+///
+/// **Construction**: create at the very top of the spawned async block, before
+/// any fallible operation. The guard decrements the active-indexing slot counter
+/// (for index jobs), writes a failure tombstone to the job registry, and removes
+/// the job from both `active_jobs` and `cancellation_tokens`.
+///
+/// **Disarming**: call `disarm()` on the normal completion path so that `Drop`
+/// becomes a no-op and the explicit cleanup that follows runs without duplication.
+struct JobCleanupGuard {
+    state: crate::state::AppState,
+    job_id: String,
+    project_id: Option<String>,
+    /// ASCII kind string stored in the failure tombstone.
+    job_kind: &'static str,
+    created_at_ms: u64,
+    /// When `true`, `active_indexing_count` is decremented on drop.
+    dec_active_count: bool,
+    /// Set to `true` once the normal completion path has handled teardown.
+    disarmed: bool,
+}
+
+impl JobCleanupGuard {
+    fn new_index(
+        state: crate::state::AppState,
+        job_id: String,
+        project_id: String,
+        created_at_ms: u64,
+    ) -> Self {
+        Self {
+            state,
+            job_id,
+            project_id: Some(project_id),
+            job_kind: "index_project",
+            created_at_ms,
+            dec_active_count: true,
+            disarmed: false,
+        }
+    }
+
+    fn new_update(
+        state: crate::state::AppState,
+        job_id: String,
+        project_id: String,
+        created_at_ms: u64,
+    ) -> Self {
+        Self {
+            state,
+            job_id,
+            project_id: Some(project_id),
+            job_kind: "update_project",
+            created_at_ms,
+            dec_active_count: false,
+            disarmed: false,
+        }
+    }
+
+    /// Signal that the task completed normally; `Drop` becomes a no-op.
+    fn disarm(&mut self) {
+        self.disarmed = true;
+    }
+}
+
+impl Drop for JobCleanupGuard {
+    fn drop(&mut self) {
+        if self.disarmed {
+            return;
+        }
+
+        // Synchronous: release the active-indexing slot immediately so that new
+        // jobs can be admitted without waiting for the async cleanup to finish.
+        if self.dec_active_count {
+            self.state
+                .active_indexing_count
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        }
+
+        // Async cleanup: write a failure tombstone and purge the job from all
+        // tracking maps.  `Handle::try_current()` is valid during stack unwinding
+        // inside a Tokio task, allowing us to spawn a lightweight cleanup future.
+        let handle = match tokio::runtime::Handle::try_current() {
+            Ok(h) => h,
+            Err(_) => return, // No runtime context — skip async cleanup.
+        };
+
+        let state = self.state.clone();
+        let job_id = self.job_id.clone();
+        let project_id = self.project_id.clone();
+        let kind = self.job_kind;
+        let created_at = self.created_at_ms;
+
+        handle.spawn(async move {
+            let reg = state.registry.clone();
+            let jid = job_id.clone();
+            let pid = project_id.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                let jr = engram_core::JobRecord {
+                    job_id: jid,
+                    kind: kind.into(),
+                    project_id: pid,
+                    status: "failed".into(),
+                    message: "job terminated abnormally (panic or abort)".into(),
+                    progress_pct: 0,
+                    estimated_time_remaining_ms: None,
+                    created_at_ms: created_at,
+                    updated_at_ms: now_ms(),
+                };
+                let _ = reg.put_job(&jr);
+            })
+            .await;
+
+            // Remove from active tracking maps (order: jobs before tokens to
+            // mirror the lock-order convention in cancel_job_internal).
+            {
+                state.active_jobs.write().await.remove(&job_id);
+            }
+            {
+                state.cancellation_tokens.write().await.remove(&job_id);
+            }
+            state.evict_cache_overshoot().await;
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Project lifecycle helper methods on Engram.
 impl Engram {
     pub(crate) async fn ensure_project_record(
@@ -516,6 +646,23 @@ impl Engram {
         }
 
         let handle = tokio::spawn(async move {
+            // Install the panic-safe cleanup guard before touching any database.
+            // If this task panics or is aborted the guard's Drop impl commits a
+            // failure tombstone and releases the active-indexing slot.
+            let mut cleanup_guard = JobCleanupGuard::new_index(
+                state_for_spawn.clone(),
+                job_id_for_job.clone(),
+                project_id_for_job.clone(),
+                job.created_at_ms,
+            );
+
+            // Acquire the per-project serialisation lock (Fix 2).
+            // Prevents concurrent index and update jobs from interleaving writes
+            // to the same Tantivy/LanceDB backends for this project.
+            let _update_guard = state_for_spawn
+                .acquire_project_update_lock(&project_id_for_job)
+                .await;
+
             let search_init = engram_index::HybridSearchEngine::new_with_budget(
                 tantivy_dir,
                 lancedb_dir,
@@ -651,6 +798,10 @@ impl Engram {
                 }
                 Err(e) => Err(e),
             };
+
+            // Normal-path cleanup: disarm the guard so its Drop is a no-op, then
+            // perform the explicit teardown that updates progress and removes maps.
+            cleanup_guard.disarm();
 
             state_for_spawn
                 .active_indexing_count
@@ -791,9 +942,41 @@ impl Engram {
         }
 
         let handle = tokio::spawn(async move {
-            let status = "done";
-            let msg = "completed".to_string();
-            let progress = 100;
+            // Fix 4: Install panic-safe cleanup guard before any fallible work.
+            let mut cleanup_guard = JobCleanupGuard::new_update(
+                state.clone(),
+                job_id_for_job.clone(),
+                project_id_for_job.clone(),
+                jr.created_at_ms,
+            );
+
+            // Fix 1: Acquire per-project serialisation lock before mutating any
+            // backend store. Prevents concurrent update/index jobs from interleaving
+            // writes to the same Tantivy and LanceDB databases.
+            let _update_guard = state.acquire_project_update_lock(&project_id_for_job).await;
+
+            // Pre-load the project directory for checkpointing. We fetch it once
+            // outside `res` so the completion/failure checkpoint can always be
+            // written even if the inner block fails before `dir` is bound.
+            let project_dir: PathBuf = {
+                let reg = state.registry.clone();
+                let pid_c = project_id_for_job.clone();
+                tokio::task::spawn_blocking(move || {
+                    reg.get_project(&pid_c)
+                        .ok()
+                        .flatten()
+                        .map(|r| PathBuf::from(&r.directory))
+                        .unwrap_or_default()
+                })
+                .await
+                .unwrap_or_default()
+            };
+
+            // Build the progress-reporting components (Fix 12) before `res` so
+            // the closure can capture them by move.
+            let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
+            let reg_for_cb = state.registry.clone();
+            let job_id_for_cb = job_id_for_job.clone();
 
             let res = async {
                 let engram = Engram::new(state.clone());
@@ -809,12 +992,36 @@ impl Engram {
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
                     .await?;
 
+                // Fix 10: Enforce byte budget for background updates — identical
+                // to the guarantee provided by the synchronous update_project_impl.
+                engram.enforce_project_byte_budget(&changed).await?;
+
+                // Fix 11: Checkpoint the scanning phase so the job is crash-resumable.
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &dir,
+                        JobPhase::Scanning,
+                        0,
+                        changed.len() as u64,
+                        Some(PhaseResumeState {
+                            pending_files: to_rel_paths(&dir, &changed),
+                            ..PhaseResumeState::default()
+                        }),
+                    )
+                    .await;
+
                 if !deleted.is_empty() {
                     ps.search
                         .delete_files(&project_id_for_job, "memory", &deleted)
                         .await?;
                 }
 
+                // Fix 12: Real progress callback — updates the job record in
+                // Redb every 5 percentage-point increment.
+                let last_pct_cb = last_pct.clone();
                 let stats = engram
                     .index_files_with_parse_guard(
                         &ps.search,
@@ -825,9 +1032,40 @@ impl Engram {
                         changed,
                         state.cfg.max_chunks_per_file,
                         &token,
-                        |_, _| {},
+                        move |curr, total| {
+                            let pct = if total == 0 {
+                                100u8
+                            } else {
+                                ((curr as f32 / total as f32) * 100.0) as u8
+                            };
+                            let prev = last_pct_cb.load(std::sync::atomic::Ordering::Relaxed);
+                            if pct.saturating_sub(prev) < 5 && curr != total {
+                                return;
+                            }
+                            last_pct_cb.store(pct, std::sync::atomic::Ordering::Relaxed);
+                            if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
+                                job.progress_pct = pct;
+                                job.message = format!("Updating: {}/{} files", curr, total);
+                                job.updated_at_ms = now_ms();
+                                let _ = reg_for_cb.put_job(&job);
+                            }
+                        },
                     )
                     .await?;
+
+                // Fix 11: Checkpoint after vector indexing completes.
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &dir,
+                        JobPhase::VectorIndexing,
+                        stats.chunks as u64,
+                        stats.chunks as u64,
+                        None,
+                    )
+                    .await;
 
                 engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
@@ -861,24 +1099,47 @@ impl Engram {
             } else if res.is_err() {
                 "failed"
             } else {
-                status
+                "done"
             };
 
-            let final_msg = if token.is_cancelled() {
-                "cancelled by user".to_string()
-            } else if let Err(e) = res {
-                e.to_string()
-            } else {
-                msg
+            let final_msg = match (&res, token.is_cancelled()) {
+                (_, true) => "cancelled by user".to_string(),
+                (Err(e), false) => e.to_string(),
+                _ => "completed".to_string(),
             };
+
+            // Fix 12: Derive progress from the actual outcome, not a pre-set constant.
+            let final_progress: u8 = if final_status == "done" { 100 } else { 0 };
+
+            // Fix 11: Write failure/cancellation checkpoint on abnormal exit.
+            if final_status != "done" {
+                let engram = Engram::new(state.clone());
+                engram
+                    .write_checkpoint(
+                        &job_id_for_job,
+                        &project_id_for_job,
+                        new_gen,
+                        &project_dir,
+                        JobPhase::Failed,
+                        0,
+                        0,
+                        None,
+                    )
+                    .await;
+            }
 
             if final_status == "done" {
-                let _ = state.registry.set_meta(
-                    &project_id_for_job,
-                    "active_generation",
-                    &new_gen.to_string(),
-                );
+                let reg = state.registry.clone();
+                let pid2 = project_id_for_job.clone();
+                let gen_str = new_gen.to_string();
+                let _ = tokio::task::spawn_blocking(move || {
+                    reg.set_meta(&pid2, "active_generation", &gen_str)
+                })
+                .await;
             }
+
+            // Fix 4: Disarm guard before explicit teardown to avoid double-cleanup.
+            cleanup_guard.disarm();
 
             let jr2 = JobRecord {
                 job_id: job_id_for_job.clone(),
@@ -886,7 +1147,7 @@ impl Engram {
                 project_id: Some(project_id_for_job.clone()),
                 status: final_status.into(),
                 message: final_msg,
-                progress_pct: progress,
+                progress_pct: final_progress,
                 estimated_time_remaining_ms: None,
                 created_at_ms: jr.created_at_ms,
                 updated_at_ms: now_ms(),
@@ -1118,10 +1379,13 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
-        let rec = self
-            .state
-            .registry
-            .get_project(&req.project_id)
+        // Fix 6: Redb reads are synchronous blocking I/O and must not execute on
+        // a Tokio worker thread directly.
+        let reg = self.state.registry.clone();
+        let pid_info = req.project_id.clone();
+        let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_info))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let Some(rec) = rec else {
             return Err(McpError::invalid_params("Unknown project", None));
@@ -1176,11 +1440,12 @@ impl Engram {
         let pid = req.project_id.clone();
         let _ = self.ensure_project_record(&pid).await?;
 
-        // Full repair implementation
-        let rec = self
-            .state
-            .registry
-            .get_project(&pid)
+        // Full repair implementation — Fix 6: wrap blocking Redb read.
+        let reg_r = self.state.registry.clone();
+        let pid_r = pid.clone();
+        let rec = tokio::task::spawn_blocking(move || reg_r.get_project(&pid_r))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .ok_or_else(|| McpError::internal_error(format!("project {pid} not found"), None))?;
         let dir = PathBuf::from(&rec.directory);
@@ -1230,6 +1495,55 @@ impl Engram {
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
         let pid = req.project_id;
+
+        // Fix 9: Signal and abort every active job for this project before
+        // destroying its database entries. Without this, orphaned tasks continue
+        // to read and write the now-deleted data, recreating deleted directories
+        // and leaving the system in a ghost state.
+        {
+            let reg = self.state.registry.clone();
+            let pid_c = pid.clone();
+            let running_ids: Vec<String> =
+                tokio::task::spawn_blocking(move || reg.list_jobs(Some(&pid_c)))
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|j| j.status == "running")
+                    .map(|j| j.job_id)
+                    .collect();
+
+            if !running_ids.is_empty() {
+                // Collect tokens without holding the lock across awaits.
+                let tokens_to_cancel: Vec<tokio_util::sync::CancellationToken> = {
+                    let guard = self.state.cancellation_tokens.read().await;
+                    running_ids
+                        .iter()
+                        .filter_map(|jid| guard.get(jid).cloned())
+                        .collect()
+                };
+                // Signal cooperative cancellation first.
+                for tok in &tokens_to_cancel {
+                    tok.cancel();
+                }
+                // Then hard-abort the JoinHandles and remove them from maps.
+                {
+                    let mut handles = self.state.active_jobs.write().await;
+                    for jid in &running_ids {
+                        if let Some(h) = handles.remove(jid) {
+                            h.abort();
+                        }
+                    }
+                }
+                {
+                    let mut tokens = self.state.cancellation_tokens.write().await;
+                    for jid in &running_ids {
+                        tokens.remove(jid);
+                    }
+                }
+            }
+        }
 
         // The data directory for a project is usually at {data_dir}/projects/{pid}
         let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
@@ -1343,6 +1657,12 @@ impl Engram {
         let ps = self.ensure_project_runtime(&pid).await?;
         let active_gen = self.get_active_generation(&pid).await?;
         let target_gen = req.target_generation.unwrap_or(active_gen);
+
+        // Fix 3: Acquire the per-project serialisation lock before mutating
+        // graph and search stores. Without this, GC can delete generations out
+        // from under a concurrently running index or update job, causing crashes
+        // and dangling references.
+        let _update_guard = self.state.acquire_project_update_lock(&pid).await;
 
         let mut steps: Vec<String> = Vec::new();
 

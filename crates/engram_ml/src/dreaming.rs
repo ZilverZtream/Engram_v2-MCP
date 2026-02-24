@@ -833,13 +833,14 @@ pub fn deterministic_boundaries_with_data(
             let mut shared: std::collections::HashSet<String> = std::collections::HashSet::new();
             for d in &b.owned_data {
                 if let Some(owners) = data_owners.get(d)
-                    && owners.len() > 1 {
-                        for o in owners {
-                            if o != &b.context_name {
-                                shared.insert(o.clone());
-                            }
+                    && owners.len() > 1
+                {
+                    for o in owners {
+                        if o != &b.context_name {
+                            shared.insert(o.clone());
                         }
                     }
+                }
             }
             if !shared.is_empty() {
                 b.risk = "HIGH".into();

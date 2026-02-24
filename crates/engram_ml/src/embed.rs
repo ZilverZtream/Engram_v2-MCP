@@ -135,8 +135,7 @@ fn ahash_u64_fixed_a(data: &[u8]) -> u64 {
         0x9368d954_3c2f05db,
         0x2f50f073_c8fa3ba5,
     );
-    
-    
+
     state.hash_one(data)
 }
 
@@ -148,8 +147,7 @@ fn ahash_u64_fixed_b(data: &[u8]) -> u64 {
         0xfedcba98_76543210,
         0xc0ffee11_deadbeef,
     );
-    
-    
+
     state.hash_one(data)
 }
 

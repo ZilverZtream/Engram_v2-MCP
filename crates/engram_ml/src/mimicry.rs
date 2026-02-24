@@ -230,13 +230,13 @@ impl StyleMimicryEngine {
         // Order: Rust, C#, TypeScript, Java, Go, Python (most specific -> most generic).
         type Analyzer = fn(&StyleMimicryEngine, &str) -> Option<(Detection, DetectedLanguage)>;
         let analyzers: &[Analyzer] = &[
-                Self::analyze_rust,
-                Self::analyze_csharp,
-                Self::analyze_typescript,
-                Self::analyze_java,
-                Self::analyze_go,
-                Self::analyze_python,
-            ];
+            Self::analyze_rust,
+            Self::analyze_csharp,
+            Self::analyze_typescript,
+            Self::analyze_java,
+            Self::analyze_go,
+            Self::analyze_python,
+        ];
 
         for analyzer in analyzers {
             if let Some((det, lang)) = analyzer(self, text) {
@@ -800,10 +800,8 @@ fn detect_naming(text: &str) -> Option<String> {
     static CAMEL_RE: OnceLock<Regex> = OnceLock::new();
     static PASCAL_RE: OnceLock<Regex> = OnceLock::new();
 
-    let snake =
-        get_compiled_regex(&SNAKE_RE, r"\b[a-z]+_[a-z0-9_]+\b", "mimicry_snake")?;
-    let camel =
-        get_compiled_regex(&CAMEL_RE, r"\b[a-z]+[A-Z][A-Za-z0-9]*\b", "mimicry_camel")?;
+    let snake = get_compiled_regex(&SNAKE_RE, r"\b[a-z]+_[a-z0-9_]+\b", "mimicry_snake")?;
+    let camel = get_compiled_regex(&CAMEL_RE, r"\b[a-z]+[A-Z][A-Za-z0-9]*\b", "mimicry_camel")?;
     let pascal = get_compiled_regex(
         &PASCAL_RE,
         r"\b[A-Z][a-z0-9]+[A-Za-z0-9]*\b",

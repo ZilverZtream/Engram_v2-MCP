@@ -18,7 +18,8 @@ use std::sync::{Arc, LazyLock};
 // ── Page-directive regex ──────────────────────────────────────────────────────
 
 static RE_DIRECTIVE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<%@\s+(?:Page|Control|Master|WebService|WebHandler)\b([^%]*)%>").expect("valid regex")
+    Regex::new(r"(?is)<%@\s+(?:Page|Control|Master|WebService|WebHandler)\b([^%]*)%>")
+        .expect("valid regex")
 });
 
 fn extract_dir_attr(tag: &str, attr: &str) -> Option<String> {
@@ -38,11 +39,13 @@ static RE_SQL_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static RE_OBJ_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<asp:ObjectDataSource\b((?:[^>"']|"[^"]*"|'[^']*')*)(?:/\s*>|>)"#).expect("valid regex")
+    Regex::new(r#"(?is)<asp:ObjectDataSource\b((?:[^>"']|"[^"]*"|'[^']*')*)(?:/\s*>|>)"#)
+        .expect("valid regex")
 });
 
-static RE_ACCESS_DATA_SOURCE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<asp:AccessDataSource\b([^>]*)(?:/\s*>|>)").expect("valid regex"));
+static RE_ACCESS_DATA_SOURCE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<asp:AccessDataSource\b([^>]*)(?:/\s*>|>)").expect("valid regex")
+});
 
 static RE_TABLE_FROM_SQL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+[\[`]?(\w+)[\]`]?").expect("valid regex")
@@ -53,7 +56,8 @@ static RE_REGISTER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?is)<%@\s+Register\b([^%]*)%>"#).expect("valid regex"));
 
 /// Matches attribute-name tokens (`word=`) inside control tag bodies.
-static RE_ATTR_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).expect("valid regex"));
+static RE_ATTR_NAME: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(\w+)\s*="#).expect("valid regex"));
 
 fn extract_aspx_attr(tag: &str, attr: &str) -> String {
     // Manual case-insensitive attribute extraction — avoids compiling a new

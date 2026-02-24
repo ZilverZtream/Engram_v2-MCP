@@ -235,10 +235,14 @@ async fn deterministic_node_ids_across_clean_runs() {
     // Post-processing steps like resolve_app_code_globals or link_binding_fields
     // may produce a few extra nodes depending on timing, so we verify that all
     // nodes from the smaller set are in the larger set by (type, name).
-    let set1: std::collections::HashSet<(String, String)> =
-        ids1.iter().map(|(t, n, _)| (t.clone(), n.clone())).collect();
-    let set2: std::collections::HashSet<(String, String)> =
-        ids2.iter().map(|(t, n, _)| (t.clone(), n.clone())).collect();
+    let set1: std::collections::HashSet<(String, String)> = ids1
+        .iter()
+        .map(|(t, n, _)| (t.clone(), n.clone()))
+        .collect();
+    let set2: std::collections::HashSet<(String, String)> = ids2
+        .iter()
+        .map(|(t, n, _)| (t.clone(), n.clone()))
+        .collect();
 
     let (smaller, larger) = if set1.len() <= set2.len() {
         (&set1, &set2)

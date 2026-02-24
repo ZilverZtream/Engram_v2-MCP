@@ -317,32 +317,32 @@ pub fn detect_design_antipatterns(
         let dep_edges_all = graph.list_edges_by_kind(project_id, EdgeKind::Dependency, 10_000)?;
         for e in &dep_edges_all {
             if let Some(node) = graph.get_node(project_id, &e.source_id)?
-                && node.node_type == "background_service" {
-                    patterns.push(DesignAntiPattern {
-                        pattern_name: "Windows Service".into(),
-                        description: format!(
-                            "{} is a Windows Service or background job. \
+                && node.node_type == "background_service"
+            {
+                patterns.push(DesignAntiPattern {
+                    pattern_name: "Windows Service".into(),
+                    description: format!(
+                        "{} is a Windows Service or background job. \
                              These require special migration strategies.",
-                            node.name
-                        ),
-                        severity: AntiPatternSeverity::Moderate,
-                        affected_nodes: vec![e.source_id.clone()],
-                        evidence: vec![format!(
-                            "Node type: background_service in {}",
-                            node.file_path.as_str()
-                        )],
-                        modern_target: "ASP.NET Core BackgroundService / IHostedService, \
+                        node.name
+                    ),
+                    severity: AntiPatternSeverity::Moderate,
+                    affected_nodes: vec![e.source_id.clone()],
+                    evidence: vec![format!(
+                        "Node type: background_service in {}",
+                        node.file_path.as_str()
+                    )],
+                    modern_target: "ASP.NET Core BackgroundService / IHostedService, \
                                         Hangfire, or Azure Functions"
-                            .into(),
-                        refactoring_steps: vec![
-                            "Identify timer intervals and trigger conditions".into(),
-                            "Create IHostedService or BackgroundService implementation".into(),
-                            "Migrate OnStart/OnStop to StartAsync/StopAsync".into(),
-                            "Register in Program.cs via builder.Services.AddHostedService<T>()"
-                                .into(),
-                        ],
-                    });
-                }
+                        .into(),
+                    refactoring_steps: vec![
+                        "Identify timer intervals and trigger conditions".into(),
+                        "Create IHostedService or BackgroundService implementation".into(),
+                        "Migrate OnStart/OnStop to StartAsync/StopAsync".into(),
+                        "Register in Program.cs via builder.Services.AddHostedService<T>()".into(),
+                    ],
+                });
+            }
         }
     }
 

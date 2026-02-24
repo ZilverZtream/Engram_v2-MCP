@@ -761,37 +761,38 @@ impl HybridSearchEngine {
             let mut stream = dict.stream()?;
             while let Some((term_bytes, _)) = stream.next() {
                 if let Ok(lang) = std::str::from_utf8(term_bytes)
-                    && !lang.is_empty() && !counts.contains_key(lang) {
-                        // Now count docs matching (project_id AND namespace=memory AND language=lang)
-                        let q = BooleanQuery::new(vec![
-                            (
-                                Occur::Must,
-                                Box::new(TermQuery::new(
-                                    Term::from_field_text(self.fields.project_id, project_id),
-                                    IndexRecordOption::Basic,
-                                ))
-                                    as Box<dyn tantivy::query::Query>,
-                            ),
-                            (
-                                Occur::Must,
-                                Box::new(TermQuery::new(
-                                    Term::from_field_text(self.fields.namespace, "memory"),
-                                    IndexRecordOption::Basic,
-                                )),
-                            ),
-                            (
-                                Occur::Must,
-                                Box::new(TermQuery::new(
-                                    Term::from_field_text(self.fields.language, lang),
-                                    IndexRecordOption::Basic,
-                                )),
-                            ),
-                        ]);
-                        let c = searcher.search(&q, &tantivy::collector::Count)?;
-                        if c > 0 {
-                            counts.insert(lang.to_string(), c);
-                        }
+                    && !lang.is_empty()
+                    && !counts.contains_key(lang)
+                {
+                    // Now count docs matching (project_id AND namespace=memory AND language=lang)
+                    let q = BooleanQuery::new(vec![
+                        (
+                            Occur::Must,
+                            Box::new(TermQuery::new(
+                                Term::from_field_text(self.fields.project_id, project_id),
+                                IndexRecordOption::Basic,
+                            )) as Box<dyn tantivy::query::Query>,
+                        ),
+                        (
+                            Occur::Must,
+                            Box::new(TermQuery::new(
+                                Term::from_field_text(self.fields.namespace, "memory"),
+                                IndexRecordOption::Basic,
+                            )),
+                        ),
+                        (
+                            Occur::Must,
+                            Box::new(TermQuery::new(
+                                Term::from_field_text(self.fields.language, lang),
+                                IndexRecordOption::Basic,
+                            )),
+                        ),
+                    ]);
+                    let c = searcher.search(&q, &tantivy::collector::Count)?;
+                    if c > 0 {
+                        counts.insert(lang.to_string(), c);
                     }
+                }
             }
         }
         Ok(counts)
@@ -1451,17 +1452,18 @@ impl HybridSearchEngine {
                 }
 
                 if let Some(prefixes) = &q.include_path_prefixes
-                    && !prefixes.is_empty() {
-                        wc.push_str(" AND (");
-                        for (i, p) in prefixes.iter().enumerate() {
-                            if i > 0 {
-                                wc.push_str(" OR ");
-                            }
-                            let safe_p = escape_like(p);
-                            let _ = write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p);
+                    && !prefixes.is_empty()
+                {
+                    wc.push_str(" AND (");
+                    for (i, p) in prefixes.iter().enumerate() {
+                        if i > 0 {
+                            wc.push_str(" OR ");
                         }
-                        wc.push(')');
+                        let safe_p = escape_like(p);
+                        let _ = write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p);
                     }
+                    wc.push(')');
+                }
 
                 if let Some(prefixes) = &q.exclude_path_prefixes {
                     for p in prefixes {
@@ -1471,17 +1473,18 @@ impl HybridSearchEngine {
                 }
 
                 if let Some(langs) = &q.language_filters
-                    && !langs.is_empty() {
-                        wc.push_str(" AND language IN (");
-                        for (i, l) in langs.iter().enumerate() {
-                            if i > 0 {
-                                wc.push_str(", ");
-                            }
-                            let safe_l = l.replace('\'', "''");
-                            let _ = write!(wc, "'{}'", safe_l);
+                    && !langs.is_empty()
+                {
+                    wc.push_str(" AND language IN (");
+                    for (i, l) in langs.iter().enumerate() {
+                        if i > 0 {
+                            wc.push_str(", ");
                         }
-                        wc.push(')');
+                        let safe_l = l.replace('\'', "''");
+                        let _ = write!(wc, "'{}'", safe_l);
                     }
+                    wc.push(')');
+                }
 
                 if let Some(author) = &q.author_filter {
                     let safe_author = author.replace('\'', "''");
@@ -1892,8 +1895,9 @@ fn extract_inline_scripts(markup: &str) -> String {
     use std::sync::LazyLock;
 
     // Match <script ...>...</script> blocks (case-insensitive, non-greedy).
-    static SCRIPT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"(?is)<script\b([^>]*)>(.*?)</script>"#).expect("valid regex literal"));
+    static SCRIPT_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"(?is)<script\b([^>]*)>(.*?)</script>"#).expect("valid regex literal")
+    });
 
     let mut out = String::new();
     for cap in SCRIPT_RE.captures_iter(markup) {

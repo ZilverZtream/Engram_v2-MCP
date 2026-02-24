@@ -141,14 +141,15 @@ impl CheckpointStore {
         for r in t.iter()? {
             let (_k, v) = r?;
             let cp: Checkpoint = serde_json::from_slice(v.value())?;
-            if cp.project_id == project_id && cp.is_resumable()
+            if cp.project_id == project_id
+                && cp.is_resumable()
                 && best
                     .as_ref()
                     .map(|b| cp.updated_at_ms > b.updated_at_ms)
                     .unwrap_or(true)
-                {
-                    best = Some(cp);
-                }
+            {
+                best = Some(cp);
+            }
         }
         Ok(best)
     }

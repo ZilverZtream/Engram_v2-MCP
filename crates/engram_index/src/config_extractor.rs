@@ -93,117 +93,120 @@ fn process_element(
 ) {
     // ── httpModules / system.webServer modules ────────────────────────────
     if (context.contains("httpmodules/add") || context.contains("modules/add"))
-        && let Some(type_fqn) = attr_value(e, b"type") {
-            let name = attr_value(e, b"name").unwrap_or_else(|| type_fqn.clone());
-            let class_name = extract_class_name(&type_fqn);
+        && let Some(type_fqn) = attr_value(e, b"type")
+    {
+        let name = attr_value(e, b"name").unwrap_or_else(|| type_fqn.clone());
+        let class_name = extract_class_name(&type_fqn);
 
-            let mut meta = HashMap::new();
-            meta.insert("type".into(), type_fqn.clone());
-            if let Some(asm) = extract_assembly(&type_fqn) {
-                meta.insert("assembly".into(), asm);
-            }
-
-            symbols.push(ExtractedSymbol {
-                name: name.clone(),
-                kind: "http_module",
-                start_line: 0,
-                end_line: 0,
-                metadata: Some(meta),
-            });
-
-            edges.push(ExtractedEdge {
-                source_name: rel_path.as_str().to_string(),
-                source_kind: "file",
-                source_start_line: 0,
-                source_language: "xml",
-                target_name: class_name,
-                target_kind: Some("class"),
-                target_start_line: None,
-                kind: "registers_module",
-                metadata: Some(HashMap::from([("module_name".into(), name)])),
-            });
+        let mut meta = HashMap::new();
+        meta.insert("type".into(), type_fqn.clone());
+        if let Some(asm) = extract_assembly(&type_fqn) {
+            meta.insert("assembly".into(), asm);
         }
+
+        symbols.push(ExtractedSymbol {
+            name: name.clone(),
+            kind: "http_module",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+
+        edges.push(ExtractedEdge {
+            source_name: rel_path.as_str().to_string(),
+            source_kind: "file",
+            source_start_line: 0,
+            source_language: "xml",
+            target_name: class_name,
+            target_kind: Some("class"),
+            target_start_line: None,
+            kind: "registers_module",
+            metadata: Some(HashMap::from([("module_name".into(), name)])),
+        });
+    }
 
     // ── httpHandlers / system.webServer handlers ──────────────────────────
     if (context.contains("httphandlers/add") || context.contains("handlers/add"))
-        && let Some(type_fqn) = attr_value(e, b"type") {
-            let verb = attr_value(e, b"verb").unwrap_or_default();
-            let path_pattern = attr_value(e, b"path").unwrap_or_default();
-            let name =
-                attr_value(e, b"name").unwrap_or_else(|| format!("{} {}", verb, path_pattern));
-            let class_name = extract_class_name(&type_fqn);
+        && let Some(type_fqn) = attr_value(e, b"type")
+    {
+        let verb = attr_value(e, b"verb").unwrap_or_default();
+        let path_pattern = attr_value(e, b"path").unwrap_or_default();
+        let name = attr_value(e, b"name").unwrap_or_else(|| format!("{} {}", verb, path_pattern));
+        let class_name = extract_class_name(&type_fqn);
 
-            let mut meta = HashMap::new();
-            meta.insert("type".into(), type_fqn.clone());
-            if !verb.is_empty() {
-                meta.insert("verb".into(), verb);
-            }
-            if !path_pattern.is_empty() {
-                meta.insert("path".into(), path_pattern);
-            }
-            if let Some(asm) = extract_assembly(&type_fqn) {
-                meta.insert("assembly".into(), asm);
-            }
-
-            symbols.push(ExtractedSymbol {
-                name: name.clone(),
-                kind: "route_handler",
-                start_line: 0,
-                end_line: 0,
-                metadata: Some(meta),
-            });
-
-            edges.push(ExtractedEdge {
-                source_name: rel_path.as_str().to_string(),
-                source_kind: "file",
-                source_start_line: 0,
-                source_language: "xml",
-                target_name: class_name,
-                target_kind: Some("class"),
-                target_start_line: None,
-                kind: "registers_handler",
-                metadata: Some(HashMap::from([("handler_name".into(), name)])),
-            });
+        let mut meta = HashMap::new();
+        meta.insert("type".into(), type_fqn.clone());
+        if !verb.is_empty() {
+            meta.insert("verb".into(), verb);
         }
+        if !path_pattern.is_empty() {
+            meta.insert("path".into(), path_pattern);
+        }
+        if let Some(asm) = extract_assembly(&type_fqn) {
+            meta.insert("assembly".into(), asm);
+        }
+
+        symbols.push(ExtractedSymbol {
+            name: name.clone(),
+            kind: "route_handler",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+
+        edges.push(ExtractedEdge {
+            source_name: rel_path.as_str().to_string(),
+            source_kind: "file",
+            source_start_line: 0,
+            source_language: "xml",
+            target_name: class_name,
+            target_kind: Some("class"),
+            target_start_line: None,
+            kind: "registers_handler",
+            metadata: Some(HashMap::from([("handler_name".into(), name)])),
+        });
+    }
 
     // ── appSettings ──────────────────────────────────────────────────────
     if context.contains("appsettings/add")
-        && let Some(key) = attr_value(e, b"key") {
-            let value = attr_value(e, b"value").unwrap_or_default();
+        && let Some(key) = attr_value(e, b"key")
+    {
+        let value = attr_value(e, b"value").unwrap_or_default();
 
-            let mut meta = HashMap::new();
-            meta.insert("key".into(), key.clone());
-            meta.insert("value".into(), value);
+        let mut meta = HashMap::new();
+        meta.insert("key".into(), key.clone());
+        meta.insert("value".into(), value);
 
-            symbols.push(ExtractedSymbol {
-                name: key,
-                kind: "app_setting",
-                start_line: 0,
-                end_line: 0,
-                metadata: Some(meta),
-            });
-        }
+        symbols.push(ExtractedSymbol {
+            name: key,
+            kind: "app_setting",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+    }
 
     // ── connectionStrings ────────────────────────────────────────────────
     if context.contains("connectionstrings/add")
-        && let Some(name) = attr_value(e, b"name") {
-            let provider = attr_value(e, b"providerName").unwrap_or_default();
+        && let Some(name) = attr_value(e, b"name")
+    {
+        let provider = attr_value(e, b"providerName").unwrap_or_default();
 
-            let mut meta = HashMap::new();
-            meta.insert("name".into(), name.clone());
-            if !provider.is_empty() {
-                meta.insert("provider".into(), provider);
-            }
-            // Intentionally do NOT store connectionString value (secrets).
-
-            symbols.push(ExtractedSymbol {
-                name,
-                kind: "connection_string",
-                start_line: 0,
-                end_line: 0,
-                metadata: Some(meta),
-            });
+        let mut meta = HashMap::new();
+        meta.insert("name".into(), name.clone());
+        if !provider.is_empty() {
+            meta.insert("provider".into(), provider);
         }
+        // Intentionally do NOT store connectionString value (secrets).
+
+        symbols.push(ExtractedSymbol {
+            name,
+            kind: "connection_string",
+            start_line: 0,
+            end_line: 0,
+            metadata: Some(meta),
+        });
+    }
 }
 
 /// Extract the class name (FQN without assembly) from a .NET type string.

@@ -118,7 +118,8 @@ static RE_SERVICE_REF: LazyLock<Regex> = LazyLock::new(|| {
 
 // Matches any asp: control with an ID attribute — used to enumerate controls inside a panel body
 static RE_ASP_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<asp:(\w+)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#).expect("valid regex")
+    Regex::new(r#"(?is)<asp:(\w+)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#)
+        .expect("valid regex")
 });
 
 // Button-like controls used to find full-postback triggers outside UpdatePanels

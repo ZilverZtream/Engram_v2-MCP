@@ -485,10 +485,13 @@ fn extract_tables_read(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 
@@ -500,10 +503,13 @@ fn extract_tables_read(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 
@@ -522,10 +528,13 @@ fn extract_tables_written(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 
@@ -537,10 +546,13 @@ fn extract_tables_written(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 
@@ -552,10 +564,13 @@ fn extract_tables_written(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 
@@ -567,10 +582,13 @@ fn extract_tables_written(body: &str) -> Vec<String> {
     ) {
         for cap in re.captures_iter(body) {
             let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table) && !table.starts_with('@') && !table.starts_with('#')
-                && !tables.contains(&table) {
-                    tables.push(table);
-                }
+            if !is_sql_keyword(&table)
+                && !table.starts_with('@')
+                && !table.starts_with('#')
+                && !tables.contains(&table)
+            {
+                tables.push(table);
+            }
         }
     }
 

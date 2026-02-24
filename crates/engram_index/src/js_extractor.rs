@@ -757,10 +757,10 @@ fn extract_google_maps(
         &GMAP_DRAWING_FULL_RE,
         r"(?i)google\.maps\.drawing\.(?:DrawingManager|OverlayType)",
         "gmaps_drawing_full",
-    )
-        && re.is_match(source) {
-            has_drawing = true;
-        }
+    ) && re.is_match(source)
+    {
+        has_drawing = true;
+    }
 
     // Detect Maps JS API library loading parameters (places, drawing, visualization, geometry)
     static GMAP_LIBRARIES_RE: OnceLock<Regex> = OnceLock::new();
@@ -768,19 +768,19 @@ fn extract_google_maps(
         &GMAP_LIBRARIES_RE,
         r#"(?i)libraries\s*[:=]\s*['"](?P<libs>[^'"]+)['"]"#,
         "gmaps_libraries",
-    )
-        && let Some(cap) = re.captures(source) {
-            let libs = cap.name("libs").map_or("", |m| m.as_str()).to_lowercase();
-            if libs.contains("places") {
-                has_places = true;
-            }
-            if libs.contains("drawing") {
-                has_drawing = true;
-            }
-            if libs.contains("visualization") {
-                has_heatmap = true;
-            }
+    ) && let Some(cap) = re.captures(source)
+    {
+        let libs = cap.name("libs").map_or("", |m| m.as_str()).to_lowercase();
+        if libs.contains("places") {
+            has_places = true;
         }
+        if libs.contains("drawing") {
+            has_drawing = true;
+        }
+        if libs.contains("visualization") {
+            has_heatmap = true;
+        }
+    }
 
     // Detect google.maps.geometry.* (spherical, encoding, poly)
     static GMAP_GEOMETRY_RE: OnceLock<Regex> = OnceLock::new();
@@ -789,10 +789,10 @@ fn extract_google_maps(
         &GMAP_GEOMETRY_RE,
         r"(?i)google\.maps\.geometry\.(?:spherical|encoding|poly)\.\w+",
         "gmaps_geometry",
-    )
-        && re.is_match(source) {
-            has_geometry = true;
-        }
+    ) && re.is_match(source)
+    {
+        has_geometry = true;
+    }
 
     // Emit detailed inventory if any Google Maps usage found
     if !gmaps_classes.is_empty() {
@@ -1027,8 +1027,14 @@ fn extract_ctl00_references(
     for cap in re.captures_iter(source) {
         let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let full_id = cap.name("full_id").expect("mandatory 'full_id' group").as_str();
-        let ctrl_id = cap.name("ctrl_id").expect("mandatory 'ctrl_id' group").as_str();
+        let full_id = cap
+            .name("full_id")
+            .expect("mandatory 'full_id' group")
+            .as_str();
+        let ctrl_id = cap
+            .name("ctrl_id")
+            .expect("mandatory 'ctrl_id' group")
+            .as_str();
 
         let mut meta = HashMap::with_capacity(3);
         meta.insert("selector_type".into(), "ctl00_reverse_map".into());
@@ -1147,10 +1153,11 @@ fn extract_gis_layer_inventory(
         "geojson_layer",
     );
     if let Some(re) = re_geojson
-        && re.is_match(source) {
-            has_geojson = true;
-            layers.push("geojson".to_string());
-        }
+        && re.is_match(source)
+    {
+        has_geojson = true;
+        layers.push("geojson".to_string());
+    }
 
     // --- Marker clustering ---
     let re_cluster = get_compiled_regex(
@@ -1159,10 +1166,11 @@ fn extract_gis_layer_inventory(
         "marker_cluster",
     );
     if let Some(re) = re_cluster
-        && re.is_match(source) {
-            has_clustering = true;
-            layers.push("marker_cluster".to_string());
-        }
+        && re.is_match(source)
+    {
+        has_clustering = true;
+        layers.push("marker_cluster".to_string());
+    }
 
     // --- Drawing tools ---
     let re_ldraw = get_compiled_regex(
@@ -1171,9 +1179,10 @@ fn extract_gis_layer_inventory(
         "drawing_tools",
     );
     if let Some(re) = re_ldraw
-        && re.is_match(source) {
-            has_drawing = true;
-        }
+        && re.is_match(source)
+    {
+        has_drawing = true;
+    }
     // Google Maps DrawingManager
     let re_gdraw = get_compiled_regex(
         &GMAPS_DRAWING_RE,
@@ -1181,9 +1190,10 @@ fn extract_gis_layer_inventory(
         "gmaps_drawing",
     );
     if let Some(re) = re_gdraw
-        && re.is_match(source) {
-            has_drawing = true;
-        }
+        && re.is_match(source)
+    {
+        has_drawing = true;
+    }
     // OpenLayers Draw interaction
     let re_oldraw = get_compiled_regex(
         &OL_DRAW_RE,
@@ -1191,9 +1201,10 @@ fn extract_gis_layer_inventory(
         "ol_draw",
     );
     if let Some(re) = re_oldraw
-        && re.is_match(source) {
-            has_drawing = true;
-        }
+        && re.is_match(source)
+    {
+        has_drawing = true;
+    }
 
     // --- Coordinate system detection ---
     let re_ol_proj = get_compiled_regex(
@@ -1202,24 +1213,26 @@ fn extract_gis_layer_inventory(
         "ol_proj",
     );
     if let Some(re) = re_ol_proj
-        && re.is_match(source) {
-            coordinate_system = "EPSG:3857 (from EPSG:4326)";
-        }
+        && re.is_match(source)
+    {
+        coordinate_system = "EPSG:3857 (from EPSG:4326)";
+    }
     let re_crs = get_compiled_regex(
         &LEAFLET_CRS_RE,
         r"(?i)\bL\.CRS\.(?P<crs>\w+)",
         "leaflet_crs",
     );
     if let Some(re) = re_crs
-        && let Some(cap) = re.captures(source) {
-            let crs = cap.name("crs").map_or("", |m| m.as_str());
-            coordinate_system = match crs.to_lowercase().as_str() {
-                "epsg3857" => "EPSG:3857",
-                "epsg4326" => "EPSG:4326",
-                "simple" => "Simple (non-geographic)",
-                _ => "Custom CRS",
-            };
-        }
+        && let Some(cap) = re.captures(source)
+    {
+        let crs = cap.name("crs").map_or("", |m| m.as_str());
+        coordinate_system = match crs.to_lowercase().as_str() {
+            "epsg3857" => "EPSG:3857",
+            "epsg4326" => "EPSG:4326",
+            "simple" => "Simple (non-geographic)",
+            _ => "Custom CRS",
+        };
+    }
 
     // --- Geocoding detection ---
     let re_geocoder = get_compiled_regex(
@@ -1228,18 +1241,20 @@ fn extract_gis_layer_inventory(
         "geocoder",
     );
     if let Some(re) = re_geocoder
-        && re.is_match(source) {
-            has_geocoding = true;
-        }
+        && re.is_match(source)
+    {
+        has_geocoding = true;
+    }
     let re_geocode_url = get_compiled_regex(
         &GEOCODE_URL_RE,
         r"(?i)(?:geocode|geocoding|nominatim)",
         "geocode_url",
     );
     if let Some(re) = re_geocode_url
-        && re.is_match(source) {
-            has_geocoding = true;
-        }
+        && re.is_match(source)
+    {
+        has_geocoding = true;
+    }
 
     // --- API key count (from existing GIS_API_KEY_RE) ---
     let re_apikey = get_compiled_regex(
@@ -1253,9 +1268,10 @@ fn extract_gis_layer_inventory(
 
     // Check for marker layers
     if (src_lower.contains("l.marker") || src_lower.contains("new google.maps.marker"))
-        && !layers.contains(&"marker".to_string()) {
-            layers.push("marker".to_string());
-        }
+        && !layers.contains(&"marker".to_string())
+    {
+        layers.push("marker".to_string());
+    }
 
     // Determine library and version hint
     let library = if has_leaflet {

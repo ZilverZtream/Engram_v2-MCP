@@ -194,9 +194,12 @@ pub fn stacktrace_to_query(stack: &str) -> String {
             }
         }
         if let Some(ref func) = frame.function
-            && func.len() >= 3 && func.len() <= 80 && seen.insert(func.to_string()) {
-                terms.push(func.to_string());
-            }
+            && func.len() >= 3
+            && func.len() <= 80
+            && seen.insert(func.to_string())
+        {
+            terms.push(func.to_string());
+        }
         if let Some(ref fqn) = frame.fqn {
             // Also add class name (second-to-last segment)
             let parts: Vec<&str> = fqn.split('.').collect();
@@ -211,7 +214,8 @@ pub fn stacktrace_to_query(stack: &str) -> String {
 
     // Fallback: generic identifier extraction for any remaining tokens
     static IDENT_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let re = IDENT_RE.get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("valid regex"));
+    let re = IDENT_RE
+        .get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("valid regex"));
     for m in re.find_iter(stack).take(80) {
         let t = m.as_str();
         if t.len() > 80 {

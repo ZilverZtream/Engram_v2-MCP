@@ -516,8 +516,7 @@ pub fn generate_characterization_tests(
         let source = &dep.source_id;
         let test_name = format!(
             "Navigation_Should_Redirect_To_{}",
-            target
-                .replace(['/', '.', '\\'], "_")
+            target.replace(['/', '.', '\\'], "_")
         );
         let _ = writeln!(code);
         let _ = writeln!(code, "    {}", fw.test_attribute());
@@ -570,8 +569,7 @@ pub fn generate_characterization_tests(
     // 5. API contract tests — for service endpoints
     for svc_edge in &ctx.service_edges {
         let endpoint = &svc_edge.target_id;
-        let safe_name = endpoint
-            .replace(['/', '.', ':'], "_");
+        let safe_name = endpoint.replace(['/', '.', ':'], "_");
         let test_name = format!("Contract_{safe_name}_Returns_Expected_Schema");
 
         let _ = writeln!(code);

@@ -111,21 +111,22 @@ pub fn generate_scaffold_with_solution(
 
     // Phase 31: Solution-aware context
     if let Some(sln) = solution
-        && let Some(proj_name) = solution_parser::file_to_project(sln, file_path) {
-            // Add namespace resolution info
-            if let Some(ns) = solution_parser::resolve_namespace(sln, proj_name) {
-                mapping_report.push(MappingEntry {
-                    legacy_element: format!("Project: {proj_name}"),
-                    modern_element: format!("Namespace: {ns}"),
-                    category: "project_context".into(),
-                    notes: "Root namespace from .csproj/.vbproj".into(),
-                });
-            }
+        && let Some(proj_name) = solution_parser::file_to_project(sln, file_path)
+    {
+        // Add namespace resolution info
+        if let Some(ns) = solution_parser::resolve_namespace(sln, proj_name) {
+            mapping_report.push(MappingEntry {
+                legacy_element: format!("Project: {proj_name}"),
+                modern_element: format!("Namespace: {ns}"),
+                category: "project_context".into(),
+                notes: "Root namespace from .csproj/.vbproj".into(),
+            });
+        }
 
-            // Warn about shared library files with high blast radius
-            let multiplier = solution_parser::cross_project_multiplier(sln, proj_name);
-            if multiplier > 1.0 {
-                warnings.push(format!(
+        // Warn about shared library files with high blast radius
+        let multiplier = solution_parser::cross_project_multiplier(sln, proj_name);
+        if multiplier > 1.0 {
+            warnings.push(format!(
                     "File is in shared library '{proj_name}' (referenced by {n} other projects, \
                      blast radius multiplier: {multiplier:.1}x). Changes here affect multiple projects.",
                     n = sln
@@ -134,22 +135,22 @@ pub fn generate_scaffold_with_solution(
                         .filter(|deps| deps.contains(&proj_name.to_string()))
                         .count()
                 ));
-            }
+        }
 
-            // Record cross-project dependencies for this file's project
-            if let Some(deps) = sln.dependency_graph.get(proj_name) {
-                for dep in deps {
-                    if let Some(dep_ns) = solution_parser::resolve_namespace(sln, dep) {
-                        mapping_report.push(MappingEntry {
-                            legacy_element: format!("ProjectReference: {dep}"),
-                            modern_element: format!("using {dep_ns};"),
-                            category: "project_dependency".into(),
-                            notes: format!("Add to imports — {file_path} depends on {dep}"),
-                        });
-                    }
+        // Record cross-project dependencies for this file's project
+        if let Some(deps) = sln.dependency_graph.get(proj_name) {
+            for dep in deps {
+                if let Some(dep_ns) = solution_parser::resolve_namespace(sln, dep) {
+                    mapping_report.push(MappingEntry {
+                        legacy_element: format!("ProjectReference: {dep}"),
+                        modern_element: format!("using {dep_ns};"),
+                        category: "project_dependency".into(),
+                        notes: format!("Add to imports — {file_path} depends on {dep}"),
+                    });
                 }
             }
         }
+    }
 
     // ── Build component code ─────────────────────────────────────────────────
     let component_code = match target.as_str() {
@@ -485,9 +486,10 @@ fn generate_react_component(
     for control in &ctx.controls {
         let control_type = extract_control_type(&control.node_id);
         if let Some(mapping) = control_mapping::lookup(&control_type)
-            && (mapping.react_equivalent.contains('/') || mapping.react_equivalent.contains("@")) {
-                react_imports.insert(mapping.react_equivalent.to_string());
-            }
+            && (mapping.react_equivalent.contains('/') || mapping.react_equivalent.contains("@"))
+        {
+            react_imports.insert(mapping.react_equivalent.to_string());
+        }
     }
     for imp in &react_imports {
         let _ = writeln!(code, "// TODO: install and import: {imp}");

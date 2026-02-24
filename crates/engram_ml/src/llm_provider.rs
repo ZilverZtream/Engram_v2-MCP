@@ -507,16 +507,17 @@ impl LlmProvider for OpenAiCompatibleProvider {
                         .status_code()
                         .and_then(|code| StatusCode::from_u16(code).ok());
                     if attempt < RETRY_MAX_ATTEMPTS
-                        && let Some(delay) = select_retry_delay(attempt, status, None) {
-                            tracing::warn!(
-                                attempt,
-                                status_code = status.map(|s| s.as_u16()),
-                                delay_ms = delay.as_millis() as u64,
-                                "retrying openai-compatible request after transport error"
-                            );
-                            tokio::time::sleep(delay).await;
-                            continue;
-                        }
+                        && let Some(delay) = select_retry_delay(attempt, status, None)
+                    {
+                        tracing::warn!(
+                            attempt,
+                            status_code = status.map(|s| s.as_u16()),
+                            delay_ms = delay.as_millis() as u64,
+                            "retrying openai-compatible request after transport error"
+                        );
+                        tokio::time::sleep(delay).await;
+                        continue;
+                    }
                     last_err = Some(mapped);
                     break;
                 }

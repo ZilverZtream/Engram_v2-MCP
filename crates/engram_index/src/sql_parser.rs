@@ -362,10 +362,7 @@ pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<String> {
 
         match &source_table {
             Some(t)
-                if analysis
-                    .primary_table
-                    .as_deref()
-                    .map(strip_brackets)
+                if analysis.primary_table.as_deref().map(strip_brackets)
                     == Some(strip_brackets(t)) =>
             {
                 primary_cols.push(col);
@@ -567,9 +564,10 @@ fn parse_column_list(col_list: &str) -> Vec<ColumnRef> {
         }
     }
     if !current.trim().is_empty()
-        && let Some(col) = parse_single_column(current.trim()) {
-            cols.push(col);
-        }
+        && let Some(col) = parse_single_column(current.trim())
+    {
+        cols.push(col);
+    }
     cols
 }
 

@@ -167,11 +167,13 @@ static RE_VB_HANDLES: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 // IsPostBack detection
-static RE_IS_POSTBACK_CS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)if\s*\(\s*(!?\s*(?:Page\.)?IsPostBack)\s*\)").expect("valid regex"));
+static RE_IS_POSTBACK_CS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)if\s*\(\s*(!?\s*(?:Page\.)?IsPostBack)\s*\)").expect("valid regex")
+});
 
-static RE_IS_POSTBACK_VB: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)If\s+(Not\s+)?(?:Page\.)?IsPostBack\b").expect("valid regex"));
+static RE_IS_POSTBACK_VB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)If\s+(Not\s+)?(?:Page\.)?IsPostBack\b").expect("valid regex")
+});
 
 // Control event handlers — VB
 static RE_VB_CONTROL_EVENT: LazyLock<Regex> = LazyLock::new(|| {
@@ -186,12 +188,14 @@ static RE_CS_CONTROL_EVENT: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 // Page directive attributes
-static RE_PAGE_DIRECTIVE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<%@\s+(?:Page|Control|Master)\b([^%]*)%>").expect("valid regex"));
+static RE_PAGE_DIRECTIVE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<%@\s+(?:Page|Control|Master)\b([^%]*)%>").expect("valid regex")
+});
 
 /// Matches `<asp:SomeControl … ID="theId" …>` — used to enrich control types from markup.
-static RE_ENRICH_CONTROL: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).expect("valid regex"));
+static RE_ENRICH_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)""#).expect("valid regex")
+});
 
 fn extract_directive_attr(tag: &str, attr: &str) -> Option<String> {
     let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
@@ -246,9 +250,16 @@ pub fn analyze_page_lifecycle(
 
     for cap in lifecycle_re.captures_iter(codebehind_content) {
         let handler_name = cap[1].to_string();
-        let line_num = find_line_number(codebehind_content, cap.get(0).expect("group 0 always present").start());
+        let line_num = find_line_number(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+        );
 
-        let body = extract_method_body(codebehind_content, cap.get(0).expect("group 0 always present").start(), is_vb);
+        let body = extract_method_body(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+            is_vb,
+        );
         let (has_postback, first_load, postback_actions, always) =
             analyze_postback_branching(&body, is_vb);
 
@@ -290,8 +301,15 @@ pub fn analyze_page_lifecycle(
             continue;
         }
 
-        let line_num = find_line_number(codebehind_content, cap.get(0).expect("group 0 always present").start());
-        let body = extract_method_body(codebehind_content, cap.get(0).expect("group 0 always present").start(), is_vb);
+        let line_num = find_line_number(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+        );
+        let body = extract_method_body(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+            is_vb,
+        );
         let (has_postback, first_load, postback_actions, always) =
             analyze_postback_branching(&body, is_vb);
 
@@ -326,8 +344,15 @@ pub fn analyze_page_lifecycle(
             continue;
         }
 
-        let line_num = find_line_number(codebehind_content, cap.get(0).expect("group 0 always present").start());
-        let body = extract_method_body(codebehind_content, cap.get(0).expect("group 0 always present").start(), is_vb);
+        let line_num = find_line_number(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+        );
+        let body = extract_method_body(
+            codebehind_content,
+            cap.get(0).expect("group 0 always present").start(),
+            is_vb,
+        );
         let (has_postback, first_load, postback_actions, always) =
             analyze_postback_branching(&body, is_vb);
 
@@ -356,7 +381,10 @@ pub fn analyze_page_lifecycle(
             let handler_name = cap[1].to_string();
             let control_id = cap[3].to_string();
             let event_name = cap[4].to_string();
-            let line_num = find_line_number(codebehind_content, cap.get(0).expect("group 0 always present").start());
+            let line_num = find_line_number(
+                codebehind_content,
+                cap.get(0).expect("group 0 always present").start(),
+            );
 
             let (blazor, react) = map_control_event(&event_name, &control_id);
             let is_postback = is_postback_trigger_event(&event_name);
@@ -377,7 +405,10 @@ pub fn analyze_page_lifecycle(
             let control_id = cap[1].to_string();
             let event_name = cap[2].to_string();
             let handler_name = format!("{}_{}", control_id, event_name);
-            let line_num = find_line_number(codebehind_content, cap.get(0).expect("group 0 always present").start());
+            let line_num = find_line_number(
+                codebehind_content,
+                cap.get(0).expect("group 0 always present").start(),
+            );
 
             let (blazor, react) = map_control_event(&event_name, &control_id);
             let is_postback = is_postback_trigger_event(&event_name);

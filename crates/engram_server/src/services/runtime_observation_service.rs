@@ -239,9 +239,10 @@ fn build_lookup(nodes: &[Node]) -> NodeLookup {
 
     for (method_key, ids) in by_method_candidates {
         if ids.len() == 1
-            && let Some(node_id) = ids.into_iter().next() {
-                lu.by_method.insert(method_key, node_id);
-            }
+            && let Some(node_id) = ids.into_iter().next()
+        {
+            lu.by_method.insert(method_key, node_id);
+        }
     }
 
     lu

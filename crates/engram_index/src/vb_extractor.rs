@@ -275,9 +275,10 @@ fn classify_side_effects(method_body: &str, known_fields: &HashSet<String>) -> O
         "ui_mutation",
     );
     if let Some(re) = ui_re
-        && re.is_match(method_body) {
-            effects.push("UI_Mutation");
-        }
+        && re.is_match(method_body)
+    {
+        effects.push("UI_Mutation");
+    }
 
     // Heuristic 2: cross-reference assignments against known class fields.
     // Any `fieldName.Property = value` where fieldName is a known field in the
@@ -571,13 +572,12 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     }
 
                     // Fallback: try resolving just the last part (member name)
-                    if !resolved
-                        && let Some(&member) = parts.last() {
-                            let resolved_member = fqn_maps.resolve(member);
-                            if resolved_member != member {
-                                callee_fqn = resolved_member;
-                            }
+                    if !resolved && let Some(&member) = parts.last() {
+                        let resolved_member = fqn_maps.resolve(member);
+                        if resolved_member != member {
+                            callee_fqn = resolved_member;
                         }
+                    }
                 }
 
                 let (src_name, src_kind, src_line) =
@@ -618,10 +618,12 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             }
 
             // Constructors have no @name child — synthesize ".ctor"
-            if name.is_empty() && tag_main == "func"
-                && main_node.kind() == "constructor_declaration" {
-                    name = ".ctor".to_string();
-                }
+            if name.is_empty()
+                && tag_main == "func"
+                && main_node.kind() == "constructor_declaration"
+            {
+                name = ".ctor".to_string();
+            }
 
             if !name.is_empty() {
                 let is_designer = path
@@ -667,40 +669,41 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
                 // Tag WebForms lifecycle methods with stage + sequence metadata.
                 if kind == "function"
-                    && let Some((stage, seq)) = webforms_lifecycle_info(&name) {
-                        meta.insert("lifecycle_stage".into(), stage.into());
-                        meta.insert("lifecycle_sequence".into(), seq.to_string());
-                    }
+                    && let Some((stage, seq)) = webforms_lifecycle_info(&name)
+                {
+                    meta.insert("lifecycle_stage".into(), stage.into());
+                    meta.insert("lifecycle_sequence".into(), seq.to_string());
+                }
 
                 // Side-effect classification for codebehind methods.
                 if kind == "function"
                     && let Some(body) =
                         source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
-                    {
-                        let dyn_dispatch = count_dynamic_dispatch_patterns(body);
-                        if dyn_dispatch.late_binding_call_count > 0 {
-                            meta.insert(
-                                "late_binding_call_count".into(),
-                                dyn_dispatch.late_binding_call_count.to_string(),
-                            );
-                        }
-                        if dyn_dispatch.object_var_count > 0 {
-                            meta.insert(
-                                "object_var_count".into(),
-                                dyn_dispatch.object_var_count.to_string(),
-                            );
-                        }
-                        if dyn_dispatch.callbyname_count > 0 {
-                            meta.insert(
-                                "callbyname_count".into(),
-                                dyn_dispatch.callbyname_count.to_string(),
-                            );
-                        }
-
-                        if let Some(effects) = classify_side_effects(body, &fqn_maps.field_names) {
-                            meta.insert("side_effects".into(), effects);
-                        }
+                {
+                    let dyn_dispatch = count_dynamic_dispatch_patterns(body);
+                    if dyn_dispatch.late_binding_call_count > 0 {
+                        meta.insert(
+                            "late_binding_call_count".into(),
+                            dyn_dispatch.late_binding_call_count.to_string(),
+                        );
                     }
+                    if dyn_dispatch.object_var_count > 0 {
+                        meta.insert(
+                            "object_var_count".into(),
+                            dyn_dispatch.object_var_count.to_string(),
+                        );
+                    }
+                    if dyn_dispatch.callbyname_count > 0 {
+                        meta.insert(
+                            "callbyname_count".into(),
+                            dyn_dispatch.callbyname_count.to_string(),
+                        );
+                    }
+
+                    if let Some(effects) = classify_side_effects(body, &fqn_maps.field_names) {
+                        meta.insert("side_effects".into(), effects);
+                    }
+                }
 
                 symbols.push(ExtractedSymbol {
                     name: name.to_string(),
@@ -1141,14 +1144,61 @@ fn extract_on_error_patterns(
 
         // Detect On Error Resume Next
         if let Some(re) = re_resume
-            && re.is_match(line_text) {
-                current_resume_start = Some((line_num, byte_offset));
+            && re.is_match(line_text)
+        {
+            current_resume_start = Some((line_num, byte_offset));
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
+
+            let mut meta = HashMap::new();
+            meta.insert("pattern".to_string(), "on_error_resume_next".to_string());
+            meta.insert("line".to_string(), line_num.to_string());
+            meta.insert(
+                "modern_equivalent".to_string(),
+                "try/catch with specific exception types".to_string(),
+            );
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: "unstructured_error_handling".to_string(),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            });
+        }
+
+        // Detect On Error GoTo
+        if let Some(re) = re_goto
+            && let Some(cap) = re.captures(line_text)
+        {
+            let label = cap.get(1).map_or("0", |m| m.as_str());
+
+            // On Error GoTo 0 ends resume-next region
+            if label == "0" || label == "-1" {
+                if let Some((start_line, _)) = current_resume_start.take() {
+                    let (src_name, _, _) = find_best_enclosing_scope(all_scopes, byte_offset);
+                    resume_next_regions.push((start_line, line_num, src_name.to_string()));
+                }
+            } else {
                 let (src_name, src_kind, src_line) =
                     find_best_enclosing_scope(all_scopes, byte_offset);
 
+                // Resolve label to line number
+                let resolved_line = label_lines.get(label).copied();
+
                 let mut meta = HashMap::new();
-                meta.insert("pattern".to_string(), "on_error_resume_next".to_string());
+                meta.insert("pattern".to_string(), "on_error_goto".to_string());
+                meta.insert("goto_label".to_string(), label.to_string());
                 meta.insert("line".to_string(), line_num.to_string());
+                if let Some(target_line) = resolved_line {
+                    meta.insert("label_target_line".to_string(), target_line.to_string());
+                    meta.insert("label_resolved".to_string(), "true".to_string());
+                } else {
+                    meta.insert("label_resolved".to_string(), "false".to_string());
+                }
                 meta.insert(
                     "modern_equivalent".to_string(),
                     "try/catch with specific exception types".to_string(),
@@ -1161,60 +1211,14 @@ fn extract_on_error_patterns(
                     source_language: "vb",
                     target_name: "unstructured_error_handling".to_string(),
                     target_kind: Some("insight"),
-                    target_start_line: Some(line_num),
+                    target_start_line: resolved_line.or(Some(line_num)),
                     kind: "anti_pattern",
                     metadata: Some(meta),
                 });
+
+                active_goto_handlers.push((label.to_string(), line_num, src_name.to_string()));
             }
-
-        // Detect On Error GoTo
-        if let Some(re) = re_goto
-            && let Some(cap) = re.captures(line_text) {
-                let label = cap.get(1).map_or("0", |m| m.as_str());
-
-                // On Error GoTo 0 ends resume-next region
-                if label == "0" || label == "-1" {
-                    if let Some((start_line, _)) = current_resume_start.take() {
-                        let (src_name, _, _) = find_best_enclosing_scope(all_scopes, byte_offset);
-                        resume_next_regions.push((start_line, line_num, src_name.to_string()));
-                    }
-                } else {
-                    let (src_name, src_kind, src_line) =
-                        find_best_enclosing_scope(all_scopes, byte_offset);
-
-                    // Resolve label to line number
-                    let resolved_line = label_lines.get(label).copied();
-
-                    let mut meta = HashMap::new();
-                    meta.insert("pattern".to_string(), "on_error_goto".to_string());
-                    meta.insert("goto_label".to_string(), label.to_string());
-                    meta.insert("line".to_string(), line_num.to_string());
-                    if let Some(target_line) = resolved_line {
-                        meta.insert("label_target_line".to_string(), target_line.to_string());
-                        meta.insert("label_resolved".to_string(), "true".to_string());
-                    } else {
-                        meta.insert("label_resolved".to_string(), "false".to_string());
-                    }
-                    meta.insert(
-                        "modern_equivalent".to_string(),
-                        "try/catch with specific exception types".to_string(),
-                    );
-
-                    edges.push(ExtractedEdge {
-                        source_name: src_name.to_string(),
-                        source_kind: src_kind,
-                        source_start_line: src_line,
-                        source_language: "vb",
-                        target_name: "unstructured_error_handling".to_string(),
-                        target_kind: Some("insight"),
-                        target_start_line: resolved_line.or(Some(line_num)),
-                        kind: "anti_pattern",
-                        metadata: Some(meta),
-                    });
-
-                    active_goto_handlers.push((label.to_string(), line_num, src_name.to_string()));
-                }
-            }
+        }
     }
 
     // Count Err object accesses
@@ -1344,41 +1348,41 @@ fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
 
         // Inside a With block, detect .Member accesses — use the topmost frame
         if let Some(frame) = with_stack.last()
-            && let Some(cap) = re_member.captures(trimmed) {
-                let member = cap.get(1).map_or("", |m| m.as_str());
-                let is_write = cap.get(2).is_some();
+            && let Some(cap) = re_member.captures(trimmed)
+        {
+            let member = cap.get(1).map_or("", |m| m.as_str());
+            let is_write = cap.get(2).is_some();
 
-                let (src_name, src_kind, src_line) =
-                    find_best_enclosing_scope(all_scopes, byte_offset);
+            let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, byte_offset);
 
-                let target_name = format!("{}.{}", frame.target, member);
+            let target_name = format!("{}.{}", frame.target, member);
 
-                let edge_kind = if is_write {
-                    "writes_state"
-                } else {
-                    "reads_state"
-                };
+            let edge_kind = if is_write {
+                "writes_state"
+            } else {
+                "reads_state"
+            };
 
-                let mut meta = HashMap::new();
-                meta.insert("with_target".to_string(), frame.target.clone());
-                meta.insert("member".to_string(), member.to_string());
-                meta.insert("with_block_start".to_string(), frame.start_line.to_string());
-                if frame.depth > 0 {
-                    meta.insert("nesting_depth".to_string(), frame.depth.to_string());
-                }
-
-                edges.push(ExtractedEdge {
-                    source_name: src_name.to_string(),
-                    source_kind: src_kind,
-                    source_start_line: src_line,
-                    source_language: "vb",
-                    target_name,
-                    target_kind: Some("global_state"),
-                    target_start_line: Some(line_num),
-                    kind: edge_kind,
-                    metadata: Some(meta),
-                });
+            let mut meta = HashMap::new();
+            meta.insert("with_target".to_string(), frame.target.clone());
+            meta.insert("member".to_string(), member.to_string());
+            meta.insert("with_block_start".to_string(), frame.start_line.to_string());
+            if frame.depth > 0 {
+                meta.insert("nesting_depth".to_string(), frame.depth.to_string());
             }
+
+            edges.push(ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name,
+                target_kind: Some("global_state"),
+                target_start_line: Some(line_num),
+                kind: edge_kind,
+                metadata: Some(meta),
+            });
+        }
 
         byte_offset += line_text.len() + 1;
     }
@@ -2707,7 +2711,10 @@ fn infer_tables_from_sql(sql: &str) -> (Vec<String>, f32, bool) {
             inferred = true;
             continue;
         }
-        if !tables.iter().any(|t: &String| t.eq_ignore_ascii_case(&table)) {
+        if !tables
+            .iter()
+            .any(|t: &String| t.eq_ignore_ascii_case(&table))
+        {
             tables.push(table);
         }
     }
@@ -3856,9 +3863,10 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
         let mut fqn_maps = FqnMaps::with_capacity(symbols.len());
         for sym in &symbols {
             if let Some(meta) = &sym.metadata
-                && let Some(fqn) = meta.get("fqn") {
-                    fqn_maps.insert_name(&sym.name, fqn.clone());
-                }
+                && let Some(fqn) = meta.get("fqn")
+            {
+                fqn_maps.insert_name(&sym.name, fqn.clone());
+            }
         }
         edges.extend(extract_handles(&fqn_maps, source));
     }

@@ -103,14 +103,17 @@ pub struct AuthRecommendation {
 // ── Regex patterns ────────────────────────────────────────────────────────
 
 static RE_AUTH_MODE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<authentication\s+mode\s*=\s*"(Forms|Windows|None|Passport)""#).expect("valid regex")
+    Regex::new(r#"(?is)<authentication\s+mode\s*=\s*"(Forms|Windows|None|Passport)""#)
+        .expect("valid regex")
 });
 
-static RE_FORMS_AUTH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<forms\b([^>]*?)/>|<forms\b([^>]*?)>").expect("valid regex"));
+static RE_FORMS_AUTH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<forms\b([^>]*?)/>|<forms\b([^>]*?)>").expect("valid regex")
+});
 
 static RE_LOCATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<location\s+path\s*=\s*"([^"]*)"[^>]*>(.*?)</location>"#).expect("valid regex")
+    Regex::new(r#"(?is)<location\s+path\s*=\s*"([^"]*)"[^>]*>(.*?)</location>"#)
+        .expect("valid regex")
 });
 
 static RE_ALLOW: LazyLock<Regex> =
@@ -119,11 +122,13 @@ static RE_ALLOW: LazyLock<Regex> =
 static RE_DENY: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?is)<deny\b([^>]*?)/>"#).expect("valid regex"));
 
-static RE_MEMBERSHIP: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<membership\b([^>]*?)>(.*?)</membership>").expect("valid regex"));
+static RE_MEMBERSHIP: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<membership\b([^>]*?)>(.*?)</membership>").expect("valid regex")
+});
 
-static RE_ROLE_MANAGER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<roleManager\b([^>]*?)>(.*?)</roleManager>").expect("valid regex"));
+static RE_ROLE_MANAGER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<roleManager\b([^>]*?)>(.*?)</roleManager>").expect("valid regex")
+});
 
 // Code-level auth patterns
 static RE_IS_IN_ROLE_CS: LazyLock<Regex> = LazyLock::new(|| {
@@ -169,8 +174,9 @@ static RE_AUTHORIZE_ATTR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)\[Authorize\s*(?:\([^)]*\))?\s*\]"#).expect("valid regex"));
 
 /// Matches a global `<authorization>…</authorization>` block outside any `<location>` element.
-static RE_GLOBAL_AUTH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<authorization>(.*?)</authorization>").expect("valid regex"));
+static RE_GLOBAL_AUTH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<authorization>(.*?)</authorization>").expect("valid regex")
+});
 
 /// Matches `<add …/>` elements used inside membership/role-manager provider bodies.
 static RE_ADD_TAG: LazyLock<Regex> =
@@ -218,7 +224,6 @@ pub fn analyze_auth_config(
     let mut session_auth_patterns = Vec::new();
     // `recommendations` is computed once at the end; declared here to keep the
     // struct assembly block tidy, initialized by build_recommendations below.
-    
 
     // ── Parse web.config ──
 
@@ -835,17 +840,17 @@ fn build_recommendations(
     }
 
     if let Some(fa) = forms_auth
-        && !fa.require_ssl {
-            recs.push(AuthRecommendation {
-                category: "Security".to_string(),
-                severity: "Critical".to_string(),
-                recommendation:
-                    "Forms authentication cookie not marked requireSSL — enable HTTPS-only cookies"
-                        .to_string(),
-                modern_pattern: "options.Cookie.SecurePolicy = CookieSecurePolicy.Always;"
+        && !fa.require_ssl
+    {
+        recs.push(AuthRecommendation {
+            category: "Security".to_string(),
+            severity: "Critical".to_string(),
+            recommendation:
+                "Forms authentication cookie not marked requireSSL — enable HTTPS-only cookies"
                     .to_string(),
-            });
-        }
+            modern_pattern: "options.Cookie.SecurePolicy = CookieSecurePolicy.Always;".to_string(),
+        });
+    }
 
     recs
 }

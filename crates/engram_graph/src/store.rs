@@ -339,7 +339,9 @@ impl GraphStore {
             let wtx = db.begin_write()?;
             let mut dropped = Vec::new();
             for name in ["nodes", "edges", "adj_out", "adj_in"] {
-                if let Ok(true) = wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) { dropped.push(name) }
+                if let Ok(true) = wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) {
+                    dropped.push(name)
+                }
             }
             wtx.commit()?;
             if !dropped.is_empty() {
@@ -1464,9 +1466,11 @@ impl GraphStore {
             }
 
             if let Some(&prev_depth) = best_depth.get(&curr_id)
-                && depth > prev_depth && curr_id != start_node_id {
-                    continue;
-                }
+                && depth > prev_depth
+                && curr_id != start_node_id
+            {
+                continue;
+            }
             best_depth.insert(curr_id.clone(), depth);
 
             let mut neighbors = Vec::new();
@@ -1825,8 +1829,7 @@ fn now_ms() -> u64 {
 /// Delegates to the shared `engram_core::validate_key_component` to stay consistent
 /// with the doc store validation rules.
 fn validate_key_component(name: &str, value: &str) -> anyhow::Result<()> {
-    engram_core::validate_key_component(name, value)
-        .map_err(|e| anyhow::anyhow!("{e}"))
+    engram_core::validate_key_component(name, value).map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 fn edge_key(project_id: &str, kind: &EdgeKind, source_id: &str, target_id: &str) -> String {

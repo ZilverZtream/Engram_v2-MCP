@@ -348,9 +348,10 @@ pub fn build_jquery_inventory(
     // 2. Detect jQuery version from JS file internal identifier
     for &(_path, content) in js_files {
         if inventory.core_version.is_none()
-            && let Some(cap) = JQUERY_INTERNAL_VERSION_RE.captures(content) {
-                inventory.core_version = Some(cap[1].to_string());
-            }
+            && let Some(cap) = JQUERY_INTERNAL_VERSION_RE.captures(content)
+        {
+            inventory.core_version = Some(cap[1].to_string());
+        }
     }
 
     // 3. Check vulnerability status
