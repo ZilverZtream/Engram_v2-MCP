@@ -481,8 +481,8 @@ impl Engram {
             .find_ui_paths(
                 &req.project_id,
                 &start_id,
-                req.max_hops as usize,
-                req.max_paths,
+                req.sanitized_max_hops(),
+                req.sanitized_max_paths(),
             )
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
@@ -643,7 +643,7 @@ impl Engram {
         ];
 
         for start_id in start_nodes {
-            if paths_found >= req.max_paths {
+            if paths_found >= req.sanitized_max_paths() {
                 break;
             }
 
@@ -653,7 +653,7 @@ impl Engram {
                 .traverse(
                     &req.project_id,
                     &start_id,
-                    req.max_depth as usize,
+                    req.sanitized_max_depth(),
                     Some(edge_kinds.clone()),
                     "out",
                 )
@@ -1545,7 +1545,7 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(cached)]));
         }
 
-        let diff_limit = req.diff_limit;
+        let diff_limit = req.sanitized_diff_limit();
         let result = self
             .cognitive_analyze_file_style(&req.project_id, &req.file_path, diff_limit)
             .await;
@@ -2079,7 +2079,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let pattern_filter = req.pattern_filter.clone();
-        let limit = req.limit;
+        let limit = req.sanitized_limit();
 
         let pid_copy = pid.clone();
         let mut patterns = tokio::task::spawn_blocking(move || {
