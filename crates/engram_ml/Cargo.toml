@@ -26,5 +26,6 @@ tree-sitter-java.workspace = true
 tree-sitter-go.workspace = true
 streaming-iterator = "0.1"
 reqwest.workspace = true
+httpdate = "1"
 
 serde_json.workspace = true
