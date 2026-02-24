@@ -214,11 +214,17 @@ openai_api_key: sk-...
 openai_api_base: https://api.openai.com/v1   # Optional custom base
 
 # LLM backend for cognitive features (default: "none")
-llm_backend: none                     # "none" | "ollama" | "openai"
-llm_model: llama3.2                   # e.g. gpt-4o-mini, llama3.2, mistral
+llm_backend: none                     # "none" | "ollama" | "openai" | "openrouter"
+llm_provider: openrouter              # Optional override: "openai" | "openrouter"
+llm_model: llama3.2                   # e.g. gpt-4o-mini, llama3.2, openai/gpt-4o-mini
 llm_ollama_url: http://localhost:11434
 llm_openai_api_key: sk-...
 llm_openai_api_base: https://api.openai.com/v1
+llm_http_referer: https://your-app.example
+llm_x_title: Engram MCP
+llm_extra_headers:                    # Optional additional OpenAI-compatible headers
+  x-trace-id: migration-audit
+  x-team: modernization
 
 # Optional limits
 max_project_files: 100000
