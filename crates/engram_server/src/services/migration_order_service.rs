@@ -211,7 +211,7 @@ fn find_cycle(
             if idx < neighbors.len() {
                 let next = neighbors[idx].clone();
                 // Advance the child index before we potentially push a new frame
-                call_stack.last_mut().unwrap().1 = idx + 1;
+                call_stack.last_mut().expect("stack non-empty in loop").1 = idx + 1;
                 if !remaining.contains(&next) {
                     // Neighbor not in remaining subgraph, skip
                     continue;
@@ -469,7 +469,7 @@ pub fn suggest_migration_order(
             .last()
             .map(|prev| prev != &theme)
             .unwrap_or(false);
-        let strangler_fig_checkpoint = (wave_number % 3 == 0) || theme_changed;
+        let strangler_fig_checkpoint = wave_number.is_multiple_of(3) || theme_changed;
 
         wave_theme_history.push(theme.clone());
 
@@ -619,6 +619,7 @@ fn build_summary(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use engram_core::paths::RelPath;
@@ -637,7 +638,7 @@ mod tests {
         let node = Node {
             node_id: node_id.to_string(),
             node_type: "file".to_string(),
-            name: path.split('/').last().unwrap_or(path).to_string(),
+            name: path.split('/').next_back().unwrap_or(path).to_string(),
             namespace: project.to_string(),
             language: "vb".to_string(),
             file_path: RelPath::new(path),

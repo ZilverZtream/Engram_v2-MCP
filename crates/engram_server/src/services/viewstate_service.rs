@@ -211,30 +211,30 @@ const IMPLICIT_VIEWSTATE: &[ImplicitVSProperties] = &[
 // ── Regex patterns ────────────────────────────────────────────────────────
 
 static RE_EXPLICIT_VS_CS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"ViewState\s*\[\s*"([^"]*)"\s*\]"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"ViewState\s*\[\s*"([^"]*)"\s*\]"#).expect("valid regex"));
 
 static RE_EXPLICIT_VS_VB: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"ViewState\s*\(\s*"([^"]*)"\s*\)"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"ViewState\s*\(\s*"([^"]*)"\s*\)"#).expect("valid regex"));
 
 static RE_CONTROL_TAG: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*>"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*>"#).expect("valid regex"));
 
 static RE_CONTROL_TAG_SELFCLOSE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*/>"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"(?i)<asp:(\w+)\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*/>"#).expect("valid regex"));
 
 static RE_ENABLE_VS_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?i)<asp:\w+\b[^>]*\bID\s*=\s*"([^"]*)"[^>]*\bEnableViewState\s*=\s*"false"[^>]*/?>"#,
     )
-    .unwrap()
+    .expect("valid regex")
 });
 
 static RE_PAGE_VS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)<%@\s+(?:Page|Control)\b[^%]*EnableViewState\s*=\s*"(true|false)""#).unwrap()
+    Regex::new(r#"(?i)<%@\s+(?:Page|Control)\b[^%]*EnableViewState\s*=\s*"(true|false)""#).expect("valid regex")
 });
 
 static RE_METHOD_CONTEXT: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)(?:Sub|void|Function|Task)\s+(\w+)\s*\(").unwrap());
+    LazyLock::new(|| Regex::new(r"(?im)(?:Sub|void|Function|Task)\s+(\w+)\s*\(").expect("valid regex"));
 
 // ── Main analysis function ────────────────────────────────────────────────
 
@@ -545,7 +545,7 @@ fn classify_viewstate_lifecycle(readers: &[String], writers: &[String]) -> Strin
         "ReadOnly (set externally or by framework)".to_string()
     } else if readers.is_empty() && !writers.is_empty() {
         "WriteOnly (set but never read — possibly dead code)".to_string()
-    } else if writers.len() == 1 && readers.len() >= 1 {
+    } else if writers.len() == 1 && !readers.is_empty() {
         "SingleWriter (simple state)".to_string()
     } else if writers.len() > 1 {
         format!(
@@ -562,7 +562,7 @@ fn to_camel_case(s: &str) -> String {
         return String::new();
     }
     let mut chars = s.chars();
-    let first = chars.next().unwrap().to_lowercase().to_string();
+    let first = chars.next().expect("non-empty checked").to_lowercase().to_string();
     format!("{first}{}", chars.collect::<String>())
 }
 
@@ -571,7 +571,7 @@ fn capitalize(s: &str) -> String {
         return String::new();
     }
     let mut chars = s.chars();
-    let first = chars.next().unwrap().to_uppercase().to_string();
+    let first = chars.next().expect("non-empty checked").to_uppercase().to_string();
     format!("{first}{}", chars.collect::<String>())
 }
 
@@ -660,6 +660,7 @@ pub fn format_viewstate_report(report: &ViewStateDependencyReport) -> String {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -742,7 +743,7 @@ protected void NextPage()
 
         let result =
             analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
-        assert!(result.implicit_viewstate.len() >= 1);
+        assert!(!result.implicit_viewstate.is_empty());
 
         let gv = result
             .implicit_viewstate

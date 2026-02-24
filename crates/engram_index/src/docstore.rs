@@ -29,14 +29,10 @@ fn de_bincode_or_json<T: serde::de::DeserializeOwned>(data: &[u8]) -> anyhow::Re
 // Fix #4: key components must not contain the delimiter bytes used for
 // composite key construction ('\0' for field separator, '\n' for list items).
 // Reject such values early so they can never silently corrupt the database.
+// Delegates to shared `engram_core::validate_key_component` for consistency with the graph store.
 fn validate_key_component(value: &str, name: &str) -> anyhow::Result<()> {
-    if value.contains('\0') || value.contains('\n') {
-        anyhow::bail!(
-            "DocStore key component `{name}` must not contain '\\0' or '\\n' (got {:?})",
-            value
-        );
-    }
-    Ok(())
+    engram_core::validate_key_component(name, value)
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 // ---- Table definitions ----

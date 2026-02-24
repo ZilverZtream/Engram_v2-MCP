@@ -247,8 +247,8 @@ pub fn link_binding_fields_to_columns(
 
     for bf_node in &binding_nodes {
         let field_lower = bf_node.name.to_lowercase();
-        if let Some(col_id) = column_by_name.get(&field_lower) {
-            if linked.insert((bf_node.node_id.clone(), col_id.clone())) {
+        if let Some(col_id) = column_by_name.get(&field_lower)
+            && linked.insert((bf_node.node_id.clone(), col_id.clone())) {
                 new_edges.push(engram_graph::Edge {
                     source_id: bf_node.node_id.clone(),
                     target_id: col_id.clone(),
@@ -261,7 +261,6 @@ pub fn link_binding_fields_to_columns(
                     updated_at_ms: now_ms(),
                 });
             }
-        }
     }
 
     let count = new_edges.len();
@@ -396,13 +395,12 @@ pub fn compile_migration_slice(
                         .lifecycle_info
                         .push((current_id.clone(), stage.to_string(), seq));
                 }
-                if let Some(fx) = meta.get("side_effects").and_then(|v| v.as_str()) {
-                    if !fx.is_empty() {
+                if let Some(fx) = meta.get("side_effects").and_then(|v| v.as_str())
+                    && !fx.is_empty() {
                         slice
                             .side_effects
                             .push((current_id.clone(), fx.to_string()));
                     }
-                }
             }
         }
 

@@ -9,11 +9,15 @@ use crate::services::{cognitive_service, job_service};
 use crate::state::AppEvent;
 use crate::tools::Engram;
 use crate::utils::now_ms;
+use engram_core::safe_join;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::path::PathBuf;
+
+/// (node_id, node_type, name, file_path) tuple used in centrality reranking.
+type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
 impl Engram {
     pub(crate) async fn cancel_job_internal(&self, job_id: &str) -> bool {
@@ -195,7 +199,7 @@ impl Engram {
         if let Some(ref fp) = file_path_for_confidence {
             let rel = engram_core::RelPath::from(fp.as_str());
             let lang = engram_core::guess_language(std::path::Path::new(fp));
-            result.push_str(&self.confidence_footer(&rel, &lang));
+            result.push_str(&self.confidence_footer(&rel, lang));
         }
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
@@ -241,13 +245,12 @@ impl Engram {
 
             let mut out = format!("## Table: {}\n\n", table_node.name);
 
-            if let Some(ref meta) = table_node.metadata {
-                if let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
+            if let Some(ref meta) = table_node.metadata
+                && let Some(ddl) = meta.get("ddl").and_then(|v| v.as_str()) {
                     out.push_str("### DDL\n```sql\n");
                     out.push_str(ddl);
                     out.push_str("\n```\n\n");
                 }
-            }
 
             let columns = graph
                 .neighbors(&req.project_id, EdgeKind::HasColumn, &table_id, 200)
@@ -1253,7 +1256,8 @@ impl Engram {
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
 
-        let aspx_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let aspx_full = safe_join(std::path::Path::new(&rec.directory), &file_path)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
         })?;
@@ -1295,7 +1299,8 @@ impl Engram {
         }
 
         if let Some(file_path) = &p.file_path {
-            let full_path = std::path::Path::new(&project_dir).join(file_path);
+            let full_path = safe_join(std::path::Path::new(&project_dir), file_path)
+                .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
             let content = std::fs::read_to_string(&full_path)
                 .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
 
@@ -1379,7 +1384,7 @@ impl Engram {
         let code_files: Vec<(String, String)> = code_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(std::path::Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1697,7 +1702,7 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let highest_score = hits.get(0).map(|h| h.score).unwrap_or(0.0);
+        let highest_score = hits.first().map(|h| h.score).unwrap_or(0.0);
         // FTS scores (BM25) are much lower than vector scores; use separate thresholds.
         let (block_t, warn_t) = if req.use_vector {
             (0.85, 0.65)
@@ -1717,8 +1722,8 @@ impl Engram {
             out.push_str("Matches in anti-pattern index:\n");
             for h in hits.iter().take(3) {
                 out.push_str(&format!("- {} (score: {:.3})\n", h.path, h.score));
-                if req.include_content {
-                    if let Some(ref snippet) = h.snippet {
+                if req.include_content
+                    && let Some(ref snippet) = h.snippet {
                         // Skip diff headers and show up to 5 content lines
                         let content_lines: Vec<&str> = snippet
                             .lines()
@@ -1735,7 +1740,6 @@ impl Engram {
                             out.push_str(&format!("  snippet: {}\n", content_lines.join(" | ")));
                         }
                     }
-                }
             }
             out.push('\n');
             out.push_str("This pattern was previously reverted as risky code.\n");
@@ -2118,6 +2122,7 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn evaluate_wave_decision(
         &self,
         project_id: &str,
@@ -2145,7 +2150,7 @@ impl Engram {
             match crate::services::evidence_orchestration::gather_evidence(
                 &self.state,
                 project_id,
-                &[item.file_path.clone()],
+                std::slice::from_ref(&item.file_path),
                 &item.change_description,
                 risk_profile,
                 depth,
@@ -2385,7 +2390,7 @@ impl Engram {
             let pid2 = req.project_id.clone();
             let node_ids_clone = node_ids.clone();
             let include_meta = req.include_metadata;
-            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+            let nodes_meta: Vec<NodeMetaTuple> =
                 tokio::task::spawn_blocking(move || -> Vec<_> {
                     let mut result = Vec::new();
                     for nid in &node_ids_clone {
@@ -2443,7 +2448,7 @@ impl Engram {
             all_scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
             all_scores.truncate(top_k);
             let top_ids: Vec<String> = all_scores.iter().map(|(id, _)| id.clone()).collect();
-            let nodes_meta: Vec<(String, Option<String>, Option<String>, Option<String>)> =
+            let nodes_meta: Vec<NodeMetaTuple> =
                 tokio::task::spawn_blocking(move || -> Vec<_> {
                     let mut result = Vec::new();
                     for nid in &top_ids {

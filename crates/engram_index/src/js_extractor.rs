@@ -702,9 +702,9 @@ fn extract_google_maps(
     let mut has_drawing = false;
 
     for cap in re.captures_iter(source) {
-        let m = cap.get(0).unwrap();
+        let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").unwrap().as_str();
+        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
         emit_spatial_edge(file_name, line, "google_maps", cls, edges);
         gmaps_classes.push((cls.to_string(), line));
 
@@ -757,11 +757,10 @@ fn extract_google_maps(
         &GMAP_DRAWING_FULL_RE,
         r"(?i)google\.maps\.drawing\.(?:DrawingManager|OverlayType)",
         "gmaps_drawing_full",
-    ) {
-        if re.is_match(source) {
+    )
+        && re.is_match(source) {
             has_drawing = true;
         }
-    }
 
     // Detect Maps JS API library loading parameters (places, drawing, visualization, geometry)
     static GMAP_LIBRARIES_RE: OnceLock<Regex> = OnceLock::new();
@@ -769,8 +768,8 @@ fn extract_google_maps(
         &GMAP_LIBRARIES_RE,
         r#"(?i)libraries\s*[:=]\s*['"](?P<libs>[^'"]+)['"]"#,
         "gmaps_libraries",
-    ) {
-        if let Some(cap) = re.captures(source) {
+    )
+        && let Some(cap) = re.captures(source) {
             let libs = cap.name("libs").map_or("", |m| m.as_str()).to_lowercase();
             if libs.contains("places") {
                 has_places = true;
@@ -782,7 +781,6 @@ fn extract_google_maps(
                 has_heatmap = true;
             }
         }
-    }
 
     // Detect google.maps.geometry.* (spherical, encoding, poly)
     static GMAP_GEOMETRY_RE: OnceLock<Regex> = OnceLock::new();
@@ -791,11 +789,10 @@ fn extract_google_maps(
         &GMAP_GEOMETRY_RE,
         r"(?i)google\.maps\.geometry\.(?:spherical|encoding|poly)\.\w+",
         "gmaps_geometry",
-    ) {
-        if re.is_match(source) {
+    )
+        && re.is_match(source) {
             has_geometry = true;
         }
-    }
 
     // Emit detailed inventory if any Google Maps usage found
     if !gmaps_classes.is_empty() {
@@ -865,9 +862,9 @@ fn extract_leaflet(
     };
 
     for cap in re.captures_iter(source) {
-        let m = cap.get(0).unwrap();
+        let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").unwrap().as_str();
+        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
         emit_spatial_edge(file_name, line, "leaflet", cls, edges);
     }
 }
@@ -889,9 +886,9 @@ fn extract_openlayers(
     };
 
     for cap in re.captures_iter(source) {
-        let m = cap.get(0).unwrap();
+        let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").unwrap().as_str();
+        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
         // Normalize dotted sub-classes
         let normalized = cls.replace('.', "_");
         emit_spatial_edge(file_name, line, "openlayers", &normalized, edges);
@@ -914,9 +911,9 @@ fn extract_gis_configs(
         "gis_api_key",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let key_value = cap.name("key").unwrap().as_str();
+            let key_value = cap.name("key").expect("mandatory 'key' group").as_str();
             // Mask the key for safety (show first 8 + last 4 chars)
             let masked = if key_value.len() > 12 {
                 format!(
@@ -961,9 +958,9 @@ fn extract_gis_configs(
         "gis_zoom",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let val = cap.name("val").unwrap().as_str();
+            let val = cap.name("val").expect("mandatory 'val' group").as_str();
 
             let mut meta = HashMap::with_capacity(2);
             meta.insert("config_type".into(), "zoom".into());
@@ -986,10 +983,10 @@ fn extract_gis_configs(
         "gis_center",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let lat = cap.name("lat").unwrap().as_str();
-            let lng = cap.name("lng").unwrap().as_str();
+            let lat = cap.name("lat").expect("mandatory 'lat' group").as_str();
+            let lng = cap.name("lng").expect("mandatory 'lng' group").as_str();
 
             let mut meta = HashMap::with_capacity(3);
             meta.insert("config_type".into(), "center".into());
@@ -1028,10 +1025,10 @@ fn extract_ctl00_references(
     };
 
     for cap in re.captures_iter(source) {
-        let m = cap.get(0).unwrap();
+        let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let full_id = cap.name("full_id").unwrap().as_str();
-        let ctrl_id = cap.name("ctrl_id").unwrap().as_str();
+        let full_id = cap.name("full_id").expect("mandatory 'full_id' group").as_str();
+        let ctrl_id = cap.name("ctrl_id").expect("mandatory 'ctrl_id' group").as_str();
 
         let mut meta = HashMap::with_capacity(3);
         meta.insert("selector_type".into(), "ctl00_reverse_map".into());
@@ -1122,7 +1119,7 @@ fn extract_gis_layer_inventory(
             has_wms = true;
             layers.push("wms".to_string());
             let url = cap.name("url").map_or("", |m| m.as_str());
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
 
             let mut meta = HashMap::with_capacity(2);
@@ -1149,12 +1146,11 @@ fn extract_gis_layer_inventory(
         r"(?i)\b(?:L\.geoJSON|L\.geoJson|GeoJSON|geojson)\s*\(",
         "geojson_layer",
     );
-    if let Some(re) = re_geojson {
-        if re.is_match(source) {
+    if let Some(re) = re_geojson
+        && re.is_match(source) {
             has_geojson = true;
             layers.push("geojson".to_string());
         }
-    }
 
     // --- Marker clustering ---
     let re_cluster = get_compiled_regex(
@@ -1162,12 +1158,11 @@ fn extract_gis_layer_inventory(
         r"(?i)\b(?:markerClusterGroup|MarkerClusterer|Cluster)\s*\(",
         "marker_cluster",
     );
-    if let Some(re) = re_cluster {
-        if re.is_match(source) {
+    if let Some(re) = re_cluster
+        && re.is_match(source) {
             has_clustering = true;
             layers.push("marker_cluster".to_string());
         }
-    }
 
     // --- Drawing tools ---
     let re_ldraw = get_compiled_regex(
@@ -1175,33 +1170,30 @@ fn extract_gis_layer_inventory(
         r"(?i)\b(?:L\.Control\.Draw|L\.Draw|DrawingManager|ol\.interaction\.Draw)\s*\(",
         "drawing_tools",
     );
-    if let Some(re) = re_ldraw {
-        if re.is_match(source) {
+    if let Some(re) = re_ldraw
+        && re.is_match(source) {
             has_drawing = true;
         }
-    }
     // Google Maps DrawingManager
     let re_gdraw = get_compiled_regex(
         &GMAPS_DRAWING_RE,
         r"(?i)\bgoogle\.maps\.drawing\.DrawingManager\s*\(",
         "gmaps_drawing",
     );
-    if let Some(re) = re_gdraw {
-        if re.is_match(source) {
+    if let Some(re) = re_gdraw
+        && re.is_match(source) {
             has_drawing = true;
         }
-    }
     // OpenLayers Draw interaction
     let re_oldraw = get_compiled_regex(
         &OL_DRAW_RE,
         r"(?i)\bnew\s+ol\.interaction\.Draw\s*\(",
         "ol_draw",
     );
-    if let Some(re) = re_oldraw {
-        if re.is_match(source) {
+    if let Some(re) = re_oldraw
+        && re.is_match(source) {
             has_drawing = true;
         }
-    }
 
     // --- Coordinate system detection ---
     let re_ol_proj = get_compiled_regex(
@@ -1209,18 +1201,17 @@ fn extract_gis_layer_inventory(
         r"(?i)\bol\.proj\.(?:fromLonLat|toLonLat|transform)\s*\(",
         "ol_proj",
     );
-    if let Some(re) = re_ol_proj {
-        if re.is_match(source) {
+    if let Some(re) = re_ol_proj
+        && re.is_match(source) {
             coordinate_system = "EPSG:3857 (from EPSG:4326)";
         }
-    }
     let re_crs = get_compiled_regex(
         &LEAFLET_CRS_RE,
         r"(?i)\bL\.CRS\.(?P<crs>\w+)",
         "leaflet_crs",
     );
-    if let Some(re) = re_crs {
-        if let Some(cap) = re.captures(source) {
+    if let Some(re) = re_crs
+        && let Some(cap) = re.captures(source) {
             let crs = cap.name("crs").map_or("", |m| m.as_str());
             coordinate_system = match crs.to_lowercase().as_str() {
                 "epsg3857" => "EPSG:3857",
@@ -1229,7 +1220,6 @@ fn extract_gis_layer_inventory(
                 _ => "Custom CRS",
             };
         }
-    }
 
     // --- Geocoding detection ---
     let re_geocoder = get_compiled_regex(
@@ -1237,21 +1227,19 @@ fn extract_gis_layer_inventory(
         r"(?i)\b(?:google\.maps\.Geocoder|Geocoder|geocoder)\s*\(",
         "geocoder",
     );
-    if let Some(re) = re_geocoder {
-        if re.is_match(source) {
+    if let Some(re) = re_geocoder
+        && re.is_match(source) {
             has_geocoding = true;
         }
-    }
     let re_geocode_url = get_compiled_regex(
         &GEOCODE_URL_RE,
         r"(?i)(?:geocode|geocoding|nominatim)",
         "geocode_url",
     );
-    if let Some(re) = re_geocode_url {
-        if re.is_match(source) {
+    if let Some(re) = re_geocode_url
+        && re.is_match(source) {
             has_geocoding = true;
         }
-    }
 
     // --- API key count (from existing GIS_API_KEY_RE) ---
     let re_apikey = get_compiled_regex(
@@ -1264,11 +1252,10 @@ fn extract_gis_layer_inventory(
     }
 
     // Check for marker layers
-    if src_lower.contains("l.marker") || src_lower.contains("new google.maps.marker") {
-        if !layers.contains(&"marker".to_string()) {
+    if (src_lower.contains("l.marker") || src_lower.contains("new google.maps.marker"))
+        && !layers.contains(&"marker".to_string()) {
             layers.push("marker".to_string());
         }
-    }
 
     // Determine library and version hint
     let library = if has_leaflet {
@@ -1386,7 +1373,7 @@ fn extract_esri_arcgis(
     );
     if let Some(re) = re_amd {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let module = cap.name("module").map_or("", |m| m.as_str());
             let line = line_of(line_starts, m.start());
             esri_classes.push((module.to_string(), line));
@@ -1442,7 +1429,7 @@ fn extract_esri_arcgis(
     );
     if let Some(re) = re_es {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let cls = cap.name("cls").map_or("", |m| m.as_str());
             let line = line_of(line_starts, m.start());
             esri_classes.push((cls.to_string(), line));
@@ -1532,7 +1519,7 @@ fn extract_esri_arcgis(
     if let Some(re) = re_rest {
         for cap in re.captures_iter(source) {
             has_rest_api = true;
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let service = cap.name("service").map_or("", |m| m.as_str());
             let line = line_of(line_starts, m.start());
 
@@ -1566,7 +1553,7 @@ fn extract_esri_arcgis(
     );
     if let Some(re) = re_dojo {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
+            let m = cap.get(0).expect("group 0 always exists");
             let module = cap.name("module").map_or("", |m| m.as_str());
             let line = line_of(line_starts, m.start());
             esri_classes.push((format!("dojo:{}", module), line));
@@ -1677,6 +1664,7 @@ fn dedup_edges(edges: &mut Vec<ExtractedEdge>) {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
@@ -1785,7 +1773,7 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Services/MapData.asmx");
         assert_eq!(edges[0].kind, "api_call");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("web_service"));
+        assert_eq!(edges[0].target_kind, Some("web_service"));
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(
             meta.get("ajax_target_method").map(|s| s.as_str()),
@@ -1803,7 +1791,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("export.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Handlers/Export.ashx");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("http_handler"));
+        assert_eq!(edges[0].target_kind, Some("http_handler"));
     }
 
     // ── Feature 4: $.get / $.post ───────────────────────────────────────
@@ -1842,7 +1830,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("config.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Services/Config.svc");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("wcf_service"));
+        assert_eq!(edges[0].target_kind, Some("wcf_service"));
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(
             meta.get("ajax_target_method").map(|s| s.as_str()),
@@ -1889,7 +1877,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("patients.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "GetPatientList");
-        assert_eq!(edges[0].target_kind.as_deref(), Some("function"));
+        assert_eq!(edges[0].target_kind, Some("function"));
         assert_eq!(edges[0].kind, "api_call");
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(

@@ -144,8 +144,9 @@ fn extract_method_blocks(content: &str, re: Option<&Regex>) -> String {
             let start = i;
             let mut depth = 0i32;
             let mut found_end = false;
+            let mut next_i = i;
 
-            for j in i..lines.len() {
+            for j in start..lines.len() {
                 let trimmed = lines[j].trim().to_lowercase();
 
                 // VB-style blocks
@@ -163,7 +164,7 @@ fn extract_method_blocks(content: &str, re: Option<&Regex>) -> String {
                             result.push(*line);
                         }
                         result.push(""); // blank separator
-                        i = j + 1;
+                        next_i = j + 1;
                         found_end = true;
                         break;
                     }
@@ -180,7 +181,7 @@ fn extract_method_blocks(content: &str, re: Option<&Regex>) -> String {
                             result.push(*line);
                         }
                         result.push("");
-                        i = j + 1;
+                        next_i = j + 1;
                         found_end = true;
                         break;
                     }
@@ -194,6 +195,7 @@ fn extract_method_blocks(content: &str, re: Option<&Regex>) -> String {
                 }
                 break;
             }
+            i = next_i;
         } else {
             i += 1;
         }
@@ -241,13 +243,14 @@ fn extract_matching_context(content: &str, re: Option<&Regex>) -> String {
     }
 
     if result.is_empty() {
-        format!("(no matching lines found for this slice type in this chunk)")
+        "(no matching lines found for this slice type in this chunk)".to_string()
     } else {
         result.join("\n")
     }
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

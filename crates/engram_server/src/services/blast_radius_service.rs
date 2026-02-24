@@ -636,6 +636,7 @@ pub fn compute_blast_radius_with_solution(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

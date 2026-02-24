@@ -462,6 +462,7 @@ pub fn render_session_workflows_markdown(report: &SessionWorkflowReport) -> Stri
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

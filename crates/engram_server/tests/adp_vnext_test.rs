@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! ADP vNext integration tests.
 //!
 //! Validates the evolved gate pipeline, calibrated confidence aggregation,

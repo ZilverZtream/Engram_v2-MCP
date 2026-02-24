@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Integrity canary test — synthetic drift injection (Ticket 8).
 //!
 //! Tests that the integrity checker detects various forms of cross-store

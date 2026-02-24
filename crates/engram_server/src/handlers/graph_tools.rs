@@ -318,8 +318,7 @@ impl Engram {
                 if let Some(hit) = hits
                     .iter()
                     .find(|h| id == &format!("file:{}", h.path) || id.contains(h.path.as_str()))
-                {
-                    if let Ok(Some((_, _, content, start_line, _))) = ps.search.get_doc_by_doc_id(
+                    && let Ok(Some((_, _, content, start_line, _))) = ps.search.get_doc_by_doc_id(
                         &req.project_id,
                         &req.namespace,
                         gen_,
@@ -332,7 +331,6 @@ impl Engram {
                         }
                         out.push('\n');
                     }
-                }
             }
         }
 

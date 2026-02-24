@@ -38,11 +38,18 @@ fn encode_adj_value(weight: u32, updated_at_ms: u64) -> [u8; 12] {
     buf
 }
 
-/// Decode adjacency value from 12 bytes.
-fn decode_adj_value(bytes: &[u8]) -> (u32, u64) {
-    let weight = u32::from_le_bytes(bytes[..4].try_into().unwrap_or([0; 4]));
-    let ts = u64::from_le_bytes(bytes[4..12].try_into().unwrap_or([0; 8]));
-    (weight, ts)
+/// Decode adjacency value from fixed 12-byte binary: `[weight: u32 LE][timestamp: u64 LE]`.
+///
+/// Returns an error on short/corrupted buffers instead of silently returning zeros.
+fn decode_adj_value(bytes: &[u8]) -> anyhow::Result<(u32, u64)> {
+    anyhow::ensure!(
+        bytes.len() >= 12,
+        "decode_adj_value: expected 12 bytes, got {} — possible DB corruption",
+        bytes.len()
+    );
+    let weight = u32::from_le_bytes(bytes[..4].try_into()?);
+    let ts = u64::from_le_bytes(bytes[4..12].try_into()?);
+    Ok((weight, ts))
 }
 
 // ─── EdgeKind ────────────────────────────────────────────────────────────────
@@ -332,10 +339,7 @@ impl GraphStore {
             let wtx = db.begin_write()?;
             let mut dropped = Vec::new();
             for name in ["nodes", "edges", "adj_out", "adj_in"] {
-                match wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) {
-                    Ok(true) => dropped.push(name),
-                    _ => {}
-                }
+                if let Ok(true) = wtx.delete_table(TableDefinition::<&str, &[u8]>::new(name)) { dropped.push(name) }
             }
             wtx.commit()?;
             if !dropped.is_empty() {
@@ -717,7 +721,7 @@ impl GraphStore {
             if pfx != prefix.as_str() {
                 break;
             }
-            let (weight, _ts) = decode_adj_value(val_guard.value());
+            let (weight, _ts) = decode_adj_value(val_guard.value())?;
             out.push((neighbor_id.to_string(), weight));
         }
 
@@ -791,7 +795,7 @@ impl GraphStore {
                 if pfx != prefix.as_str() {
                     break;
                 }
-                let (weight, _ts) = decode_adj_value(val_guard.value());
+                let (weight, _ts) = decode_adj_value(val_guard.value())?;
                 out.push((source_id.to_string(), ek.clone(), weight));
             }
         }
@@ -1459,11 +1463,10 @@ impl GraphStore {
                 continue;
             }
 
-            if let Some(&prev_depth) = best_depth.get(&curr_id) {
-                if depth > prev_depth && curr_id != start_node_id {
+            if let Some(&prev_depth) = best_depth.get(&curr_id)
+                && depth > prev_depth && curr_id != start_node_id {
                     continue;
                 }
-            }
             best_depth.insert(curr_id.clone(), depth);
 
             let mut neighbors = Vec::new();
@@ -1817,16 +1820,13 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
-/// Validate that a key component does not contain the NUL byte separator.
+/// Validate that a key component does not contain separator characters (NUL or newline).
+///
+/// Delegates to the shared `engram_core::validate_key_component` to stay consistent
+/// with the doc store validation rules.
 fn validate_key_component(name: &str, value: &str) -> anyhow::Result<()> {
-    if value.contains('\0') {
-        anyhow::bail!(
-            "Graph store key component '{name}' contains NUL byte — this would \
-             corrupt composite keys. Value (truncated): {:?}",
-            &value[..value.len().min(80)]
-        );
-    }
-    Ok(())
+    engram_core::validate_key_component(name, value)
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 fn edge_key(project_id: &str, kind: &EdgeKind, source_id: &str, target_id: &str) -> String {
@@ -2048,8 +2048,17 @@ mod tests {
     #[test]
     fn adj_value_roundtrip() {
         let encoded = encode_adj_value(42, 1234567890123);
-        let (w, ts) = decode_adj_value(&encoded);
+        let (w, ts) = decode_adj_value(&encoded).unwrap();
         assert_eq!(w, 42);
         assert_eq!(ts, 1234567890123);
+    }
+
+    #[test]
+    fn decode_adj_value_rejects_short_buffer() {
+        assert!(decode_adj_value(&[]).is_err());
+        assert!(decode_adj_value(&[0; 4]).is_err());
+        assert!(decode_adj_value(&[0; 11]).is_err());
+        // Exactly 12 bytes should succeed
+        assert!(decode_adj_value(&[0; 12]).is_ok());
     }
 }

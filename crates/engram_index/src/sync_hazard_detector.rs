@@ -201,8 +201,8 @@ pub fn detect_sync_hazards(source: &str, is_vb: bool) -> SyncHazardReport {
         // Track method boundaries
         if let Some(caps) = method_re.captures(line) {
             // New method — check if previous method had lock+await combo
-            if has_lock_in_method && has_await_in_method {
-                if let Some(ll) = lock_line {
+            if has_lock_in_method && has_await_in_method
+                && let Some(ll) = lock_line {
                     hazards.push(SyncHazard {
                         pattern_type: "lock_with_async".into(),
                         line_number: ll,
@@ -213,7 +213,6 @@ pub fn detect_sync_hazards(source: &str, is_vb: bool) -> SyncHazardReport {
                         containing_method: current_method.clone(),
                     });
                 }
-            }
             current_method = caps.get(1).map(|m| m.as_str().to_string());
             has_lock_in_method = false;
             has_await_in_method = false;
@@ -378,8 +377,8 @@ pub fn detect_sync_hazards(source: &str, is_vb: bool) -> SyncHazardReport {
     }
 
     // Check the last method for lock+await combo
-    if has_lock_in_method && has_await_in_method {
-        if let Some(ll) = lock_line {
+    if has_lock_in_method && has_await_in_method
+        && let Some(ll) = lock_line {
             hazards.push(SyncHazard {
                 pattern_type: "lock_with_async".into(),
                 line_number: ll,
@@ -390,7 +389,6 @@ pub fn detect_sync_hazards(source: &str, is_vb: bool) -> SyncHazardReport {
                 containing_method: current_method,
             });
         }
-    }
 
     let critical_count = hazards
         .iter()

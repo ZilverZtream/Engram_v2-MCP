@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Phase 37: Wiring — Integration tests for newly exposed tools.
 //!
 //! Tests: analyze_database_intelligence, get_sp_details, list_triggers,
@@ -314,7 +315,7 @@ async fn w1_analyze_database_intelligence_json() {
 
     let text = &result.content[0].as_text().unwrap().text;
 
-    let parsed: serde_json::Value = serde_json::from_str(&text).expect("should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
     assert!(parsed["sp_logic"].is_array());
     assert!(parsed["triggers"].is_array());
     assert!(parsed["schema"]["tables"].is_array());
@@ -587,7 +588,7 @@ async fn w3_list_triggers_json() {
 
     let text = &result.content[0].as_text().unwrap().text;
 
-    let parsed: serde_json::Value = serde_json::from_str(&text).expect("should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
     assert!(parsed.is_array());
     assert!(parsed.as_array().unwrap().len() >= 2);
 }
@@ -704,7 +705,7 @@ async fn w4_analyze_sync_hazards_json() {
 
     let text = &result.content[0].as_text().unwrap().text;
 
-    let parsed: serde_json::Value = serde_json::from_str(&text).expect("should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
     assert!(parsed["files_scanned"].is_number());
     assert!(parsed["reports"].is_array());
 }
@@ -920,7 +921,7 @@ async fn w5_jquery_inventory_json() {
 
     let text = &result.content[0].as_text().unwrap().text;
 
-    let parsed: serde_json::Value = serde_json::from_str(&text).expect("should be valid JSON");
+    let parsed: serde_json::Value = serde_json::from_str(text).expect("should be valid JSON");
     assert!(parsed["files_analyzed"].is_number());
     assert!(parsed["total_usages"].is_number());
 }

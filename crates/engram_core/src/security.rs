@@ -134,3 +134,125 @@ impl PathContext {
         &self.allowed_roots
     }
 }
+
+/// Join a relative `sub_path` to `base_dir`, rejecting any traversal attempt.
+///
+/// This is a lightweight, synchronous guard for use inside `spawn_blocking` closures
+/// where the full `PathContext::resolve_path` (which does I/O) is not available.
+///
+/// Rejects:
+/// - Absolute paths (starting with `/`, `\`, or a drive letter like `C:`)
+/// - Parent-directory components (`..`)
+/// - NUL bytes (which would truncate paths on some OSes)
+///
+/// Returns the joined `base_dir/sub_path` on success.
+pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
+    // Reject NUL bytes
+    if sub_path.contains('\0') {
+        return Err(EngramError::PathNotAllowed(format!(
+            "path contains NUL byte: {:?}",
+            &sub_path[..sub_path.len().min(80)]
+        )));
+    }
+
+    let rel = Path::new(sub_path);
+
+    // Reject absolute paths
+    if rel.is_absolute() || sub_path.starts_with('/') || sub_path.starts_with('\\') {
+        return Err(EngramError::PathNotAllowed(format!(
+            "absolute path not allowed: {sub_path:?}"
+        )));
+    }
+
+    // Reject parent-directory traversal
+    for component in rel.components() {
+        if matches!(component, std::path::Component::ParentDir) {
+            return Err(EngramError::PathNotAllowed(format!(
+                "path traversal via '..' not allowed: {sub_path:?}"
+            )));
+        }
+    }
+
+    Ok(base_dir.join(rel))
+}
+
+/// Validate that a composite-key component contains no separator characters.
+///
+/// Both the graph store (NUL-separated keys) and the doc store (newline-separated keys)
+/// use this function to reject values that would corrupt composite keys.
+pub fn validate_key_component(name: &str, value: &str) -> std::result::Result<(), String> {
+    if value.contains('\0') {
+        return Err(format!(
+            "key component '{name}' contains NUL byte — this would corrupt composite keys. \
+             Value (truncated): {:?}",
+            &value[..value.len().min(80)]
+        ));
+    }
+    if value.contains('\n') {
+        return Err(format!(
+            "key component '{name}' contains newline — this would corrupt composite keys. \
+             Value (truncated): {:?}",
+            &value[..value.len().min(80)]
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── safe_join ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn safe_join_allows_normal_relative_path() {
+        let base = Path::new("/project");
+        let result = safe_join(base, "src/main.rs").unwrap();
+        assert_eq!(result, base.join("src/main.rs"));
+    }
+
+    #[test]
+    fn safe_join_rejects_parent_traversal() {
+        let base = Path::new("/project");
+        assert!(safe_join(base, "../etc/passwd").is_err());
+        assert!(safe_join(base, "src/../../etc/passwd").is_err());
+    }
+
+    #[test]
+    fn safe_join_rejects_absolute_path() {
+        let base = Path::new("/project");
+        assert!(safe_join(base, "/etc/passwd").is_err());
+        assert!(safe_join(base, "\\Windows\\System32").is_err());
+    }
+
+    #[test]
+    fn safe_join_rejects_nul_byte() {
+        let base = Path::new("/project");
+        assert!(safe_join(base, "file\0.txt").is_err());
+    }
+
+    #[test]
+    fn safe_join_allows_windows_relative() {
+        let base = Path::new("C:\\project");
+        let result = safe_join(base, "src\\main.rs");
+        assert!(result.is_ok());
+    }
+
+    // ── validate_key_component ─────────────────────────────────────────────
+
+    #[test]
+    fn key_component_rejects_nul() {
+        assert!(validate_key_component("test", "bad\0value").is_err());
+    }
+
+    #[test]
+    fn key_component_rejects_newline() {
+        assert!(validate_key_component("test", "bad\nvalue").is_err());
+    }
+
+    #[test]
+    fn key_component_allows_normal_values() {
+        assert!(validate_key_component("test", "good_value").is_ok());
+        assert!(validate_key_component("test", "path/to/file.rs").is_ok());
+    }
+}

@@ -149,7 +149,7 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
             let k = kind.to_string();
             k.contains("observed_runtime")
         })
-        .map(|(_, count)| **count)
+        .map(|(_, count)| *count)
         .sum();
     if observed_runtime_total > 0 {
         report.push_str(&format!(
@@ -281,17 +281,14 @@ pub async fn get_incremental_changes(
                         } else {
                             is_changed = false;
                         }
-                    } else if stored_size == size {
-                        if let Some(ref sh) = stored_hash {
-                            if let Some(ref current_hash) = stream_hash(&p) {
-                                if current_hash == sh {
+                    } else if stored_size == size
+                        && let Some(ref sh) = stored_hash
+                            && let Some(ref current_hash) = stream_hash(&p)
+                                && current_hash == sh {
                                     is_changed = false;
                                 }
-                            }
                             // If >100 MB and size same but mtime different, treat as
                             // changed so it gets re-indexed once.
-                        }
-                    }
                 }
 
                 if is_changed {

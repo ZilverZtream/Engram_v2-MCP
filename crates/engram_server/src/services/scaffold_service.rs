@@ -110,8 +110,8 @@ pub fn generate_scaffold_with_solution(
     let mut mapping_report = Vec::new();
 
     // Phase 31: Solution-aware context
-    if let Some(sln) = solution {
-        if let Some(proj_name) = solution_parser::file_to_project(sln, file_path) {
+    if let Some(sln) = solution
+        && let Some(proj_name) = solution_parser::file_to_project(sln, file_path) {
             // Add namespace resolution info
             if let Some(ns) = solution_parser::resolve_namespace(sln, proj_name) {
                 mapping_report.push(MappingEntry {
@@ -150,7 +150,6 @@ pub fn generate_scaffold_with_solution(
                 }
             }
         }
-    }
 
     // ── Build component code ─────────────────────────────────────────────────
     let component_code = match target.as_str() {
@@ -485,11 +484,10 @@ fn generate_react_component(
     let mut react_imports: HashSet<String> = HashSet::new();
     for control in &ctx.controls {
         let control_type = extract_control_type(&control.node_id);
-        if let Some(mapping) = control_mapping::lookup(&control_type) {
-            if mapping.react_equivalent.contains('/') || mapping.react_equivalent.contains("@") {
+        if let Some(mapping) = control_mapping::lookup(&control_type)
+            && (mapping.react_equivalent.contains('/') || mapping.react_equivalent.contains("@")) {
                 react_imports.insert(mapping.react_equivalent.to_string());
             }
-        }
     }
     for imp in &react_imports {
         let _ = writeln!(code, "// TODO: install and import: {imp}");
@@ -1347,7 +1345,7 @@ fn extract_table_from_sql_edge(edge: &Edge) -> String {
     // Fallback to target_id cleaned up
     edge.target_id
         .split(':')
-        .last()
+        .next_back()
         .unwrap_or(&edge.target_id)
         .to_string()
 }
@@ -1966,6 +1964,7 @@ fn generate_angular_handler_body(ctx: &FileContext, fname: &str, code: &mut Stri
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

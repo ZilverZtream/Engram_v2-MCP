@@ -665,7 +665,7 @@ fn extract_com_database(
 
     // ── Response.Write detection (metadata annotation) ──
     if let Some(re) = response_write_regex() {
-        for (_line_idx, line) in lines.iter().enumerate() {
+        for line in lines.iter() {
             if re.is_match(line) {
                 has_response_write = true;
                 break;
@@ -674,16 +674,13 @@ fn extract_com_database(
     }
 
     // Annotate the file-level insight with Response.Write usage if detected.
-    if has_response_write {
-        if let Some(insight) = symbols
+    if has_response_write
+        && let Some(insight) = symbols
             .iter_mut()
             .find(|s| s.name == "classic_asp_file" && s.kind == "insight")
-        {
-            if let Some(ref mut meta) = insight.metadata {
+            && let Some(ref mut meta) = insight.metadata {
                 meta.insert("uses_response_write".to_string(), "true".to_string());
             }
-        }
-    }
 }
 
 // ── Include Directive Detection ──────────────────────────────────────────────
@@ -811,13 +808,11 @@ fn extract_table_from_sql(sql: &str) -> String {
         r"(?i)\b(?:FROM|INTO|UPDATE|JOIN)\s+\[?(\w+)\]?",
         "asp_sql_table",
     );
-    if let Some(re) = re {
-        if let Some(cap) = re.captures(sql) {
-            if let Some(m) = cap.get(1) {
+    if let Some(re) = re
+        && let Some(cap) = re.captures(sql)
+            && let Some(m) = cap.get(1) {
                 return m.as_str().to_string();
             }
-        }
-    }
     // Fallback: use the entire SQL snippet (truncated) as the target name.
     truncate_sql(sql)
 }
@@ -856,6 +851,7 @@ fn sanitize_conn_string(conn: &str) -> String {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

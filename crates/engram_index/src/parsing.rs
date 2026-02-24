@@ -464,8 +464,8 @@ impl SymbolExtractor {
         // For edge extraction, we need to know which symbol we are currently inside.
         // Simplified: find innermost symbol that encloses the call.
         // (start, end, name, kind, start_line, fqn)
-        let mut symbol_ranges: Vec<(usize, usize, String, &'static str, u32, Option<String>)> =
-            Vec::new();
+        type SymbolRange = (usize, usize, String, &'static str, u32, Option<String>);
+        let mut symbol_ranges: Vec<SymbolRange> = Vec::new();
 
         while let Some(match_) = matches.next() {
             for capture in match_.captures {
@@ -503,7 +503,7 @@ impl SymbolExtractor {
 
                         edges.push(ExtractedEdge {
                             source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                            source_kind: *parent_kind,
+                            source_kind: parent_kind,
                             source_start_line: *parent_line,
                             source_language: static_ext,
                             target_name,
@@ -618,12 +618,11 @@ impl SymbolExtractor {
                 }
 
                 // Tag WebForms lifecycle methods with stage + sequence metadata.
-                if kind == "function" {
-                    if let Some((stage, seq)) = webforms_lifecycle_info(&name) {
+                if kind == "function"
+                    && let Some((stage, seq)) = webforms_lifecycle_info(&name) {
                         meta.insert("lifecycle_stage".into(), stage.into());
                         meta.insert("lifecycle_sequence".into(), seq.to_string());
                     }
-                }
 
                 symbols.push(ExtractedSymbol {
                     name: name.clone(),
@@ -643,7 +642,7 @@ impl SymbolExtractor {
                     let target_fqn = fqn_table.get(&name).cloned();
                     edges.push(ExtractedEdge {
                         source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                        source_kind: *parent_kind,
+                        source_kind: parent_kind,
                         source_start_line: *parent_line,
                         source_language: static_ext,
                         target_name: target_fqn.unwrap_or_else(|| name.clone()),
@@ -720,6 +719,15 @@ fn classify_cs_sql(sql: &str) -> (String, &'static str) {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    /// Compile-time proof that `CompiledQueries` is Send + Sync.
+    #[test]
+    fn compiled_queries_is_send_sync() {
+        fn assert_send<T: Send>() {}
+        fn assert_sync<T: Sync>() {}
+        assert_send::<CompiledQueries>();
+        assert_sync::<CompiledQueries>();
+    }
 
     #[test]
     fn test_csharp_unresolved_call() {

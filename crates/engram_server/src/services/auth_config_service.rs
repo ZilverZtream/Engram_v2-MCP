@@ -103,78 +103,78 @@ pub struct AuthRecommendation {
 // ── Regex patterns ────────────────────────────────────────────────────────
 
 static RE_AUTH_MODE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<authentication\s+mode\s*=\s*"(Forms|Windows|None|Passport)""#).unwrap()
+    Regex::new(r#"(?is)<authentication\s+mode\s*=\s*"(Forms|Windows|None|Passport)""#).expect("valid regex")
 });
 
 static RE_FORMS_AUTH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<forms\b([^>]*?)/>|<forms\b([^>]*?)>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<forms\b([^>]*?)/>|<forms\b([^>]*?)>").expect("valid regex"));
 
 static RE_LOCATION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<location\s+path\s*=\s*"([^"]*)"[^>]*>(.*?)</location>"#).unwrap()
+    Regex::new(r#"(?is)<location\s+path\s*=\s*"([^"]*)"[^>]*>(.*?)</location>"#).expect("valid regex")
 });
 
 static RE_ALLOW: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?is)<allow\b([^>]*?)/>"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"(?is)<allow\b([^>]*?)/>"#).expect("valid regex"));
 
 static RE_DENY: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?is)<deny\b([^>]*?)/>"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"(?is)<deny\b([^>]*?)/>"#).expect("valid regex"));
 
 static RE_MEMBERSHIP: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<membership\b([^>]*?)>(.*?)</membership>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<membership\b([^>]*?)>(.*?)</membership>").expect("valid regex"));
 
 static RE_ROLE_MANAGER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<roleManager\b([^>]*?)>(.*?)</roleManager>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<roleManager\b([^>]*?)>(.*?)</roleManager>").expect("valid regex"));
 
 // Code-level auth patterns
 static RE_IS_IN_ROLE_CS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)(?:User|HttpContext\.Current\.User|Context\.User|Thread\.CurrentPrincipal)\.IsInRole\s*\(\s*"([^"]*)"\s*\)"#).unwrap()
+    Regex::new(r#"(?i)(?:User|HttpContext\.Current\.User|Context\.User|Thread\.CurrentPrincipal)\.IsInRole\s*\(\s*"([^"]*)"\s*\)"#).expect("valid regex")
 });
 
 static RE_IS_IN_ROLE_VB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)(?:User|HttpContext\.Current\.User|My\.User|Context\.User)\.IsInRole\s*\(\s*"([^"]*)"\s*\)"#).unwrap()
+    Regex::new(r#"(?i)(?:User|HttpContext\.Current\.User|My\.User|Context\.User)\.IsInRole\s*\(\s*"([^"]*)"\s*\)"#).expect("valid regex")
 });
 
 static RE_IS_AUTHENTICATED: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?:User|HttpContext\.Current\.User|Context\.User)\.Identity\.IsAuthenticated")
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_FORMS_AUTH_API: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?i)FormsAuthentication\.(SetAuthCookie|RedirectFromLoginPage|SignOut|GetRedirectUrl|Authenticate|RenewTicketIfOld|Decrypt|Encrypt)",
     )
-    .unwrap()
+    .expect("valid regex")
 });
 
 static RE_MEMBERSHIP_API: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)Membership\.(CreateUser|ValidateUser|GetUser|DeleteUser|FindUsersByName|FindUsersByEmail|UpdateUser|GetAllUsers|GetNumberOfUsersOnline)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_ROLES_API: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)Roles\.(AddUserToRole|RemoveUserFromRole|GetRolesForUser|IsUserInRole|CreateRole|DeleteRole|GetAllRoles|RoleExists|GetUsersInRole)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_SESSION_AUTH: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)Session\s*[\[(]\s*"(User(?:Id|Name|Role|Level|Type|Info|Data|Token|Permissions?)?|IsAdmin|IsLoggedIn|LoginTime|AuthToken|CurrentUser|LoggedInUser)"\s*[\])]"#)
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_PRINCIPAL_PERMISSION: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?i)\[PrincipalPermission\s*\([^)]*Role\s*=\s*"([^"]*)""#).unwrap()
+    Regex::new(r#"(?i)\[PrincipalPermission\s*\([^)]*Role\s*=\s*"([^"]*)""#).expect("valid regex")
 });
 
 static RE_AUTHORIZE_ATTR: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"(?i)\[Authorize\s*(?:\([^)]*\))?\s*\]"#).unwrap());
+    LazyLock::new(|| Regex::new(r#"(?i)\[Authorize\s*(?:\([^)]*\))?\s*\]"#).expect("valid regex"));
 
 /// Matches a global `<authorization>…</authorization>` block outside any `<location>` element.
 static RE_GLOBAL_AUTH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<authorization>(.*?)</authorization>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<authorization>(.*?)</authorization>").expect("valid regex"));
 
 /// Matches `<add …/>` elements used inside membership/role-manager provider bodies.
 static RE_ADD_TAG: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?is)<add\b([^>]*?)/>").unwrap());
+    LazyLock::new(|| Regex::new(r"(?is)<add\b([^>]*?)/>").expect("valid regex"));
 
 fn extract_xml_attr(tag: &str, attr: &str) -> String {
     let pattern = format!(r#"(?i){}\s*=\s*"([^"]*)""#, regex::escape(attr));
@@ -218,7 +218,7 @@ pub fn analyze_auth_config(
     let mut session_auth_patterns = Vec::new();
     // `recommendations` is computed once at the end; declared here to keep the
     // struct assembly block tidy, initialized by build_recommendations below.
-    let recommendations;
+    
 
     // ── Parse web.config ──
 
@@ -433,7 +433,7 @@ pub fn analyze_auth_config(
 
     // ── Generate recommendations ──
 
-    recommendations = build_recommendations(
+    let recommendations = build_recommendations(
         &auth_mode,
         &forms_auth,
         &membership_config,
@@ -834,8 +834,8 @@ fn build_recommendations(
         });
     }
 
-    if let Some(fa) = forms_auth {
-        if !fa.require_ssl {
+    if let Some(fa) = forms_auth
+        && !fa.require_ssl {
             recs.push(AuthRecommendation {
                 category: "Security".to_string(),
                 severity: "Critical".to_string(),
@@ -846,7 +846,6 @@ fn build_recommendations(
                     .to_string(),
             });
         }
-    }
 
     recs
 }
@@ -999,6 +998,7 @@ pub fn format_auth_config_map(report: &AuthConfigMap) -> String {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

@@ -535,12 +535,11 @@ pub async fn analyze_file_logic(
         let fqn = format!("{class_name}.{name}");
 
         // Check cache
-        if let Some(cached_hash) = cached_hashes.get(&fqn) {
-            if *cached_hash == body_hash {
+        if let Some(cached_hash) = cached_hashes.get(&fqn)
+            && *cached_hash == body_hash {
                 skipped_count += 1;
                 continue;
             }
-        }
 
         let result =
             analyze_method_logic(dreaming, file_path, name, &body, &class_name, language).await;
@@ -833,6 +832,7 @@ fn extract_method_names(content: &str) -> Vec<String> {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

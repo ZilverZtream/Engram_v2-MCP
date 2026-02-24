@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod audit_regressions {
     mod dup_content_does_not_overwrite;

@@ -245,9 +245,9 @@ impl GitWalker {
                 // Write hunk header directly into buf (avoids intermediate
                 // String allocation from format!()).
                 use std::fmt::Write;
-                let _ = write!(
+                let _ = writeln!(
                     buf,
-                    "@@ -{},{} +{},{} @@\n",
+                    "@@ -{},{} +{},{} @@",
                     h.old_start(),
                     h.old_lines(),
                     h.new_start(),

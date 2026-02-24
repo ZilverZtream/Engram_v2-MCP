@@ -316,8 +316,8 @@ pub fn detect_design_antipatterns(
         // background_service nodes were emitted by extractors
         let dep_edges_all = graph.list_edges_by_kind(project_id, EdgeKind::Dependency, 10_000)?;
         for e in &dep_edges_all {
-            if let Some(node) = graph.get_node(project_id, &e.source_id)? {
-                if node.node_type == "background_service" {
+            if let Some(node) = graph.get_node(project_id, &e.source_id)?
+                && node.node_type == "background_service" {
                     patterns.push(DesignAntiPattern {
                         pattern_name: "Windows Service".into(),
                         description: format!(
@@ -343,7 +343,6 @@ pub fn detect_design_antipatterns(
                         ],
                     });
                 }
-            }
         }
     }
 
@@ -417,6 +416,7 @@ pub fn detect_background_service_patterns(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

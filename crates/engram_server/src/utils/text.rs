@@ -193,11 +193,10 @@ pub fn stacktrace_to_query(stack: &str) -> String {
                 terms.push(basename.to_string());
             }
         }
-        if let Some(ref func) = frame.function {
-            if func.len() >= 3 && func.len() <= 80 && seen.insert(func.to_string()) {
+        if let Some(ref func) = frame.function
+            && func.len() >= 3 && func.len() <= 80 && seen.insert(func.to_string()) {
                 terms.push(func.to_string());
             }
-        }
         if let Some(ref fqn) = frame.fqn {
             // Also add class name (second-to-last segment)
             let parts: Vec<&str> = fqn.split('.').collect();
@@ -212,7 +211,7 @@ pub fn stacktrace_to_query(stack: &str) -> String {
 
     // Fallback: generic identifier extraction for any remaining tokens
     static IDENT_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let re = IDENT_RE.get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").unwrap());
+    let re = IDENT_RE.get_or_init(|| regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}").expect("valid regex"));
     for m in re.find_iter(stack).take(80) {
         let t = m.as_str();
         if t.len() > 80 {
@@ -290,58 +289,86 @@ impl StackPatterns {
             // Python: File "path/file.py", line 42, in function_name
             python: regex::Regex::new(
                 r#"File "([^"]+\.py[cow]?)", line (\d+)(?:, in (\w+))?"#
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // .NET: at Namespace.Class.Method(args) in C:\path\file.cs:line 42
             // also: at Namespace.Class.Method(args)
             dotnet: regex::Regex::new(
                 r"^\s*at\s+([\w.<>+`\[\],]+)\([^)]*\)(?:\s+in\s+(.+?):(?:line\s+)?(\d+))?"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Java: at com.example.Class.method(File.java:123)
             java: regex::Regex::new(
                 r"^\s*at\s+([\w.$]+)\(([^:)]+):(\d+)\)"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Node.js: at funcName (path/file.js:N:M)  or  at path/file.js:N:M
             nodejs: regex::Regex::new(
                 r"^\s*at\s+(?:([\w.<>\[\]$]+)\s+)?\(?([^\s()]+?):(\d+):\d+\)?"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Rust panic: thread 'name' panicked at 'msg', src/file.rs:N:M
             rust_panic: regex::Regex::new(
                 r"panicked at .+,\s*(.+\.rs):(\d+):\d+"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Rust backtrace: N: symbol at path/file.rs:L:C
             rust_bt: regex::Regex::new(
                 r"^\s*\d+:\s+([\w:<>]+)\s+at\s+(.+?):(\d+)(?::\d+)?"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Go: path/file.go:N +0xABC  or  path/file.go:N
             go: regex::Regex::new(
                 r"([\w./\\-]+\.go):(\d+)"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // PHP: #N /path/file.php(42): Class->method()
             php: regex::Regex::new(
                 r"#\d+\s+(.+\.php)\((\d+)\):\s*([\w\\:->]+)"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Ruby: from path/file.rb:N:in `method'
             ruby: regex::Regex::new(
                 r"from\s+(.+\.rb):(\d+):in\s+`(\w+)'"
-            ).unwrap(),
+            ).expect("valid regex"),
 
             // Generic: any file path with recognized extension, optionally followed by :line
             generic_file: regex::Regex::new(
                 r"([\w./\\-]+\.(?:rs|py|js|ts|tsx|jsx|go|java|cs|vb|aspx|ascx|master|config|php|rb|cpp|c|h|swift|kt|scala|lua|sql|cshtml|vbhtml|fs|fsx))[:\(](\d+)"
-            ).unwrap(),
+            ).expect("valid regex"),
         }
     }
 }
 
+pub fn code_to_query(code: &str) -> String {
+    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = if let Some(re) = RE.get() {
+        re
+    } else {
+        match regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}") {
+            Ok(compiled) => RE.get_or_init(|| compiled),
+            Err(err) => {
+                tracing::error!("failed to compile code token regex: {err}");
+                return String::new();
+            }
+        }
+    };
+    let mut terms: Vec<String> = Vec::new();
+    for m in re.find_iter(code).take(30) {
+        let t = m.as_str();
+        if t.len() > 30 {
+            continue;
+        }
+        if matches!(t, "self" | "this" | "that" | "Some" | "None" | "Result") {
+            continue;
+        }
+        terms.push(t.to_string());
+    }
+    terms.join(" ")
+}
+
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -426,7 +453,7 @@ ValueError: invalid literal"#;
 main.main()
     /home/user/project/main.go:15 +0x1a3"#;
         let frames = parse_stack_frames(stack);
-        assert!(frames.len() >= 1);
+        assert!(!frames.is_empty());
         let go_frame = frames.iter().find(|f| {
             f.file
                 .as_deref()
@@ -441,7 +468,7 @@ main.main()
     fn parse_aspx_generic_path() {
         let stack = "Error at Controls/Menu.ascx:12 - unhandled exception";
         let frames = parse_stack_frames(stack);
-        assert!(frames.len() >= 1);
+        assert!(!frames.is_empty());
         assert!(frames[0].file.as_deref().unwrap().contains("Menu.ascx"));
         assert_eq!(frames[0].line, Some(12));
     }
@@ -465,31 +492,4 @@ main.main()
         assert!(!query.contains(" class ") || !query.split_whitespace().any(|t| t == "class"));
         assert!(!query.split_whitespace().any(|t| t == "void"));
     }
-}
-
-pub fn code_to_query(code: &str) -> String {
-    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    let re = if let Some(re) = RE.get() {
-        re
-    } else {
-        match regex::Regex::new(r"[A-Za-z_][A-Za-z0-9_]{2,}") {
-            Ok(compiled) => RE.get_or_init(|| compiled),
-            Err(err) => {
-                tracing::error!("failed to compile code token regex: {err}");
-                return String::new();
-            }
-        }
-    };
-    let mut terms: Vec<String> = Vec::new();
-    for m in re.find_iter(code).take(30) {
-        let t = m.as_str();
-        if t.len() > 30 {
-            continue;
-        }
-        if matches!(t, "self" | "this" | "that" | "Some" | "None" | "Result") {
-            continue;
-        }
-        terms.push(t.to_string());
-    }
-    terms.join(" ")
 }

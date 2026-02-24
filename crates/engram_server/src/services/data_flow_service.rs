@@ -199,8 +199,8 @@ pub fn trace_data_flow(
         if let Some(m) = RE_STATE_WRITE.find(trimmed) {
             let after_eq = trimmed[m.end()..].trim_start();
             let is_double_eq = after_eq.starts_with('=');
-            if !is_double_eq {
-                if let Some(cap) = RE_STATE_WRITE.captures(trimmed) {
+            if !is_double_eq
+                && let Some(cap) = RE_STATE_WRITE.captures(trimmed) {
                     let state_type = cap[1].to_string();
                     let key = cap[2].to_string();
                     let rhs = trimmed[m.end()..].trim().to_string();
@@ -230,8 +230,7 @@ pub fn trace_data_flow(
                         details,
                     });
                     continue;
-                }
-            } // end !is_double_eq
+                } // end !is_double_eq
         }
 
         // ── State reads ───────────────────────────────────────────────────────
@@ -542,7 +541,7 @@ pub fn trace_data_flow(
     )?;
     let code_step_count = steps.len();
     for mut gs in graph_steps {
-        gs.sequence = code_step_count + gs.sequence;
+        gs.sequence += code_step_count;
         steps.push(gs);
     }
 
@@ -690,12 +689,11 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
     let mut start_line = None;
 
     for (i, line) in lines.iter().enumerate() {
-        if line.contains(method_name) && line.contains('(') {
-            if RE_METHOD_START_VB.is_match(line) || line.contains(method_name) {
+        if line.contains(method_name) && line.contains('(')
+            && (RE_METHOD_START_VB.is_match(line) || line.contains(method_name)) {
                 start_line = Some(i);
                 break;
             }
-        }
     }
 
     let start = match start_line {
@@ -718,8 +716,8 @@ fn extract_method_body_vb(lines: &[&str], method_name: &str) -> String {
 /// Try to pull a SQL string literal or command name out of a single line.
 fn extract_sql_hint(line: &str) -> String {
     // Grab first double-quoted string
-    if let Some(start) = line.find('"') {
-        if let Some(end) = line[start + 1..].find('"') {
+    if let Some(start) = line.find('"')
+        && let Some(end) = line[start + 1..].find('"') {
             let candidate = &line[start + 1..start + 1 + end];
             let upper = candidate.to_uppercase();
             if upper.starts_with("SELECT")
@@ -733,10 +731,9 @@ fn extract_sql_hint(line: &str) -> String {
                 return candidate.to_string();
             }
         }
-    }
     // Try single-quoted
-    if let Some(start) = line.find('\'') {
-        if let Some(end) = line[start + 1..].find('\'') {
+    if let Some(start) = line.find('\'')
+        && let Some(end) = line[start + 1..].find('\'') {
             let candidate = &line[start + 1..start + 1 + end];
             let upper = candidate.to_uppercase();
             if upper.starts_with("SELECT")
@@ -748,7 +745,6 @@ fn extract_sql_hint(line: &str) -> String {
                 return candidate.to_string();
             }
         }
-    }
     String::new()
 }
 
@@ -1079,6 +1075,7 @@ fn generate_flow_hint(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use engram_graph::{Edge, EdgeKind, GraphStore};

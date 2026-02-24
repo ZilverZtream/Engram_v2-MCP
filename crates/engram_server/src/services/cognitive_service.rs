@@ -593,7 +593,7 @@ fn gather_boundary_data(
             v
         })
         .collect();
-    sorted_clusters.sort_by(|a, b| b.len().cmp(&a.len()));
+    sorted_clusters.sort_by_key(|b| std::cmp::Reverse(b.len()));
     sorted_clusters.truncate(max_clusters);
 
     // Format clusters text.

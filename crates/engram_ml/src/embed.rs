@@ -1,6 +1,4 @@
-use ahash::AHasher;
 use async_trait::async_trait;
-use std::hash::{BuildHasher, Hash, Hasher};
 
 pub type Embedding = Vec<f32>;
 
@@ -137,9 +135,9 @@ fn ahash_u64_fixed_a(data: &[u8]) -> u64 {
         0x9368d954_3c2f05db,
         0x2f50f073_c8fa3ba5,
     );
-    let mut h: AHasher = state.build_hasher();
-    data.hash(&mut h);
-    h.finish()
+    
+    
+    state.hash_one(data)
 }
 
 /// Hash family B — used for projection slot 1 (independent of A).
@@ -150,9 +148,9 @@ fn ahash_u64_fixed_b(data: &[u8]) -> u64 {
         0xfedcba98_76543210,
         0xc0ffee11_deadbeef,
     );
-    let mut h: AHasher = state.build_hasher();
-    data.hash(&mut h);
-    h.finish()
+    
+    
+    state.hash_one(data)
 }
 
 // ---------------------------------------------------------------------------

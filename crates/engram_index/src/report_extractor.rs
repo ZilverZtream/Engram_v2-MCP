@@ -491,22 +491,20 @@ pub fn extract_crystal_reports_usage(
         &CR_NAMESPACE_RE,
         r"(?i)(?:using|Imports)\s+CrystalDecisions(?:\.\w+)+",
         "cr_namespace",
-    ) {
-        if ns_re.is_match(source) {
+    )
+        && ns_re.is_match(source) {
             has_crystal = true;
         }
-    }
 
     // ── ReportDocument instantiation ────────────────────────────────────────
     if let Some(rd_re) = get_compiled_regex(
         &CR_REPORT_DOC_NEW_RE,
         r"(?i)\bnew\s+ReportDocument\s*\(",
         "cr_report_doc_new",
-    ) {
-        if rd_re.is_match(source) {
+    )
+        && rd_re.is_match(source) {
             has_crystal = true;
         }
-    }
 
     // ── ReportDocument.Load("path.rpt") calls ──────────────────────────────
     if let Some(load_re) = get_compiled_regex(
@@ -548,22 +546,20 @@ pub fn extract_crystal_reports_usage(
         &CR_SET_DATASOURCE_RE,
         r"(?i)\.SetDataSource\s*\(",
         "cr_set_datasource",
-    ) {
-        if sds_re.is_match(source) {
+    )
+        && sds_re.is_match(source) {
             has_crystal = true;
         }
-    }
 
     // ── CrystalReportViewer usage in code ───────────────────────────────────
     if let Some(viewer_re) = get_compiled_regex(
         &CR_VIEWER_CODE_RE,
         r"(?i)\bCrystalReportViewer\b",
         "cr_viewer_code",
-    ) {
-        if viewer_re.is_match(source) {
+    )
+        && viewer_re.is_match(source) {
             has_crystal = true;
         }
-    }
 
     // ── Emit results only when Crystal Reports usage was detected ───────────
     if has_crystal {

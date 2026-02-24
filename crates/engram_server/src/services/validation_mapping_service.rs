@@ -94,16 +94,16 @@ static RE_VALIDATOR_TAG: LazyLock<Regex> = LazyLock::new(|| {
     // Match the opening tag only — all validator attributes live on the opening tag.
     // Previous regex used \1 backreference (unsupported by Rust regex crate).
     Regex::new(r"(?is)<asp:(RequiredFieldValidator|CompareValidator|RangeValidator|RegularExpressionValidator|CustomValidator)\b([^>]*?)(?:/\s*>|>)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_VALIDATION_SUMMARY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)<asp:ValidationSummary\b([^>]*?)(/\s*>|>.*?</asp:ValidationSummary\s*>)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 static RE_BUTTON_TAGS: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:(Button|LinkButton|ImageButton)\b([^>]*?)(/\s*>|>)").unwrap()
+    Regex::new(r"(?is)<asp:(Button|LinkButton|ImageButton)\b([^>]*?)(/\s*>|>)").expect("valid regex")
 });
 
 fn extract_attr(tag: &str, attr: &str) -> String {
@@ -322,11 +322,10 @@ pub fn analyze_validation_controls(
     }
 
     for btn in &causes_validation_buttons {
-        if btn.causes_validation {
-            if let Some(g) = groups.get_mut(&btn.validation_group) {
+        if btn.causes_validation
+            && let Some(g) = groups.get_mut(&btn.validation_group) {
                 g.trigger_buttons.push(btn.control_id.clone());
             }
-        }
     }
 
     let validation_groups: Vec<ValidationGroupInfo> = groups.into_values().collect();
@@ -360,6 +359,7 @@ pub fn analyze_validation_controls(
 
 // ── Modern mapping helpers ────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn map_validator_to_modern(
     vtype: &str,
     error_message: &str,
@@ -460,20 +460,18 @@ fn build_custom_validator_approach(
         parts.push(format!("Server: Migrate {handler}() logic to FluentValidation .Must() predicate or IValidatableObject.Validate()"));
 
         // Try to find the handler body in code-behind
-        if let Some(cb) = codebehind_content {
-            if let Some(summary) = extract_handler_summary(cb, handler) {
+        if let Some(cb) = codebehind_content
+            && let Some(summary) = extract_handler_summary(cb, handler) {
                 parts.push(format!("Handler logic: {summary}"));
             }
-        }
     }
 
-    if let Some(client) = client_fn {
-        if !client.is_empty() {
+    if let Some(client) = client_fn
+        && !client.is_empty() {
             parts.push(format!(
                 "Client: Migrate {client}() JavaScript function to Blazor validation component or React/Angular form validation"
             ));
         }
-    }
 
     if parts.is_empty() {
         "Manual review required: no handler or client function detected".to_string()
@@ -627,6 +625,7 @@ fn truncate_str(s: &str, max: usize) -> &str {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

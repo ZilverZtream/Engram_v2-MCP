@@ -32,49 +32,37 @@ impl StateStore {
 
         let lower = normalized.to_lowercase();
         if lower.starts_with("session:") || lower.starts_with("session[") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Session, key)
         } else if lower.starts_with("viewstate:") || lower.starts_with("viewstate[") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::ViewState, key)
         } else if lower.starts_with("application:") || lower.starts_with("application[") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Application, key)
         } else if lower.starts_with("cache:") || lower.starts_with("cache[") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or("")
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Cache, key)
         } else if lower.contains("cookie") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or(&normalized)
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
             (Self::Cookie, key)
         } else if lower.contains("querystring") {
-            let key = normalized
-                .splitn(2, |c| c == ':' || c == '[')
-                .nth(1)
+            let key = normalized.split_once([':', '[']).map(|x| x.1)
                 .unwrap_or(&normalized)
                 .trim_matches(|c: char| c == ']' || c == '"' || c == '\'')
                 .to_string();
@@ -532,7 +520,7 @@ fn generate_viewstate_report(
             .chain(rec.writers.iter())
             .filter_map(|s| {
                 s.split(':')
-                    .last()
+                    .next_back()
                     .map(|p| p.split('.').take(2).collect::<Vec<_>>().join("."))
             })
             .collect();
@@ -589,7 +577,7 @@ fn classify_viewstate_lifecycle(readers: &[String], writers: &[String]) -> ViewS
     // Check if all from the same file
     let files: HashSet<String> = all_locations
         .iter()
-        .filter_map(|s| s.split(':').last().map(String::from))
+        .filter_map(|s| s.split(':').next_back().map(String::from))
         .collect();
 
     if files.len() <= 1 {
@@ -618,6 +606,7 @@ fn to_pascal_case(s: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
