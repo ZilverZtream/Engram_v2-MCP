@@ -321,6 +321,7 @@ fn compute_risk_level(req: &SafetyEvalRequest) -> RiskLevel {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

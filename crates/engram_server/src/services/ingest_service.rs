@@ -211,7 +211,7 @@ pub async fn process_ingest_stats(
         } else {
             (
                 engram_core::ids::NodeId::symbol(
-                    &sym.kind,
+                    sym.kind,
                     fqn,
                     rel_path.as_str(),
                     &sym.name,
@@ -310,7 +310,7 @@ pub async fn process_ingest_stats(
                     .map(|s| s.as_str())
             };
             engram_core::ids::NodeId::symbol(
-                &edge.source_kind,
+                edge.source_kind,
                 fqn,
                 rel_path.as_str(),
                 &edge.source_name,
@@ -319,7 +319,7 @@ pub async fn process_ingest_stats(
             .0
         };
 
-        let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
+        let target_id = if edge.target_name == "file" || edge.target_kind == Some("file")
         {
             let path = if edge.target_name == "file" {
                 rel_path.as_str()
@@ -333,14 +333,14 @@ pub async fn process_ingest_stats(
                     rel_path.as_str()
                 );
             }
-            if edge.target_kind.as_deref() == Some("page") {
+            if edge.target_kind == Some("page") {
                 engram_core::ids::NodeId::page(path).0
             } else {
                 engram_core::ids::NodeId::file(path).0
             }
-        } else if edge.target_kind.as_deref() == Some("page") {
+        } else if edge.target_kind == Some("page") {
             engram_core::ids::NodeId::page(rel_path.as_str()).0
-        } else if edge.target_kind.as_deref() == Some("control") {
+        } else if edge.target_kind == Some("control") {
             let control_id = edge
                 .metadata
                 .as_ref()
@@ -348,7 +348,7 @@ pub async fn process_ingest_stats(
                 .map(|s| s.as_str())
                 .unwrap_or(edge.target_name.as_str());
             engram_core::ids::NodeId::control(rel_path.as_str(), control_id).0
-        } else if edge.target_kind.as_deref() == Some("control_ref") {
+        } else if edge.target_kind == Some("control_ref") {
             let path_str = rel_path.as_str();
             let page_path = if let Some(idx) = path_str.find(".designer.") {
                 &path_str[..idx]
@@ -368,19 +368,16 @@ pub async fn process_ingest_stats(
                 .next_back()
                 .unwrap_or(&edge.target_name);
             engram_core::ids::NodeId::control(page_path, simple_name).0
-        } else if edge.target_name.starts_with("sql:") {
+        } else if edge.target_name.starts_with("sql:")
+            || edge.target_name.starts_with("state:")
+            || edge.target_name.starts_with("binding_field:")
+            || edge.target_name.starts_with("gis_config:")
+            || edge.target_name.starts_with("column:")
+        {
             edge.target_name.clone()
-        } else if edge.target_name.starts_with("state:") {
-            edge.target_name.clone()
-        } else if edge.target_name.starts_with("binding_field:") {
-            edge.target_name.clone()
-        } else if edge.target_name.starts_with("gis_config:") {
-            edge.target_name.clone()
-        } else if edge.target_name.starts_with("column:") {
-            edge.target_name.clone()
-        } else if edge.target_kind.as_deref() == Some("db_table") {
+        } else if edge.target_kind == Some("db_table") {
             engram_core::ids::NodeId::table(&edge.target_name).0
-        } else if edge.target_kind.as_deref() == Some("db_column") {
+        } else if edge.target_kind == Some("db_column") {
             let table = edge
                 .metadata
                 .as_ref()

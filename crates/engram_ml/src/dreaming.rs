@@ -748,7 +748,7 @@ pub fn deterministic_boundaries_with_data(
             let token = token.trim_matches(|c: char| c == ',' || c == '"' || c == '\'');
             if token.contains('/') || token.contains('\\') || token.contains('.') {
                 let dir = token
-                    .rsplit_once(|c| c == '/' || c == '\\')
+                    .rsplit_once(['/', '\\'])
                     .map(|(d, _)| d.to_string())
                     .unwrap_or_else(|| "root".to_string());
                 dir_groups.entry(dir).or_default().push(token.to_string());
@@ -804,7 +804,7 @@ pub fn deterministic_boundaries_with_data(
                 }
             }
             MigrationBoundary {
-                context_name: format!("{} Module", dir.split('/').last().unwrap_or(&dir)),
+                context_name: format!("{} Module", dir.split('/').next_back().unwrap_or(&dir)),
                 files,
                 owned_data,
                 depends_on: Vec::new(),
@@ -832,15 +832,14 @@ pub fn deterministic_boundaries_with_data(
         for b in &mut boundaries {
             let mut shared: std::collections::HashSet<String> = std::collections::HashSet::new();
             for d in &b.owned_data {
-                if let Some(owners) = data_owners.get(d) {
-                    if owners.len() > 1 {
+                if let Some(owners) = data_owners.get(d)
+                    && owners.len() > 1 {
                         for o in owners {
                             if o != &b.context_name {
                                 shared.insert(o.clone());
                             }
                         }
                     }
-                }
             }
             if !shared.is_empty() {
                 b.risk = "HIGH".into();

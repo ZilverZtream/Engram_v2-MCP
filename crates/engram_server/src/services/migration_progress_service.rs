@@ -164,6 +164,7 @@ impl MigrationProgressStore {
     // ── Writes ─────────────────────────────────────────────────────────────
 
     /// Insert or update the migration status for a single file.
+    #[allow(clippy::too_many_arguments)]
     pub fn update_status(
         &self,
         project_id: &str,
@@ -273,11 +274,10 @@ impl MigrationProgressStore {
                 continue;
             }
             let fs: FileStatus = serde_json::from_str(v.value())?;
-            if let Some(ref filter) = status_filter {
-                if &fs.status != filter {
+            if let Some(ref filter) = status_filter
+                && &fs.status != filter {
                     continue;
                 }
-            }
             out.push(fs);
         }
         Ok(out)
@@ -519,6 +519,7 @@ fn progress_bar(pct: f64, width: usize) -> String {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use tempfile::tempdir;

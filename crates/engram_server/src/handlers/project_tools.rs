@@ -186,6 +186,7 @@ impl Engram {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn write_checkpoint(
         &self,
         job_id: &str,
@@ -241,6 +242,7 @@ impl Engram {
         Some((cp, state))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn index_files_with_parse_guard<F>(
         &self,
         search: &engram_index::HybridSearchEngine,
@@ -1180,7 +1182,7 @@ impl Engram {
             .registry
             .get_project(&pid)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .unwrap();
+            .ok_or_else(|| McpError::internal_error(format!("project {pid} not found"), None))?;
         let dir = PathBuf::from(&rec.directory);
 
         if req.wipe_and_reindex {

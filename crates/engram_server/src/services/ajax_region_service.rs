@@ -77,12 +77,12 @@ static RE_SCRIPT_MANAGER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?is)<asp:ScriptManager(?:Proxy)?\b([^>]*?)(?:/\s*>|>(.*?)</asp:ScriptManager(?:Proxy)?\s*>)",
     )
-    .unwrap()
+    .expect("valid regex")
 });
 
 // Matches the full <asp:UpdatePanel ...>...</asp:UpdatePanel> block
 static RE_UPDATE_PANEL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:UpdatePanel\b([^>]*?)>(.*?)</asp:UpdatePanel\s*>").unwrap()
+    Regex::new(r"(?is)<asp:UpdatePanel\b([^>]*?)>(.*?)</asp:UpdatePanel\s*>").expect("valid regex")
 });
 
 // Matches <asp:AsyncPostBackTrigger ... />
@@ -90,35 +90,35 @@ static RE_ASYNC_TRIGGER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?is)<asp:AsyncPostBackTrigger\b([^>]*?)(?:/\s*>|>.*?</asp:AsyncPostBackTrigger\s*>)",
     )
-    .unwrap()
+    .expect("valid regex")
 });
 
 // Matches <asp:PostBackTrigger ... />
 static RE_POSTBACK_TRIGGER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)<asp:PostBackTrigger\b([^>]*?)(?:/\s*>|>.*?</asp:PostBackTrigger\s*>)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 // Matches <asp:Timer ...> anywhere in the markup
 static RE_TIMER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?is)<asp:Timer\b([^>]*?)(?:/\s*>|>.*?</asp:Timer\s*>)").unwrap()
+    Regex::new(r"(?is)<asp:Timer\b([^>]*?)(?:/\s*>|>.*?</asp:Timer\s*>)").expect("valid regex")
 });
 
 // Matches <asp:UpdateProgress ...>...</asp:UpdateProgress>
 static RE_UPDATE_PROGRESS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?is)<asp:UpdateProgress\b([^>]*?)(?:/\s*>|>(.*?)</asp:UpdateProgress\s*>)")
-        .unwrap()
+        .expect("valid regex")
 });
 
 // Matches <asp:ServiceReference Path="..." />
 static RE_SERVICE_REF: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?is)<asp:ServiceReference\b[^>]*?Path\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>.*?</asp:ServiceReference\s*>)"#)
-        .unwrap()
+        .expect("valid regex")
 });
 
 // Matches any asp: control with an ID attribute — used to enumerate controls inside a panel body
 static RE_ASP_CONTROL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"(?is)<asp:(\w+)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#).unwrap()
+    Regex::new(r#"(?is)<asp:(\w+)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#).expect("valid regex")
 });
 
 // Button-like controls used to find full-postback triggers outside UpdatePanels
@@ -126,7 +126,7 @@ static RE_BUTTONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?is)<asp:(Button|LinkButton|ImageButton)\b[^>]*?\bID\s*=\s*"([^"]*)"[^>]*?(?:/\s*>|>)"#,
     )
-    .unwrap()
+    .expect("valid regex")
 });
 
 // ── Attribute helpers ─────────────────────────────────────────────────────
@@ -842,6 +842,7 @@ pub fn format_ajax_region_map(report: &AjaxRegionMap) -> String {
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

@@ -274,11 +274,10 @@ fn classify_side_effects(method_body: &str, known_fields: &HashSet<String>) -> O
         r"(?i)\b(?:btn|lbl|txt|ddl|grd|pnl|chk|rbl|rep|lst|img|hdn|lit|phd|rpt|fv|gv|dv|lv)[A-Za-z0-9_]+\.\w+\s*=",
         "ui_mutation",
     );
-    if let Some(re) = ui_re {
-        if re.is_match(method_body) {
+    if let Some(re) = ui_re
+        && re.is_match(method_body) {
             effects.push("UI_Mutation");
         }
-    }
 
     // Heuristic 2: cross-reference assignments against known class fields.
     // Any `fieldName.Property = value` where fieldName is a known field in the
@@ -572,14 +571,13 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     }
 
                     // Fallback: try resolving just the last part (member name)
-                    if !resolved {
-                        if let Some(&member) = parts.last() {
+                    if !resolved
+                        && let Some(&member) = parts.last() {
                             let resolved_member = fqn_maps.resolve(member);
                             if resolved_member != member {
                                 callee_fqn = resolved_member;
                             }
                         }
-                    }
                 }
 
                 let (src_name, src_kind, src_line) =
@@ -620,11 +618,10 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             }
 
             // Constructors have no @name child — synthesize ".ctor"
-            if name.is_empty() && tag_main == "func" {
-                if main_node.kind() == "constructor_declaration" {
+            if name.is_empty() && tag_main == "func"
+                && main_node.kind() == "constructor_declaration" {
                     name = ".ctor".to_string();
                 }
-            }
 
             if !name.is_empty() {
                 let is_designer = path
@@ -669,16 +666,15 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 }
 
                 // Tag WebForms lifecycle methods with stage + sequence metadata.
-                if kind == "function" {
-                    if let Some((stage, seq)) = webforms_lifecycle_info(&name) {
+                if kind == "function"
+                    && let Some((stage, seq)) = webforms_lifecycle_info(&name) {
                         meta.insert("lifecycle_stage".into(), stage.into());
                         meta.insert("lifecycle_sequence".into(), seq.to_string());
                     }
-                }
 
                 // Side-effect classification for codebehind methods.
-                if kind == "function" {
-                    if let Some(body) =
+                if kind == "function"
+                    && let Some(body) =
                         source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
                     {
                         let dyn_dispatch = count_dynamic_dispatch_patterns(body);
@@ -705,7 +701,6 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                             meta.insert("side_effects".into(), effects);
                         }
                     }
-                }
 
                 symbols.push(ExtractedSymbol {
                     name: name.to_string(),
@@ -1145,8 +1140,8 @@ fn extract_on_error_patterns(
         let line_num = line_idx.line_of(byte_offset);
 
         // Detect On Error Resume Next
-        if let Some(re) = re_resume {
-            if re.is_match(line_text) {
+        if let Some(re) = re_resume
+            && re.is_match(line_text) {
                 current_resume_start = Some((line_num, byte_offset));
                 let (src_name, src_kind, src_line) =
                     find_best_enclosing_scope(all_scopes, byte_offset);
@@ -1171,11 +1166,10 @@ fn extract_on_error_patterns(
                     metadata: Some(meta),
                 });
             }
-        }
 
         // Detect On Error GoTo
-        if let Some(re) = re_goto {
-            if let Some(cap) = re.captures(line_text) {
+        if let Some(re) = re_goto
+            && let Some(cap) = re.captures(line_text) {
                 let label = cap.get(1).map_or("0", |m| m.as_str());
 
                 // On Error GoTo 0 ends resume-next region
@@ -1221,7 +1215,6 @@ fn extract_on_error_patterns(
                     active_goto_handlers.push((label.to_string(), line_num, src_name.to_string()));
                 }
             }
-        }
     }
 
     // Count Err object accesses
@@ -1350,8 +1343,8 @@ fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
         }
 
         // Inside a With block, detect .Member accesses — use the topmost frame
-        if let Some(frame) = with_stack.last() {
-            if let Some(cap) = re_member.captures(trimmed) {
+        if let Some(frame) = with_stack.last()
+            && let Some(cap) = re_member.captures(trimmed) {
                 let member = cap.get(1).map_or("", |m| m.as_str());
                 let is_write = cap.get(2).is_some();
 
@@ -1386,7 +1379,6 @@ fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
                     metadata: Some(meta),
                 });
             }
-        }
 
         byte_offset += line_text.len() + 1;
     }
@@ -1665,6 +1657,7 @@ fn extract_late_binding(
                     .get(&src)
                     .into_iter()
                     .flat_map(move |prog_ids| {
+                        let target = target.clone();
                         prog_ids
                             .iter()
                             .map(move |pid| (target.clone(), pid.clone()))
@@ -2105,15 +2098,17 @@ fn extract_script_injections(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Ext
         "register_startup_script",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
-            let script = cap.name("script").unwrap().as_str();
+            let Some(m) = cap.get(0) else { continue };
+            let Some(script) = cap.name("script") else {
+                continue;
+            };
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
             emit_script_injection_edges(
                 &mut edges,
                 src_name,
                 src_kind,
                 src_line,
-                script,
+                script.as_str(),
                 "RegisterStartupScript",
             );
         }
@@ -2127,15 +2122,17 @@ fn extract_script_injections(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Ext
         "script_manager",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
-            let script = cap.name("script").unwrap().as_str();
+            let Some(m) = cap.get(0) else { continue };
+            let Some(script) = cap.name("script") else {
+                continue;
+            };
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
             emit_script_injection_edges(
                 &mut edges,
                 src_name,
                 src_kind,
                 src_line,
-                script,
+                script.as_str(),
                 "ScriptManager",
             );
         }
@@ -2148,15 +2145,17 @@ fn extract_script_injections(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Ext
         "register_client_script",
     ) {
         for cap in re.captures_iter(source) {
-            let m = cap.get(0).unwrap();
-            let script = cap.name("script").unwrap().as_str();
+            let Some(m) = cap.get(0) else { continue };
+            let Some(script) = cap.name("script") else {
+                continue;
+            };
             let (src_name, src_kind, src_line) = find_best_enclosing_scope(all_scopes, m.start());
             emit_script_injection_edges(
                 &mut edges,
                 src_name,
                 src_kind,
                 src_line,
-                script,
+                script.as_str(),
                 "RegisterClientScriptBlock",
             );
         }
@@ -2185,7 +2184,10 @@ fn emit_script_injection_edges(
 
     if let Some(re) = func_re {
         for cap in re.captures_iter(script) {
-            let func_name = cap.get(1).unwrap().as_str();
+            let Some(func_match) = cap.get(1) else {
+                continue;
+            };
+            let func_name = func_match.as_str();
             // Skip common JS keywords and short noise
             if matches!(
                 func_name,
@@ -2654,6 +2656,35 @@ fn normalize_sql_tokens(sql: &str) -> String {
     sql.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+/// Returns `true` when `recon` consists entirely of placeholders like
+/// `{var:x}` or `{call:f}` with no actual SQL text.  These come from
+/// `CommandText = someVariable` where the RHS is a bare identifier; the
+/// real SQL is resolved via `extract_sql_var_assignments` instead.
+fn is_pure_placeholder(recon: &str) -> bool {
+    let trimmed = recon.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+    // Quick check: must start with `{` and contain no SQL keywords.
+    if !trimmed.starts_with('{') {
+        return false;
+    }
+    // Strip all `{var:...}` / `{call:...}` tokens; if nothing remains it's
+    // a pure placeholder string.
+    let stripped = {
+        let mut s = trimmed.to_string();
+        while let Some(start) = s.find('{') {
+            if let Some(end) = s[start..].find('}') {
+                s.replace_range(start..start + end + 1, "");
+            } else {
+                break;
+            }
+        }
+        s
+    };
+    stripped.trim().is_empty()
+}
+
 fn infer_tables_from_sql(sql: &str) -> (Vec<String>, f32, bool) {
     let normalized = normalize_sql_tokens(sql);
     let Some(re) = get_compiled_regex(
@@ -2676,7 +2707,7 @@ fn infer_tables_from_sql(sql: &str) -> (Vec<String>, f32, bool) {
             inferred = true;
             continue;
         }
-        if !tables.iter().any(|t| t.eq_ignore_ascii_case(&table)) {
+        if !tables.iter().any(|t: &String| t.eq_ignore_ascii_case(&table)) {
             tables.push(table);
         }
     }
@@ -2760,7 +2791,7 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
 
                 edges.push(ExtractedEdge {
                     source_name: ctrl_id,
-                    source_kind: source_kind,
+                    source_kind,
                     source_start_line: (line_no + 1) as u32,
                     source_language: "vb",
                     target_name: handler.clone(),
@@ -2882,7 +2913,7 @@ fn extract_dynamic_runtime_controls(
     };
     let Some(method_start_re) = get_compiled_regex(
         &METHOD_START_RE,
-        r"(?ix)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b",
+        r"(?ix)^\s*(?:(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly)\s+)*(?:Sub|Function)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b",
         "vb_method_start",
     ) else {
         return (Vec::new(), Vec::new());
@@ -3192,7 +3223,13 @@ fn extract_ts_command_text(tree: &tree_sitter::Tree, source: &str) -> Vec<(SqlFl
 
         // Extract SQL from the potentially concatenated expression.
         let flattened = flatten_sql_expr(rhs_text);
-        if !flattened.reconstructed.trim().is_empty() {
+        let recon = flattened.reconstructed.trim();
+        // Skip pure variable references like `{var:sql}` — these produce
+        // false-positive edges when the RHS is just a variable name (e.g.
+        // `CommandText = sql`).  The actual SQL will be captured by
+        // `extract_sql_var_assignments` which follows the variable to its
+        // definition.
+        if !recon.is_empty() && !is_pure_placeholder(recon) {
             results.push((flattened, m.start()));
         }
     }
@@ -3818,11 +3855,10 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
         // so that Handles clause handler names can be resolved to their FQN.
         let mut fqn_maps = FqnMaps::with_capacity(symbols.len());
         for sym in &symbols {
-            if let Some(meta) = &sym.metadata {
-                if let Some(fqn) = meta.get("fqn") {
+            if let Some(meta) = &sym.metadata
+                && let Some(fqn) = meta.get("fqn") {
                     fqn_maps.insert_name(&sym.name, fqn.clone());
                 }
-            }
         }
         edges.extend(extract_handles(&fqn_maps, source));
     }
@@ -3999,7 +4035,7 @@ End Namespace
         let (_syms, edges) = extract_vb(Path::new("OrderDao.vb"), code);
         let sql_edge = edges
             .iter()
-            .find(|e| e.kind == "sql_calls" && e.target_kind.as_deref() == Some("stored_proc"))
+            .find(|e| e.kind == "sql_calls" && e.target_kind == Some("stored_proc"))
             .unwrap();
         assert_eq!(sql_edge.target_name, "sql:stored_proc:sp_GetVbOrders");
     }
@@ -4011,7 +4047,7 @@ End Namespace
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         assert_eq!(edges.iter().filter(|e| e.kind == "sql_calls").count(), 1);
         let e = &edges[0];
-        assert_eq!(e.target_kind.as_deref(), Some("inline_sql"));
+        assert_eq!(e.target_kind, Some("inline_sql"));
         assert!(e.target_name.starts_with("sql:inline:"));
     }
 
@@ -4022,7 +4058,7 @@ End Namespace
         let edges: Vec<_> = results.into_iter().map(|(e, _)| e).collect();
         let proc = edges
             .iter()
-            .find(|e| e.kind == "sql_calls" && e.target_kind.as_deref() == Some("stored_proc"))
+            .find(|e| e.kind == "sql_calls" && e.target_kind == Some("stored_proc"))
             .unwrap();
         assert_eq!(proc.target_name, "sql:stored_proc:sp_UpdateOrders");
     }

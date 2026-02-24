@@ -118,23 +118,21 @@ fn extract_attr(attrs: &str, name: &str) -> Option<String> {
     let esc = regex::escape(name);
     // Try double-quoted first, then single-quoted.
     let dq_pattern = format!(r#"(?i)\b{}\s*=\s*"([^"]*)""#, esc);
-    if let Ok(re) = Regex::new(&dq_pattern) {
-        if let Some(caps) = re.captures(attrs) {
+    if let Ok(re) = Regex::new(&dq_pattern)
+        && let Some(caps) = re.captures(attrs) {
             let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
             if !val.is_empty() {
                 return Some(val);
             }
         }
-    }
     let sq_pattern = format!(r"(?i)\b{}\s*=\s*'([^']*)'", esc);
-    if let Ok(re) = Regex::new(&sq_pattern) {
-        if let Some(caps) = re.captures(attrs) {
+    if let Ok(re) = Regex::new(&sq_pattern)
+        && let Some(caps) = re.captures(attrs) {
             let val = caps.get(1).map(|m| m.as_str().trim().to_string())?;
             if !val.is_empty() {
                 return Some(val);
             }
         }
-    }
     None
 }
 
@@ -630,7 +628,7 @@ pub fn extract_webforms_layout(
     }
 
     let mut seen_neighbor_edges: HashSet<(String, String)> = HashSet::new();
-    for (_parent_id, children) in &children_by_parent {
+    for children in children_by_parent.values() {
         // Children are already sorted by offset (events were sorted).
         let mut sorted: Vec<&&ChildControl> = children.iter().collect();
         sorted.sort_by_key(|c| c.offset);
@@ -702,14 +700,14 @@ pub fn extract_webforms_layout(
     symbols.sort_by(|a, b| {
         a.name
             .cmp(&b.name)
-            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.kind.cmp(b.kind))
             .then_with(|| a.start_line.cmp(&b.start_line))
     });
     edges.sort_by(|a, b| {
         a.source_name
             .cmp(&b.source_name)
             .then_with(|| a.target_name.cmp(&b.target_name))
-            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.kind.cmp(b.kind))
             .then_with(|| a.source_start_line.cmp(&b.source_start_line))
     });
 
@@ -1089,7 +1087,7 @@ pub fn extract_winforms_layout(
     }
 
     let mut seen_neighbor_edges: HashSet<(String, String)> = HashSet::new();
-    for (_parent, children) in &mut children_by_parent {
+    for children in children_by_parent.values_mut() {
         // Sort by tab_index first, then by (y, x) position and declaration line for stability.
         children.sort_by(|a, b| {
             let (a_line, a_ctrl) = *a;
@@ -1179,14 +1177,14 @@ pub fn extract_winforms_layout(
     symbols.sort_by(|a, b| {
         a.name
             .cmp(&b.name)
-            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.kind.cmp(b.kind))
             .then_with(|| a.start_line.cmp(&b.start_line))
     });
     edges.sort_by(|a, b| {
         a.source_name
             .cmp(&b.source_name)
             .then_with(|| a.target_name.cmp(&b.target_name))
-            .then_with(|| a.kind.cmp(&b.kind))
+            .then_with(|| a.kind.cmp(b.kind))
             .then_with(|| a.source_start_line.cmp(&b.source_start_line))
     });
 
@@ -1248,8 +1246,8 @@ fn infer_logical_grouping(control_id: &str) -> Option<String> {
         &GROUP_PREFIX_RE,
         r"^(?:pnl|grp|grb|panel|group)_?([A-Za-z][A-Za-z0-9_]*)",
         "dle_group_prefix",
-    ) {
-        if let Some(cap) = re.captures(id) {
+    )
+        && let Some(cap) = re.captures(id) {
             let raw = cap[1].trim_matches('_');
             if raw.is_empty() {
                 return None;
@@ -1261,7 +1259,6 @@ fn infer_logical_grouping(control_id: &str) -> Option<String> {
                 return Some(normalized);
             }
         }
-    }
 
     None
 }
@@ -1405,7 +1402,7 @@ mod tests {
         // Should detect table as ui_container
         let table_container = syms.iter().find(|s| {
             s.kind == "ui_container"
-                && s.metadata.as_ref().map_or(false, |m| {
+                && s.metadata.as_ref().is_some_and(|m| {
                     m.get("container_type").map(|s| s.as_str()) == Some("table")
                 })
         });

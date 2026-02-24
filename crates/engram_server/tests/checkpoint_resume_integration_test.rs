@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use engram_core::{Checkpoint, Config, JobPhase, metrics::metrics};
 use engram_server::Engram;
 use engram_server::state::AppState;

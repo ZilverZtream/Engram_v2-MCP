@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use engram_core::Config;
 use engram_server::{
     AppState, Engram, IndexProjectRequest, ProjectIdRequest, UpdateProjectRequest,

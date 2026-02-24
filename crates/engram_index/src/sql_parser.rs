@@ -92,7 +92,8 @@ fn re_join() -> &'static Regex {
     RE.get_or_init(|| {
         // Match JOIN clauses. ON condition captured non-greedily up to the next major
         // SQL keyword (WHERE, GROUP, ORDER, HAVING, UNION, JOIN variants, SET, or semicolon).
-        Regex::new(r"(?i)\b(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|CROSS\s+JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?\w+\]?)(?:\s+(?:AS\s+)?(\w+))?(?:\s+ON\s+(.+?))?(?:\s+(?:INNER|LEFT|RIGHT|CROSS|FULL|JOIN|WHERE|GROUP|ORDER|HAVING|UNION|SET)\b|;|$)").expect("re_join")
+        // Uses [^;] instead of . to prevent catastrophic backtracking on malformed SQL.
+        Regex::new(r"(?i)\b(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|CROSS\s+JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?\w+\]?)(?:\s+(?:AS\s+)?(\w+))?(?:\s+ON\s+([^;]+?))?(?:\s+(?:INNER|LEFT|RIGHT|CROSS|FULL|JOIN|WHERE|GROUP|ORDER|HAVING|UNION|SET)\b|;|$)").expect("re_join")
     })
 }
 
@@ -292,7 +293,7 @@ pub fn generate_method_signature(analysis: &SqlAnalysis) -> String {
                 format!("Task<IEnumerable<{dto_name}>>")
             }
         }
-        SqlOp::Insert => format!("Task<int>"),
+        SqlOp::Insert => "Task<int>".to_string(),
         SqlOp::Update | SqlOp::Delete => "Task".to_string(),
         SqlOp::Exec => format!("Task<IEnumerable<{entity}>>"),
     };
@@ -364,7 +365,7 @@ pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<String> {
                 if analysis
                     .primary_table
                     .as_deref()
-                    .map(|pt| strip_brackets(pt))
+                    .map(strip_brackets)
                     == Some(strip_brackets(t)) =>
             {
                 primary_cols.push(col);
@@ -382,7 +383,7 @@ pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<String> {
         let pt_name = analysis
             .primary_table
             .as_deref()
-            .map(|t| strip_brackets(t))
+            .map(strip_brackets)
             .unwrap_or("Primary");
         code.push_str(&format!("    // From {pt_name} (primary)\n"));
         for col in &primary_cols {
@@ -432,9 +433,7 @@ fn normalize_sql(sql: &str) -> String {
         .replace("\" &_\n\"", " ")
         .replace("\" & _\r\n\"", " ")
         .replace("\" & vbCrLf & \"", " ")
-        .replace('\r', " ")
-        .replace('\n', " ")
-        .replace('\t', " ");
+        .replace(['\r', '\n', '\t'], " ");
     // Collapse multiple whitespace
     let mut result = String::with_capacity(s.len());
     let mut prev_space = false;
@@ -478,24 +477,19 @@ fn detect_primary_table(sql: &str, op: SqlOp) -> Option<String> {
     match op {
         SqlOp::Select => re_from_table()
             .captures(sql)
-            .map(|c| c.get(1).map(|m| m.as_str().to_string()))
-            .flatten(),
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string())),
         SqlOp::Insert => re_insert_table()
             .captures(sql)
-            .map(|c| c.get(1).map(|m| m.as_str().to_string()))
-            .flatten(),
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string())),
         SqlOp::Update => re_update_table()
             .captures(sql)
-            .map(|c| c.get(1).map(|m| m.as_str().to_string()))
-            .flatten(),
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string())),
         SqlOp::Delete => re_delete_table()
             .captures(sql)
-            .map(|c| c.get(1).map(|m| m.as_str().to_string()))
-            .flatten(),
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string())),
         SqlOp::Exec => re_exec()
             .captures(sql)
-            .map(|c| c.get(1).map(|m| m.as_str().to_string()))
-            .flatten(),
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string())),
     }
 }
 
@@ -572,11 +566,10 @@ fn parse_column_list(col_list: &str) -> Vec<ColumnRef> {
             _ => current.push(c),
         }
     }
-    if !current.trim().is_empty() {
-        if let Some(col) = parse_single_column(current.trim()) {
+    if !current.trim().is_empty()
+        && let Some(col) = parse_single_column(current.trim()) {
             cols.push(col);
         }
-    }
     cols
 }
 
@@ -899,7 +892,7 @@ fn generate_aggregate_method_name(analysis: &SqlAnalysis, entity: &str) -> Strin
         let alias = col
             .alias
             .as_deref()
-            .map(|a| to_pascal(a))
+            .map(to_pascal)
             .unwrap_or_else(|| format!("{entity}Count"));
         format!("Get{alias}Async")
     } else if !analysis.group_by_columns.is_empty() {

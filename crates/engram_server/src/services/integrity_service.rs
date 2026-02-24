@@ -305,87 +305,6 @@ fn build_integrity_mismatches(
     mismatches
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn tdoc(namespace: &str, doc_id: &str, path: &str) -> SearchDocSummary {
-        SearchDocSummary {
-            namespace: namespace.to_string(),
-            doc_id: doc_id.to_string(),
-            path: path.to_string(),
-        }
-    }
-
-    fn ddoc(namespace: &str, doc_id: &str, path: &str) -> DocSummary {
-        DocSummary {
-            namespace: namespace.to_string(),
-            doc_id: doc_id.to_string(),
-            path: path.to_string(),
-        }
-    }
-
-    #[test]
-    fn detects_tantivy_orphans_with_debug_samples() {
-        let mismatches = build_integrity_mismatches(
-            2,
-            1,
-            0,
-            &[
-                tdoc("memory", "a", "src/a.rs"),
-                tdoc("memory", "b", "src/b.rs"),
-            ],
-            &[ddoc("memory", "a", "src/a.rs")],
-        );
-
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::TantivyOrphan)
-            .expect("expected tantivy orphan mismatch");
-        assert_eq!(mm.actual, 1);
-        assert!(mm.description.contains("memory:b@src/b.rs"));
-    }
-
-    #[test]
-    fn detects_docstore_orphans_with_debug_samples() {
-        let mismatches = build_integrity_mismatches(
-            1,
-            2,
-            0,
-            &[tdoc("memory", "a", "src/a.rs")],
-            &[
-                ddoc("memory", "a", "src/a.rs"),
-                ddoc("memory", "z", "src/z.rs"),
-            ],
-        );
-
-        let mm = mismatches
-            .iter()
-            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
-            .expect("expected docstore orphan mismatch");
-        assert_eq!(mm.actual, 1);
-        assert!(mm.description.contains("memory:z@src/z.rs"));
-    }
-
-    #[test]
-    fn resolve_auto_repair_uses_config_when_request_unset() {
-        assert!(resolve_auto_repair(true, None));
-        assert!(!resolve_auto_repair(false, None));
-    }
-
-    #[test]
-    fn resolve_auto_repair_request_true_overrides_config() {
-        assert!(resolve_auto_repair(true, Some(true)));
-        assert!(resolve_auto_repair(false, Some(true)));
-    }
-
-    #[test]
-    fn resolve_auto_repair_request_false_overrides_config() {
-        assert!(!resolve_auto_repair(true, Some(false)));
-        assert!(!resolve_auto_repair(false, Some(false)));
-    }
-}
-
 /// Attempt to repair a specific mismatch.
 async fn attempt_repair(
     state: &AppState,
@@ -531,5 +450,87 @@ pub async fn run_integrity_checker(state: AppState) {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    fn tdoc(namespace: &str, doc_id: &str, path: &str) -> SearchDocSummary {
+        SearchDocSummary {
+            namespace: namespace.to_string(),
+            doc_id: doc_id.to_string(),
+            path: path.to_string(),
+        }
+    }
+
+    fn ddoc(namespace: &str, doc_id: &str, path: &str) -> DocSummary {
+        DocSummary {
+            namespace: namespace.to_string(),
+            doc_id: doc_id.to_string(),
+            path: path.to_string(),
+        }
+    }
+
+    #[test]
+    fn detects_tantivy_orphans_with_debug_samples() {
+        let mismatches = build_integrity_mismatches(
+            2,
+            1,
+            0,
+            &[
+                tdoc("memory", "a", "src/a.rs"),
+                tdoc("memory", "b", "src/b.rs"),
+            ],
+            &[ddoc("memory", "a", "src/a.rs")],
+        );
+
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::TantivyOrphan)
+            .expect("expected tantivy orphan mismatch");
+        assert_eq!(mm.actual, 1);
+        assert!(mm.description.contains("memory:b@src/b.rs"));
+    }
+
+    #[test]
+    fn detects_docstore_orphans_with_debug_samples() {
+        let mismatches = build_integrity_mismatches(
+            1,
+            2,
+            0,
+            &[tdoc("memory", "a", "src/a.rs")],
+            &[
+                ddoc("memory", "a", "src/a.rs"),
+                ddoc("memory", "z", "src/z.rs"),
+            ],
+        );
+
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
+            .expect("expected docstore orphan mismatch");
+        assert_eq!(mm.actual, 1);
+        assert!(mm.description.contains("memory:z@src/z.rs"));
+    }
+
+    #[test]
+    fn resolve_auto_repair_uses_config_when_request_unset() {
+        assert!(resolve_auto_repair(true, None));
+        assert!(!resolve_auto_repair(false, None));
+    }
+
+    #[test]
+    fn resolve_auto_repair_request_true_overrides_config() {
+        assert!(resolve_auto_repair(true, Some(true)));
+        assert!(resolve_auto_repair(false, Some(true)));
+    }
+
+    #[test]
+    fn resolve_auto_repair_request_false_overrides_config() {
+        assert!(!resolve_auto_repair(true, Some(false)));
+        assert!(!resolve_auto_repair(false, Some(false)));
     }
 }

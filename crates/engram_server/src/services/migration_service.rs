@@ -426,7 +426,7 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
             .iter()
             .filter(|s| {
                 s.modern_endpoint == cluster.name
-                    || cluster.files.iter().any(|f| s.modern_endpoint == *f)
+                    || cluster.files.contains(&s.modern_endpoint)
             })
             .take(5) // Limit contract tests per wave
             .map(|s| ContractTest {
@@ -450,7 +450,7 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
         // Generate compatibility adapters for cross-boundary edges
         let adapters: Vec<CompatibilityAdapter> = seams
             .iter()
-            .filter(|s| cluster.files.iter().any(|f| s.modern_endpoint == *f))
+            .filter(|s| cluster.files.contains(&s.modern_endpoint))
             .take(3)
             .map(|s| {
                 let adapter_type = match s.seam_type {
@@ -830,7 +830,7 @@ fn generate_rollback_playbook(waves: &[MigrationWave]) -> RollbackPlaybook {
 }
 
 fn to_pascal_case(s: &str) -> String {
-    s.split(|c: char| c == '-' || c == '_')
+    s.split(['-', '_'])
         .filter(|part| !part.is_empty())
         .map(|part| {
             let mut chars = part.chars();
@@ -843,6 +843,7 @@ fn to_pascal_case(s: &str) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

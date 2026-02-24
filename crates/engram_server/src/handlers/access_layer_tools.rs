@@ -12,6 +12,7 @@ use crate::models::{
 };
 use crate::services::full_project_migration_service as full_mig;
 use crate::tools::Engram;
+use engram_core::safe_join;
 use engram_graph::{EdgeKind, GraphStore, Node};
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
@@ -395,6 +396,9 @@ fn edge_meta_str(edge: &engram_graph::Edge, key: &str) -> String {
         .to_string()
 }
 
+/// Check if an edge has runtime provenance metadata.
+/// Kept for future runtime-evidence integration.
+#[allow(dead_code)]
 fn edge_has_runtime_provenance(edge: &engram_graph::Edge) -> bool {
     if matches!(
         edge.edge_kind,
@@ -1614,15 +1618,16 @@ impl Engram {
                 };
 
             // Read the method body from disk
-            let full_path = Path::new(&project_dir).join(&resolved_file);
+            let full_path = safe_join(Path::new(&project_dir), &resolved_file)
+                .map_err(|e| format!("Path validation failed for '{}': {e}", resolved_file))?;
             let (body, context) =
                 read_lines_from_file(&full_path, resolved_start, resolved_end, context_lines)
                     .map_err(|e| format!("Cannot read '{}': {}", resolved_file, e))?;
 
             // Optionally get caller bodies
             let mut caller_bodies = Vec::new();
-            if include_callers {
-                if let Some(ref fqn_query) = fqn {
+            if include_callers
+                && let Some(ref fqn_query) = fqn {
                     let candidates = graph
                         .query_nodes(&project_id, Some("function"), Some(fqn_query), None, 1)
                         .unwrap_or_default();
@@ -1639,7 +1644,7 @@ impl Engram {
 
                         for (source_id, _kind, _weight) in callers.iter().take(max_callers) {
                             if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                                let src_full = Path::new(&project_dir).join(src_node.file_path.as_str());
+                                let Ok(src_full) = safe_join(Path::new(&project_dir), src_node.file_path.as_str()) else { continue };
                                 if let Ok((src_body, _)) = read_lines_from_file(
                                     &src_full,
                                     src_node.start_line,
@@ -1662,7 +1667,6 @@ impl Engram {
                         }
                     }
                 }
-            }
 
             Ok(MethodBodyResult {
                 fqn: resolved_fqn,
@@ -1740,7 +1744,8 @@ impl Engram {
 
             // 2. Read full method body from disk
             let full_body = if include_full_body {
-                let full_path = Path::new(&project_dir).join(&file_path);
+                let full_path = safe_join(Path::new(&project_dir), &file_path)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
                     .ok()
                     .map(|(body, _)| body)
@@ -1762,7 +1767,11 @@ impl Engram {
 
                 for (source_id, _kind, _weight) in callers.iter().take(max_callers) {
                     if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                        let src_full = Path::new(&project_dir).join(src_node.file_path.as_str());
+                        let Ok(src_full) =
+                            safe_join(Path::new(&project_dir), src_node.file_path.as_str())
+                        else {
+                            continue;
+                        };
                         if let Ok((src_body, _)) = read_lines_from_file(
                             &src_full,
                             src_node.start_line,
@@ -1784,7 +1793,8 @@ impl Engram {
 
             // 4. VB translation traps in this file
             let vb_traps = if file_path.to_lowercase().ends_with(".vb") {
-                let full_path = Path::new(&project_dir).join(&file_path);
+                let full_path = safe_join(Path::new(&project_dir), &file_path)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                     let files = vec![(file_path.as_str(), content.as_str())];
                     let report =
@@ -1812,7 +1822,8 @@ impl Engram {
 
             // 5. Sync hazards in this method
             let sync_hazards = {
-                let full_path = Path::new(&project_dir).join(&file_path);
+                let full_path = safe_join(Path::new(&project_dir), &file_path)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                     let is_vb = file_path.to_lowercase().ends_with(".vb");
                     let report =
@@ -1912,7 +1923,8 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             // 1. Read the ASPX file
-            let aspx_full = Path::new(&project_dir).join(&aspx_file);
+            let aspx_full = safe_join(Path::new(&project_dir), &aspx_file)
+                .map_err(|e| format!("Path validation for '{}': {e}", aspx_file))?;
             let aspx_content = std::fs::read_to_string(&aspx_full)
                 .map_err(|e| format!("Cannot read '{}': {}", aspx_file, e))?;
 
@@ -1920,8 +1932,10 @@ impl Engram {
             let cb_path_vb = format!("{}.vb", aspx_file);
             let cb_path_cs = format!("{}.cs", aspx_file);
             let (cb_path, cb_content, language) = {
-                let vb_full = Path::new(&project_dir).join(&cb_path_vb);
-                let cs_full = Path::new(&project_dir).join(&cb_path_cs);
+                let vb_full = safe_join(Path::new(&project_dir), &cb_path_vb)
+                    .map_err(|e| format!("Path validation: {e}"))?;
+                let cs_full = safe_join(Path::new(&project_dir), &cb_path_cs)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 if let Ok(c) = std::fs::read_to_string(&vb_full) {
                     (cb_path_vb.clone(), Some(c), "vbnet".to_string())
                 } else if let Ok(c) = std::fs::read_to_string(&cs_full) {
@@ -1956,7 +1970,7 @@ impl Engram {
                 let re = regex::Regex::new(
                     r#"(?i)<asp:Content[^>]+ContentPlaceHolderID\s*=\s*"([^"]+)""#,
                 )
-                .unwrap();
+                .expect("valid regex");
                 re.captures_iter(&aspx_content)
                     .map(|c| c[1].to_string())
                     .collect()
@@ -1994,10 +2008,13 @@ impl Engram {
                 let kind = full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata);
 
                 let full_body = if include_method_bodies {
-                    let full_path = Path::new(&project_dir).join(node.file_path.as_str());
-                    read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
+                    safe_join(Path::new(&project_dir), node.file_path.as_str())
                         .ok()
-                        .map(|(body, _)| body)
+                        .and_then(|full_path| {
+                            read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
+                                .ok()
+                                .map(|(body, _)| body)
+                        })
                 } else {
                     None
                 };
@@ -2333,7 +2350,8 @@ impl Engram {
             let method_info = build_method_info_from_node(node, &graph, &project_id);
 
             // 2. Read the method body from disk
-            let full_path = Path::new(&project_dir).join(&file_path);
+            let full_path = safe_join(Path::new(&project_dir), &file_path)
+                .map_err(|e| format!("Path validation: {e}"))?;
             let method_body = read_lines_from_file(&full_path, node.start_line, node.end_line, 0)
                 .ok()
                 .map(|(body, _)| body);
@@ -2352,7 +2370,11 @@ impl Engram {
 
                 for (source_id, _kind, _weight) in callers.iter().take(max_pattern_examples) {
                     if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                        let src_full = Path::new(&project_dir).join(src_node.file_path.as_str());
+                        let Ok(src_full) =
+                            safe_join(Path::new(&project_dir), src_node.file_path.as_str())
+                        else {
+                            continue;
+                        };
                         if let Ok((src_body, _)) = read_lines_from_file(
                             &src_full,
                             src_node.start_line,
@@ -2569,78 +2591,81 @@ impl Engram {
                     .or_else(|| file_path.strip_suffix(".cs"))
                     .unwrap_or(&file_path);
 
-                let aspx_full = Path::new(&project_dir).join(aspx_base);
-                if let Ok(aspx_content) = std::fs::read_to_string(&aspx_full) {
-                    let mut controls = extract_aspx_controls(&aspx_content);
+                if let Ok(aspx_full) = safe_join(Path::new(&project_dir), aspx_base)
+                    && let Ok(aspx_content) = std::fs::read_to_string(&aspx_full) {
+                        let controls = extract_aspx_controls(&aspx_content);
 
-                    for ctrl in &controls {
-                        // Check if this control is referenced by the target method
-                        // (via Handles clause, effects, or body reference)
-                        let is_relevant = method_info
-                            .handles_clause
-                            .iter()
-                            .any(|h| h.contains(&ctrl.server_id))
-                            || method_body
-                                .as_ref()
-                                .map(|b| b.contains(&ctrl.server_id))
-                                .unwrap_or(false);
+                        for ctrl in &controls {
+                            // Check if this control is referenced by the target method
+                            // (via Handles clause, effects, or body reference)
+                            let is_relevant = method_info
+                                .handles_clause
+                                .iter()
+                                .any(|h| h.contains(&ctrl.server_id))
+                                || method_body
+                                    .as_ref()
+                                    .map(|b| b.contains(&ctrl.server_id))
+                                    .unwrap_or(false);
 
-                        if is_relevant {
-                            // Look up the control mapping
-                            let mapping = engram_index::control_mapping::lookup(&ctrl.control_type);
+                            if is_relevant {
+                                // Look up the control mapping
+                                let mapping =
+                                    engram_index::control_mapping::lookup(&ctrl.control_type);
 
-                            let target_str = target_stack.as_deref().unwrap_or("blazor");
-                            let modern_equivalent = mapping
-                                .map(|m| match target_str {
-                                    "blazor" => m.blazor_equivalent.to_string(),
-                                    "react" => m.react_equivalent.to_string(),
-                                    "angular" => m.angular_equivalent.to_string(),
-                                    _ => m.blazor_equivalent.to_string(),
-                                })
-                                .unwrap_or_else(|| format!("<!-- {} -->", ctrl.control_type));
+                                let target_str = target_stack.as_deref().unwrap_or("blazor");
+                                let modern_equivalent = mapping
+                                    .map(|m| match target_str {
+                                        "blazor" => m.blazor_equivalent.to_string(),
+                                        "react" => m.react_equivalent.to_string(),
+                                        "angular" => m.angular_equivalent.to_string(),
+                                        _ => m.blazor_equivalent.to_string(),
+                                    })
+                                    .unwrap_or_else(|| format!("<!-- {} -->", ctrl.control_type));
 
-                            let migration_notes: Vec<String> = mapping
-                                .map(|m| {
-                                    let mut notes = Vec::new();
-                                    if !m.notes.is_empty() {
-                                        notes.push(m.notes.to_string());
-                                    }
-                                    for diff in m.breaking_differences {
-                                        notes.push(format!("BREAKING: {}", diff));
-                                    }
-                                    if m.requires_databind_on_postback {
-                                        notes.push(
-                                            "Requires explicit databinding on postback".to_string(),
-                                        );
-                                    }
-                                    notes
-                                })
-                                .unwrap_or_default();
+                                let migration_notes: Vec<String> = mapping
+                                    .map(|m| {
+                                        let mut notes = Vec::new();
+                                        if !m.notes.is_empty() {
+                                            notes.push(m.notes.to_string());
+                                        }
+                                        for diff in m.breaking_differences {
+                                            notes.push(format!("BREAKING: {}", diff));
+                                        }
+                                        if m.requires_databind_on_postback {
+                                            notes.push(
+                                                "Requires explicit databinding on postback"
+                                                    .to_string(),
+                                            );
+                                        }
+                                        notes
+                                    })
+                                    .unwrap_or_default();
 
-                            let event_mappings: Vec<(String, String)> = mapping
-                                .map(|m| {
-                                    m.event_map
-                                        .iter()
-                                        .map(|(from, to)| (from.to_string(), to.to_string()))
-                                        .collect()
-                                })
-                                .unwrap_or_default();
+                                let event_mappings: Vec<(String, String)> = mapping
+                                    .map(|m| {
+                                        m.event_map
+                                            .iter()
+                                            .map(|(from, to)| (from.to_string(), to.to_string()))
+                                            .collect()
+                                    })
+                                    .unwrap_or_default();
 
-                            control_mappings.push(ControlMappingSnippet {
-                                control_id: ctrl.server_id.clone(),
-                                legacy_type: ctrl.control_type.clone(),
-                                modern_equivalent,
-                                event_mappings,
-                                migration_notes,
-                            });
+                                control_mappings.push(ControlMappingSnippet {
+                                    control_id: ctrl.server_id.clone(),
+                                    legacy_type: ctrl.control_type.clone(),
+                                    modern_equivalent,
+                                    event_mappings,
+                                    migration_notes,
+                                });
+                            }
                         }
                     }
-                }
             }
 
             // 8. VB translation traps relevant to this method
             let vb_traps = if file_path.to_lowercase().ends_with(".vb") {
-                let full_path = Path::new(&project_dir).join(&file_path);
+                let full_path = safe_join(Path::new(&project_dir), &file_path)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                     let files = vec![(file_path.as_str(), content.as_str())];
                     let report =
@@ -2672,7 +2697,8 @@ impl Engram {
 
             // 9. Sync hazards in this method
             let sync_hazards = {
-                let full_path = Path::new(&project_dir).join(&file_path);
+                let full_path = safe_join(Path::new(&project_dir), &file_path)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                     let is_vb = file_path.to_lowercase().ends_with(".vb");
                     let report =
@@ -2788,9 +2814,7 @@ impl Engram {
                     }
                 }
 
-                let status = if !missing_tables.is_empty() {
-                    "warn"
-                } else if !unknown_tables.is_empty() {
+                let status = if !missing_tables.is_empty() || !unknown_tables.is_empty() {
                     "warn"
                 } else {
                     "pass"
@@ -3274,8 +3298,8 @@ impl Engram {
                 r#"\$"\{[^}]+\}"#,               // $"{var}" (C# interpolation)
             ];
             for pat in &concat_patterns {
-                if let Ok(re) = regex::Regex::new(pat) {
-                    if re.is_match(&sql) {
+                if let Ok(re) = regex::Regex::new(pat)
+                    && re.is_match(&sql) {
                         issues.push(SqlValidationIssue {
                             severity: "fail".to_string(),
                             category: "sql_injection".to_string(),
@@ -3283,7 +3307,6 @@ impl Engram {
                         });
                         break;
                     }
-                }
             }
 
             let has_fail = issues.iter().any(|i| i.severity == "fail");
@@ -3385,12 +3408,11 @@ impl Engram {
                             Some(EdgeKind::Dependency),
                             &tc.node_id,
                             500,
-                        ) {
-                            if incoming.iter().any(|(src, _, _)| src == &tm.node_id) {
+                        )
+                            && incoming.iter().any(|(src, _, _)| src == &tm.node_id) {
                                 references_target = true;
                                 break;
                             }
-                        }
                     }
 
                     // Also check by name containment in the test method name

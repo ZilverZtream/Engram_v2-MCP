@@ -114,7 +114,7 @@ impl Histogram {
         if total == 0 {
             return 0;
         }
-        let target = (total * pct + 99) / 100;
+        let target = (total * pct).div_ceil(100);
         let mut cumulative = 0u64;
         for (i, &c) in bucket_counts.iter().enumerate() {
             cumulative += c;

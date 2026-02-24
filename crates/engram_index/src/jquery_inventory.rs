@@ -347,11 +347,10 @@ pub fn build_jquery_inventory(
 
     // 2. Detect jQuery version from JS file internal identifier
     for &(_path, content) in js_files {
-        if inventory.core_version.is_none() {
-            if let Some(cap) = JQUERY_INTERNAL_VERSION_RE.captures(content) {
+        if inventory.core_version.is_none()
+            && let Some(cap) = JQUERY_INTERNAL_VERSION_RE.captures(content) {
                 inventory.core_version = Some(cap[1].to_string());
             }
-        }
     }
 
     // 3. Check vulnerability status
@@ -391,7 +390,8 @@ fn scan_js_file(path: &str, content: &str, inventory: &mut JQueryInventory) {
     // jQuery UI widgets
     for cap in JQUERY_UI_RE.captures_iter(content) {
         let widget_name = &cap[1];
-        let line = line_number(content, cap.get(0).unwrap().start());
+        let Some(whole) = cap.get(0) else { continue };
+        let line = line_number(content, whole.start());
         let (modern, complexity) = lookup_ui_widget(widget_name);
         inventory.ui_widgets.push(JQueryPluginUsage {
             name: widget_name.to_string(),
@@ -419,7 +419,8 @@ fn scan_js_file(path: &str, content: &str, inventory: &mut JQueryInventory) {
     // Custom plugins: $.fn.pluginName = ...
     for cap in CUSTOM_PLUGIN_RE.captures_iter(content) {
         let plugin_name = &cap[1];
-        let line = line_number(content, cap.get(0).unwrap().start());
+        let Some(whole) = cap.get(0) else { continue };
+        let line = line_number(content, whole.start());
         inventory.custom_plugins.push(JQueryPluginUsage {
             name: plugin_name.to_string(),
             file_path: path.to_string(),
@@ -432,7 +433,8 @@ fn scan_js_file(path: &str, content: &str, inventory: &mut JQueryInventory) {
     // Widget factory: $.widget("ui.pluginName", ...)
     for cap in WIDGET_FACTORY_RE.captures_iter(content) {
         let plugin_name = &cap[1];
-        let line = line_number(content, cap.get(0).unwrap().start());
+        let Some(whole) = cap.get(0) else { continue };
+        let line = line_number(content, whole.start());
         inventory.custom_plugins.push(JQueryPluginUsage {
             name: format!("{plugin_name} (widget factory)"),
             file_path: path.to_string(),

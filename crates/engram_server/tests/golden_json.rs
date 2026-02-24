@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use engram_server::*;
 use schemars::schema_for;
 

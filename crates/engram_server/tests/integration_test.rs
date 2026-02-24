@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use engram_core::{Config, build_pk};
 use engram_server::Engram;
 use engram_server::state::AppState;

@@ -28,6 +28,7 @@ pub enum EvidenceDepth {
 }
 
 impl EvidenceDepth {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "fast" => Self::Fast,
@@ -66,6 +67,7 @@ pub struct EvidenceOverrides {
 ///
 /// Callers may provide `overrides` to inject pre-computed evidence (backward compat).
 /// Any override field that is `Some(...)` will skip the live service call for that gate.
+#[allow(clippy::too_many_arguments)]
 pub async fn gather_evidence(
     state: &AppState,
     project_id: &str,
@@ -84,7 +86,6 @@ pub async fn gather_evidence(
     let blast_radius_fut = derive_blast_radius(state, project_id, target_files, generation);
 
     let (graph_impact, blast_result) = tokio::join!(graph_impact_fut, blast_radius_fut);
-    let graph_impact = graph_impact;
     let (blast_risk, blast_band, blast_downstream) = blast_result;
 
     // ── Phase 2: Safety evaluation (uses graph impact) ──

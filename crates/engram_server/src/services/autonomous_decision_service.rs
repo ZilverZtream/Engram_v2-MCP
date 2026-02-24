@@ -84,6 +84,7 @@ pub enum RiskProfile {
 }
 
 impl RiskProfile {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "low" => Self::Low,
@@ -948,6 +949,7 @@ pub enum RolloutPhase {
 }
 
 impl RolloutPhase {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "advisory" => Self::Advisory,
@@ -1101,6 +1103,7 @@ pub struct ConfigSnapshot {
 }
 
 /// Build an immutable decision report from a decision and its context.
+#[allow(clippy::too_many_arguments)]
 pub fn build_decision_report(
     decision: &AdpDecision,
     project_id: &str,
@@ -1331,8 +1334,10 @@ pub struct AdpConfusionMatrix {
 impl AdpConfusionMatrix {
     /// Build confusion matrix from corpus results.
     pub fn from_results(results: &[AdpCorpusResult]) -> Self {
-        let mut m = Self::default();
-        m.total = results.len();
+        let mut m = Self {
+            total: results.len(),
+            ..Self::default()
+        };
         for r in results {
             match (r.expected_verdict.as_str(), r.actual_verdict.as_str()) {
                 ("allow", "allow") => m.true_allow += 1,
@@ -1368,6 +1373,7 @@ impl AdpConfusionMatrix {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::services::safety_service::{self, SafetyEvalRequest};

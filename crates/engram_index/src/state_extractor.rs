@@ -609,8 +609,8 @@ pub fn analyze_state_affinity(
         // Determine combined access pattern
         let pat_a = key_access_patterns.get(key_a);
         let pat_b = key_access_patterns.get(key_b);
-        let a_writes = pat_a.map_or(false, |p| p.contains("writes_state"));
-        let b_writes = pat_b.map_or(false, |p| p.contains("writes_state"));
+        let a_writes = pat_a.is_some_and(|p| p.contains("writes_state"));
+        let b_writes = pat_b.is_some_and(|p| p.contains("writes_state"));
         let access_pattern = match (a_writes, b_writes) {
             (true, true) => "write-write",
             (true, false) | (false, true) => "read-write",
@@ -649,7 +649,7 @@ pub fn analyze_state_affinity(
             continue;
         }
         let pats = key_access_patterns.get(key);
-        let is_read_only = pats.map_or(true, |p| !p.contains("writes_state"));
+        let is_read_only = pats.is_none_or(|p| !p.contains("writes_state"));
 
         let mut meta = HashMap::with_capacity(3);
         meta.insert(
@@ -873,6 +873,7 @@ pub fn extract_cache_api_usages(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

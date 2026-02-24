@@ -553,9 +553,9 @@ pub fn score_sql_injection_risks(
 
 fn classify_file(
     sql_edges: &[&Edge],
-    qt_edges: &[&Edge],
+    _qt_edges: &[&Edge],
     _rc_edges: &[&Edge],
-    pb_edges: &[&Edge],
+    _pb_edges: &[&Edge],
     db_edges: &[&Edge],
 ) -> (DataAccessPattern, Vec<DataAccessPattern>) {
     let mut patterns: Vec<DataAccessPattern> = Vec::new();
@@ -629,11 +629,7 @@ fn classify_file(
 
     // Default: inline SQL if we have SQL edges and parameter bindings
     if !sql_edges.is_empty() && patterns.is_empty() {
-        if !pb_edges.is_empty() || !qt_edges.is_empty() {
-            patterns.push(DataAccessPattern::InlineSql);
-        } else {
-            patterns.push(DataAccessPattern::InlineSql);
-        }
+        patterns.push(DataAccessPattern::InlineSql);
     }
 
     let primary = patterns.first().copied().unwrap_or(DataAccessPattern::None);
@@ -863,6 +859,7 @@ fn infer_csharp_type(col_name: &str) -> &'static str {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

@@ -52,6 +52,7 @@ pub enum TestFramework {
 }
 
 impl TestFramework {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "xunit" | "x-unit" => Self::XUnit,
@@ -321,8 +322,7 @@ pub fn generate_characterization_tests(
     }
 
     // 2. Data flow tests — one per SQL query
-    let mut sql_test_idx = 0;
-    for sql_edge in &ctx.sql_edges {
+    for (sql_test_idx, sql_edge) in ctx.sql_edges.iter().enumerate() {
         let sql_text = sql_edge
             .metadata
             .as_ref()
@@ -428,7 +428,6 @@ pub fn generate_characterization_tests(
             covered_nodes: vec![],
         });
         test_count += 1;
-        sql_test_idx += 1;
     }
 
     // 3. State transition tests — per state key
@@ -518,9 +517,7 @@ pub fn generate_characterization_tests(
         let test_name = format!(
             "Navigation_Should_Redirect_To_{}",
             target
-                .replace('/', "_")
-                .replace('.', "_")
-                .replace('\\', "_")
+                .replace(['/', '.', '\\'], "_")
         );
         let _ = writeln!(code);
         let _ = writeln!(code, "    {}", fw.test_attribute());
@@ -574,9 +571,7 @@ pub fn generate_characterization_tests(
     for svc_edge in &ctx.service_edges {
         let endpoint = &svc_edge.target_id;
         let safe_name = endpoint
-            .replace('/', "_")
-            .replace('.', "_")
-            .replace(':', "_");
+            .replace(['/', '.', ':'], "_");
         let test_name = format!("Contract_{safe_name}_Returns_Expected_Schema");
 
         let _ = writeln!(code);
@@ -754,7 +749,7 @@ pub fn generate_characterization_tests(
     Ok(CharacterizationTestResult {
         test_code: code,
         coverage_map: coverage,
-        framework: format!("{framework_str}"),
+        framework: framework_str.to_string(),
         test_count,
         warnings,
     })
@@ -1355,6 +1350,7 @@ fn collect_unique_state_keys(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

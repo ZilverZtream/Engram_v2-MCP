@@ -238,11 +238,10 @@ fn build_lookup(nodes: &[Node]) -> NodeLookup {
     }
 
     for (method_key, ids) in by_method_candidates {
-        if ids.len() == 1 {
-            if let Some(node_id) = ids.into_iter().next() {
+        if ids.len() == 1
+            && let Some(node_id) = ids.into_iter().next() {
                 lu.by_method.insert(method_key, node_id);
             }
-        }
     }
 
     lu
@@ -400,6 +399,7 @@ pub fn ingest_runtime_artifacts(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

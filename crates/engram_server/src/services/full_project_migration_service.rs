@@ -18,6 +18,9 @@ use super::migration_order_service::{self, MigrationOrderPlan};
 use super::pattern_detection_service;
 use super::state_migration_service::{self, StateMigrationReport};
 
+/// (parent_class, file_path, methods, state_writes, base_calls) per class.
+type ClassInfo = (String, String, Vec<String>, Vec<String>, Vec<String>);
+
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// Complete migration analysis for an entire project.
@@ -1690,6 +1693,7 @@ pub async fn enhance_report_with_llm(
 
 // ── Cross-cutting aggregation ─────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn build_cross_cutting_summary(
     dossiers: &[MigrationDossier],
     state_report: &StateMigrationReport,
@@ -1822,7 +1826,7 @@ fn build_cross_cutting_summary(
         total_web_methods += inv.web_methods;
         if largest_file_by_methods
             .as_ref()
-            .map_or(true, |(_, c)| inv.total_methods > *c)
+            .is_none_or(|(_, c)| inv.total_methods > *c)
             && inv.total_methods > 0
         {
             largest_file_by_methods = Some((path.clone(), inv.total_methods));
@@ -1891,90 +1895,92 @@ fn build_cross_cutting_summary(
 
 // web.config inventory (extract_webconfig_inventory)
 static WC_ADD_KEY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)""#).unwrap()
+    Regex::new(r#"<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)""#).expect("valid regex")
 });
 static WC_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*(?:providerName\s*=\s*"([^"]*)")?"#).unwrap()
+    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*(?:providerName\s*=\s*"([^"]*)")?"#).expect("valid regex")
 });
 static WC_HANDLER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<add\s+(?:[^>]*?)verb\s*=\s*"([^"]*)"[^>]*path\s*=\s*"([^"]*)"[^>]*type\s*=\s*"([^"]*)""#).unwrap()
+    Regex::new(r#"<add\s+(?:[^>]*?)verb\s*=\s*"([^"]*)"[^>]*path\s*=\s*"([^"]*)"[^>]*type\s*=\s*"([^"]*)""#).expect("valid regex")
 });
 static WC_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*type\s*=\s*"([^"]*)""#).unwrap()
+    Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*type\s*=\s*"([^"]*)""#).expect("valid regex")
 });
 static WC_CE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<customErrors\s+mode\s*=\s*"([^"]+)"(?:[^>]*defaultRedirect\s*=\s*"([^"]*)")?"#)
-        .unwrap()
+        .expect("valid regex")
 });
 static WC_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<error\s+statusCode\s*=\s*"([^"]+)"[^>]*redirect\s*=\s*"([^"]*)""#).unwrap()
+    Regex::new(r#"<error\s+statusCode\s*=\s*"([^"]+)"[^>]*redirect\s*=\s*"([^"]*)""#).expect("valid regex")
 });
 static WC_COMP_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<compilation\s+([^>]*?)/?>"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<compilation\s+([^>]*?)/?>"#).expect("valid regex"));
 static WC_TF_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"targetFramework\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"targetFramework\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_ASM_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+assembly\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+assembly\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_SS_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<sessionState\s+([^>]*?)/?>"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<sessionState\s+([^>]*?)/?>"#).expect("valid regex"));
 static WC_MODE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"mode\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"mode\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_TIMEOUT_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"timeout\s*=\s*"(\d+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"timeout\s*=\s*"(\d+)""#).expect("valid regex"));
 static WC_COOKIELESS_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"cookieless\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"cookieless\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_PROVIDER_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"customProvider\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"customProvider\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_PAGES_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<pages\s+([^>]*?)/?>"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<pages\s+([^>]*?)/?>"#).expect("valid regex"));
 static WC_THEME_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"theme\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"theme\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_MP_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"masterPageFile\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"masterPageFile\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_NS_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+namespace\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<add\s+namespace\s*=\s*"([^"]+)""#).expect("valid regex"));
 static WC_CTRL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<add\s+tagPrefix\s*=\s*"([^"]+)"[^>]*namespace\s*=\s*"([^"]+)""#).unwrap()
+    Regex::new(r#"<add\s+tagPrefix\s*=\s*"([^"]+)"[^>]*namespace\s*=\s*"([^"]+)""#).expect("valid regex")
 });
 
 // Global.asax class extractor (extract_global_asax_info)
 static ASAX_CLASS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)(?:Class|Inherits\s*=\s*["'])(\S+?)(?:["']|\s)"#).unwrap()
+    Regex::new(r#"(?i)(?:Class|Inherits\s*=\s*["'])(\S+?)(?:["']|\s)"#).expect("valid regex")
 });
 
 // JS analysis (build_js_analysis)
 static JS_SCRIPT_SRC_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).unwrap()
+    Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).expect("valid regex")
 });
 static JS_INLINE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)<script(?![^>]*\bsrc\s*=)[^>]*>").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)<script\b[^>]*>").expect("valid regex"));
+static JS_SRC_ATTR_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bsrc\s*=").expect("valid regex"));
 static JS_JQUERY_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").expect("valid regex"));
 
 // Classic ASP summary (build_classic_asp_summary)
 static ASP_CREATE_OBJ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)Server\.CreateObject\s*\(\s*"([^"]+)""#).unwrap()
+    Regex::new(r#"(?i)Server\.CreateObject\s*\(\s*"([^"]+)""#).expect("valid regex")
 });
 static ASP_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?i)(?:\.Execute|\.CommandText|SELECT\s|INSERT\s|UPDATE\s|DELETE\s)").unwrap()
+    Regex::new(r"(?i)(?:\.Execute|\.CommandText|SELECT\s|INSERT\s|UPDATE\s|DELETE\s)").expect("valid regex")
 });
 static ASP_STATE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?i)(?:Session|Application|Request\.Cookies|Response\.Cookies)\s*\(").unwrap()
+    Regex::new(r"(?i)(?:Session|Application|Request\.Cookies|Response\.Cookies)\s*\(").expect("valid regex")
 });
 static ASP_INCLUDE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)<!--\s*#include\s+(?:file|virtual)\s*=\s*"([^"]+)""#).unwrap()
+    Regex::new(r#"(?i)<!--\s*#include\s+(?:file|virtual)\s*=\s*"([^"]+)""#).expect("valid regex")
 });
 
 // Report summary (build_report_summary)
 static RPT_DATASET_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).expect("valid regex"));
 static RPT_PARAM_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).expect("valid regex"));
 static RPT_SUBREPORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).unwrap()
+    Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).expect("valid regex")
 });
 static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).expect("valid regex"));
 
 // ── Phase 32: Analysis functions ──────────────────────────────────────────────
 
@@ -2277,8 +2283,8 @@ fn extract_global_asax_info(markup_content: &str, codebehind_content: &str) -> G
             r"(?si)(Sub|void|Handles)\s+{}\b(.*?)(?:End\s+Sub|(?=\b(Sub|void|Protected|Private|Public)\b)|\z)",
             regex::escape(event_name)
         );
-        if let Ok(re) = Regex::new(&pattern) {
-            if let Some(cap) = re.captures(&combined) {
+        if let Ok(re) = Regex::new(&pattern)
+            && let Some(cap) = re.captures(&combined) {
                 let body = cap.get(2).map_or("", |m| m.as_str());
                 let line_count = body.lines().count();
                 let key_actions = extract_key_actions(body);
@@ -2289,7 +2295,6 @@ fn extract_global_asax_info(markup_content: &str, codebehind_content: &str) -> G
                     modern_equivalent: modern_equiv.to_string(),
                 });
             }
-        }
     }
 
     // Detect startup registrations
@@ -2332,14 +2337,13 @@ fn extract_global_asax_info(markup_content: &str, codebehind_content: &str) -> G
         ),
     ];
     for &(pattern, reg_type, detail) in reg_patterns {
-        if let Ok(re) = Regex::new(pattern) {
-            if re.is_match(&combined) {
+        if let Ok(re) = Regex::new(pattern)
+            && re.is_match(&combined) {
                 startup_registrations.push(StartupRegistration {
                     registration_type: reg_type.to_string(),
                     detail: detail.to_string(),
                 });
             }
-        }
     }
 
     // Build modern mapping
@@ -2442,13 +2446,11 @@ fn build_service_endpoint_summary(
                     called_by: vec![],
                 });
             // Extract method name from metadata if available
-            if let Some(ref meta) = e.metadata {
-                if let Some(method) = meta.get("method_name").and_then(|v| v.as_str()) {
-                    if !entry.methods.contains(&method.to_string()) {
+            if let Some(ref meta) = e.metadata
+                && let Some(method) = meta.get("method_name").and_then(|v| v.as_str())
+                    && !entry.methods.contains(&method.to_string()) {
                         entry.methods.push(method.to_string());
                     }
-                }
-            }
         }
         // Cross-reference with ApiCall edges
         for ep in map.values_mut() {
@@ -2717,7 +2719,7 @@ fn build_js_analysis(
     // Detect inline <script> blocks (not src= external files)
     let mut inline_script_files = Vec::new();
     for fc in markup_files {
-        if JS_INLINE_RE.is_match(&fc.markup_content) {
+        if JS_INLINE_RE.find_iter(&fc.markup_content).any(|m| !JS_SRC_ATTR_RE.is_match(m.as_str())) {
             inline_script_files.push(fc.file_path.clone());
         }
     }
@@ -2843,38 +2845,30 @@ fn build_gis_analysis(
                 .get("has_places_api")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-            {
-                if !entry.features.contains(&"Places API".to_string()) {
+                && !entry.features.contains(&"Places API".to_string()) {
                     entry.features.push("Places API".into());
                 }
-            }
             if meta
                 .get("has_streetview")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-            {
-                if !entry.features.contains(&"StreetView".to_string()) {
+                && !entry.features.contains(&"StreetView".to_string()) {
                     entry.features.push("StreetView".into());
                 }
-            }
             if meta
                 .get("has_directions")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-            {
-                if !entry.features.contains(&"Directions".into()) {
+                && !entry.features.contains(&"Directions".into()) {
                     entry.features.push("Directions".into());
                 }
-            }
             if meta
                 .get("has_heatmap")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-            {
-                if !entry.features.contains(&"Heatmap".into()) {
+                && !entry.features.contains(&"Heatmap".into()) {
                     entry.features.push("Heatmap".into());
                 }
-            }
             if meta
                 .get("has_drawing")
                 .and_then(|v| v.as_bool())
@@ -2899,11 +2893,9 @@ fn build_gis_analysis(
                 .get("has_kml")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false)
-            {
-                if !entry.features.contains(&"KML layers".into()) {
+                && !entry.features.contains(&"KML layers".into()) {
                     entry.features.push("KML layers".into());
                 }
-            }
             if meta
                 .get("has_3d")
                 .and_then(|v| v.as_bool())
@@ -3173,7 +3165,7 @@ fn build_report_summary(
             e.metadata
                 .as_ref()
                 .and_then(|m| m.get("pattern").and_then(|v| v.as_str()))
-                .map_or(false, |p| p.to_lowercase().contains("crystal"))
+                .is_some_and(|p| p.to_lowercase().contains("crystal"))
         })
         .collect();
 
@@ -3282,10 +3274,10 @@ fn classify_method_kind(
     metadata: &Option<serde_json::Value>,
 ) -> MethodKind {
     static LIFECYCLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)^(?:Page_(?:Load|Init|PreRender|Unload|PreInit|InitComplete|LoadComplete|PreRenderComplete|SaveStateComplete|Error)|OnInit|OnLoad|OnPreRender|OnUnload)$").unwrap()
+        Regex::new(r"(?i)^(?:Page_(?:Load|Init|PreRender|Unload|PreInit|InitComplete|LoadComplete|PreRenderComplete|SaveStateComplete|Error)|OnInit|OnLoad|OnPreRender|OnUnload)$").expect("valid regex")
     });
     static CONTROL_EVENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)_(?:Click|Command|RowCommand|SelectedIndexChanged|TextChanged|CheckedChanged|DataBound|RowEditing|RowUpdating|RowDeleting|RowCancelingEdit|PageIndexChanging|Sorting|ItemCommand|ItemDataBound|DataBinding|ServerClick|ServerChange|NeedDataSource|ItemCreated|Init|Load|PreRender|Unload)$").unwrap()
+        Regex::new(r"(?i)_(?:Click|Command|RowCommand|SelectedIndexChanged|TextChanged|CheckedChanged|DataBound|RowEditing|RowUpdating|RowDeleting|RowCancelingEdit|PageIndexChanging|Sorting|ItemCommand|ItemDataBound|DataBinding|ServerClick|ServerChange|NeedDataSource|ItemCreated|Init|Load|PreRender|Unload)$").expect("valid regex")
     });
 
     if LIFECYCLE_RE.is_match(name) {
@@ -3297,16 +3289,14 @@ fn classify_method_kind(
 
     // Check for WebMethod attribute in metadata
     if let Some(meta) = metadata {
-        if let Some(sig) = meta.get("signature").and_then(|v| v.as_str()) {
-            if sig.contains("WebMethod") {
+        if let Some(sig) = meta.get("signature").and_then(|v| v.as_str())
+            && sig.contains("WebMethod") {
                 return MethodKind::WebMethod;
             }
-        }
-        if let Some(eff) = meta.get("effects").and_then(|v| v.as_str()) {
-            if eff.contains("WebMethod") {
+        if let Some(eff) = meta.get("effects").and_then(|v| v.as_str())
+            && eff.contains("WebMethod") {
                 return MethodKind::WebMethod;
             }
-        }
     }
 
     if effects.iter().any(|e| e.contains("SQL_Access")) {
@@ -3556,15 +3546,15 @@ fn build_method_inventories(
 /// Fallback: extract method signatures directly from code-behind text using regex.
 pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     static VB_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*((?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:MustOverride\s+)?(?:Async\s+)?(Sub|Function)\s+(\w+)\s*\(([^)]*)\)(?:\s+As\s+(\w[\w.<>\[\],\s]*))?").unwrap()
+        Regex::new(r"(?im)^\s*((?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:MustOverride\s+)?(?:Async\s+)?(Sub|Function)\s+(\w+)\s*\(([^)]*)\)(?:\s+As\s+(\w[\w.<>\[\],\s]*))?").expect("valid regex")
     });
     static CS_METHOD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*((?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(\w[\w.<>\[\],]*)\s+(\w+)\s*\(([^)]*)\)").unwrap()
+        Regex::new(r"(?im)^\s*((?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(\w[\w.<>\[\],]*)\s+(\w+)\s*\(([^)]*)\)").expect("valid regex")
     });
     // THIRD-PASS: Extract VB Handles clause (e.g. "Handles btnSave.Click, Timer1.Tick")
     // Critical for migration: tells AI agent which control event triggers this method.
     static VB_HANDLES_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)(?:Sub|Function)\s+(\w+)\s*\([^)]*\)(?:\s+As\s+\w[\w.<>\[\],\s]*)?\s+Handles\s+(.+)$").unwrap()
+        Regex::new(r"(?im)(?:Sub|Function)\s+(\w+)\s*\([^)]*\)(?:\s+As\s+\w[\w.<>\[\],\s]*)?\s+Handles\s+(.+)$").expect("valid regex")
     });
 
     let mut methods = Vec::new();
@@ -3779,7 +3769,7 @@ fn extract_effects_from_nearby_content(content: &str, method_name: &str) -> Vec<
 
 fn build_third_party_control_summary(markup_files: &[FileContent]) -> ThirdPartyControlSummary {
     static THIRD_PARTY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<(telerik|rad|dx|ig|igtbl|igmisc|igsch|ComponentArt|kendo|obout|eo|FarPoint|Dart|cwc|ntx):(\w+)\b"#).unwrap()
+        Regex::new(r#"(?i)<(telerik|rad|dx|ig|igtbl|igmisc|igsch|ComponentArt|kendo|obout|eo|FarPoint|Dart|cwc|ntx):(\w+)\b"#).expect("valid regex")
     });
 
     let mut vendor_controls: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
@@ -3930,11 +3920,10 @@ fn build_dependency_inventory(project_refs: &[ProjectReferenceBundle]) -> Depend
     let mut seen_assemblies: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for prb in project_refs {
-        if let Some(ref tf) = prb.target_framework {
-            if !target_frameworks.contains(tf) {
+        if let Some(ref tf) = prb.target_framework
+            && !target_frameworks.contains(tf) {
                 target_frameworks.push(tf.clone());
             }
-        }
 
         for pkg in &prb.package_references {
             if seen_packages.contains(&pkg.name.to_lowercase()) {
@@ -4323,20 +4312,20 @@ fn build_caching_inventory(
     code_files: &[(String, String)],
 ) -> CachingInventory {
     static OUTPUT_CACHE_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<%@\s*OutputCache\s+([^%]+?)%>"#).unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<%@\s*OutputCache\s+([^%]+?)%>"#).expect("valid regex"));
     static CACHE_ATTR_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r#"(?i)(\w+)\s*=\s*"([^"]*)""#).unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)(\w+)\s*=\s*"([^"]*)""#).expect("valid regex"));
     static CACHE_API_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:HttpRuntime\.Cache|HttpContext\.Current\.Cache|(?<!\w)Cache)\.(Insert|Add|Get|Remove)\s*\(\s*"([^"]+)""#).unwrap()
+        Regex::new(r#"(?i)(?:HttpRuntime\.Cache|HttpContext\.Current\.Cache|\bCache)\.(Insert|Add|Get|Remove)\s*\(\s*"([^"]+)""#).expect("valid regex")
     });
     static RESPONSE_CACHE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)Response\.Cache\.Set(?:Expires|Cacheability|MaxAge|ValidUntilExpires|NoStore|NoTransforms|SlidingExpiration|Revalidation|ETag|LastModified|VaryByCustom|OmitVaryStar)\s*\(").unwrap()
+        Regex::new(r"(?i)Response\.Cache\.Set(?:Expires|Cacheability|MaxAge|ValidUntilExpires|NoStore|NoTransforms|SlidingExpiration|Revalidation|ETag|LastModified|VaryByCustom|OmitVaryStar)\s*\(").expect("valid regex")
     });
     static SQL_CACHE_DEP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(
             r#"(?i)new\s+SqlCacheDependency\s*\(\s*"?([^",)]*)"?\s*(?:,\s*"?([^",)]*)"?)?\s*\)"#,
         )
-        .unwrap()
+        .expect("valid regex")
     });
 
     let mut output_cache_pages = Vec::new();
@@ -4375,11 +4364,10 @@ fn build_caching_inventory(
             if let Some(d) = duration {
                 modern_parts.push(format!("Duration = {d}"));
             }
-            if let Some(ref vbp) = vary_by_param {
-                if vbp != "none" && vbp != "*" {
+            if let Some(ref vbp) = vary_by_param
+                && vbp != "none" && vbp != "*" {
                     modern_parts.push(format!("VaryByQueryKeys = new[] {{ \"{vbp}\" }}"));
                 }
-            }
             let modern_equivalent = if modern_parts.is_empty() {
                 "[ResponseCache]".to_string()
             } else {
@@ -4481,28 +4469,28 @@ fn extract_url_routing(
     code_files: &[(&str, &str)],
 ) -> UrlRoutingInventory {
     static REWRITE_RULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?is)<rule\s+name="([^"]*)"[^>]*>.*?<match\s+url="([^"]*)"[^/]*/?>.*?<action\s+type="(\w+)"\s+url="([^"]*)"[^/]*/?>.*?</rule>"#).unwrap()
+        Regex::new(r#"(?is)<rule\s+name="([^"]*)"[^>]*>.*?<match\s+url="([^"]*)"[^/]*/?>.*?<action\s+type="(\w+)"\s+url="([^"]*)"[^/]*/?>.*?</rule>"#).expect("valid regex")
     });
     static URL_MAPPING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<add\s+url="([^"]*)"\s+mappedUrl="([^"]*)"\s*/>"#).unwrap()
+        Regex::new(r#"(?i)<add\s+url="([^"]*)"\s+mappedUrl="([^"]*)"\s*/>"#).expect("valid regex")
     });
     static MAP_PAGE_ROUTE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)\.MapPageRoute\s*\(\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)""#).unwrap()
+        Regex::new(r#"(?i)\.MapPageRoute\s*\(\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)""#).expect("valid regex")
     });
     static REWRITE_PATH_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(
             r#"(?i)(?:HttpContext\.Current|Context|HttpContext)\.RewritePath\s*\(\s*"([^"]*)""#,
         )
-        .unwrap()
+        .expect("valid regex")
     });
     static REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Response\.Redirect(Permanent)?\s*\(\s*"([^"]*)""#).unwrap()
+        Regex::new(r#"(?i)Response\.Redirect(Permanent)?\s*\(\s*"([^"]*)""#).expect("valid regex")
     });
     static SERVER_TRANSFER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Server\.Transfer\s*\(\s*"([^"]*)""#).unwrap()
+        Regex::new(r#"(?i)Server\.Transfer\s*\(\s*"([^"]*)""#).expect("valid regex")
     });
     static FRIENDLY_URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)FriendlyUrl|FriendlyUrlSettings|EnableFriendlyUrls").unwrap()
+        Regex::new(r"(?i)FriendlyUrl|FriendlyUrlSettings|EnableFriendlyUrls").expect("valid regex")
     });
 
     let mut rewrite_rules = Vec::new();
@@ -4628,39 +4616,39 @@ fn build_modern_route_equivalent(pattern: &str, target: &str, action_type: &str)
 
 fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationReport {
     static OPTIONAL_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?\w+\s+As\s+").unwrap()
+        Regex::new(r"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?\w+\s+As\s+").expect("valid regex")
     });
     static IS_MISSING_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bIsMissing\s*\(").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bIsMissing\s*\(").expect("valid regex"));
     static MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+)?Module\s+(\w+)").unwrap()
+        Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+)?Module\s+(\w+)").expect("valid regex")
     });
     static MY_NAMESPACE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(r"(?i)\bMy\.(Computer|Application|Settings|Resources|User|Forms|WebServices)\b")
-            .unwrap()
+        .expect("valid regex")
     });
     static WITH_EVENTS_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bWithEvents\s+").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bWithEvents\s+").expect("valid regex"));
     static HANDLES_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bHandles\s+\w+\.\w+").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bHandles\s+\w+\.\w+").expect("valid regex"));
     static RAISE_EVENT_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bRaiseEvent\s+\w+").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bRaiseEvent\s+\w+").expect("valid regex"));
     static SHADOWS_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bShadows\s+").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bShadows\s+").expect("valid regex"));
     static OPTION_COMPARE_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?im)^\s*Option\s+Compare\s+Text").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?im)^\s*Option\s+Compare\s+Text").expect("valid regex"));
     static LIKE_OPERATOR_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bLike\s+"[^"]*[*?#\[\]]+[^"]*""#).unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bLike\s+"[^"]*[*?#\[\]]+[^"]*""#).expect("valid regex"));
     static VB_INTRINSICS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:IsNumeric|IsDate|IsNothing|IsDBNull|IsArray|IsError)\s*\(").unwrap()
+        Regex::new(r"(?i)\b(?:IsNumeric|IsDate|IsNothing|IsDBNull|IsArray|IsError)\s*\(").expect("valid regex")
     });
     static ON_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bOn\s+Error\s+(?:Resume\s+Next|GoTo\s+)").unwrap()
+        Regex::new(r"(?i)\bOn\s+Error\s+(?:Resume\s+Next|GoTo\s+)").expect("valid regex")
     });
     static LATE_BINDING_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bDim\s+\w+\s+As\s+Object\b").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bDim\s+\w+\s+As\s+Object\b").expect("valid regex"));
     static VB_CAST_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:CType|DirectCast|TryCast|CStr|CInt|CDbl|CBool|CLng|CDec|CDate|CByte|CShort|CSng|CObj|CChar)\s*\(").unwrap()
+        Regex::new(r"(?i)\b(?:CType|DirectCast|TryCast|CStr|CInt|CDbl|CBool|CLng|CDec|CDate|CByte|CShort|CSng|CObj|CChar)\s*\(").expect("valid regex")
     });
 
     struct FlagDef {
@@ -4949,31 +4937,31 @@ fn detect_multi_tenancy(
     global_asax_content: Option<&str>,
 ) -> MultiTenancyReport {
     static TENANT_SESSION_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Session\s*[\(\[]\s*"(?:TenantId|Tenant|TenantKey|TenantCode|OrganizationId|OrgId|CompanyId|ClientId|SiteId|AccountId|CustomerId)"#).unwrap()
+        Regex::new(r#"(?i)Session\s*[\(\[]\s*"(?:TenantId|Tenant|TenantKey|TenantCode|OrganizationId|OrgId|CompanyId|ClientId|SiteId|AccountId|CustomerId)"#).expect("valid regex")
     });
     static TENANT_CONTEXT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:HttpContext\.Current\.Items|Context\.Items)\s*[\(\[]\s*"(?:TenantId|Tenant|TenantContext|CurrentTenant)"#).unwrap()
+        Regex::new(r#"(?i)(?:HttpContext\.Current\.Items|Context\.Items)\s*[\(\[]\s*"(?:TenantId|Tenant|TenantContext|CurrentTenant)"#).expect("valid regex")
     });
     static TENANT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:WHERE|AND)\s+(?:\w+\.)?(?:TenantId|TenantID|Tenant_ID|OrgId|OrganizationId|CompanyId|SiteId|AccountId)\s*=\s*(?:@\w+|'\w*'|\?)"#).unwrap()
+        Regex::new(r#"(?i)(?:WHERE|AND)\s+(?:\w+\.)?(?:TenantId|TenantID|Tenant_ID|OrgId|OrganizationId|CompanyId|SiteId|AccountId)\s*=\s*(?:@\w+|'\w*'|\?)"#).expect("valid regex")
     });
     static TENANT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:tenantId|tenant_id|orgId|organizationId|companyId|siteId|accountId)\s+(?:As\s+(?:Integer|String|Guid|Long|Int32|Int64)|:\s*(?:int|string|Guid|long))"#).unwrap()
+        Regex::new(r#"(?i)(?:tenantId|tenant_id|orgId|organizationId|companyId|siteId|accountId)\s+(?:As\s+(?:Integer|String|Guid|Long|Int32|Int64)|:\s*(?:int|string|Guid|long))"#).expect("valid regex")
     });
     static TENANT_CONFIG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:TenantMode|MultiTenancy|TenantProvider|TenantResolution|TenantStrategy|IsTenanted|EnableMultiTenancy)"#).unwrap()
+        Regex::new(r#"(?i)(?:TenantMode|MultiTenancy|TenantProvider|TenantResolution|TenantStrategy|IsTenanted|EnableMultiTenancy)"#).expect("valid regex")
     });
     static TENANT_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(
             r#"(?i)(?:GetConnectionString|ConnectionString)\s*[\(\[]\s*(?:tenantId|tenant|orgId)"#,
         )
-        .unwrap()
+        .expect("valid regex")
     });
     static SUBDOMAIN_TENANT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:Request\.Url\.Host|Request\.Headers\["X-Tenant"|Request\.Headers\["Host"\]).*(?:Split|Substring|Replace|tenant|org)"#).unwrap()
+        Regex::new(r#"(?i)(?:Request\.Url\.Host|Request\.Headers\["X-Tenant"|Request\.Headers\["Host"\]).*(?:Split|Substring|Replace|tenant|org)"#).expect("valid regex")
     });
     static TENANT_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)class\s+\w*(?:Tenant|MultiTenant|Org)\w*\s*(?::\s*I(?:Http)?Module|Inherits\s+I(?:Http)?Module)"#).unwrap()
+        Regex::new(r#"(?i)class\s+\w*(?:Tenant|MultiTenant|Org)\w*\s*(?::\s*I(?:Http)?Module|Inherits\s+I(?:Http)?Module)"#).expect("valid regex")
     });
 
     let mut evidence: Vec<TenancyEvidence> = Vec::new();
@@ -4983,8 +4971,8 @@ fn detect_multi_tenancy(
     let mut tenant_col_name: Option<String> = None;
 
     // Scan web.config
-    if let Some(wc) = web_config {
-        if TENANT_CONFIG_RE.is_match(wc) {
+    if let Some(wc) = web_config
+        && TENANT_CONFIG_RE.is_match(wc) {
             evidence.push(TenancyEvidence {
                 evidence_type: "config".to_string(),
                 file_path: "web.config".to_string(),
@@ -4992,11 +4980,10 @@ fn detect_multi_tenancy(
                 line_hint: None,
             });
         }
-    }
 
     // Scan Global.asax
-    if let Some(ga) = global_asax_content {
-        if TENANT_MODULE_RE.is_match(ga) || SUBDOMAIN_TENANT_RE.is_match(ga) {
+    if let Some(ga) = global_asax_content
+        && (TENANT_MODULE_RE.is_match(ga) || SUBDOMAIN_TENANT_RE.is_match(ga)) {
             evidence.push(TenancyEvidence {
                 evidence_type: "module".to_string(),
                 file_path: "Global.asax".to_string(),
@@ -5004,7 +4991,6 @@ fn detect_multi_tenancy(
                 line_hint: None,
             });
         }
-    }
 
     // Scan code files
     for (path, content) in code_files {
@@ -5041,16 +5027,15 @@ fn detect_multi_tenancy(
             });
             file_has_tenant = true;
             // Try to extract the most common column name
-            if tenant_col_name.is_none() {
-                if let Some(cap) = TENANT_SQL_RE.captures(content) {
-                    let full_match = cap.get(0).unwrap().as_str();
+            if tenant_col_name.is_none()
+                && let Some(cap) = TENANT_SQL_RE.captures(content) {
+                    let full_match = cap.get(0).expect("group 0 always present").as_str();
                     if let Some(col) = full_match.split('=').next() {
                         let col = col.trim().rsplit('.').next().unwrap_or(col.trim());
                         let col = col.split_whitespace().last().unwrap_or(col);
                         tenant_col_name = Some(col.to_string());
                     }
                 }
-            }
         }
 
         if TENANT_PARAM_RE.is_match(content) {
@@ -5177,25 +5162,25 @@ fn detect_email_patterns(
     web_config: Option<&str>,
 ) -> EmailPatternReport {
     static SMTP_CLIENT_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?SmtpClient\s*[\(\.]").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?SmtpClient\s*[\(\.]").expect("valid regex"));
     static MAIL_MESSAGE_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?MailMessage\s*\(").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?MailMessage\s*\(").expect("valid regex"));
     static WEB_MAIL_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bSystem\.Web\.Mail\b").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bSystem\.Web\.Mail\b").expect("valid regex"));
     static ATTACHMENT_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?Attachment\s*\(").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?Attachment\s*\(").expect("valid regex"));
     static ALTERNATE_VIEW_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bAlternateView\.CreateAlternateViewFromString\s*\(").unwrap()
+        Regex::new(r"(?i)\bAlternateView\.CreateAlternateViewFromString\s*\(").expect("valid regex")
     });
     static CDO_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)CreateObject\s*\(\s*"CDO\.Message"\s*\)"#).unwrap()
+        Regex::new(r#"(?i)CreateObject\s*\(\s*"CDO\.Message"\s*\)"#).expect("valid regex")
     });
     static SMTP_CONFIG_HOST_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network\s+host\s*=\s*"([^"]*)""#).unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network\s+host\s*=\s*"([^"]*)""#).expect("valid regex"));
     static SMTP_CONFIG_PORT_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network[^>]*port\s*=\s*"(\d+)""#).unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r#"(?i)<network[^>]*port\s*=\s*"(\d+)""#).expect("valid regex"));
     static SMTP_CONFIG_FROM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<smtp\s+[^>]*from\s*=\s*"([^"]*)""#).unwrap()
+        Regex::new(r#"(?i)<smtp\s+[^>]*from\s*=\s*"([^"]*)""#).expect("valid regex")
     });
 
     let mut email_patterns: Vec<EmailPattern> = Vec::new();
@@ -5291,30 +5276,30 @@ fn detect_background_job_patterns(
     global_asax_content: Option<&str>,
 ) -> BackgroundJobReport {
     static THREAD_POOL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bThreadPool\.QueueUserWorkItem\s*\(").unwrap()
+        Regex::new(r"(?i)\bThreadPool\.QueueUserWorkItem\s*\(").expect("valid regex")
     });
     static BG_WORKER_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?BackgroundWorker\b").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:New\s+)?BackgroundWorker\b").expect("valid regex"));
     static TASK_RUN_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bTask\.Run\s*\(").unwrap());
+        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bTask\.Run\s*\(").expect("valid regex"));
     static TIMER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?(?:System\.(?:Timers|Threading)\.)?Timer\s*\(").unwrap()
+        Regex::new(r"(?i)\b(?:New\s+)?(?:System\.(?:Timers|Threading)\.)?Timer\s*\(").expect("valid regex")
     });
     static THREAD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?Thread\s*\(\s*(?:AddressOf|New\s+ThreadStart|New\s+ParameterizedThreadStart)\s").unwrap()
+        Regex::new(r"(?i)\b(?:New\s+)?Thread\s*\(\s*(?:AddressOf|New\s+ThreadStart|New\s+ParameterizedThreadStart)\s").expect("valid regex")
     });
     static HANGFIRE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(
             r"(?i)\bBackgroundJob\.(?:Enqueue|Schedule|ContinueWith|ContinueJobWith)\s*[\(<]",
         )
-        .unwrap()
+        .expect("valid regex")
     });
     static QUARTZ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:IScheduler|JobBuilder\.Create|TriggerBuilder\.Create)\b").unwrap()
+        Regex::new(r"(?i)\b(?:IScheduler|JobBuilder\.Create|TriggerBuilder\.Create)\b").expect("valid regex")
     });
     static SELF_CALL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(r#"(?i)WebClient\s*\(\s*\)\.Download(?:String|Data)\s*\(\s*"(?:http|~/)"#)
-            .unwrap()
+        .expect("valid regex")
     });
 
     struct BgDef {
@@ -5583,7 +5568,7 @@ fn render_markdown(
             cross.dynamic_dispatch_methods
         ));
     }
-    md.push_str("\n");
+    md.push('\n');
 
     // ── Phase 33: Project Dependencies (Gap 3) ───────────────────────────
     if dep_inv.total_packages > 0 || dep_inv.total_assemblies > 0 {
@@ -5650,7 +5635,7 @@ fn render_markdown(
             .filter(|p| {
                 p.modern_replacement
                     .as_deref()
-                    .map_or(false, |m| m.contains("compatible") || m == &p.name)
+                    .is_some_and(|m| m.contains("compatible") || m == p.name)
             })
             .collect();
         if !compatible.is_empty() {
@@ -6109,7 +6094,7 @@ fn render_markdown(
         }
 
         if !url_routing.server_transfers.is_empty() {
-            md.push_str(&format!("### Code-Based URL Manipulation\n"));
+            md.push_str("### Code-Based URL Manipulation\n");
             md.push_str("| File | Type | Target |\n|------|------|--------|\n");
             for st in &url_routing.server_transfers {
                 md.push_str(&format!(
@@ -7317,8 +7302,8 @@ fn render_markdown(
         }
 
         // Phase 33: Method inventory per page (Gap 1)
-        if let Some(inv) = method_inv.get(&d.file_path) {
-            if !inv.methods.is_empty() {
+        if let Some(inv) = method_inv.get(&d.file_path)
+            && !inv.methods.is_empty() {
                 md.push_str(&format!(
                     "**Methods** ({} total: {} lifecycle, {} event handlers, {} helpers)\n\n",
                     inv.total_methods,
@@ -7341,7 +7326,6 @@ fn render_markdown(
                 }
                 md.push('\n');
             }
-        }
 
         // Phase 33: Third-party controls per page (Gap 2)
         {
@@ -8240,10 +8224,8 @@ fn resolve_inheritance_chains(
 
     // 1. Build class map: class_name → (parent_class, file_path, methods[], state_writes[], base_calls[])
     // SECOND-PASS FIX: Scope methods & state_writes to each class body, not the whole file.
-    let mut class_map: std::collections::HashMap<
-        String,
-        (String, String, Vec<String>, Vec<String>, Vec<String>),
-    > = std::collections::HashMap::new();
+    let mut class_map: std::collections::HashMap<String, ClassInfo> =
+        std::collections::HashMap::new();
 
     for (path, content) in code_files {
         let is_vb = path.to_lowercase().ends_with(".vb");
@@ -9339,57 +9321,57 @@ fn make_body_preview(body: &str, line_count: u32) -> String {
 // Pre-compiled regexes avoid recompiling 18 patterns on every method body.
 
 static CX_IF_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bif\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bif\b").expect("valid regex"));
 static CX_ELSE_IF_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belse\s+if\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belse\s+if\b").expect("valid regex"));
 static CX_ELSEIF_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belseif\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\belseif\b").expect("valid regex"));
 static CX_SWITCH_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bswitch\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bswitch\b").expect("valid regex"));
 static CX_CASE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bcase\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bcase\b").expect("valid regex"));
 static CX_SELECT_CASE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bselect\s+case\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)\bselect\s+case\b").expect("valid regex"));
 
 static CX_FOR_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s").expect("valid regex"));
 static CX_FOREACH_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bforeach\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bforeach\b").expect("valid regex"));
 static CX_FOR_EACH_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s+each\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s+each\b").expect("valid regex"));
 static CX_WHILE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bwhile\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bwhile\b").expect("valid regex"));
 static CX_DO_WHILE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s+while\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s+while\b").expect("valid regex"));
 static CX_DO_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s*$").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s*$").expect("valid regex"));
 
 static CX_TRY_BRACE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*\{").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*\{").expect("valid regex"));
 static CX_TRY_EOL_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*$").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*$").expect("valid regex"));
 static CX_CATCH_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bcatch\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bcatch\b").expect("valid regex"));
 static CX_ON_ERROR_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bOn\s+Error\b").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?im)\bOn\s+Error\b").expect("valid regex"));
 
 static CX_SQL_SELECT_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"SELECT\s"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"SELECT\s"#).expect("valid regex"));
 static CX_SQL_INSERT_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"INSERT\s"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"INSERT\s"#).expect("valid regex"));
 static CX_SQL_UPDATE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"UPDATE\s"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"UPDATE\s"#).expect("valid regex"));
 static CX_SQL_DELETE_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"DELETE\s"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)"DELETE\s"#).expect("valid regex"));
 static CX_CMD_TEXT_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)CommandText\s*=").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)CommandText\s*=").expect("valid regex"));
 static CX_SQL_CMD_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlCommand").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlCommand").expect("valid regex"));
 static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlDataAdapter").unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlDataAdapter").expect("valid regex"));
 
 static CX_SESSION_RE: std::sync::LazyLock<Regex> =
-    std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).unwrap());
+    std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).expect("valid regex"));
 
 /// Compute a heuristic complexity score for a method body.
 /// Uses pre-compiled LazyLock regexes to avoid per-call compilation overhead.
@@ -9487,6 +9469,7 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
     let mut conn_overrides: Vec<(String, String)> = Vec::new();
     let mut debug_overrides: Vec<(String, bool)> = Vec::new();
     let mut setting_overrides: Vec<(String, String, String)> = Vec::new();
+    let value_attr_re = Regex::new(r#"value\s*=\s*"([^"]*)""#).ok();
 
     for (path, content) in transform_files {
         // Derive environment name from filename: web.Release.config → Release
@@ -9522,8 +9505,8 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
             // Extract value preview (sanitize sensitive values)
             let value_preview = if context.contains("connectionString") {
                 Some("(connection string)".to_string())
-            } else if let Some(val_cap) = Regex::new(r#"value\s*=\s*"([^"]*)""#)
-                .ok()
+            } else if let Some(val_cap) = value_attr_re
+                .as_ref()
                 .and_then(|re| re.captures(context))
             {
                 let val = val_cap[1].to_string();
@@ -9543,14 +9526,14 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
                 || (context.contains("<add ") && context.contains("key="))
                 || parent_context
                     .rfind("<appSettings")
-                    .map_or(false, |p| !parent_context[p..].contains("</appSettings"))
+                    .is_some_and(|p| !parent_context[p..].contains("</appSettings"))
             {
                 "configuration/appSettings".to_string()
             } else if context.contains("connectionStrings")
                 || context.contains("connectionString")
                 || parent_context
                     .rfind("<connectionStrings")
-                    .map_or(false, |p| {
+                    .is_some_and(|p| {
                         !parent_context[p..].contains("</connectionStrings")
                     })
             {
@@ -9563,14 +9546,14 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
                 || context.contains("<handlers")
                 || parent_context
                     .rfind("<handlers")
-                    .map_or(false, |p| !parent_context[p..].contains("</handlers"))
+                    .is_some_and(|p| !parent_context[p..].contains("</handlers"))
             {
                 "configuration/system.webServer/handlers".to_string()
             } else if context.contains("<httpModules")
                 || context.contains("<modules")
                 || parent_context
                     .rfind("<modules")
-                    .map_or(false, |p| !parent_context[p..].contains("</modules"))
+                    .is_some_and(|p| !parent_context[p..].contains("</modules"))
             {
                 "configuration/system.webServer/modules".to_string()
             } else if context.contains("<system.webServer") {
@@ -9768,11 +9751,10 @@ fn build_resource_inventory(resx_files: &[(String, String)]) -> ResourceInventor
 
         // Detect language from filename
         let language = RESX_LANG_RE.captures(path).map(|c| c[1].to_string());
-        if let Some(ref lang) = language {
-            if !languages.contains(lang) {
+        if let Some(ref lang) = language
+            && !languages.contains(lang) {
                 languages.push(lang.clone());
             }
-        }
 
         // Classify: App_GlobalResources vs App_LocalResources
         let resource_type =
@@ -9825,6 +9807,7 @@ pub(crate) fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
@@ -12295,6 +12278,7 @@ public class MapData : WebService {
                     content_hash: "h".to_string(),
                     confidence: String::new(),
                     validation_warnings: vec![],
+                    parse_diagnostic: String::new(),
                 }],
                 analyzed_at: "2026-01-01".to_string(),
             }],

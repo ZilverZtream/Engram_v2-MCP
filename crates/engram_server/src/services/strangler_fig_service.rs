@@ -1061,6 +1061,7 @@ fn build_deployment_steps(legacy_url: &str, modern_url: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

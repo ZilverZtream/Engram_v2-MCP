@@ -92,8 +92,8 @@ fn process_element(
     edges: &mut Vec<ExtractedEdge>,
 ) {
     // ── httpModules / system.webServer modules ────────────────────────────
-    if context.contains("httpmodules/add") || context.contains("modules/add") {
-        if let Some(type_fqn) = attr_value(e, b"type") {
+    if (context.contains("httpmodules/add") || context.contains("modules/add"))
+        && let Some(type_fqn) = attr_value(e, b"type") {
             let name = attr_value(e, b"name").unwrap_or_else(|| type_fqn.clone());
             let class_name = extract_class_name(&type_fqn);
 
@@ -123,11 +123,10 @@ fn process_element(
                 metadata: Some(HashMap::from([("module_name".into(), name)])),
             });
         }
-    }
 
     // ── httpHandlers / system.webServer handlers ──────────────────────────
-    if context.contains("httphandlers/add") || context.contains("handlers/add") {
-        if let Some(type_fqn) = attr_value(e, b"type") {
+    if (context.contains("httphandlers/add") || context.contains("handlers/add"))
+        && let Some(type_fqn) = attr_value(e, b"type") {
             let verb = attr_value(e, b"verb").unwrap_or_default();
             let path_pattern = attr_value(e, b"path").unwrap_or_default();
             let name =
@@ -166,11 +165,10 @@ fn process_element(
                 metadata: Some(HashMap::from([("handler_name".into(), name)])),
             });
         }
-    }
 
     // ── appSettings ──────────────────────────────────────────────────────
-    if context.contains("appsettings/add") {
-        if let Some(key) = attr_value(e, b"key") {
+    if context.contains("appsettings/add")
+        && let Some(key) = attr_value(e, b"key") {
             let value = attr_value(e, b"value").unwrap_or_default();
 
             let mut meta = HashMap::new();
@@ -185,11 +183,10 @@ fn process_element(
                 metadata: Some(meta),
             });
         }
-    }
 
     // ── connectionStrings ────────────────────────────────────────────────
-    if context.contains("connectionstrings/add") {
-        if let Some(name) = attr_value(e, b"name") {
+    if context.contains("connectionstrings/add")
+        && let Some(name) = attr_value(e, b"name") {
             let provider = attr_value(e, b"providerName").unwrap_or_default();
 
             let mut meta = HashMap::new();
@@ -207,7 +204,6 @@ fn process_element(
                 metadata: Some(meta),
             });
         }
-    }
 }
 
 /// Extract the class name (FQN without assembly) from a .NET type string.

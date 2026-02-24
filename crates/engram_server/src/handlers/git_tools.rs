@@ -1132,6 +1132,7 @@ fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::is_safe_zip_member_path;
 

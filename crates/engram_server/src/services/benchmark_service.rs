@@ -190,6 +190,7 @@ pub fn generate_legacy_benchmark_queries() -> Vec<BenchmarkQuery> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

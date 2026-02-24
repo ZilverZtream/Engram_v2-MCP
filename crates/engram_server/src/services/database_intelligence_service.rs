@@ -18,6 +18,7 @@ use super::full_project_migration_service::StoredProcedureCatalog;
 
 /// Complete database intelligence report.
 #[derive(Debug, Clone, Serialize)]
+#[derive(Default)]
 pub struct DatabaseIntelligence {
     pub sp_logic: Vec<SpBusinessLogic>,
     pub sp_call_chains: Vec<SpCallChain>,
@@ -26,17 +27,6 @@ pub struct DatabaseIntelligence {
     pub warnings: Vec<String>,
 }
 
-impl Default for DatabaseIntelligence {
-    fn default() -> Self {
-        Self {
-            sp_logic: vec![],
-            sp_call_chains: vec![],
-            triggers: vec![],
-            schema: SchemaReport::default(),
-            warnings: vec![],
-        }
-    }
-}
 
 /// Business logic summary for a stored procedure.
 #[derive(Debug, Clone, Serialize)]
@@ -362,7 +352,7 @@ pub fn detect_sp_call_chains(sql_files: &[(String, String)]) -> Vec<SpCallChain>
         let mut sp_starts: Vec<(String, usize)> = Vec::new();
         for cap in SP_DEF_RE.captures_iter(content) {
             let name = cap[1].to_string();
-            let pos = cap.get(0).unwrap().start();
+            let pos = cap.get(0).expect("group 0 always present").start();
             all_sps.insert(name.clone());
             sp_starts.push((name, pos));
         }
@@ -472,7 +462,7 @@ pub fn detect_triggers(sql_files: &[(String, String)]) -> Vec<TriggerInfo> {
                 .collect();
 
             // Extract a short summary of what the trigger does
-            let trigger_start = cap.get(0).unwrap().end();
+            let trigger_start = cap.get(0).expect("group 0 always present").end();
             let body_end = content[trigger_start..]
                 .find("\nGO")
                 .or_else(|| content[trigger_start..].find("\nCREATE"))
@@ -544,7 +534,7 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
     for (_path, content) in sql_files {
         for cap in CREATE_TABLE_RE.captures_iter(content) {
             let name = cap[1].to_string();
-            let paren_start = cap.get(0).unwrap().end(); // position right after '('
+            let paren_start = cap.get(0).expect("group 0 always present").end(); // position right after '('
 
             // Find matching closing paren using balanced counting
             let body = match find_balanced_paren(content, paren_start) {
@@ -572,11 +562,10 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
                     );
                 } else if upper.starts_with("INDEX") || upper.starts_with("UNIQUE") {
                     indexes.push(trimmed.to_string());
-                } else if !trimmed.is_empty() {
-                    if let Some(col) = parse_column_def(trimmed) {
+                } else if !trimmed.is_empty()
+                    && let Some(col) = parse_column_def(trimmed) {
                         columns.push(col);
                     }
-                }
             }
 
             tables.push(SchemaTable {
@@ -837,14 +826,13 @@ pub fn cross_reference_schema(
 
         // Surface computed columns
         for col in &table.columns {
-            if col.is_computed {
-                if let Some(expr) = &col.computed_expression {
+            if col.is_computed
+                && let Some(expr) = &col.computed_expression {
                     business_rules.push(format!(
                         "Table '{}' column '{}' is computed: {} — do not INSERT into it",
                         table.name, col.name, expr
                     ));
                 }
-            }
             // Surface defaults
             if let Some(default) = &col.default_value {
                 business_rules.push(format!(
@@ -979,7 +967,7 @@ fn find_sp_body<'a>(sql_files: &'a [(String, String)], sp_name: &str) -> Option<
         // Collect all SP positions first to find boundaries
         let sp_positions: Vec<(String, usize)> = SP_BODY_RE
             .captures_iter(content)
-            .map(|cap| (cap[1].to_string(), cap.get(0).unwrap().start()))
+            .map(|cap| (cap[1].to_string(), cap.get(0).expect("group 0 always present").start()))
             .collect();
 
         for (i, (name, start)) in sp_positions.iter().enumerate() {
@@ -1169,6 +1157,7 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

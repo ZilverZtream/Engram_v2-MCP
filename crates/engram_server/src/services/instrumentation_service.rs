@@ -1260,11 +1260,10 @@ fn index_runtime_events(events: &[RuntimeEvent]) -> HashMap<String, Vec<&Runtime
             .entry(event.source_path.clone())
             .or_default()
             .push(event);
-        if let Some(ref t) = event.target {
-            if !t.is_empty() {
+        if let Some(ref t) = event.target
+            && !t.is_empty() {
                 index.entry(t.clone()).or_default().push(event);
             }
-        }
     }
     index
 }
@@ -1280,8 +1279,8 @@ fn check_runtime_hit(
     let target_events = runtime_index.get(target);
 
     // For SQL paths, look for sql_execution events
-    if kind == "sql_calls" {
-        if let Some(events) = source_events {
+    if kind == "sql_calls"
+        && let Some(events) = source_events {
             for evt in events {
                 if matches!(evt.event_type, RuntimeEventType::SqlExecution) {
                     let t = evt.target.as_deref().unwrap_or("");
@@ -1291,11 +1290,10 @@ fn check_runtime_hit(
                 }
             }
         }
-    }
 
     // For state access, look for state_mutation events
-    if kind == "reads_state" || kind == "writes_state" {
-        if let Some(events) = target_events {
+    if (kind == "reads_state" || kind == "writes_state")
+        && let Some(events) = target_events {
             for evt in events {
                 if matches!(evt.event_type, RuntimeEventType::StateMutation) {
                     let t = evt.target.as_deref().unwrap_or("");
@@ -1306,11 +1304,10 @@ fn check_runtime_hit(
                 }
             }
         }
-    }
 
     // For dependencies (navigation), look for route events
-    if kind == "dependency" {
-        if let Some(events) = target_events {
+    if kind == "dependency"
+        && let Some(events) = target_events {
             for evt in events {
                 if matches!(evt.event_type, RuntimeEventType::Route) {
                     return Some(format!(
@@ -1320,11 +1317,10 @@ fn check_runtime_hit(
                 }
             }
         }
-    }
 
     // For postbacks, look for control_interaction events
-    if kind == "triggers_postback" {
-        if let Some(events) = source_events {
+    if kind == "triggers_postback"
+        && let Some(events) = source_events {
             for evt in events {
                 if matches!(evt.event_type, RuntimeEventType::ControlInteraction) {
                     let t = evt.target.as_deref().unwrap_or("");
@@ -1335,12 +1331,12 @@ fn check_runtime_hit(
                 }
             }
         }
-    }
 
     None
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

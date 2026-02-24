@@ -162,8 +162,8 @@ impl Engram {
                 h.chunk_id
             ));
 
-            if req.include_content {
-                if let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) {
+            if req.include_content
+                && let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) {
                     if content.chars().count() > max_chars {
                         out.push_str(&content.chars().take(max_chars).collect::<String>());
                         out.push_str("... (truncated)\n");
@@ -172,7 +172,6 @@ impl Engram {
                         out.push('\n');
                     }
                 }
-            }
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -200,15 +199,14 @@ impl Engram {
         };
 
         // Apply logical slice if requested.
-        if let Some(ref slice_type) = req.logical_slice {
-            if slice_type != "all" && !slice_type.is_empty() {
+        if let Some(ref slice_type) = req.logical_slice
+            && slice_type != "all" && !slice_type.is_empty() {
                 display_content = crate::services::slice_service::apply_logical_slice(
                     &display_content,
                     slice_type,
                     &lang,
                 );
             }
-        }
 
         // Compute confidence footer for WebForms files.
         let confidence_footer = self.confidence_footer(&path, &lang);
@@ -264,13 +262,12 @@ impl Engram {
             }
 
             // Apply file scope filter
-            if let Some(ref scope) = req.file_scope {
-                if !node.file_path.as_str().is_empty()
+            if let Some(ref scope) = req.file_scope
+                && !node.file_path.as_str().is_empty()
                     && !node.file_path.as_str().starts_with(scope.as_str())
                 {
                     continue;
                 }
-            }
 
             // Query incoming edge kinds (filtered if specified)
             let incoming_kind_filter = edge_kind_filter.as_ref().map(|_| ()).and(None);
@@ -315,11 +312,10 @@ impl Engram {
                 ) {
                     for (target_id, weight) in neighbors {
                         // Apply file scope filter to outgoing
-                        if let Some(ref scope) = req.file_scope {
-                            if !target_id.contains(scope.as_str()) {
+                        if let Some(ref scope) = req.file_scope
+                            && !target_id.contains(scope.as_str()) {
                                 continue;
                             }
-                        }
                         outgoing.push((target_id, kind.clone(), weight));
                     }
                 }

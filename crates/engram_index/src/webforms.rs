@@ -333,7 +333,7 @@ pub fn extract_webforms(
         source,
         &file_name,
         &source_file,
-        &codebehind_re,
+        codebehind_re,
         &char_to_line,
         &mut page_inherits_fqn,
         &mut symbols,
@@ -640,11 +640,10 @@ fn extract_service_directives(
         }
 
         // Populate the shared inherits FQN if we haven't yet (from Page/Control/Master pass).
-        if page_inherits_fqn.is_none() {
-            if let Some(ref fqn) = class_fqn {
+        if page_inherits_fqn.is_none()
+            && let Some(ref fqn) = class_fqn {
                 *page_inherits_fqn = Some(fqn.clone());
             }
-        }
 
         // ── Emit symbol ──────────────────────────────────────────────────────
         let mut sym_meta = HashMap::new();
@@ -924,8 +923,8 @@ fn extract_user_control_tags(
     // Build a lookup: (tag_prefix_lower, tag_name_lower) → src_rel_path
     let mut prefix_lookup: HashMap<(String, String), String> = HashMap::new();
     for entry in register_table {
-        if let Some(ref src) = entry.src_rel_path {
-            if !entry.tag_name.is_empty() {
+        if let Some(ref src) = entry.src_rel_path
+            && !entry.tag_name.is_empty() {
                 prefix_lookup.insert(
                     (
                         entry.tag_prefix.to_lowercase(),
@@ -934,7 +933,6 @@ fn extract_user_control_tags(
                     src.clone(),
                 );
             }
-        }
     }
 
     if prefix_lookup.is_empty() {
@@ -1128,8 +1126,8 @@ fn extract_datasource_controls(
                     ("DeleteCommand", delete_cmd_re),
                 ];
                 for (cmd_name, re_opt) in cmd_regexes {
-                    if let Some(re) = re_opt {
-                        if let Some(c) = re.captures(attrs) {
+                    if let Some(re) = re_opt
+                        && let Some(c) = re.captures(attrs) {
                             let sql = c[1].trim().to_string();
                             if sql.is_empty() {
                                 continue;
@@ -1153,13 +1151,12 @@ fn extract_datasource_controls(
                                 metadata: Some(meta),
                             });
                         }
-                    }
                 }
             }
             "ObjectDataSource" | "LinqDataSource" | "EntityDataSource" => {
                 // Extract TypeName (the backing class)
-                if let Some(re) = type_name_re {
-                    if let Some(c) = re.captures(attrs) {
+                if let Some(re) = type_name_re
+                    && let Some(c) = re.captures(attrs) {
                         let type_name = c[1].trim().to_string();
                         if !type_name.is_empty() {
                             let simple = type_name
@@ -1184,7 +1181,6 @@ fn extract_datasource_controls(
                             });
                         }
                     }
-                }
 
                 // Extract method bindings
                 let method_regexes: &[(&str, Option<&Regex>)] = &[
@@ -1194,8 +1190,8 @@ fn extract_datasource_controls(
                     ("DeleteMethod", delete_method_re),
                 ];
                 for (method_attr, re_opt) in method_regexes {
-                    if let Some(re) = re_opt {
-                        if let Some(c) = re.captures(attrs) {
+                    if let Some(re) = re_opt
+                        && let Some(c) = re.captures(attrs) {
                             let method = c[1].trim().to_string();
                             if method.is_empty() {
                                 continue;
@@ -1219,7 +1215,6 @@ fn extract_datasource_controls(
                                 metadata: Some(meta),
                             });
                         }
-                    }
                 }
             }
             _ => {}
@@ -1240,7 +1235,6 @@ fn classify_markup_sql(sql: &str) -> (String, &'static str) {
             &trimmed[5..]
         };
         let proc_name = after
-            .trim()
             .split_whitespace()
             .next()
             .unwrap_or("")
@@ -1616,11 +1610,10 @@ fn extract_datasource_parameters(
             meta.insert("datasource_id".into(), ds_id);
         }
         // Include the source field/key for richer context.
-        if let Some(prop) = attrs.get("propertyname") {
-            if !prop.is_empty() {
+        if let Some(prop) = attrs.get("propertyname")
+            && !prop.is_empty() {
                 meta.insert("property_name".into(), prop.clone());
             }
-        }
 
         edges.push(ExtractedEdge {
             source_name,
@@ -2420,7 +2413,7 @@ mod tests {
             .iter()
             .find(|e| e.target_name.contains("includes/footer.inc"))
             .expect("includes_file edge for footer.inc");
-        assert_eq!(footer.target_kind.as_deref(), Some("file"));
+        assert_eq!(footer.target_kind, Some("file"));
     }
 
     #[test]
@@ -2587,7 +2580,7 @@ mod tests {
             .find(|e| e.kind == "exposes_web_service")
             .expect("exposes_web_service edge");
         assert_eq!(ws_edge.target_name, "Optician");
-        assert_eq!(ws_edge.target_kind.as_deref(), Some("class"));
+        assert_eq!(ws_edge.target_kind, Some("class"));
 
         // Should emit cb_defines edge
         let cbd_edge = edges

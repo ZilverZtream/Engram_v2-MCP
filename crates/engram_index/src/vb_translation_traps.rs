@@ -213,12 +213,13 @@ pub fn detect_vb_translation_traps(code_files: &[(&str, &str)]) -> VbTranslation
 
         // 1. Nothing_ValueType
         for m in NOTHING_VALUE_TYPE_RE.captures_iter(content) {
-            let line = line_number(content, m.get(0).unwrap().start());
+            let Some(whole) = m.get(0) else { continue };
+            let line = line_number(content, whole.start());
             let (risk, guidance) = get_guidance("Nothing_ValueType");
             traps.push(VbTranslationTrap {
                 trap: "Nothing_ValueType".into(),
                 location: format_location(path, &method_map, line),
-                vb_code: m.get(0).unwrap().as_str().trim().to_string(),
+                vb_code: whole.as_str().trim().to_string(),
                 risk: risk.into(),
                 guidance: guidance.into(),
             });
@@ -477,7 +478,8 @@ fn build_method_map(content: &str) -> Vec<(usize, String)> {
     let mut entries: Vec<(usize, String)> = Vec::new();
     for m in VB_METHOD_RE.captures_iter(content) {
         let name = m[1].to_string();
-        let line = line_number(content, m.get(0).unwrap().start());
+        let Some(whole) = m.get(0) else { continue };
+        let line = line_number(content, whole.start());
         entries.push((line, name));
     }
     entries

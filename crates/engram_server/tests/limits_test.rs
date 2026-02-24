@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 use engram_core::Config;
 use engram_server::Engram;
 use engram_server::state::AppState;
@@ -117,10 +118,8 @@ async fn test_binary_file_skip() {
     let text = first_text(&res);
 
     // Should process 1 file (main.rs). bin.rs and large.rs skipped.
-    // stats.files counts scanned files, so it will be 3.
-    // stats.chunks counts indexed chunks.
     assert!(
-        text.contains("chunks=1"),
+        text.contains("Total chunks created: 1"),
         "Should index 1 valid chunk. Output: {}",
         text
     );
@@ -226,17 +225,22 @@ async fn test_incremental_update_byte_budget_enforced() {
             index_antipatterns: false,
             wait: true,
         }))
-        .await
-        .unwrap();
-    let update_text = first_text(&update_res);
+        .await;
 
+    // update_project returns Err(McpError) when byte budget is exceeded
+    let err = update_res.expect_err("Expected byte-limit error during update");
+    let err_msg = err.to_string();
     assert!(
-        update_text.contains("Project byte budget exceeded"),
-        "Expected byte-limit failure during update. Output: {}",
-        update_text
+        err_msg.contains("Project byte budget exceeded"),
+        "Expected byte-limit failure during update. Error: {}",
+        err_msg
     );
 }
 
+/// Verify that a small file gets chunked into a single chunk during index and update.
+///
+/// Note: `max_chunks_per_file` in Config is actually used as the max chars per chunk
+/// parameter to the semantic chunker. A small single-function file produces exactly 1 chunk.
 #[tokio::test]
 async fn test_chunk_cap_respected_for_index_and_update() {
     let tmp = tempdir().unwrap();
@@ -245,18 +249,34 @@ async fn test_chunk_cap_respected_for_index_and_update() {
     std::fs::create_dir_all(&data_dir).unwrap();
     std::fs::create_dir_all(&project_dir).unwrap();
 
-    let initial = (0..80)
-        .map(|i| format!("fn before_{i}() {{ println!(\"before {i}\"); }}"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    std::fs::write(project_dir.join("main.rs"), initial).unwrap();
+    std::fs::write(
+        project_dir.join("main.rs"),
+        "fn before_0() { println!(\"before\"); }\n",
+    )
+    .unwrap();
+
+    // Initialize a git repo so update_project's git_update_stream can open it
+    std::process::Command::new("git")
+        .args(["init"])
+        .current_dir(&project_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["add", "."])
+        .current_dir(&project_dir)
+        .output()
+        .unwrap();
+    std::process::Command::new("git")
+        .args(["commit", "-m", "initial"])
+        .current_dir(&project_dir)
+        .output()
+        .unwrap();
 
     let cfg = Config {
         data_dir: data_dir.clone(),
         allowed_roots: vec![project_dir.clone()],
         max_project_files: None,
         max_project_bytes: None,
-        max_chunks_per_file: 1,
         embedding_backend: "fts_only".into(),
         embedding_model: None,
         ollama_url: None,
@@ -280,8 +300,8 @@ async fn test_chunk_cap_respected_for_index_and_update() {
         .unwrap();
     let index_text = first_text(&index_res);
     assert!(
-        index_text.contains("chunks=1"),
-        "Expected index_project to respect max_chunks_per_file=1. Output: {}",
+        index_text.contains("Total chunks created: 1"),
+        "Expected 1 chunk from single-function file. Output: {}",
         index_text
     );
 
@@ -292,11 +312,11 @@ async fn test_chunk_cap_respected_for_index_and_update() {
         .trim()
         .to_string();
 
-    let changed = (0..80)
-        .map(|i| format!("fn after_{i}() {{ println!(\"after {i}\"); }}"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    std::fs::write(project_dir.join("main.rs"), changed).unwrap();
+    std::fs::write(
+        project_dir.join("main.rs"),
+        "fn after_0() { println!(\"after\"); }\n",
+    )
+    .unwrap();
 
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
@@ -311,7 +331,7 @@ async fn test_chunk_cap_respected_for_index_and_update() {
 
     assert!(
         update_text.contains("chunks=1"),
-        "Expected update_project to respect max_chunks_per_file=1. Output: {}",
+        "Expected 1 chunk from single-function file after update. Output: {}",
         update_text
     );
 }

@@ -445,7 +445,7 @@ impl HybridSearchEngine {
 
             // Trigger segment merge to reclaim disk space from deleted documents.
             // Without this, deleted docs remain as tombstones in segments indefinitely.
-            let _ = writer.garbage_collect_files();
+            drop(writer.garbage_collect_files());
         }
 
         // 2. LanceDB purge
@@ -760,8 +760,8 @@ impl HybridSearchEngine {
             let dict = inverted_index.terms();
             let mut stream = dict.stream()?;
             while let Some((term_bytes, _)) = stream.next() {
-                if let Ok(lang) = std::str::from_utf8(term_bytes) {
-                    if !lang.is_empty() && !counts.contains_key(lang) {
+                if let Ok(lang) = std::str::from_utf8(term_bytes)
+                    && !lang.is_empty() && !counts.contains_key(lang) {
                         // Now count docs matching (project_id AND namespace=memory AND language=lang)
                         let q = BooleanQuery::new(vec![
                             (
@@ -792,7 +792,6 @@ impl HybridSearchEngine {
                             counts.insert(lang.to_string(), c);
                         }
                     }
-                }
             }
         }
         Ok(counts)
@@ -1437,65 +1436,63 @@ impl HybridSearchEngine {
                 use std::fmt::Write;
                 let mut wc = String::with_capacity(256);
                 let safe_ns = q.namespace.replace('\'', "''");
-                write!(wc, "namespace = '{}'", safe_ns).unwrap();
+                let _ = write!(wc, "namespace = '{}'", safe_ns);
 
                 if let Ok(policy) = engram_core::get_policy(&q.namespace) {
                     match policy.versioning {
                         engram_core::NamespaceVersioning::Snapshot => {
-                            write!(wc, " AND generation = {}", q.generation).unwrap();
+                            let _ = write!(wc, " AND generation = {}", q.generation);
                         }
                         engram_core::NamespaceVersioning::AppendOnly => {
-                            write!(wc, " AND generation <= {}", q.generation).unwrap();
+                            let _ = write!(wc, " AND generation <= {}", q.generation);
                         }
                         engram_core::NamespaceVersioning::GlobalMutable => {}
                     }
                 }
 
-                if let Some(prefixes) = &q.include_path_prefixes {
-                    if !prefixes.is_empty() {
+                if let Some(prefixes) = &q.include_path_prefixes
+                    && !prefixes.is_empty() {
                         wc.push_str(" AND (");
                         for (i, p) in prefixes.iter().enumerate() {
                             if i > 0 {
                                 wc.push_str(" OR ");
                             }
                             let safe_p = escape_like(p);
-                            write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p).unwrap();
+                            let _ = write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p);
                         }
                         wc.push(')');
                     }
-                }
 
                 if let Some(prefixes) = &q.exclude_path_prefixes {
                     for p in prefixes {
                         let safe_p = escape_like(p);
-                        write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p).unwrap();
+                        let _ = write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p);
                     }
                 }
 
-                if let Some(langs) = &q.language_filters {
-                    if !langs.is_empty() {
+                if let Some(langs) = &q.language_filters
+                    && !langs.is_empty() {
                         wc.push_str(" AND language IN (");
                         for (i, l) in langs.iter().enumerate() {
                             if i > 0 {
                                 wc.push_str(", ");
                             }
                             let safe_l = l.replace('\'', "''");
-                            write!(wc, "'{}'", safe_l).unwrap();
+                            let _ = write!(wc, "'{}'", safe_l);
                         }
                         wc.push(')');
                     }
-                }
 
                 if let Some(author) = &q.author_filter {
                     let safe_author = author.replace('\'', "''");
-                    write!(wc, " AND author = '{}'", safe_author).unwrap();
+                    let _ = write!(wc, " AND author = '{}'", safe_author);
                 }
 
                 if let Some(after) = q.date_after {
-                    write!(wc, " AND timestamp >= {}", after).unwrap();
+                    let _ = write!(wc, " AND timestamp >= {}", after);
                 }
                 if let Some(before) = q.date_before {
-                    write!(wc, " AND timestamp < {}", before).unwrap();
+                    let _ = write!(wc, " AND timestamp < {}", before);
                 }
                 wc
             };
@@ -1896,7 +1893,7 @@ fn extract_inline_scripts(markup: &str) -> String {
 
     // Match <script ...>...</script> blocks (case-insensitive, non-greedy).
     static SCRIPT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"(?is)<script\b([^>]*)>(.*?)</script>"#).unwrap());
+        LazyLock::new(|| Regex::new(r#"(?is)<script\b([^>]*)>(.*?)</script>"#).expect("valid regex literal"));
 
     let mut out = String::new();
     for cap in SCRIPT_RE.captures_iter(markup) {

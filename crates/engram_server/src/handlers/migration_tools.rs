@@ -16,6 +16,7 @@ use crate::tools::Engram;
 use crate::utils::files::{
     discover_files_recursive, find_aspx_for_codebehind, find_codebehind_path,
 };
+use engram_core::safe_join;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::path::Path;
@@ -579,7 +580,8 @@ impl Engram {
         let file_path = req.file_path.clone();
         let entry_point = req.entry_point.clone();
 
-        let cb_full = Path::new(&rec.directory).join(&file_path);
+        let cb_full = safe_join(Path::new(&rec.directory), &file_path)
+            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
         let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {}: {e}", cb_full.display()), None)
         })?;
@@ -614,7 +616,8 @@ impl Engram {
         let target_stack = req.target_stack.clone();
         let project_dir = rec.directory.clone();
 
-        let aspx_full = Path::new(&project_dir).join(&file_path);
+        let aspx_full = safe_join(Path::new(&project_dir), &file_path)
+            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
         let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {}: {e}", aspx_full.display()), None)
         })?;
@@ -934,7 +937,7 @@ impl Engram {
                 let dir = project_dir.clone();
                 let rel = rel_path.clone();
                 async move {
-                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    let full_path = safe_join(Path::new(&dir), &rel).ok()?;
                     let markup = tokio::fs::read_to_string(&full_path).await.ok()?;
                     let cb_path = find_codebehind_path(&full_path);
                     let cb_content = if let Some(ref p) = cb_path {
@@ -957,7 +960,7 @@ impl Engram {
                 let dir = project_dir.clone();
                 let rel = rel_path.clone();
                 async move {
-                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    let full_path = safe_join(Path::new(&dir), &rel).ok()?;
                     tokio::fs::read_to_string(&full_path)
                         .await
                         .ok()
@@ -972,7 +975,7 @@ impl Engram {
                 let dir = project_dir.clone();
                 let rel = rel_path.clone();
                 async move {
-                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    let full_path = safe_join(Path::new(&dir), &rel).ok()?;
                     tokio::fs::read_to_string(&full_path)
                         .await
                         .ok()
@@ -987,7 +990,7 @@ impl Engram {
                 let dir = project_dir.clone();
                 let rel = rel_path.clone();
                 async move {
-                    let full_path = std::path::Path::new(&dir).join(&rel);
+                    let full_path = safe_join(Path::new(&dir), &rel).ok()?;
                     tokio::fs::read_to_string(&full_path)
                         .await
                         .ok()
@@ -1008,29 +1011,49 @@ impl Engram {
         let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
         let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
 
-        let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
-        let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
+        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
+        let webconfig_content = if let Ok(wc) = webconfig_path {
+            tokio::fs::read_to_string(&wc).await.ok()
+        } else {
+            None
+        };
         let webconfig_content = if webconfig_content.is_none() {
-            let alt = std::path::Path::new(&project_dir).join("Web.config");
-            tokio::fs::read_to_string(&alt).await.ok()
+            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
+                tokio::fs::read_to_string(&alt).await.ok()
+            } else {
+                None
+            }
         } else {
             webconfig_content
         };
 
         let global_asax = {
-            let ga_path = std::path::Path::new(&project_dir).join("Global.asax");
-            let ga_exists = has_global_asax || ga_path.exists();
+            let ga_path = safe_join(Path::new(&project_dir), "Global.asax");
+            let ga_exists = if let Ok(ref p) = ga_path {
+                has_global_asax || p.exists()
+            } else {
+                false
+            };
             if ga_exists {
+                let ga_path = ga_path.expect("ga_exists implies Ok"); // safe
                 let markup = tokio::fs::read_to_string(&ga_path)
                     .await
                     .unwrap_or_default();
                 let cb = {
-                    let cs = std::path::Path::new(&project_dir).join("Global.asax.cs");
-                    let vb = std::path::Path::new(&project_dir).join("Global.asax.vb");
-                    if let Ok(content) = tokio::fs::read_to_string(&cs).await {
-                        Some(content)
+                    let cs = safe_join(Path::new(&project_dir), "Global.asax.cs");
+                    let vb = safe_join(Path::new(&project_dir), "Global.asax.vb");
+                    if let Ok(ref cs_path) = cs {
+                        if let Ok(content) = tokio::fs::read_to_string(cs_path).await {
+                            Some(content)
+                        } else if let Ok(ref vb_path) = vb {
+                            tokio::fs::read_to_string(vb_path).await.ok()
+                        } else {
+                            None
+                        }
+                    } else if let Ok(ref vb_path) = vb {
+                        tokio::fs::read_to_string(vb_path).await.ok()
                     } else {
-                        tokio::fs::read_to_string(&vb).await.ok()
+                        None
                     }
                 };
                 Some(FileContent {
@@ -1046,7 +1069,7 @@ impl Engram {
         let code_files: Vec<(String, String)> = code_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1062,7 +1085,7 @@ impl Engram {
         let project_references: Vec<ProjectReferenceBundle> = proj_file_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 let content = std::fs::read_to_string(&full).ok()?;
                 let info = engram_index::solution_parser::parse_project_file(&content, &rel);
                 let mut nuget_refs = Vec::new();
@@ -1098,7 +1121,7 @@ impl Engram {
         let sql_files: Vec<(String, String)> = sql_file_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1107,7 +1130,7 @@ impl Engram {
             .into_iter()
             .filter(|p| p.ends_with("packages.config"))
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1122,7 +1145,7 @@ impl Engram {
                     && !lower.ends_with("packages.config")
             })
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1130,7 +1153,7 @@ impl Engram {
         let resx_files: Vec<(String, String)> = resx_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1138,7 +1161,7 @@ impl Engram {
         let master_files: Vec<(String, String)> = master_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1408,7 +1431,8 @@ impl Engram {
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
 
-        let aspx_full = Path::new(&rec.directory).join(&file_path);
+        let aspx_full = safe_join(Path::new(&rec.directory), &file_path)
+            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
         let aspx_content = tokio::fs::read_to_string(&aspx_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {aspx_full:?}: {e}"), None)
         })?;
@@ -1466,17 +1490,25 @@ impl Engram {
         let pid = req.project_id.clone();
         let project_dir = rec.directory.clone();
 
-        let webconfig_path = std::path::Path::new(&project_dir).join("web.config");
-        let webconfig_content = tokio::fs::read_to_string(&webconfig_path).await.ok();
+        let webconfig_path = safe_join(Path::new(&project_dir), "web.config");
+        let webconfig_content = if let Ok(wc) = webconfig_path {
+            tokio::fs::read_to_string(&wc).await.ok()
+        } else {
+            None
+        };
         let webconfig_content = if webconfig_content.is_none() {
-            let alt = std::path::Path::new(&project_dir).join("Web.config");
-            tokio::fs::read_to_string(&alt).await.ok()
+            if let Ok(alt) = safe_join(Path::new(&project_dir), "Web.config") {
+                tokio::fs::read_to_string(&alt).await.ok()
+            } else {
+                None
+            }
         } else {
             webconfig_content
         };
 
         let code_files = if let Some(ref scope) = req.file_scope {
-            let full = std::path::Path::new(&project_dir).join(scope);
+            let full = safe_join(Path::new(&project_dir), scope)
+                .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
             match tokio::fs::read_to_string(&full).await {
                 Ok(content) => vec![(scope.clone(), content)],
                 Err(_) => vec![],
@@ -1492,16 +1524,14 @@ impl Engram {
                 let mut files = Vec::new();
                 for node in &file_nodes {
                     let path = &node.name;
-                    if path.ends_with(".vb")
+                    if (path.ends_with(".vb")
                         || path.ends_with(".cs")
                         || path.ends_with(".aspx.vb")
-                        || path.ends_with(".aspx.cs")
-                    {
-                        let full = std::path::Path::new(&dir).join(path);
-                        if let Ok(content) = std::fs::read_to_string(&full) {
-                            files.push((path.clone(), content));
-                        }
-                    }
+                        || path.ends_with(".aspx.cs"))
+                        && let Ok(full) = safe_join(Path::new(&dir), path)
+                            && let Ok(content) = std::fs::read_to_string(&full) {
+                                files.push((path.clone(), content));
+                            }
                 }
                 files
             })
@@ -1557,7 +1587,8 @@ impl Engram {
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
 
-        let cb_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let cb_full = safe_join(Path::new(&rec.directory), &file_path)
+            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
         let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {cb_full:?}: {e}"), None)
         })?;
@@ -1615,7 +1646,8 @@ impl Engram {
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
 
-        let cb_full = std::path::Path::new(&rec.directory).join(&file_path);
+        let cb_full = safe_join(Path::new(&rec.directory), &file_path)
+            .map_err(|e| McpError::internal_error(format!("Path validation: {e}"), None))?;
         let cb_content = tokio::fs::read_to_string(&cb_full).await.map_err(|e| {
             McpError::internal_error(format!("Failed to read {cb_full:?}: {e}"), None)
         })?;
@@ -1685,7 +1717,8 @@ impl Engram {
 
         // ── Discover SQL files ──────────────────────────────────────────────
         let sql_files: Vec<(String, String)> = if let Some(ref specific_path) = sql_file_path {
-            let full = std::path::Path::new(&project_dir).join(specific_path);
+            let full = safe_join(Path::new(&project_dir), specific_path)
+                .map_err(|e| McpError::invalid_params(format!("Path validation: {e}"), None))?;
             match tokio::fs::read_to_string(&full).await {
                 Ok(content) => vec![(specific_path.clone(), content)],
                 Err(e) => {
@@ -1700,10 +1733,10 @@ impl Engram {
                 discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
             let mut files = Vec::with_capacity(discovered.len());
             for rel in discovered {
-                let full = std::path::Path::new(&project_dir).join(&rel);
-                if let Ok(content) = std::fs::read_to_string(&full) {
-                    files.push((rel, content));
-                }
+                if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
+                    && let Ok(content) = std::fs::read_to_string(&full) {
+                        files.push((rel, content));
+                    }
             }
             files
         };
@@ -1746,7 +1779,7 @@ impl Engram {
         let code_files: Vec<(String, String)> = code_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1829,7 +1862,7 @@ impl Engram {
         let sql_files: Vec<(String, String)> = sql_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1847,7 +1880,7 @@ impl Engram {
         let code_files: Vec<(String, String)> = code_disc
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -1865,7 +1898,7 @@ impl Engram {
             let next_object_re = regex::Regex::new(
                 r"(?ims)\bCREATE\s+(?:OR\s+ALTER\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER|VIEW)\b",
             )
-            .unwrap();
+            .expect("valid regex");
 
             let mut sp_body: Option<String> = None;
             let mut sp_source_file: Option<String> = None;
@@ -1943,7 +1976,7 @@ impl Engram {
                 // Look for other SP bodies that call this one
                 let sp_def_re = regex::Regex::new(
                     r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
-                ).unwrap();
+                ).expect("valid regex");
                 for (_path, content) in &sql_files {
                     for cap in sp_def_re.captures_iter(content) {
                         let other_name = cap[1].to_string();
@@ -1951,7 +1984,7 @@ impl Engram {
                             continue; // skip self
                         }
                         // Delimit body: from end of header to next CREATE object (any type)
-                        let start = cap.get(0).unwrap().end();
+                        let start = cap.get(0).expect("group 0 always present").end();
                         let remaining = &content[start..];
                         let end = next_object_re
                             .find(remaining)
@@ -2031,7 +2064,7 @@ impl Engram {
             // Tables written (via DML statements)
             let write_re = regex::Regex::new(
                 r"(?i)\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
-            ).unwrap();
+            ).expect("valid regex");
             let tables_written: std::collections::HashSet<String> = write_re
                 .captures_iter(&sp_body)
                 .map(|c| c[1].to_string())
@@ -2163,7 +2196,7 @@ impl Engram {
         let sql_files: Vec<(String, String)> = sql_paths
             .into_iter()
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -2266,8 +2299,8 @@ impl Engram {
         // Show code paths that indirectly fire each trigger
         let mut has_code_refs = false;
         for t in &triggers {
-            if let Some(paths) = trigger_code_paths.get(&t.name) {
-                if !paths.is_empty() {
+            if let Some(paths) = trigger_code_paths.get(&t.name)
+                && !paths.is_empty() {
                     if !has_code_refs {
                         out.push_str("## Code Paths That Fire Triggers\n\n");
                         has_code_refs = true;
@@ -2278,7 +2311,6 @@ impl Engram {
                     }
                     out.push('\n');
                 }
-            }
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -2309,7 +2341,8 @@ impl Engram {
 
         // Collect files to analyze
         let files_to_scan: Vec<(String, String, bool)> = if let Some(ref specific) = req.file_path {
-            let full = std::path::Path::new(&project_dir).join(specific);
+            let full = safe_join(Path::new(&project_dir), specific)
+                .map_err(|e| McpError::invalid_params(format!("Path validation: {e}"), None))?;
             match tokio::fs::read_to_string(&full).await {
                 Ok(content) => {
                     let is_vb = specific.to_lowercase().ends_with(".vb");
@@ -2332,11 +2365,11 @@ impl Engram {
             .await;
             let mut files = Vec::with_capacity(disc.len());
             for rel in disc {
-                let full = std::path::Path::new(&project_dir).join(&rel);
-                if let Ok(content) = std::fs::read_to_string(&full) {
-                    let is_vb = rel.to_lowercase().ends_with(".vb");
-                    files.push((rel, content, is_vb));
-                }
+                if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
+                    && let Ok(content) = std::fs::read_to_string(&full) {
+                        let is_vb = rel.to_lowercase().ends_with(".vb");
+                        files.push((rel, content, is_vb));
+                    }
             }
             files
         };
@@ -2522,15 +2555,15 @@ impl Engram {
                 let path_lower = path.to_lowercase();
                 let filter_lower = filter.to_lowercase();
                 // Support simple glob-like filtering
-                if filter_lower.starts_with('*') {
-                    path_lower.ends_with(&filter_lower[1..])
-                } else if filter_lower.ends_with('*') {
+                if let Some(suffix) = filter_lower.strip_prefix('*') {
+                    path_lower.ends_with(suffix)
+                } else if let Some(prefix) = filter_lower.strip_suffix('*') {
                     let base = Path::new(path)
                         .file_name()
                         .unwrap_or_default()
                         .to_string_lossy();
                     base.to_lowercase()
-                        .starts_with(&filter_lower[..filter_lower.len() - 1])
+                        .starts_with(prefix)
                 } else {
                     path_lower.contains(&filter_lower)
                 }
@@ -2543,7 +2576,7 @@ impl Engram {
             .into_iter()
             .filter(|p| filter_matches(p))
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -2552,7 +2585,7 @@ impl Engram {
             .into_iter()
             .filter(|p| filter_matches(p))
             .filter_map(|rel| {
-                let full = std::path::Path::new(&project_dir).join(&rel);
+                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
                 std::fs::read_to_string(&full).ok().map(|c| (rel, c))
             })
             .collect();
@@ -2790,7 +2823,8 @@ impl Engram {
 
             // Collect VB files
             let vb_files: Vec<(String, String)> = if let Some(ref specific) = file_path {
-                let full = std::path::Path::new(&project_dir).join(specific);
+                let full = safe_join(Path::new(&project_dir), specific)
+                    .map_err(|e| format!("Path validation: {e}"))?;
                 match std::fs::read_to_string(&full) {
                     Ok(content) => vec![(specific.clone(), content)],
                     Err(e) => {
@@ -2825,12 +2859,10 @@ impl Engram {
                             .extension()
                             .map(|e| e.eq_ignore_ascii_case("vb"))
                             .unwrap_or(false)
-                        {
-                            if let Ok(content) = std::fs::read_to_string(&path) {
+                            && let Ok(content) = std::fs::read_to_string(&path) {
                                 let rel = path.strip_prefix(base).unwrap_or(&path);
                                 out.push((rel.to_string_lossy().to_string(), content));
                             }
-                        }
                     }
                 }
                 walk_vb(

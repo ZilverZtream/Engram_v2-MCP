@@ -188,13 +188,12 @@ pub async fn discover_files_recursive(
             }
 
             if ft.is_dir() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if !skip_dirs.contains(name.to_lowercase().as_str()) {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && !skip_dirs.contains(name.to_lowercase().as_str()) {
                         queue.push_back(path);
                     }
-                }
-            } else if ft.is_file() {
-                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            } else if ft.is_file()
+                && let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     let ext_normalized = ext.to_ascii_lowercase();
                     if !normalized_exts.contains(&ext_normalized) {
                         continue;
@@ -203,7 +202,6 @@ pub async fn discover_files_recursive(
                         results.push(rel.replace('\\', "/"));
                     }
                 }
-            }
         }
     }
 
@@ -249,6 +247,7 @@ pub fn find_aspx_for_codebehind(cb_path: &Path) -> Option<PathBuf> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
