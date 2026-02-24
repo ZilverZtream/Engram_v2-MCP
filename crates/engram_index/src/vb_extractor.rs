@@ -99,6 +99,7 @@ static FACTORY_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 static RETURN_ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
 static SET_ALIAS_RE: OnceLock<Regex> = OnceLock::new();
 static LATE_CALL_RE: OnceLock<Regex> = OnceLock::new();
+static OPTION_STRICT_RE: OnceLock<Regex> = OnceLock::new();
 
 fn get_compiled_regex<'a>(
     lock: &'a OnceLock<Regex>,
@@ -338,6 +339,80 @@ fn classify_side_effects(method_body: &str, known_fields: &HashSet<String>) -> O
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+struct DynamicDispatchCounters {
+    late_binding_call_count: usize,
+    object_var_count: usize,
+    callbyname_count: usize,
+}
+
+fn extract_option_strict_setting(source: &str) -> Option<&'static str> {
+    let re = get_compiled_regex(
+        &OPTION_STRICT_RE,
+        r"(?im)^\s*Option\s+Strict\s+(On|Off)\b",
+        "option_strict",
+    )?;
+    let mut setting = None;
+    for cap in re.captures_iter(source) {
+        if let Some(raw) = cap.get(1).map(|m| m.as_str()) {
+            setting = Some(if raw.eq_ignore_ascii_case("on") {
+                "On"
+            } else {
+                "Off"
+            });
+        }
+    }
+    setting
+}
+
+fn count_dynamic_dispatch_patterns(method_body: &str) -> DynamicDispatchCounters {
+    let Some(object_decl_re) = get_compiled_regex(
+        &LATE_BOUND_OBJECT_RE,
+        r"(?i)\bDim\s+(\w+)\s+As\s+Object\b",
+        "late_bound_object",
+    ) else {
+        return DynamicDispatchCounters::default();
+    };
+    let Some(callbyname_re) =
+        get_compiled_regex(&CALLBYNAME_RE, r"(?i)\bCallByName\s*\(", "callbyname")
+    else {
+        return DynamicDispatchCounters::default();
+    };
+    let Some(late_call_re) = get_compiled_regex(
+        &LATE_CALL_RE,
+        r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?",
+        "late_bound_call",
+    ) else {
+        return DynamicDispatchCounters::default();
+    };
+
+    let mut object_vars: HashSet<String> = HashSet::new();
+    let mut object_var_count = 0usize;
+
+    for cap in object_decl_re.captures_iter(method_body) {
+        if let Some(var) = cap.get(1).map(|m| m.as_str()) {
+            object_var_count += 1;
+            object_vars.insert(var.to_lowercase());
+        }
+    }
+
+    let callbyname_count = callbyname_re.find_iter(method_body).count();
+    let late_binding_call_count = late_call_re
+        .captures_iter(method_body)
+        .filter(|cap| {
+            cap.get(1)
+                .map(|m| object_vars.contains(&m.as_str().to_lowercase()))
+                .unwrap_or(false)
+        })
+        .count();
+
+    DynamicDispatchCounters {
+        late_binding_call_count,
+        object_var_count,
+        callbyname_count,
+    }
+}
+
 // ── Public entry point ──────────────────────────────────────────────────────
 
 /// Extract symbols and call-graph edges from a `.vb` source file.
@@ -403,8 +478,22 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     let mut symbols: Vec<ExtractedSymbol> = Vec::new();
     let mut edges: Vec<ExtractedEdge> = Vec::new();
 
+    let option_strict = extract_option_strict_setting(source);
+
     // All scopes encountered, used for post-processing SQL attribution
     let mut all_scopes: Vec<ScopeEntry> = Vec::new();
+
+    if let Some(setting) = option_strict {
+        let mut meta = HashMap::from([("fqn".into(), "file".into())]);
+        meta.insert("option_strict".into(), setting.to_string());
+        symbols.push(ExtractedSymbol {
+            name: "file_directives".to_string(),
+            kind: "file",
+            start_line: 1,
+            end_line: 1,
+            metadata: Some(meta),
+        });
+    }
 
     // Scope stack borrows name/kind slices from `source` (zero-copy).
     let mut scope_stack: Vec<ScopeEntry> = Vec::new();
@@ -587,6 +676,26 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     if let Some(body) =
                         source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
                     {
+                        let dyn_dispatch = count_dynamic_dispatch_patterns(body);
+                        if dyn_dispatch.late_binding_call_count > 0 {
+                            meta.insert(
+                                "late_binding_call_count".into(),
+                                dyn_dispatch.late_binding_call_count.to_string(),
+                            );
+                        }
+                        if dyn_dispatch.object_var_count > 0 {
+                            meta.insert(
+                                "object_var_count".into(),
+                                dyn_dispatch.object_var_count.to_string(),
+                            );
+                        }
+                        if dyn_dispatch.callbyname_count > 0 {
+                            meta.insert(
+                                "callbyname_count".into(),
+                                dyn_dispatch.callbyname_count.to_string(),
+                            );
+                        }
+
                         if let Some(effects) = classify_side_effects(body, &fqn_maps.field_names) {
                             meta.insert("side_effects".into(), effects);
                         }
@@ -3252,6 +3361,7 @@ impl LineIndex {
 fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let mut symbols = Vec::new();
     let mut edges = Vec::new();
+    let option_strict = extract_option_strict_setting(source);
 
     if source.len() > MAX_REGEX_FALLBACK_SOURCE_BYTES {
         tracing::warn!(
@@ -3331,6 +3441,18 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     let mut current_ns = String::new();
     let mut current_class = String::new();
 
+    if let Some(setting) = option_strict {
+        let mut meta = HashMap::from([("fqn".into(), "file".into())]);
+        meta.insert("option_strict".into(), setting.to_string());
+        symbols.push(ExtractedSymbol {
+            name: "file_directives".to_string(),
+            kind: "file",
+            start_line: 1,
+            end_line: 1,
+            metadata: Some(meta),
+        });
+    }
+
     for hit in &hits {
         match hit {
             Hit::Namespace(ns, _) => {
@@ -3357,7 +3479,36 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
                 let line_no = line_index.line_of(*pos);
                 let fqn = make_fqn(&current_ns, &current_class, name);
                 let kind = if *is_property { "property" } else { "function" };
-                let meta = HashMap::from([("fqn".into(), fqn)]);
+                let mut meta = HashMap::from([("fqn".into(), fqn)]);
+                if !*is_property {
+                    let body = source
+                        .get(*pos..)
+                        .and_then(|rest| {
+                            rest.find("End Sub")
+                                .or_else(|| rest.find("End Function"))
+                                .map(|idx| &rest[..idx])
+                        })
+                        .unwrap_or_default();
+                    let dyn_dispatch = count_dynamic_dispatch_patterns(body);
+                    if dyn_dispatch.late_binding_call_count > 0 {
+                        meta.insert(
+                            "late_binding_call_count".into(),
+                            dyn_dispatch.late_binding_call_count.to_string(),
+                        );
+                    }
+                    if dyn_dispatch.object_var_count > 0 {
+                        meta.insert(
+                            "object_var_count".into(),
+                            dyn_dispatch.object_var_count.to_string(),
+                        );
+                    }
+                    if dyn_dispatch.callbyname_count > 0 {
+                        meta.insert(
+                            "callbyname_count".into(),
+                            dyn_dispatch.callbyname_count.to_string(),
+                        );
+                    }
+                }
                 symbols.push(ExtractedSymbol {
                     name: (*name).to_string(),
                     kind,
@@ -3429,6 +3580,41 @@ End Namespace
             gen_sym.metadata.as_ref().unwrap()["fqn"],
             "MyOrg.Reports.OrderReport.GenerateReport"
         );
+    }
+
+    #[test]
+    fn test_option_strict_file_metadata_and_dynamic_dispatch_counters() {
+        let code = r#"
+Option Strict Off
+Public Class LegacyPage
+    Public Sub RunLegacy()
+        Dim obj As Object
+        obj.DoWork()
+        CallByName(obj, "DoWork", CallType.Method)
+    End Sub
+End Class
+"#;
+
+        let (symbols, _edges) = extract_vb(Path::new("LegacyPage.vb"), code);
+
+        let file_meta = symbols
+            .iter()
+            .find(|s| s.kind == "file" && s.name == "file_directives")
+            .and_then(|s| s.metadata.as_ref())
+            .expect("expected file metadata symbol");
+        assert_eq!(file_meta.get("option_strict"), Some(&"Off".to_string()));
+
+        let run_legacy = symbols
+            .iter()
+            .find(|s| s.kind == "function" && s.name == "RunLegacy")
+            .and_then(|s| s.metadata.as_ref())
+            .expect("expected function metadata");
+        assert_eq!(run_legacy.get("object_var_count"), Some(&"1".to_string()));
+        assert_eq!(
+            run_legacy.get("late_binding_call_count"),
+            Some(&"1".to_string())
+        );
+        assert_eq!(run_legacy.get("callbyname_count"), Some(&"1".to_string()));
     }
 
     #[test]
