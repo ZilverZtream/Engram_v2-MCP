@@ -739,11 +739,12 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "nomic-embed-text".into());
-            // nomic-embed-text → 768; most others → varies. We default to 768 here;
-            // users can override by setting embedding_model to a model they know
-            // produces a different dimension. LanceDB tables are auto-recreated when
-            // the dimension changes (Phase 9, fix 2.1).
-            let dim = 768usize;
+            // ENG-AUD-2026-S12-0004: use the operator-configured dimension so that
+            // models whose output size differs from nomic-embed-text (768) don't
+            // produce silent dimension-mismatch failures at embed time.
+            // Operator sets ollama_embed_dim in engram_mcp.yaml; we fall back to
+            // 768 only when the field is absent for backward compatibility.
+            let dim = cfg.ollama_embed_dim.unwrap_or(768);
             Ok(Box::new(OllamaEmbedder::new(model, url, dim)?))
         }
         "openai" => {
@@ -761,7 +762,9 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "text-embedding-3-small".into());
-            let dim = 1536usize;
+            // ENG-AUD-2026-S12-0004: use operator-configured dimension.
+            // Defaults to 1536 (text-embedding-3-small) for backward compatibility.
+            let dim = cfg.openai_embed_dim.unwrap_or(1536);
             Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim)?))
         }
         // Known local-mode backends that all resolve to LocalEmbedder.
@@ -810,6 +813,80 @@ mod embed_factory_tests {
                 err_msg
             );
         }
+    }
+
+    /// ENG-AUD-2026-S12-0004: when ollama_embed_dim is set the embedder must
+    /// report that exact dimension, not the hardcoded 768 fallback.
+    #[test]
+    fn ollama_config_uses_configured_dimension() {
+        // ENG-AUD-2026-S12-0004
+        let cfg = engram_core::Config {
+            embedding_backend: "ollama".to_string(),
+            ollama_embed_dim: Some(1024),
+            ..Default::default()
+        };
+        let embedder = build_embedder(&cfg).expect("build_embedder must succeed for ollama");
+        assert_eq!(
+            embedder.dimension(),
+            1024,
+            "ENG-AUD-2026-S12-0004: embedder dimension must match ollama_embed_dim=1024"
+        );
+    }
+
+    /// ENG-AUD-2026-S12-0004: when ollama_embed_dim is absent the embedder must
+    /// fall back to 768 for backward compatibility.
+    #[test]
+    fn ollama_config_defaults_to_768_when_unset() {
+        // ENG-AUD-2026-S12-0004
+        let cfg = engram_core::Config {
+            embedding_backend: "ollama".to_string(),
+            ollama_embed_dim: None,
+            ..Default::default()
+        };
+        let embedder = build_embedder(&cfg).expect("build_embedder must succeed for ollama");
+        assert_eq!(
+            embedder.dimension(),
+            768,
+            "ENG-AUD-2026-S12-0004: embedder must default to dim=768 when ollama_embed_dim is not set"
+        );
+    }
+
+    /// ENG-AUD-2026-S12-0004: when openai_embed_dim is set the embedder must
+    /// report that exact dimension, not the hardcoded 1536 fallback.
+    #[test]
+    fn openai_config_uses_configured_dimension() {
+        // ENG-AUD-2026-S12-0004
+        let cfg = engram_core::Config {
+            embedding_backend: "openai".to_string(),
+            openai_api_key: Some("test-key".to_string()),
+            openai_embed_dim: Some(3072),
+            ..Default::default()
+        };
+        let embedder = build_embedder(&cfg).expect("build_embedder must succeed for openai");
+        assert_eq!(
+            embedder.dimension(),
+            3072,
+            "ENG-AUD-2026-S12-0004: embedder dimension must match openai_embed_dim=3072"
+        );
+    }
+
+    /// ENG-AUD-2026-S12-0004: when openai_embed_dim is absent the embedder must
+    /// fall back to 1536 for backward compatibility.
+    #[test]
+    fn openai_config_defaults_to_1536_when_unset() {
+        // ENG-AUD-2026-S12-0004
+        let cfg = engram_core::Config {
+            embedding_backend: "openai".to_string(),
+            openai_api_key: Some("test-key".to_string()),
+            openai_embed_dim: None,
+            ..Default::default()
+        };
+        let embedder = build_embedder(&cfg).expect("build_embedder must succeed for openai");
+        assert_eq!(
+            embedder.dimension(),
+            1536,
+            "ENG-AUD-2026-S12-0004: embedder must default to dim=1536 when openai_embed_dim is not set"
+        );
     }
 }
 

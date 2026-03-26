@@ -1036,9 +1036,18 @@ impl Engram {
             };
             if ga_exists {
                 let ga_path = ga_path.expect("ga_exists implies Ok"); // safe
-                let markup = tokio::fs::read_to_string(&ga_path)
-                    .await
-                    .unwrap_or_default();
+                let markup = match tokio::fs::read_to_string(&ga_path).await {
+                    Ok(s) => s,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read Global.asax at {:?}: {}",
+                            ga_path,
+                            e
+                        );
+                        String::new()
+                    }
+                };
                 let cb = {
                     let cs = safe_join(Path::new(&project_dir), "Global.asax.cs");
                     let vb = safe_join(Path::new(&project_dir), "Global.asax.vb");
@@ -1070,7 +1079,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read code file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1086,7 +1106,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                let content = std::fs::read_to_string(&full).ok()?;
+                let content = match std::fs::read_to_string(&full) {
+                    Ok(c) => c,
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => return None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read project file {:?}: {}",
+                            full,
+                            e
+                        );
+                        return None;
+                    }
+                };
                 let info = engram_index::solution_parser::parse_project_file(&content, &rel);
                 let mut nuget_refs = Vec::new();
                 let mut asm_refs = Vec::new();
@@ -1122,7 +1153,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read SQL file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1131,7 +1173,18 @@ impl Engram {
             .filter(|p| p.ends_with("packages.config"))
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read packages.config {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1146,7 +1199,18 @@ impl Engram {
             })
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read config transform {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1154,7 +1218,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read resx file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1162,7 +1237,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read master file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1782,7 +1868,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read code file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1865,7 +1962,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read SQL file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -1883,7 +1991,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read code file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -2199,7 +2318,18 @@ impl Engram {
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read SQL file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -2580,7 +2710,18 @@ impl Engram {
             .filter(|p| filter_matches(p))
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read JS file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
@@ -2589,7 +2730,18 @@ impl Engram {
             .filter(|p| filter_matches(p))
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                std::fs::read_to_string(&full).ok().map(|c| (rel, c))
+                match std::fs::read_to_string(&full) {
+                    Ok(c) => Some((rel, c)),
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                    Err(e) => {
+                        tracing::warn!(
+                            "ENG-AUD-2026-S10-0003: failed to read markup file {:?}: {}",
+                            full,
+                            e
+                        );
+                        None
+                    }
+                }
             })
             .collect();
 
