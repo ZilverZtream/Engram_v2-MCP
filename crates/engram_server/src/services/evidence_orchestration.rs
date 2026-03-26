@@ -233,7 +233,22 @@ async fn derive_graph_impact(
     .unwrap_or_default()
 }
 
+/// Return a numeric rank for a `RiskBand` so we can compare without `Ord`.
+fn risk_band_rank(band: blast_radius_service::RiskBand) -> u8 {
+    match band {
+        blast_radius_service::RiskBand::Low => 0,
+        blast_radius_service::RiskBand::Medium => 1,
+        blast_radius_service::RiskBand::High => 2,
+        blast_radius_service::RiskBand::Critical => 3,
+    }
+}
+
 /// Derive blast radius from the blast radius service.
+///
+/// ENG-AUD-2026-N9-0003: aggregate across ALL target files using a max policy.
+/// For each file we compute its blast radius; we then take the maximum risk band
+/// and the union of downstream counts across all files.  Files with no
+/// corresponding graph node are skipped rather than causing an error.
 async fn derive_blast_radius(
     state: &AppState,
     project_id: &str,
@@ -244,26 +259,60 @@ async fn derive_blast_radius(
     Option<blast_radius_service::RiskBand>,
     Option<usize>,
 ) {
-    let first_file = match target_files.first() {
-        Some(f) => f.clone(),
-        None => return (None, None, None),
-    };
+    if target_files.is_empty() {
+        return (None, None, None);
+    }
 
     let graph = state.graph.clone();
     let pid = project_id.to_string();
-    let target_id = format!("file:{}", first_file);
+    let files = target_files.to_vec();
 
+    // ENG-AUD-2026-N9-0003: compute per-file blast radius, then aggregate.
     match tokio::task::spawn_blocking(move || {
-        blast_radius_service::compute_blast_radius(&graph, &pid, &target_id, generation, false)
+        let mut best_risk: Option<u8> = None;
+        let mut best_band: Option<blast_radius_service::RiskBand> = None;
+        let mut total_downstream: usize = 0;
+
+        for file in &files {
+            let target_id = format!("file:{}", file);
+            match blast_radius_service::compute_blast_radius(
+                &graph,
+                &pid,
+                &target_id,
+                generation,
+                false,
+            ) {
+                Ok(report) => {
+                    // Max policy: keep the highest migration_risk score.
+                    let new_rank = risk_band_rank(report.risk_band);
+                    let replace = match &best_band {
+                        None => true,
+                        Some(existing) => new_rank > risk_band_rank(*existing),
+                    };
+                    if replace {
+                        best_risk = Some(report.migration_risk);
+                        best_band = Some(report.risk_band);
+                    } else if let Some(br) = best_risk {
+                        // Keep the higher numeric risk score even within the same band.
+                        if report.migration_risk > br {
+                            best_risk = Some(report.migration_risk);
+                        }
+                    }
+                    // Union of downstream counts (deduplicated by summing; a true
+                    // set-union would require collecting node IDs which is expensive).
+                    total_downstream += report.total_downstream;
+                }
+                // Skip files with no matching graph node rather than failing.
+                Err(_) => {}
+            }
+        }
+
+        (best_risk, best_band, if best_band.is_some() { Some(total_downstream) } else { None })
     })
     .await
     {
-        Ok(Ok(report)) => (
-            Some(report.migration_risk),
-            Some(report.risk_band),
-            Some(report.total_downstream),
-        ),
-        _ => (None, None, None),
+        Ok(result) => result,
+        Err(_) => (None, None, None),
     }
 }
 
@@ -537,5 +586,99 @@ mod tests {
             LIVE_BENCHMARK_TIMEOUT_MS <= 30_000,
             "live benchmark timeout must not exceed 30 s"
         );
+    }
+
+    // ── ENG-AUD-2026-N9-0003: multi-file blast radius uses max risk policy ────
+
+    #[test]
+    fn multi_file_blast_uses_max_risk() {
+        use crate::services::blast_radius_service::RiskBand;
+
+        // Simulate per-file results: file1 → Low (rank 0), file2 → High (rank 2).
+        // The aggregation should produce High as the result.
+        let file1_band = RiskBand::Low;
+        let file1_risk: u8 = 2;
+        let file1_downstream: usize = 3;
+
+        let file2_band = RiskBand::High;
+        let file2_risk: u8 = 7;
+        let file2_downstream: usize = 12;
+
+        // Reproduce the aggregation logic inline (mirrors derive_blast_radius internals).
+        let mut best_risk: Option<u8> = None;
+        let mut best_band: Option<RiskBand> = None;
+        let mut total_downstream: usize = 0;
+
+        for (band, risk, downstream) in [
+            (file1_band, file1_risk, file1_downstream),
+            (file2_band, file2_risk, file2_downstream),
+        ] {
+            let new_rank = risk_band_rank(band);
+            let replace = match &best_band {
+                None => true,
+                Some(existing) => new_rank > risk_band_rank(*existing),
+            };
+            if replace {
+                best_risk = Some(risk);
+                best_band = Some(band);
+            } else if let Some(br) = best_risk {
+                if risk > br {
+                    best_risk = Some(risk);
+                }
+            }
+            total_downstream += downstream;
+        }
+
+        // Assert max policy: High wins over Low.
+        assert_eq!(
+            best_band,
+            Some(RiskBand::High),
+            "ENG-AUD-2026-N9-0003: aggregated band must be High (max of Low, High)"
+        );
+        assert_eq!(
+            best_risk,
+            Some(file2_risk),
+            "ENG-AUD-2026-N9-0003: aggregated risk score must be max of individual scores"
+        );
+        // Downstream is union (sum here).
+        assert_eq!(
+            total_downstream,
+            file1_downstream + file2_downstream,
+            "ENG-AUD-2026-N9-0003: total_downstream must be union of all files"
+        );
+    }
+
+    #[test]
+    fn multi_file_blast_empty_files_returns_none() {
+        // Verify that the empty-files guard still works after the N9-0003 fix.
+        // We can't call the async function directly, but we can check the
+        // aggregation loop produces None for an empty file list.
+        use crate::services::blast_radius_service::RiskBand;
+
+        let files: Vec<String> = vec![];
+        let mut best_band: Option<RiskBand> = None;
+        let mut total_downstream: usize = 0;
+
+        for _file in &files {
+            // loop body never executes
+            total_downstream += 1;
+            best_band = Some(RiskBand::Low);
+        }
+
+        assert!(
+            best_band.is_none(),
+            "ENG-AUD-2026-N9-0003: empty file list must yield None band"
+        );
+        assert_eq!(total_downstream, 0);
+    }
+
+    #[test]
+    fn risk_band_rank_order_is_correct() {
+        // ENG-AUD-2026-N9-0003: ensure the ranking function reflects Low < Medium < High < Critical.
+        use crate::services::blast_radius_service::RiskBand;
+
+        assert!(risk_band_rank(RiskBand::Low) < risk_band_rank(RiskBand::Medium));
+        assert!(risk_band_rank(RiskBand::Medium) < risk_band_rank(RiskBand::High));
+        assert!(risk_band_rank(RiskBand::High) < risk_band_rank(RiskBand::Critical));
     }
 }

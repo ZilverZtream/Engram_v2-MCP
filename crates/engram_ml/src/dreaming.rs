@@ -263,6 +263,10 @@ impl LlmBackend {
 #[derive(Clone, Default)]
 pub struct DreamingEngine {
     llm: Option<LlmBackendHandle>,
+    /// True when `with_config` encountered an invalid backend and fell back to
+    /// no-LLM mode.  Callers can inspect this flag to detect silent degradation
+    /// at runtime. (ENG-AUD-2026-N12-0005)
+    pub degraded: bool,
 }
 
 /// Inner handle so the engine is Clone/Default even when holding the config.
@@ -273,7 +277,7 @@ struct LlmBackendHandle {
 
 impl DreamingEngine {
     pub fn new() -> Self {
-        Self { llm: None }
+        Self { llm: None, degraded: false }
     }
 
     /// Create a dreaming engine with a real LLM backend configured from Config.
@@ -282,21 +286,30 @@ impl DreamingEngine {
     /// the engine falls back to no-LLM mode so that the server can still start.
     /// Callers that want hard failures should use `LlmBackend::from_config`
     /// directly.
+    ///
+    /// Callers can detect the degraded state via `is_degraded()`. (ENG-AUD-2026-N12-0005)
     pub fn with_config(cfg: &engram_core::Config) -> Self {
-        let backend = match LlmBackend::from_config(cfg) {
-            Ok(b) => b,
+        let (backend, degraded) = match LlmBackend::from_config(cfg) {
+            Ok(b) => (b, false),
             Err(e) => {
                 tracing::error!(
                     error = %e,
-                    "DreamingEngine: invalid LLM config — falling back to no-LLM mode"
+                    "ENG-AUD-2026-N12-0005: DreamingEngine: invalid LLM config — falling back to no-LLM mode"
                 );
-                LlmBackend::default()
+                (LlmBackend::default(), true)
             }
         };
         let llm = backend
             .provider()
             .map(|provider| LlmBackendHandle { provider });
-        Self { llm }
+        Self { llm, degraded }
+    }
+
+    /// Returns `true` when `with_config` encountered an invalid backend and
+    /// fell back to no-LLM mode.  Always `false` for engines created with
+    /// `new()`. (ENG-AUD-2026-N12-0005)
+    pub fn is_degraded(&self) -> bool {
+        self.degraded
     }
 
     /// Public entry point with timeout and fallback logic.
@@ -1019,5 +1032,57 @@ mod dreaming_fallback_tests {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod degraded_flag_tests {
+    use super::*;
+
+    fn make_cfg(backend: &str) -> engram_core::Config {
+        engram_core::Config {
+            llm_backend: backend.to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// ENG-AUD-2026-N12-0005: with_config must set degraded=true when the backend
+    /// string is unrecognised so callers can detect the degraded state at runtime.
+    #[test]
+    fn invalid_config_sets_degraded_flag() {
+        let cfg = make_cfg("totally_unknown_backend_xyz");
+        let engine = DreamingEngine::with_config(&cfg);
+        assert!(
+            engine.is_degraded(),
+            "ENG-AUD-2026-N12-0005: engine must report degraded=true after invalid backend config"
+        );
+    }
+
+    /// ENG-AUD-2026-N12-0005: engines created with new() or with a valid config
+    /// must NOT be considered degraded.
+    #[test]
+    fn valid_config_is_not_degraded() {
+        // new() should never be degraded
+        let engine = DreamingEngine::new();
+        assert!(
+            !engine.is_degraded(),
+            "ENG-AUD-2026-N12-0005: DreamingEngine::new() must not be degraded"
+        );
+
+        // A known backend ("none") should also not be degraded
+        let cfg = make_cfg("none");
+        let engine2 = DreamingEngine::with_config(&cfg);
+        assert!(
+            !engine2.is_degraded(),
+            "ENG-AUD-2026-N12-0005: with_config(none) must not be degraded"
+        );
+
+        // Empty backend string (maps to "none") should also not be degraded
+        let cfg3 = make_cfg("");
+        let engine3 = DreamingEngine::with_config(&cfg3);
+        assert!(
+            !engine3.is_degraded(),
+            "ENG-AUD-2026-N12-0005: with_config(\"\") must not be degraded"
+        );
     }
 }

@@ -359,18 +359,25 @@ pub fn suggest_migration_order(
 
                 // Break the cycle: force-release the node in the cycle with
                 // the lowest in-degree (least dependencies).
+                // When in-degrees are tied, pick lexicographically smallest ID
+                // for determinism. [ENG-AUD-2026-N10-0004]
                 let break_node = cycle
                     .iter()
                     .filter(|id| remaining.contains(*id))
-                    .min_by_key(|id| in_degree.get(*id).copied().unwrap_or(0))
+                    .min_by(|a, b| {
+                        let da = in_degree.get(*a).copied().unwrap_or(0);
+                        let db = in_degree.get(*b).copied().unwrap_or(0);
+                        da.cmp(&db).then_with(|| a.cmp(b))
+                    })
                     .cloned();
 
                 if let Some(bn) = break_node {
                     zero.push(bn.clone());
                 } else {
-                    // Fallback: just take the first remaining node to avoid
-                    // an infinite loop.
-                    if let Some(first) = remaining.iter().next().cloned() {
+                    // Fallback: take the lexicographically smallest remaining
+                    // node to avoid an infinite loop while remaining deterministic.
+                    // [ENG-AUD-2026-N10-0004]
+                    if let Some(first) = remaining.iter().min().cloned() {
                         zero.push(first);
                     } else {
                         break;
@@ -378,7 +385,11 @@ pub fn suggest_migration_order(
                 }
             } else {
                 // No cycle found but nodes remain (shouldn't happen); bail out.
-                for id in remaining.drain().collect::<Vec<_>>() {
+                // Drain in sorted order for deterministic output.
+                // [ENG-AUD-2026-N10-0004]
+                let mut leftover: Vec<String> = remaining.drain().collect();
+                leftover.sort();
+                for id in leftover {
                     zero.push(id);
                 }
             }
@@ -388,7 +399,12 @@ pub fn suggest_migration_order(
             break;
         }
 
-        // Sort for deterministic output.
+        // [ENG-AUD-2026-N10-0004] Sort at the top of every wave iteration so
+        // that the wave order is fully deterministic regardless of which path
+        // populated `zero` (initial seed, cycle-break, or fallback drain).
+        // The initial seed comes from a HashSet iterator whose order is
+        // hash-table-layout-dependent; the cycle-break paths may also yield
+        // non-deterministic orderings without this sort.
         zero.sort();
 
         // Remove placed nodes and reduce in-degrees.
@@ -939,5 +955,74 @@ mod tests {
         assert_eq!(file_type_from_path("Report.rdlc"), "report");
         assert_eq!(file_type_from_path("legacy.asp"), "asp");
         assert_eq!(file_type_from_path("unknown.xyz"), "other");
+    }
+
+    // ── Test 11: ENG-AUD-2026-N10-0004 — topological sort is deterministic ───
+    //
+    // Builds a graph with 5 nodes and multiple dependency edges, runs the sort
+    // twice with the same input, and asserts the resulting wave sequences are
+    // identical. This guards against nondeterminism from HashSet iteration.
+
+    #[test]
+    fn topo_sort_is_deterministic_across_repeated_calls() {
+        // Graph layout (A depends on E, B depends on E, C depends on A and B,
+        // D depends on C — produces waves: [E] → [A, B] → [C] → [D]):
+        //   E  (no deps)
+        //   A → E
+        //   B → E
+        //   C → A, B
+        //   D → C
+
+        let run_once = |proj: &str| {
+            let dir = TempDir::new().unwrap();
+            let graph = make_store(&dir);
+            add_file_node(&graph, proj, "node:e.vb", "e.vb");
+            add_file_node(&graph, proj, "node:a.vb", "a.vb");
+            add_file_node(&graph, proj, "node:b.vb", "b.vb");
+            add_file_node(&graph, proj, "node:c.vb", "c.vb");
+            add_file_node(&graph, proj, "node:d.vb", "d.vb");
+            add_dep_edge(&graph, proj, "node:a.vb", "node:e.vb");
+            add_dep_edge(&graph, proj, "node:b.vb", "node:e.vb");
+            add_dep_edge(&graph, proj, "node:c.vb", "node:a.vb");
+            add_dep_edge(&graph, proj, "node:c.vb", "node:b.vb");
+            add_dep_edge(&graph, proj, "node:d.vb", "node:c.vb");
+            suggest_migration_order(&graph, proj).unwrap()
+        };
+
+        // Run twice with independent stores (same logical graph, different
+        // in-memory hash states to expose any HashSet ordering sensitivity).
+        let plan1 = run_once("det_test_run1");
+        let plan2 = run_once("det_test_run2");
+
+        // Both plans must have the same number of waves.
+        assert_eq!(
+            plan1.waves.len(),
+            plan2.waves.len(),
+            "wave count must be identical across runs"
+        );
+
+        // Each wave must list files in the same order.
+        for (w1, w2) in plan1.waves.iter().zip(plan2.waves.iter()) {
+            let paths1: Vec<&str> = w1.files.iter().map(|f| f.path.as_str()).collect();
+            let paths2: Vec<&str> = w2.files.iter().map(|f| f.path.as_str()).collect();
+            assert_eq!(
+                paths1, paths2,
+                "wave {} file order must be identical: run1={:?} run2={:?}",
+                w1.wave_number, paths1, paths2
+            );
+        }
+
+        // Validate the expected wave structure (regression guard).
+        assert_eq!(plan1.waves.len(), 4, "expected 4 waves for 5-node fan-in chain");
+
+        let wave1_paths: Vec<&str> = plan1.waves[0].files.iter().map(|f| f.path.as_str()).collect();
+        let wave2_paths: Vec<&str> = plan1.waves[1].files.iter().map(|f| f.path.as_str()).collect();
+        let wave3_paths: Vec<&str> = plan1.waves[2].files.iter().map(|f| f.path.as_str()).collect();
+        let wave4_paths: Vec<&str> = plan1.waves[3].files.iter().map(|f| f.path.as_str()).collect();
+
+        assert_eq!(wave1_paths, vec!["e.vb"], "wave 1 must contain only e.vb");
+        assert_eq!(wave2_paths, vec!["a.vb", "b.vb"], "wave 2 must be [a.vb, b.vb] sorted");
+        assert_eq!(wave3_paths, vec!["c.vb"], "wave 3 must contain only c.vb");
+        assert_eq!(wave4_paths, vec!["d.vb"], "wave 4 must contain only d.vb");
     }
 }

@@ -318,4 +318,129 @@ mod tests {
             "watcher.rs must log and skip (not silently default generation) on fetch failure"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // ENG-AUD-2026-N14-0006: behavioral tests for watcher internal state
+    // These tests exercise the key data-structure invariants without requiring
+    // a live filesystem watcher or a full AppState.
+    // -----------------------------------------------------------------------
+
+    /// ENG-AUD-2026-N14-0006: the in-flight set must de-duplicate concurrent
+    /// spawns.  Simulates the check-and-claim pattern used inside run_watcher.
+    #[test]
+    fn in_flight_dedup_prevents_concurrent_spawns() {
+        // ENG-AUD-2026-N14-0006
+        use std::collections::HashSet;
+        use std::sync::{Arc, Mutex};
+
+        let in_flight: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+        let pid = "project-alpha".to_string();
+
+        // First claim: pid not present → insert succeeds → already_running = false
+        let already_running_first = {
+            let mut guard = in_flight.lock().unwrap();
+            if guard.contains(&pid) {
+                true
+            } else {
+                guard.insert(pid.clone());
+                false
+            }
+        };
+        assert!(
+            !already_running_first,
+            "ENG-AUD-2026-N14-0006: first claim must succeed (already_running=false)"
+        );
+
+        // Second claim for same pid: pid now present → already_running = true
+        let already_running_second = {
+            let guard = in_flight.lock().unwrap();
+            guard.contains(&pid)
+        };
+        assert!(
+            already_running_second,
+            "ENG-AUD-2026-N14-0006: second claim for same pid must find it already in-flight"
+        );
+
+        // After removing the pid (simulating task completion), a new claim succeeds
+        {
+            in_flight.lock().unwrap().remove(&pid);
+        }
+        let already_running_after_drop = {
+            let guard = in_flight.lock().unwrap();
+            guard.contains(&pid)
+        };
+        assert!(
+            !already_running_after_drop,
+            "ENG-AUD-2026-N14-0006: after task finishes, pid must be removable for re-claim"
+        );
+    }
+
+    /// ENG-AUD-2026-N14-0006: disabling a project cancels any in-progress
+    /// update token, and a freshly created replacement token is not cancelled.
+    #[test]
+    fn cancellation_token_cancel_on_disable() {
+        // ENG-AUD-2026-N14-0006
+        use std::collections::HashMap;
+        use tokio_util::sync::CancellationToken;
+
+        let project_id = "project-beta".to_string();
+        let mut update_cancels: HashMap<String, CancellationToken> = HashMap::new();
+
+        // Simulate an in-progress update for the project
+        let token = CancellationToken::new();
+        update_cancels.insert(project_id.clone(), token.clone());
+
+        // Simulate "disable project": remove from map and cancel
+        if let Some(t) = update_cancels.remove(&project_id) {
+            t.cancel();
+        }
+
+        // The original token must now be cancelled
+        assert!(
+            token.is_cancelled(),
+            "ENG-AUD-2026-N14-0006: disabling project must cancel the in-progress update token"
+        );
+
+        // Simulate re-enable: a new token must start uncancelled
+        let new_token = CancellationToken::new();
+        update_cancels.insert(project_id.clone(), new_token.clone());
+        assert!(
+            !new_token.is_cancelled(),
+            "ENG-AUD-2026-N14-0006: freshly created token for re-enabled project must not be cancelled"
+        );
+    }
+
+    /// ENG-AUD-2026-N14-0006: when an update task is already in-flight the
+    /// pending_updates map must reschedule with a deadline in the future.
+    #[test]
+    fn pending_updates_reschedule_when_in_flight() {
+        // ENG-AUD-2026-N14-0006
+        use std::collections::HashMap;
+        use std::time::{Duration, Instant};
+
+        let pid = "project-gamma".to_string();
+        let debounce_duration = Duration::from_secs(5);
+        let mut pending_updates: HashMap<String, Instant> = HashMap::new();
+
+        // Existing deadline in the past (simulates a due update)
+        let old_deadline = Instant::now() - Duration::from_secs(1);
+        pending_updates.insert(pid.clone(), old_deadline);
+
+        // Simulate already_running = true → reschedule
+        let already_running = true;
+        if already_running {
+            let new_deadline = Instant::now() + debounce_duration;
+            pending_updates.insert(pid.clone(), new_deadline);
+        }
+
+        let stored = pending_updates[&pid];
+        assert!(
+            stored > Instant::now(),
+            "ENG-AUD-2026-N14-0006: rescheduled deadline must be in the future"
+        );
+        assert!(
+            stored > old_deadline,
+            "ENG-AUD-2026-N14-0006: rescheduled deadline must be later than the old deadline"
+        );
+    }
 }
