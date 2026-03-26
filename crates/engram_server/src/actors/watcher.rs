@@ -120,6 +120,15 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                             fn drop(&mut self) {
                                 if let Ok(mut g) = self.map.try_lock() {
                                     g.remove(&self.pid);
+                                } else {
+                                    // Lock was contended at drop time — spawn a task so
+                                    // the entry is eventually removed, preventing the
+                                    // project from being stuck in-flight indefinitely.
+                                    let map = self.map.clone();
+                                    let pid = self.pid.clone();
+                                    tokio::spawn(async move {
+                                        map.lock().await.remove(&pid);
+                                    });
                                 }
                             }
                         }

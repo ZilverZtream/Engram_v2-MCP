@@ -591,38 +591,9 @@ impl Engram {
         tantivy_dir: PathBuf,
         lancedb_dir: PathBuf,
     ) -> Result<String, McpError> {
-        let job_id = Uuid::new_v4().to_string();
-        let now = now_ms();
-        let job = JobRecord {
-            job_id: job_id.clone(),
-            kind: "index_project".into(),
-            project_id: Some(project_id.clone()),
-            status: "running".into(),
-            message: "indexing directory".into(),
-            progress_pct: 0,
-            estimated_time_remaining_ms: None,
-            created_at_ms: now,
-            updated_at_ms: now,
-        };
-
-        let reg = self.state.registry.clone();
-        tokio::task::spawn_blocking({
-            let job = job.clone();
-            move || reg.put_job(&job)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(format!("failed to persist job: {e}"), None))?
-        .map_err(|e| {
-            McpError::internal_error(format!("failed to persist job record: {e}"), None)
-        })?;
-
-        let reg2 = self.state.registry.clone();
-        let active_jobs = self.state.active_jobs.clone();
-        let cancellation_tokens = self.state.cancellation_tokens.clone();
+        // Enforce concurrency limit BEFORE creating the job record so that a
+        // rejected request never leaves a phantom "running" entry in the registry.
         let state_for_spawn = self.state.clone();
-        let project_id_for_job = project_id.clone();
-        let job_id_for_job = job_id.clone();
-
         let max_jobs = state_for_spawn.cfg.max_concurrent_jobs;
         if state_for_spawn
             .active_indexing_count
@@ -644,6 +615,45 @@ impl Engram {
                 None,
             ));
         }
+
+        // Limit accepted — now safe to persist the "running" job record.
+        let job_id = Uuid::new_v4().to_string();
+        let now = now_ms();
+        let job = JobRecord {
+            job_id: job_id.clone(),
+            kind: "index_project".into(),
+            project_id: Some(project_id.clone()),
+            status: "running".into(),
+            message: "indexing directory".into(),
+            progress_pct: 0,
+            estimated_time_remaining_ms: None,
+            created_at_ms: now,
+            updated_at_ms: now,
+        };
+
+        let reg = self.state.registry.clone();
+        let persist_result = tokio::task::spawn_blocking({
+            let job = job.clone();
+            move || reg.put_job(&job)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(format!("failed to persist job: {e}"), None))?;
+        if let Err(e) = persist_result {
+            // Release the slot we already claimed before bailing out.
+            state_for_spawn
+                .active_indexing_count
+                .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+            return Err(McpError::internal_error(
+                format!("failed to persist job record: {e}"),
+                None,
+            ));
+        }
+
+        let reg2 = self.state.registry.clone();
+        let active_jobs = self.state.active_jobs.clone();
+        let cancellation_tokens = self.state.cancellation_tokens.clone();
+        let project_id_for_job = project_id.clone();
+        let job_id_for_job = job_id.clone();
 
         let token = tokio_util::sync::CancellationToken::new();
         {

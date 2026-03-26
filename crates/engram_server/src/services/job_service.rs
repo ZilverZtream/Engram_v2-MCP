@@ -48,6 +48,38 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
         }
         true
     } else {
-        false
+        // Cancellation token not found — check for divergence where active_jobs
+        // still holds a handle with no corresponding token and abort if present.
+        let mut handles = state.active_jobs.write().await;
+        if let Some(h) = handles.remove(job_id) {
+            h.abort();
+            drop(handles);
+            let reg = state.registry.clone();
+            let jid = job_id.to_string();
+            if let Err(e) = tokio::task::spawn_blocking(move || {
+                let now = now_ms();
+                let jr = JobRecord {
+                    job_id: jid.clone(),
+                    kind: "unknown".into(),
+                    project_id: None,
+                    status: "cancelled".into(),
+                    message: "cancelled by user (token/handle divergence recovery)".into(),
+                    progress_pct: 0,
+                    estimated_time_remaining_ms: None,
+                    created_at_ms: now,
+                    updated_at_ms: now,
+                };
+                if let Err(e) = reg.put_job(&jr) {
+                    tracing::warn!(job_id = %jid, "failed to persist cancelled-job tombstone (divergence): {e}");
+                }
+            })
+            .await
+            {
+                tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone (divergence): {e}");
+            }
+            true
+        } else {
+            false
+        }
     }
 }
