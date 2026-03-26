@@ -563,6 +563,19 @@ impl Config {
             }
         }
 
+        // Reject unknown embedding backends — unknown values silently fall back to
+        // ProjectionEmbedder, which degrades retrieval quality without any signal.
+        if !self.embedding_backend.is_empty() {
+            match self.embedding_backend.as_str() {
+                "local" | "candle" | "openai" | "remote" | "ollama" | "fts_only" => {}
+                other => {
+                    return Err(EngramError::Config(format!(
+                        "embedding_backend must be one of: local, candle, openai, remote, ollama, fts_only (got '{other}')"
+                    )));
+                }
+            }
+        }
+
         if let Some(provider) = &self.llm_provider {
             match provider.as_str() {
                 "openai" | "openrouter" => {}
@@ -678,5 +691,53 @@ impl Config {
         }
         cfg.validate()?;
         Ok(cfg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Gate: ENG-AUD-0006 — unknown embedding_backend must be rejected by validate(),
+    /// not silently coerced to ProjectionEmbedder.
+    #[test]
+    fn validate_rejects_unknown_embedding_backend() {
+        let cfg = Config {
+            embedding_backend: "bad_backend_xyz".into(),
+            ..Config::default()
+        };
+        let result = cfg.validate();
+        assert!(result.is_err(), "validate() must reject unknown embedding_backend");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("embedding_backend"),
+            "error message should mention the field name; got: {msg}"
+        );
+    }
+
+    /// All documented embedding backends must be accepted without error.
+    #[test]
+    fn validate_accepts_all_known_embedding_backends() {
+        for backend in &["local", "candle", "openai", "remote", "ollama", "fts_only"] {
+            let cfg = Config {
+                embedding_backend: backend.to_string(),
+                ..Config::default()
+            };
+            assert!(
+                cfg.validate().is_ok(),
+                "validate() should accept known backend '{backend}'"
+            );
+        }
+    }
+
+    /// Empty embedding_backend (the Default value) must pass validate() so that
+    /// load_from_path's fill-in-default logic continues to work.
+    #[test]
+    fn validate_accepts_empty_embedding_backend() {
+        let cfg = Config::default();
+        assert!(
+            cfg.validate().is_ok(),
+            "validate() must accept empty embedding_backend (default fill-in path)"
+        );
     }
 }

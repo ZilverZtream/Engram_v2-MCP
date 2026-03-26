@@ -41,7 +41,16 @@ fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
     // safe_join canonicalises intermediate components and rejects symlinks that
     // escape the root directory.
     rels.iter()
-        .filter_map(|r| engram_core::safe_join(root, r).ok())
+        .filter_map(|r| {
+            engram_core::safe_join(root, r)
+                .map_err(|e| {
+                    tracing::warn!(
+                        path = %r,
+                        "resume-state path rejected and will be skipped: {e}"
+                    );
+                })
+                .ok()
+        })
         .collect()
 }
 
@@ -351,7 +360,22 @@ impl Engram {
             updated_at_ms: now_ms(),
             error: None,
         };
-        let _ = tokio::task::spawn_blocking(move || store.put(&cp)).await;
+        let jid = cp.job_id.clone();
+        match tokio::task::spawn_blocking(move || store.put(&cp)).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::warn!(
+                    job_id = %jid,
+                    "checkpoint write failed — resumability may be lost: {e}"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    job_id = %jid,
+                    "checkpoint write task panicked — resumability may be lost: {e}"
+                );
+            }
+        }
     }
 
     async fn resumable_checkpoint(
