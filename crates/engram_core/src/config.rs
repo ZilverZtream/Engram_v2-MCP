@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+// ENG-AUD-2026-N2-0001: reject unknown YAML keys so operator typos are caught at startup.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     /// Allowed roots for indexing (security boundary).
     pub allowed_roots: Vec<PathBuf>,
@@ -793,6 +795,56 @@ mod tests {
         assert!(
             cfg.validate().is_ok(),
             "validate() must accept empty llm_backend (default fill-in path)"
+        );
+    }
+
+    // ── load_from_path tests (ENG-AUD-2026-N2-0001) ──────────────────────────
+
+    /// ENG-AUD-2026-N2-0001: An unknown YAML key must cause load_from_path to
+    /// return Err, and the error message must contain the unknown key name.
+    #[test]
+    fn unknown_config_key_is_rejected() {
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+        let path = dir.join("engram_unknown_key_test.yaml");
+        {
+            let mut f = std::fs::File::create(&path).expect("create temp yaml");
+            writeln!(
+                f,
+                "allowed_roots: [/tmp]\ndata_dir: /tmp\nunknown_typo_key: true\n"
+            )
+            .expect("write yaml");
+        }
+        let result = Config::load_from_path(&path);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            result.is_err(),
+            // ENG-AUD-2026-N2-0001: unknown keys must be rejected, not silently ignored
+            "load_from_path must return Err when an unknown YAML key is present"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("unknown_typo_key"),
+            "error message must contain the unknown key name; got: {msg}"
+        );
+    }
+
+    /// ENG-AUD-2026-N2-0001 positive path: a minimal valid config must parse without error.
+    #[test]
+    fn known_keys_parse_successfully() {
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+        let path = dir.join("engram_known_keys_test.yaml");
+        {
+            let mut f = std::fs::File::create(&path).expect("create temp yaml");
+            writeln!(f, "allowed_roots: [/tmp]\ndata_dir: /tmp\n").expect("write yaml");
+        }
+        let result = Config::load_from_path(&path);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            result.is_ok(),
+            "load_from_path must succeed for a minimal valid config; err: {:?}",
+            result.err()
         );
     }
 }
