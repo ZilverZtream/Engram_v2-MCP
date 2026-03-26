@@ -214,4 +214,36 @@ async fn test_zip_history_background_cancel_removes_token() {
             "token must be removed after cancellation"
         );
     }
+
+    // Poll until the job record reflects a terminal status (cancelled or failed).
+    // The tombstone write inside cancel_job_internal is async (spawn_blocking),
+    // so we give it a short window to propagate.
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        if let Ok(Some(j)) = state.registry.get_job(&job_id) {
+            if j.status == "cancelled" || j.status == "failed" {
+                break;
+            }
+        }
+        if std::time::Instant::now() > deadline {
+            let status = state
+                .registry
+                .get_job(&job_id)
+                .ok()
+                .flatten()
+                .map(|j| j.status.clone())
+                .unwrap_or_else(|| "<not found>".into());
+            panic!(
+                "job did not reach terminal status within 5 s after cancel; last status: {status}"
+            );
+        }
+    }
+
+    let job = state.registry.get_job(&job_id).unwrap().unwrap();
+    assert!(
+        job.status == "cancelled" || job.status == "failed",
+        "job status must be 'cancelled' or 'failed' after cancel_job_internal; got '{}'",
+        job.status
+    );
 }
