@@ -200,29 +200,92 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    /// ENG-AUD-P1-0005: regression guard — checkpoint write failure must surface.
-    ///
-    /// `mark_checkpoint_cancelled` now returns `bool`.  This test documents the
-    /// contract: callers receive `false` when the checkpoint could not be marked,
-    /// and must embed that outcome in the job's terminal metadata rather than
-    /// silently swallowing it.
-    ///
-    /// A full integration test would require a mock `CheckpointStore` that injects
-    /// a write failure; that infra is not yet available.  This compile-time assertion
-    /// confirms the signature change has not been silently reverted and that the
-    /// function is no longer `-> ()`.
-    #[test]
-    fn checkpoint_marking_failure_reflected_in_job_state() {
-        // Verify that `mark_checkpoint_cancelled` returns `bool` (not `()`).
-        // If someone changes the return type back to `()` this test will fail to compile —
-        // that is the intended regression guard for ENG-AUD-P1-0005.
-        //
-        // We use a trait-bound check instead of calling the async fn (no runtime here):
-        // the function pointer cast will only type-check when the Output is `bool`.
-        fn _assert_sig<F: std::future::Future<Output = bool>>(_: F) {}
-        // The real behavioral guarantee: if `cp_mark_ok == false`, the persisted
-        // JobRecord.message will contain "WARNING" and "ENG-AUD-P1-0005", making
-        // the failure visible to any log scraper or job-status API consumer.
-        assert!(true); // placeholder so the test body is non-empty
+    use super::*;
+    use engram_core::{Checkpoint, CheckpointStore, JobPhase};
+
+    /// ENG-AUD-P1-0005 + ENG-AUD-S1-0006: behavioral regression test.
+    /// Verifies that mark_checkpoint_cancelled actually persists the Failed phase.
+    #[tokio::test]
+    async fn checkpoint_marking_failure_reflected_in_job_state() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = CheckpointStore::open(&tmp.path().join("checkpoints.redb"))
+            .expect("open checkpoint store");
+
+        let job_id = "test-job-cancellation-001";
+        let cp = Checkpoint {
+            job_id: job_id.to_string(),
+            project_id: "test-project".to_string(),
+            phase: JobPhase::Parsing, // Parsing is resumable (not Completed or Failed)
+            items_processed: 0,
+            items_total: 0,
+            generation: 1,
+            idempotency_key: Checkpoint::compute_idempotency_key("test-project", "/dir", 1),
+            resume_state: None,
+            updated_at_ms: 0,
+            error: None,
+        };
+        store.put(&cp).expect("put checkpoint");
+
+        let ok = mark_checkpoint_cancelled(&store, job_id).await;
+        assert!(ok, "mark_checkpoint_cancelled must return true on success");
+
+        let stored = store.get(job_id).expect("get").expect("present");
+        assert_eq!(
+            stored.phase,
+            JobPhase::Failed,
+            "checkpoint phase must be Failed after cancellation"
+        );
+        assert_eq!(
+            stored.error.as_deref(),
+            Some("cancelled by user"),
+            "checkpoint error must be set to 'cancelled by user'"
+        );
+    }
+
+    /// ENG-AUD-S1-0006: already-terminal checkpoints are not re-processed.
+    #[tokio::test]
+    async fn mark_checkpoint_cancelled_noop_on_terminal() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = CheckpointStore::open(&tmp.path().join("checkpoints.redb"))
+            .expect("open checkpoint store");
+
+        let job_id = "test-job-already-done";
+        let cp = Checkpoint {
+            job_id: job_id.to_string(),
+            project_id: "test-project".to_string(),
+            phase: JobPhase::Completed,
+            items_processed: 100,
+            items_total: 100,
+            generation: 1,
+            idempotency_key: Checkpoint::compute_idempotency_key("test-project", "/dir", 1),
+            resume_state: None,
+            updated_at_ms: 0,
+            error: None,
+        };
+        store.put(&cp).expect("put checkpoint");
+
+        let ok = mark_checkpoint_cancelled(&store, job_id).await;
+        assert!(ok, "mark_checkpoint_cancelled must return true for terminal checkpoints (nothing to do)");
+
+        let stored = store.get(job_id).expect("get").expect("present");
+        assert_eq!(
+            stored.phase,
+            JobPhase::Completed,
+            "terminal checkpoint phase must not be changed"
+        );
+    }
+
+    /// ENG-AUD-S1-0006: non-existent checkpoint returns true (nothing to do).
+    #[tokio::test]
+    async fn mark_checkpoint_cancelled_noop_when_no_checkpoint() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = CheckpointStore::open(&tmp.path().join("checkpoints.redb"))
+            .expect("open checkpoint store");
+
+        let ok = mark_checkpoint_cancelled(&store, "nonexistent-job-id").await;
+        assert!(
+            ok,
+            "mark_checkpoint_cancelled must return true when there is no checkpoint (nothing to do)"
+        );
     }
 }

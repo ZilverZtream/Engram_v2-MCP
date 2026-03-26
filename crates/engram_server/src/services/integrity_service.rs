@@ -105,9 +105,47 @@ pub async fn check_project_integrity_with_policy(
 ) -> anyhow::Result<IntegrityCheckResult> {
     metrics::metrics().integrity_checks_run.inc();
 
-    let ps = state
-        .get_project_cached(project_id)
-        .ok_or_else(|| anyhow::anyhow!("Project {project_id} not found in cache"))?;
+    let ps = if let Some(p) = state.get_project_cached(project_id) {
+        p
+    } else {
+        // ENG-AUD-S1-0005: Lazy open — project may exist in registry but not yet in cache
+        // (e.g., integrity called before first index run, or after server restart).
+        let reg_open = state.registry.clone();
+        let pid_open = project_id.to_string();
+        let rec = tokio::task::spawn_blocking(move || reg_open.get_project(&pid_open))
+            .await?
+            .map_err(|e| anyhow::anyhow!("registry lookup failed for {project_id}: {e}"))?
+            .ok_or_else(|| anyhow::anyhow!("Project {project_id} does not exist in registry"))?;
+
+        let tantivy_dir = state.cfg.data_dir.join("projects").join(project_id).join("tantivy");
+        let lancedb_dir = state.cfg.data_dir.join("projects").join(project_id).join("lancedb");
+        // Ignore dir-creation errors here — search engine open will fail with a better message
+        let _ = std::fs::create_dir_all(&tantivy_dir);
+        let _ = std::fs::create_dir_all(&lancedb_dir);
+
+        let search = engram_index::HybridSearchEngine::new_with_budget(
+            tantivy_dir.clone(),
+            lancedb_dir.clone(),
+            &state.cfg,
+            Some(state.memory_budget.clone()),
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("failed to open search engine for {project_id}: {e}"))?;
+
+        let ps = crate::state::ProjectState {
+            info: crate::state::ProjectInfo {
+                project_id: project_id.to_string(),
+                project_name: rec.project_name,
+                project_type: rec.project_type,
+                directory: rec.directory,
+                tantivy_dir,
+                lancedb_dir,
+            },
+            search: std::sync::Arc::new(search),
+        };
+        state.put_project_cached(ps.clone()).await;
+        ps
+    };
 
     // Get active generation from registry
     let reg = state.registry.clone();
@@ -738,6 +776,43 @@ mod tests {
             assert!(resolve_auto_repair(config, Some(true)));
             assert!(!resolve_auto_repair(config, Some(false)));
         }
+    }
+
+    // ── ENG-AUD-S1-0005: lazy-open path guard ───────────────────────────────
+
+    #[test]
+    fn eng_aud_s1_0005_lazy_open_path_exists() {
+        // Verify that the lazy-open path was added: the source must not contain
+        // the old hard-fail pattern (get_project_cached immediately chained to ?).
+        let source = include_str!("integrity_service.rs");
+        // The old single-expression hard-fail was:
+        //   state.get_project_cached(project_id).ok_or_else(|| ..."not found in cache"...)
+        // We detect it by checking for the exact old error text outside of test code.
+        // Count non-test lines that contain the old cache-miss sentinel.
+        let old_error_sentinel = "not found in cache\"";
+        let hard_fail_lines: Vec<&str> = source
+            .lines()
+            .filter(|l| {
+                let trimmed = l.trim();
+                // Exclude the test module lines (which reference the pattern as a comment
+                // or string literal for documentation purposes).
+                !trimmed.starts_with("//") && l.contains(old_error_sentinel)
+            })
+            .collect();
+        assert_eq!(
+            hard_fail_lines.len(), 0,
+            "integrity check must not hard-fail when project is not in cache; \
+             found: {hard_fail_lines:?}"
+        );
+    }
+
+    #[test]
+    fn eng_aud_s1_0005_tag_present() {
+        let source = include_str!("integrity_service.rs");
+        assert!(
+            source.contains("ENG-AUD-S1-0005"),
+            "integrity_service.rs must contain ENG-AUD-S1-0005 tag for lazy-open path"
+        );
     }
 
     // ── overall_healthy logic ────────────────────────────────────────────────

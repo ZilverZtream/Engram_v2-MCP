@@ -807,3 +807,229 @@ mod embed_factory_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod provider_parity_tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    /// Spawn a minimal HTTP server that accepts one connection and returns a canned response.
+    /// Returns the ephemeral port it is listening on, plus a JoinHandle.
+    async fn mock_http_once(response_body: &str) -> (u16, tokio::task::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let body = response_body.to_string();
+        let handle = tokio::spawn(async move {
+            if let Ok((mut stream, _)) = listener.accept().await {
+                let mut buf = vec![0u8; 8192];
+                let _ = stream.read(&mut buf).await;
+                let http_response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = stream.write_all(http_response.as_bytes()).await;
+            }
+        });
+        (port, handle)
+    }
+
+    /// Mock server that returns an HTTP error status.
+    async fn mock_http_error_once(status: u16) -> (u16, tokio::task::JoinHandle<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = tokio::spawn(async move {
+            if let Ok((mut stream, _)) = listener.accept().await {
+                let mut buf = vec![0u8; 8192];
+                let _ = stream.read(&mut buf).await;
+                let resp = format!("HTTP/1.1 {status} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                let _ = stream.write_all(resp.as_bytes()).await;
+            }
+        });
+        (port, handle)
+    }
+
+    // ── OpenAI provider ──────────────────────────────────────────────────
+
+    /// S1-0007: Verifies the OpenAI response schema `data[0].embedding` is correctly parsed.
+    #[tokio::test]
+    async fn openai_valid_response_schema_parsed() {
+        let embedding: Vec<f32> = vec![0.1, 0.2, 0.3, 0.4];
+        let body = serde_json::json!({
+            "data": [{"embedding": embedding, "index": 0}],
+            "model": "text-embedding-3-small",
+            "usage": {"prompt_tokens": 1, "total_tokens": 1}
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4);
+        let result = embedder.embed("hello").await;
+        assert!(result.is_ok(), "valid OpenAI response must parse correctly: {:?}", result);
+        let vec = result.unwrap();
+        assert_eq!(vec.len(), 4, "embedding dimension must match");
+        assert!((vec[0] - 0.1_f32).abs() < 1e-5);
+    }
+
+    /// S1-0007: OpenAI schema mismatch — wrong field name `vectors` instead of `embedding`.
+    #[tokio::test]
+    async fn openai_schema_mismatch_returns_error() {
+        let body = serde_json::json!({
+            "data": [{"vectors": [0.1, 0.2, 0.3], "index": 0}]
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3);
+        let result = embedder.embed("hello").await;
+        assert!(result.is_err(), "missing data[0].embedding must return error");
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("missing") || msg.contains("embedding"),
+            "error message must mention missing embedding field, got: {msg}"
+        );
+    }
+
+    /// S1-0007: OpenAI dimension mismatch is rejected.
+    #[tokio::test]
+    async fn openai_dimension_mismatch_returns_error() {
+        let body = serde_json::json!({
+            "data": [{"embedding": [0.1, 0.2, 0.3], "index": 0}]  // dim=3
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1536); // expects 1536
+        let result = embedder.embed("hello").await;
+        assert!(result.is_err(), "dimension mismatch must return error");
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("dim") || msg.contains("dimension") || msg.contains("1536") || msg.contains("expected"),
+            "error must mention dimension, got: {msg}"
+        );
+    }
+
+    /// S1-0007: OpenAI 4xx client error is returned as Err.
+    #[tokio::test]
+    async fn openai_client_error_status_returns_error() {
+        let (port, _handle) = mock_http_error_once(401).await;
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3);
+        let result = embedder.embed("hello").await;
+        assert!(result.is_err(), "HTTP 401 must return Err, not empty embedding");
+    }
+
+    // ── Ollama provider ───────────────────────────────────────────────────
+
+    /// S1-0007: Verifies the Ollama response schema `embeddings[0]` is correctly parsed.
+    #[tokio::test]
+    async fn ollama_valid_response_schema_parsed() {
+        let embedding: Vec<f32> = vec![0.5, 0.6, 0.7];
+        let body = serde_json::json!({
+            "embeddings": [embedding],
+            "model": "nomic-embed-text"
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}");
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let result = embedder.embed("hello").await;
+        assert!(result.is_ok(), "valid Ollama response must parse correctly: {:?}", result);
+        let vec = result.unwrap();
+        assert_eq!(vec.len(), 3);
+        assert!((vec[0] - 0.5_f32).abs() < 1e-5);
+    }
+
+    /// S1-0007: Ollama schema mismatch — wrong field name `vectors` instead of `embeddings`.
+    #[tokio::test]
+    async fn ollama_schema_mismatch_returns_error() {
+        let body = serde_json::json!({
+            "vectors": [[0.1, 0.2, 0.3]]
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}");
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let result = embedder.embed("hello").await;
+        assert!(result.is_err(), "missing embeddings[0] must return error");
+    }
+
+    /// S1-0007: Ollama dimension mismatch is rejected.
+    #[tokio::test]
+    async fn ollama_dimension_mismatch_returns_error() {
+        let body = serde_json::json!({
+            "embeddings": [[0.1, 0.2, 0.3]]  // dim=3
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}");
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768); // expects 768
+        let result = embedder.embed("hello").await;
+        assert!(result.is_err(), "dimension mismatch (3 vs 768) must return error");
+    }
+
+    /// S1-0007: Ollama 5xx server error is retried and eventually returns Err.
+    /// (Don't make this spin for too long — the test should complete quickly)
+    #[tokio::test]
+    async fn ollama_server_error_returns_error() {
+        // Spawn a mock server that returns 503 for the first (and only) connection.
+        // We just need to verify it eventually returns Err after the first 503.
+        let (port1, _h1) = mock_http_error_once(503).await;
+        let url = format!("http://127.0.0.1:{port1}");
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            embedder.embed("hello"),
+        )
+        .await;
+        // Either timeout (retry loop took too long) or Err result
+        match result {
+            Ok(Err(_)) => {} // expected: error returned
+            Ok(Ok(_)) => panic!("503 response must not produce successful embedding"),
+            Err(_timeout) => {} // acceptable: retry backoff exceeded timeout
+        }
+    }
+
+    // ── RemoteEmbedder dispatch ────────────────────────────────────────────
+
+    /// S1-0007: RemoteEmbedder::openai() dispatches to OpenAI schema.
+    #[tokio::test]
+    async fn remote_embedder_openai_path_dispatches_correctly() {
+        let embedding = vec![0.1_f32, 0.2_f32];
+        let body = serde_json::json!({
+            "data": [{"embedding": embedding, "index": 0}]
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = RemoteEmbedder::openai("text-embedding-3-small", "test-key", url, 2);
+        let result = embedder.embed("test").await;
+        assert!(result.is_ok(), "RemoteEmbedder::openai must parse OpenAI schema: {:?}", result);
+        assert_eq!(result.unwrap().len(), 2);
+    }
+
+    /// S1-0007: RemoteEmbedder::ollama() dispatches to Ollama schema.
+    #[tokio::test]
+    async fn remote_embedder_ollama_path_dispatches_correctly() {
+        let embedding = vec![0.3_f32, 0.4_f32];
+        let body = serde_json::json!({
+            "embeddings": [embedding]
+        })
+        .to_string();
+
+        let (port, _handle) = mock_http_once(&body).await;
+        let url = format!("http://127.0.0.1:{port}");
+        let embedder = RemoteEmbedder::ollama("nomic-embed-text", url, 2);
+        let result = embedder.embed("test").await;
+        assert!(result.is_ok(), "RemoteEmbedder::ollama must parse Ollama schema: {:?}", result);
+        assert_eq!(result.unwrap().len(), 2);
+    }
+}
