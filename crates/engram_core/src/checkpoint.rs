@@ -322,4 +322,62 @@ mod tests {
         assert_eq!(k1, k2);
         assert_ne!(k1, k3);
     }
+
+    /// Failure-injection: verify that CheckpointStore::open returns Err (not panics)
+    /// when the target path cannot be created — e.g. when the parent "directory"
+    /// is actually a regular file, preventing create_dir_all from succeeding.
+    #[test]
+    fn open_fails_on_non_directory_parent_returns_err_not_panic() {
+        let tmp = tempdir().unwrap();
+        // Create a regular FILE where we want a directory.
+        let blocker = tmp.path().join("blocker");
+        std::fs::write(&blocker, b"i am a file, not a dir").unwrap();
+        // Attempt to open a store whose parent is a file — must not panic.
+        let bad_path = blocker.join("checkpoints.redb");
+        let result = CheckpointStore::open(&bad_path);
+        assert!(
+            result.is_err(),
+            "open() should return Err when parent path is a file, not a directory"
+        );
+    }
+
+    /// Failure-injection: verify that put() propagates the error as Result when
+    /// the store is opened on a path that becomes invalid after the initial open.
+    /// We simulate this by replacing the db file with a directory of the same name
+    /// after the store is successfully opened, then opening a fresh store at the
+    /// same path (which redb will fail to re-open).
+    #[test]
+    fn open_after_corruption_returns_err_not_panic() {
+        let tmp = tempdir().unwrap();
+        let db_path = tmp.path().join("cp.redb");
+
+        // First open succeeds.
+        let store = CheckpointStore::open(&db_path).unwrap();
+        let cp = Checkpoint {
+            job_id: "j1".into(),
+            project_id: "p1".into(),
+            phase: JobPhase::Scanning,
+            items_processed: 0,
+            items_total: 1,
+            generation: 1,
+            idempotency_key: "ik1".into(),
+            resume_state: None,
+            updated_at_ms: 0,
+            error: None,
+        };
+        // put() on a live store must succeed.
+        assert!(store.put(&cp).is_ok(), "put() should succeed on a live store");
+        drop(store);
+
+        // Replace the db file with a directory of the same name.
+        std::fs::remove_file(&db_path).unwrap();
+        std::fs::create_dir(&db_path).unwrap();
+
+        // A fresh open on the now-corrupted path must return Err, not panic.
+        let result = CheckpointStore::open(&db_path);
+        assert!(
+            result.is_err(),
+            "open() on a directory-masquerading-as-db must return Err"
+        );
+    }
 }

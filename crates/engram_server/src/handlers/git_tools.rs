@@ -34,11 +34,16 @@ fn is_safe_zip_member_path(name: &str) -> bool {
 
 /// Core blocking logic for zip-snapshot history ingestion.
 /// Shared between the synchronous (wait=true) and background (wait=false) paths.
+///
+/// `cancel` is checked once per zip file; when cancelled the function returns
+/// `Err("job cancelled")` immediately, allowing the blocking thread to exit
+/// cooperatively without processing all remaining archives.
 fn zip_history_core(
     dir: std::path::PathBuf,
     graph: std::sync::Arc<engram_graph::GraphStore>,
     project_id: String,
     active_gen: u64,
+    cancel: Option<tokio_util::sync::CancellationToken>,
 ) -> anyhow::Result<String> {
     fn extract_first_number(s: &str) -> u64 {
         let digits: String = s
@@ -93,6 +98,9 @@ fn zip_history_core(
     let mut skipped_zips = 0usize;
     let mut skipped_entries = 0usize;
     for (i, entry) in zip_files.iter().enumerate() {
+        if cancel.as_ref().map(|c| c.is_cancelled()).unwrap_or(false) {
+            anyhow::bail!("job cancelled");
+        }
         let path = entry.path();
         let file = match std::fs::File::open(&path) {
             Ok(f) => f,
@@ -757,7 +765,7 @@ impl Engram {
 
         if req.wait {
             let summary = tokio::task::spawn_blocking(move || {
-                zip_history_core(dir, graph, project_id, active_gen)
+                zip_history_core(dir, graph, project_id, active_gen, None)
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -766,8 +774,9 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(summary)]));
         }
 
-        // Background (wait=false) path: persist a "running" job record, spawn the
-        // ingestion in the background, and return the job_id immediately.
+        // Background (wait=false) path: persist a "running" job record, wire a
+        // cancellation token, spawn the ingestion in the background, and return
+        // the job_id immediately.
         let job_id = Uuid::new_v4().to_string();
         let now_ts = now_ms();
         let jr_running = JobRecord {
@@ -792,20 +801,29 @@ impl Engram {
             McpError::internal_error(format!("failed to persist job record: {e}"), None)
         })?;
 
+        // Register a cancellation token so cancel_job_internal can cooperatively
+        // stop the blocking zip workload before it processes all archives.
+        let cancel_token = tokio_util::sync::CancellationToken::new();
+        {
+            let mut tokens = self.state.cancellation_tokens.write().await;
+            tokens.insert(job_id.clone(), cancel_token.clone());
+        }
+
         let state_bg = self.state.clone();
         let jid = job_id.clone();
         let pid_bg = project_id.clone();
         let handle = tokio::spawn(async move {
             let pid_for_core = pid_bg.clone();
+            let cancel_for_core = cancel_token.clone();
             let result = tokio::task::spawn_blocking(move || {
-                zip_history_core(dir, graph, pid_for_core, active_gen)
+                zip_history_core(dir, graph, pid_for_core, active_gen, Some(cancel_for_core))
             })
             .await;
 
-            let (status, message) = match result {
-                Ok(Ok(s)) => ("completed".to_string(), s),
-                Ok(Err(e)) => ("failed".to_string(), e.to_string()),
-                Err(e) => ("failed".to_string(), format!("task panicked: {e}")),
+            let (status, message, pct) = match result {
+                Ok(Ok(s)) => ("completed".to_string(), s, 100u8),
+                Ok(Err(e)) => ("failed".to_string(), e.to_string(), 0u8),
+                Err(e) => ("failed".to_string(), format!("task panicked: {e}"), 0u8),
             };
             let reg2 = state_bg.registry.clone();
             let jid2 = jid.clone();
@@ -817,14 +835,16 @@ impl Engram {
                     project_id: Some(pid_bg),
                     status,
                     message,
-                    progress_pct: 100,
+                    progress_pct: pct,
                     estimated_time_remaining_ms: None,
                     created_at_ms: now_ts,
                     updated_at_ms: now2,
                 });
             })
             .await;
+            // Clean up both tracking maps regardless of completion path.
             state_bg.active_jobs.write().await.remove(&jid);
+            state_bg.cancellation_tokens.write().await.remove(&jid);
         });
 
         {
