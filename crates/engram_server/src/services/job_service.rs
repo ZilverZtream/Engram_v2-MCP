@@ -22,20 +22,38 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
             }
         }
 
-        // Offload blocking Redb write to the blocking pool
+        // Look up the original job record so the tombstone preserves provenance
+        // (kind and project_id). Without this, post-mortem and replay logic loses
+        // the ability to attribute cancellations to the correct project/job kind.
         let reg = state.registry.clone();
         let jid = job_id.to_string();
+        let original = {
+            let reg2 = reg.clone();
+            let jid2 = jid.clone();
+            tokio::task::spawn_blocking(move || reg2.get_job(&jid2))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .flatten()
+        };
+
         if let Err(e) = tokio::task::spawn_blocking(move || {
             let now = now_ms();
             let jr = JobRecord {
                 job_id: jid.clone(),
-                kind: "unknown".into(),
-                project_id: None,
+                kind: original
+                    .as_ref()
+                    .map(|j| j.kind.clone())
+                    .unwrap_or_else(|| "unknown".into()),
+                project_id: original.as_ref().and_then(|j| j.project_id.clone()),
                 status: "cancelled".into(),
                 message: "cancelled by user".into(),
                 progress_pct: 0,
                 estimated_time_remaining_ms: None,
-                created_at_ms: now,
+                created_at_ms: original
+                    .as_ref()
+                    .map(|j| j.created_at_ms)
+                    .unwrap_or_else(now_ms),
                 updated_at_ms: now,
             };
             if let Err(e) = reg.put_job(&jr) {
@@ -56,17 +74,32 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
             drop(handles);
             let reg = state.registry.clone();
             let jid = job_id.to_string();
+            let original = {
+                let reg2 = reg.clone();
+                let jid2 = jid.clone();
+                tokio::task::spawn_blocking(move || reg2.get_job(&jid2))
+                    .await
+                    .ok()
+                    .and_then(|r| r.ok())
+                    .flatten()
+            };
             if let Err(e) = tokio::task::spawn_blocking(move || {
                 let now = now_ms();
                 let jr = JobRecord {
                     job_id: jid.clone(),
-                    kind: "unknown".into(),
-                    project_id: None,
+                    kind: original
+                        .as_ref()
+                        .map(|j| j.kind.clone())
+                        .unwrap_or_else(|| "unknown".into()),
+                    project_id: original.as_ref().and_then(|j| j.project_id.clone()),
                     status: "cancelled".into(),
                     message: "cancelled by user (token/handle divergence recovery)".into(),
                     progress_pct: 0,
                     estimated_time_remaining_ms: None,
-                    created_at_ms: now,
+                    created_at_ms: original
+                        .as_ref()
+                        .map(|j| j.created_at_ms)
+                        .unwrap_or_else(now_ms),
                     updated_at_ms: now,
                 };
                 if let Err(e) = reg.put_job(&jr) {

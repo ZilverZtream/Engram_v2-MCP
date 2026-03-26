@@ -165,12 +165,24 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
         )));
     }
 
-    // Reject parent-directory traversal
+    // Reject parent-directory traversal and Windows drive-prefix components.
+    // Component::Prefix covers "C:" style prefixes that Path::is_absolute()
+    // may miss on Windows when the path is relative-looking but contains a
+    // drive letter (e.g. "C:foo" is relative but has a Prefix component and
+    // resolves outside any reasonable base_dir).
     for component in rel.components() {
-        if matches!(component, std::path::Component::ParentDir) {
-            return Err(EngramError::PathNotAllowed(format!(
-                "path traversal via '..' not allowed: {sub_path:?}"
-            )));
+        match component {
+            std::path::Component::ParentDir => {
+                return Err(EngramError::PathNotAllowed(format!(
+                    "path traversal via '..' not allowed: {sub_path:?}"
+                )));
+            }
+            std::path::Component::Prefix(_) => {
+                return Err(EngramError::PathNotAllowed(format!(
+                    "Windows drive-prefix component not allowed: {sub_path:?}"
+                )));
+            }
+            _ => {}
         }
     }
 
