@@ -17,3 +17,5 @@ petgraph.workspace = true
 rustworkx-core.workspace = true
 blake3.workspace = true
 
+[dev-dependencies]
+tempfile = "3"

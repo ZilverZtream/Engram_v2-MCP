@@ -336,3 +336,317 @@ fn approximate_betweenness(graph: &DiGraph<String, f32>, k: usize) -> HashMap<No
 
     betweenness
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::store::{Edge, EdgeKind, GraphStore, Node};
+    use engram_core::RelPath;
+    use tempfile::tempdir;
+
+    fn make_node(id: &str, node_type: &str) -> Node {
+        Node {
+            node_id: id.to_string(),
+            node_type: node_type.to_string(),
+            name: id.to_string(),
+            namespace: "test".to_string(),
+            language: "rust".to_string(),
+            file_path: RelPath::new("src/lib.rs"),
+            start_line: 1,
+            end_line: 10,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
+    fn make_dep_edge(src: &str, tgt: &str, weight: u32) -> Edge {
+        Edge {
+            source_id: src.to_string(),
+            target_id: tgt.to_string(),
+            namespace: "test".to_string(),
+            language: "rust".to_string(),
+            edge_kind: EdgeKind::Dependency,
+            weight,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 0,
+        }
+    }
+
+    // ─── PageRank ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn pagerank_empty_graph_returns_empty() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let result = compute_pagerank(&store, "proj", 1).unwrap();
+        assert!(result.pagerank.is_empty());
+    }
+
+    #[test]
+    fn pagerank_single_node_has_positive_score() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        store.upsert_nodes("proj", &[make_node("only", "function")]).unwrap();
+        let result = compute_pagerank(&store, "proj", 1).unwrap();
+        assert_eq!(result.pagerank.len(), 1);
+        let score = *result.pagerank.get("only").unwrap();
+        assert!(score > 0.0, "single node PageRank should be positive, got {score}");
+    }
+
+    #[test]
+    fn pagerank_hub_scores_higher_than_leaf() {
+        // Star graph: hub ← leaf1, leaf2, leaf3 (leaves depend on hub).
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes = vec![
+            make_node("hub", "function"),
+            make_node("leaf1", "function"),
+            make_node("leaf2", "function"),
+            make_node("leaf3", "function"),
+        ];
+        store.upsert_nodes("proj", &nodes).unwrap();
+        // Leaves point to hub (hub gets more inbound PageRank).
+        let edges = vec![
+            make_dep_edge("leaf1", "hub", 1),
+            make_dep_edge("leaf2", "hub", 1),
+            make_dep_edge("leaf3", "hub", 1),
+        ];
+        store.upsert_edges("proj", &edges).unwrap();
+        let result = compute_pagerank(&store, "proj", 1).unwrap();
+        let hub_score = *result.pagerank.get("hub").unwrap();
+        let leaf_score = *result.pagerank.get("leaf1").unwrap();
+        assert!(
+            hub_score > leaf_score,
+            "hub PageRank {hub_score} should exceed leaf PageRank {leaf_score}"
+        );
+    }
+
+    #[test]
+    fn pagerank_scores_sum_approximately_to_one() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes: Vec<Node> = (0..5).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        store.upsert_nodes("proj", &nodes).unwrap();
+        // Chain: n0→n1→n2→n3→n4
+        let edges: Vec<Edge> = (0..4)
+            .map(|i| make_dep_edge(&format!("n{i}"), &format!("n{}", i + 1), 1))
+            .collect();
+        store.upsert_edges("proj", &edges).unwrap();
+        let result = compute_pagerank(&store, "proj", 1).unwrap();
+        let total: f32 = result.pagerank.values().sum();
+        // PageRank scores should sum approximately to 1.0 (within 10% tolerance).
+        assert!(
+            (total - 1.0).abs() < 0.1,
+            "PageRank scores sum to {total}, expected ~1.0"
+        );
+    }
+
+    #[test]
+    fn pagerank_deterministic() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes: Vec<Node> = (0..4).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        store.upsert_nodes("proj", &nodes).unwrap();
+        store
+            .upsert_edges(
+                "proj",
+                &[make_dep_edge("n0", "n1", 1), make_dep_edge("n2", "n3", 1)],
+            )
+            .unwrap();
+        // Use different generations to bypass cache.
+        let r1 = compute_pagerank(&store, "proj", 1).unwrap();
+        let r2 = compute_pagerank(&store, "proj", 2).unwrap();
+        for (id, score1) in &r1.pagerank {
+            let score2 = r2.pagerank.get(id).copied().unwrap_or(0.0);
+            assert!(
+                (score1 - score2).abs() < 1e-6,
+                "PageRank for {id} not deterministic: {score1} vs {score2}"
+            );
+        }
+    }
+
+    // ─── MultiCentrality ──────────────────────────────────────────────────────
+
+    #[test]
+    fn multi_centrality_in_degree_correct() {
+        // Star: hub gets an in-edge from each leaf.
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let num_leaves = 4usize;
+        let mut nodes = vec![make_node("hub", "function")];
+        for i in 0..num_leaves {
+            nodes.push(make_node(&format!("leaf{i}"), "function"));
+        }
+        store.upsert_nodes("proj", &nodes).unwrap();
+        let edges: Vec<Edge> = (0..num_leaves)
+            .map(|i| make_dep_edge(&format!("leaf{i}"), "hub", 1))
+            .collect();
+        store.upsert_edges("proj", &edges).unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        let hub_in = *mc.in_degree.get("hub").unwrap();
+        assert_eq!(
+            hub_in, num_leaves as u32,
+            "hub in_degree should be {num_leaves}, got {hub_in}"
+        );
+    }
+
+    #[test]
+    fn multi_centrality_out_degree_correct() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        store
+            .upsert_nodes(
+                "proj",
+                &[make_node("src", "function"), make_node("dst", "function")],
+            )
+            .unwrap();
+        store
+            .upsert_edges("proj", &[make_dep_edge("src", "dst", 1)])
+            .unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        let src_out = *mc.out_degree.get("src").unwrap();
+        assert!(src_out > 0, "src out_degree should be > 0, got {src_out}");
+        let dst_out = *mc.out_degree.get("dst").unwrap();
+        assert_eq!(dst_out, 0, "dst out_degree should be 0, got {dst_out}");
+    }
+
+    #[test]
+    fn multi_centrality_empty_graph() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        // Should not panic on empty graph.
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        assert!(mc.pagerank.is_empty());
+        assert!(mc.in_degree.is_empty());
+        assert!(mc.out_degree.is_empty());
+        assert!(mc.betweenness.is_empty());
+    }
+
+    // ─── BlendedScore ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn blended_score_zero_weights_returns_zero() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        store.upsert_nodes("proj", &[make_node("x", "function")]).unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        let score = mc.blended_score("x", 0.0, 0.0, 0.0);
+        assert_eq!(score, 0.0);
+    }
+
+    #[test]
+    fn blended_score_pagerank_only() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes: Vec<Node> = vec![
+            make_node("hub", "function"),
+            make_node("leaf1", "function"),
+            make_node("leaf2", "function"),
+        ];
+        store.upsert_nodes("proj", &nodes).unwrap();
+        store
+            .upsert_edges(
+                "proj",
+                &[
+                    make_dep_edge("leaf1", "hub", 1),
+                    make_dep_edge("leaf2", "hub", 1),
+                ],
+            )
+            .unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        // With pr_weight=1, others=0, blended score = normalized pagerank.
+        let hub_score = mc.blended_score("hub", 1.0, 0.0, 0.0);
+        let leaf_score = mc.blended_score("leaf1", 1.0, 0.0, 0.0);
+        // Hub should have higher or equal blended score than leaf.
+        assert!(
+            hub_score >= leaf_score,
+            "hub blended (pr only) {hub_score} should >= leaf {leaf_score}"
+        );
+    }
+
+    #[test]
+    fn blended_score_higher_for_more_central_node() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes: Vec<Node> = vec![
+            make_node("hub", "function"),
+            make_node("l1", "function"),
+            make_node("l2", "function"),
+            make_node("l3", "function"),
+        ];
+        store.upsert_nodes("proj", &nodes).unwrap();
+        let edges = vec![
+            make_dep_edge("l1", "hub", 1),
+            make_dep_edge("l2", "hub", 1),
+            make_dep_edge("l3", "hub", 1),
+        ];
+        store.upsert_edges("proj", &edges).unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        let hub_score = mc.blended_score("hub", 1.0, 1.0, 0.5);
+        let leaf_score = mc.blended_score("l1", 1.0, 1.0, 0.5);
+        assert!(
+            hub_score >= leaf_score,
+            "hub blended {hub_score} should >= leaf blended {leaf_score}"
+        );
+    }
+
+    #[test]
+    fn blended_score_in_range_zero_to_one() {
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        let nodes: Vec<Node> = (0..5).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        store.upsert_nodes("proj", &nodes).unwrap();
+        let edges: Vec<Edge> = (0..4)
+            .map(|i| make_dep_edge(&format!("n{i}"), &format!("n{}", i + 1), 1))
+            .collect();
+        store.upsert_edges("proj", &edges).unwrap();
+        let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
+        for i in 0..5 {
+            let id = format!("n{i}");
+            let score = mc.blended_score(&id, 1.0, 1.0, 1.0);
+            assert!(
+                (0.0..=1.0).contains(&score),
+                "blended score for {id} = {score}, expected [0, 1]"
+            );
+        }
+    }
+
+    // ─── Betweenness ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn betweenness_hub_scores_higher() {
+        // Chain A→B→C: B is on every path from A to C, so B has higher betweenness.
+        let dir = tempdir().unwrap();
+        let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
+        store
+            .upsert_nodes(
+                "proj",
+                &[
+                    make_node("A", "function"),
+                    make_node("B", "function"),
+                    make_node("C", "function"),
+                ],
+            )
+            .unwrap();
+        store
+            .upsert_edges(
+                "proj",
+                &[make_dep_edge("A", "B", 1), make_dep_edge("B", "C", 1)],
+            )
+            .unwrap();
+        // Use all nodes as pivots for exact betweenness.
+        let mc = compute_multi_centrality(&store, "proj", 1, 10).unwrap();
+        let b_score = mc.betweenness.get("B").copied().unwrap_or(0.0);
+        let a_score = mc.betweenness.get("A").copied().unwrap_or(0.0);
+        let c_score = mc.betweenness.get("C").copied().unwrap_or(0.0);
+        assert!(
+            b_score >= a_score,
+            "B betweenness {b_score} should >= A betweenness {a_score}"
+        );
+        assert!(
+            b_score >= c_score,
+            "B betweenness {b_score} should >= C betweenness {c_score}"
+        );
+    }
+}

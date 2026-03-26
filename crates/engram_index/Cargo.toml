@@ -52,4 +52,5 @@ quick-xml = "0.37"
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
+tempfile = "3"
 

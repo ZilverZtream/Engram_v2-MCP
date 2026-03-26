@@ -696,6 +696,284 @@ mod tests {
         assert!(text.contains("SQL Risk"));
     }
 
+    // ── normalize_score boundary cases ──────────────────────────────────────
+
+    #[test]
+    fn normalize_score_partial_saturation() {
+        // 3/10 = 0.3 → score = 3.0
+        let s = normalize_score(3, 10);
+        assert!((s - 3.0).abs() < 0.001, "expected 3.0, got {s}");
+    }
+
+    #[test]
+    fn normalize_score_one_count() {
+        let s = normalize_score(1, 10);
+        assert!((s - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn normalize_score_exactly_at_saturation() {
+        let s = normalize_score(15, 15);
+        assert!((s - 10.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn normalize_score_exceeds_saturation_capped() {
+        let s = normalize_score(100, 5);
+        assert!((s - 10.0).abs() < 0.001, "should be capped at 10.0");
+    }
+
+    // ── risk_band boundary values ────────────────────────────────────────────
+
+    #[test]
+    fn risk_band_score_zero_is_critical() {
+        // score 0 does not match any arm, falls through to _ => Critical
+        assert_eq!(risk_band(0), RiskBand::Critical);
+    }
+
+    #[test]
+    fn risk_band_boundary_between_low_and_medium() {
+        assert_eq!(risk_band(3), RiskBand::Low);
+        assert_eq!(risk_band(4), RiskBand::Medium);
+    }
+
+    #[test]
+    fn risk_band_boundary_between_medium_and_high() {
+        assert_eq!(risk_band(6), RiskBand::Medium);
+        assert_eq!(risk_band(7), RiskBand::High);
+    }
+
+    #[test]
+    fn risk_band_boundary_between_high_and_critical() {
+        assert_eq!(risk_band(8), RiskBand::High);
+        assert_eq!(risk_band(9), RiskBand::Critical);
+    }
+
+    // ── RiskBand display ─────────────────────────────────────────────────────
+
+    #[test]
+    fn risk_band_as_str() {
+        assert_eq!(RiskBand::Low.as_str(), "Low");
+        assert_eq!(RiskBand::Medium.as_str(), "Medium");
+        assert_eq!(RiskBand::High.as_str(), "High");
+        assert_eq!(RiskBand::Critical.as_str(), "Critical");
+    }
+
+    #[test]
+    fn risk_band_display_matches_as_str() {
+        for band in [RiskBand::Low, RiskBand::Medium, RiskBand::High, RiskBand::Critical] {
+            assert_eq!(band.to_string(), band.as_str());
+        }
+    }
+
+    // ── meta_bool helper ─────────────────────────────────────────────────────
+
+    #[test]
+    fn meta_bool_true_value() {
+        let meta = serde_json::json!({"flag": true});
+        assert!(meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_false_value() {
+        let meta = serde_json::json!({"flag": false});
+        assert!(!meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_string_true() {
+        let meta = serde_json::json!({"flag": "true"});
+        assert!(meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_string_yes() {
+        let meta = serde_json::json!({"flag": "yes"});
+        assert!(meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_string_one() {
+        let meta = serde_json::json!({"flag": "1"});
+        assert!(meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_number_nonzero() {
+        let meta = serde_json::json!({"flag": 3});
+        assert!(meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_number_zero() {
+        let meta = serde_json::json!({"flag": 0});
+        assert!(!meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_missing_key() {
+        let meta = serde_json::json!({"other": true});
+        assert!(!meta_bool(Some(&meta), "flag"));
+    }
+
+    #[test]
+    fn meta_bool_none_metadata() {
+        assert!(!meta_bool(None, "flag"));
+    }
+
+    // ── meta_str_eq helper ───────────────────────────────────────────────────
+
+    #[test]
+    fn meta_str_eq_matches_case_insensitive() {
+        let meta = serde_json::json!({"resolution": "Probabilistic"});
+        assert!(meta_str_eq(Some(&meta), "resolution", "probabilistic"));
+    }
+
+    #[test]
+    fn meta_str_eq_no_match() {
+        let meta = serde_json::json!({"resolution": "exact"});
+        assert!(!meta_str_eq(Some(&meta), "resolution", "probabilistic"));
+    }
+
+    // ── meta_f32 helper ──────────────────────────────────────────────────────
+
+    #[test]
+    fn meta_f32_number_value() {
+        let meta = serde_json::json!({"confidence": 0.75});
+        let v = meta_f32(Some(&meta), "confidence");
+        assert!(v.is_some());
+        assert!((v.unwrap() - 0.75_f32).abs() < 0.001);
+    }
+
+    #[test]
+    fn meta_f32_string_value() {
+        let meta = serde_json::json!({"confidence": "0.9"});
+        let v = meta_f32(Some(&meta), "confidence");
+        assert!(v.is_some());
+        assert!((v.unwrap() - 0.9_f32).abs() < 0.001);
+    }
+
+    #[test]
+    fn meta_f32_missing_key_returns_none() {
+        let meta = serde_json::json!({"other": 1.0});
+        assert!(meta_f32(Some(&meta), "confidence").is_none());
+    }
+
+    // ── format_report content checks ────────────────────────────────────────
+
+    #[test]
+    fn format_report_contains_all_sections() {
+        let report = BlastRadiusReport {
+            target: "file:Test.aspx.vb".into(),
+            target_type: "file".into(),
+            migration_risk: 5,
+            risk_band: RiskBand::Medium,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 3.0,
+                sql_concat_score: 5.0,
+                pagerank_score: 2.0,
+                state_coupling_score: 4.0,
+                gis_coupling_score: 0.0,
+                script_injection_score: 1.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 1.0,
+                late_binding_uncertainty_score: 2.0,
+                dynamic_sql_uncertainty_score: 3.0,
+            },
+            seam_candidates: vec![SeamCandidate {
+                node_id: "node1".into(),
+                node_type: "function".into(),
+                reason: "boundary crossing".into(),
+                edge_kinds_crossing: vec!["Dependency".into()],
+            }],
+            guidance: vec![GuidanceItem {
+                concern: "SQL Risk".into(),
+                severity: "high".into(),
+                recommendation: "Use parameterized queries".into(),
+                modern_pattern: Some("Dapper".into()),
+            }],
+            total_downstream: 8,
+        };
+        let text = format_report(&report);
+        assert!(text.contains("5/10"), "should contain risk score");
+        assert!(text.contains("Medium"), "should contain risk band");
+        assert!(text.contains("Complexity Breakdown"), "should have complexity section");
+        assert!(text.contains("Uncertainty Breakdown"), "should have uncertainty section");
+        assert!(text.contains("Seam Candidates"), "should list seam candidates");
+        assert!(text.contains("Migration Guidance"), "should list guidance");
+        assert!(text.contains("SQL Risk"), "should show concern");
+        assert!(text.contains("Dapper"), "should show modern pattern");
+        assert!(text.contains("Total Downstream Nodes: 8"), "should show downstream count");
+    }
+
+    #[test]
+    fn format_report_no_seams_no_guidance_omits_sections() {
+        let report = BlastRadiusReport {
+            target: "file:Simple.aspx.vb".into(),
+            target_type: "file".into(),
+            migration_risk: 2,
+            risk_band: RiskBand::Low,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 0.0,
+                sql_concat_score: 0.0,
+                pagerank_score: 0.0,
+                state_coupling_score: 0.0,
+                gis_coupling_score: 0.0,
+                script_injection_score: 0.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
+            },
+            seam_candidates: vec![],
+            guidance: vec![],
+            total_downstream: 0,
+        };
+        let text = format_report(&report);
+        assert!(!text.contains("Seam Candidates"), "no seams so section absent");
+        assert!(!text.contains("Migration Guidance"), "no guidance so section absent");
+    }
+
+    #[test]
+    fn format_report_scores_formatted_to_one_decimal() {
+        let report = BlastRadiusReport {
+            target: "file:X.vb".into(),
+            target_type: "file".into(),
+            migration_risk: 4,
+            risk_band: RiskBand::Medium,
+            complexity_breakdown: ComplexityBreakdown {
+                handles_clause_score: 3.333,
+                sql_concat_score: 7.777,
+                pagerank_score: 0.0,
+                state_coupling_score: 0.0,
+                gis_coupling_score: 0.0,
+                script_injection_score: 0.0,
+            },
+            uncertainty_breakdown: UncertaintyBreakdown {
+                dynamic_ui_uncertainty_score: 0.0,
+                late_binding_uncertainty_score: 0.0,
+                dynamic_sql_uncertainty_score: 0.0,
+            },
+            seam_candidates: vec![],
+            guidance: vec![],
+            total_downstream: 2,
+        };
+        let text = format_report(&report);
+        // {:.1} formatting means 3.333 → "3.3" and 7.777 → "7.8"
+        assert!(text.contains("3.3"), "handles score formatted to 1 decimal");
+        assert!(text.contains("7.8"), "sql score formatted to 1 decimal");
+    }
+
+    // ── Weights sum to 1.0 ───────────────────────────────────────────────────
+
+    #[test]
+    fn weights_sum_to_one() {
+        let sum = WEIGHT_HANDLES + WEIGHT_SQL + WEIGHT_PAGERANK + WEIGHT_STATE + WEIGHT_GIS + WEIGHT_SCRIPT;
+        assert!((sum - 1.0).abs() < 0.001, "weights must sum to 1.0, got {sum}");
+    }
+
     #[test]
     fn cross_project_multiplier_scales_risk() {
         use engram_index::solution_parser::build_solution_structure;

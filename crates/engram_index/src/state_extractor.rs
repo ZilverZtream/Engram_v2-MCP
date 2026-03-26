@@ -1355,4 +1355,556 @@ public class Simple : Page {
             "single key should not produce affinity edges"
         );
     }
+
+    // ── New tests: ViewState read/write ────────────────────────────────────
+
+    #[test]
+    fn test_viewstate_key_read() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var col = ViewState["SortColumn"];
+}
+"#;
+        let rel = RelPath::new("Grid.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "ViewState:SortColumn");
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "reads_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["state_type"], "ViewState");
+    }
+
+    #[test]
+    fn test_viewstate_key_write() {
+        let code = r#"
+protected void Sort_Click(object sender, EventArgs e) {
+    ViewState["SortColumn"] = "Name";
+    ViewState["SortDir"] = "ASC";
+}
+"#;
+        let rel = RelPath::new("Grid.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 2);
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(writes.len(), 2, "Both ViewState assignments should be writes");
+    }
+
+    #[test]
+    fn test_viewstate_write_then_read_same_key() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    ViewState["PageIndex"] = 0;
+    var idx = ViewState["PageIndex"];
+}
+"#;
+        let rel = RelPath::new("Pager.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        // Same key written then read — should be ONE unique symbol
+        assert_eq!(syms.len(), 1, "One unique ViewState key");
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        let reads: Vec<_> = edges.iter().filter(|e| e.kind == "reads_state").collect();
+        assert_eq!(writes.len(), 1);
+        assert_eq!(reads.len(), 1);
+    }
+
+    // ── New tests: Session with string literal key ─────────────────────────
+
+    #[test]
+    fn test_session_key_string_literal_extracted() {
+        let code = r#"
+protected void Login() {
+    Session["UserID"] = currentUser.Id;
+}
+"#;
+        let rel = RelPath::new("Login.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Session:UserID");
+        assert_eq!(edges[0].kind, "writes_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["state_key"], "UserID");
+    }
+
+    #[test]
+    fn test_session_key_variable_emits_unresolved() {
+        // Session[userKey] where userKey is not a local const → unresolved
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var id = Session[userKey];
+}
+"#;
+        let rel = RelPath::new("Page.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 0, "Unknown identifier → no resolved symbol");
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "unresolved_state_read");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["identifier"], "userKey");
+        assert_eq!(meta["unresolved"], "true");
+    }
+
+    // ── New tests: Application state ──────────────────────────────────────
+
+    #[test]
+    fn test_application_state_read() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var cfg = Application["Config"];
+}
+"#;
+        let rel = RelPath::new("Base.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Application:Config");
+        assert_eq!(edges[0].kind, "reads_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["state_type"], "Application");
+    }
+
+    #[test]
+    fn test_application_state_write() {
+        let code = r#"
+void Application_Start() {
+    Application["Startup"] = DateTime.Now;
+    Application["MaxUsers"] = 100;
+}
+"#;
+        let rel = RelPath::new("Global.asax.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 2);
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(writes.len(), 2);
+    }
+
+    // ── New tests: Cache via bracket syntax ───────────────────────────────
+
+    #[test]
+    fn test_cache_read_access() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var data = Cache["ProductList"];
+}
+"#;
+        let rel = RelPath::new("Products.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Cache:ProductList");
+        assert_eq!(edges[0].kind, "reads_state");
+    }
+
+    #[test]
+    fn test_cache_write_access() {
+        let code = r#"
+protected void PopulateCache() {
+    Cache["ProductList"] = products;
+}
+"#;
+        let rel = RelPath::new("Products.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(edges[0].kind, "writes_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["state_type"], "Cache");
+    }
+
+    // ── New tests: HttpContext.Current.Session / Items ─────────────────────
+
+    #[test]
+    fn test_httpcontext_current_session_key() {
+        let code = r#"
+var token = HttpContext.Current.Session["AuthToken"];
+"#;
+        let rel = RelPath::new("Global.asax.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        // Normalized to Session:AuthToken
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Session:AuthToken");
+        assert_eq!(edges[0].kind, "reads_state");
+    }
+
+    #[test]
+    fn test_httpcontext_current_items_write() {
+        let code = r#"
+HttpContext.Current.Items["RequestId"] = Guid.NewGuid().ToString();
+"#;
+        let rel = RelPath::new("Module.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Items:RequestId");
+        assert_eq!(edges[0].kind, "writes_state");
+    }
+
+    // ── New tests: Cookies ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_request_cookie_read_is_always_read() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var pref = Request.Cookies["UserPref"];
+}
+"#;
+        let rel = RelPath::new("Prefs.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Cookies:UserPref");
+        assert_eq!(edges[0].kind, "reads_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["cookie_direction"], "Request");
+    }
+
+    #[test]
+    fn test_response_cookie_write_is_always_write() {
+        let code = r#"
+protected void SetSession() {
+    Response.Cookies["session_id"] = Guid.NewGuid().ToString();
+}
+"#;
+        let rel = RelPath::new("Auth.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(edges[0].kind, "writes_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["cookie_direction"], "Response");
+    }
+
+    #[test]
+    fn test_vbnet_request_cookie_read() {
+        let code = r#"
+Public Sub Page_Load(sender As Object, e As EventArgs)
+    Dim pref = Request.Cookies("ThemePref")
+End Sub
+"#;
+        let rel = RelPath::new("Page.aspx.vb");
+        let (syms, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Cookies:ThemePref");
+        assert_eq!(edges[0].kind, "reads_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["cookie_direction"], "Request");
+    }
+
+    #[test]
+    fn test_vbnet_response_cookie_write() {
+        let code = r#"
+Public Sub SetCookie()
+    Response.Cookies("lang") = "en-US"
+End Sub
+"#;
+        let rel = RelPath::new("Lang.aspx.vb");
+        let (syms, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(edges[0].kind, "writes_state");
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["cookie_direction"], "Response");
+    }
+
+    // ── New tests: VB.NET ViewState ───────────────────────────────────────
+
+    #[test]
+    fn test_vbnet_viewstate_read() {
+        let code = r#"
+Public Sub Page_Load(sender As Object, e As EventArgs)
+    Dim col = ViewState("SortColumn")
+End Sub
+"#;
+        let rel = RelPath::new("Grid.aspx.vb");
+        let (syms, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "ViewState:SortColumn");
+        assert_eq!(edges[0].kind, "reads_state");
+    }
+
+    #[test]
+    fn test_vbnet_viewstate_write() {
+        let code = r#"
+Public Sub SaveState()
+    ViewState("CurrentPage") = 3
+End Sub
+"#;
+        let rel = RelPath::new("Pager.aspx.vb");
+        let (syms, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(edges[0].kind, "writes_state");
+    }
+
+    // ── New tests: mixed state types in one method ─────────────────────────
+
+    #[test]
+    fn test_multiple_state_types_in_one_method() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var userId = Session["UserId"];
+    ViewState["SortColumn"] = "Name";
+    var cfg = Application["Config"];
+    var cached = Cache["Products"];
+}
+"#;
+        let rel = RelPath::new("Complex.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(syms.len(), 4, "Four unique state keys across four stores");
+
+        let session_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Session:")).collect();
+        let viewstate_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("ViewState:")).collect();
+        let app_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Application:")).collect();
+        let cache_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Cache:")).collect();
+
+        assert_eq!(session_syms.len(), 1);
+        assert_eq!(viewstate_syms.len(), 1);
+        assert_eq!(app_syms.len(), 1);
+        assert_eq!(cache_syms.len(), 1);
+    }
+
+    // ── New tests: comment lines skipped ──────────────────────────────────
+
+    #[test]
+    fn test_csharp_comment_lines_skipped() {
+        let code = r#"
+protected void Load() {
+    // Session["IgnoredKey"] = "this should not be detected";
+    var x = Session["RealKey"];
+}
+"#;
+        let rel = RelPath::new("Page.aspx.cs");
+        let (syms, _edges) = extract_state_accesses(&rel, code, "csharp");
+
+        // Only RealKey should be detected, not IgnoredKey
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Session:RealKey");
+    }
+
+    #[test]
+    fn test_vbnet_comment_lines_skipped() {
+        let code = r#"
+Public Sub Load()
+    ' Session("IgnoredKey") = "should not be detected"
+    Dim x = Session("RealKey")
+End Sub
+"#;
+        let rel = RelPath::new("Page.aspx.vb");
+        let (syms, _edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Session:RealKey");
+    }
+
+    // ── New tests: unique symbol deduplication ─────────────────────────────
+
+    #[test]
+    fn test_same_key_accessed_multiple_times_produces_one_symbol() {
+        let code = r#"
+protected void Page_Load(object sender, EventArgs e) {
+    var id = Session["UserId"];
+    if (Session["UserId"] != null) {
+        Session["UserId"] = Session["UserId"].ToString();
+    }
+}
+"#;
+        let rel = RelPath::new("Page.aspx.cs");
+        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        // Only ONE unique symbol despite multiple accesses
+        assert_eq!(syms.len(), 1, "Same key should produce only one symbol");
+        // But multiple edges
+        assert!(edges.len() >= 2, "Multiple accesses should produce multiple edges");
+    }
+
+    // ── New tests: state affinity analysis ────────────────────────────────
+
+    #[test]
+    fn test_affinity_with_mixed_read_write_pattern() {
+        let code = r#"
+public class UserPage : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        Session["UserId"] = 1;
+        var prefs = Session["Prefs"];
+    }
+}
+"#;
+        let rel = RelPath::new("UserPage.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
+
+        assert!(!affinity_edges.is_empty(), "Write+read pair should produce affinity edge");
+        let edge = &affinity_edges[0];
+        let meta = edge.metadata.as_ref().unwrap();
+        assert_eq!(meta["access_pattern"], "read-write",
+            "One write and one read should produce read-write pattern");
+    }
+
+    #[test]
+    fn test_affinity_write_write_pattern() {
+        let code = r#"
+public class Login : Page {
+    protected void LogIn(object sender, EventArgs e) {
+        Session["UserId"] = user.Id;
+        Session["Token"] = auth.Token;
+    }
+}
+"#;
+        let rel = RelPath::new("Login.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
+
+        assert!(!affinity_edges.is_empty(), "Two writes should produce affinity edge");
+        let edge = &affinity_edges[0];
+        let meta = edge.metadata.as_ref().unwrap();
+        assert_eq!(meta["access_pattern"], "write-write");
+    }
+
+    #[test]
+    fn test_affinity_edges_have_state_affinity_kind() {
+        let code = r#"
+public class Page1 : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        var a = Session["A"];
+        var b = Session["B"];
+    }
+}
+"#;
+        let rel = RelPath::new("P.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
+
+        for edge in &affinity_edges {
+            assert_eq!(edge.kind, "state_affinity",
+                "All affinity edges should have kind 'state_affinity'");
+        }
+    }
+
+    // ── New tests: cache API usages ───────────────────────────────────────
+
+    #[test]
+    fn test_cache_insert_detected() {
+        let code = r#"
+Cache.Insert("Products", data, null, absoluteExpiration, Cache.NoSlidingExpiration);
+"#;
+        let usages = extract_cache_api_usages("Products.aspx.cs", code, "csharp");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].api_type, CacheApiType::CacheInsert);
+        assert_eq!(usages[0].key.as_deref(), Some("Products"));
+    }
+
+    #[test]
+    fn test_cache_get_detected() {
+        let code = r#"
+var products = Cache.Get("Products");
+"#;
+        let usages = extract_cache_api_usages("Products.aspx.cs", code, "csharp");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].api_type, CacheApiType::CacheGet);
+        assert_eq!(usages[0].key.as_deref(), Some("Products"));
+    }
+
+    #[test]
+    fn test_cache_remove_detected() {
+        let code = r#"
+Cache.Remove("Products");
+"#;
+        let usages = extract_cache_api_usages("Products.aspx.cs", code, "csharp");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].api_type, CacheApiType::CacheRemove);
+    }
+
+    #[test]
+    fn test_response_cache_detected() {
+        let code = r#"
+Response.Cache.SetCacheability(HttpCacheability.Public);
+Response.Cache.SetExpires(DateTime.Now.AddMinutes(30));
+"#;
+        let usages = extract_cache_api_usages("Page.aspx.cs", code, "csharp");
+        let response_cache: Vec<_> = usages.iter()
+            .filter(|u| u.api_type == CacheApiType::ResponseCache)
+            .collect();
+        assert_eq!(response_cache.len(), 2, "Both Response.Cache calls should be detected");
+    }
+
+    #[test]
+    fn test_sql_cache_dependency_detected() {
+        let code = r#"
+var dep = new SqlCacheDependency("MyDB", "Products");
+"#;
+        let usages = extract_cache_api_usages("Page.aspx.cs", code, "csharp");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].api_type, CacheApiType::SqlCacheDependency);
+        assert_eq!(usages[0].key.as_deref(), Some("MyDB.Products"));
+    }
+
+    #[test]
+    fn test_http_runtime_cache_insert() {
+        let code = r#"
+HttpRuntime.Cache.Insert("key1", value, null, DateTime.Now.AddHours(1), Cache.NoSlidingExpiration);
+"#;
+        let usages = extract_cache_api_usages("Page.aspx.cs", code, "csharp");
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].api_type, CacheApiType::CacheInsert);
+        assert_eq!(usages[0].key.as_deref(), Some("key1"));
+    }
+
+    // ── New tests: unsupported language returns empty ──────────────────────
+
+    #[test]
+    fn test_unsupported_language_returns_empty() {
+        let code = r#"
+Session["key"] = "value";
+"#;
+        let rel = RelPath::new("Unknown.jsx");
+        let (syms, edges) = extract_state_accesses(&rel, code, "javascript");
+        assert!(syms.is_empty(), "Unsupported language should produce no symbols");
+        assert!(edges.is_empty(), "Unsupported language should produce no edges");
+    }
+
+    // ── New tests: enclosing method name captured ─────────────────────────
+
+    #[test]
+    fn test_enclosing_method_name_in_edge_source() {
+        let code = r#"
+public class MyPage : Page {
+    protected void Page_Load(object sender, EventArgs e) {
+        var id = Session["UserId"];
+    }
+}
+"#;
+        let rel = RelPath::new("My.aspx.cs");
+        let (_, edges) = extract_state_accesses(&rel, code, "csharp");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].source_name, "Page_Load",
+            "Edge source should be the enclosing method name");
+    }
+
+    #[test]
+    fn test_vbnet_enclosing_method_captured() {
+        let code = r#"
+Public Class BasePage
+    Public Sub SaveUser(sender As Object, e As EventArgs)
+        Session("UserName") = "Alice"
+    End Sub
+End Class
+"#;
+        let rel = RelPath::new("Base.aspx.vb");
+        let (_, edges) = extract_state_accesses(&rel, code, "vbnet");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].source_name, "SaveUser",
+            "Edge source should be the enclosing VB method name");
+    }
 }

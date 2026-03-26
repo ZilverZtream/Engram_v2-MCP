@@ -537,4 +537,212 @@ mod tests {
         assert!(!resolve_auto_repair(true, Some(false)));
         assert!(!resolve_auto_repair(false, Some(false)));
     }
+
+    // ── MismatchKind Display ─────────────────────────────────────────────────
+
+    #[test]
+    fn mismatch_kind_display_strings() {
+        assert_eq!(MismatchKind::TantivyOrphan.to_string(), "tantivy_orphan");
+        assert_eq!(MismatchKind::DocstoreOrphan.to_string(), "docstore_orphan");
+        assert_eq!(MismatchKind::VectorOrphan.to_string(), "vector_orphan");
+        assert_eq!(MismatchKind::GraphStaleGeneration.to_string(), "graph_stale_generation");
+        assert_eq!(MismatchKind::CountDivergence.to_string(), "count_divergence");
+        assert_eq!(MismatchKind::RegistryMismatch.to_string(), "registry_mismatch");
+    }
+
+    // ── build_integrity_mismatches: no mismatches ────────────────────────────
+
+    #[test]
+    fn no_mismatches_when_stores_agree() {
+        let docs = vec![
+            tdoc("memory", "a", "src/a.rs"),
+            tdoc("memory", "b", "src/b.rs"),
+        ];
+        let ddocs = vec![
+            ddoc("memory", "a", "src/a.rs"),
+            ddoc("memory", "b", "src/b.rs"),
+        ];
+        let mismatches = build_integrity_mismatches(2, 2, 1, &docs, &ddocs);
+        assert!(mismatches.is_empty(), "perfectly aligned stores should have no mismatches");
+    }
+
+    #[test]
+    fn no_mismatch_for_empty_stores() {
+        let mismatches = build_integrity_mismatches(0, 0, 0, &[], &[]);
+        assert!(mismatches.is_empty());
+    }
+
+    // ── build_integrity_mismatches: count divergence threshold ───────────────
+
+    #[test]
+    fn count_divergence_triggers_above_5_percent_threshold() {
+        // docstore has 100 docs, threshold = max(5.0, 100*0.05) = 5
+        // tantivy has 90 → diff = 10 > 5 → divergence
+        let ddocs: Vec<DocSummary> = (0..100)
+            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let tdocs: Vec<SearchDocSummary> = (0..90)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let mismatches = build_integrity_mismatches(90, 100, 0, &tdocs, &ddocs);
+        assert!(
+            mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            "diff of 10 (>5% of 100) should trigger divergence"
+        );
+    }
+
+    #[test]
+    fn count_divergence_not_triggered_below_threshold() {
+        // docstore has 100 docs, threshold = 5. diff = 3 → no divergence
+        let ddocs: Vec<DocSummary> = (0..100)
+            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let tdocs: Vec<SearchDocSummary> = (0..97)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        // No orphans because all tantivy docs are subset of docstore
+        let mismatches = build_integrity_mismatches(97, 100, 0, &tdocs, &ddocs);
+        assert!(
+            !mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            "diff of 3 (<5% of 100) should not trigger divergence"
+        );
+    }
+
+    #[test]
+    fn count_divergence_uses_minimum_threshold_of_5() {
+        // docstore has 10 docs, threshold = max(5.0, 10*0.05=0.5) = 5
+        // diff = 4 → no divergence (4 <= 5)
+        let ddocs: Vec<DocSummary> = (0..10)
+            .map(|i| ddoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let tdocs: Vec<SearchDocSummary> = (0..6)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let mismatches = build_integrity_mismatches(6, 10, 0, &tdocs, &ddocs);
+        assert!(
+            !mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            "diff of 4 should not exceed minimum threshold of 5"
+        );
+    }
+
+    // ── build_integrity_mismatches: vector orphan ────────────────────────────
+
+    #[test]
+    fn vector_orphan_triggered_when_exceeds_tantivy_by_100() {
+        // vector_count = 1200, tantivy = 1000 → diff = 200 > 100 → VectorOrphan
+        let tdocs: Vec<SearchDocSummary> = (0..1000)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let ddocs: Vec<DocSummary> = tdocs
+            .iter()
+            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
+            .collect();
+        let mismatches = build_integrity_mismatches(1000, 1000, 1200, &tdocs, &ddocs);
+        assert!(
+            mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            "1200 vectors vs 1000 tantivy docs should trigger VectorOrphan"
+        );
+    }
+
+    #[test]
+    fn vector_orphan_not_triggered_within_100_margin() {
+        // vector = 1050, tantivy = 1000 → diff = 50 ≤ 100 → no orphan
+        let tdocs: Vec<SearchDocSummary> = (0..1000)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let ddocs: Vec<DocSummary> = tdocs
+            .iter()
+            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
+            .collect();
+        let mismatches = build_integrity_mismatches(1000, 1000, 1050, &tdocs, &ddocs);
+        assert!(
+            !mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            "vector count only 50 above tantivy should not trigger VectorOrphan"
+        );
+    }
+
+    // ── build_integrity_mismatches: multiple mismatches at once ─────────────
+
+    #[test]
+    fn multiple_mismatches_can_be_detected_simultaneously() {
+        // tantivy has X, docstore has Y (different), vector way too high
+        let tdocs = vec![tdoc("ns", "a", "a.rs"), tdoc("ns", "extra", "extra.rs")];
+        let ddocs = vec![ddoc("ns", "a", "a.rs"), ddoc("ns", "missing", "missing.rs")];
+        let mismatches = build_integrity_mismatches(2, 2, 5000, &tdocs, &ddocs);
+        // Should detect both TantivyOrphan (extra) and DocstoreOrphan (missing)
+        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::TantivyOrphan));
+        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::DocstoreOrphan));
+        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan));
+    }
+
+    // ── summarize_samples helper ─────────────────────────────────────────────
+
+    #[test]
+    fn tantivy_orphan_description_includes_sample_path() {
+        let tdocs = vec![
+            tdoc("memory", "doc1", "src/module/file.rs"),
+            tdoc("memory", "doc2", "src/other.rs"),
+        ];
+        let ddocs = vec![ddoc("memory", "doc1", "src/module/file.rs")];
+        let mismatches = build_integrity_mismatches(2, 1, 0, &tdocs, &ddocs);
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::TantivyOrphan)
+            .unwrap();
+        // description should include the orphan key formatted as namespace:doc_id@path
+        assert!(
+            mm.description.contains("memory:doc2@src/other.rs"),
+            "description should include orphan sample: {:?}", mm.description
+        );
+    }
+
+    #[test]
+    fn docstore_orphan_actual_count_is_correct() {
+        let tdocs = vec![tdoc("ns", "a", "a.rs")];
+        let ddocs = vec![
+            ddoc("ns", "a", "a.rs"),
+            ddoc("ns", "b", "b.rs"),
+            ddoc("ns", "c", "c.rs"),
+        ];
+        let mismatches = build_integrity_mismatches(1, 3, 0, &tdocs, &ddocs);
+        let mm = mismatches
+            .iter()
+            .find(|m| m.kind == MismatchKind::DocstoreOrphan)
+            .unwrap();
+        assert_eq!(mm.actual, 2, "two docstore orphans");
+        assert_eq!(mm.expected, 0);
+    }
+
+    // ── resolve_auto_repair edge cases ───────────────────────────────────────
+
+    #[test]
+    fn resolve_auto_repair_symmetry() {
+        // None always returns config value
+        for config in [true, false] {
+            assert_eq!(resolve_auto_repair(config, None), config);
+        }
+        // Some always overrides config
+        for config in [true, false] {
+            assert!(resolve_auto_repair(config, Some(true)));
+            assert!(!resolve_auto_repair(config, Some(false)));
+        }
+    }
+
+    // ── overall_healthy logic ────────────────────────────────────────────────
+
+    #[test]
+    fn overall_healthy_is_true_when_no_mismatches() {
+        let mismatches = build_integrity_mismatches(5, 5, 3,
+            &[
+                tdoc("ns","a","a.rs"),tdoc("ns","b","b.rs"),
+                tdoc("ns","c","c.rs"),tdoc("ns","d","d.rs"),tdoc("ns","e","e.rs"),
+            ],
+            &[
+                ddoc("ns","a","a.rs"),ddoc("ns","b","b.rs"),
+                ddoc("ns","c","c.rs"),ddoc("ns","d","d.rs"),ddoc("ns","e","e.rs"),
+            ],
+        );
+        let overall_healthy = mismatches.is_empty() || false;
+        assert!(overall_healthy, "no mismatches means healthy");
+    }
 }

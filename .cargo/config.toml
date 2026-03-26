@@ -1,0 +1,4 @@
+[build]
+# Limit parallel build jobs to prevent OOM when linking 30+ test binaries simultaneously.
+# Full parallel link on this machine causes STATUS_STACK_BUFFER_OVERRUN cascade failures.
+jobs = 2

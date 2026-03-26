@@ -646,4 +646,483 @@ var connStr = ConfigurationManager.AppSettings["DbConn"];
                 .any(|h| h.pattern_type == "configuration_manager")
         );
     }
+
+    // ── New tests: .Result patterns ──────────────────────────────────────
+
+    #[test]
+    fn task_result_in_property_setter_is_flagged() {
+        let code = r#"
+public class MyPage {
+    private void SetValue() {
+        this.data = GetDataAsync().Result;
+    }
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "task_result"),
+            "Should flag .Result in property setter");
+    }
+
+    #[test]
+    fn task_result_deadlock_risk() {
+        let code = r#"
+public void Load() {
+    var item = repository.GetAsync(id).Result;
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
+        assert_eq!(h.migration_risk, MigrationRisk::Deadlock);
+        assert_eq!(h.severity, HazardSeverity::Critical);
+    }
+
+    #[test]
+    fn result_assignment_operator_is_not_flagged() {
+        // `.Result = value` is property assignment, not Task.Result access
+        let code = r#"
+public void Set() {
+    response.Result = "ok";
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "task_result"),
+            ".Result = value should not be flagged as task_result");
+    }
+
+    #[test]
+    fn nested_result_calls_both_flagged() {
+        // Both .Result accesses should be flagged
+        let code = r#"
+public void DoubleBlock() {
+    var x = GetAsync().Result;
+    var y = SaveAsync().Result;
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let count = report.hazards.iter().filter(|h| h.pattern_type == "task_result").count();
+        assert!(count >= 2, "Both .Result calls should be flagged, found {}", count);
+    }
+
+    // ── New tests: .Wait() patterns ──────────────────────────────────────
+
+    #[test]
+    fn task_wait_is_critical() {
+        let code = r#"
+public void Flush() {
+    flushAsync().Wait();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "task_wait").unwrap();
+        assert_eq!(h.severity, HazardSeverity::Critical);
+        assert_eq!(h.migration_risk, MigrationRisk::Deadlock);
+    }
+
+    #[test]
+    fn task_wait_modern_equivalent_is_await() {
+        let code = r#"
+public void Sync() {
+    DoWorkAsync().Wait();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "task_wait").unwrap();
+        assert_eq!(h.modern_equivalent, "await the call");
+    }
+
+    // ── New tests: GetAwaiter().GetResult() ───────────────────────────────
+
+    #[test]
+    fn detect_get_awaiter_get_result() {
+        let code = r#"
+public void SyncWrapper() {
+    var result = GetDataAsync().GetAwaiter().GetResult();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "get_awaiter_result"),
+            "Should detect GetAwaiter().GetResult()");
+    }
+
+    #[test]
+    fn get_awaiter_result_is_high_severity() {
+        let code = r#"
+public string FetchSync() {
+    return apiClient.GetAsync(url).GetAwaiter().GetResult();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "get_awaiter_result").unwrap();
+        assert_eq!(h.severity, HazardSeverity::High);
+        assert_eq!(h.migration_risk, MigrationRisk::ThreadBlocking);
+    }
+
+    #[test]
+    fn no_false_positive_for_get_awaiter_without_get_result() {
+        // .GetAwaiter() alone is not the full pattern
+        let code = r#"
+public void Safe() {
+    var awaiter = task.GetAwaiter();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "get_awaiter_result"),
+            ".GetAwaiter() alone should not flag get_awaiter_result");
+    }
+
+    // ── New tests: Thread.Sleep ───────────────────────────────────────────
+
+    #[test]
+    fn thread_sleep_modern_equivalent_task_delay() {
+        let code = r#"
+public void Throttle() {
+    Thread.Sleep(500);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "thread_sleep").unwrap();
+        assert_eq!(h.modern_equivalent, "await Task.Delay()");
+    }
+
+    #[test]
+    fn thread_sleep_risk_is_thread_starvation() {
+        let code = r#"
+public void Poll() {
+    Thread.Sleep(1000);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "thread_sleep").unwrap();
+        assert_eq!(h.migration_risk, MigrationRisk::ThreadStarvation);
+        assert_eq!(h.severity, HazardSeverity::High);
+    }
+
+    #[test]
+    fn multiple_thread_sleep_all_detected() {
+        let code = r#"
+public void PollWithRetry() {
+    Thread.Sleep(100);
+    Thread.Sleep(200);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let count = report.hazards.iter().filter(|h| h.pattern_type == "thread_sleep").count();
+        assert_eq!(count, 2, "Both Thread.Sleep calls should be detected");
+    }
+
+    // ── New tests: lock_with_async ────────────────────────────────────────
+
+    #[test]
+    fn lock_with_await_in_same_method_flagged() {
+        let code = r#"
+public async Task ProcessAsync() {
+    lock (syncObj) {
+        var x = 1;
+    }
+    var data = await GetDataAsync();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "lock_with_async"),
+            "lock() + await in same method should be flagged");
+    }
+
+    #[test]
+    fn lock_without_await_not_flagged_as_lock_async() {
+        let code = r#"
+public void Sync() {
+    lock (obj) {
+        count++;
+    }
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "lock_with_async"),
+            "lock() without await in same method should NOT flag lock_with_async");
+    }
+
+    #[test]
+    fn lock_with_async_suggests_semaphore() {
+        let code = r#"
+public async Task UpdateAsync() {
+    lock (_lock) {
+        cache.Clear();
+    }
+    await Task.Delay(0);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "lock_with_async").unwrap();
+        assert!(h.modern_equivalent.contains("SemaphoreSlim"),
+            "Should suggest SemaphoreSlim as modern equivalent");
+    }
+
+    // ── New tests: HttpContext.Current ────────────────────────────────────
+
+    #[test]
+    fn http_context_current_null_reference_risk() {
+        let code = r#"
+public void Handle() {
+    var ctx = HttpContext.Current;
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "http_context_current").unwrap();
+        assert_eq!(h.migration_risk, MigrationRisk::NullReference);
+        assert_eq!(h.severity, HazardSeverity::High);
+    }
+
+    #[test]
+    fn multiple_http_context_accesses_all_flagged() {
+        let code = r#"
+public void DoWork() {
+    var user = HttpContext.Current.User;
+    var session = HttpContext.Current.Session;
+    var items = HttpContext.Current.Items;
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let count = report.hazards.iter().filter(|h| h.pattern_type == "http_context_current").count();
+        assert_eq!(count, 3, "All three HttpContext.Current accesses should be flagged");
+    }
+
+    // ── New tests: Sync file I/O variants ─────────────────────────────────
+
+    #[test]
+    fn file_write_all_text_flagged() {
+        let code = r#"
+public void SaveLog() {
+    File.WriteAllText("log.txt", content);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_file_io"),
+            "File.WriteAllText should be flagged as sync_file_io");
+    }
+
+    #[test]
+    fn file_copy_and_delete_flagged() {
+        let code = r#"
+public void ManageFiles() {
+    File.Copy(src, dest);
+    File.Delete(path);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let count = report.hazards.iter().filter(|h| h.pattern_type == "sync_file_io").count();
+        assert_eq!(count, 2, "File.Copy and File.Delete should both be flagged");
+    }
+
+    #[test]
+    fn file_async_method_call_not_flagged() {
+        // File.ReadAllTextAsync is the async version — should not be flagged
+        // (The regex only matches sync methods like ReadAllText, not ReadAllTextAsync)
+        let code = r#"
+public async Task ReadAsync() {
+    var text = await File.ReadAllTextAsync("data.txt");
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        // File.ReadAllTextAsync contains "ReadAllText" — verify the regex doesn't false-positive
+        // The regex specifically matches ReadAllText( (with open paren) so *Async won't match
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "sync_file_io"),
+            "File.ReadAllTextAsync should NOT be flagged as sync_file_io");
+    }
+
+    // ── New tests: Sync HTTP / WebClient ──────────────────────────────────
+
+    #[test]
+    fn web_client_sync_http_medium_severity() {
+        let code = r#"
+public void FetchPage() {
+    var wc = new WebClient();
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "sync_http").unwrap();
+        assert_eq!(h.severity, HazardSeverity::Medium);
+    }
+
+    #[test]
+    fn http_web_request_flagged() {
+        let code = r#"
+public void CallApi() {
+    var request = (HttpWebRequest)WebRequest.Create(url);
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_http"),
+            "HttpWebRequest should be flagged");
+    }
+
+    // ── New tests: sync_stream ────────────────────────────────────────────
+
+    #[test]
+    fn stream_reader_flagged() {
+        let code = r#"
+public void ReadFile() {
+    var sr = new StreamReader("file.txt");
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_stream"),
+            "new StreamReader should be flagged");
+    }
+
+    #[test]
+    fn stream_writer_flagged() {
+        let code = r#"
+public void WriteFile() {
+    var sw = new StreamWriter("file.txt");
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_stream"),
+            "new StreamWriter should be flagged");
+    }
+
+    #[test]
+    fn stream_reader_combined_with_async_on_same_line_not_flagged() {
+        // When "Async" appears on the same line as StreamReader/StreamWriter, it is NOT flagged.
+        // The detector skips lines where the line itself contains "Async".
+        let code = r#"
+public async Task ReadAsync() {
+    var sr = new StreamReader("file.txt"); // ReadToEndAsync
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        // "var sr = new StreamReader..." line does NOT contain "Async" so it IS flagged
+        // (The comment "ReadToEndAsync" is on the same line — let's check if the detector
+        //  sees "Async" in the comment and skips it)
+        // The line is: `    var sr = new StreamReader("file.txt"); // ReadToEndAsync`
+        // which DOES contain "Async" in the comment → the detector should skip it
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "sync_stream"),
+            "StreamReader line with 'Async' anywhere on it should NOT be flagged");
+    }
+
+    // ── New tests: WebConfigurationManager ───────────────────────────────
+
+    #[test]
+    fn web_configuration_manager_flagged() {
+        let code = r#"
+public void GetConfig() {
+    var section = WebConfigurationManager.GetSection("mySection");
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "web_configuration_manager"),
+            "WebConfigurationManager should be flagged");
+    }
+
+    #[test]
+    fn web_configuration_manager_is_deprecation_risk() {
+        let code = r#"
+var cfg = WebConfigurationManager.AppSettings["key"];
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter()
+            .find(|h| h.pattern_type == "web_configuration_manager").unwrap();
+        assert_eq!(h.migration_risk, MigrationRisk::Deprecation);
+        assert_eq!(h.severity, HazardSeverity::Medium);
+    }
+
+    // ── New tests: VB.NET detection ───────────────────────────────────────
+
+    #[test]
+    fn vb_thread_sleep_detected() {
+        let code = r#"
+Public Sub WaitABit()
+    Thread.Sleep(1000)
+End Sub
+"#;
+        let report = detect_sync_hazards(code, true);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "thread_sleep"),
+            "Thread.Sleep should be detected in VB.NET code");
+    }
+
+    #[test]
+    fn vb_task_result_detected() {
+        let code = r#"
+Public Sub LoadData()
+    Dim data = GetDataAsync().Result
+End Sub
+"#;
+        let report = detect_sync_hazards(code, true);
+        assert!(report.hazards.iter().any(|h| h.pattern_type == "task_result"),
+            ".Result should be detected in VB.NET code");
+    }
+
+    // ── New tests: async readiness score ─────────────────────────────────
+
+    #[test]
+    fn async_readiness_with_only_medium_hazards() {
+        // Only medium hazards: ConfigurationManager + sync file I/O
+        let code = r#"
+public void Init() {
+    var cfg = ConfigurationManager.AppSettings["key"];
+    var text = File.ReadAllText("f.txt");
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        // 2 medium × 0.05 = 0.1 penalty → readiness = 0.9
+        assert!(report.async_readiness > 0.5,
+            "Two medium hazards should still yield readiness > 0.5");
+        assert_eq!(report.medium_count, 2);
+        assert_eq!(report.critical_count, 0);
+        assert_eq!(report.high_count, 0);
+    }
+
+    #[test]
+    fn async_readiness_zero_with_many_criticals() {
+        // 4+ criticals × 0.3 = 1.2+ penalty → clamped to 0.0
+        let code = r#"
+public void A() { a1().Result; }
+public void B() { b1().Result; }
+public void C() { c1().Result; }
+public void D() { d1().Result; }
+public void E() { e1().Wait(); }
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert_eq!(report.async_readiness, 0.0,
+            "5 critical hazards should clamp readiness to 0.0");
+    }
+
+    #[test]
+    fn containing_method_name_is_captured() {
+        let code = r#"
+public class MyService {
+    public void PerformWork(string id) {
+        var x = GetDataAsync().Result;
+    }
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
+        assert!(
+            h.containing_method.as_deref() == Some("PerformWork"),
+            "containing_method should be 'PerformWork', got {:?}",
+            h.containing_method
+        );
+    }
+
+    #[test]
+    fn line_number_is_correct_one_based() {
+        let code = "public void A() {\n    var x = GetAsync().Result;\n}\n";
+        let report = detect_sync_hazards(code, false);
+        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
+        assert_eq!(h.line_number, 2, "Result on line 2 should report line_number=2");
+    }
+
+    #[test]
+    fn comment_lines_are_skipped() {
+        let code = r#"
+public void A() {
+    // var x = GetAsync().Result;
+    var y = 1;
+}
+"#;
+        let report = detect_sync_hazards(code, false);
+        assert!(report.hazards.iter().all(|h| h.pattern_type != "task_result"),
+            "Commented-out .Result should not be flagged");
+    }
 }

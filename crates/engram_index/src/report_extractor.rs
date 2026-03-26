@@ -1209,4 +1209,407 @@ public class NormalPage : Page
             "table names should be deduplicated"
         );
     }
+
+    // ── Additional SSRS / report tests ──────────────────────────────────────
+
+    #[test]
+    fn extract_rdlc_dataset_name() {
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="SalesData">
+      <Query><CommandText>SELECT 1</CommandText></Query>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Sales.rdlc");
+        let (syms, _) = extract_ssrs_report(&rel, rdl);
+        let report = syms.iter().find(|s| s.kind == "report").unwrap();
+        let meta = report.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("dataset_count").map(|s| s.as_str()), Some("1"));
+    }
+
+    #[test]
+    fn extract_rdlc_table_data_source() {
+        let rdl = r#"<Report>
+  <DataSources>
+    <DataSource Name="ProductDB">
+      <ConnectionString>Data Source=srv;Initial Catalog=Products</ConnectionString>
+    </DataSource>
+  </DataSources>
+</Report>"#;
+        let rel = RelPath::new("Reports/Products.rdl");
+        let (syms, edges) = extract_ssrs_report(&rel, rdl);
+        let conn = syms.iter().find(|s| s.kind == "connection_string");
+        assert!(conn.is_some(), "Should have a connection_string symbol");
+        assert_eq!(conn.unwrap().name, "datasource:ProductDB");
+
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains").collect();
+        assert!(contains.iter().any(|e| e.target_name == "datasource:ProductDB"));
+    }
+
+    #[test]
+    fn extract_rdlc_report_parameters() {
+        let rdl = r#"<Report>
+  <ReportParameters>
+    <ReportParameter Name="StartDate"><DataType>DateTime</DataType></ReportParameter>
+    <ReportParameter Name="EndDate"><DataType>DateTime</DataType></ReportParameter>
+    <ReportParameter Name="IncludeArchived"><DataType>Boolean</DataType></ReportParameter>
+  </ReportParameters>
+</Report>"#;
+        let rel = RelPath::new("Reports/Filtered.rdl");
+        let (syms, _) = extract_ssrs_report(&rel, rdl);
+        let report = syms.iter().find(|s| s.kind == "report").unwrap();
+        let meta = report.metadata.as_ref().unwrap();
+        assert_eq!(meta.get("parameter_count").map(|s| s.as_str()), Some("3"));
+    }
+
+    #[test]
+    fn extract_rdlc_expression_field() {
+        // <DataField> values should produce reads_column edges (lowercased)
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="DS1">
+      <Query><CommandText>SELECT ProductName, UnitPrice FROM Products</CommandText></Query>
+      <Fields>
+        <Field Name="ProductName"><DataField>ProductName</DataField></Field>
+        <Field Name="UnitPrice"><DataField>UnitPrice</DataField></Field>
+        <Field Name="Discount"><DataField>Discount</DataField></Field>
+      </Fields>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Products.rdl");
+        let (_, edges) = extract_ssrs_report(&rel, rdl);
+        let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
+        assert_eq!(col_edges.len(), 3, "3 DataField elements should emit 3 reads_column edges");
+        let col_names: Vec<&str> = col_edges.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(col_names.contains(&"productname"));
+        assert!(col_names.contains(&"unitprice"));
+        assert!(col_names.contains(&"discount"));
+    }
+
+    #[test]
+    fn extract_rdlc_subreport_reference() {
+        let rdl = r#"<Report>
+  <Body>
+    <ReportItems>
+      <Subreport Name="sub1">
+        <ReportName>ChildReport.rdl</ReportName>
+      </Subreport>
+      <Subreport Name="sub2">
+        <ReportName>FooterReport.rdlc</ReportName>
+      </Subreport>
+    </ReportItems>
+  </Body>
+</Report>"#;
+        let rel = RelPath::new("Reports/Parent.rdl");
+        let (syms, edges) = extract_ssrs_report(&rel, rdl);
+
+        let report_meta = syms
+            .iter()
+            .find(|s| s.kind == "report")
+            .unwrap()
+            .metadata
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            report_meta.get("has_subreports").map(|s| s.as_str()),
+            Some("true")
+        );
+
+        let dep_edges: Vec<_> = edges.iter().filter(|e| e.kind == "dependency").collect();
+        assert_eq!(dep_edges.len(), 2);
+        let targets: Vec<&str> = dep_edges.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(targets.contains(&"ChildReport.rdl"));
+        assert!(targets.contains(&"FooterReport.rdlc"));
+    }
+
+    #[test]
+    fn extract_rdlc_multiple_datasets() {
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="DS1">
+      <Query><CommandText>SELECT Id FROM TableA</CommandText></Query>
+    </DataSet>
+    <DataSet Name="DS2">
+      <Query><CommandText>SELECT Id FROM TableB JOIN TableC ON TableB.Id = TableC.BId</CommandText></Query>
+    </DataSet>
+    <DataSet Name="DS3">
+      <Query><CommandText>SELECT Id FROM TableD</CommandText></Query>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Multi3.rdl");
+        let (syms, edges) = extract_ssrs_report(&rel, rdl);
+        let report = syms.iter().find(|s| s.kind == "report").unwrap();
+        assert_eq!(
+            report
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("dataset_count")
+                .map(|s| s.as_str()),
+            Some("3")
+        );
+
+        let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
+        assert_eq!(sql_edges.len(), 3, "One sql_calls edge per CommandText");
+
+        let qt: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "queries_table")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(qt.contains(&"tablea"));
+        assert!(qt.contains(&"tableb"));
+        assert!(qt.contains(&"tablec"));
+        assert!(qt.contains(&"tabled"));
+    }
+
+    #[test]
+    fn extract_rdlc_empty_report() {
+        let rdl = r#"<?xml version="1.0" encoding="utf-8"?>
+<Report xmlns="http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition">
+</Report>"#;
+        let rel = RelPath::new("Reports/Blank.rdlc");
+        let (syms, edges) = extract_ssrs_report(&rel, rdl);
+
+        // Should still emit the report and insight symbols
+        assert!(syms.iter().any(|s| s.kind == "report"), "report symbol required");
+        assert!(syms.iter().any(|s| s.kind == "insight"), "insight symbol required");
+        // No datasets, params or queries
+        let report_meta = syms
+            .iter()
+            .find(|s| s.kind == "report")
+            .unwrap()
+            .metadata
+            .as_ref()
+            .unwrap();
+        assert_eq!(report_meta.get("dataset_count").map(|s| s.as_str()), Some("0"));
+        assert_eq!(report_meta.get("parameter_count").map(|s| s.as_str()), Some("0"));
+        assert!(edges.iter().filter(|e| e.kind == "sql_calls").count() == 0);
+    }
+
+    #[test]
+    fn extract_rdlc_sql_with_join_tables() {
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="DS">
+      <Query>
+        <CommandText>SELECT o.Id, c.Name, p.Title FROM Orders o
+JOIN Customers c ON o.CustomerId = c.Id
+JOIN Products p ON o.ProductId = p.Id</CommandText>
+      </Query>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Joined.rdl");
+        let (_, edges) = extract_ssrs_report(&rel, rdl);
+        let tables: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "queries_table")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(tables.contains(&"orders"));
+        assert!(tables.contains(&"customers"));
+        assert!(tables.contains(&"products"));
+    }
+
+    #[test]
+    fn extract_rdlc_connection_string_present_flag() {
+        let rdl = r#"<Report>
+  <DataSources>
+    <DataSource Name="MainDB">
+      <ConnectionString>Server=prod;Database=main;Trusted_Connection=True</ConnectionString>
+    </DataSource>
+  </DataSources>
+</Report>"#;
+        let rel = RelPath::new("Reports/Main.rdl");
+        let (syms, _) = extract_ssrs_report(&rel, rdl);
+        let conn = syms
+            .iter()
+            .find(|s| s.kind == "connection_string")
+            .unwrap();
+        let meta = conn.metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("connection_string_present").map(|s| s.as_str()),
+            Some("true")
+        );
+        assert_eq!(
+            meta.get("data_source_name").map(|s| s.as_str()),
+            Some("MainDB")
+        );
+    }
+
+    #[test]
+    fn extract_rdlc_report_has_insight_with_modern_equivalent() {
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="DS"><Query><CommandText>SELECT 1</CommandText></Query></DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Simple.rdlc");
+        let (syms, _) = extract_ssrs_report(&rel, rdl);
+        let insight = syms.iter().find(|s| s.kind == "insight").unwrap();
+        let meta = insight.metadata.as_ref().unwrap();
+        let modern = meta.get("modern_equivalent").expect("modern_equivalent key");
+        assert!(
+            modern.contains("SSRS") || modern.contains("DevExpress") || modern.contains("Telerik"),
+            "Insight should mention a modern equivalent, got: {}",
+            modern
+        );
+    }
+
+    #[test]
+    fn extract_crystal_reports_namespace_only() {
+        // Just using the namespace import should trigger detection
+        let source = "using CrystalDecisions.CrystalReports.Engine;\nusing CrystalDecisions.Shared;";
+        let rel = RelPath::new("Pages/CrPage.aspx.cs");
+        let (syms, edges) = extract_crystal_reports_usage(&rel, source, "csharp");
+        assert!(
+            syms.iter().any(|s| s.kind == "insight"),
+            "Namespace import alone should trigger detection"
+        );
+        let ap: Vec<_> = edges.iter().filter(|e| e.kind == "anti_pattern").collect();
+        assert_eq!(ap.len(), 1);
+    }
+
+    #[test]
+    fn extract_crystal_reports_set_datasource_only() {
+        // SetDataSource without Load still triggers detection
+        let source = r#"
+using CrystalDecisions.CrystalReports.Engine;
+void ShowReport() {
+    var rpt = new ReportDocument();
+    rpt.SetDataSource(GetData());
+    viewer.ReportSource = rpt;
+}
+"#;
+        let rel = RelPath::new("Pages/Report.aspx.cs");
+        let (syms, _) = extract_crystal_reports_usage(&rel, source, "csharp");
+        assert!(syms.iter().any(|s| s.kind == "insight"));
+    }
+
+    #[test]
+    fn extract_crystal_reports_dependency_edge_metadata() {
+        let source = r#"
+using CrystalDecisions.CrystalReports.Engine;
+var rpt = new ReportDocument();
+rpt.Load("~/Reports/Invoice.rpt");
+"#;
+        let rel = RelPath::new("Pages/Invoice.aspx.cs");
+        let (_, edges) = extract_crystal_reports_usage(&rel, source, "csharp");
+        let dep = edges
+            .iter()
+            .find(|e| e.kind == "dependency")
+            .expect("dependency edge");
+        assert!(dep.target_name.ends_with("Invoice.rpt"));
+        let meta = dep.metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("relationship").map(|s| s.as_str()),
+            Some("crystal_report_load")
+        );
+    }
+
+    #[test]
+    fn extract_crystal_reports_vb_imports() {
+        let source = r#"
+Imports CrystalDecisions.CrystalReports.Engine
+
+Public Class CR
+    Sub Load()
+        Dim r As New ReportDocument()
+        r.Load("rpts/Q1.rpt")
+    End Sub
+End Class
+"#;
+        let rel = RelPath::new("Forms/CR.vb");
+        let (syms, edges) = extract_crystal_reports_usage(&rel, source, "vb");
+        assert!(syms.iter().any(|s| s.kind == "insight"));
+        let dep = edges.iter().find(|e| e.kind == "dependency").unwrap();
+        assert_eq!(dep.source_language, "vbnet");
+    }
+
+    #[test]
+    fn extract_crystal_reports_markup_anti_pattern_metadata() {
+        let markup = r#"
+<CR:CrystalReportViewer ID="cv1" runat="server" ReportSource="~/rpts/Sales.rpt" />
+"#;
+        let rel = RelPath::new("Pages/Sales.aspx");
+        let (_, edges) = extract_crystal_reports_in_markup(&rel, markup);
+        let ap = edges
+            .iter()
+            .find(|e| e.kind == "anti_pattern")
+            .expect("anti_pattern edge");
+        let meta = ap.metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("detected_in").map(|s| s.as_str()),
+            Some("markup")
+        );
+        assert_eq!(
+            meta.get("blocker_type").map(|s| s.as_str()),
+            Some("crystal_reports")
+        );
+    }
+
+    #[test]
+    fn extract_rdlc_sql_calls_edge_contains_sql_preview() {
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="DS">
+      <Query>
+        <CommandText>SELECT OrderId, Total FROM Orders WHERE CustomerId = @CustId</CommandText>
+      </Query>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Preview.rdl");
+        let (_, edges) = extract_ssrs_report(&rel, rdl);
+        let sql_edge = edges.iter().find(|e| e.kind == "sql_calls").unwrap();
+        let meta = sql_edge.metadata.as_ref().unwrap();
+        let sql_preview = meta.get("sql").expect("sql key in metadata");
+        assert!(
+            sql_preview.contains("Orders"),
+            "SQL preview should contain table name, got: {}",
+            sql_preview
+        );
+    }
+
+    #[test]
+    fn extract_rdlc_no_datasource_no_conn_symbol() {
+        // Report with datasets but no DataSource block → no connection_string symbol
+        let rdl = r#"<Report>
+  <DataSets>
+    <DataSet Name="Embedded">
+      <Query><CommandText>SELECT 1</CommandText></Query>
+    </DataSet>
+  </DataSets>
+</Report>"#;
+        let rel = RelPath::new("Reports/Embedded.rdl");
+        let (syms, _) = extract_ssrs_report(&rel, rdl);
+        assert!(
+            syms.iter().all(|s| s.kind != "connection_string"),
+            "No DataSource block should mean no connection_string symbol"
+        );
+    }
+
+    #[test]
+    fn extract_table_names_handles_insert_into() {
+        let sql = "INSERT INTO Audit (Action, UserId) VALUES ('Login', 42)";
+        let tables = extract_table_names_from_sql(sql);
+        assert!(tables.contains(&"Audit".to_string()));
+    }
+
+    #[test]
+    fn extract_table_names_handles_update() {
+        let sql = "UPDATE UserProfiles SET LastLogin = GETDATE() WHERE UserId = 5";
+        let tables = extract_table_names_from_sql(sql);
+        assert!(tables.contains(&"UserProfiles".to_string()));
+    }
+
+    #[test]
+    fn extract_table_names_empty_sql() {
+        let tables = extract_table_names_from_sql("");
+        assert!(tables.is_empty());
+    }
 }

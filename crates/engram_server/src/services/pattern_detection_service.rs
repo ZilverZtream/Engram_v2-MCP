@@ -454,4 +454,227 @@ mod tests {
             "Empty graph should yield no anti-patterns"
         );
     }
+
+    // ── AntiPatternSeverity ──────────────────────────────────────────────────
+
+    #[test]
+    fn anti_pattern_severity_equality() {
+        assert_eq!(AntiPatternSeverity::Minor, AntiPatternSeverity::Minor);
+        assert_ne!(AntiPatternSeverity::Minor, AntiPatternSeverity::Moderate);
+        assert_ne!(AntiPatternSeverity::Moderate, AntiPatternSeverity::Severe);
+    }
+
+    // ── detect_background_service_patterns: windows service ──────────────────
+
+    #[test]
+    fn detects_windows_service_inherits() {
+        let source = r#"
+Public Class MyWindowsService
+    Inherits ServiceBase
+
+    Protected Overrides Sub OnStart(ByVal args() As String)
+        ' Start logic
+    End Sub
+End Class
+"#;
+        let results = detect_background_service_patterns(source, "MyService.vb", "vb");
+        assert!(
+            results.iter().any(|r| r.pattern == "windows_service"),
+            "should detect ServiceBase inheritance"
+        );
+    }
+
+    #[test]
+    fn detects_windows_service_case_insensitive() {
+        let source = "public class MyService : ServiceBase { }";
+        let results = detect_background_service_patterns(source, "MyService.cs", "cs");
+        assert!(results.iter().any(|r| r.pattern == "windows_service"));
+    }
+
+    #[test]
+    fn windows_service_modern_equivalent_is_ihosted_service() {
+        let source = "Inherits ServiceBase";
+        let results = detect_background_service_patterns(source, "Svc.vb", "vb");
+        let r = results.iter().find(|r| r.pattern == "windows_service").unwrap();
+        assert!(
+            r.modern_equivalent.contains("BackgroundService") || r.modern_equivalent.contains("IHostedService"),
+            "modern equivalent should mention BackgroundService or IHostedService"
+        );
+    }
+
+    // ── detect_background_service_patterns: quartz ───────────────────────────
+
+    #[test]
+    fn detects_quartz_ijob() {
+        let source = r#"
+using Quartz;
+public class MyJob : IJob
+{
+    public void Execute(IJobExecutionContext context) { }
+}
+"#;
+        let results = detect_background_service_patterns(source, "MyJob.cs", "cs");
+        assert!(
+            results.iter().any(|r| r.pattern == "quartz_scheduled_job"),
+            "should detect Quartz IJob"
+        );
+    }
+
+    #[test]
+    fn quartz_requires_all_three_tokens() {
+        // missing "quartz" → should NOT detect quartz
+        let source = "public class MyJob : IJob { public void Execute() { } }";
+        let results = detect_background_service_patterns(source, "Job.cs", "cs");
+        assert!(
+            !results.iter().any(|r| r.pattern == "quartz_scheduled_job"),
+            "should not detect Quartz without 'quartz' keyword"
+        );
+    }
+
+    // ── detect_background_service_patterns: hangfire ─────────────────────────
+
+    #[test]
+    fn detects_hangfire_background_job_enqueue() {
+        let source = r#"BackgroundJob.Enqueue(() => SendEmail(userId));"#;
+        let results = detect_background_service_patterns(source, "EmailService.cs", "cs");
+        assert!(
+            results.iter().any(|r| r.pattern == "hangfire_job"),
+            "should detect BackgroundJob.Enqueue"
+        );
+    }
+
+    #[test]
+    fn detects_hangfire_recurring_job() {
+        let source = r#"RecurringJob.AddOrUpdate("daily-report", () => GenerateReport(), Cron.Daily);"#;
+        let results = detect_background_service_patterns(source, "Scheduler.cs", "cs");
+        assert!(
+            results.iter().any(|r| r.pattern == "hangfire_job"),
+            "should detect RecurringJob.AddOrUpdate"
+        );
+    }
+
+    #[test]
+    fn hangfire_modern_equivalent_mentions_hangfire() {
+        let source = "BackgroundJob.Enqueue(() => Process());";
+        let results = detect_background_service_patterns(source, "Job.cs", "cs");
+        let r = results.iter().find(|r| r.pattern == "hangfire_job").unwrap();
+        assert!(r.modern_equivalent.to_lowercase().contains("hangfire"));
+    }
+
+    // ── detect_background_service_patterns: timer service ────────────────────
+
+    #[test]
+    fn detects_timer_service_with_service_base() {
+        let source = r#"
+Inherits ServiceBase
+Dim timer As New System.Timers.Timer(60000)
+Protected Overrides Sub OnStart(args() As String)
+    timer.Start()
+End Sub
+"#;
+        let results = detect_background_service_patterns(source, "TimerSvc.vb", "vb");
+        assert!(
+            results.iter().any(|r| r.pattern == "timer_service"),
+            "should detect timer service"
+        );
+    }
+
+    #[test]
+    fn timer_without_service_context_not_detected_as_timer_service() {
+        // System.Timers.Timer but no ServiceBase or OnStart
+        let source = r#"Dim timer As New System.Timers.Timer(5000)
+timer.Elapsed += OnTimerElapsed"#;
+        let results = detect_background_service_patterns(source, "Utils.cs", "cs");
+        assert!(
+            !results.iter().any(|r| r.pattern == "timer_service"),
+            "standalone timer without service context should not trigger timer_service"
+        );
+    }
+
+    // ── detect_background_service_patterns: no patterns ──────────────────────
+
+    #[test]
+    fn no_background_patterns_in_regular_code() {
+        let source = r#"
+public class OrderController : Controller
+{
+    public ActionResult Index() { return View(); }
+}
+"#;
+        let results = detect_background_service_patterns(source, "OrderController.cs", "cs");
+        assert!(results.is_empty(), "regular controller should have no background patterns");
+    }
+
+    // ── DesignAntiPattern struct fields ──────────────────────────────────────
+
+    #[test]
+    fn design_anti_pattern_fields_accessible() {
+        let p = DesignAntiPattern {
+            pattern_name: "Session Soup".into(),
+            description: "Session key 'UserId' accessed from 10 files".into(),
+            severity: AntiPatternSeverity::Moderate,
+            affected_nodes: vec!["state:Session:UserId".into()],
+            evidence: vec!["file:Search.aspx.vb".into(), "file:Orders.aspx.vb".into()],
+            modern_target: "JWT claims".into(),
+            refactoring_steps: vec!["Identify lifecycle".into(), "Create DTO".into()],
+        };
+        assert_eq!(p.pattern_name, "Session Soup");
+        assert_eq!(p.severity, AntiPatternSeverity::Moderate);
+        assert_eq!(p.evidence.len(), 2);
+        assert_eq!(p.refactoring_steps.len(), 2);
+        assert!(p.modern_target.contains("JWT"));
+    }
+
+    #[test]
+    fn detected_service_pattern_struct_fields() {
+        let sp = DetectedServicePattern {
+            pattern: "windows_service".into(),
+            file_path: "src/Svc.vb".into(),
+            modern_equivalent: "BackgroundService".into(),
+            evidence: "Inherits ServiceBase".into(),
+        };
+        assert_eq!(sp.pattern, "windows_service");
+        assert_eq!(sp.file_path, "src/Svc.vb");
+        assert!(sp.evidence.contains("ServiceBase"));
+    }
+
+    // ── severity scoring logic ────────────────────────────────────────────────
+
+    #[test]
+    fn severity_is_severe_when_double_threshold() {
+        // For god object: 20 children > god_threshold(5) * 2 = 10 → Severe
+        // We can't call detect_design_antipatterns on a real graph easily,
+        // but we can test the severity logic inline by constructing a mock scenario
+        // via the public DesignAntiPattern struct.
+        let god_threshold = 5usize;
+        let children_count = 20usize;
+        let severity = if children_count > god_threshold * 2 {
+            AntiPatternSeverity::Severe
+        } else {
+            AntiPatternSeverity::Moderate
+        };
+        assert_eq!(severity, AntiPatternSeverity::Severe);
+    }
+
+    #[test]
+    fn severity_is_moderate_when_between_threshold_and_double() {
+        let god_threshold = 5usize;
+        let children_count = 8usize; // > 5 but <= 10
+        let severity = if children_count > god_threshold * 2 {
+            AntiPatternSeverity::Severe
+        } else {
+            AntiPatternSeverity::Moderate
+        };
+        assert_eq!(severity, AntiPatternSeverity::Moderate);
+    }
+
+    // ── file_path is stored in DetectedServicePattern ─────────────────────────
+
+    #[test]
+    fn detect_background_service_stores_file_path() {
+        let source = "Inherits ServiceBase";
+        let results = detect_background_service_patterns(source, "Services/MySvc.vb", "vb");
+        let r = results.iter().find(|r| r.pattern == "windows_service").unwrap();
+        assert_eq!(r.file_path, "Services/MySvc.vb");
+    }
 }

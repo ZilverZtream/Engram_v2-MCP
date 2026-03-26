@@ -1766,4 +1766,484 @@ mod tests {
             .collect();
         assert_eq!(neighbors.len(), 1);
     }
+
+    // ── Additional WebForms tests ─────────────────────────────────────────────
+
+    #[test]
+    fn extract_panel_with_child_controls() {
+        let markup = r#"
+<asp:Panel ID="pnlForm" runat="server">
+    <asp:TextBox ID="txtEmail" runat="server" />
+    <asp:Button ID="btnSubmit" runat="server" />
+</asp:Panel>
+"#;
+        let (syms, edges) = extract_webforms_layout("Form.aspx", markup);
+        // Container symbol present
+        assert!(syms.iter().any(|s| s.kind == "ui_container" && s.name == "pnlForm"));
+        // Both children contained
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        let targets: Vec<&str> = contains.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(targets.contains(&"txtEmail"), "txtEmail should be contained");
+        assert!(targets.contains(&"btnSubmit"), "btnSubmit should be contained");
+        // All contains_ui edges should have pnlForm as source
+        for c in &contains {
+            assert_eq!(c.source_name, "pnlForm");
+        }
+    }
+
+    #[test]
+    fn extract_label_and_textbox_pair() {
+        let markup = r#"
+<asp:Panel ID="pnlEntry" runat="server">
+    <asp:Label ID="lblFirst" runat="server" Text="First Name:" />
+    <asp:TextBox ID="txtFirst" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Entry.aspx", markup);
+        let txt_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "txtFirst");
+        assert!(txt_edge.is_some(), "txtFirst should have contains_ui edge");
+        let meta = txt_edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("ui_label").map(|s| s.as_str()),
+            Some("First Name:"),
+            "Label proximity should link 'First Name:' to txtFirst"
+        );
+    }
+
+    #[test]
+    fn extract_button_command_name() {
+        // Button with a CommandName attribute should still get a contains_ui edge
+        let markup = r#"
+<asp:Panel ID="pnlActions" runat="server">
+    <asp:Button ID="btnDelete" runat="server" CommandName="Delete" Text="Delete" />
+    <asp:Button ID="btnEdit" runat="server" CommandName="Edit" Text="Edit" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Actions.aspx", markup);
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert_eq!(
+            contains.len(),
+            2,
+            "Both buttons should be contained, got {:?}",
+            contains.iter().map(|e| &e.target_name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn extract_dropdown_in_panel() {
+        let markup = r#"
+<asp:Panel ID="pnlFilter" runat="server">
+    <asp:Label ID="lblCat" runat="server" Text="Category:" />
+    <asp:DropDownList ID="ddlCategory" runat="server" DataSourceID="sqlCategories" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Filter.aspx", markup);
+        let ddl_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "ddlCategory");
+        assert!(
+            ddl_edge.is_some(),
+            "DropDownList should be in contains_ui edge"
+        );
+        let meta = ddl_edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("ui_label").map(|s| s.as_str()),
+            Some("Category:")
+        );
+    }
+
+    #[test]
+    fn extract_radiobutton_group() {
+        let markup = r#"
+<asp:Panel ID="pnlOptions" runat="server">
+    <asp:RadioButton ID="rbYes" runat="server" GroupName="yesno" Text="Yes" />
+    <asp:RadioButton ID="rbNo" runat="server" GroupName="yesno" Text="No" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Options.aspx", markup);
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert_eq!(contains.len(), 2);
+        assert!(contains.iter().any(|e| e.target_name == "rbYes"));
+        assert!(contains.iter().any(|e| e.target_name == "rbNo"));
+    }
+
+    #[test]
+    fn extract_checkbox_in_panel() {
+        let markup = r#"
+<asp:Panel ID="pnlPrefs" runat="server">
+    <asp:Label ID="lblAgreement" runat="server" Text="I agree:" />
+    <asp:CheckBox ID="chkAgree" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Prefs.aspx", markup);
+        let chk_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "chkAgree");
+        assert!(chk_edge.is_some());
+        let meta = chk_edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta.get("ui_label").map(|s| s.as_str()), Some("I agree:"));
+    }
+
+    #[test]
+    fn extract_table_layout() {
+        let markup = r#"
+<table>
+    <tr>
+        <td><asp:Label ID="lblA" runat="server" Text="A:" /></td>
+        <td><asp:TextBox ID="txtA" runat="server" /></td>
+        <td><asp:TextBox ID="txtB" runat="server" /></td>
+    </tr>
+</table>
+"#;
+        let (syms, _) = extract_webforms_layout("Table.aspx", markup);
+        // txtA should be at col 1, txtB at col 2
+        let txt_a = syms
+            .iter()
+            .find(|s| s.kind == "control_layout" && s.name == "txtA");
+        assert!(txt_a.is_some());
+        let meta = txt_a.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta.get("row").map(|s| s.as_str()), Some("0"));
+        assert_eq!(meta.get("col").map(|s| s.as_str()), Some("1"));
+
+        let txt_b = syms
+            .iter()
+            .find(|s| s.kind == "control_layout" && s.name == "txtB");
+        assert!(txt_b.is_some());
+        let meta_b = txt_b.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta_b.get("col").map(|s| s.as_str()), Some("2"));
+    }
+
+    #[test]
+    fn extract_placeholder_content() {
+        let markup = r#"
+<asp:PlaceHolder ID="phContent" runat="server">
+    <asp:TextBox ID="txtDynamic" runat="server" />
+</asp:PlaceHolder>
+"#;
+        let (syms, edges) = extract_webforms_layout("Page.aspx", markup);
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "phContent"),
+            "PlaceHolder should be a ui_container"
+        );
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert!(contains.iter().any(|e| e.target_name == "txtDynamic"));
+    }
+
+    #[test]
+    fn extract_image_control() {
+        // asp:Image is not in the input control regex — verify it doesn't crash
+        // and regular input controls alongside it still work.
+        let markup = r#"
+<asp:Panel ID="pnlImg" runat="server">
+    <asp:TextBox ID="txtCaption" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Img.aspx", markup);
+        assert!(edges.iter().any(|e| e.target_name == "txtCaption"));
+    }
+
+    #[test]
+    fn extract_fileupload_control() {
+        let markup = r#"
+<asp:Panel ID="pnlUpload" runat="server">
+    <asp:Label ID="lblFile" runat="server" Text="Choose file:" />
+    <asp:FileUpload ID="fuResume" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Upload.aspx", markup);
+        let fu_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "fuResume");
+        assert!(fu_edge.is_some(), "FileUpload should appear in contains_ui");
+        let meta = fu_edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("ui_label").map(|s| s.as_str()),
+            Some("Choose file:")
+        );
+    }
+
+    #[test]
+    fn extract_calendar_control() {
+        let markup = r#"
+<asp:Panel ID="pnlDate" runat="server">
+    <asp:Calendar ID="calStart" runat="server" OnSelectionChanged="calStart_SelectionChanged" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Date.aspx", markup);
+        let cal_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "calStart");
+        assert!(cal_edge.is_some(), "Calendar should be in contains_ui edge");
+    }
+
+    #[test]
+    fn extract_multiview_views() {
+        let markup = r#"
+<asp:MultiView ID="mvMain" runat="server">
+    <asp:View ID="view1" runat="server">
+        <asp:TextBox ID="txt1" runat="server" />
+    </asp:View>
+    <asp:View ID="view2" runat="server">
+        <asp:TextBox ID="txt2" runat="server" />
+    </asp:View>
+</asp:MultiView>
+"#;
+        let (syms, _) = extract_webforms_layout("MV.aspx", markup);
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "mvMain"),
+            "MultiView should be a container"
+        );
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "view1"),
+            "View should be a container"
+        );
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "view2"),
+            "View should be a container"
+        );
+    }
+
+    #[test]
+    fn nested_panels_depth_preserved() {
+        let markup = r#"
+<asp:Panel ID="pnlL1" runat="server">
+    <asp:Panel ID="pnlL2" runat="server">
+        <asp:Panel ID="pnlL3" runat="server">
+            <asp:TextBox ID="txtDeep" runat="server" />
+        </asp:Panel>
+    </asp:Panel>
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Deep3.aspx", markup);
+        // txtDeep should be parented to pnlL3 (innermost)
+        let deep_edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "txtDeep");
+        assert!(deep_edge.is_some());
+        assert_eq!(deep_edge.unwrap().source_name, "pnlL3");
+    }
+
+    #[test]
+    fn extract_fieldset_container() {
+        let markup = r#"
+<fieldset id="fsPersonal">
+    <asp:TextBox ID="txtAge" runat="server" />
+    <asp:TextBox ID="txtPhone" runat="server" />
+</fieldset>
+"#;
+        let (syms, edges) = extract_webforms_layout("Personal.aspx", markup);
+        assert!(
+            syms.iter().any(|s| s.kind == "ui_container"),
+            "fieldset should be a container"
+        );
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert_eq!(contains.len(), 2);
+    }
+
+    #[test]
+    fn extract_neighbor_order_in_panel() {
+        // Three controls in sequence: neighbor edges should be A→B and B→C
+        let markup = r#"
+<asp:Panel ID="pnlSeq" runat="server">
+    <asp:TextBox ID="txtA" runat="server" />
+    <asp:TextBox ID="txtB" runat="server" />
+    <asp:TextBox ID="txtC" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Seq.aspx", markup);
+        let neighbors: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "ui_layout_neighbor")
+            .collect();
+        assert_eq!(neighbors.len(), 2, "3 controls in sequence → 2 neighbor edges");
+        assert!(neighbors.iter().any(|e| e.source_name == "txtA" && e.target_name == "txtB"));
+        assert!(neighbors.iter().any(|e| e.source_name == "txtB" && e.target_name == "txtC"));
+    }
+
+    #[test]
+    fn extract_hidden_field_control() {
+        let markup = r#"
+<asp:Panel ID="pnlHidden" runat="server">
+    <asp:HiddenField ID="hfToken" runat="server" />
+    <asp:TextBox ID="txtVisible" runat="server" />
+</asp:Panel>
+"#;
+        let (_, edges) = extract_webforms_layout("Hidden.aspx", markup);
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert!(contains.iter().any(|e| e.target_name == "hfToken"));
+        assert!(contains.iter().any(|e| e.target_name == "txtVisible"));
+    }
+
+    // ── Additional WinForms tests ─────────────────────────────────────────────
+
+    #[test]
+    fn winforms_label_properties() {
+        let source = r#"
+        Me.lblTitle.Location = New System.Drawing.Point(10, 10)
+        Me.lblTitle.Size = New System.Drawing.Size(200, 20)
+        Me.lblTitle.Text = "Welcome"
+        "#;
+        let (syms, _) = extract_winforms_layout("Form1.Designer.vb", source);
+        // lblTitle should be a control_layout symbol with the text
+        let lbl = syms
+            .iter()
+            .find(|s| s.kind == "control_layout" && s.name == "lblTitle");
+        assert!(lbl.is_some(), "lblTitle should be a control_layout");
+        let meta = lbl.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta.get("ui_label").map(|s| s.as_str()), Some("Welcome"));
+        assert_eq!(meta.get("x").map(|s| s.as_str()), Some("10"));
+        assert_eq!(meta.get("y").map(|s| s.as_str()), Some("10"));
+        assert_eq!(meta.get("width").map(|s| s.as_str()), Some("200"));
+        assert_eq!(meta.get("height").map(|s| s.as_str()), Some("20"));
+    }
+
+    #[test]
+    fn winforms_button_click_handler() {
+        // WinForms button added to a panel; spatial metadata verified
+        let source = r#"
+        Me.pnlMain.Controls.Add(Me.btnSave)
+        Me.btnSave.Location = New System.Drawing.Point(100, 200)
+        Me.btnSave.Size = New System.Drawing.Size(80, 30)
+        Me.btnSave.TabIndex = 5
+        Me.btnSave.Text = "Save"
+        "#;
+        let (syms, edges) = extract_winforms_layout("Main.Designer.vb", source);
+        // pnlMain is a container
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "pnlMain")
+        );
+        let edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "btnSave");
+        assert!(edge.is_some());
+        let meta = edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta.get("ui_label").map(|s| s.as_str()), Some("Save"));
+        assert_eq!(meta.get("x").map(|s| s.as_str()), Some("100"));
+        assert_eq!(meta.get("y").map(|s| s.as_str()), Some("200"));
+    }
+
+    #[test]
+    fn winforms_panel_controls() {
+        let source = r#"
+        Me.pnlAddress.Controls.Add(Me.txtStreet)
+        Me.pnlAddress.Controls.Add(Me.txtCity)
+        Me.pnlAddress.Controls.Add(Me.txtZip)
+        Me.txtStreet.TabIndex = 0
+        Me.txtCity.TabIndex = 1
+        Me.txtZip.TabIndex = 2
+        "#;
+        let (syms, edges) = extract_winforms_layout("Address.Designer.vb", source);
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "pnlAddress")
+        );
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert_eq!(contains.len(), 3);
+
+        // Tab order: txtStreet → txtCity → txtZip
+        let neighbors: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "ui_layout_neighbor")
+            .collect();
+        assert_eq!(neighbors.len(), 2);
+        assert!(neighbors.iter().any(|e| e.source_name == "txtStreet" && e.target_name == "txtCity"));
+        assert!(neighbors.iter().any(|e| e.source_name == "txtCity" && e.target_name == "txtZip"));
+    }
+
+    #[test]
+    fn winforms_textbox_multiline() {
+        let source = r#"
+        Me.pnlNotes.Controls.Add(Me.txtNotes)
+        Me.txtNotes.Location = New System.Drawing.Point(5, 5)
+        Me.txtNotes.Size = New System.Drawing.Size(300, 100)
+        Me.txtNotes.TabIndex = 0
+        "#;
+        let (syms, edges) = extract_winforms_layout("Notes.Designer.vb", source);
+        // The textbox should appear in the contains_ui edge with spatial data
+        let edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "txtNotes");
+        assert!(edge.is_some());
+        let meta = edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(meta.get("x").map(|s| s.as_str()), Some("5"));
+        assert_eq!(meta.get("y").map(|s| s.as_str()), Some("5"));
+
+        // Also verify as a control_layout symbol it carries size
+        let ctrl = syms
+            .iter()
+            .find(|s| s.kind == "control_layout" && s.name == "txtNotes");
+        assert!(ctrl.is_some());
+        let cmeta = ctrl.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(cmeta.get("width").map(|s| s.as_str()), Some("300"));
+        assert_eq!(cmeta.get("height").map(|s| s.as_str()), Some("100"));
+    }
+
+    #[test]
+    fn winforms_csharp_this_syntax() {
+        // `this.` instead of `Me.`
+        let source = r#"
+        this.panel1.Controls.Add(this.textBox1);
+        this.textBox1.Location = new System.Drawing.Point(20, 40);
+        this.textBox1.Size = new System.Drawing.Size(150, 22);
+        this.textBox1.TabIndex = 3;
+        this.textBox1.Text = "Enter text";
+        "#;
+        let (syms, edges) = extract_winforms_layout("Ctrl.Designer.cs", source);
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "panel1")
+        );
+        let edge = edges
+            .iter()
+            .find(|e| e.kind == "contains_ui" && e.target_name == "textBox1");
+        assert!(edge.is_some());
+        let meta = edge.unwrap().metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("ui_label").map(|s| s.as_str()),
+            Some("Enter text")
+        );
+    }
+
+    #[test]
+    fn winforms_empty_source_returns_empty() {
+        let (syms, edges) = extract_winforms_layout("Empty.Designer.vb", "");
+        assert!(syms.is_empty());
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn is_winforms_designer_detection() {
+        use std::path::Path;
+        assert!(is_winforms_designer(Path::new("Form1.Designer.vb")));
+        assert!(is_winforms_designer(Path::new("UserControl1.Designer.cs")));
+        assert!(!is_winforms_designer(Path::new("Form1.vb")));
+        assert!(!is_winforms_designer(Path::new("Default.aspx")));
+    }
+
+    #[test]
+    fn extract_div_container_with_runat_server() {
+        // A div without an ID should get an anonymous container ID
+        let markup = r#"
+<div>
+    <asp:Label ID="lblHello" runat="server" Text="Hello:" />
+    <asp:TextBox ID="txtHello" runat="server" />
+</div>
+"#;
+        let (syms, edges) = extract_webforms_layout("Div.aspx", markup);
+        let container = syms.iter().find(|s| s.kind == "ui_container");
+        assert!(container.is_some());
+        let meta = container.unwrap().metadata.as_ref().unwrap();
+        // layout_style for div is "Flow"
+        assert_eq!(meta.get("layout_style").map(|s| s.as_str()), Some("Flow"));
+
+        let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
+        assert_eq!(contains.len(), 1, "Only the TextBox, not the Label, gets a contains_ui edge");
+    }
 }

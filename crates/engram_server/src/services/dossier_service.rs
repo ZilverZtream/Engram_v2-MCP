@@ -1983,4 +1983,198 @@ mod tests {
         let formatted = format_migration_dossier(&dossier);
         assert!(formatted.contains("SqlDataSource") || formatted.contains("ObjectDataSource"));
     }
+
+    // ── detect_page_type ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_detect_page_type_aspx() {
+        assert_eq!(detect_page_type("Default.aspx"), "aspx");
+        assert_eq!(detect_page_type("Orders.ASPX"), "aspx");  // case insensitive
+    }
+
+    #[test]
+    fn test_detect_page_type_ascx() {
+        assert_eq!(detect_page_type("Header.ascx"), "ascx");
+    }
+
+    #[test]
+    fn test_detect_page_type_master() {
+        assert_eq!(detect_page_type("Site.Master"), "master");
+    }
+
+    #[test]
+    fn test_detect_page_type_asmx() {
+        assert_eq!(detect_page_type("UserService.asmx"), "asmx");
+    }
+
+    #[test]
+    fn test_detect_page_type_ashx() {
+        assert_eq!(detect_page_type("ImageHandler.ashx"), "ashx");
+    }
+
+    #[test]
+    fn test_detect_page_type_unknown() {
+        assert_eq!(detect_page_type("SomeFile.cs"), "unknown");
+        assert_eq!(detect_page_type("web.config"), "unknown");
+    }
+
+    // ── parse_directives ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_directives_inherits_and_codebehind() {
+        let aspx = r#"<%@ Page Language="C#" CodeBehind="Orders.aspx.cs" Inherits="MyApp.Orders" %>"#;
+        let (inherits, codebehind, master) = parse_directives(aspx);
+        assert_eq!(inherits.as_deref(), Some("MyApp.Orders"));
+        assert_eq!(codebehind.as_deref(), Some("Orders.aspx.cs"));
+        assert!(master.is_none());
+    }
+
+    #[test]
+    fn test_parse_directives_master_page() {
+        let aspx = r#"<%@ Page Language="VB" MasterPageFile="~/Site.master" CodeBehind="Page.aspx.vb" Inherits="MyApp.Page" %>"#;
+        let (inherits, _cb, master) = parse_directives(aspx);
+        assert!(inherits.is_some());
+        assert_eq!(master.as_deref(), Some("~/Site.master"));
+    }
+
+    #[test]
+    fn test_parse_directives_codefile_fallback() {
+        let aspx = r#"<%@ Page Language="VB" CodeFile="Page.aspx.vb" Inherits="MyApp.Page" %>"#;
+        let (_inherits, codebehind, _master) = parse_directives(aspx);
+        assert_eq!(codebehind.as_deref(), Some("Page.aspx.vb"));
+    }
+
+    #[test]
+    fn test_parse_directives_no_directive_returns_none() {
+        let aspx = "<html><body>Hello</body></html>";
+        let (inherits, codebehind, master) = parse_directives(aspx);
+        assert!(inherits.is_none());
+        assert!(codebehind.is_none());
+        assert!(master.is_none());
+    }
+
+    // ── extract_base_class_from_code ─────────────────────────────────────────
+
+    #[test]
+    fn test_extract_base_class_cs_custom() {
+        let code = "public partial class AdminPage : BasePage { }";
+        let base = extract_base_class_from_code(code);
+        assert_eq!(base.as_deref(), Some("BasePage"));
+    }
+
+    #[test]
+    fn test_extract_base_class_page_is_filtered_out() {
+        let code = "public partial class MyPage : Page { }";
+        let base = extract_base_class_from_code(code);
+        assert!(base.is_none(), "Page is filtered out as a non-custom base");
+    }
+
+    #[test]
+    fn test_extract_base_class_vb_inherits() {
+        let code = "Partial Class MyPage\n    Inherits SecurePage\nEnd Class";
+        let base = extract_base_class_from_code(code);
+        assert_eq!(base.as_deref(), Some("SecurePage"));
+    }
+
+    // ── extract_aspx_attr ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_extract_aspx_attr_basic() {
+        let tag = r#"ID="myGrid" runat="server" AllowSorting="true""#;
+        assert_eq!(extract_aspx_attr(tag, "ID"), "myGrid");
+        assert_eq!(extract_aspx_attr(tag, "runat"), "server");
+        assert_eq!(extract_aspx_attr(tag, "AllowSorting"), "true");
+    }
+
+    #[test]
+    fn test_extract_aspx_attr_case_insensitive() {
+        let tag = r#"SelectCommand="SELECT * FROM Users""#;
+        assert_eq!(extract_aspx_attr(tag, "selectcommand"), "SELECT * FROM Users");
+        assert_eq!(extract_aspx_attr(tag, "SELECTCOMMAND"), "SELECT * FROM Users");
+    }
+
+    #[test]
+    fn test_extract_aspx_attr_missing_returns_empty() {
+        let tag = r#"ID="test""#;
+        assert_eq!(extract_aspx_attr(tag, "NotHere"), "");
+    }
+
+    // ── collect_risk_factors ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_collect_risk_factors_ispostback() {
+        let lifecycle = LifecycleSummary {
+            lifecycle_event_count: 2,
+            control_event_count: 1,
+            has_ispostback_logic: true,
+            events: vec!["Page_Load (IsPostBack)".into()],
+        };
+        let viewstate = ViewStateSummary { explicit_keys: 0, implicit_controls: 0, total_state_fields: 0, heaviest_control: None };
+        let ajax = AjaxSummary { update_panel_count: 0, timer_count: 0, has_script_manager: false, suggested_components: 0 };
+        let validation = ValidationSummary { validator_count: 0, custom_validator_count: 0, validation_group_count: 0, has_validation_summary: false };
+        let auth = AuthSummary { has_auth_rules: false, required_roles: vec![], auth_check_count: 0, session_auth_count: 0 };
+        let sql: Vec<DossierSqlInfo> = vec![];
+        let data: Vec<DossierDataSource> = vec![];
+        let factors = collect_risk_factors(&lifecycle, &viewstate, &ajax, &validation, &auth, &sql, &data);
+        assert!(factors.iter().any(|f| f.contains("IsPostBack")));
+    }
+
+    #[test]
+    fn test_collect_risk_factors_update_panel() {
+        let lifecycle = LifecycleSummary { lifecycle_event_count: 0, control_event_count: 0, has_ispostback_logic: false, events: vec![] };
+        let viewstate = ViewStateSummary { explicit_keys: 0, implicit_controls: 0, total_state_fields: 0, heaviest_control: None };
+        let ajax = AjaxSummary { update_panel_count: 2, timer_count: 0, has_script_manager: true, suggested_components: 2 };
+        let validation = ValidationSummary { validator_count: 0, custom_validator_count: 0, validation_group_count: 0, has_validation_summary: false };
+        let auth = AuthSummary { has_auth_rules: false, required_roles: vec![], auth_check_count: 0, session_auth_count: 0 };
+        let sql: Vec<DossierSqlInfo> = vec![];
+        let data: Vec<DossierDataSource> = vec![];
+        let factors = collect_risk_factors(&lifecycle, &viewstate, &ajax, &validation, &auth, &sql, &data);
+        assert!(factors.iter().any(|f| f.contains("UpdatePanel")));
+    }
+
+    #[test]
+    fn test_collect_risk_factors_unparameterized_sql() {
+        let lifecycle = LifecycleSummary { lifecycle_event_count: 0, control_event_count: 0, has_ispostback_logic: false, events: vec![] };
+        let viewstate = ViewStateSummary { explicit_keys: 0, implicit_controls: 0, total_state_fields: 0, heaviest_control: None };
+        let ajax = AjaxSummary { update_panel_count: 0, timer_count: 0, has_script_manager: false, suggested_components: 0 };
+        let validation = ValidationSummary { validator_count: 0, custom_validator_count: 0, validation_group_count: 0, has_validation_summary: false };
+        let auth = AuthSummary { has_auth_rules: false, required_roles: vec![], auth_check_count: 0, session_auth_count: 0 };
+        let sql = vec![
+            DossierSqlInfo { sql_snippet: "SELECT * FROM Users WHERE id = 'abc'".to_string(), parameterized: false, connection_string: String::new() },
+        ];
+        let data: Vec<DossierDataSource> = vec![];
+        let factors = collect_risk_factors(&lifecycle, &viewstate, &ajax, &validation, &auth, &sql, &data);
+        assert!(factors.iter().any(|f| f.contains("unparameterized") || f.contains("SQL injection")));
+    }
+
+    // ── estimate_complexity ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_estimate_complexity_trivial() {
+        let lifecycle = LifecycleSummary { lifecycle_event_count: 0, control_event_count: 0, has_ispostback_logic: false, events: vec![] };
+        let viewstate = ViewStateSummary { explicit_keys: 0, implicit_controls: 0, total_state_fields: 0, heaviest_control: None };
+        let ajax = AjaxSummary { update_panel_count: 0, timer_count: 0, has_script_manager: false, suggested_components: 0 };
+        let validation = ValidationSummary { validator_count: 0, custom_validator_count: 0, validation_group_count: 0, has_validation_summary: false };
+        let auth = AuthSummary { has_auth_rules: false, required_roles: vec![], auth_check_count: 0, session_auth_count: 0 };
+        let sql: Vec<DossierSqlInfo> = vec![];
+        let controls: Vec<DossierControlRef> = vec![];
+        let complexity = estimate_complexity(0, &lifecycle, &viewstate, &ajax, &validation, &auth, &sql, &controls);
+        assert!(complexity.contains("Trivial"), "all zeros should be Trivial: {complexity}");
+    }
+
+    #[test]
+    fn test_estimate_complexity_high_for_complex_page() {
+        let lifecycle = LifecycleSummary { lifecycle_event_count: 8, control_event_count: 12, has_ispostback_logic: true, events: vec![] };
+        let viewstate = ViewStateSummary { explicit_keys: 5, implicit_controls: 3, total_state_fields: 20, heaviest_control: Some("gv1".into()) };
+        let ajax = AjaxSummary { update_panel_count: 3, timer_count: 2, has_script_manager: true, suggested_components: 3 };
+        let validation = ValidationSummary { validator_count: 5, custom_validator_count: 3, validation_group_count: 2, has_validation_summary: true };
+        let auth = AuthSummary { has_auth_rules: true, required_roles: vec!["Admin".into()], auth_check_count: 5, session_auth_count: 3 };
+        let sql: Vec<DossierSqlInfo> = (0..5).map(|_| DossierSqlInfo { sql_snippet: "SELECT".into(), parameterized: false, connection_string: String::new() }).collect();
+        let controls: Vec<DossierControlRef> = (0..5).map(|i| DossierControlRef { control_path: format!("uc{i}.ascx"), tag_prefix: "uc".into(), tag_name: format!("Ctrl{i}"), properties_set: vec![] }).collect();
+        let complexity = estimate_complexity(8, &lifecycle, &viewstate, &ajax, &validation, &auth, &sql, &controls);
+        assert!(
+            complexity.contains("High") || complexity.contains("Critical"),
+            "complex page should be High or Critical: {complexity}"
+        );
+    }
 }

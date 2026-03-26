@@ -867,4 +867,230 @@ End Sub
         assert_eq!(infer_viewstate_type("StartDate"), "DateTime?");
         assert_eq!(infer_viewstate_type("CustomData"), "object");
     }
+
+    // ── infer_viewstate_type extended ────────────────────────────────────────
+
+    #[test]
+    fn test_type_inference_count_is_int() {
+        assert_eq!(infer_viewstate_type("RecordCount"), "int");
+    }
+
+    #[test]
+    fn test_type_inference_page_size_is_int() {
+        assert_eq!(infer_viewstate_type("PageSize"), "int");
+    }
+
+    #[test]
+    fn test_type_inference_has_prefix_is_bool() {
+        assert_eq!(infer_viewstate_type("HasPermission"), "bool");
+    }
+
+    #[test]
+    fn test_type_inference_show_prefix_is_bool() {
+        assert_eq!(infer_viewstate_type("ShowAdvancedOptions"), "bool");
+    }
+
+    #[test]
+    fn test_type_inference_active_is_bool() {
+        assert_eq!(infer_viewstate_type("IsActive"), "bool");
+    }
+
+    #[test]
+    fn test_type_inference_end_date_is_datetime() {
+        assert_eq!(infer_viewstate_type("EndDate"), "DateTime?");
+    }
+
+    #[test]
+    fn test_type_inference_list_is_list_object() {
+        assert_eq!(infer_viewstate_type("DataList"), "List<object>");
+        assert_eq!(infer_viewstate_type("ItemsSource"), "List<object>");
+    }
+
+    #[test]
+    fn test_type_inference_id_suffix_is_int_nullable() {
+        // "CustomerId" contains "id" and not the exclusions
+        assert_eq!(infer_viewstate_type("CustomerId"), "int?");
+    }
+
+    // ── classify_viewstate_lifecycle ────────────────────────────────────────
+
+    #[test]
+    fn test_lifecycle_readonly_no_writers() {
+        let lifecycle = classify_viewstate_lifecycle(&["Page_Load".to_string()], &[]);
+        assert!(lifecycle.contains("ReadOnly"), "no writers → ReadOnly: {lifecycle}");
+    }
+
+    #[test]
+    fn test_lifecycle_writeonly_no_readers() {
+        let lifecycle = classify_viewstate_lifecycle(&[], &["Page_Load".to_string()]);
+        assert!(lifecycle.contains("WriteOnly"), "no readers → WriteOnly: {lifecycle}");
+    }
+
+    #[test]
+    fn test_lifecycle_single_writer() {
+        let lifecycle = classify_viewstate_lifecycle(
+            &["gvSorting".to_string()],
+            &["Page_Load".to_string()],
+        );
+        assert!(lifecycle.contains("SingleWriter"), "one writer → SingleWriter: {lifecycle}");
+    }
+
+    #[test]
+    fn test_lifecycle_multi_writer() {
+        let lifecycle = classify_viewstate_lifecycle(
+            &["reader".to_string()],
+            &["writer1".to_string(), "writer2".to_string(), "writer3".to_string()],
+        );
+        assert!(lifecycle.contains("MultiWriter"), "three writers → MultiWriter: {lifecycle}");
+        assert!(lifecycle.contains("3"), "should mention 3 writers");
+    }
+
+    #[test]
+    fn test_lifecycle_unknown_when_both_empty() {
+        let lifecycle = classify_viewstate_lifecycle(&[], &[]);
+        assert_eq!(lifecycle, "Unknown");
+    }
+
+    // ── to_camel_case ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_to_camel_case_basic() {
+        assert_eq!(to_camel_case("SortColumn"), "sortColumn");
+        assert_eq!(to_camel_case("PageIndex"), "pageIndex");
+        assert_eq!(to_camel_case("IsEditing"), "isEditing");
+    }
+
+    #[test]
+    fn test_to_camel_case_empty_string() {
+        assert_eq!(to_camel_case(""), "");
+    }
+
+    #[test]
+    fn test_to_camel_case_single_char() {
+        assert_eq!(to_camel_case("X"), "x");
+    }
+
+    #[test]
+    fn test_to_camel_case_already_camel() {
+        // "userId" → "userId" (first char lowercased, already lowercase)
+        assert_eq!(to_camel_case("userId"), "userId");
+    }
+
+    // ── capitalize ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_capitalize_basic() {
+        assert_eq!(capitalize("sortColumn"), "SortColumn");
+        assert_eq!(capitalize("pageIndex"), "PageIndex");
+    }
+
+    #[test]
+    fn test_capitalize_empty() {
+        assert_eq!(capitalize(""), "");
+    }
+
+    #[test]
+    fn test_capitalize_already_capitalized() {
+        assert_eq!(capitalize("SortColumn"), "SortColumn");
+    }
+
+    // ── migration_complexity ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_migration_complexity_low_for_few_fields() {
+        let graph = make_graph();
+        let code = r#"ViewState("Filter") = "x""#;
+        let aspx = r#"<asp:TextBox ID="txtName" runat="server" />"#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, Some(aspx)).unwrap();
+        // 1 explicit + 1 TextBox (1 property) = 2 total → Low
+        assert!(
+            result.migration_complexity.contains("Low") || result.migration_complexity.contains("None"),
+            "few fields should be Low or None: {}", result.migration_complexity
+        );
+    }
+
+    #[test]
+    fn test_migration_complexity_high_for_many_heavy_controls() {
+        let graph = make_graph();
+        // Multiple GridViews → high state
+        let aspx = r#"
+<asp:GridView ID="gv1" runat="server" />
+<asp:GridView ID="gv2" runat="server" />
+<asp:GridView ID="gv3" runat="server" />
+<asp:TreeView ID="tv1" runat="server" />
+"#;
+        // Many explicit ViewState keys
+        let code: String = (0..20)
+            .map(|i| format!("ViewState(\"Key{i}\") = {i}\n"))
+            .collect();
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", &code, Some(aspx)).unwrap();
+        assert!(
+            result.migration_complexity.contains("High") || result.migration_complexity.contains("Medium"),
+            "heavy controls + many keys should be High or Medium: {}", result.migration_complexity
+        );
+    }
+
+    // ── format_viewstate_report ──────────────────────────────────────────────
+
+    #[test]
+    fn test_format_viewstate_report_contains_header() {
+        let graph = make_graph();
+        let code = r#"ViewState("SortCol") = "Name""#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Orders.aspx.vb", code, None).unwrap();
+        let formatted = format_viewstate_report(&result);
+        assert!(formatted.contains("ViewState Dependency Report"), "should have report header");
+        assert!(formatted.contains("Orders.aspx.vb"), "should include file path");
+    }
+
+    #[test]
+    fn test_format_viewstate_report_lists_explicit_keys() {
+        let graph = make_graph();
+        let code = r#"ViewState("FilterText") = txtFilter.Text"#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
+        let formatted = format_viewstate_report(&result);
+        assert!(formatted.contains("FilterText"), "should list explicit ViewState key");
+    }
+
+    #[test]
+    fn test_format_viewstate_report_includes_modern_state_model() {
+        let graph = make_graph();
+        let code = r#"ViewState("SortColumn") = "Name""#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
+        let formatted = format_viewstate_report(&result);
+        assert!(formatted.contains("Modern State Model") || formatted.contains("Recommended"),
+            "should include modern state model section: {formatted}");
+        assert!(formatted.contains("private"), "should include private field declarations");
+    }
+
+    // ── page-level ViewState true ────────────────────────────────────────────
+
+    #[test]
+    fn test_page_level_viewstate_true() {
+        let graph = make_graph();
+        let aspx = r#"<%@ Page Language="C#" EnableViewState="true" %>"#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.cs", "", Some(aspx)).unwrap();
+        assert_eq!(result.page_level_viewstate, Some(true));
+    }
+
+    // ── implicit viewstate for other control types ────────────────────────────
+
+    #[test]
+    fn test_implicit_viewstate_calendar() {
+        let graph = make_graph();
+        let aspx = r#"<asp:Calendar ID="calPicker" runat="server" />"#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
+        let cal = result.implicit_viewstate.iter().find(|v| v.control_id == "calPicker").unwrap();
+        assert_eq!(cal.control_type, "Calendar");
+        assert!(cal.properties_persisted.iter().any(|p| p == "SelectedDate"));
+    }
+
+    #[test]
+    fn test_implicit_viewstate_checkbox() {
+        let graph = make_graph();
+        let aspx = r#"<asp:CheckBox ID="chkActive" runat="server" />"#;
+        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
+        let cb = result.implicit_viewstate.iter().find(|v| v.control_id == "chkActive").unwrap();
+        assert_eq!(cb.control_type, "CheckBox");
+        assert!(cb.properties_persisted.iter().any(|p| p == "Checked"));
+    }
 }

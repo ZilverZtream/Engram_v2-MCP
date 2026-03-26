@@ -261,4 +261,198 @@ mod tests {
         assert!(recall_ok);
         assert!(!prod);
     }
+
+    // ── compute_ndcg edge cases ──────────────────────────────────────────────
+
+    #[test]
+    fn ndcg_empty_retrieved_returns_zero() {
+        let relevant = vec!["a".into(), "b".into()];
+        let retrieved: Vec<String> = vec![];
+        let ndcg = compute_ndcg(&retrieved, &relevant, 10);
+        assert_eq!(ndcg, 0.0);
+    }
+
+    #[test]
+    fn ndcg_empty_relevant_returns_zero() {
+        let retrieved = vec!["a".into(), "b".into()];
+        let relevant: Vec<String> = vec![];
+        let ndcg = compute_ndcg(&retrieved, &relevant, 10);
+        assert_eq!(ndcg, 0.0);
+    }
+
+    #[test]
+    fn ndcg_k_limits_retrieved_set() {
+        // Only top-1 is evaluated. Retrieved has relevant at position 2 (0-indexed).
+        let relevant = vec!["b".into()];
+        let retrieved = vec!["a".into(), "b".into(), "b".into()];
+        let ndcg_k1 = compute_ndcg(&retrieved, &relevant, 1);
+        let ndcg_k2 = compute_ndcg(&retrieved, &relevant, 2);
+        // k=1: only "a" evaluated → 0; k=2: "b" found at pos 1 → > 0
+        assert_eq!(ndcg_k1, 0.0, "k=1 misses relevant item at pos 1");
+        assert!(ndcg_k2 > 0.0, "k=2 should find relevant item");
+    }
+
+    #[test]
+    fn ndcg_capped_at_one() {
+        // Perfect retrieval must not exceed 1.0
+        let relevant: Vec<String> = (0..20).map(|i| i.to_string()).collect();
+        let retrieved = relevant.clone();
+        let ndcg = compute_ndcg(&retrieved, &relevant, 10);
+        assert!(ndcg <= 1.0, "NDCG must be <= 1.0, got {ndcg}");
+    }
+
+    #[test]
+    fn ndcg_single_item_perfect() {
+        let relevant = vec!["a".into()];
+        let retrieved = vec!["a".into()];
+        let ndcg = compute_ndcg(&retrieved, &relevant, 1);
+        assert!(
+            (ndcg - 1.0).abs() < 0.001,
+            "single perfect result should have NDCG=1.0, got {ndcg}"
+        );
+    }
+
+    #[test]
+    fn ndcg_partial_match_is_between_0_and_1() {
+        let relevant = vec!["a".into(), "b".into(), "c".into(), "d".into()];
+        let retrieved = vec!["x".into(), "b".into(), "y".into(), "d".into()];
+        let ndcg = compute_ndcg(&retrieved, &relevant, 4);
+        assert!(ndcg > 0.0 && ndcg < 1.0, "partial match should be between 0 and 1, got {ndcg}");
+    }
+
+    // ── compute_recall edge cases ────────────────────────────────────────────
+
+    #[test]
+    fn recall_empty_relevant_returns_one() {
+        let retrieved = vec!["a".into()];
+        let relevant: Vec<String> = vec![];
+        let recall = compute_recall(&retrieved, &relevant, 10);
+        assert_eq!(recall, 1.0, "no relevant items means perfect recall");
+    }
+
+    #[test]
+    fn recall_zero_when_no_match() {
+        let relevant = vec!["a".into(), "b".into()];
+        let retrieved = vec!["x".into(), "y".into(), "z".into()];
+        let recall = compute_recall(&retrieved, &relevant, 3);
+        assert_eq!(recall, 0.0);
+    }
+
+    #[test]
+    fn recall_one_when_all_found() {
+        let relevant = vec!["a".into(), "b".into(), "c".into()];
+        let retrieved = vec!["a".into(), "b".into(), "c".into(), "d".into()];
+        let recall = compute_recall(&retrieved, &relevant, 4);
+        assert!((recall - 1.0).abs() < 0.001, "all relevant items found → recall = 1.0");
+    }
+
+    #[test]
+    fn recall_k_limits_window() {
+        // Relevant items only appear beyond k
+        let relevant = vec!["d".into()];
+        let retrieved = vec!["a".into(), "b".into(), "c".into(), "d".into()];
+        let recall_k3 = compute_recall(&retrieved, &relevant, 3);
+        let recall_k4 = compute_recall(&retrieved, &relevant, 4);
+        assert_eq!(recall_k3, 0.0, "relevant not in top 3");
+        assert!((recall_k4 - 1.0).abs() < 0.001, "relevant found in top 4");
+    }
+
+    // ── compute_reciprocal_rank edge cases ───────────────────────────────────
+
+    #[test]
+    fn reciprocal_rank_no_relevant_returns_zero() {
+        let retrieved = vec!["a".into(), "b".into()];
+        let relevant = vec!["x".into()];
+        assert_eq!(compute_reciprocal_rank(&retrieved, &relevant), 0.0);
+    }
+
+    #[test]
+    fn reciprocal_rank_empty_retrieved_returns_zero() {
+        let retrieved: Vec<String> = vec![];
+        let relevant = vec!["a".into()];
+        assert_eq!(compute_reciprocal_rank(&retrieved, &relevant), 0.0);
+    }
+
+    #[test]
+    fn reciprocal_rank_third_hit_is_one_third() {
+        let relevant = vec!["c".into()];
+        let retrieved = vec!["a".into(), "b".into(), "c".into()];
+        let rr = compute_reciprocal_rank(&retrieved, &relevant);
+        assert!((rr - (1.0 / 3.0)).abs() < 0.001, "3rd position → RR=1/3, got {rr}");
+    }
+
+    // ── evaluate_gates: boundary conditions ─────────────────────────────────
+
+    #[test]
+    fn gates_both_fail_not_production_ready() {
+        let (ndcg_ok, recall_ok, prod) = evaluate_gates(0.3, 0.4, 0.5, 0.6);
+        assert!(!ndcg_ok);
+        assert!(!recall_ok);
+        assert!(!prod);
+    }
+
+    #[test]
+    fn gates_fail_recall_only() {
+        let (ndcg_ok, recall_ok, prod) = evaluate_gates(0.8, 0.3, 0.5, 0.6);
+        assert!(ndcg_ok);
+        assert!(!recall_ok);
+        assert!(!prod, "must pass both gates to be production ready");
+    }
+
+    #[test]
+    fn gates_exactly_at_threshold_passes() {
+        let (ndcg_ok, recall_ok, prod) = evaluate_gates(0.5, 0.6, 0.5, 0.6);
+        assert!(ndcg_ok, "NDCG exactly at threshold should pass");
+        assert!(recall_ok, "Recall exactly at threshold should pass");
+        assert!(prod);
+    }
+
+    // ── generate_legacy_benchmark_queries ────────────────────────────────────
+
+    #[test]
+    fn legacy_benchmark_queries_not_empty() {
+        let queries = generate_legacy_benchmark_queries();
+        assert!(!queries.is_empty(), "should have at least one benchmark query");
+    }
+
+    #[test]
+    fn legacy_benchmark_queries_all_have_relevant_paths() {
+        for q in generate_legacy_benchmark_queries() {
+            assert!(!q.query.is_empty(), "query text must not be empty");
+            assert!(
+                !q.relevant_paths.is_empty(),
+                "query '{}' must have at least one relevant path", q.query
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_benchmark_queries_cover_key_webforms_concepts() {
+        let queries = generate_legacy_benchmark_queries();
+        let all_queries: String = queries.iter().map(|q| q.query.as_str()).collect::<Vec<_>>().join(" ");
+        assert!(all_queries.contains("session") || all_queries.contains("Session"));
+        assert!(all_queries.contains("GridView") || all_queries.contains("database"));
+        assert!(all_queries.contains("AJAX") || all_queries.contains("UpdatePanel"));
+    }
+
+    // ── relevance_score ──────────────────────────────────────────────────────
+
+    #[test]
+    fn relevance_score_first_item_gets_highest_score() {
+        let relevant = vec!["a".into(), "b".into(), "c".into()];
+        // First item relevance = len - 0 = 3, second = 2, third = 1
+        // We test this via NDCG: perfect order should give 1.0
+        let retrieved = relevant.clone();
+        let ndcg = compute_ndcg(&retrieved, &relevant, 3);
+        assert!((ndcg - 1.0).abs() < 0.001, "perfect retrieval must give 1.0");
+    }
+
+    #[test]
+    fn relevance_score_item_not_in_relevant_gets_zero() {
+        // Item not in relevant has relevance 0 → no contribution to DCG
+        let relevant = vec!["a".into()];
+        let retrieved = vec!["z".into()]; // z not in relevant
+        let ndcg = compute_ndcg(&retrieved, &relevant, 1);
+        assert_eq!(ndcg, 0.0, "irrelevant item has zero relevance");
+    }
 }

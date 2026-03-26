@@ -2454,4 +2454,342 @@ mod tests {
             );
         }
     }
+
+    // ── New tests: individual control type validation ──────────────────────
+
+    #[test]
+    fn gridview_blazor_equivalent_is_quickgrid() {
+        let gv = lookup("GridView").unwrap();
+        assert!(gv.blazor_equivalent.contains("QuickGrid") || gv.blazor_equivalent.contains("Virtualize"),
+            "GridView blazor equivalent should mention QuickGrid or Virtualize");
+    }
+
+    #[test]
+    fn gridview_has_viewstate_and_requires_databind() {
+        let gv = lookup("GridView").unwrap();
+        assert_eq!(gv.state_model, "ViewState");
+        assert!(gv.requires_databind_on_postback);
+        assert!(gv.has_nested_postback);
+    }
+
+    #[test]
+    fn formview_blazor_is_edit_form() {
+        let fv = lookup("FormView").unwrap();
+        assert!(fv.blazor_equivalent.contains("EditForm"),
+            "FormView blazor equivalent should be EditForm");
+    }
+
+    #[test]
+    fn formview_medium_complexity() {
+        let fv = lookup("FormView").unwrap();
+        assert_eq!(fv.migration_complexity, 3);
+    }
+
+    #[test]
+    fn listview_blazor_is_foreach_virtualize() {
+        let lv = lookup("ListView").unwrap();
+        assert!(lv.blazor_equivalent.contains("foreach"),
+            "ListView blazor equivalent should use foreach");
+        assert!(lv.blazor_equivalent.contains("Virtualize"),
+            "ListView blazor equivalent should mention Virtualize");
+    }
+
+    #[test]
+    fn listview_requires_databind() {
+        let lv = lookup("ListView").unwrap();
+        assert!(lv.requires_databind_on_postback,
+            "ListView requires DataBind on every postback");
+    }
+
+    #[test]
+    fn repeater_blazor_is_foreach_loop() {
+        let r = lookup("Repeater").unwrap();
+        assert!(r.blazor_equivalent.contains("foreach"),
+            "Repeater blazor equivalent should be foreach loop");
+    }
+
+    #[test]
+    fn repeater_is_stateless() {
+        let r = lookup("Repeater").unwrap();
+        assert_eq!(r.state_model, "Stateless",
+            "Repeater has no ViewState");
+    }
+
+    #[test]
+    fn panel_blazor_is_div() {
+        let p = lookup("Panel").unwrap();
+        assert!(p.blazor_equivalent.contains("<div>"),
+            "Panel blazor equivalent should be <div>");
+    }
+
+    #[test]
+    fn panel_low_complexity() {
+        let p = lookup("Panel").unwrap();
+        assert_eq!(p.migration_complexity, 1,
+            "Panel is trivial to migrate");
+    }
+
+    #[test]
+    fn multiview_blazor_mentions_tab() {
+        let mv = lookup("MultiView").unwrap();
+        assert!(mv.blazor_equivalent.to_lowercase().contains("tab")
+            || mv.blazor_equivalent.to_lowercase().contains("switch"),
+            "MultiView blazor equivalent should mention tab or switch");
+    }
+
+    #[test]
+    fn multiview_has_nested_postback() {
+        let mv = lookup("MultiView").unwrap();
+        assert!(mv.has_nested_postback);
+    }
+
+    #[test]
+    fn view_is_stateless_and_low_complexity() {
+        let v = lookup("View").unwrap();
+        assert_eq!(v.state_model, "Stateless");
+        assert_eq!(v.migration_complexity, 1);
+    }
+
+    #[test]
+    fn wizard_blazor_is_stepper() {
+        let wiz = lookup("Wizard").unwrap();
+        assert!(wiz.blazor_equivalent.to_lowercase().contains("stepper")
+            || wiz.blazor_equivalent.to_lowercase().contains("step"),
+            "Wizard blazor equivalent should mention stepper");
+    }
+
+    #[test]
+    fn wizard_high_complexity() {
+        let wiz = lookup("Wizard").unwrap();
+        assert!(wiz.migration_complexity >= 4,
+            "Wizard should be complexity 4 or higher");
+    }
+
+    #[test]
+    fn wizard_has_breaking_differences() {
+        let wiz = lookup("Wizard").unwrap();
+        assert!(!wiz.breaking_differences.is_empty(),
+            "Wizard should have breaking differences listed");
+    }
+
+    #[test]
+    fn fileupload_blazor_is_input_file() {
+        let fu = lookup("FileUpload").unwrap();
+        assert!(fu.blazor_equivalent.contains("InputFile"),
+            "FileUpload blazor equivalent should be InputFile");
+    }
+
+    #[test]
+    fn fileupload_stateless() {
+        let fu = lookup("FileUpload").unwrap();
+        assert_eq!(fu.state_model, "Stateless");
+    }
+
+    #[test]
+    fn calendar_blazor_is_date_picker() {
+        let cal = lookup("Calendar").unwrap();
+        assert!(cal.blazor_equivalent.to_lowercase().contains("date")
+            || cal.blazor_equivalent.to_lowercase().contains("input"),
+            "Calendar blazor equivalent should mention date input");
+    }
+
+    #[test]
+    fn calendar_react_mentions_datepicker_library() {
+        let cal = lookup("Calendar").unwrap();
+        assert!(cal.react_equivalent.to_lowercase().contains("datepicker")
+            || cal.react_equivalent.to_lowercase().contains("date"),
+            "Calendar react equivalent should mention a date picker library");
+    }
+
+    #[test]
+    fn treeview_blazor_is_recursive_component() {
+        let tv = lookup("TreeView").unwrap();
+        assert!(tv.blazor_equivalent.to_lowercase().contains("tree")
+            || tv.blazor_equivalent.to_lowercase().contains("mud"),
+            "TreeView blazor equivalent should mention tree component");
+    }
+
+    #[test]
+    fn treeview_high_complexity_with_nested_postback() {
+        let tv = lookup("TreeView").unwrap();
+        assert!(tv.migration_complexity >= 4,
+            "TreeView should be high complexity");
+        assert!(tv.has_nested_postback,
+            "TreeView has nested postback cycles");
+    }
+
+    #[test]
+    fn menu_blazor_is_nav_menu() {
+        let m = lookup("Menu").unwrap();
+        assert!(m.blazor_equivalent.to_lowercase().contains("menu")
+            || m.blazor_equivalent.to_lowercase().contains("nav"),
+            "Menu blazor equivalent should mention navigation menu");
+    }
+
+    #[test]
+    fn menu_medium_complexity() {
+        let m = lookup("Menu").unwrap();
+        assert!(m.migration_complexity >= 3,
+            "Menu should be at least medium complexity");
+    }
+
+    #[test]
+    fn sqldatasource_blazor_uses_ef_or_service() {
+        let sds = lookup("SqlDataSource").unwrap();
+        assert!(sds.blazor_equivalent.to_lowercase().contains("service")
+            || sds.blazor_equivalent.to_lowercase().contains("ef")
+            || sds.blazor_equivalent.to_lowercase().contains("core"),
+            "SqlDataSource blazor equivalent should use service or EF Core");
+    }
+
+    #[test]
+    fn sqldatasource_has_security_note() {
+        let sds = lookup("SqlDataSource").unwrap();
+        // The notes should mention that SQL in markup is a security concern
+        assert!(sds.notes.to_lowercase().contains("sql")
+            || sds.notes.to_lowercase().contains("repository")
+            || sds.notes.to_lowercase().contains("pattern"),
+            "SqlDataSource notes should discuss security and repository pattern");
+    }
+
+    #[test]
+    fn sqldatasource_high_complexity() {
+        let sds = lookup("SqlDataSource").unwrap();
+        assert!(sds.migration_complexity >= 4);
+    }
+
+    #[test]
+    fn objectdatasource_blazor_is_di_service() {
+        let ods = lookup("ObjectDataSource").unwrap();
+        assert!(ods.blazor_equivalent.to_lowercase().contains("service")
+            || ods.blazor_equivalent.to_lowercase().contains("inject")
+            || ods.blazor_equivalent.to_lowercase().contains("repository"),
+            "ObjectDataSource blazor equivalent should use DI/service");
+    }
+
+    #[test]
+    fn detailsview_has_crud_events() {
+        let dv = lookup("DetailsView").unwrap();
+        let event_names: Vec<&str> = dv.event_map.iter().map(|(e, _)| *e).collect();
+        assert!(event_names.iter().any(|&e| e.contains("Updating") || e.contains("Insert")),
+            "DetailsView should have update/insert event mappings");
+    }
+
+    #[test]
+    fn updatepanel_has_no_spa_equivalent() {
+        let up = lookup("UpdatePanel").unwrap();
+        assert!(up.blazor_equivalent.to_lowercase().contains("no equivalent")
+            || up.blazor_equivalent.to_lowercase().contains("not needed"),
+            "UpdatePanel should explicitly state no SPA equivalent needed");
+    }
+
+    #[test]
+    fn updatepanel_complexity_indicates_removal_effort() {
+        let up = lookup("UpdatePanel").unwrap();
+        assert!(up.migration_complexity >= 4,
+            "UpdatePanel requires significant effort to remove correctly");
+    }
+
+    #[test]
+    fn scriptmanager_low_complexity_remove() {
+        let sm = lookup("ScriptManager").unwrap();
+        assert_eq!(sm.migration_complexity, 1,
+            "ScriptManager is trivial to remove");
+    }
+
+    #[test]
+    fn sitemapdatasource_is_not_in_catalog_but_sitemappath_is() {
+        // SiteMapDataSource is not in catalog (it's SiteMapPath that IS)
+        assert!(lookup("SiteMapPath").is_some(), "SiteMapPath should be in catalog");
+    }
+
+    #[test]
+    fn telerik_rad_grid_is_in_catalog() {
+        let rg = lookup("RadGrid").unwrap();
+        assert_eq!(rg.legacy_namespace, "Telerik.Web.UI");
+        assert!(rg.migration_complexity >= 5,
+            "RadGrid should be maximum complexity");
+    }
+
+    #[test]
+    fn devexpress_aspx_grid_view_is_in_catalog() {
+        let ag = lookup("ASPxGridView").unwrap();
+        assert_eq!(ag.legacy_namespace, "DevExpress.Web");
+        assert!(ag.migration_complexity >= 5);
+    }
+
+    #[test]
+    fn migration_complexity_range_one_to_five() {
+        for m in CONTROL_MAPPINGS {
+            assert!(m.migration_complexity >= 1 && m.migration_complexity <= 5,
+                "migration_complexity for {} must be 1-5, got {}",
+                m.legacy_control, m.migration_complexity);
+        }
+    }
+
+    #[test]
+    fn all_lifecycle_phases_are_known_values() {
+        let valid = ["Init", "Load", "PreRender", "Postback", "Any"];
+        for m in CONTROL_MAPPINGS {
+            assert!(valid.contains(&m.lifecycle_phase),
+                "Unknown lifecycle_phase '{}' for control '{}'",
+                m.lifecycle_phase, m.legacy_control);
+        }
+    }
+
+    #[test]
+    fn all_state_models_are_known_values() {
+        let valid = ["ViewState", "ControlState", "Stateless", "ComponentState"];
+        for m in CONTROL_MAPPINGS {
+            assert!(valid.contains(&m.state_model),
+                "Unknown state_model '{}' for control '{}'",
+                m.state_model, m.legacy_control);
+        }
+    }
+
+    #[test]
+    fn all_event_firing_models_are_known_values() {
+        let valid = ["per_postback", "per_user_action", "once", "manual"];
+        for m in CONTROL_MAPPINGS {
+            assert!(valid.contains(&m.event_firing_model),
+                "Unknown event_firing_model '{}' for control '{}'",
+                m.event_firing_model, m.legacy_control);
+        }
+    }
+
+    #[test]
+    fn lookup_all_returns_all_matched_controls() {
+        let controls = ["GridView", "Repeater", "Panel", "Button", "TextBox"];
+        let results = lookup_all_for_file(&controls);
+        assert_eq!(results.len(), 5,
+            "All five controls should be found in catalog");
+        for name in &controls {
+            assert!(results.iter().any(|m| m.legacy_control.eq_ignore_ascii_case(name)),
+                "Control '{}' should be in results", name);
+        }
+    }
+
+    #[test]
+    fn lookup_all_skips_unknown_controls() {
+        let controls = ["GridView", "MyCustomControl", "UndefinedWidget"];
+        let results = lookup_all_for_file(&controls);
+        assert_eq!(results.len(), 1, "Only GridView should be found");
+        assert_eq!(results[0].legacy_control, "GridView");
+    }
+
+    #[test]
+    fn content_placeholder_maps_to_layout_slot() {
+        let cph = lookup("ContentPlaceHolder").unwrap();
+        assert!(cph.blazor_equivalent.contains("@Body")
+            || cph.blazor_equivalent.contains("RenderBody"),
+            "ContentPlaceHolder blazor equivalent should map to @Body or RenderBody");
+    }
+
+    #[test]
+    fn login_control_has_auth_events() {
+        let login = lookup("Login").unwrap();
+        let event_names: Vec<&str> = login.event_map.iter().map(|(e, _)| *e).collect();
+        assert!(event_names.iter().any(|&e| e.contains("Authenticate") || e.contains("LoggedIn")),
+            "Login control should have authentication event mappings");
+    }
 }

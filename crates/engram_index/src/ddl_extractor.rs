@@ -266,14 +266,29 @@ fn find_matching_paren(source: &str, open_pos: usize) -> Option<usize> {
     let mut depth = 0;
     let mut in_string = false;
     let mut string_char = ' ';
+    let slice = &source[open_pos..];
+    let bytes = slice.as_bytes();
+    let mut i = 0;
 
-    for (i, c) in source[open_pos..].char_indices() {
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+
         if in_string {
             if c == string_char {
                 in_string = false;
             }
+            i += 1;
             continue;
         }
+
+        // Skip `--` line comments to avoid misinterpreting single-quotes in comment text.
+        if c == '-' && i + 1 < bytes.len() && bytes[i + 1] == b'-' {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+
         match c {
             '\'' | '"' => {
                 in_string = true;
@@ -288,6 +303,7 @@ fn find_matching_paren(source: &str, open_pos: usize) -> Option<usize> {
             }
             _ => {}
         }
+        i += 1;
     }
     None
 }
@@ -368,5 +384,437 @@ CREATE TABLE Orders (
         let col_meta = email_col.metadata.as_ref().expect("col meta");
         assert_eq!(col_meta.get("table").expect("table"), "Users");
         assert_eq!(col_meta.get("nullable").expect("nullable"), "true");
+    }
+
+    // ── New tests ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn create_table_extracts_table_name() {
+        let ddl = "CREATE TABLE Products (\n    Id INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, "Products");
+    }
+
+    #[test]
+    fn create_table_extracts_column_names() {
+        let ddl = "CREATE TABLE Inventory (\n    ItemId INT NOT NULL,\n    ItemName VARCHAR(100) NOT NULL,\n    Quantity INT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+        let col_names: Vec<&str> = syms
+            .iter()
+            .filter(|s| s.kind == "db_column")
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(col_names.contains(&"ItemId"), "col_names: {col_names:?}");
+        assert!(col_names.contains(&"ItemName"), "col_names: {col_names:?}");
+        assert!(col_names.contains(&"Quantity"), "col_names: {col_names:?}");
+        assert_eq!(col_names.len(), 3);
+    }
+
+    #[test]
+    fn create_table_extracts_column_types() {
+        let ddl = "CREATE TABLE Products (\n    Price DECIMAL(10,2) NOT NULL,\n    Name NVARCHAR(200) NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let price = syms.iter().find(|s| s.name == "Price").expect("Price col");
+        let meta = price.metadata.as_ref().expect("meta");
+        assert!(
+            meta["data_type"].contains("DECIMAL"),
+            "data_type was: {}",
+            meta["data_type"]
+        );
+
+        let name_col = syms.iter().find(|s| s.name == "Name").expect("Name col");
+        let name_meta = name_col.metadata.as_ref().expect("name meta");
+        assert!(
+            name_meta["data_type"].contains("NVARCHAR"),
+            "data_type was: {}",
+            name_meta["data_type"]
+        );
+    }
+
+    #[test]
+    fn create_table_with_primary_key() {
+        // CONSTRAINT syntax — PK line is filtered by reserved keyword "CONSTRAINT"
+        let ddl = "CREATE TABLE Orders (\n    OrderId INT NOT NULL,\n    CONSTRAINT PK_Orders PRIMARY KEY (OrderId)\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+        let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
+        // "CONSTRAINT" keyword line is skipped, so only OrderId should be extracted
+        assert_eq!(cols.len(), 1, "cols: {:?}", cols.iter().map(|c| &c.name).collect::<Vec<_>>());
+        assert_eq!(cols[0].name, "OrderId");
+    }
+
+    #[test]
+    fn create_table_with_foreign_key_extracted() {
+        let ddl = "CREATE TABLE Orders (\n    OrderId INT NOT NULL,\n    CustomerId INT NULL,\n    FOREIGN KEY (CustomerId) REFERENCES Customers(CustomerId)\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, edges) = extract_ddl(&rel, ddl);
+
+        let fks: Vec<_> = edges.iter().filter(|e| e.kind == "foreign_key").collect();
+        assert_eq!(fks.len(), 1);
+
+        let fk = &fks[0];
+        assert_eq!(fk.source_name, "column:orders:customerid");
+        assert_eq!(fk.target_name, "column:customers:customerid");
+        assert_eq!(fk.source_kind, "db_column");
+        assert_eq!(fk.target_kind, Some("db_column"));
+
+        // Metadata should carry the table/column names
+        let meta = fk.metadata.as_ref().expect("fk metadata");
+        assert_eq!(meta["local_table"], "Orders");
+        assert_eq!(meta["local_column"], "CustomerId");
+        assert_eq!(meta["ref_table"], "Customers");
+        assert_eq!(meta["ref_column"], "CustomerId");
+
+        // Still emits columns as symbols
+        let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
+        assert!(cols.iter().any(|c| c.name == "CustomerId"));
+    }
+
+    #[test]
+    fn create_table_with_not_null_constraint() {
+        let ddl = "CREATE TABLE Accounts (\n    Id INT NOT NULL,\n    Balance DECIMAL(18,2) NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let id_col = syms.iter().find(|s| s.name == "Id").expect("Id col");
+        let id_meta = id_col.metadata.as_ref().expect("meta");
+        // NOT NULL → nullable = false
+        assert_eq!(id_meta["nullable"], "false");
+
+        let bal_col = syms.iter().find(|s| s.name == "Balance").expect("Balance col");
+        let bal_meta = bal_col.metadata.as_ref().expect("meta");
+        assert_eq!(bal_meta["nullable"], "true");
+    }
+
+    #[test]
+    fn create_table_with_identity_column() {
+        let ddl = "CREATE TABLE Logs (\n    LogId INT IDENTITY(1,1) NOT NULL,\n    Message NVARCHAR(500) NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        // LogId should be extracted as a column
+        let log_col = syms.iter().find(|s| s.name == "LogId").expect("LogId col");
+        assert_eq!(log_col.kind, "db_column");
+    }
+
+    #[test]
+    fn alter_table_add_column_not_treated_as_table() {
+        // ALTER TABLE is NOT CREATE TABLE — the extractor only handles CREATE TABLE
+        // so this should not produce any table or column symbols
+        let ddl = "ALTER TABLE Products ADD Description NVARCHAR(500) NULL;";
+        let rel = RelPath::new("migration.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+        // No CREATE TABLE → no symbols produced
+        assert!(
+            syms.iter().all(|s| s.kind != "db_table"),
+            "ALTER TABLE should not produce db_table symbols"
+        );
+    }
+
+    #[test]
+    fn alter_table_add_foreign_key_not_treated_as_table() {
+        let ddl = "ALTER TABLE Orders ADD CONSTRAINT FK_Cust FOREIGN KEY (CustId) REFERENCES Customers(Id);";
+        let rel = RelPath::new("migration.sql");
+        let (syms, edges) = extract_ddl(&rel, ddl);
+        // No CREATE TABLE block → nothing extracted
+        assert!(syms.is_empty());
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn create_index_on_table_no_extra_table_symbols() {
+        // CREATE INDEX is not CREATE TABLE — should not produce extra db_table symbols
+        let ddl = "CREATE TABLE Items (\n    ItemId INT NOT NULL\n)\n\nCREATE INDEX IX_ItemId ON Items (ItemId);";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        // Only the CREATE TABLE produces a table symbol
+        assert_eq!(tables.len(), 1, "Only one table expected, got: {:?}", tables.iter().map(|t| &t.name).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn multiple_tables_in_one_script() {
+        let ddl = r#"
+CREATE TABLE Alpha (
+    AlphaId INT NOT NULL,
+    AlphaName VARCHAR(50) NOT NULL
+)
+
+CREATE TABLE Beta (
+    BetaId INT NOT NULL,
+    AlphaId INT NULL,
+    FOREIGN KEY (AlphaId) REFERENCES Alpha(AlphaId)
+)
+
+CREATE TABLE Gamma (
+    GammaId INT NOT NULL
+)
+"#;
+        let rel = RelPath::new("schema.sql");
+        let (syms, edges) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 3);
+        assert!(tables.iter().any(|t| t.name == "Alpha"));
+        assert!(tables.iter().any(|t| t.name == "Beta"));
+        assert!(tables.iter().any(|t| t.name == "Gamma"));
+
+        let fks: Vec<_> = edges.iter().filter(|e| e.kind == "foreign_key").collect();
+        assert_eq!(fks.len(), 1);
+        assert_eq!(fks[0].source_name, "column:beta:alphaid");
+        assert_eq!(fks[0].target_name, "column:alpha:alphaid");
+    }
+
+    #[test]
+    fn table_with_schema_prefix_parsed() {
+        let ddl = "CREATE TABLE dbo.Products (\n    ProductId INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 1);
+        // Schema prefix is stripped — only the table name remains
+        assert_eq!(tables[0].name, "Products");
+    }
+
+    #[test]
+    fn table_with_brackets_parsed() {
+        let ddl = "CREATE TABLE [dbo].[OrderDetails] (\n    [DetailId] INT NOT NULL,\n    [Qty] INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, "OrderDetails");
+
+        let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
+        let col_names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
+        assert!(col_names.contains(&"DetailId"), "col_names: {col_names:?}");
+        assert!(col_names.contains(&"Qty"), "col_names: {col_names:?}");
+    }
+
+    #[test]
+    fn empty_ddl_returns_empty() {
+        let rel = RelPath::new("empty.sql");
+        let (syms, edges) = extract_ddl(&rel, "");
+        assert!(syms.is_empty(), "Expected no symbols for empty input");
+        assert!(edges.is_empty(), "Expected no edges for empty input");
+    }
+
+    #[test]
+    fn ddl_with_sql_comments_parsed() {
+        let ddl = r#"
+-- This creates the user table
+CREATE TABLE Users (
+    -- Primary key
+    UserId INT NOT NULL,
+    -- User's email address
+    Email VARCHAR(255) NULL
+)
+"#;
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, "Users");
+
+        let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
+        let col_names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
+        assert!(col_names.contains(&"UserId"), "col_names: {col_names:?}");
+        assert!(col_names.contains(&"Email"), "col_names: {col_names:?}");
+    }
+
+    #[test]
+    fn varchar_length_in_type_captured() {
+        let ddl = "CREATE TABLE Contacts (\n    Phone VARCHAR(20) NOT NULL,\n    Notes NVARCHAR(MAX) NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let phone = syms.iter().find(|s| s.name == "Phone").expect("Phone col");
+        let meta = phone.metadata.as_ref().expect("meta");
+        // The data_type should include the length qualifier
+        // The length qualifier must be preserved — VARCHAR without (20) would lose precision info.
+        let dt = meta["data_type"].to_uppercase();
+        assert!(
+            dt.contains("VARCHAR") && dt.contains("20"),
+            "data_type must include both type name and length qualifier, got: {}",
+            meta["data_type"]
+        );
+    }
+
+    #[test]
+    fn check_constraint_line_skipped() {
+        // Lines starting with CONSTRAINT keyword should not be treated as columns
+        let ddl = "CREATE TABLE Orders (\n    Total DECIMAL(10,2) NOT NULL,\n    CONSTRAINT CK_Total CHECK (Total >= 0)\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
+        // Only "Total" should be a column; the CONSTRAINT line is a keyword and gets skipped
+        let col_names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
+        assert!(!col_names.contains(&"CONSTRAINT"), "CONSTRAINT should not be a column name");
+        assert!(!col_names.contains(&"CK_Total"), "CK_Total should not be a column name");
+        assert!(col_names.contains(&"Total"), "Total should be extracted: {col_names:?}");
+    }
+
+    #[test]
+    fn has_column_edges_point_to_correct_table() {
+        let ddl = "CREATE TABLE Widgets (\n    WidgetId INT NOT NULL,\n    Color VARCHAR(50) NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, edges) = extract_ddl(&rel, ddl);
+
+        let has_col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "has_column").collect();
+        assert_eq!(has_col_edges.len(), 2);
+
+        for e in &has_col_edges {
+            assert_eq!(e.source_name, "Widgets", "source_name should be table name");
+            assert_eq!(e.source_kind, "db_table");
+            assert_eq!(e.target_kind, Some("db_column"));
+        }
+
+        let target_names: Vec<&str> = has_col_edges.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(target_names.contains(&"WidgetId"), "targets: {target_names:?}");
+        assert!(target_names.contains(&"Color"), "targets: {target_names:?}");
+
+        // All symbols must include the table
+        let table = syms.iter().find(|s| s.kind == "db_table").expect("table");
+        assert_eq!(table.name, "Widgets");
+    }
+
+    #[test]
+    fn fk_edge_uses_lowercase_names() {
+        let ddl = "CREATE TABLE Orders (\n    OrderId INT NOT NULL,\n    CustId INT NULL,\n    FOREIGN KEY (CustId) REFERENCES Customers(CustomerId)\n)";
+        let rel = RelPath::new("schema.sql");
+        let (_, edges) = extract_ddl(&rel, ddl);
+
+        let fks: Vec<_> = edges.iter().filter(|e| e.kind == "foreign_key").collect();
+        assert_eq!(fks.len(), 1);
+        // Both source and target names in the FK edge use lowercase
+        assert_eq!(fks[0].source_name, "column:orders:custid");
+        assert_eq!(fks[0].target_name, "column:customers:customerid");
+    }
+
+    #[test]
+    fn table_ddl_stored_in_metadata() {
+        let ddl = "CREATE TABLE Events (\n    EventId INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let table = syms.iter().find(|s| s.kind == "db_table").expect("table");
+        let meta = table.metadata.as_ref().expect("metadata");
+        let ddl_text = meta.get("ddl").expect("ddl key");
+        assert!(ddl_text.contains("Events"), "DDL should include table name");
+        assert!(ddl_text.contains("CREATE TABLE"), "DDL should include CREATE TABLE");
+    }
+
+    #[test]
+    fn file_path_stored_in_table_metadata() {
+        let ddl = "CREATE TABLE T (\n    Id INT NOT NULL\n)";
+        let rel = RelPath::new("migrations/v1/schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let table = syms.iter().find(|s| s.kind == "db_table").expect("table");
+        let meta = table.metadata.as_ref().expect("metadata");
+        let file_val = meta.get("file").expect("file key");
+        assert_eq!(file_val, "migrations/v1/schema.sql");
+    }
+
+    #[test]
+    fn column_table_name_in_metadata() {
+        let ddl = "CREATE TABLE Shipments (\n    ShipId INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let col = syms.iter().find(|s| s.kind == "db_column").expect("col");
+        let meta = col.metadata.as_ref().expect("meta");
+        assert_eq!(meta["table"], "Shipments");
+    }
+
+    #[test]
+    fn create_procedure_not_treated_as_table() {
+        let ddl = r#"
+CREATE TABLE Employees (
+    EmployeeId INT NOT NULL,
+    Name NVARCHAR(100) NOT NULL
+)
+
+CREATE PROCEDURE GetEmployee
+    @Id INT
+AS
+BEGIN
+    SELECT * FROM Employees WHERE EmployeeId = @Id
+END
+"#;
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        // Only Employees should be found, not any fake "table" from the stored procedure
+        assert_eq!(tables.len(), 1, "Only one table expected: {:?}", tables.iter().map(|t| &t.name).collect::<Vec<_>>());
+        assert_eq!(tables[0].name, "Employees");
+    }
+
+    #[test]
+    fn create_unique_index_not_treated_as_table() {
+        let ddl = "CREATE TABLE Cats (\n    CatId INT NOT NULL,\n    Tag VARCHAR(30) NOT NULL\n)\n\nCREATE UNIQUE INDEX UX_CatTag ON Cats (Tag);";
+        let rel = RelPath::new("schema.sql");
+        let (syms, _) = extract_ddl(&rel, ddl);
+
+        let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
+        assert_eq!(tables.len(), 1);
+        assert_eq!(tables[0].name, "Cats");
+    }
+
+    #[test]
+    fn fk_constraint_syntax_with_brackets() {
+        let ddl = r#"
+CREATE TABLE [dbo].[LineItems] (
+    [LineItemId] INT NOT NULL,
+    [OrderId] INT NULL,
+    FOREIGN KEY ([OrderId]) REFERENCES [dbo].[Orders]([OrderId])
+)
+"#;
+        let rel = RelPath::new("schema.sql");
+        let (_, edges) = extract_ddl(&rel, ddl);
+
+        let fks: Vec<_> = edges.iter().filter(|e| e.kind == "foreign_key").collect();
+        assert_eq!(fks.len(), 1);
+        assert_eq!(fks[0].source_name, "column:lineitems:orderid");
+        assert_eq!(fks[0].target_name, "column:orders:orderid");
+    }
+
+    #[test]
+    fn whitespace_only_input_returns_empty() {
+        let rel = RelPath::new("blank.sql");
+        let (syms, edges) = extract_ddl(&rel, "   \n\t\n   ");
+        assert!(syms.is_empty());
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn fk_edge_language_is_sql() {
+        let ddl = "CREATE TABLE T (\n    A INT NOT NULL,\n    B INT NULL,\n    FOREIGN KEY (B) REFERENCES R(C)\n)";
+        let rel = RelPath::new("schema.sql");
+        let (_, edges) = extract_ddl(&rel, ddl);
+        let fks: Vec<_> = edges.iter().filter(|e| e.kind == "foreign_key").collect();
+        assert_eq!(fks.len(), 1);
+        assert_eq!(fks[0].source_language, "sql");
+    }
+
+    #[test]
+    fn has_column_edge_language_is_sql() {
+        let ddl = "CREATE TABLE T (\n    A INT NOT NULL\n)";
+        let rel = RelPath::new("schema.sql");
+        let (_, edges) = extract_ddl(&rel, ddl);
+        let has_col: Vec<_> = edges.iter().filter(|e| e.kind == "has_column").collect();
+        assert_eq!(has_col.len(), 1);
+        assert_eq!(has_col[0].source_language, "sql");
     }
 }

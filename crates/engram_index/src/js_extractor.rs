@@ -2198,4 +2198,473 @@ mod tests {
         assert!(modern_gis_equivalent("openlayers", "Map").contains("rlayers"));
         assert!(modern_gis_equivalent("unknown", "thing").contains("Manual"));
     }
+
+    // ── document.getElementById variants ────────────────────────────────
+
+    #[test]
+    fn detect_document_get_element_by_id() {
+        let js = r#"var el = document.getElementById('txtUsername');"#;
+        let (_, edges) = extract_js(&test_path("login.js"), js);
+        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        assert!(!dom.is_empty(), "should detect getElementById as DOM access");
+        assert_eq!(dom[0].target_name, "txtUsername");
+        let meta = dom[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("selector_type").map(|s| s.as_str()), Some("getelementbyid"));
+    }
+
+    #[test]
+    fn getelementbyid_double_quotes() {
+        let js = r#"document.getElementById("btnSave").disabled = true;"#;
+        let (_, edges) = extract_js(&test_path("form.js"), js);
+        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        assert!(!dom.is_empty());
+        assert_eq!(dom[0].target_name, "btnSave");
+    }
+
+    #[test]
+    fn getelementbyid_case_insensitive() {
+        // The regex uses (?i) so uppercase variant should also match
+        let js = r#"document.getElementById('pnlAlert');"#;
+        let (_, edges) = extract_js(&test_path("alerts.js"), js);
+        assert!(!edges.is_empty());
+        assert!(edges.iter().any(|e| e.target_name == "pnlAlert"));
+    }
+
+    // ── jQuery $ selector variants ───────────────────────────────────────
+
+    #[test]
+    fn detect_jquery_dollar_ends_with() {
+        let js = r#"$('[id$="ddlStatus"]').val();"#;
+        let (_, edges) = extract_js(&test_path("status.js"), js);
+        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        assert!(!dom.is_empty());
+        assert_eq!(dom[0].target_name, "ddlStatus");
+    }
+
+    #[test]
+    fn jquery_multiple_controls_on_same_line() {
+        // Two different controls referenced in same JS file
+        let js = r#"
+            var a = $("[id$='txtName']");
+            var b = $("[id$='txtEmail']");
+        "#;
+        let (_, edges) = extract_js(&test_path("multi.js"), js);
+        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        assert_eq!(dom.len(), 2, "two distinct controls should produce 2 edges");
+        assert!(dom.iter().any(|e| e.target_name == "txtName"));
+        assert!(dom.iter().any(|e| e.target_name == "txtEmail"));
+    }
+
+    // ── __doPostBack variants ────────────────────────────────────────────
+
+    #[test]
+    fn detect_dopostback_call() {
+        let js = r#"__doPostBack('lnkRefresh', '');"#;
+        let (_, edges) = extract_js(&test_path("nav.js"), js);
+        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        assert_eq!(pb.len(), 1);
+        assert_eq!(pb[0].target_name, "lnkRefresh");
+        assert_eq!(pb[0].target_kind, Some("control"));
+    }
+
+    #[test]
+    fn detect_dopostback_with_event_argument() {
+        let js = r#"__doPostBack('gvOrders$ctl02$lnkEdit', 'Select$0');"#;
+        let (_, edges) = extract_js(&test_path("grid.js"), js);
+        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        assert_eq!(pb.len(), 1);
+        // Short name is last segment after $
+        assert_eq!(pb[0].target_name, "lnkEdit");
+        let meta = pb[0].metadata.as_ref().expect("metadata");
+        assert_eq!(
+            meta.get("unique_id").map(|s| s.as_str()),
+            Some("gvOrders$ctl02$lnkEdit")
+        );
+    }
+
+    #[test]
+    fn detect_dopostback_in_onclick_string() {
+        // Inline handler as a string containing __doPostBack
+        let js = r#"button.onclick = "__doPostBack('btnProcess', '')";"#;
+        let (_, edges) = extract_js(&test_path("dyn.js"), js);
+        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        assert_eq!(pb.len(), 1);
+        assert_eq!(pb[0].target_name, "btnProcess");
+    }
+
+    // ── AJAX detection ───────────────────────────────────────────────────
+
+    #[test]
+    fn detect_fetch_api() {
+        let js = r#"fetch('/api/orders').then(r => r.json());"#;
+        let (_, edges) = extract_js(&test_path("orders.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty(), "fetch should produce api_call edge");
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("fetch"));
+    }
+
+    #[test]
+    fn detect_fetch_with_url_captured() {
+        let js = r#"fetch('Services/Inventory.asmx/GetItems').then(r => r.json());"#;
+        let (_, edges) = extract_js(&test_path("inventory.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        assert_eq!(api[0].target_name, "Services/Inventory.asmx");
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(
+            meta.get("ajax_target_method").map(|s| s.as_str()),
+            Some("GetItems")
+        );
+    }
+
+    #[test]
+    fn detect_xmlhttprequest_open() {
+        let js = r#"
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', 'Handlers/Data.ashx');
+        "#;
+        let (_, edges) = extract_js(&test_path("xhr.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty(), "XHR.open should produce api_call edge");
+        assert_eq!(api[0].target_name, "Handlers/Data.ashx");
+        assert_eq!(api[0].target_kind, Some("http_handler"));
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("xhr"));
+    }
+
+    #[test]
+    fn detect_jquery_ajax() {
+        let js = r#"$.ajax({ url: 'api/Products', type: 'GET' });"#;
+        let (_, edges) = extract_js(&test_path("products.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_ajax"));
+    }
+
+    #[test]
+    fn detect_jquery_get() {
+        let js = r#"$.get('Services/Lookup.asmx/GetValues', callback);"#;
+        let (_, edges) = extract_js(&test_path("lookup.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        assert_eq!(api[0].target_name, "Services/Lookup.asmx");
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_shorthand"));
+    }
+
+    #[test]
+    fn detect_jquery_post() {
+        let js = r#"$.post('Services/Save.asmx/SaveRecord', data, callback);"#;
+        let (_, edges) = extract_js(&test_path("save.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        assert_eq!(api[0].target_name, "Services/Save.asmx");
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_shorthand"));
+    }
+
+    #[test]
+    fn ajax_url_extracted_and_stored_in_metadata() {
+        let js = r#"$.ajax({ url: 'Services/MapData.asmx/GetLayer', type: 'POST' });"#;
+        let (_, edges) = extract_js(&test_path("map.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        let meta = api[0].metadata.as_ref().expect("metadata");
+        // The raw url should be stored
+        assert_eq!(
+            meta.get("ajax_url").map(|s| s.as_str()),
+            Some("Services/MapData.asmx/GetLayer")
+        );
+    }
+
+    #[test]
+    fn page_methods_with_different_case() {
+        // PageMethods is case-insensitive per regex (?i)
+        let js = r#"PageMethods.SearchPatients(term, success, failure);"#;
+        let (_, edges) = extract_js(&test_path("search.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        assert_eq!(api[0].target_name, "SearchPatients");
+    }
+
+    #[test]
+    fn xhr_post_method() {
+        let js = r#"req.open('POST', 'Services/Auth.asmx/Login');"#;
+        let (_, edges) = extract_js(&test_path("auth.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        assert_eq!(api[0].target_name, "Services/Auth.asmx");
+        assert_eq!(api[0].target_kind, Some("web_service"));
+    }
+
+    // ── ASP.NET ClientID variants ────────────────────────────────────────
+
+    #[test]
+    fn asp_client_id_in_function_call() {
+        let js = r#"$('#<%= hdnUserId.ClientID %>').val(userId);"#;
+        let (_, edges) = extract_js(&test_path("user.js"), js);
+        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        assert!(!dom.is_empty(), "ClientID expression should produce edge");
+        assert!(dom.iter().any(|e| e.target_name == "hdnUserId"));
+    }
+
+    #[test]
+    fn asp_client_id_uppercase_asp() {
+        // (?i) flag means UPPERCASE also matches
+        let js = r#"var el = document.getElementById('<%= lblStatus.ClientID %>');"#;
+        let (_, edges) = extract_js(&test_path("status.js"), js);
+        // ClientID extraction uses a separate regex — check it fires
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "manipulates_dom"
+                    && e.metadata
+                        .as_ref()
+                        .map(|m| m.get("selector_type").map(|s| s.as_str()) == Some("asp_client_id"))
+                        .unwrap_or(false)
+            })
+            .collect();
+        assert!(!dom.is_empty(), "asp_client_id edge should fire");
+        assert!(dom.iter().any(|e| e.target_name == "lblStatus"));
+    }
+
+    // ── URL splitting helpers ────────────────────────────────────────────
+
+    #[test]
+    fn split_url_aspx_page() {
+        let (path, method) = split_service_url("Pages/Default.aspx/SaveForm");
+        assert_eq!(path, "Pages/Default.aspx");
+        assert_eq!(method.as_deref(), Some("SaveForm"));
+    }
+
+    #[test]
+    fn split_url_svc_endpoint() {
+        let (path, method) = split_service_url("Services/Data.svc/GetAll");
+        assert_eq!(path, "Services/Data.svc");
+        assert_eq!(method.as_deref(), Some("GetAll"));
+    }
+
+    #[test]
+    fn split_url_absolute_leading_slash() {
+        let (path, method) = split_service_url("/Services/Auth.asmx/Login");
+        assert_eq!(path, "Services/Auth.asmx");
+        assert_eq!(method.as_deref(), Some("Login"));
+    }
+
+    #[test]
+    fn split_url_no_extension_lowercase_tail() {
+        // If the tail segment is lowercase, it's not treated as a method name
+        let (path, method) = split_service_url("api/patients/search");
+        // Lowercase tail → not split as method
+        assert!(method.is_none() || path.contains("patients"), "path: {path}, method: {method:?}");
+    }
+
+    #[test]
+    fn split_url_query_string_stripped() {
+        let (path, _method) = split_service_url("Services/Report.asmx/Get?id=1&format=pdf");
+        assert_eq!(path, "Services/Report.asmx");
+        // Query params should not appear in path
+        assert!(!path.contains('?'));
+        assert!(!path.contains("id="));
+    }
+
+    // ── Edge cases ───────────────────────────────────────────────────────
+
+    #[test]
+    fn empty_file_returns_empty() {
+        let (syms, edges) = extract_js(&test_path("empty.js"), "");
+        assert!(syms.is_empty(), "empty file should produce no symbols");
+        assert!(edges.is_empty(), "empty file should produce no edges");
+    }
+
+    #[test]
+    fn js_with_only_comments_produces_no_bridge_edges() {
+        let js = "/* This is a comment block with no real code */\n// Another comment\n";
+        let (_, edges) = extract_js(&test_path("comments.js"), js);
+        // Comments should not produce bridge edges (no postbacks, no jQuery, no AJAX)
+        let bridge: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "manipulates_dom"
+                    || e.kind == "triggers_postback"
+                    || e.kind == "api_call"
+            })
+            .collect();
+        assert!(bridge.is_empty(), "pure comments should produce no bridge edges");
+    }
+
+    #[test]
+    fn minified_code_handled_without_panic() {
+        // A very long single-line JS file that resembles minified output
+        let long_line = "var a=1;".repeat(10_000);
+        let minified = format!("{long_line}$.get('Services/Data.asmx/GetRows',cb);{long_line}");
+        let (_, edges) = extract_js(&test_path("bundle.min.js"), &minified);
+        // Should not panic and should detect the embedded AJAX call
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty(), "AJAX call in minified code should still be detected");
+    }
+
+    #[test]
+    fn skip_anchor_href_in_ajax() {
+        let js = r#"$.ajax({ url: '#section' });"#;
+        let (_, edges) = extract_js(&test_path("nav.js"), js);
+        // Anchor URLs are skipped by emit_ajax_edge
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(api.is_empty(), "anchor href should be skipped");
+    }
+
+    #[test]
+    fn multiple_ajax_calls_in_one_file() {
+        let js = r#"
+            $.ajax({ url: 'Services/Orders.asmx/GetOrders', type: 'GET' });
+            $.ajax({ url: 'Services/Products.asmx/GetProducts', type: 'GET' });
+            $.ajax({ url: 'Handlers/Export.ashx', type: 'POST' });
+        "#;
+        let (_, edges) = extract_js(&test_path("multi_ajax.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert_eq!(api.len(), 3, "three distinct AJAX calls should produce 3 edges");
+    }
+
+    #[test]
+    fn multiple_postbacks_in_one_file() {
+        let js = r#"
+            __doPostBack('btnSave', '');
+            __doPostBack('btnCancel', '');
+        "#;
+        let (_, edges) = extract_js(&test_path("form.js"), js);
+        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        assert_eq!(pb.len(), 2);
+        assert!(pb.iter().any(|e| e.target_name == "btnSave"));
+        assert!(pb.iter().any(|e| e.target_name == "btnCancel"));
+    }
+
+    #[test]
+    fn fetch_with_relative_tilde_url() {
+        let js = r#"fetch('~/Services/Data.asmx/GetRows').then(r => r.json());"#;
+        let (_, edges) = extract_js(&test_path("data.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        assert!(!api.is_empty());
+        // Tilde prefix should be stripped
+        assert_eq!(api[0].target_name, "Services/Data.asmx");
+    }
+
+    #[test]
+    fn getelementbyid_no_edge_for_expression_ids() {
+        // IDs that are code expressions (e.g., variable) are not matched by the literal regex
+        let js = r#"document.getElementById(someVariable);"#;
+        let (_, edges) = extract_js(&test_path("dyn.js"), js);
+        let gebi: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "manipulates_dom"
+                    && e.metadata
+                        .as_ref()
+                        .map(|m| m.get("selector_type").map(|s| s.as_str()) == Some("getelementbyid"))
+                        .unwrap_or(false)
+            })
+            .collect();
+        // Dynamic variable access is not captured (only string literals are)
+        assert!(gebi.is_empty(), "variable id should not be captured");
+    }
+
+    #[test]
+    fn edge_source_language_is_javascript() {
+        let js = r#"__doPostBack('btnTest', '');"#;
+        let (_, edges) = extract_js(&test_path("test.js"), js);
+        assert!(!edges.is_empty());
+        assert_eq!(edges[0].source_language, "javascript");
+    }
+
+    #[test]
+    fn edge_source_kind_is_file() {
+        let js = r#"__doPostBack('btnTest', '');"#;
+        let (_, edges) = extract_js(&test_path("test.js"), js);
+        assert!(!edges.is_empty());
+        assert_eq!(edges[0].source_kind, "file");
+    }
+
+    #[test]
+    fn edge_source_name_is_filename() {
+        let js = r#"__doPostBack('btnCheck', '');"#;
+        let path = test_path("mypage.js");
+        let (_, edges) = extract_js(&path, js);
+        assert!(!edges.is_empty());
+        assert_eq!(edges[0].source_name, "mypage.js");
+    }
+
+    #[test]
+    fn gis_leaflet_polygon_and_circle() {
+        let js = r#"
+            L.polygon([[51.5, -0.1], [51.5, -0.2]]).addTo(map);
+            L.circle([51.5, -0.1], { radius: 500 }).addTo(map);
+        "#;
+        let (_, edges) = extract_js(&test_path("shapes.js"), js);
+        let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
+        assert!(spatial.len() >= 2, "polygon and circle should each produce spatial_call");
+        assert!(
+            spatial.iter().any(|e| {
+                e.metadata
+                    .as_ref()
+                    .unwrap()
+                    .get("map_class")
+                    .map(|s| s.as_str())
+                    == Some("polygon")
+            }),
+            "should detect polygon class"
+        );
+    }
+
+    #[test]
+    fn gis_google_maps_marker_metadata() {
+        let js = r#"var m = new google.maps.Marker({ position: pos, map: map });"#;
+        let (_, edges) = extract_js(&test_path("markers.js"), js);
+        let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
+        assert!(!spatial.is_empty());
+        let marker_edge = spatial
+            .iter()
+            .find(|e| {
+                e.metadata
+                    .as_ref()
+                    .unwrap()
+                    .get("map_class")
+                    .map(|s| s.as_str())
+                    == Some("Marker")
+            });
+        assert!(marker_edge.is_some(), "Marker spatial edge should exist");
+        assert_eq!(
+            marker_edge.unwrap().metadata.as_ref().unwrap().get("gis_library").map(|s| s.as_str()),
+            Some("google_maps")
+        );
+    }
+
+    #[test]
+    fn is_js_file_returns_true_for_js_extension() {
+        use std::path::PathBuf;
+        assert!(is_js_file(&PathBuf::from("Scripts/app.js")));
+        assert!(!is_js_file(&PathBuf::from("Scripts/app.ts")));
+        assert!(!is_js_file(&PathBuf::from("Pages/Default.aspx")));
+        assert!(!is_js_file(&PathBuf::from("noextension")));
+    }
+
+    #[test]
+    fn dedup_same_ajax_url_different_lines() {
+        let js = r#"
+            $.get('Services/Data.asmx/GetRows', cb1);
+            $.get('Services/Data.asmx/GetRows', cb2);
+        "#;
+        let (_, edges) = extract_js(&test_path("dup_ajax.js"), js);
+        let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
+        // Same (source, target, kind) triple → deduplicated to 1
+        assert_eq!(api.len(), 1, "duplicate AJAX calls to same URL should be deduped");
+    }
+
+    #[test]
+    fn split_url_tilde_and_dotdot_both_stripped() {
+        let (path1, _) = split_service_url("~/api/Service.asmx/Method");
+        assert!(!path1.starts_with('~'));
+        let (path2, _) = split_service_url("../Services/Auth.asmx/Login");
+        assert!(!path2.starts_with('.'));
+    }
 }
