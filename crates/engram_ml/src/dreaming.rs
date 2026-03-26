@@ -165,7 +165,12 @@ impl LlmBackend {
     }
 
     /// Build an `LlmBackend` from the project `Config`.
-    pub fn from_config(cfg: &engram_core::Config) -> Self {
+    ///
+    /// Returns `Err` for any unrecognised backend/provider string so that
+    /// mis-configurations are caught eagerly rather than silently degrading to
+    /// no-LLM mode.  Use `"none"` or leave the field empty to explicitly
+    /// disable the LLM.
+    pub fn from_config(cfg: &engram_core::Config) -> anyhow::Result<Self> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(120))
             .connect_timeout(Duration::from_secs(10))
@@ -185,9 +190,9 @@ impl LlmBackend {
                     .or_else(|| cfg.ollama_url.clone())
                     .unwrap_or_else(|| "http://localhost:11434".into());
                 let model = cfg.llm_model.clone().unwrap_or_else(|| "llama3.2".into());
-                Self {
+                Ok(Self {
                     provider: Some(Arc::new(OllamaProvider::new(client, url, model))),
-                }
+                })
             }
             "openai" => {
                 let api_key = cfg
@@ -205,12 +210,12 @@ impl LlmBackend {
                     .clone()
                     .unwrap_or_else(|| "gpt-4o-mini".into());
                 let headers = Self::resolve_openai_headers(cfg, HeaderMap::new());
-                Self {
+                Ok(Self {
                     provider: Some(Arc::new(
                         OpenAiCompatibleProvider::new(client, api_key, api_base, model)
                             .with_headers(headers),
                     )),
-                }
+                })
             }
             "openrouter" => {
                 let api_key = cfg
@@ -228,13 +233,18 @@ impl LlmBackend {
                     .unwrap_or_else(|| "openai/gpt-4o-mini".into());
                 let headers =
                     Self::resolve_openai_headers(cfg, OpenRouterProvider::default_headers());
-                Self {
+                Ok(Self {
                     provider: Some(Arc::new(OpenRouterProvider::new(
                         client, api_key, api_base, model, headers,
                     ))),
-                }
+                })
             }
-            _ => Self::default(),
+            // Explicit "disable LLM" values.
+            "none" | "" => Ok(Self::default()),
+            _ => anyhow::bail!(
+                "unknown llm_backend/llm_provider '{}': must be one of: none, ollama, openai, openrouter",
+                backend
+            ),
         }
     }
 
@@ -264,8 +274,22 @@ impl DreamingEngine {
     }
 
     /// Create a dreaming engine with a real LLM backend configured from Config.
+    ///
+    /// If the config contains an unknown backend string the error is logged and
+    /// the engine falls back to no-LLM mode so that the server can still start.
+    /// Callers that want hard failures should use `LlmBackend::from_config`
+    /// directly.
     pub fn with_config(cfg: &engram_core::Config) -> Self {
-        let backend = LlmBackend::from_config(cfg);
+        let backend = match LlmBackend::from_config(cfg) {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::error!(
+                    error = %e,
+                    "DreamingEngine: invalid LLM config — falling back to no-LLM mode"
+                );
+                LlmBackend::default()
+            }
+        };
         let llm = backend
             .provider()
             .map(|provider| LlmBackendHandle { provider });
@@ -903,6 +927,44 @@ Cluster 2: Customers/CustomerPage.aspx, Customers/CustomerService.vb
         for b in &boundaries {
             assert!(!b.context_name.is_empty());
             assert!(!b.files.is_empty());
+        }
+    }
+
+    fn make_llm_cfg(backend: &str) -> engram_core::Config {
+        engram_core::Config {
+            llm_backend: backend.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn llm_backend_from_config_rejects_unknown_provider() {
+        let cfg = make_llm_cfg("groq_v99");
+        let result = LlmBackend::from_config(&cfg);
+        assert!(
+            result.is_err(),
+            "from_config must return Err for unknown provider"
+        );
+        // Use map_err to extract the message without requiring Debug on LlmBackend.
+        let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            msg.contains("unknown"),
+            "error message should contain 'unknown', got: {msg}"
+        );
+    }
+
+    #[test]
+    fn llm_backend_from_config_accepts_known_providers() {
+        for backend in &["none", "", "ollama", "openai", "openrouter"] {
+            let cfg = make_llm_cfg(backend);
+            let result = LlmBackend::from_config(&cfg);
+            let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+            assert!(
+                err_msg.is_empty(),
+                "from_config must accept known backend '{}', got error: {}",
+                backend,
+                err_msg
+            );
         }
     }
 }

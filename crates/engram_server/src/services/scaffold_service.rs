@@ -887,7 +887,12 @@ fn generate_dto_classes(
             .and_then(|v| v.as_str())
         {
             let analysis = sql_parser::analyze_sql(sql_text);
-            if let Some(dto_code) = sql_parser::generate_composite_dto(&analysis) {
+            // ENG-AUD-P1-0004: generate_composite_dto now returns (code, columns_parsed_ok).
+            // We surface incomplete extraction as a warning note in the mapping report so
+            // callers can see the gap rather than receiving a silently misleading scaffold.
+            if let Some((dto_code, columns_parsed_ok)) =
+                sql_parser::generate_composite_dto(&analysis)
+            {
                 let class_name = analysis
                     .primary_table
                     .as_deref()
@@ -916,6 +921,23 @@ fn generate_dto_classes(
                 if emitted_classes.insert(class_name.clone()) {
                     code.push_str(&dto_code);
                     let _ = writeln!(code);
+                    let base_notes = format!(
+                        "Composite DTO from JOIN with [{}]",
+                        analysis
+                            .joined_tables
+                            .iter()
+                            .map(|j| j.table.clone())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                    let notes = if columns_parsed_ok {
+                        base_notes
+                    } else {
+                        format!(
+                            "{base_notes} — WARNING: column extraction incomplete, \
+                             scaffold body is empty; review SQL manually"
+                        )
+                    };
                     mapping_report.push(MappingEntry {
                         legacy_element: format!(
                             "JOIN query → {}",
@@ -923,15 +945,7 @@ fn generate_dto_classes(
                         ),
                         modern_element: format!("class {class_name}"),
                         category: "dto".into(),
-                        notes: format!(
-                            "Composite DTO from JOIN with [{}]",
-                            analysis
-                                .joined_tables
-                                .iter()
-                                .map(|j| j.table.clone())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        ),
+                        notes,
                     });
                 }
             }

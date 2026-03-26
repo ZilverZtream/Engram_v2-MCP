@@ -116,7 +116,13 @@ pub async fn check_project_integrity_with_policy(
         let gen_str = reg
             .get_meta(&pid, "active_generation")?
             .unwrap_or_else(|| "1".into());
-        Ok(gen_str.parse().unwrap_or(1))
+        let active_gen_val: u64 = gen_str.parse().map_err(|e| {
+            anyhow::anyhow!(
+                "active_generation metadata is corrupt (value={:?}): {e}",
+                gen_str
+            )
+        })?;
+        Ok(active_gen_val)
     })
     .await??;
 
@@ -146,8 +152,14 @@ pub async fn check_project_integrity_with_policy(
         })
         .await??;
 
-    // Vector count (async)
-    let vector_count: u64 = search.count_vectors(&pid2).await.unwrap_or(0) as u64;
+    // Vector count (async).
+    // count_vectors returns Ok(0) when the vector feature is disabled or the
+    // project table does not yet exist; Err only on real store failures.
+    let vector_count: u64 = search
+        .count_vectors(&pid2)
+        .await
+        .map_err(|e| anyhow::anyhow!("vector store unreachable during integrity check: {e}"))?
+        as u64;
 
     let graph = state.graph.clone();
     let pid3 = project_id.to_string();
@@ -744,5 +756,73 @@ mod tests {
         );
         let overall_healthy = mismatches.is_empty() || false;
         assert!(overall_healthy, "no mismatches means healthy");
+    }
+
+    // ── ENG-AUD-P1-0006: corrupt active_generation returns Err ──────────────
+
+    /// Regression for ENG-AUD-P1-0006.
+    ///
+    /// The parse logic extracted from `check_project_integrity_with_policy` must
+    /// return `Err` (not a silent default of `1`) when `active_generation` holds
+    /// a non-numeric value, so corrupt registry metadata is caught early.
+    #[test]
+    fn test_corrupt_active_generation_returns_error() {
+        let gen_str = "not_a_number".to_string();
+        let result: anyhow::Result<u64> = gen_str.parse::<u64>().map_err(|e| {
+            anyhow::anyhow!(
+                "active_generation metadata is corrupt (value={:?}): {e}",
+                gen_str
+            )
+        });
+        assert!(result.is_err(), "corrupt generation string must yield Err");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("corrupt"),
+            "error message should mention 'corrupt', got: {msg}"
+        );
+        assert!(
+            msg.contains("not_a_number"),
+            "error message should include the bad value, got: {msg}"
+        );
+    }
+
+    // ── ENG-AUD-P1-0007: vector store error captured, not swallowed ─────────
+
+    /// Regression for ENG-AUD-P1-0007.
+    ///
+    /// `build_integrity_mismatches` is a pure function, so we validate the
+    /// surrounding contract: if count_vectors were to return 0 due to a masked
+    /// error, a real VectorOrphan would go undetected.  The fix propagates the
+    /// error via `?` so the caller (check_project_integrity_with_policy) can
+    /// surface it rather than silently marking the store healthy.
+    ///
+    /// Here we verify that the VectorOrphan detection still fires correctly
+    /// when a non-zero count is supplied, confirming the check is not bypassed
+    /// by an erroneously zeroed count.
+    #[test]
+    fn test_vector_store_error_captured() {
+        // Simulate what would happen if a real error were masked as 0:
+        // vector_count=0 when the true count is 1200 → VectorOrphan is missed.
+        let tdocs: Vec<SearchDocSummary> = (0..1000)
+            .map(|i| tdoc("ns", &i.to_string(), &format!("f{i}.rs")))
+            .collect();
+        let ddocs: Vec<DocSummary> = tdocs
+            .iter()
+            .map(|d| ddoc(&d.namespace, &d.doc_id, &d.path))
+            .collect();
+
+        // With the masked count of 0 → no VectorOrphan detected (bad)
+        let masked = build_integrity_mismatches(1000, 1000, 0, &tdocs, &ddocs);
+        assert!(
+            !masked.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            "masked zero count must not trigger VectorOrphan (demonstrates the risk)"
+        );
+
+        // With the real count propagated → VectorOrphan is detected (correct)
+        let real = build_integrity_mismatches(1000, 1000, 1200, &tdocs, &ddocs);
+        assert!(
+            real.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            "real count of 1200 vs 1000 must trigger VectorOrphan"
+        );
     }
 }

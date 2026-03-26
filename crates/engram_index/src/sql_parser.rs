@@ -315,7 +315,17 @@ pub fn generate_method_signature(analysis: &SqlAnalysis) -> String {
 }
 
 /// Generate a composite DTO class from a JOIN query analysis.
-pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<String> {
+///
+/// Returns `(generated_code, columns_parsed_ok)` where `columns_parsed_ok = false`
+/// signals that no columns could be extracted and the scaffold body is empty.
+/// Callers **must** check this flag and surface it in their own metadata or warnings.
+///
+/// # ENG-AUD-P1-0004
+/// The previous implementation emitted a `// TODO` comment into generated code,
+/// silently producing a misleading scaffold.  The flag here is the canonical signal
+/// for incomplete extraction; callers should propagate it rather than relying on
+/// parsing the returned string.
+pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<(String, bool)> {
     if analysis.joined_tables.is_empty() || analysis.operation != SqlOp::Select {
         return None;
     }
@@ -420,13 +430,19 @@ pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<String> {
         }
     }
 
-    // If no columns were extracted, add a placeholder
-    if primary_cols.is_empty() && joined_cols.is_empty() {
-        code.push_str("    // TODO: add properties — columns could not be parsed from SQL\n");
+    // If no columns were extracted the scaffold body is intentionally left empty.
+    // A WARNING comment is emitted so reviewers can spot the gap, but no fake
+    // properties are generated.  The returned `columns_parsed_ok` flag is the
+    // machine-readable signal — callers must propagate it to their own metadata.
+    let columns_parsed_ok = !(primary_cols.is_empty() && joined_cols.is_empty());
+    if !columns_parsed_ok {
+        code.push_str(
+            "    // WARNING: column extraction incomplete — review SQL manually\n",
+        );
     }
 
     code.push_str("}\n");
-    Some(code)
+    Some((code, columns_parsed_ok))
 }
 
 // ─── Internal helpers ──────────────────────────────────────────────────────────
@@ -1163,13 +1179,14 @@ mod tests {
         let a = analyze_sql(sql);
         let dto = generate_composite_dto(&a);
         assert!(dto.is_some());
-        let dto_code = dto.expect("dto");
+        let (dto_code, columns_ok) = dto.expect("dto");
         assert!(
             dto_code.contains("OrdersWithCustomers"),
             "DTO code: {dto_code}"
         );
         assert!(dto_code.contains("OrderId"));
         assert!(dto_code.contains("CustomerName"));
+        assert!(columns_ok, "columns should be parsed for this JOIN query");
     }
 
     #[test]
@@ -1749,6 +1766,35 @@ mod tests {
         let a = analyze_sql(sql);
         let dto = generate_composite_dto(&a);
         assert!(dto.is_none(), "no JOIN → no composite DTO");
+    }
+
+    /// ENG-AUD-P1-0004: when SQL cannot yield parseable column names, the
+    /// generated scaffold must contain "WARNING" (not "TODO"), and the
+    /// `columns_parsed_ok` flag must be `false` so callers can surface the gap.
+    #[test]
+    fn sql_unsupported_column_syntax_signals_incomplete_extraction() {
+        // A JOIN query with `SELECT *` produces no ColumnRef entries with real names
+        // (the wildcard is filtered out), so the extraction is incomplete.
+        let sql = "SELECT * FROM Orders o JOIN Customers c ON o.CustomerId = c.Id";
+        let a = analyze_sql(sql);
+        let result = generate_composite_dto(&a);
+        // The function must return Some — there IS a JOIN, so a scaffold is attempted.
+        assert!(result.is_some(), "JOIN query should attempt DTO generation");
+        let (code, columns_ok) = result.unwrap();
+        // columns_parsed_ok must be false — no concrete columns were extracted.
+        assert!(
+            !columns_ok,
+            "SELECT * with no concrete columns must signal incomplete extraction"
+        );
+        // The generated code must contain the WARNING marker, NOT a TODO.
+        assert!(
+            code.contains("WARNING"),
+            "scaffold must contain WARNING, not TODO; got:\n{code}"
+        );
+        assert!(
+            !code.contains("TODO"),
+            "scaffold must NOT contain TODO; got:\n{code}"
+        );
     }
 
     #[test]
