@@ -1,6 +1,35 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
-use engram_core::JobRecord;
+use engram_core::{CheckpointStore, JobPhase, JobRecord};
+
+/// Mark any resumable checkpoint for `job_id` as Failed so that it cannot be
+/// accidentally resumed after cancellation.  Logs a warning on failure but
+/// does not propagate the error — checkpoint marking is best-effort: the job
+/// is already cancelled whether or not this succeeds.
+async fn mark_checkpoint_cancelled(cp_store: &CheckpointStore, job_id: &str) {
+    let cp_store = cp_store.clone();
+    let jid = job_id.to_string();
+    if let Err(e) = tokio::task::spawn_blocking(move || {
+        match cp_store.get(&jid) {
+            Ok(Some(mut cp)) if cp.is_resumable() => {
+                cp.phase = JobPhase::Failed;
+                cp.error = Some("cancelled by user".into());
+                cp.updated_at_ms = now_ms();
+                if let Err(e) = cp_store.put(&cp) {
+                    tracing::warn!(job_id = %jid, "failed to mark checkpoint as Failed on cancel: {e}");
+                }
+            }
+            Ok(_) => {} // Already terminal or no checkpoint — nothing to do.
+            Err(e) => {
+                tracing::warn!(job_id = %jid, "failed to read checkpoint for cancel marking: {e}");
+            }
+        }
+    })
+    .await
+    {
+        tracing::warn!(job_id = %job_id, "spawn_blocking panicked marking checkpoint on cancel: {e}");
+    }
+}
 
 /// Cancel a running job by its ID. Returns true if the job was found and cancelled.
 pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
@@ -64,6 +93,8 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
         {
             tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone: {e}");
         }
+        // Mark any resumable checkpoint as Failed so it cannot be accidentally resumed.
+        mark_checkpoint_cancelled(&state.checkpoints, job_id).await;
         true
     } else {
         // Cancellation token not found — check for divergence where active_jobs
@@ -110,6 +141,8 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
             {
                 tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone (divergence): {e}");
             }
+            // Mark any resumable checkpoint as Failed so it cannot be accidentally resumed.
+            mark_checkpoint_cancelled(&state.checkpoints, job_id).await;
             true
         } else {
             false

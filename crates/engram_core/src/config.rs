@@ -576,6 +576,19 @@ impl Config {
             }
         }
 
+        // Reject unknown LLM backends — unknown values silently fall back to
+        // deterministic mode without any signal, masking misconfiguration.
+        if !self.llm_backend.is_empty() {
+            match self.llm_backend.as_str() {
+                "none" | "ollama" | "openai" => {}
+                other => {
+                    return Err(EngramError::Config(format!(
+                        "llm_backend must be one of: none, ollama, openai (got '{other}')"
+                    )));
+                }
+            }
+        }
+
         if let Some(provider) = &self.llm_provider {
             match provider.as_str() {
                 "openai" | "openrouter" => {}
@@ -738,6 +751,48 @@ mod tests {
         assert!(
             cfg.validate().is_ok(),
             "validate() must accept empty embedding_backend (default fill-in path)"
+        );
+    }
+
+    /// Gate: ENG-AUD-2026-0007 — unknown llm_backend must be rejected by validate().
+    #[test]
+    fn validate_rejects_unknown_llm_backend() {
+        let cfg = Config {
+            llm_backend: "groq_v99_xyz".into(),
+            ..Config::default()
+        };
+        let result = cfg.validate();
+        assert!(result.is_err(), "validate() must reject unknown llm_backend");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("llm_backend"),
+            "error message should mention the field name; got: {msg}"
+        );
+    }
+
+    /// All documented LLM backends must be accepted without error.
+    #[test]
+    fn validate_accepts_all_known_llm_backends() {
+        for backend in &["none", "ollama", "openai"] {
+            let cfg = Config {
+                llm_backend: backend.to_string(),
+                ..Config::default()
+            };
+            assert!(
+                cfg.validate().is_ok(),
+                "validate() should accept known llm_backend '{backend}'"
+            );
+        }
+    }
+
+    /// Empty llm_backend (the Default value) must pass validate() so that
+    /// load_from_path's fill-in-default logic (which sets it to "none") works.
+    #[test]
+    fn validate_accepts_empty_llm_backend() {
+        let cfg = Config::default();
+        assert!(
+            cfg.validate().is_ok(),
+            "validate() must accept empty llm_backend (default fill-in path)"
         );
     }
 }

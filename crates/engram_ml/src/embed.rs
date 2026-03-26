@@ -44,14 +44,16 @@ impl Embedder for ProjectionEmbedder {
     }
 
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
+        // Guard: dim=0 would cause integer divide-by-zero in the projection loop.
+        if self.dim == 0 {
+            anyhow::bail!("ProjectionEmbedder dim must be > 0 (got 0)");
+        }
         // Fix #3: empty / whitespace-only text returns a stable unit vector anchored
         // at dimension 0 rather than an all-zero vector.  An all-zero vector causes
         // division-by-zero in cosine-similarity databases (LanceDB).
-        if text.is_empty() {
+        if text.trim().is_empty() {
             let mut vec = vec![0.0f32; self.dim];
-            if self.dim > 0 {
-                vec[0] = 1.0;
-            }
+            vec[0] = 1.0;
             return Ok(vec);
         }
 
@@ -149,6 +151,89 @@ fn ahash_u64_fixed_b(data: &[u8]) -> u64 {
     );
 
     state.hash_one(data)
+}
+
+// ---------------------------------------------------------------------------
+// Tests for ProjectionEmbedder
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+
+    /// Gate ENG-AUD-2026-0008: dim=0 must return Err, not panic.
+    #[tokio::test]
+    async fn projection_dim_zero_returns_err_not_panic() {
+        let embedder = ProjectionEmbedder::new(0);
+        let result = embedder.embed("hello world").await;
+        assert!(
+            result.is_err(),
+            "embed() with dim=0 must return Err to avoid divide-by-zero"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("dim"),
+            "error message should mention dim; got: {msg}"
+        );
+    }
+
+    /// dim=0 with empty string must also return Err (not short-circuit to Ok).
+    #[tokio::test]
+    async fn projection_dim_zero_empty_text_returns_err() {
+        let embedder = ProjectionEmbedder::new(0);
+        let result = embedder.embed("").await;
+        assert!(
+            result.is_err(),
+            "embed() with dim=0 and empty text must return Err"
+        );
+    }
+
+    /// Gate ENG-AUD-2026-0009: whitespace-only text must not panic and must
+    /// return a unit vector (not all-zeros, which would break cosine similarity).
+    #[tokio::test]
+    async fn projection_whitespace_only_returns_unit_vector() {
+        let embedder = ProjectionEmbedder::new(128);
+        let result = embedder.embed("   \t\n  ").await.unwrap();
+        assert_eq!(result.len(), 128, "must return vector of correct dimension");
+        // Must not be all-zero (would cause cosine-similarity NaN in LanceDB).
+        let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(
+            norm > 0.9,
+            "whitespace-only text must produce a non-zero unit vector; norm={norm}"
+        );
+    }
+
+    /// Truly empty string also returns a unit vector.
+    #[tokio::test]
+    async fn projection_empty_string_returns_unit_vector() {
+        let embedder = ProjectionEmbedder::new(64);
+        let result = embedder.embed("").await.unwrap();
+        assert_eq!(result.len(), 64);
+        let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(norm > 0.9, "empty string must produce unit vector; norm={norm}");
+    }
+
+    /// Normal text produces a vector of the correct dimension, normalized.
+    #[tokio::test]
+    async fn projection_normal_text_correct_dim_and_normalized() {
+        let embedder = ProjectionEmbedder::new(384);
+        let result = embedder.embed("fn main() { println!(\"hello\"); }").await.unwrap();
+        assert_eq!(result.len(), 384);
+        let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(
+            (norm - 1.0).abs() < 1e-4,
+            "output must be L2-normalized; got norm={norm}"
+        );
+    }
+
+    /// Embeddings must be deterministic (fixed seeds).
+    #[tokio::test]
+    async fn projection_is_deterministic() {
+        let embedder = ProjectionEmbedder::new(256);
+        let a = embedder.embed("deterministic test").await.unwrap();
+        let b = embedder.embed("deterministic test").await.unwrap();
+        assert_eq!(a, b, "ProjectionEmbedder must produce identical output across calls");
+    }
 }
 
 // ---------------------------------------------------------------------------

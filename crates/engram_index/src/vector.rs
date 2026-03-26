@@ -208,6 +208,19 @@ pub fn create_record_batch_with_gens(
     let schema = vector_schema(dim);
     let n = pks.len();
 
+    // Upfront shape consistency — all parallel slices must have the same length.
+    // Arrow's try_new() catches mismatches but only at RecordBatch construction;
+    // failing here gives a clear error that names the offending field.
+    anyhow::ensure!(doc_ids.len() == n, "doc_ids.len() ({}) != pks.len() ({n})", doc_ids.len());
+    anyhow::ensure!(content_hashes.len() == n, "content_hashes.len() ({}) != pks.len() ({n})", content_hashes.len());
+    anyhow::ensure!(chunk_ids.len() == n, "chunk_ids.len() ({}) != pks.len() ({n})", chunk_ids.len());
+    anyhow::ensure!(paths.len() == n, "paths.len() ({}) != pks.len() ({n})", paths.len());
+    anyhow::ensure!(languages.len() == n, "languages.len() ({}) != pks.len() ({n})", languages.len());
+    anyhow::ensure!(authors.len() == n, "authors.len() ({}) != pks.len() ({n})", authors.len());
+    anyhow::ensure!(timestamps.len() == n, "timestamps.len() ({}) != pks.len() ({n})", timestamps.len());
+    anyhow::ensure!(vectors.len() == n, "vectors.len() ({}) != pks.len() ({n})", vectors.len());
+    anyhow::ensure!(generations.len() == n, "generations.len() ({}) != pks.len() ({n})", generations.len());
+
     // Build Arrow arrays from borrowed slices — avoid .to_vec() on already-owned Vecs.
     // StringArray::from accepts &[&str] which avoids cloning String→String.
     let pk_refs: Vec<&str> = pks.iter().map(|s| s.as_str()).collect();
@@ -339,5 +352,78 @@ mod tests {
         let pks = vec!["a:b:c".to_string(), "x:y:z".to_string()];
         let filter = build_pk_filter(&pks);
         assert_eq!(filter, "pk IN ('a:b:c', 'x:y:z')");
+    }
+
+    // ── create_record_batch_with_gens shape assertions (ENG-AUD-2026-0010) ──
+
+    fn make_batch_with_gens(
+        n: usize,
+        doc_ids_len: usize,
+        vectors_len: usize,
+    ) -> anyhow::Result<super::RecordBatch> {
+        let pks: Vec<String> = (0..n).map(|i| format!("pk{i}")).collect();
+        let doc_ids: Vec<String> = (0..doc_ids_len).map(|i| format!("d{i}")).collect();
+        let content_hashes: Vec<String> = (0..n).map(|i| format!("hash{i}")).collect();
+        let chunk_ids: Vec<u64> = (0..n).map(|i| i as u64).collect();
+        let paths: Vec<String> = (0..n).map(|i| format!("src/{i}.rs")).collect();
+        let languages: Vec<String> = (0..n).map(|_| "rust".into()).collect();
+        let authors: Vec<Option<String>> = (0..n).map(|_| None).collect();
+        let timestamps: Vec<Option<u64>> = (0..n).map(|_| None).collect();
+        let dim = 4usize;
+        let vectors: Vec<Vec<f32>> = (0..vectors_len).map(|_| vec![0.1f32; dim]).collect();
+        let generations: Vec<u64> = (0..n).map(|_| 1u64).collect();
+        super::create_record_batch_with_gens(
+            "proj",
+            "code",
+            &generations,
+            &pks,
+            &doc_ids,
+            &content_hashes,
+            &chunk_ids,
+            &paths,
+            &languages,
+            &authors,
+            &timestamps,
+            &vectors,
+            dim,
+        )
+    }
+
+    /// Gate ENG-AUD-2026-0010: doc_ids shorter than pks must be rejected upfront.
+    #[test]
+    fn batch_with_gens_rejects_short_doc_ids() {
+        let result = make_batch_with_gens(3, 2, 3);
+        assert!(result.is_err(), "mismatched doc_ids length must return Err");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("doc_ids"),
+            "error should mention doc_ids; got: {msg}"
+        );
+    }
+
+    /// Mismatched vectors length must be rejected upfront.
+    #[test]
+    fn batch_with_gens_rejects_short_vectors() {
+        let result = make_batch_with_gens(3, 3, 2);
+        assert!(result.is_err(), "mismatched vectors length must return Err");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("vectors"),
+            "error should mention vectors; got: {msg}"
+        );
+    }
+
+    /// All slices equal length must succeed.
+    #[test]
+    fn batch_with_gens_accepts_consistent_lengths() {
+        let result = make_batch_with_gens(3, 3, 3);
+        assert!(result.is_ok(), "consistent slice lengths must succeed: {:?}", result.err());
+    }
+
+    /// Empty batch (n=0) must succeed.
+    #[test]
+    fn batch_with_gens_accepts_empty_batch() {
+        let result = make_batch_with_gens(0, 0, 0);
+        assert!(result.is_ok(), "empty batch must succeed: {:?}", result.err());
     }
 }
