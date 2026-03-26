@@ -135,8 +135,12 @@ pub async fn gather_evidence(
             match depth {
                 EvidenceDepth::Deep => {
                     // TODO: Run live benchmark when benchmark_service supports async queries.
-                    // For now, signal that retrieval was requested but not available.
-                    (None, None, None, RetrievalMode::Live)
+                    // Until the live benchmark is implemented, report Skipped so the ADP gate
+                    // does not misinterpret the absence of metrics as a failed Live-mode attempt.
+                    // Setting Live while returning (None, None, None) violates the contract that
+                    // Live means scores were actually gathered, causing spurious abstain/deny
+                    // verdicts and overstating rollout realism to operators.
+                    (None, None, None, RetrievalMode::Skipped)
                 }
                 EvidenceDepth::Fast => (None, None, None, RetrievalMode::Skipped),
                 EvidenceDepth::Standard => (None, None, None, RetrievalMode::Skipped),

@@ -224,9 +224,12 @@ pub fn create_record_batch_with_gens(
     let path_arr = StringArray::from(path_refs);
     let lang_refs: Vec<&str> = languages.iter().map(|s| s.as_str()).collect();
     let language_arr = StringArray::from(lang_refs);
-    let author_refs: Vec<&str> = authors.iter().map(|a| a.as_deref().unwrap_or("")).collect();
+    // Preserve None values as Arrow nulls instead of coercing to "" / 0.
+    // Collapsing to sentinels loses the "unknown" distinction and poisons
+    // downstream analytics that filter on these fields.
+    let author_refs: Vec<Option<&str>> = authors.iter().map(|a| a.as_deref()).collect();
     let author_arr = StringArray::from(author_refs);
-    let ts_vals: Vec<u64> = timestamps.iter().map(|t| t.unwrap_or(0)).collect();
+    let ts_vals: Vec<Option<u64>> = timestamps.iter().copied().collect();
     let timestamp_arr = UInt64Array::from(ts_vals);
 
     // Validate that all vectors match the expected dimension. Log a warning for

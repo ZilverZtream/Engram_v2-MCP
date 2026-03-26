@@ -187,10 +187,10 @@ fn docstore_doc(namespace: &str, doc_id: &str, path: &str) -> engram_index::docs
     }
 }
 
-/// Wrapper around the private `build_integrity_mismatches` — we test
-/// via the public types re-exported from the module. Since the function
-/// is module-private, we replicate the core detection logic here for
-/// canary validation.
+/// Thin wrapper that delegates to the production `build_integrity_mismatches`
+/// function. Using the production path directly ensures that changes to detection
+/// logic are immediately reflected in canary results, eliminating the logic-drift
+/// risk that existed when the helper reimplemented the same logic independently.
 fn build_test_mismatches(
     tantivy_count: u64,
     docstore_count: u64,
@@ -198,78 +198,11 @@ fn build_test_mismatches(
     tantivy_docs: &[engram_index::hybrid::SearchDocSummary],
     docstore_docs: &[engram_index::docstore::DocSummary],
 ) -> Vec<IntegrityMismatch> {
-    use std::collections::HashMap;
-
-    let mut mismatches = Vec::new();
-
-    let tantivy_map: HashMap<String, String> = tantivy_docs
-        .iter()
-        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
-        .collect();
-    let docstore_map: HashMap<String, String> = docstore_docs
-        .iter()
-        .map(|d| (format!("{}:{}", d.namespace, d.doc_id), d.path.clone()))
-        .collect();
-
-    let tantivy_orphans: Vec<(String, String)> = tantivy_map
-        .iter()
-        .filter(|(id, _)| !docstore_map.contains_key(*id))
-        .map(|(id, path)| (id.clone(), path.clone()))
-        .collect();
-    if !tantivy_orphans.is_empty() {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::TantivyOrphan,
-            description: format!(
-                "Tantivy has {} docs missing from docstore",
-                tantivy_orphans.len()
-            ),
-            expected: 0,
-            actual: tantivy_orphans.len() as u64,
-        });
-    }
-
-    let docstore_orphans: Vec<(String, String)> = docstore_map
-        .iter()
-        .filter(|(id, _)| !tantivy_map.contains_key(*id))
-        .map(|(id, path)| (id.clone(), path.clone()))
-        .collect();
-    if !docstore_orphans.is_empty() {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::DocstoreOrphan,
-            description: format!(
-                "Docstore has {} docs missing from Tantivy",
-                docstore_orphans.len()
-            ),
-            expected: 0,
-            actual: docstore_orphans.len() as u64,
-        });
-    }
-
-    if docstore_count > 0 {
-        let diff = tantivy_count.abs_diff(docstore_count);
-        let threshold = (docstore_count as f64 * 0.05).max(5.0) as u64;
-        if diff > threshold {
-            mismatches.push(IntegrityMismatch {
-                kind: MismatchKind::CountDivergence,
-                description: format!(
-                    "Tantivy count ({tantivy_count}) diverges from docstore ({docstore_count}) by {diff}"
-                ),
-                expected: docstore_count,
-                actual: tantivy_count,
-            });
-        }
-    }
-
-    if vector_count > tantivy_count + 100 {
-        mismatches.push(IntegrityMismatch {
-            kind: MismatchKind::VectorOrphan,
-            description: format!(
-                "Vector store has {vector_count} entries but Tantivy only has {tantivy_count} docs"
-            ),
-            expected: tantivy_count,
-            actual: vector_count,
-        });
-    }
-
-    mismatches
+    engram_server::services::integrity_service::build_integrity_mismatches(
+        tantivy_count,
+        docstore_count,
+        vector_count,
+        tantivy_docs,
+        docstore_docs,
+    )
 }

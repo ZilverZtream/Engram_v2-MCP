@@ -218,7 +218,11 @@ fn summarize_samples<K: AsRef<str>>(samples: impl IntoIterator<Item = (K, String
         .join(", ")
 }
 
-fn build_integrity_mismatches(
+/// Compute integrity mismatches given pre-fetched store summaries.
+///
+/// Exposed as `pub` so integration tests can call the production detection
+/// path directly instead of re-implementing it (which risks logic drift).
+pub fn build_integrity_mismatches(
     tantivy_count: u64,
     docstore_count: u64,
     vector_count: u64,
