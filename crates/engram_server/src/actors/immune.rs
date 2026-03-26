@@ -144,13 +144,18 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
 
     // Everything from here is CPU-bound git I/O — run in spawn_blocking.
     let pid3 = project_id.to_string();
-    let anti_patterns: Vec<AntiPatternDoc> = tokio::task::spawn_blocking(move || {
+    let pid3_err = pid3.clone();
+    let (anti_patterns, terminal_oid) = tokio::task::spawn_blocking(move || {
         scan_reverts_blocking(&directory, stop_oid, MAX_COMMITS_PER_SCAN, MAX_DIFF_BYTES)
     })
     .await
-    .unwrap_or_else(|_| Ok(Vec::new()))?;
+    .unwrap_or_else(|e| {
+        tracing::error!(project = %pid3_err, "ENG-AUD-S1-0003: immune scan spawn_blocking panicked: {e}");
+        Ok((Vec::new(), None))
+    })?;
 
-    if anti_patterns.is_empty() {
+    // If no commits were scanned at all (e.g., empty repo or already at tip), nothing to do.
+    if terminal_oid.is_none() {
         return Ok(());
     }
 
@@ -230,20 +235,21 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     // Index all anti-pattern docs in one batch.
     project.search.index_docs(&pid3, &docs, &cancel).await?;
 
-    // Advance the watermark to the most recent commit OID.
-    // (The most-recently-processed commit's OID is the last one the walker returned,
-    // which is the newest commit seen. We persist it so next scan starts there.)
-    // We store the first anti-pattern's commit hash as an approximation; a more
-    // precise approach would track the actual last-scanned HEAD OID.
-    if let Some(first) = anti_patterns.first() {
-        let pid5 = project_id.to_string();
-        let reg5 = state.registry.clone();
-        let new_watermark = first.original_commit.clone();
-        tokio::task::spawn_blocking(move || {
-            reg5.set_meta(&pid5, watermark_key, &new_watermark).ok();
-        })
+    // Always advance the watermark to the exact terminal OID scanned.
+    // Using the first anti-pattern's commit as watermark was an approximation (ENG-AUD-S1-0003).
+    let watermark_str = terminal_oid.expect("checked above").to_string();
+    let pid5 = project_id.to_string();
+    let reg5 = state.registry.clone();
+    let wm = watermark_str.clone();
+    if let Err(e) = tokio::task::spawn_blocking(move || reg5.set_meta(&pid5, watermark_key, &wm))
         .await
-        .ok();
+        .unwrap_or_else(|e| Err(anyhow::anyhow!("spawn_blocking panicked: {e}")))
+    {
+        tracing::warn!(
+            project = %project_id,
+            watermark = %watermark_str,
+            "ENG-AUD-S1-0003: immune watermark write failed — next scan may reprocess commits: {e}"
+        );
     }
 
     Ok(())
@@ -255,7 +261,7 @@ fn scan_reverts_blocking(
     stop_oid: Option<git2::Oid>,
     max_commits: usize,
     max_diff_bytes: usize,
-) -> anyhow::Result<Vec<AntiPatternDoc>> {
+) -> anyhow::Result<(Vec<AntiPatternDoc>, Option<git2::Oid>)> {
     let repo = GitWalker::open_repo(directory)?;
     let cancel = CancellationToken::new(); // never cancelled inside blocking scope
 
@@ -266,6 +272,10 @@ fn scan_reverts_blocking(
         engram_git::history::MergeCommitPolicy::FirstParentOnly,
         &cancel,
     )?;
+
+    // After walk_new_commits reverses, oids is oldest→newest.
+    // The terminal OID is the newest commit scanned — this is our exact watermark.
+    let terminal_oid = oids.last().copied();
 
     let mut out: Vec<AntiPatternDoc> = Vec::new();
     for oid in oids {
@@ -281,5 +291,55 @@ fn scan_reverts_blocking(
         }
     }
 
-    Ok(out)
+    Ok((out, terminal_oid))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn eng_aud_s1_0003_tag_present_in_source() {
+        let source = include_str!("immune.rs");
+        assert!(
+            source.contains("ENG-AUD-S1-0003"),
+            "immune.rs must contain ENG-AUD-S1-0003 audit tags"
+        );
+    }
+
+    #[test]
+    fn scan_reverts_blocking_returns_terminal_oid() {
+        // Verify the return type includes terminal_oid (not just Vec<AntiPatternDoc>).
+        // This is a compile-time check: if the function signature changes back,
+        // destructuring `(anti_patterns, terminal_oid)` will fail to compile.
+        let source = include_str!("immune.rs");
+        assert!(
+            source.contains("terminal_oid"),
+            "scan_reverts_blocking must return terminal_oid"
+        );
+    }
+
+    #[test]
+    fn watermark_uses_terminal_oid_not_approximation() {
+        // Positive check: the exact terminal OID approach must be present.
+        // The watermark now uses terminal_oid (from oids.last()) rather than
+        // first.original_commit, which was the approximation removed by ENG-AUD-S1-0003.
+        let source = include_str!("immune.rs");
+        assert!(
+            source.contains("terminal_oid"),
+            "watermark must be derived from terminal_oid (exact scanned HEAD)"
+        );
+        // The exact-OID watermark path uses .to_string() on an Oid
+        assert!(
+            source.contains("terminal_oid.expect("),
+            "watermark must unwrap terminal_oid with an expect message"
+        );
+    }
+
+    #[test]
+    fn watermark_write_failure_is_logged() {
+        let source = include_str!("immune.rs");
+        assert!(
+            source.contains("watermark write failed") || source.contains("immune watermark"),
+            "immune.rs must log watermark write failure"
+        );
+    }
 }

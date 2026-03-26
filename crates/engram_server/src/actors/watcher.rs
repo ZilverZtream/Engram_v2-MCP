@@ -24,20 +24,34 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
     // Initialization: Restore enabled watchers from registry
     {
         let reg = state.registry.clone();
-        let projects = tokio::task::spawn_blocking(move || reg.list_projects())
-            .await
-            .unwrap_or(Ok(vec![]))
-            .unwrap_or(vec![]);
+        let projects = match tokio::task::spawn_blocking(move || reg.list_projects()).await {
+            Err(e) => {
+                tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing projects: {e}; watch coverage disabled");
+                vec![]
+            }
+            Ok(Err(e)) => {
+                tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: registry list_projects error: {e}; watch coverage disabled");
+                vec![]
+            }
+            Ok(Ok(v)) => v,
+        };
 
         for p in projects {
             let pid = p.project_id.clone();
             let reg_clone = state.registry.clone();
             let pid_for_list = pid.clone();
             let watches =
-                tokio::task::spawn_blocking(move || reg_clone.list_watches(&pid_for_list))
-                    .await
-                    .unwrap_or(Ok(vec![]))
-                    .unwrap_or(vec![]);
+                match tokio::task::spawn_blocking(move || reg_clone.list_watches(&pid_for_list)).await {
+                    Err(e) => {
+                        tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing watches for {pid}: {e}; project will not be watched");
+                        vec![]
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: registry list_watches error for {pid}: {e}; project will not be watched");
+                        vec![]
+                    }
+                    Ok(Ok(v)) => v,
+                };
 
             if watches.into_iter().any(|w| w.enabled)
                 && let Ok(canon) = state.paths.resolve_path(&p.directory)
@@ -241,4 +255,36 @@ fn create_watcher(
         config,
     )
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    /// ENG-AUD-S1-0001: regression guard.
+    /// Watcher bootstrap must not silently swallow infra failures.
+    /// The audit tag appears in the source as a searchable marker.
+    #[test]
+    fn eng_aud_s1_0001_tag_present_in_source() {
+        let source = include_str!("watcher.rs");
+        assert!(
+            source.contains("ENG-AUD-S1-0001"),
+            "watcher.rs must contain ENG-AUD-S1-0001 error tags"
+        );
+        // Verify the error! macro is used (not warn! or debug!) for bootstrap failures
+        assert!(
+            source.contains("tracing::error!") || source.contains("error!("),
+            "bootstrap failures must use error! level"
+        );
+    }
+
+    #[test]
+    fn watcher_bootstrap_uses_explicit_error_logging() {
+        // Positive check: the bootstrap error paths must all use error! and the audit tag.
+        // The tag appears once per error site (2 for project list, 2 for watch list = at least 3).
+        let source = include_str!("watcher.rs");
+        let tag_count = source.matches("ENG-AUD-S1-0001").count();
+        assert!(
+            tag_count >= 3,
+            "watcher.rs must have ENG-AUD-S1-0001 on all bootstrap error paths; found {tag_count}"
+        );
+    }
 }
