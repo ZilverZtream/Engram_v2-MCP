@@ -534,13 +534,20 @@ async fn embed_batch_via_openai(
                 // OpenAI returns data sorted by "index" field; sort to match input order.
                 let mut indexed: Vec<(usize, Vec<f32>)> = Vec::with_capacity(arr.len());
                 for item in arr {
-                    let idx = item["index"].as_u64().unwrap_or(0) as usize;
+                    let idx = item["index"]
+                        .as_u64()
+                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: item missing or invalid 'index' field"))?
+                        as usize;
                     let vec: Vec<f32> = item["embedding"]
                         .as_array()
                         .ok_or_else(|| anyhow::anyhow!("OpenAI batch: missing embedding"))?
                         .iter()
-                        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
-                        .collect();
+                        .map(|v| {
+                            v.as_f64()
+                                .ok_or_else(|| anyhow::anyhow!("OpenAI batch: non-numeric embedding element"))
+                                .map(|f| f as f32)
+                        })
+                        .collect::<Result<Vec<f32>, _>>()?;
                     if expected_dim > 0 && vec.len() != expected_dim {
                         anyhow::bail!(
                             "OpenAI model '{model}' returned dim={} but expected {expected_dim}",

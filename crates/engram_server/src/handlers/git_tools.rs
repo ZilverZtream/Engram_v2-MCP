@@ -32,6 +32,233 @@ fn is_safe_zip_member_path(name: &str) -> bool {
     })
 }
 
+/// Core blocking logic for zip-snapshot history ingestion.
+/// Shared between the synchronous (wait=true) and background (wait=false) paths.
+fn zip_history_core(
+    dir: std::path::PathBuf,
+    graph: std::sync::Arc<engram_graph::GraphStore>,
+    project_id: String,
+    active_gen: u64,
+) -> anyhow::Result<String> {
+    fn extract_first_number(s: &str) -> u64 {
+        let digits: String = s
+            .chars()
+            .skip_while(|c| !c.is_ascii_digit())
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        digits.parse().unwrap_or(u64::MAX)
+    }
+
+    let mut zip_files: Vec<_> = std::fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|s| s.to_lowercase())
+                == Some("zip".to_string())
+        })
+        .collect();
+
+    zip_files.sort_by_cached_key(|entry| {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let num = extract_first_number(&name);
+        (num, name)
+    });
+
+    if zip_files.len() < 2 {
+        return Ok("Need at least 2 zip files to compute pseudo-history.".to_string());
+    }
+
+    let all_non_numeric = zip_files
+        .iter()
+        .all(|e| extract_first_number(&e.file_name().to_string_lossy()) == u64::MAX);
+    if all_non_numeric {
+        tracing::warn!(
+            "ingest_zip_history: no numeric prefixes found in zip filenames — \
+             falling back to alphabetical ordering which may not be chronological. \
+             Rename files as 01_name.zip, 02_name.zip … for correct ordering."
+        );
+    }
+
+    let mut temporal_edges = 0;
+    let mut prev_fingerprints: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+
+    const MAX_ARCHIVE_FILES: usize = 250_000;
+    const MAX_ENTRY_UNCOMPRESSED_BYTES: u64 = 32 * 1024 * 1024; // 32 MiB
+    const MAX_ARCHIVE_UNCOMPRESSED_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
+    const MAX_CHANGED_FILES_PER_SNAPSHOT: usize = 50_000;
+
+    let mut skipped_zips = 0usize;
+    let mut skipped_entries = 0usize;
+    for (i, entry) in zip_files.iter().enumerate() {
+        let path = entry.path();
+        let file = match std::fs::File::open(&path) {
+            Ok(f) => f,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "Skipping unreadable zip file");
+                skipped_zips += 1;
+                continue;
+            }
+        };
+        let mut archive = match zip::ZipArchive::new(file) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "Skipping corrupt/invalid zip file");
+                skipped_zips += 1;
+                continue;
+            }
+        };
+
+        let mut current_fingerprints = std::collections::HashMap::new();
+        let mut changed_files = Vec::new();
+        let mut archive_uncompressed_bytes: u64 = 0;
+
+        if archive.len() > MAX_ARCHIVE_FILES {
+            tracing::warn!(
+                path = %path.display(),
+                entries = archive.len(),
+                max_entries = MAX_ARCHIVE_FILES,
+                "Skipping oversized zip archive"
+            );
+            skipped_zips += 1;
+            continue;
+        }
+
+        for j in 0..archive.len() {
+            let mut f = archive.by_index(j)?;
+            if f.is_file() {
+                let name = f.name().to_string();
+                if !is_safe_zip_member_path(&name) {
+                    skipped_entries += 1;
+                    continue;
+                }
+
+                let entry_uncompressed = f.size();
+                if entry_uncompressed > MAX_ENTRY_UNCOMPRESSED_BYTES {
+                    skipped_entries += 1;
+                    tracing::warn!(
+                        path = %path.display(),
+                        entry = %name,
+                        entry_uncompressed,
+                        max = MAX_ENTRY_UNCOMPRESSED_BYTES,
+                        "Skipping oversized zip member"
+                    );
+                    continue;
+                }
+
+                archive_uncompressed_bytes =
+                    archive_uncompressed_bytes.saturating_add(entry_uncompressed);
+                if archive_uncompressed_bytes > MAX_ARCHIVE_UNCOMPRESSED_BYTES {
+                    skipped_entries += 1;
+                    tracing::warn!(
+                        path = %path.display(),
+                        accumulated = archive_uncompressed_bytes,
+                        max = MAX_ARCHIVE_UNCOMPRESSED_BYTES,
+                        "Skipping remaining zip members: archive uncompressed budget exceeded"
+                    );
+                    break;
+                }
+
+                let mut hasher = blake3::Hasher::new();
+                let mut limited = std::io::Read::take(
+                    &mut f,
+                    MAX_ENTRY_UNCOMPRESSED_BYTES.saturating_add(1),
+                );
+                let copied = std::io::copy(&mut limited, &mut hasher)?;
+                if copied > MAX_ENTRY_UNCOMPRESSED_BYTES {
+                    skipped_entries += 1;
+                    tracing::warn!(
+                        path = %path.display(),
+                        entry = %name,
+                        copied,
+                        max = MAX_ENTRY_UNCOMPRESSED_BYTES,
+                        "Skipping zip member that exceeded hard streaming cap"
+                    );
+                    continue;
+                }
+                let hash = hasher.finalize().to_hex().to_string();
+
+                if current_fingerprints.contains_key(&name) {
+                    skipped_entries += 1;
+                    tracing::warn!(
+                        path = %path.display(),
+                        entry = %name,
+                        "Skipping duplicate zip member path in same archive"
+                    );
+                    continue;
+                }
+
+                current_fingerprints.insert(name.clone(), hash.clone());
+
+                if i > 0 {
+                    if let Some(prev_hash) = prev_fingerprints.get(&name) {
+                        if *prev_hash != hash {
+                            changed_files.push(engram_core::RelPath::new(&name));
+                        }
+                    } else {
+                        changed_files.push(engram_core::RelPath::new(&name));
+                    }
+
+                    if changed_files.len() >= MAX_CHANGED_FILES_PER_SNAPSHOT {
+                        tracing::warn!(
+                            path = %path.display(),
+                            max = MAX_CHANGED_FILES_PER_SNAPSHOT,
+                            "Reached changed-file cap for snapshot; truncating remaining diff tracking"
+                        );
+                        break;
+                    }
+                }
+            }
+        }
+
+        if !changed_files.is_empty() {
+            let pairs = engram_git::temporal::file_pairs(&changed_files, 100);
+            let batch: Vec<(engram_graph::EdgeKind, String, String, u32)> = pairs
+                .iter()
+                .map(|(a, b)| {
+                    (
+                        engram_graph::EdgeKind::TemporalCoupling,
+                        format!("file:{}", a),
+                        format!("file:{}", b),
+                        1u32,
+                    )
+                })
+                .collect();
+            temporal_edges += batch.len();
+            graph.batch_increment_undirected_edges(
+                &project_id,
+                engram_core::namespaces::NAMESPACE_HISTORY,
+                "text",
+                active_gen,
+                &batch,
+            )?;
+        }
+
+        prev_fingerprints = current_fingerprints;
+    }
+
+    let mut summary = format!(
+        "\u{2705} Ingested {} snapshots, added {} temporal edges.",
+        zip_files.len().saturating_sub(skipped_zips),
+        temporal_edges
+    );
+    if skipped_zips > 0 {
+        summary.push_str(&format!(
+            "\n\u{26a0}\u{fe0f} {} zip files were skipped (corrupt or unreadable).",
+            skipped_zips
+        ));
+    }
+    if skipped_entries > 0 {
+        summary.push_str(&format!(
+            "\n\u{26a0}\u{fe0f} {} zip entries were skipped (unsafe path or size limit).",
+            skipped_entries
+        ));
+    }
+    Ok(summary)
+}
+
 /// Git-related helper methods on Engram.
 impl Engram {
     #[allow(clippy::too_many_arguments)]
@@ -529,224 +756,8 @@ impl Engram {
         let project_id = req.project_id.clone();
 
         if req.wait {
-            let summary = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
-                let mut zip_files: Vec<_> = std::fs::read_dir(&dir)?
-                    .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .map(|s| s.to_lowercase())
-                            == Some("zip".to_string())
-                    })
-                    .collect();
-
-                fn extract_first_number(s: &str) -> u64 {
-                    let digits: String = s
-                        .chars()
-                        .skip_while(|c| !c.is_ascii_digit())
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect();
-                    digits.parse().unwrap_or(u64::MAX)
-                }
-                zip_files.sort_by_cached_key(|entry| {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let num = extract_first_number(&name);
-                    (num, name)
-                });
-
-                if zip_files.len() < 2 {
-                    return Ok("Need at least 2 zip files to compute pseudo-history.".to_string());
-                }
-
-                let all_non_numeric = zip_files.iter().all(|e| {
-                    extract_first_number(&e.file_name().to_string_lossy()) == u64::MAX
-                });
-                if all_non_numeric {
-                    tracing::warn!(
-                        "ingest_zip_history: no numeric prefixes found in zip filenames — \
-                         falling back to alphabetical ordering which may not be chronological. \
-                         Rename files as 01_name.zip, 02_name.zip … for correct ordering."
-                    );
-                }
-
-                let mut temporal_edges = 0;
-                let mut prev_fingerprints: std::collections::HashMap<String, String> =
-                    std::collections::HashMap::new();
-
-                const MAX_ARCHIVE_FILES: usize = 250_000;
-                const MAX_ENTRY_UNCOMPRESSED_BYTES: u64 = 32 * 1024 * 1024; // 32 MiB
-                const MAX_ARCHIVE_UNCOMPRESSED_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
-                const MAX_CHANGED_FILES_PER_SNAPSHOT: usize = 50_000;
-
-                let mut skipped_zips = 0usize;
-                let mut skipped_entries = 0usize;
-                for (i, entry) in zip_files.iter().enumerate() {
-                    let path = entry.path();
-                    let file = match std::fs::File::open(&path) {
-                        Ok(f) => f,
-                        Err(e) => {
-                            tracing::warn!(path = %path.display(), error = %e, "Skipping unreadable zip file");
-                            skipped_zips += 1;
-                            continue;
-                        }
-                    };
-                    let mut archive = match zip::ZipArchive::new(file) {
-                        Ok(a) => a,
-                        Err(e) => {
-                            tracing::warn!(path = %path.display(), error = %e, "Skipping corrupt/invalid zip file");
-                            skipped_zips += 1;
-                            continue;
-                        }
-                    };
-
-                    let mut current_fingerprints = std::collections::HashMap::new();
-                    let mut changed_files = Vec::new();
-                    let mut archive_uncompressed_bytes: u64 = 0;
-
-                    if archive.len() > MAX_ARCHIVE_FILES {
-                        tracing::warn!(
-                            path = %path.display(),
-                            entries = archive.len(),
-                            max_entries = MAX_ARCHIVE_FILES,
-                            "Skipping oversized zip archive"
-                        );
-                        skipped_zips += 1;
-                        continue;
-                    }
-
-                    for j in 0..archive.len() {
-                        let mut f = archive.by_index(j)?;
-                        if f.is_file() {
-                            let name = f.name().to_string();
-                            if !is_safe_zip_member_path(&name) {
-                                skipped_entries += 1;
-                                continue;
-                            }
-
-                            let entry_uncompressed = f.size();
-                            if entry_uncompressed > MAX_ENTRY_UNCOMPRESSED_BYTES {
-                                skipped_entries += 1;
-                                tracing::warn!(
-                                    path = %path.display(),
-                                    entry = %name,
-                                    entry_uncompressed,
-                                    max = MAX_ENTRY_UNCOMPRESSED_BYTES,
-                                    "Skipping oversized zip member"
-                                );
-                                continue;
-                            }
-
-                            archive_uncompressed_bytes = archive_uncompressed_bytes
-                                .saturating_add(entry_uncompressed);
-                            if archive_uncompressed_bytes > MAX_ARCHIVE_UNCOMPRESSED_BYTES {
-                                skipped_entries += 1;
-                                tracing::warn!(
-                                    path = %path.display(),
-                                    accumulated = archive_uncompressed_bytes,
-                                    max = MAX_ARCHIVE_UNCOMPRESSED_BYTES,
-                                    "Skipping remaining zip members: archive uncompressed budget exceeded"
-                                );
-                                break;
-                            }
-
-                            // Compute a hash with a hard read cap to prevent
-                            // decompression-bomb style stream expansion even if
-                            // metadata reports an unexpectedly small size.
-                            let mut hasher = blake3::Hasher::new();
-                            let mut limited = std::io::Read::take(
-                                &mut f,
-                                MAX_ENTRY_UNCOMPRESSED_BYTES.saturating_add(1),
-                            );
-                            let copied = std::io::copy(&mut limited, &mut hasher)?;
-                            if copied > MAX_ENTRY_UNCOMPRESSED_BYTES {
-                                skipped_entries += 1;
-                                tracing::warn!(
-                                    path = %path.display(),
-                                    entry = %name,
-                                    copied,
-                                    max = MAX_ENTRY_UNCOMPRESSED_BYTES,
-                                    "Skipping zip member that exceeded hard streaming cap"
-                                );
-                                continue;
-                            }
-                            let hash = hasher.finalize().to_hex().to_string();
-
-                            if current_fingerprints.contains_key(&name) {
-                                skipped_entries += 1;
-                                tracing::warn!(
-                                    path = %path.display(),
-                                    entry = %name,
-                                    "Skipping duplicate zip member path in same archive"
-                                );
-                                continue;
-                            }
-
-                            current_fingerprints.insert(name.clone(), hash.clone());
-
-                            if i > 0 {
-                                if let Some(prev_hash) = prev_fingerprints.get(&name) {
-                                    if *prev_hash != hash {
-                                        changed_files.push(engram_core::RelPath::new(&name));
-                                    }
-                                } else {
-                                    // New file
-                                    changed_files.push(engram_core::RelPath::new(&name));
-                                }
-
-                                if changed_files.len() >= MAX_CHANGED_FILES_PER_SNAPSHOT {
-                                    tracing::warn!(
-                                        path = %path.display(),
-                                        max = MAX_CHANGED_FILES_PER_SNAPSHOT,
-                                        "Reached changed-file cap for snapshot; truncating remaining diff tracking"
-                                    );
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if !changed_files.is_empty() {
-                        let pairs = engram_git::temporal::file_pairs(&changed_files, 100);
-                        let batch: Vec<(engram_graph::EdgeKind, String, String, u32)> = pairs
-                            .iter()
-                            .map(|(a, b)| {
-                                (
-                                    engram_graph::EdgeKind::TemporalCoupling,
-                                    format!("file:{}", a),
-                                    format!("file:{}", b),
-                                    1u32,
-                                )
-                            })
-                            .collect();
-                        temporal_edges += batch.len();
-                        graph.batch_increment_undirected_edges(
-                            &project_id,
-                            engram_core::namespaces::NAMESPACE_HISTORY,
-                            "text",
-                            active_gen,
-                            &batch,
-                        )?;
-                    }
-
-                    prev_fingerprints = current_fingerprints;
-                }
-
-                let mut summary = format!(
-                    "\u{2705} Ingested {} snapshots, added {} temporal edges.",
-                    zip_files.len().saturating_sub(skipped_zips),
-                    temporal_edges
-                );
-                if skipped_zips > 0 {
-                    summary.push_str(&format!("\n\u{26a0}\u{fe0f} {} zip files were skipped (corrupt or unreadable).", skipped_zips));
-                }
-                if skipped_entries > 0 {
-                    summary.push_str(&format!(
-                        "\n\u{26a0}\u{fe0f} {} zip entries were skipped (unsafe path or size limit).",
-                        skipped_entries
-                    ));
-                }
-                Ok(summary)
+            let summary = tokio::task::spawn_blocking(move || {
+                zip_history_core(dir, graph, project_id, active_gen)
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -755,10 +766,77 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(summary)]));
         }
 
-        Err(McpError::internal_error(
-            "Background job for ingest_zip_history not implemented yet. Use wait=true.",
-            None,
-        ))
+        // Background (wait=false) path: persist a "running" job record, spawn the
+        // ingestion in the background, and return the job_id immediately.
+        let job_id = Uuid::new_v4().to_string();
+        let now_ts = now_ms();
+        let jr_running = JobRecord {
+            job_id: job_id.clone(),
+            kind: "ingest_zip_history".into(),
+            project_id: Some(project_id.clone()),
+            status: "running".into(),
+            message: "zip history ingestion running in background".into(),
+            progress_pct: 0,
+            estimated_time_remaining_ms: None,
+            created_at_ms: now_ts,
+            updated_at_ms: now_ts,
+        };
+        let reg_bg = self.state.registry.clone();
+        tokio::task::spawn_blocking({
+            let jr = jr_running.clone();
+            move || reg_bg.put_job(&jr)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(format!("failed to persist job: {e}"), None))?
+        .map_err(|e| {
+            McpError::internal_error(format!("failed to persist job record: {e}"), None)
+        })?;
+
+        let state_bg = self.state.clone();
+        let jid = job_id.clone();
+        let pid_bg = project_id.clone();
+        let handle = tokio::spawn(async move {
+            let pid_for_core = pid_bg.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                zip_history_core(dir, graph, pid_for_core, active_gen)
+            })
+            .await;
+
+            let (status, message) = match result {
+                Ok(Ok(s)) => ("completed".to_string(), s),
+                Ok(Err(e)) => ("failed".to_string(), e.to_string()),
+                Err(e) => ("failed".to_string(), format!("task panicked: {e}")),
+            };
+            let reg2 = state_bg.registry.clone();
+            let jid2 = jid.clone();
+            let now2 = now_ms();
+            let _ = tokio::task::spawn_blocking(move || {
+                let _ = reg2.put_job(&JobRecord {
+                    job_id: jid2,
+                    kind: "ingest_zip_history".into(),
+                    project_id: Some(pid_bg),
+                    status,
+                    message,
+                    progress_pct: 100,
+                    estimated_time_remaining_ms: None,
+                    created_at_ms: now_ts,
+                    updated_at_ms: now2,
+                });
+            })
+            .await;
+            state_bg.active_jobs.write().await.remove(&jid);
+        });
+
+        {
+            self.state
+                .active_jobs
+                .write()
+                .await
+                .insert(job_id.clone(), handle);
+        }
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "\u{1F7E1} Zip history ingestion started.\njob_id: {job_id}\nproject_id: {project_id}"
+        ))]))
     }
 
     pub async fn handle_search_history(
