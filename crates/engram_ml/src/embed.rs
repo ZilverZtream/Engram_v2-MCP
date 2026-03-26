@@ -759,7 +759,51 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             let dim = 1536usize;
             Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim)))
         }
-        // "local" or anything else
-        _ => Ok(Box::new(LocalEmbedder)),
+        // Known local-mode backends that all resolve to LocalEmbedder.
+        "local" | "candle" | "fts_only" => Ok(Box::new(LocalEmbedder)),
+        _ => anyhow::bail!(
+            "unknown embedding_backend '{}': must be one of: local, candle, fts_only, ollama, openai",
+            cfg.embedding_backend
+        ),
+    }
+}
+
+#[cfg(test)]
+mod embed_factory_tests {
+    use super::*;
+
+    fn make_cfg(backend: &str) -> engram_core::Config {
+        engram_core::Config {
+            embedding_backend: backend.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn build_embedder_rejects_unknown_backend() {
+        let cfg = make_cfg("bad_backend_xyz");
+        let result = build_embedder(&cfg);
+        assert!(result.is_err(), "build_embedder must reject unknown backend");
+        // Map to the error string without requiring Debug on Box<dyn Embedder>.
+        let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            msg.contains("unknown"),
+            "error message should contain 'unknown', got: {msg}"
+        );
+    }
+
+    #[test]
+    fn build_embedder_accepts_known_backends() {
+        for backend in &["local", "candle", "fts_only"] {
+            let cfg = make_cfg(backend);
+            let result = build_embedder(&cfg);
+            let err_msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+            assert!(
+                err_msg.is_empty(),
+                "build_embedder must accept known backend '{}', got error: {}",
+                backend,
+                err_msg
+            );
+        }
     }
 }
