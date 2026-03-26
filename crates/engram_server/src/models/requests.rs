@@ -150,11 +150,13 @@ pub struct UpdateProjectRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ProjectIdRequest {
     pub project_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct WatchProjectRequest {
     pub project_id: String,
     #[serde(default = "default_true")]
@@ -164,6 +166,7 @@ pub struct WatchProjectRequest {
 // -------------------- Repair --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RepairProjectRequest {
     pub project_id: String,
     /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only".
@@ -210,6 +213,7 @@ pub struct SearchMemoryRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetChunkRequest {
     pub project_id: String,
     /// Per-instance document identity (required).
@@ -258,6 +262,7 @@ pub struct GraphSearchRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindSymbolReferencesRequest {
     pub symbol_name: String,
     pub project_id: String,
@@ -276,6 +281,7 @@ pub struct FindSymbolReferencesRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeErrorStackRequest {
     pub traceback: String,
     pub project_id: String,
@@ -284,6 +290,7 @@ pub struct AnalyzeErrorStackRequest {
 // -------------------- Memory bank --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateMemoryBankRequest {
     pub project_id: String,
     #[serde(default)]
@@ -293,6 +300,7 @@ pub struct UpdateMemoryBankRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MemorySectionRequest {
     pub project_id: String,
     pub section: String,
@@ -301,6 +309,7 @@ pub struct MemorySectionRequest {
 // -------------------- Repo rules --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AddRepoRuleRequest {
     pub project_id: String,
     pub file_pattern: String,
@@ -312,6 +321,7 @@ pub struct AddRepoRuleRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeleteRepoRuleRequest {
     pub project_id: String,
     pub rule_id: String,
@@ -320,6 +330,7 @@ pub struct DeleteRepoRuleRequest {
 // -------------------- Graph --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct QueryGraphNodesRequest {
     pub project_id: String,
     #[serde(default)]
@@ -333,6 +344,7 @@ pub struct QueryGraphNodesRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindReferencesRequest {
     pub project_id: String,
     pub node_id: String,
@@ -343,6 +355,7 @@ pub struct FindReferencesRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TraverseGraphRequest {
     pub project_id: String,
     pub node_id: String,
@@ -355,6 +368,7 @@ pub struct TraverseGraphRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ImpactAnalysisRequest {
     pub project_id: String,
     pub file_path: Option<String>,
@@ -364,12 +378,14 @@ pub struct ImpactAnalysisRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetTableSchemaRequest {
     pub project_id: String,
     pub table_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TraceStateUsageRequest {
     pub project_id: String,
     pub state_type: String,
@@ -379,6 +395,7 @@ pub struct TraceStateUsageRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TraceUiActionRequest {
     pub project_id: String,
     pub query: String,
@@ -389,6 +406,7 @@ pub struct TraceUiActionRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TraceUiEventRequest {
     pub project_id: String,
     pub page_path: String,
@@ -401,11 +419,13 @@ pub struct TraceUiEventRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ExportCapturePackRequest {
     pub project_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetUiBlueprintRequest {
     pub project_id: String,
     /// Project-relative path to the .aspx, .ascx, .Designer.vb, or .Designer.cs file.
@@ -415,6 +435,7 @@ pub struct GetUiBlueprintRequest {
 // -------------------- Git --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IndexGitHistoryRequest {
     pub project_id: String,
     #[serde(default = "default_max_commits")]
@@ -426,6 +447,7 @@ pub struct IndexGitHistoryRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SearchHistoryRequest {
     pub query: String,
     pub project_id: String,
@@ -453,6 +475,7 @@ pub struct SearchHistoryRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeTemporalCouplingsRequest {
     pub project_id: String,
     #[serde(default)]
@@ -466,6 +489,7 @@ pub struct AnalyzeTemporalCouplingsRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeRevertsRequest {
     pub project_id: String,
     #[serde(default = "default_max_commits")]
@@ -473,6 +497,7 @@ pub struct AnalyzeRevertsRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IngestZipHistoryRequest {
     pub project_id: String,
     pub directory: String,
@@ -483,6 +508,7 @@ pub struct IngestZipHistoryRequest {
 // -------------------- Cognitive --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DreamProjectRequest {
     pub project_id: String,
     /// If true, block until the dream cycle completes and return insight count.
@@ -504,6 +530,7 @@ pub struct DreamProjectRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeFileCodingStyleRequest {
     pub project_id: String,
     pub file_path: String,
@@ -512,6 +539,7 @@ pub struct AnalyzeFileCodingStyleRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuggestMigrationBoundariesRequest {
     pub project_id: String,
     /// Minimum co-change frequency to include a coupling edge (default 3).
@@ -532,6 +560,7 @@ pub struct SuggestMigrationBoundariesRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ImmuneCheckRequest {
     pub project_id: String,
     /// Code snippet to check against the anti-pattern index.
@@ -548,6 +577,7 @@ pub struct ImmuneCheckRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AntiPatternGuardRequest {
     pub project_id: String,
     /// Code snippet to check for anti-pattern matches.
@@ -566,6 +596,7 @@ pub struct AntiPatternGuardRequest {
 // -------------------- Migration slicer --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateMigrationBlueprintRequest {
     pub project_id: String,
     /// The node ID of the entry point (e.g. a file node like "file:Map.aspx",
@@ -589,6 +620,7 @@ pub struct GenerateMigrationBlueprintRequest {
 // -------------------- AST Dependency Graph --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AstDependencyGraphRequest {
     pub project_id: String,
     /// File path (project-relative) or node ID to root the dependency tree from.
@@ -610,6 +642,7 @@ pub struct AstDependencyGraphRequest {
 // -------------------- Incremental Indexing GC --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IncrementalIndexingGcRequest {
     pub project_id: String,
     /// Target generation to GC up to (exclusive). If omitted, uses active_generation.
@@ -623,6 +656,7 @@ pub struct IncrementalIndexingGcRequest {
 // -------------------- Antipattern Index Management --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AntipatternIndexRequest {
     pub project_id: String,
     /// Action: "stats" (default), "list", "search", "clear".
@@ -642,6 +676,7 @@ pub struct AntipatternIndexRequest {
 // -------------------- Vector Search --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct VectorSearchRequest {
     pub project_id: String,
     /// The text to embed and search for semantically.
@@ -675,12 +710,14 @@ pub struct VectorSearchRequest {
 // -------------------- Jobs --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListJobsRequest {
     #[serde(default)]
     pub project_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CancelJobRequest {
     pub job_id: String,
 }
@@ -688,11 +725,13 @@ pub struct CancelJobRequest {
 // -------------------- Instrumentation --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetInstrumentationPackRequest {
     pub language: String, // "csharp" or "vb"
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IngestInstrumentationLogsRequest {
     pub project_id: String,
     pub log_content: String,
@@ -708,6 +747,7 @@ pub enum RuntimeArtifactKindRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RuntimeArtifactInputRequest {
     pub kind: RuntimeArtifactKindRequest,
     pub content: String,
@@ -716,6 +756,7 @@ pub struct RuntimeArtifactInputRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IngestRuntimeArtifactsRequest {
     pub project_id: String,
     pub artifacts: Vec<RuntimeArtifactInputRequest>,
@@ -920,6 +961,7 @@ impl VectorSearchRequest {
 // -------------------- Observability --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMetricsRequest {
     /// Return raw JSON instead of human-readable text. Default: false.
     #[serde(default)]
@@ -929,6 +971,7 @@ pub struct GetMetricsRequest {
 // -------------------- Integrity --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CheckIntegrityRequest {
     pub project_id: String,
     /// Auto-repair mismatches if found (overrides config). Default: use config value.
@@ -939,6 +982,7 @@ pub struct CheckIntegrityRequest {
 // -------------------- Safety --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct EvaluateSafetyRequest {
     pub project_id: String,
     /// Files affected by the proposed edit.
@@ -978,6 +1022,7 @@ fn default_unknown_coverage() -> f64 {
 // -------------------- Migration Plan --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateMigrationPlanRequest {
     pub project_id: String,
     /// Return JSON output instead of human-readable text. Default: false.
@@ -988,6 +1033,7 @@ pub struct GenerateMigrationPlanRequest {
 // -------------------- Benchmark --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BenchmarkRetrievalRequest {
     pub project_id: String,
     /// Custom benchmark queries with known-relevant paths (JSON array).
@@ -1000,6 +1046,7 @@ pub struct BenchmarkRetrievalRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct BenchmarkQueryInput {
     pub query: String,
     pub relevant_paths: Vec<String>,
@@ -1008,6 +1055,7 @@ pub struct BenchmarkQueryInput {
 // -------------------- Confidence Scoring --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetExtractionConfidenceRequest {
     pub project_id: String,
     /// Type of extraction to score: "event_wiring", "sql_trace", "control_binding".
@@ -1022,6 +1070,7 @@ pub struct GetExtractionConfidenceRequest {
 // -------------------- Checkpoint Status --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetCheckpointStatusRequest {
     /// Filter by project_id. If empty, returns all checkpoints.
     #[serde(default)]
@@ -1034,6 +1083,7 @@ pub struct GetCheckpointStatusRequest {
 // -------------------- Memory Budget --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMemoryBudgetRequest {
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
@@ -1043,6 +1093,7 @@ pub struct GetMemoryBudgetRequest {
 // -------------------- Blast Radius --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ComputeBlastRadiusRequest {
     pub project_id: String,
     /// File path to analyze (project-relative). Mutually exclusive with symbol_fqn.
@@ -1118,6 +1169,7 @@ pub struct AutonomousDecisionGateRequest {
 
 /// A single item in a migration wave for plan-level ADP evaluation.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct WaveItemInput {
     /// File path for this wave item.
     pub file_path: String,
@@ -1139,6 +1191,7 @@ fn default_risk_profile() -> String {
 // -------------------- Graph Centrality Rerank --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GraphCentralityRerankRequest {
     pub project_id: String,
     /// Search query to run before reranking. If provided, results are searched then reranked.
@@ -1200,6 +1253,7 @@ impl GraphCentralityRerankRequest {
 // -------------------- Detect Design Patterns --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DetectDesignPatternsRequest {
     pub project_id: String,
     /// Filter to specific pattern names (e.g., ["God Object", "Session Soup"]).
@@ -1221,6 +1275,7 @@ fn default_output_format() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateMigrationScaffoldRequest {
     pub project_id: String,
     /// Path of the legacy file to scaffold from.
@@ -1241,6 +1296,7 @@ fn default_instrument_language() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateInstrumentationCodeRequest {
     pub project_id: String,
     /// Files to instrument (empty = all files with relevant edges).
@@ -1252,6 +1308,7 @@ pub struct GenerateInstrumentationCodeRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ReconcileRuntimeEvidenceRequest {
     pub project_id: String,
     /// JSON-serialized RuntimeEvidenceBatch.
@@ -1259,6 +1316,7 @@ pub struct ReconcileRuntimeEvidenceRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuggestStateMigrationRequest {
     pub project_id: String,
     /// Return JSON output instead of human-readable text. Default: false.
@@ -1271,6 +1329,7 @@ fn default_test_framework() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateCharacterizationTestsRequest {
     pub project_id: String,
     /// File path to generate tests for.
@@ -1293,6 +1352,7 @@ fn default_modern_url() -> String {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GenerateStranglerFigRequest {
     pub project_id: String,
     /// Base URL of the legacy application. Default: "http://localhost:5000".
@@ -1307,6 +1367,7 @@ pub struct GenerateStranglerFigRequest {
 
 /// Ticket 7: Map validation controls to modern equivalents.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MapValidationControlsRequest {
     pub project_id: String,
     /// Project-relative path to the .aspx, .ascx, or .master file.
@@ -1318,6 +1379,7 @@ pub struct MapValidationControlsRequest {
 
 /// Ticket 8: Map authentication/authorization configuration.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MapAuthConfigRequest {
     pub project_id: String,
     /// Optional file scope — if provided, only scan this file for code-level
@@ -1331,6 +1393,7 @@ pub struct MapAuthConfigRequest {
 
 /// Ticket 3: Map page lifecycle events to modern equivalents.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MapPageLifecycleRequest {
     pub project_id: String,
     /// Project-relative path to the code-behind file (.aspx.vb, .aspx.cs).
@@ -1342,6 +1405,7 @@ pub struct MapPageLifecycleRequest {
 
 /// Ticket 4: Analyze ViewState dependencies (explicit and implicit).
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeViewStateDepsRequest {
     pub project_id: String,
     /// Project-relative path to the code-behind file (.aspx.vb, .aspx.cs).
@@ -1353,6 +1417,7 @@ pub struct AnalyzeViewStateDepsRequest {
 
 /// Ticket 6: Map UpdatePanel / AJAX regions to modern component boundaries.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MapAjaxRegionsRequest {
     pub project_id: String,
     /// Project-relative path to the .aspx file.
@@ -1364,6 +1429,7 @@ pub struct MapAjaxRegionsRequest {
 
 /// Ticket 2: Trace data flow from an event handler through SQL/state/binding.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TraceDataFlowRequest {
     pub project_id: String,
     /// Project-relative path to the code-behind file.
@@ -1377,6 +1443,7 @@ pub struct TraceDataFlowRequest {
 
 /// Ticket 1: Get a complete migration dossier for a single page.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMigrationDossierRequest {
     pub project_id: String,
     /// Project-relative path to the .aspx (or .ascx / .master) file.
@@ -1391,6 +1458,7 @@ pub struct GetMigrationDossierRequest {
 
 /// Ticket 5: Check migration coverage — what did the modern code miss?
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CheckMigrationCoverageRequest {
     pub project_id: String,
     /// Project-relative path to the original legacy file.
@@ -1404,6 +1472,7 @@ pub struct CheckMigrationCoverageRequest {
 
 /// Ticket 9a: Update migration status for a file.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateMigrationStatusRequest {
     pub project_id: String,
     /// Project-relative path of the file whose status is being updated.
@@ -1426,6 +1495,7 @@ pub struct UpdateMigrationStatusRequest {
 
 /// Ticket 9b: Get migration progress for a project.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMigrationProgressRequest {
     pub project_id: String,
     /// Return JSON output instead of human-readable text. Default: false.
@@ -1435,6 +1505,7 @@ pub struct GetMigrationProgressRequest {
 
 /// Ticket 10: Suggest optimal migration order based on dependency graph.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuggestMigrationOrderRequest {
     pub project_id: String,
     /// Return JSON output instead of human-readable text. Default: false.
@@ -1450,6 +1521,7 @@ fn default_max_files() -> usize {
 
 /// Analyze an entire project for migration in one call.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeFullProjectMigrationRequest {
     pub project_id: String,
     /// Target stack: "blazor", "react", or "angular". Default: "blazor".
@@ -1477,6 +1549,7 @@ fn default_max_concurrent() -> usize {
 
 /// Analyze business logic of methods using the local LLM.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeBusinessLogicRequest {
     pub project_id: String,
     /// Specific file to analyze. If omitted, analyzes all code-behind files.
@@ -1498,6 +1571,7 @@ pub struct AnalyzeBusinessLogicRequest {
 
 /// Query business logic summaries using natural language.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct QueryBusinessLogicRequest {
     pub project_id: String,
     /// Natural language query about business logic.
@@ -1518,6 +1592,7 @@ fn default_min_severity() -> String {
 
 /// Full database analysis: schema, stored procedures, triggers, call chains.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeDatabaseIntelligenceRequest {
     pub project_id: String,
     /// Optional: path to a specific .sql file to analyze in isolation.
@@ -1534,6 +1609,7 @@ pub struct AnalyzeDatabaseIntelligenceRequest {
 
 /// Retrieve deep analysis for a single stored procedure by name.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetSpDetailsRequest {
     pub project_id: String,
     /// Name of the stored procedure.
@@ -1545,6 +1621,7 @@ pub struct GetSpDetailsRequest {
 
 /// Get all triggers for a project, optionally filtered by table.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ListTriggersRequest {
     pub project_id: String,
     /// Filter to triggers on a specific table name.
@@ -1557,6 +1634,7 @@ pub struct ListTriggersRequest {
 
 /// Detect synchronous patterns hazardous for async/await migration.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalyzeSyncHazardsRequest {
     pub project_id: String,
     /// Specific file to analyze. If omitted, scans all indexed .vb/.cs files.
@@ -1572,6 +1650,7 @@ pub struct AnalyzeSyncHazardsRequest {
 
 /// Get jQuery usage inventory for a project.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetJQueryInventoryRequest {
     pub project_id: String,
     /// Filter to files matching this glob pattern (e.g., "*.js" or "checkout*").
@@ -1584,6 +1663,7 @@ pub struct GetJQueryInventoryRequest {
 
 /// Reconstruct session/state workflow flows from graph edges.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetSessionWorkflowsRequest {
     pub project_id: String,
     /// Filter to a specific scope: "session" | "application" | "cache" | "viewstate" | "cookie".
@@ -1603,6 +1683,7 @@ pub struct GetSessionWorkflowsRequest {
 
 /// Detect VB.NET → C# translation traps (14 categories of semantic differences).
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetVbTranslationTrapsRequest {
     pub project_id: String,
     /// Specific .vb file to analyze. If omitted, analyzes all indexed .vb files.
@@ -1627,6 +1708,7 @@ fn default_max_callers() -> usize {
 
 /// Retrieve method metadata from the method index (sub-200ms per-method queries).
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMethodInfoRequest {
     pub project_id: String,
     /// Fully qualified name (e.g., "MyNamespace.CheckoutPage.ProcessOrder"),
@@ -1642,6 +1724,7 @@ pub struct GetMethodInfoRequest {
 
 /// Retrieve the complete, untruncated source code of a method.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
     pub project_id: String,
     /// Fully qualified name from method index. Mutually exclusive with file_path + line_start.
@@ -1678,6 +1761,7 @@ fn default_max_callers_50() -> usize {
 /// callers, database footprint, session state, VB traps, sync hazards, blast radius,
 /// and business logic into a single response.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetMethodEditContextRequest {
     pub project_id: String,
     /// Relative path to the code file containing the method.
@@ -1707,6 +1791,7 @@ pub struct GetMethodEditContextRequest {
 /// Full page context: control tree, all event handlers with bodies, data layer,
 /// state, AJAX, validation, auth, and coding style for a WebForms page.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GetPageContextRequest {
     pub project_id: String,
     /// Path to the .aspx/.ascx/.master file.
@@ -1735,6 +1820,7 @@ fn default_max_pattern_examples() -> usize {
 /// coding style profile, pattern examples from callers, database schema for referenced tables,
 /// SP signatures, session state context, control mappings, VB traps, and sync hazards.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PrepareImplementationContextRequest {
     pub project_id: String,
     /// The file containing the method to be modified.
@@ -1780,6 +1866,7 @@ pub struct PrepareImplementationContextRequest {
 /// SQL validity, VB trap avoidance, state key consistency, SP call correctness,
 /// control ID validity, caller compatibility, and sync hazard introduction.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ValidateGeneratedCodeRequest {
     pub project_id: String,
     /// The generated or modified code to validate.
@@ -1819,6 +1906,7 @@ fn default_csharp() -> String {
 /// Validate a SQL fragment against the project's schema knowledge: table/column
 /// existence, SP parameter types, join correctness, and common SQL anti-patterns.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct ValidateSqlFragmentRequest {
     pub project_id: String,
     /// The SQL code to validate.
@@ -1836,6 +1924,7 @@ pub struct ValidateSqlFragmentRequest {
 /// Find existing tests that exercise a given method, by searching for references
 /// to the method name in test files (files matching *Test*, *Spec*, *_test*).
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindTestsForMethodRequest {
     pub project_id: String,
     /// Fully qualified method name or partial name.
@@ -1857,6 +1946,7 @@ fn default_dead_method_limit() -> usize {
 /// Find methods with zero callers, no Handles clause, and no lifecycle hooks —
 /// candidates for dead code removal.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FindDeadMethodsRequest {
     pub project_id: String,
     /// Filter to a specific file path (partial match).
@@ -1875,6 +1965,7 @@ pub struct FindDeadMethodsRequest {
 /// Standalone edit safety check: returns green/yellow/red verdict for a method
 /// without the full edit context overhead. Faster alternative to get_method_edit_context.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct CheckEditSafetyRequest {
     pub project_id: String,
     /// Relative path to the file containing the method.
@@ -1946,5 +2037,83 @@ mod unknown_field_tests {
         let bad = r#"{"project_id":"p1","proposed_change":"diff","evidnece_depth":"fast"}"#;
         let result: Result<AutonomousDecisionGateRequest, _> = serde_json::from_str(bad);
         assert!(result.is_err(), "typo field evidnece_depth must be rejected");
+    }
+}
+
+// ENG-AUD-2026-S1-0001: All tool-facing request structs must reject unknown fields.
+// The tests below verify that `#[serde(deny_unknown_fields)]` is active on five
+// representative structs added in this fix.
+#[cfg(test)]
+mod unknown_field_request_tests {
+    use super::*;
+
+    #[test]
+    fn project_id_request_rejects_unknown_field() {
+        let good = r#"{"project_id":"proj-1"}"#;
+        assert!(
+            serde_json::from_str::<ProjectIdRequest>(good).is_ok(),
+            "valid JSON must deserialize"
+        );
+        let bad = r#"{"project_id":"proj-1","typo_key":1}"#;
+        assert!(
+            serde_json::from_str::<ProjectIdRequest>(bad).is_err(),
+            "unknown field typo_key must be rejected"
+        );
+    }
+
+    #[test]
+    fn watch_project_request_rejects_unknown_field() {
+        let good = r#"{"project_id":"proj-1","enabled":true}"#;
+        assert!(
+            serde_json::from_str::<WatchProjectRequest>(good).is_ok(),
+            "valid JSON must deserialize"
+        );
+        let bad = r#"{"project_id":"proj-1","enabled":true,"typo_key":1}"#;
+        assert!(
+            serde_json::from_str::<WatchProjectRequest>(bad).is_err(),
+            "unknown field typo_key must be rejected"
+        );
+    }
+
+    #[test]
+    fn search_history_request_rejects_unknown_field() {
+        let good = r#"{"query":"foo","project_id":"proj-1"}"#;
+        assert!(
+            serde_json::from_str::<SearchHistoryRequest>(good).is_ok(),
+            "valid JSON must deserialize"
+        );
+        let bad = r#"{"query":"foo","project_id":"proj-1","typo_key":1}"#;
+        assert!(
+            serde_json::from_str::<SearchHistoryRequest>(bad).is_err(),
+            "unknown field typo_key must be rejected"
+        );
+    }
+
+    #[test]
+    fn dream_project_request_rejects_unknown_field() {
+        let good = r#"{"project_id":"proj-1"}"#;
+        assert!(
+            serde_json::from_str::<DreamProjectRequest>(good).is_ok(),
+            "valid JSON must deserialize"
+        );
+        let bad = r#"{"project_id":"proj-1","typo_key":1}"#;
+        assert!(
+            serde_json::from_str::<DreamProjectRequest>(bad).is_err(),
+            "unknown field typo_key must be rejected"
+        );
+    }
+
+    #[test]
+    fn vector_search_request_rejects_unknown_field() {
+        let good = r#"{"project_id":"proj-1","query":"find me"}"#;
+        assert!(
+            serde_json::from_str::<VectorSearchRequest>(good).is_ok(),
+            "valid JSON must deserialize"
+        );
+        let bad = r#"{"project_id":"proj-1","query":"find me","typo_key":1}"#;
+        assert!(
+            serde_json::from_str::<VectorSearchRequest>(bad).is_err(),
+            "unknown field typo_key must be rejected"
+        );
     }
 }

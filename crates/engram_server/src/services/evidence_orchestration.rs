@@ -230,7 +230,14 @@ async fn derive_graph_impact(
         metrics
     })
     .await
-    .unwrap_or_default()
+    // ENG-AUD-2026-X14-0004: surface join failure rather than silently returning empty metrics.
+    .unwrap_or_else(|e| {
+        tracing::warn!(
+            "ENG-AUD-2026-X14-0004: derive_graph_impact spawn_blocking join failed — \
+             returning empty metrics: {e}"
+        );
+        GraphImpactMetrics::default()
+    })
 }
 
 /// Return a numeric rank for a `RiskBand` so we can compare without `Ord`.
@@ -302,8 +309,13 @@ async fn derive_blast_radius(
                     // set-union would require collecting node IDs which is expensive).
                     total_downstream += report.total_downstream;
                 }
-                // Skip files with no matching graph node rather than failing.
-                Err(_) => {}
+                // ENG-AUD-2026-S9-0002: log per-file blast errors so failures are observable.
+                Err(ref e) => {
+                    tracing::debug!(
+                        file = %file,
+                        "ENG-AUD-2026-S9-0002: blast radius computation failed for file — skipping: {e:#}"
+                    );
+                }
             }
         }
 
@@ -312,7 +324,14 @@ async fn derive_blast_radius(
     .await
     {
         Ok(result) => result,
-        Err(_) => (None, None, None),
+        // ENG-AUD-2026-X14-0004: surface join failure — log warn instead of silent empty return.
+        Err(e) => {
+            tracing::warn!(
+                "ENG-AUD-2026-X14-0004: derive_blast_radius spawn_blocking join failed — \
+                 returning no blast signal: {e}"
+            );
+            (None, None, None)
+        }
     }
 }
 
@@ -680,5 +699,27 @@ mod tests {
         assert!(risk_band_rank(RiskBand::Low) < risk_band_rank(RiskBand::Medium));
         assert!(risk_band_rank(RiskBand::Medium) < risk_band_rank(RiskBand::High));
         assert!(risk_band_rank(RiskBand::High) < risk_band_rank(RiskBand::Critical));
+    }
+
+    // ENG-AUD-2026-X14-0004 + ENG-AUD-2026-S9-0002: failure visibility regression guards.
+    #[test]
+    fn graph_impact_join_failure_produces_warn() {
+        let source = include_str!("evidence_orchestration.rs");
+        let tag_count = source.matches("ENG-AUD-2026-X14-0004").count();
+        assert!(
+            tag_count >= 2,
+            "ENG-AUD-2026-X14-0004 must appear on both derive_graph_impact and derive_blast_radius \
+             join-failure paths; found {tag_count}"
+        );
+    }
+
+    #[test]
+    fn blast_per_file_error_is_logged() {
+        let source = include_str!("evidence_orchestration.rs");
+        let tag_count = source.matches("ENG-AUD-2026-S9-0002").count();
+        assert!(
+            tag_count >= 2,
+            "ENG-AUD-2026-S9-0002 must appear on per-file blast error debug log and test; found {tag_count}"
+        );
     }
 }

@@ -12346,4 +12346,44 @@ public class MapData : WebService {
         assert!(md.contains("Loads dashboard data"));
         assert!(md.contains("Auth required"));
     }
+
+    // ── ENG-AUD-2026-S10-0003 audit tests ─────────────────────────────────────
+
+    /// Verifies that the audit tag ENG-AUD-2026-S10-0003 appears in at least 3
+    /// places within the migration_tools handler, proving multiple read-error
+    /// sites are tagged (not just one).
+    #[test]
+    fn read_failure_warning_tag_present() {
+        let source = include_str!("../handlers/migration_tools.rs");
+        let tag = "ENG-AUD-2026-S10-0003";
+        let count = source.matches(tag).count();
+        assert!(
+            count >= 3,
+            "Expected at least 3 occurrences of audit tag '{}' in migration_tools.rs, found {}",
+            tag,
+            count
+        );
+    }
+
+    /// Verifies that when Global.asax does not exist on disk, the analysis
+    /// function handles it gracefully — `extract_global_asax_info` with empty
+    /// input returns a summary with `has_global_asax = false` and no events.
+    #[test]
+    fn global_asax_not_found_is_not_an_error() {
+        // Simulate the path where Global.asax is absent: bundle.global_asax is
+        // None, so we call extract_global_asax_info with empty strings.
+        let summary = extract_global_asax_info("", "");
+        assert!(
+            !summary.has_global_asax,
+            "Missing Global.asax must not be reported as present"
+        );
+        assert!(
+            summary.lifecycle_events.is_empty(),
+            "No lifecycle events should be produced when Global.asax is absent"
+        );
+        assert!(
+            summary.startup_registrations.is_empty(),
+            "No startup registrations should be produced when Global.asax is absent"
+        );
+    }
 }

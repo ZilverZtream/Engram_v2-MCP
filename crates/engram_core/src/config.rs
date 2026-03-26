@@ -250,6 +250,19 @@ pub struct Config {
     /// Default test framework for characterization test generation.
     #[serde(default = "default_characterization_test_framework")]
     pub characterization_test_framework: String,
+
+    // ── ENG-AUD-2026-S12-0004: configurable embedding dimensions ────────────
+    /// Output dimension for the Ollama embedder.
+    /// Must match the model's actual output size (e.g. 768 for nomic-embed-text,
+    /// 1024 for mxbai-embed-large).  Defaults to 768 when not set.
+    #[serde(default)]
+    pub ollama_embed_dim: Option<usize>,
+
+    /// Output dimension for the OpenAI-compatible embedder.
+    /// Must match the model's actual output size (e.g. 1536 for
+    /// text-embedding-3-small).  Defaults to 1536 when not set.
+    #[serde(default)]
+    pub openai_embed_dim: Option<usize>,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -452,6 +465,8 @@ impl Default for Config {
             enable_classic_asp_extraction: false,
             enable_report_extraction: false,
             characterization_test_framework: default_characterization_test_framework(),
+            ollama_embed_dim: None,
+            openai_embed_dim: None,
         }
     }
 }
