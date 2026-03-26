@@ -906,4 +906,502 @@ End Sub
             "Should detect Is_vs_Equals in If/While contexts"
         );
     }
+
+    // ── New tests: On_Error variants ─────────────────────────────────────
+
+    #[test]
+    fn on_error_resume_next_is_silent_bug() {
+        let code = r#"
+Public Sub Load()
+    On Error Resume Next
+    Dim x = DangerousOp()
+End Sub
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "On_Error_Resume_Next");
+        assert!(trap.is_some(), "Should detect On_Error_Resume_Next");
+        assert_eq!(trap.unwrap().risk, "silent_bug");
+    }
+
+    #[test]
+    fn on_error_goto_label_is_compile_error() {
+        let code = r#"
+Public Sub HandleErrors()
+    On Error GoTo ErrHandler
+    Dim x = 1
+    Exit Sub
+ErrHandler:
+    Resume Next
+End Sub
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "On_Error_GoTo");
+        assert!(trap.is_some(), "Should detect On_Error_GoTo");
+        assert_eq!(trap.unwrap().risk, "compile_error");
+    }
+
+    #[test]
+    fn on_error_goto_zero_resets_handler() {
+        // "On Error GoTo 0" resets the error handler and IS detected (GoTo 0 is
+        // a label "0" which matches the GoTo pattern).
+        let code = r#"
+Public Sub Reset()
+    On Error GoTo 0
+End Sub
+"#;
+        let report = detect(code);
+        // On Error GoTo 0 matches the regex — it resets error handling.
+        assert!(has_trap(&report, "On_Error_GoTo"), "On Error GoTo 0 should be detected");
+    }
+
+    #[test]
+    fn no_on_error_in_clean_code() {
+        let code = r#"
+Public Sub SafeMethod()
+    Try
+        Dim x = 1
+    Catch ex As Exception
+        LogError(ex)
+    End Try
+End Sub
+"#;
+        let report = detect(code);
+        assert!(!has_trap(&report, "On_Error_Resume_Next"));
+        assert!(!has_trap(&report, "On_Error_GoTo"));
+    }
+
+    // ── New tests: Nothing value-type assignments ─────────────────────────
+
+    #[test]
+    fn nothing_value_type_date_type() {
+        let code = r#"
+Public Sub Init()
+    Dim d As Date = Nothing
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "Nothing_ValueType"), "Date = Nothing should be a trap");
+    }
+
+    #[test]
+    fn nothing_value_type_decimal_and_guid() {
+        let code = r#"
+Public Sub Init()
+    Dim price As Decimal = Nothing
+    Dim id As Guid = Nothing
+End Sub
+"#;
+        let report = detect(code);
+        let count = report.traps.iter().filter(|t| t.trap == "Nothing_ValueType").count();
+        assert_eq!(count, 2, "Both Decimal and Guid should trigger Nothing_ValueType");
+    }
+
+    #[test]
+    fn nothing_on_reference_type_not_flagged_as_value_type() {
+        // Dim x As String = Nothing is NOT a Nothing_ValueType (String is ref type)
+        let code = r#"
+Public Sub Init()
+    Dim name As String = Nothing
+    Dim obj As Object = Nothing
+End Sub
+"#;
+        let report = detect(code);
+        assert!(!has_trap(&report, "Nothing_ValueType"),
+            "String/Object = Nothing should NOT trigger Nothing_ValueType");
+    }
+
+    // ── New tests: My_Namespace variants ──────────────────────────────────
+
+    #[test]
+    fn my_user_namespace() {
+        let code = r#"
+Public Sub CheckUser()
+    Dim name = My.User.Name
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "My_Namespace"));
+    }
+
+    #[test]
+    fn my_resources_namespace() {
+        let code = r#"
+Public Sub GetLabel()
+    Dim lbl = My.Resources.WelcomeMessage
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "My_Namespace"));
+    }
+
+    #[test]
+    fn my_settings_compile_error_risk() {
+        let code = r#"
+Public Sub Save()
+    My.Settings.LastLogin = Now()
+    My.Settings.Save()
+End Sub
+"#;
+        let report = detect(code);
+        let my_traps: Vec<_> = report.traps.iter().filter(|t| t.trap == "My_Namespace").collect();
+        assert!(!my_traps.is_empty());
+        // All My.* traps are compile_error
+        assert!(my_traps.iter().all(|t| t.risk == "compile_error"));
+    }
+
+    // ── New tests: Date literals ──────────────────────────────────────────
+
+    #[test]
+    fn date_literal_with_time() {
+        let code = r#"
+Public Sub Schedule()
+    Dim deadline = #6/30/2024 5:00:00 PM#
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "Date_Literal"));
+    }
+
+    #[test]
+    fn date_literal_short_year() {
+        let code = r#"
+Dim y2k = #1/1/00#
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "Date_Literal"), "Short year date literal should be detected");
+    }
+
+    #[test]
+    fn no_date_literal_in_plain_string() {
+        // A string containing slashes shouldn't be confused for a date literal
+        let code = r#"
+Public Sub PathExample()
+    Dim path As String = "C:/temp/file.txt"
+End Sub
+"#;
+        let report = detect(code);
+        assert!(!has_trap(&report, "Date_Literal"),
+            "String with slashes should not be flagged as date literal");
+    }
+
+    // ── New tests: Array upper-bound ──────────────────────────────────────
+
+    #[test]
+    fn array_upper_bound_zero() {
+        // Dim arr(0) = 1 element, NOT 0 elements
+        let code = r#"
+Public Sub SingleElement()
+    Dim arr(0) As Integer
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "Array_Upper_Bound"),
+            "Dim arr(0) should still trigger Array_Upper_Bound trap");
+    }
+
+    #[test]
+    fn array_upper_bound_guidance_mentions_off_by_one() {
+        let code = r#"
+Dim items(5) As String
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "Array_Upper_Bound").unwrap();
+        assert!(trap.guidance.contains("off-by-one") || trap.guidance.contains("Off-by-one"),
+            "Guidance should mention off-by-one risk");
+    }
+
+    // ── New tests: ReDim_Preserve ─────────────────────────────────────────
+
+    #[test]
+    fn redim_preserve_in_loop() {
+        let code = r#"
+Public Sub BuildList()
+    Dim results() As String
+    For i = 1 To 10
+        ReDim Preserve results(i)
+        results(i) = GetItem(i)
+    Next
+End Sub
+"#;
+        let report = detect(code);
+        let count = report.traps.iter().filter(|t| t.trap == "ReDim_Preserve").count();
+        assert!(count >= 1, "ReDim Preserve inside loop should be detected");
+    }
+
+    #[test]
+    fn redim_without_preserve_not_flagged() {
+        // ReDim without Preserve is fine — just resizes (no data preservation concern)
+        let code = r#"
+Public Sub Reset()
+    Dim arr() As Integer
+    ReDim arr(10)
+End Sub
+"#;
+        let report = detect(code);
+        assert!(!has_trap(&report, "ReDim_Preserve"),
+            "ReDim without Preserve should not be flagged");
+    }
+
+    // ── New tests: WithEvents/Handles ─────────────────────────────────────
+
+    #[test]
+    fn withevents_is_compile_error() {
+        let code = r#"
+Public Class Form1
+    Private WithEvents myTimer As Timer
+End Class
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "WithEvents_Handles");
+        assert!(trap.is_some());
+        assert_eq!(trap.unwrap().risk, "compile_error");
+    }
+
+    #[test]
+    fn withevents_guidance_mentions_event_wiring() {
+        let code = r#"
+Private WithEvents btn As Button
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "WithEvents_Handles").unwrap();
+        assert!(trap.guidance.contains("event") || trap.guidance.contains("Handles"),
+            "Guidance should mention event wiring");
+    }
+
+    // ── New tests: String_Functions ───────────────────────────────────────
+
+    #[test]
+    fn len_function_detected() {
+        let code = r#"
+Public Sub CheckLength()
+    Dim n = Len(myString)
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "String_Functions"), "Len() should be detected");
+    }
+
+    #[test]
+    fn ucase_lcase_detected() {
+        let code = r#"
+Public Sub Normalize()
+    Dim up = UCase(name)
+    Dim lo = LCase(name)
+End Sub
+"#;
+        let report = detect(code);
+        let count = report.traps.iter().filter(|t| t.trap == "String_Functions").count();
+        assert!(count >= 2, "UCase and LCase should each be detected");
+    }
+
+    #[test]
+    fn string_functions_guidance_mentions_one_based() {
+        let code = r#"
+Dim s = Mid(text, 1, 3)
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "String_Functions").unwrap();
+        assert!(trap.guidance.contains("1-based") || trap.guidance.contains("0-based"),
+            "Guidance should explain 1-based vs 0-based indexing");
+    }
+
+    // ── New tests: Integer_Division ───────────────────────────────────────
+
+    #[test]
+    fn integer_division_multiple_operators() {
+        let code = r#"
+Public Sub Calc()
+    Dim a = total \ count
+    Dim b = n \ m
+End Sub
+"#;
+        let report = detect(code);
+        let count = report.traps.iter().filter(|t| t.trap == "Integer_Division").count();
+        assert!(count >= 2, "Both \\ operators should be detected");
+    }
+
+    #[test]
+    fn integer_division_not_in_comment() {
+        let code = r#"
+' This uses result \ size for paging
+Public Sub Calc()
+    Dim x = 10
+End Sub
+"#;
+        let report = detect(code);
+        // Comment lines should be skipped (the comment starts with ')
+        // The regex may still match if the comment isn't on a line starting with '
+        // This tests that the '  comment skipping in INTEGER_DIVISION_RE is working
+        let division_traps: Vec<_> = report.traps.iter()
+            .filter(|t| t.trap == "Integer_Division")
+            .collect();
+        // All matched traps should NOT have their vb_code come from the comment line
+        for trap in &division_traps {
+            // The comment line starts with ' so the line trimmed starts with '
+            // Verify no trap comes from comment lines
+            assert!(!trap.vb_code.contains("This uses"),
+                "Should not flag code inside comments");
+        }
+    }
+
+    #[test]
+    fn integer_division_skips_file_paths() {
+        let code = r#"
+Public Sub LoadFile()
+    Dim path = "C:\Users\test\file.txt"
+End Sub
+"#;
+        let report = detect(code);
+        // File paths with \\ or :\ should be skipped
+        let division_traps: Vec<_> = report.traps.iter()
+            .filter(|t| t.trap == "Integer_Division")
+            .collect();
+        for trap in &division_traps {
+            assert!(!trap.vb_code.contains("Users"),
+                "Should not flag backslash in file paths");
+        }
+    }
+
+    // ── New tests: Option_Compare_Text ────────────────────────────────────
+
+    #[test]
+    fn option_compare_text_guidance_mentions_case_insensitive() {
+        let code = "Option Compare Text\n";
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "Option_Compare_Text").unwrap();
+        assert!(trap.guidance.to_lowercase().contains("case-insensitive")
+            || trap.guidance.to_lowercase().contains("case_insensitive"),
+            "Guidance should mention case-insensitive comparison");
+    }
+
+    #[test]
+    fn option_compare_binary_not_flagged() {
+        let code = "Option Compare Binary\n";
+        let report = detect(code);
+        assert!(!has_trap(&report, "Option_Compare_Text"),
+            "Option Compare Binary should NOT trigger the trap");
+    }
+
+    // ── New tests: Late_Binding / Option Strict Off ───────────────────────
+
+    #[test]
+    fn option_strict_off_also_triggers_default_properties() {
+        let code = r#"
+Option Strict Off
+Public Sub Test()
+    Dim obj As Object
+    obj.Method()
+End Sub
+"#;
+        let report = detect(code);
+        assert!(has_trap(&report, "Late_Binding"), "Option Strict Off → Late_Binding");
+        assert!(has_trap(&report, "Default_Properties"), "Option Strict Off → Default_Properties");
+    }
+
+    #[test]
+    fn no_option_strict_off_no_late_binding() {
+        let code = r#"
+Option Strict On
+Public Sub StrictMethod()
+    Dim x As Integer = 42
+End Sub
+"#;
+        let report = detect(code);
+        assert!(!has_trap(&report, "Late_Binding"),
+            "Option Strict On should NOT trigger Late_Binding");
+        assert!(!has_trap(&report, "Default_Properties"),
+            "Option Strict On should NOT trigger Default_Properties");
+    }
+
+    // ── New tests: location tracking ──────────────────────────────────────
+
+    #[test]
+    fn location_outside_method_uses_file_line() {
+        // A trap that appears before any Sub/Function definition
+        let code = r#"Option Compare Text
+Public Class MyClass
+End Class
+"#;
+        let report = detect(code);
+        let trap = report.traps.iter().find(|t| t.trap == "Option_Compare_Text").unwrap();
+        // No method defined before line 1, so location should be "file:line N"
+        assert!(trap.location.contains("line"), "Location should contain line number");
+    }
+
+    #[test]
+    fn multiple_files_are_all_analyzed() {
+        let files: &[(&str, &str)] = &[
+            ("First.vb", "On Error Resume Next\n"),
+            ("Second.vb", "Dim x(10) As Integer\n"),
+            ("Third.cs", "var x = 1;"),  // should be skipped
+        ];
+        let report = detect_vb_translation_traps(files);
+        assert_eq!(report.files_analyzed, 2, "Only .vb files should be counted");
+        assert!(has_trap(&report, "On_Error_Resume_Next"));
+        assert!(has_trap(&report, "Array_Upper_Bound"));
+    }
+
+    #[test]
+    fn risk_counts_sum_to_total() {
+        let code = r#"
+Option Compare Text
+Option Strict Off
+On Error Resume Next
+On Error GoTo Handler
+ReDim Preserve arr(5)
+WithEvents btn As Button
+"#;
+        let report = detect(code);
+        assert_eq!(
+            report.total_traps,
+            report.silent_bug_count + report.compile_error_count,
+            "silent_bug + compile_error must equal total_traps"
+        );
+    }
+
+    #[test]
+    fn traps_by_category_matches_traps_vec() {
+        let code = r#"
+On Error Resume Next
+Dim x(5) As Integer
+Dim y(10) As String
+"#;
+        let report = detect(code);
+        // Verify traps_by_category counts match actual traps
+        for (cat, &count) in &report.traps_by_category {
+            let actual = report.traps.iter().filter(|t| &t.trap == cat).count();
+            assert_eq!(actual, count,
+                "traps_by_category[{}] = {} but actual count = {}", cat, count, actual);
+        }
+    }
+
+    #[test]
+    fn is_nothing_comparison_with_not_operator() {
+        // "If Not obj = Nothing" should still be caught
+        let code = r#"
+Public Sub TestIt()
+    If Not conn = Nothing Then
+        conn.Close()
+    End If
+End Sub
+"#;
+        let report = detect(code);
+        // The "conn = Nothing" part matches the regex
+        assert!(has_trap(&report, "Is_vs_Equals"),
+            "Comparison inside 'Not' expression should still be detected");
+    }
+
+    #[test]
+    fn withevents_matches_different_visibility_modifiers() {
+        let code = r#"
+Public Class MyClass
+    Public WithEvents btn1 As Button
+    Private WithEvents btn2 As Button
+    Protected WithEvents btn3 As Button
+End Class
+"#;
+        let report = detect(code);
+        let count = report.traps.iter().filter(|t| t.trap == "WithEvents_Handles").count();
+        assert_eq!(count, 3, "All three WithEvents declarations should be detected");
+    }
 }

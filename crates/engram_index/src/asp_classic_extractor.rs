@@ -1370,4 +1370,369 @@ Set cmd = Server.CreateObject("ADODB.Command")
             .collect();
         assert_eq!(com.len(), 3, "different prog_ids are separate");
     }
+
+    // ── Additional tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_response_write_with_variable() {
+        let source = r#"<%
+Dim msg
+msg = "Hello, World!"
+Response.Write msg
+Response.Write "<br/>"
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("write.asp"), source);
+        // Response.Write should annotate the file insight
+        let insight = syms
+            .iter()
+            .find(|s| s.name == "classic_asp_file")
+            .unwrap();
+        let meta = insight.metadata.as_ref().unwrap();
+        assert_eq!(
+            meta.get("uses_response_write").map(|s| s.as_str()),
+            Some("true")
+        );
+    }
+
+    #[test]
+    fn extract_request_form_multiple_fields() {
+        let source = r#"<%
+Dim firstName, lastName, email
+firstName = Request.Form("firstName")
+lastName = Request.Form("lastName")
+email = Request.Form("email")
+%>"#;
+        let (syms, edges) = extract_classic_asp(&rel("form.asp"), source);
+
+        let reads: Vec<_> = edges.iter().filter(|e| e.kind == "reads_state").collect();
+        assert_eq!(reads.len(), 3, "should read 3 form fields");
+
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
+        let names: Vec<&str> = state_syms.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"Request.Form:firstName"));
+        assert!(names.contains(&"Request.Form:lastName"));
+        assert!(names.contains(&"Request.Form:email"));
+    }
+
+    #[test]
+    fn extract_session_assignment() {
+        let source = r#"<%
+Session("UserId") = 42
+Session("Role") = "admin"
+%>"#;
+        let (_, edges) = extract_classic_asp(&rel("login.asp"), source);
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(writes.len(), 2);
+        assert!(writes.iter().any(|e| e.target_name == "state:Session:UserId"));
+        assert!(writes.iter().any(|e| e.target_name == "state:Session:Role"));
+    }
+
+    #[test]
+    fn extract_createobject_adodb() {
+        let source = r#"<%
+Set conn = Server.CreateObject("ADODB.Connection")
+conn.Open "Provider=SQLOLEDB;Server=srv;Database=db"
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("db.asp"), source);
+        let com: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name == "com_interop_usage")
+            .collect();
+        assert_eq!(com.len(), 1);
+        assert_eq!(
+            com[0].metadata.as_ref().unwrap().get("prog_id").map(|s| s.as_str()),
+            Some("ADODB.Connection")
+        );
+    }
+
+    #[test]
+    fn extract_include_server_side_file() {
+        let source = r#"<!--#include file="inc/header.asp"-->
+<html><body>Content</body></html>"#;
+        let (_, edges) = extract_classic_asp(&rel("page.asp"), source);
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(includes.len(), 1);
+        assert_eq!(includes[0].target_name, "inc/header.asp");
+        assert_eq!(
+            includes[0].metadata.as_ref().unwrap().get("include_type").map(|s| s.as_str()),
+            Some("file")
+        );
+    }
+
+    #[test]
+    fn extract_include_virtual_path() {
+        let source = r#"<!--#include virtual="/includes/footer.asp"-->
+<html><body>Content</body></html>"#;
+        let (_, edges) = extract_classic_asp(&rel("page.asp"), source);
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(includes.len(), 1);
+        assert_eq!(includes[0].target_name, "/includes/footer.asp");
+        assert_eq!(
+            includes[0].metadata.as_ref().unwrap().get("include_type").map(|s| s.as_str()),
+            Some("virtual")
+        );
+    }
+
+    #[test]
+    fn extract_set_rs_execute() {
+        let source = r#"<%
+Set rs = conn.Execute("SELECT * FROM Customers WHERE Active = 1")
+%>"#;
+        let (_, edges) = extract_classic_asp(&rel("cust.asp"), source);
+        let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
+        assert_eq!(sql_edges.len(), 1);
+        assert_eq!(sql_edges[0].target_name, "Customers");
+    }
+
+    #[test]
+    fn extract_conn_open_close() {
+        let source = r#"<%
+conn.Open "Provider=SQLOLEDB;Server=srv;Database=mydb;UID=sa;PWD=secret"
+Set rs = conn.Execute("SELECT 1")
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("db2.asp"), source);
+        let conn_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.kind == "connection_string")
+            .collect();
+        assert_eq!(conn_syms.len(), 1, "Should have one connection_string symbol");
+        // Password should be sanitized
+        assert!(!conn_syms[0].name.contains("secret"), "Password must be redacted");
+    }
+
+    #[test]
+    fn extract_function_with_arguments() {
+        let source = r#"<%
+Function FormatPrice(amount, currency)
+    FormatPrice = currency & amount
+End Function
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("format.asp"), source);
+        let funcs: Vec<_> = syms.iter().filter(|s| s.kind == "function").collect();
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name, "FormatPrice");
+    }
+
+    #[test]
+    fn extract_sub_with_no_args() {
+        let source = r#"<%
+Sub PageInit()
+    ' setup
+End Sub
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("init.asp"), source);
+        let subs: Vec<_> = syms.iter().filter(|s| s.kind == "function").collect();
+        assert_eq!(subs.len(), 1);
+        assert_eq!(subs[0].name, "PageInit");
+    }
+
+    #[test]
+    fn extract_response_redirect_no_parens() {
+        let source = r#"<% Response.Redirect "logout.asp" %>"#;
+        let (_, edges) = extract_classic_asp(&rel("logoff.asp"), source);
+        let deps: Vec<_> = edges.iter().filter(|e| e.kind == "dependency").collect();
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].target_name, "logout.asp");
+        assert_eq!(
+            deps[0].metadata.as_ref().unwrap().get("navigation_type").map(|s| s.as_str()),
+            Some("redirect")
+        );
+    }
+
+    #[test]
+    fn extract_response_cookies_write_state() {
+        let source = r#"<% Response.Cookies("pref") = "dark" %>"#;
+        let (_, edges) = extract_classic_asp(&rel("cookie.asp"), source);
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(writes.len(), 1);
+        assert_eq!(writes[0].target_name, "state:Response.Cookies:pref");
+    }
+
+    #[test]
+    fn extract_request_server_variables() {
+        // Request.ServerVariables is not explicitly extracted (different collection)
+        // but the file-level insight should still be emitted
+        let source = r#"<%
+Dim ip : ip = Request.ServerVariables("REMOTE_ADDR")
+Dim host : host = Request.ServerVariables("SERVER_NAME")
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("srv.asp"), source);
+        // The file-level insight is always emitted
+        assert!(syms.iter().any(|s| s.name == "classic_asp_file"));
+    }
+
+    #[test]
+    fn extract_querystring_multiple_fields() {
+        let source = r#"<%
+Dim a, b
+a = Request.QueryString("a")
+b = Request.QueryString("b")
+%>"#;
+        let (syms, edges) = extract_classic_asp(&rel("qs.asp"), source);
+        let reads: Vec<_> = edges.iter().filter(|e| e.kind == "reads_state").collect();
+        assert_eq!(reads.len(), 2);
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
+        assert_eq!(state_syms.len(), 2);
+    }
+
+    #[test]
+    fn extract_command_text_set_sql() {
+        let source = r#"<%
+Dim cmd
+Set cmd = Server.CreateObject("ADODB.Command")
+cmd.CommandText = "UPDATE Products SET Price = 9.99 WHERE ProductId = 1"
+%>"#;
+        let (_, edges) = extract_classic_asp(&rel("cmd.asp"), source);
+        let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
+        assert_eq!(sql_edges.len(), 1);
+        assert_eq!(sql_edges[0].target_name, "Products");
+    }
+
+    #[test]
+    fn extract_multiple_functions_in_script_block() {
+        let source = r#"<script language="VBScript" runat="server">
+Function Calc(x, y)
+    Calc = x + y
+End Function
+
+Sub Log(msg)
+    ' log msg
+End Sub
+
+Function Validate(input)
+    Validate = Len(input) > 0
+End Function
+</script>"#;
+        let (syms, _) = extract_classic_asp(&rel("utils.asp"), source);
+        let funcs: Vec<_> = syms.iter().filter(|s| s.kind == "function").collect();
+        assert_eq!(funcs.len(), 3);
+        let names: Vec<&str> = funcs.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"Calc"));
+        assert!(names.contains(&"Log"));
+        assert!(names.contains(&"Validate"));
+    }
+
+    #[test]
+    fn extract_private_function() {
+        let source = r#"<%
+Private Function Helper()
+    Helper = "ok"
+End Function
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("priv.asp"), source);
+        let funcs: Vec<_> = syms.iter().filter(|s| s.kind == "function").collect();
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name, "Helper");
+    }
+
+    #[test]
+    fn extract_public_sub() {
+        let source = r#"<%
+Public Sub Initialize()
+    ' setup
+End Sub
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("pub.asp"), source);
+        let funcs: Vec<_> = syms.iter().filter(|s| s.kind == "function").collect();
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name, "Initialize");
+    }
+
+    #[test]
+    fn extract_application_state_read_write() {
+        let source = r#"<%
+Dim count
+count = Application("HitCount")
+Application("HitCount") = count + 1
+%>"#;
+        let (syms, edges) = extract_classic_asp(&rel("app.asp"), source);
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
+        assert_eq!(state_syms.len(), 1, "dedup by (store, key)");
+        assert_eq!(state_syms[0].name, "Application:HitCount");
+
+        let reads: Vec<_> = edges.iter().filter(|e| e.kind == "reads_state").collect();
+        let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
+        assert_eq!(reads.len(), 1);
+        assert_eq!(writes.len(), 1);
+    }
+
+    #[test]
+    fn extract_multiple_includes_in_page() {
+        let source = r#"<!--#include file="inc/header.asp"-->
+<!--#include file="inc/navbar.asp"-->
+<!--#include virtual="/inc/footer.asp"-->
+<html><body>Content</body></html>"#;
+        let (_, edges) = extract_classic_asp(&rel("full.asp"), source);
+        let includes: Vec<_> = edges.iter().filter(|e| e.kind == "includes_file").collect();
+        assert_eq!(includes.len(), 3);
+        let targets: Vec<&str> = includes.iter().map(|e| e.target_name.as_str()).collect();
+        assert!(targets.contains(&"inc/header.asp"));
+        assert!(targets.contains(&"inc/navbar.asp"));
+        assert!(targets.contains(&"/inc/footer.asp"));
+    }
+
+    #[test]
+    fn extract_server_transfer_navigation() {
+        let source = r#"<%
+If Not IsAuthenticated() Then
+    Server.Transfer "access_denied.asp"
+End If
+%>"#;
+        let (_, edges) = extract_classic_asp(&rel("gate.asp"), source);
+        let deps: Vec<_> = edges.iter().filter(|e| e.kind == "dependency").collect();
+        assert_eq!(deps.len(), 1);
+        assert_eq!(deps[0].target_name, "access_denied.asp");
+        assert_eq!(
+            deps[0].metadata.as_ref().unwrap().get("navigation_type").map(|s| s.as_str()),
+            Some("server_transfer")
+        );
+    }
+
+    #[test]
+    fn extract_conn_execute_sql_insert() {
+        let source = r#"<%
+conn.Execute("INSERT INTO AuditLog (UserId, Action) VALUES (" & userId & ", 'Login')")
+%>"#;
+        let (_, edges) = extract_classic_asp(&rel("audit.asp"), source);
+        let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
+        assert_eq!(sql_edges.len(), 1);
+        assert_eq!(sql_edges[0].target_name, "AuditLog");
+    }
+
+    #[test]
+    fn extract_no_content_returns_only_insight() {
+        // Source with only HTML, no ASP server-side code
+        let source = r#"<html><head><title>Test</title></head><body>Hello</body></html>"#;
+        let (syms, edges) = extract_classic_asp(&rel("static.asp"), source);
+        // Only the file-level insight
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "classic_asp_file");
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn extract_edge_source_language_is_vbscript() {
+        let source = r#"<% Dim x : x = Session("Key") %>"#;
+        let (_, edges) = extract_classic_asp(&rel("lang.asp"), source);
+        for e in &edges {
+            if e.kind == "reads_state" || e.kind == "writes_state" {
+                assert_eq!(e.source_language, "vbscript");
+            }
+        }
+    }
+
+    #[test]
+    fn extract_state_dedup_same_key_different_store() {
+        // Same key name in two different stores → two distinct global_state symbols
+        let source = r#"<%
+Dim x : x = Session("UserId")
+Dim y : y = Application("UserId")
+%>"#;
+        let (syms, _) = extract_classic_asp(&rel("dedup.asp"), source);
+        let state_syms: Vec<_> = syms.iter().filter(|s| s.kind == "global_state").collect();
+        assert_eq!(state_syms.len(), 2, "Different stores = different symbols");
+        let names: Vec<&str> = state_syms.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"Session:UserId"));
+        assert!(names.contains(&"Application:UserId"));
+    }
 }

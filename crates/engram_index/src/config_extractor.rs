@@ -422,4 +422,390 @@ mod tests {
         assert_eq!(modules.len(), 2);
         assert_eq!(handlers.len(), 1);
     }
+
+    // ── New tests ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_app_setting_key_value() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add key="MaxPageSize" value="100" />
+  </appSettings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "MaxPageSize");
+        assert_eq!(syms[0].kind, "app_setting");
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["key"], "MaxPageSize");
+        assert_eq!(meta["value"], "100");
+    }
+
+    #[test]
+    fn extract_multiple_app_settings() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add key="Key1" value="Val1" />
+    <add key="Key2" value="Val2" />
+    <add key="Key3" value="Val3" />
+  </appSettings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 3);
+        let names: Vec<&str> = syms.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"Key1"));
+        assert!(names.contains(&"Key2"));
+        assert!(names.contains(&"Key3"));
+        assert!(syms.iter().all(|s| s.kind == "app_setting"));
+    }
+
+    #[test]
+    fn extract_connection_string_name() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <connectionStrings>
+    <add name="AppDatabase" connectionString="Server=.;Database=AppDb" />
+  </connectionStrings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "AppDatabase");
+        assert_eq!(syms[0].kind, "connection_string");
+    }
+
+    #[test]
+    fn extract_connection_string_provider() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <connectionStrings>
+    <add name="OracleDb" connectionString="Data Source=..." providerName="Oracle.ManagedDataAccess.Client" />
+  </connectionStrings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["provider"], "Oracle.ManagedDataAccess.Client");
+    }
+
+    #[test]
+    fn connection_string_value_not_stored() {
+        // Sensitive connection string value must never be persisted
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <connectionStrings>
+    <add name="Secure" connectionString="Password=SuperSecret123;Server=prod;" providerName="System.Data.SqlClient" />
+  </connectionStrings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert!(
+            meta.get("connectionString").is_none(),
+            "connection string value must not be stored"
+        );
+        // provider is stored, name is stored, but the raw value is not
+        assert!(meta.get("provider").is_some());
+    }
+
+    #[test]
+    fn connection_string_without_provider_has_no_provider_key() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <connectionStrings>
+    <add name="MinimalDb" connectionString="Server=.;Database=X" />
+  </connectionStrings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        let meta = syms[0].metadata.as_ref().unwrap();
+        // No providerName attribute → no "provider" key in metadata
+        assert!(
+            meta.get("provider").is_none(),
+            "provider key should be absent when providerName is missing"
+        );
+    }
+
+    #[test]
+    fn extract_http_module_type_and_assembly() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpModules>
+      <add name="TraceModule" type="MyApp.Diagnostics.TraceModule, MyApp.Core" />
+    </httpModules>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].kind, "http_module");
+        assert_eq!(syms[0].name, "TraceModule");
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["type"], "MyApp.Diagnostics.TraceModule, MyApp.Core");
+        assert_eq!(meta["assembly"], "MyApp.Core");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "registers_module");
+        assert_eq!(edges[0].target_name, "MyApp.Diagnostics.TraceModule");
+        assert_eq!(edges[0].source_kind, "file");
+        assert_eq!(edges[0].target_kind, Some("class"));
+    }
+
+    #[test]
+    fn extract_http_handler_verb_path_type() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpHandlers>
+      <add verb="POST" path="upload.axd" type="MyApp.Upload.UploadHandler, MyApp" />
+    </httpHandlers>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].kind, "route_handler");
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["verb"], "POST");
+        assert_eq!(meta["path"], "upload.axd");
+        assert_eq!(meta["type"], "MyApp.Upload.UploadHandler, MyApp");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "registers_handler");
+        assert_eq!(edges[0].target_name, "MyApp.Upload.UploadHandler");
+    }
+
+    #[test]
+    fn handler_name_attribute_used_when_present() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="ApiHandler" verb="*" path="api/*" type="MyApp.ApiHandler, MyApp" />
+    </handlers>
+  </system.webServer>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "ApiHandler");
+    }
+
+    #[test]
+    fn handler_name_falls_back_to_verb_path_when_no_name_attr() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpHandlers>
+      <add verb="GET" path="*.rpt" type="MyApp.ReportHandler, MyApp" />
+    </httpHandlers>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        // Name falls back to "VERB PATH"
+        assert_eq!(syms[0].name, "GET *.rpt");
+    }
+
+    #[test]
+    fn missing_config_keys_handled_gracefully() {
+        // An <add /> element with no attributes should not crash
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add />
+  </appSettings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+        // No key attribute → no symbols produced
+        assert!(
+            syms.is_empty(),
+            "Empty <add/> should produce no symbols, got: {syms:?}"
+        );
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn empty_config_returns_empty() {
+        let xml = r#"<?xml version="1.0"?><configuration></configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+        assert!(syms.is_empty());
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn malformed_xml_handled_gracefully() {
+        let xml = "<configuration><appSettings><add key=\"Broken\" value=\"x\"";
+        let rel = RelPath::new("web.config");
+        // Should not panic — extractor breaks on error
+        let (_syms, _edges) = extract_web_config(&rel, xml);
+        // We don't assert counts here since partial parse behavior may vary;
+        // the critical requirement is: no panic.
+    }
+
+    #[test]
+    fn registers_module_edge_source_is_file_path() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpModules>
+      <add name="Foo" type="App.FooModule, App" />
+    </httpModules>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("src/web.config");
+        let (_, edges) = extract_web_config(&rel, xml);
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].source_name, "src/web.config");
+        assert_eq!(edges[0].source_kind, "file");
+        assert_eq!(edges[0].source_language, "xml");
+    }
+
+    #[test]
+    fn module_without_name_uses_type_as_name() {
+        // When no name attribute is given, the symbol name falls back to the full type string
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpModules>
+      <add type="MyApp.AnonymousModule, MyApp" />
+    </httpModules>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        // Name should equal the full type string when name attr is absent
+        assert_eq!(syms[0].name, "MyApp.AnonymousModule, MyApp");
+    }
+
+    #[test]
+    fn extract_system_webserver_handler() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <add name="ScriptResource" verb="GET,HEAD" path="ScriptResource.axd" type="System.Web.Handlers.ScriptResourceHandler, System.Web.Extensions, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
+    </handlers>
+  </system.webServer>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].kind, "route_handler");
+        assert_eq!(syms[0].name, "ScriptResource");
+
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].kind, "registers_handler");
+        // Class name is extracted before the first comma
+        assert_eq!(edges[0].target_name, "System.Web.Handlers.ScriptResourceHandler");
+    }
+
+    #[test]
+    fn multiple_connection_strings() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <connectionStrings>
+    <add name="Primary" connectionString="Server=primary;" providerName="System.Data.SqlClient" />
+    <add name="Replica" connectionString="Server=replica;" providerName="System.Data.SqlClient" />
+    <add name="Archive" connectionString="Server=archive;" />
+  </connectionStrings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, edges) = extract_web_config(&rel, xml);
+
+        assert_eq!(syms.len(), 3, "Three connection strings expected");
+        assert!(edges.is_empty(), "Connection strings produce no edges");
+        assert!(syms.iter().all(|s| s.kind == "connection_string"));
+        let names: Vec<&str> = syms.iter().map(|s| s.name.as_str()).collect();
+        assert!(names.contains(&"Primary"));
+        assert!(names.contains(&"Replica"));
+        assert!(names.contains(&"Archive"));
+    }
+
+    #[test]
+    fn app_setting_empty_value_allowed() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add key="EmptyFlag" value="" />
+  </appSettings>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (syms, _) = extract_web_config(&rel, xml);
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "EmptyFlag");
+        let meta = syms[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["value"], "");
+    }
+
+    #[test]
+    fn extract_class_name_strips_assembly() {
+        // Unit test for the private helper via public behaviour
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpModules>
+      <add name="M" type="Company.Product.MyModule, Company.Product, Version=1.0.0.0" />
+    </httpModules>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (_, edges) = extract_web_config(&rel, xml);
+        assert_eq!(edges.len(), 1);
+        // Only the FQN class name — no assembly / version info
+        assert_eq!(edges[0].target_name, "Company.Product.MyModule");
+    }
+
+    #[test]
+    fn registers_module_edge_metadata_contains_module_name() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpModules>
+      <add name="SessionExpiry" type="MyApp.SessionExpiryModule, MyApp" />
+    </httpModules>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (_, edges) = extract_web_config(&rel, xml);
+        assert_eq!(edges.len(), 1);
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["module_name"], "SessionExpiry");
+    }
+
+    #[test]
+    fn registers_handler_edge_metadata_contains_handler_name() {
+        let xml = r#"<?xml version="1.0"?>
+<configuration>
+  <system.web>
+    <httpHandlers>
+      <add name="ImageResize" verb="GET" path="resize.axd" type="MyApp.ImageHandler, MyApp" />
+    </httpHandlers>
+  </system.web>
+</configuration>"#;
+        let rel = RelPath::new("web.config");
+        let (_, edges) = extract_web_config(&rel, xml);
+        assert_eq!(edges.len(), 1);
+        let meta = edges[0].metadata.as_ref().unwrap();
+        assert_eq!(meta["handler_name"], "ImageResize");
+    }
 }

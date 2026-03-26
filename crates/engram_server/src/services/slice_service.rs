@@ -368,4 +368,249 @@ cmd.CommandText = "EXEC sp_GetUserRoles @userId"
         let sliced = apply_logical_slice(content, "nonexistent_type", "vb");
         assert_eq!(sliced, content);
     }
+
+    // ── available_slices ─────────────────────────────────────────────────────
+
+    #[test]
+    fn available_slices_contains_all_types() {
+        let slices = available_slices();
+        let names: Vec<&str> = slices.iter().map(|(name, _)| *name).collect();
+        assert!(names.contains(&"all"));
+        assert!(names.contains(&"event_handlers"));
+        assert!(names.contains(&"ui_methods"));
+        assert!(names.contains(&"data_methods"));
+        assert!(names.contains(&"sql_queries"));
+        assert!(names.contains(&"state_access"));
+        assert_eq!(slices.len(), 6);
+    }
+
+    #[test]
+    fn available_slices_all_have_descriptions() {
+        for (name, description) in available_slices() {
+            assert!(!description.is_empty(), "slice '{name}' has empty description");
+        }
+    }
+
+    // ── event handler slice: C# patterns ────────────────────────────────────
+
+    #[test]
+    fn test_event_handler_slice_cs_button_click() {
+        let content = r#"public partial class Orders : Page
+{
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        if (!IsPostBack)
+        {
+            BindGrid();
+        }
+    }
+
+    private void HelperMethod()
+    {
+        // not an event handler
+    }
+
+    protected void btnSearch_Click(object sender, EventArgs e)
+    {
+        SearchOrders();
+    }
+}
+"#;
+        let sliced = apply_logical_slice(content, "event_handlers", "cs");
+        assert!(sliced.contains("Page_Load"), "should include Page_Load");
+        assert!(sliced.contains("btnSearch_Click"), "should include btnSearch_Click");
+        assert!(!sliced.contains("HelperMethod"), "should not include HelperMethod");
+    }
+
+    #[test]
+    fn test_event_handler_slice_various_event_types() {
+        let content = r#"
+Protected Sub gvData_RowDataBound(sender As Object, e As GridViewRowEventArgs) Handles gvData.RowDataBound
+    ' row data bound
+End Sub
+
+Protected Sub ddlFilter_SelectedIndexChanged(sender As Object, e As EventArgs) Handles ddlFilter.SelectedIndexChanged
+    ' filter changed
+End Sub
+
+Protected Sub NotAnEvent()
+    ' helper
+End Sub
+"#;
+        let sliced = apply_logical_slice(content, "event_handlers", "vb");
+        assert!(sliced.contains("RowDataBound"), "should include RowDataBound handler");
+        assert!(sliced.contains("SelectedIndexChanged"), "should include SelectedIndexChanged");
+    }
+
+    #[test]
+    fn test_event_handler_no_handlers_returns_message() {
+        let content = "Dim x As Integer = 5\nDim y As String = \"hello\"";
+        let sliced = apply_logical_slice(content, "event_handlers", "vb");
+        assert!(
+            sliced.contains("no event handler methods"),
+            "no match should return no-match message: {sliced}"
+        );
+    }
+
+    // ── UI methods slice ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_ui_methods_slice_finds_response_write() {
+        let content = r#"
+Dim msg As String = "hello"
+Response.Write("<p>" & msg & "</p>")
+Dim x As Integer = 42
+"#;
+        let sliced = apply_logical_slice(content, "ui_methods", "vb");
+        assert!(sliced.contains("Response.Write"), "should find Response.Write");
+        // Context lines should be included too
+        assert!(sliced.contains("msg"));
+    }
+
+    #[test]
+    fn test_ui_methods_slice_find_control() {
+        let content = r#"
+Dim ctrl = FindControl("myPanel")
+ctrl.Visible = True
+Dim unused = 99
+"#;
+        let sliced = apply_logical_slice(content, "ui_methods", "vb");
+        assert!(sliced.contains("FindControl"), "should match FindControl");
+    }
+
+    #[test]
+    fn test_ui_methods_slice_visible_assignment() {
+        let content = r#"
+myPanel.Visible = False
+myLabel.Text = "Status"
+unrelated = "nothing"
+"#;
+        let sliced = apply_logical_slice(content, "ui_methods", "vb");
+        assert!(sliced.contains("Visible"), "should include Visible assignment");
+    }
+
+    #[test]
+    fn test_ui_methods_no_matches_returns_message() {
+        let content = "x = 1\ny = 2\nz = x + y";
+        let sliced = apply_logical_slice(content, "ui_methods", "vb");
+        assert!(sliced.contains("no matching lines"), "should return no-match message: {sliced}");
+    }
+
+    // ── SQL queries slice ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_sql_queries_slice_update_statement() {
+        let content = r#"Dim sql = "UPDATE Orders SET Status = 'Active' WHERE OrderId = @id"
+cmd.CommandText = sql
+Label1.Text = "Done"
+"#;
+        let sliced = apply_logical_slice(content, "sql_queries", "vb");
+        assert!(sliced.contains("UPDATE"), "should include UPDATE statement");
+    }
+
+    #[test]
+    fn test_sql_queries_slice_delete_statement() {
+        let content = r#"cmd.CommandText = "DELETE FROM Logs WHERE LogDate < @date"
+conn.Open()
+"#;
+        let sliced = apply_logical_slice(content, "sql_queries", "vb");
+        assert!(sliced.contains("DELETE FROM"), "should include DELETE FROM");
+    }
+
+    #[test]
+    fn test_sql_queries_slice_create_table() {
+        let content = r#"Dim ddl = "CREATE TABLE TempResults (Id INT, Name VARCHAR(100))"
+cmd.ExecuteNonQuery()
+"#;
+        let sliced = apply_logical_slice(content, "sql_queries", "vb");
+        assert!(sliced.contains("CREATE TABLE"), "should include CREATE TABLE");
+    }
+
+    #[test]
+    fn test_sql_queries_context_lines_included() {
+        let content = "line1\nline2\nDim q = \"SELECT * FROM Users\"\nline4\nline5\nline6";
+        let sliced = apply_logical_slice(content, "sql_queries", "vb");
+        // 2 lines before: line1, line2
+        assert!(sliced.contains("line1"), "context before should be included");
+        assert!(sliced.contains("line4"), "context after should be included");
+        // But line6 is 3 lines after → out of 2-line context window
+        // (i=2 [0-indexed], context range = i-2..i+3 = 0..5)
+        assert!(sliced.contains("line5"), "2nd line after should be included");
+    }
+
+    // ── State access slice ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_state_access_slice_context_items() {
+        let content = r#"Dim userId = Context.Items("UserId")
+Label1.Text = "Welcome"
+"#;
+        let sliced = apply_logical_slice(content, "state_access", "vb");
+        assert!(sliced.contains("Context.Items"), "should include Context.Items access");
+    }
+
+    #[test]
+    fn test_state_access_bracket_syntax_cs() {
+        let content = r#"Session["UserName"] = "Alice";
+var role = Session["Role"];
+var x = 5;
+"#;
+        let sliced = apply_logical_slice(content, "state_access", "cs");
+        assert!(sliced.contains("Session["), "should find Session[] bracket syntax");
+    }
+
+    // ── Data methods slice ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_data_methods_slice_entity_framework() {
+        let content = r#"
+var results = db.Orders.Where(o => o.Active).ToList();
+var count = db.Orders.Count();
+var name = "test";
+"#;
+        let sliced = apply_logical_slice(content, "data_methods", "cs");
+        assert!(sliced.contains("ToList()"), "should match .ToList()");
+    }
+
+    #[test]
+    fn test_data_methods_slice_execute_scalar() {
+        let content = r#"
+Dim count = CInt(cmd.ExecuteScalar())
+Label1.Text = count.ToString()
+"#;
+        let sliced = apply_logical_slice(content, "data_methods", "vb");
+        assert!(sliced.contains("ExecuteScalar"), "should find ExecuteScalar");
+    }
+
+    // ── gap indicator between non-contiguous matches ─────────────────────────
+
+    #[test]
+    fn test_gap_indicator_between_separate_matches() {
+        // Two separate matches with many lines between them
+        let lines: Vec<String> = (0..20)
+            .map(|i| {
+                if i == 0 {
+                    "Session(\"key\") = 1".to_string()
+                } else if i == 15 {
+                    "Session(\"key2\") = 2".to_string()
+                } else {
+                    format!("unrelated_line_{i}")
+                }
+            })
+            .collect();
+        let content = lines.join("\n");
+        let sliced = apply_logical_slice(&content, "state_access", "vb");
+        assert!(sliced.contains("..."), "non-contiguous matches should show gap indicator");
+    }
+
+    // ── language parameter is accepted (currently reserved) ──────────────────
+
+    #[test]
+    fn language_parameter_does_not_affect_all_slice() {
+        let content = "line 1\nline 2";
+        assert_eq!(
+            apply_logical_slice(content, "all", "vb"),
+            apply_logical_slice(content, "all", "cs")
+        );
+    }
 }

@@ -417,4 +417,230 @@ mod tests {
         assert!(c.score < 0.5);
         assert_eq!(c.band, ConfidenceBand::Low);
     }
+
+    // ── New tests ──────────────────────────────────────────────────────────────
+
+    // ── ConfidenceBand::from_score thresholds ─────────────────────────────────
+
+    #[test]
+    fn confidence_band_from_score_exact_thresholds() {
+        assert_eq!(ConfidenceBand::from_score(1.0), ConfidenceBand::High);
+        assert_eq!(ConfidenceBand::from_score(0.8), ConfidenceBand::High);
+        assert_eq!(ConfidenceBand::from_score(0.79), ConfidenceBand::Medium);
+        assert_eq!(ConfidenceBand::from_score(0.5), ConfidenceBand::Medium);
+        assert_eq!(ConfidenceBand::from_score(0.49), ConfidenceBand::Low);
+        assert_eq!(ConfidenceBand::from_score(0.0), ConfidenceBand::Low);
+    }
+
+    #[test]
+    fn confidence_level_mapping_display() {
+        assert_eq!(ConfidenceBand::High.to_string(), "high");
+        assert_eq!(ConfidenceBand::Medium.to_string(), "medium");
+        assert_eq!(ConfidenceBand::Low.to_string(), "low");
+    }
+
+    // ── score_event_wiring ────────────────────────────────────────────────────
+
+    #[test]
+    fn high_confidence_for_complete_event_wiring_info() {
+        let c = score_event_wiring(true, true, true, true, true);
+        assert!(c.score >= 0.8, "score was {}", c.score);
+        assert_eq!(c.band, ConfidenceBand::High);
+        // All five signals should be present
+        assert_eq!(c.signals.len(), 5);
+    }
+
+    #[test]
+    fn low_confidence_for_empty_event_wiring_info() {
+        let c = score_event_wiring(false, false, false, false, false);
+        assert!(c.score < 0.5, "score was {}", c.score);
+        assert_eq!(c.band, ConfidenceBand::Low);
+    }
+
+    #[test]
+    fn confidence_in_zero_to_one_range_event_wiring() {
+        for flags in [
+            (false, false, false, false, false),
+            (true, false, false, false, false),
+            (true, true, false, false, false),
+            (true, true, true, false, false),
+            (true, true, true, true, false),
+            (true, true, true, true, true),
+        ] {
+            let c = score_event_wiring(flags.0, flags.1, flags.2, flags.3, flags.4);
+            assert!(
+                c.score >= 0.0 && c.score <= 1.0,
+                "score out of [0,1] range: {}",
+                c.score
+            );
+        }
+    }
+
+    #[test]
+    fn confidence_deterministic_event_wiring() {
+        let c1 = score_event_wiring(true, false, true, false, true);
+        let c2 = score_event_wiring(true, false, true, false, true);
+        assert_eq!(c1.score, c2.score, "same inputs must produce same score");
+        assert_eq!(c1.band, c2.band);
+    }
+
+    #[test]
+    fn confidence_increases_with_more_event_wiring_evidence() {
+        let none = score_event_wiring(false, false, false, false, false);
+        let partial = score_event_wiring(true, true, false, false, false);
+        let full = score_event_wiring(true, true, true, true, true);
+        assert!(none.score < partial.score, "none({}) should be < partial({})", none.score, partial.score);
+        assert!(partial.score < full.score, "partial({}) should be < full({})", partial.score, full.score);
+    }
+
+    #[test]
+    fn event_wiring_rationale_non_empty() {
+        let c_high = score_event_wiring(true, true, true, true, true);
+        let c_low = score_event_wiring(false, false, false, false, false);
+        assert!(!c_high.rationale.is_empty());
+        assert!(!c_low.rationale.is_empty());
+    }
+
+    #[test]
+    fn event_wiring_signals_all_named() {
+        let c = score_event_wiring(true, false, true, false, true);
+        for signal in &c.signals {
+            assert!(!signal.name.is_empty(), "signal name should not be empty");
+            assert!(!signal.evidence.is_empty(), "signal evidence should not be empty");
+            assert!(signal.weight > 0.0, "signal weight should be positive");
+        }
+    }
+
+    #[test]
+    fn event_wiring_signal_scores_in_range() {
+        let c = score_event_wiring(true, false, true, false, true);
+        for signal in &c.signals {
+            assert!(
+                signal.score >= 0.0 && signal.score <= 1.0,
+                "signal '{}' score {} out of range",
+                signal.name, signal.score
+            );
+        }
+    }
+
+    #[test]
+    fn partial_event_wiring_evidence_mid_range() {
+        // Two out of five strongest signals true
+        let c = score_event_wiring(true, true, false, false, false);
+        assert!(
+            c.score >= 0.3 && c.score <= 0.7,
+            "Partial evidence should be in mid range [0.3, 0.7], got {}",
+            c.score
+        );
+    }
+
+    // ── score_sql_trace ───────────────────────────────────────────────────────
+
+    #[test]
+    fn sql_trace_no_evidence_is_low() {
+        let c = score_sql_trace(false, false, false, false, false);
+        assert!(c.score < 0.5, "score was {}", c.score);
+        assert_eq!(c.band, ConfidenceBand::Low);
+    }
+
+    #[test]
+    fn sql_trace_confidence_in_zero_to_one_range() {
+        for flags in [
+            (false, false, false, false, false),
+            (true, false, false, false, false),
+            (true, true, true, false, false),
+            (true, true, true, true, true),
+        ] {
+            let c = score_sql_trace(flags.0, flags.1, flags.2, flags.3, flags.4);
+            assert!(
+                c.score >= 0.0 && c.score <= 1.0,
+                "score out of range: {}",
+                c.score
+            );
+        }
+    }
+
+    #[test]
+    fn sql_trace_deterministic() {
+        let c1 = score_sql_trace(true, false, true, true, false);
+        let c2 = score_sql_trace(true, false, true, true, false);
+        assert_eq!(c1.score, c2.score);
+    }
+
+    #[test]
+    fn sql_trace_increases_with_evidence() {
+        let none = score_sql_trace(false, false, false, false, false);
+        let partial = score_sql_trace(true, true, false, false, false);
+        let full = score_sql_trace(true, true, true, true, true);
+        assert!(none.score < partial.score);
+        assert!(partial.score < full.score);
+    }
+
+    // ── score_control_binding ─────────────────────────────────────────────────
+
+    #[test]
+    fn control_binding_all_evidence_is_high() {
+        let c = score_control_binding(true, true, true, true);
+        assert!(c.score >= 0.8, "score was {}", c.score);
+        assert_eq!(c.band, ConfidenceBand::High);
+    }
+
+    #[test]
+    fn control_binding_confidence_in_zero_to_one_range() {
+        for flags in [
+            (false, false, false, false),
+            (true, false, false, false),
+            (true, true, false, false),
+            (true, true, true, false),
+            (true, true, true, true),
+        ] {
+            let c = score_control_binding(flags.0, flags.1, flags.2, flags.3);
+            assert!(
+                c.score >= 0.0 && c.score <= 1.0,
+                "score out of range: {}",
+                c.score
+            );
+        }
+    }
+
+    #[test]
+    fn control_binding_deterministic() {
+        let c1 = score_control_binding(true, false, true, false);
+        let c2 = score_control_binding(true, false, true, false);
+        assert_eq!(c1.score, c2.score);
+    }
+
+    #[test]
+    fn control_binding_increases_with_evidence() {
+        let none = score_control_binding(false, false, false, false);
+        let some = score_control_binding(true, true, false, false);
+        let full = score_control_binding(true, true, true, true);
+        assert!(none.score < some.score, "none({}) should be < some({})", none.score, some.score);
+        assert!(some.score < full.score, "some({}) should be < full({})", some.score, full.score);
+    }
+
+    #[test]
+    fn confidence_comparison_ordered_across_all_functions() {
+        let low_ev = score_event_wiring(false, false, false, false, false);
+        let mid_ev = score_event_wiring(true, true, false, false, false);
+        let high_ev = score_event_wiring(true, true, true, true, true);
+
+        assert!(low_ev.score < mid_ev.score);
+        assert!(mid_ev.score < high_ev.score);
+        assert_eq!(low_ev.band, ConfidenceBand::Low);
+        assert_eq!(high_ev.band, ConfidenceBand::High);
+    }
+
+    #[test]
+    fn all_functions_have_same_number_of_signals_as_parameters() {
+        // Each scoring function's signal count matches its parameter count
+        let ew = score_event_wiring(true, true, true, true, true);
+        assert_eq!(ew.signals.len(), 5, "event_wiring has 5 parameters → 5 signals");
+
+        let st = score_sql_trace(true, true, true, true, true);
+        assert_eq!(st.signals.len(), 5, "sql_trace has 5 parameters → 5 signals");
+
+        let cb = score_control_binding(true, true, true, true);
+        assert_eq!(cb.signals.len(), 4, "control_binding has 4 parameters → 4 signals");
+    }
 }

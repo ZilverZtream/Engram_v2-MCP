@@ -352,6 +352,45 @@ impl DocStore {
         Ok(out)
     }
 
+    /// All doc_ids for a project across all namespaces.
+    pub fn all_doc_ids_for_project(&self, project_id: &str) -> anyhow::Result<Vec<String>> {
+        let prefix = format!("{}\0", project_id);
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(DOC_BY_ID)?;
+        let mut out = Vec::new();
+        for r in t.range(prefix.as_str()..)? {
+            let (k, _) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            let mut parts = k.value().splitn(3, '\0');
+            let _ = parts.next();
+            let _ = parts.next();
+            let doc_id = parts.next().unwrap_or_default().to_string();
+            out.push(doc_id);
+        }
+        Ok(out)
+    }
+
+    /// Count docs per namespace for a project.
+    pub fn count_docs_by_namespace(&self, project_id: &str) -> anyhow::Result<std::collections::HashMap<String, usize>> {
+        let prefix = format!("{}\0", project_id);
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(DOC_BY_ID)?;
+        let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for r in t.range(prefix.as_str()..)? {
+            let (k, _) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            let mut parts = k.value().splitn(3, '\0');
+            let _ = parts.next();
+            let ns = parts.next().unwrap_or_default().to_string();
+            *counts.entry(ns).or_insert(0) += 1;
+        }
+        Ok(counts)
+    }
+
     /// Remove all DocStore data for a project+namespace (used when wiping old data).
     pub fn delete_namespace(&self, project_id: &str, namespace: &str) -> anyhow::Result<()> {
         let prefix_doc = format!("{}\0{}\0", project_id, namespace);
@@ -386,5 +425,374 @@ impl DocStore {
         }
         wtx.commit()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    fn open_temp_store() -> (tempfile::TempDir, DocStore) {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let db_path = dir.path().join("docs.redb");
+        let store = DocStore::open(&db_path).expect("open DocStore");
+        (dir, store)
+    }
+
+    fn make_doc(doc_id: &str, path: &str, namespace: &str) -> DocRecord {
+        DocRecord {
+            doc_id: doc_id.to_string(),
+            path: path.to_string(),
+            start_line: 1,
+            end_line: 10,
+            language: "rust".to_string(),
+            content: format!("// content for {}", doc_id),
+            content_hash: format!("hash_{}", doc_id),
+            namespace: namespace.to_string(),
+            generation: 1,
+        }
+    }
+
+    // ── 1. open_creates_tables ────────────────────────────────────────────────
+
+    #[test]
+    fn open_creates_tables() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("fresh.redb");
+        let store = DocStore::open(&db_path);
+        assert!(store.is_ok(), "DocStore::open must succeed on a fresh path");
+    }
+
+    // ── 2. upsert_and_get_doc_roundtrip ──────────────────────────────────────
+
+    #[test]
+    fn upsert_and_get_doc_roundtrip() {
+        let (_dir, store) = open_temp_store();
+        let rec = make_doc("doc_001", "src/main.rs", "code");
+        store.put_doc("proj1", &rec).expect("put_doc");
+
+        let got = store.get_doc("proj1", "code", "doc_001").expect("get_doc");
+        assert!(got.is_some(), "get_doc must return the stored record");
+        let got = got.unwrap();
+        assert_eq!(got.doc_id, "doc_001");
+        assert_eq!(got.path, "src/main.rs");
+        assert_eq!(got.namespace, "code");
+        assert_eq!(got.generation, 1);
+        assert!(got.content.contains("doc_001"));
+    }
+
+    // ── 3. upsert_same_doc_is_idempotent ─────────────────────────────────────
+
+    #[test]
+    fn upsert_same_doc_is_idempotent() {
+        let (_dir, store) = open_temp_store();
+        let rec = make_doc("doc_idem", "src/lib.rs", "code");
+        store.put_doc("proj1", &rec).expect("first put");
+        // Second put with same id must not fail
+        store.put_doc("proj1", &rec).expect("second put (idempotent)");
+
+        let got = store.get_doc("proj1", "code", "doc_idem").unwrap().unwrap();
+        assert_eq!(got.doc_id, "doc_idem");
+    }
+
+    // ── 4. get_nonexistent_doc_returns_none ──────────────────────────────────
+
+    #[test]
+    fn get_nonexistent_doc_returns_none() {
+        let (_dir, store) = open_temp_store();
+        let got = store.get_doc("proj1", "code", "no_such_doc").unwrap();
+        assert!(got.is_none(), "unknown doc_id must return None");
+    }
+
+    // ── 5. get_docs_for_file_returns_all ─────────────────────────────────────
+
+    #[test]
+    fn get_docs_for_file_returns_all() {
+        let (_dir, store) = open_temp_store();
+        let doc_ids: Vec<String> = vec!["d1".to_string(), "d2".to_string(), "d3".to_string()];
+        store
+            .set_docs_for_file("proj1", "code", "src/foo.rs", &doc_ids)
+            .expect("set_docs_for_file");
+
+        let result = store.get_docs_for_file("proj1", "code", "src/foo.rs").unwrap();
+        assert_eq!(result, doc_ids, "get_docs_for_file must return all stored ids in order");
+    }
+
+    // ── 6. get_docs_for_file_empty_when_none ─────────────────────────────────
+
+    #[test]
+    fn get_docs_for_file_empty_when_none() {
+        let (_dir, store) = open_temp_store();
+        let result = store
+            .get_docs_for_file("proj1", "code", "src/not_indexed.rs")
+            .unwrap();
+        assert!(result.is_empty(), "unindexed file must return empty vec");
+    }
+
+    // ── 7. upsert_fingerprint_and_get_roundtrip ──────────────────────────────
+
+    #[test]
+    fn upsert_fingerprint_and_get_roundtrip() {
+        let (_dir, store) = open_temp_store();
+        let fp = FileFingerprint {
+            rel_path: "src/main.rs".to_string(),
+            size: 1024,
+            mtime_ms: 1_700_000_000_000,
+            file_hash: "abc123def456".to_string(),
+        };
+        store.set_fingerprint("proj1", &fp).expect("set_fingerprint");
+
+        let got = store
+            .get_fingerprint("proj1", "src/main.rs")
+            .unwrap()
+            .expect("fingerprint must be present");
+        assert_eq!(got.rel_path, "src/main.rs");
+        assert_eq!(got.size, 1024);
+        assert_eq!(got.mtime_ms, 1_700_000_000_000);
+        assert_eq!(got.file_hash, "abc123def456");
+    }
+
+    // ── 8. get_fingerprint_missing_returns_none ───────────────────────────────
+
+    #[test]
+    fn get_fingerprint_missing_returns_none() {
+        let (_dir, store) = open_temp_store();
+        let got = store.get_fingerprint("proj1", "src/missing.rs").unwrap();
+        assert!(got.is_none(), "missing fingerprint must return None");
+    }
+
+    // ── 9. count_docs_by_namespace ────────────────────────────────────────────
+
+    #[test]
+    fn count_docs_by_namespace() {
+        let (_dir, store) = open_temp_store();
+        // 3 docs in "code", 2 in "memory"
+        for i in 0..3 {
+            let rec = make_doc(&format!("code_doc_{}", i), &format!("src/f{}.rs", i), "code");
+            store.put_doc("proj_ns", &rec).unwrap();
+        }
+        for i in 0..2 {
+            let rec = make_doc(
+                &format!("mem_doc_{}", i),
+                &format!("notes/n{}.md", i),
+                "memory",
+            );
+            store.put_doc("proj_ns", &rec).unwrap();
+        }
+
+        let counts = store.count_docs_by_namespace("proj_ns").unwrap();
+        assert_eq!(
+            counts.get("code").copied().unwrap_or(0),
+            3,
+            "must count 3 docs in namespace 'code'"
+        );
+        assert_eq!(
+            counts.get("memory").copied().unwrap_or(0),
+            2,
+            "must count 2 docs in namespace 'memory'"
+        );
+    }
+
+    // ── 10. count_docs_by_namespace_empty_returns_empty ──────────────────────
+
+    #[test]
+    fn count_docs_by_namespace_empty_returns_empty() {
+        let (_dir, store) = open_temp_store();
+        let counts = store.count_docs_by_namespace("empty_proj").unwrap();
+        assert!(counts.is_empty(), "no docs → counts must be empty map");
+    }
+
+    // ── 11. list_doc_summaries_returns_all ────────────────────────────────────
+
+    #[test]
+    fn list_doc_summaries_returns_all() {
+        let (_dir, store) = open_temp_store();
+        let recs = vec![
+            make_doc("s_doc_1", "src/a.rs", "code"),
+            make_doc("s_doc_2", "src/b.rs", "code"),
+            make_doc("s_doc_3", "notes/c.md", "memory"),
+        ];
+        store.put_docs("proj_sum", &recs).unwrap();
+
+        let summaries = store.list_doc_summaries_for_project("proj_sum").unwrap();
+        assert_eq!(summaries.len(), 3, "must return summary for each stored doc");
+
+        // Every summary must have non-empty doc_id and path
+        for s in &summaries {
+            assert!(!s.doc_id.is_empty(), "summary doc_id must not be empty");
+            assert!(!s.path.is_empty(), "summary path must not be empty");
+            assert!(!s.namespace.is_empty(), "summary namespace must not be empty");
+        }
+
+        // All 3 doc_ids must be present
+        let ids: Vec<&str> = summaries.iter().map(|s| s.doc_id.as_str()).collect();
+        assert!(ids.contains(&"s_doc_1"));
+        assert!(ids.contains(&"s_doc_2"));
+        assert!(ids.contains(&"s_doc_3"));
+    }
+
+    // ── 12. all_doc_ids_for_project ───────────────────────────────────────────
+
+    #[test]
+    fn all_doc_ids_for_project() {
+        let (_dir, store) = open_temp_store();
+        let recs: Vec<DocRecord> = (0..4)
+            .map(|i| make_doc(&format!("id_{}", i), &format!("src/f{}.rs", i), "code"))
+            .collect();
+        store.put_docs("proj_ids", &recs).unwrap();
+
+        let ids = store.all_doc_ids_for_project("proj_ids").unwrap();
+        assert_eq!(ids.len(), 4);
+        for i in 0..4 {
+            assert!(ids.contains(&format!("id_{}", i)), "id_{} missing", i);
+        }
+    }
+
+    // ── 13. different_projects_isolated ──────────────────────────────────────
+
+    #[test]
+    fn different_projects_isolated() {
+        let (_dir, store) = open_temp_store();
+        let rec_a = make_doc("shared_id", "src/lib.rs", "code");
+        let rec_b = make_doc("shared_id", "src/lib.rs", "code");
+        store.put_doc("project_A", &rec_a).unwrap();
+        store.put_doc("project_B", &rec_b).unwrap();
+
+        // Retrieving from project_A must not return project_B's doc (same key, different project)
+        let ids_a = store.all_doc_ids_for_project("project_A").unwrap();
+        let ids_b = store.all_doc_ids_for_project("project_B").unwrap();
+        // Both should have exactly 1 entry and project_A must not appear in project_B's list
+        assert_eq!(ids_a.len(), 1, "project_A must have exactly 1 doc");
+        assert_eq!(ids_b.len(), 1, "project_B must have exactly 1 doc");
+
+        // Docs for project_C (never written) must be empty
+        let ids_c = store.all_doc_ids_for_project("project_C").unwrap();
+        assert!(ids_c.is_empty(), "project_C must have no docs");
+    }
+
+    // ── 14. different_namespaces_isolated ────────────────────────────────────
+
+    #[test]
+    fn different_namespaces_isolated() {
+        let (_dir, store) = open_temp_store();
+        let doc_ids_code = vec!["doc_code_1".to_string()];
+        let doc_ids_mem = vec!["doc_mem_1".to_string()];
+        store
+            .set_docs_for_file("proj_ns_iso", "code", "src/shared.rs", &doc_ids_code)
+            .unwrap();
+        store
+            .set_docs_for_file("proj_ns_iso", "memory", "src/shared.rs", &doc_ids_mem)
+            .unwrap();
+
+        let result_code = store
+            .get_docs_for_file("proj_ns_iso", "code", "src/shared.rs")
+            .unwrap();
+        let result_mem = store
+            .get_docs_for_file("proj_ns_iso", "memory", "src/shared.rs")
+            .unwrap();
+
+        assert_eq!(result_code, doc_ids_code, "code namespace must return only code docs");
+        assert_eq!(result_mem, doc_ids_mem, "memory namespace must return only memory docs");
+
+        // Wrong namespace → empty
+        let result_wrong = store
+            .get_docs_for_file("proj_ns_iso", "other", "src/shared.rs")
+            .unwrap();
+        assert!(result_wrong.is_empty(), "wrong namespace must return empty vec");
+    }
+
+    // ── 15. doc_generation_stored_correctly ──────────────────────────────────
+
+    #[test]
+    fn doc_generation_stored_correctly() {
+        let (_dir, store) = open_temp_store();
+        let mut rec = make_doc("gen_doc", "src/gen.rs", "code");
+        rec.generation = 42;
+        store.put_doc("proj_gen", &rec).unwrap();
+
+        let got = store.get_doc("proj_gen", "code", "gen_doc").unwrap().unwrap();
+        assert_eq!(got.generation, 42, "generation field must round-trip correctly");
+    }
+
+    // ── 16. null_byte_in_doc_id_rejected ─────────────────────────────────────
+
+    #[test]
+    fn null_byte_in_doc_id_rejected() {
+        let (_dir, store) = open_temp_store();
+        let mut rec = make_doc("bad\0id", "src/x.rs", "code");
+        rec.doc_id = "bad\0id".to_string();
+        let result = store.put_doc("proj1", &rec);
+        assert!(result.is_err(), "doc_id with NUL byte must be rejected");
+    }
+
+    // ── 17. null_byte_in_namespace_rejected ──────────────────────────────────
+
+    #[test]
+    fn null_byte_in_namespace_rejected() {
+        let (_dir, store) = open_temp_store();
+        let mut rec = make_doc("doc_nns", "src/x.rs", "bad\0ns");
+        rec.namespace = "bad\0ns".to_string();
+        let result = store.put_doc("proj1", &rec);
+        assert!(result.is_err(), "namespace with NUL byte must be rejected");
+    }
+
+    // ── 18. null_byte_in_project_id_rejected ─────────────────────────────────
+
+    #[test]
+    fn null_byte_in_project_id_rejected() {
+        let (_dir, store) = open_temp_store();
+        let rec = make_doc("doc_np", "src/x.rs", "code");
+        let result = store.put_doc("bad\0proj", &rec);
+        assert!(result.is_err(), "project_id with NUL byte must be rejected");
+    }
+
+    // ── 19. large_content_stored_correctly ───────────────────────────────────
+
+    #[test]
+    fn large_content_stored_correctly() {
+        let (_dir, store) = open_temp_store();
+        let large_content = "A".repeat(10_240); // 10 KB
+        let mut rec = make_doc("large_doc", "src/big.rs", "code");
+        rec.content = large_content.clone();
+        store.put_doc("proj_large", &rec).unwrap();
+
+        let got = store
+            .get_doc("proj_large", "code", "large_doc")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            got.content.len(),
+            10_240,
+            "large content must be stored and retrieved intact"
+        );
+        assert_eq!(got.content, large_content);
+    }
+
+    // ── 20. multiple_files_for_project ───────────────────────────────────────
+
+    #[test]
+    fn multiple_files_for_project() {
+        let (_dir, store) = open_temp_store();
+        let recs: Vec<DocRecord> = (0..5)
+            .map(|i| make_doc(&format!("mf_doc_{}", i), &format!("src/file{}.rs", i), "code"))
+            .collect();
+        store.put_docs("proj_mf", &recs).unwrap();
+
+        let summaries = store.list_doc_summaries_for_project("proj_mf").unwrap();
+        assert_eq!(
+            summaries.len(),
+            5,
+            "must return summaries for all 5 files, got {}",
+            summaries.len()
+        );
+
+        // Each file path must appear
+        for i in 0..5 {
+            let expected_path = format!("src/file{}.rs", i);
+            let found = summaries.iter().any(|s| s.path == expected_path);
+            assert!(found, "path {} missing from summaries", expected_path);
+        }
     }
 }

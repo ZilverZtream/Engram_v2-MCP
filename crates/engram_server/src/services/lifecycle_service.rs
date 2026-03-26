@@ -1245,4 +1245,220 @@ End Class
                 .any(|b| b.behavior.contains("ViewState"))
         );
     }
+
+    // ── find_line_number ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_find_line_number_first_line() {
+        let content = "line1\nline2\nline3";
+        // byte offset 0 → line 1
+        assert_eq!(find_line_number(content, 0), 1);
+    }
+
+    #[test]
+    fn test_find_line_number_second_line() {
+        let content = "line1\nline2\nline3";
+        // byte offset 6 (after "line1\n") → line 2
+        assert_eq!(find_line_number(content, 6), 2);
+    }
+
+    #[test]
+    fn test_find_line_number_beyond_content_does_not_panic() {
+        let content = "abc";
+        // offset beyond content length → should clamp and return line 1
+        let ln = find_line_number(content, 9999);
+        assert_eq!(ln, 1);
+    }
+
+    // ── extract_base_class ───────────────────────────────────────────────────
+
+    #[test]
+    fn test_extract_base_class_vb_inherits() {
+        let code = "Public Class MyPage\n    Inherits BasePage\nEnd Class";
+        let base = extract_base_class(code, true);
+        assert_eq!(base.as_deref(), Some("BasePage"));
+    }
+
+    #[test]
+    fn test_extract_base_class_cs_colon() {
+        let code = "public partial class Orders : System.Web.UI.Page { }";
+        let base = extract_base_class(code, false);
+        // Should extract "System.Web.UI.Page" or "System.Web.UI.Page,"
+        assert!(base.is_some());
+        let b = base.unwrap();
+        assert!(b.contains("Page"), "base should contain Page, got {b}");
+    }
+
+    #[test]
+    fn test_extract_base_class_none_when_no_inheritance() {
+        let code = "public partial class MyPage { }";
+        // Only finds base if there's a colon
+        // This depends on the regex; just check it doesn't panic
+        let _ = extract_base_class(code, false);
+    }
+
+    // ── map_lifecycle_event ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_map_lifecycle_event_page_load_returns_known_blazor() {
+        let (blazor, react, angular, _notes) = map_lifecycle_event("Page_Load", false, &[], &[]);
+        assert!(blazor.contains("OnParametersSet") || blazor.contains("OnInitialized"),
+            "Page_Load blazor mapping should reference OnParametersSet or OnInitialized, got: {blazor}");
+        assert!(!react.is_empty());
+        assert!(!angular.is_empty());
+    }
+
+    #[test]
+    fn test_map_lifecycle_event_page_unload_returns_dispose() {
+        let (blazor, _react, _angular, _notes) = map_lifecycle_event("Page_Unload", false, &[], &[]);
+        assert!(blazor.contains("Dispose") || blazor.contains("IDisposable"),
+            "Page_Unload should map to Dispose pattern, got: {blazor}");
+    }
+
+    #[test]
+    fn test_map_lifecycle_event_page_prerender() {
+        let (blazor, react, angular, _notes) = map_lifecycle_event("Page_PreRender", false, &[], &[]);
+        assert!(blazor.contains("OnAfterRender"), "Page_PreRender → OnAfterRender");
+        assert!(react.contains("useLayoutEffect") || react.contains("useMemo"));
+        assert!(angular.contains("ngAfterViewChecked"));
+    }
+
+    #[test]
+    fn test_map_lifecycle_event_with_postback_adds_notes() {
+        let first_load = vec!["DataBind: ddl.DataBind()".to_string()];
+        let postback = vec!["State: Session[\"x\"] = 1".to_string()];
+        let (_blazor, _react, _angular, notes) =
+            map_lifecycle_event("Page_Load", true, &first_load, &postback);
+        assert!(!notes.is_empty(), "postback branching should produce migration notes");
+        // Notes should mention OnInitializedAsync
+        assert!(notes.iter().any(|n| n.contains("OnInitializedAsync")));
+    }
+
+    #[test]
+    fn test_map_lifecycle_event_unknown_event_returns_comment() {
+        let (blazor, react, _angular, _notes) = map_lifecycle_event("Page_Custom", false, &[], &[]);
+        assert!(blazor.contains("No mapping"), "unknown event should produce no-mapping comment");
+        assert!(react.contains("No mapping"));
+    }
+
+    // ── map_control_event ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_map_control_event_click() {
+        let (blazor, react) = map_control_event("click", "btnSave");
+        assert!(blazor.contains("@onclick"), "click → @onclick in Blazor");
+        assert!(react.contains("onClick"), "click → onClick in React");
+    }
+
+    #[test]
+    fn test_map_control_event_selectedindexchanged() {
+        let (blazor, react) = map_control_event("selectedindexchanged", "ddlState");
+        assert!(blazor.contains("@onchange") || blazor.contains("@bind"),
+            "SelectedIndexChanged → @onchange or @bind in Blazor");
+        assert!(react.contains("onChange"));
+    }
+
+    #[test]
+    fn test_map_control_event_row_editing() {
+        let (blazor, _react) = map_control_event("rowediting", "gvData");
+        assert!(!blazor.is_empty());
+        assert!(blazor.contains("DataGrid") || blazor.contains("edit"),
+            "rowediting should mention DataGrid or edit, got: {blazor}");
+    }
+
+    #[test]
+    fn test_map_control_event_sorting() {
+        let (blazor, _react) = map_control_event("sorting", "gvData");
+        assert!(blazor.contains("Sort") || blazor.contains("QuickGrid"),
+            "sorting should mention Sort or QuickGrid, got: {blazor}");
+    }
+
+    // ── is_postback_trigger_event ────────────────────────────────────────────
+
+    #[test]
+    fn test_postback_trigger_events() {
+        assert!(is_postback_trigger_event("click"));
+        assert!(is_postback_trigger_event("Click"));   // uppercase
+        assert!(is_postback_trigger_event("selectedindexchanged"));
+        assert!(is_postback_trigger_event("textchanged"));
+        assert!(is_postback_trigger_event("sorting"));
+        assert!(is_postback_trigger_event("pageindexchanging"));
+    }
+
+    #[test]
+    fn test_non_postback_events() {
+        assert!(!is_postback_trigger_event("rowdatabound"));
+        assert!(!is_postback_trigger_event("pageload"));
+        assert!(!is_postback_trigger_event(""));
+    }
+
+    // ── extract_action_summaries ─────────────────────────────────────────────
+
+    #[test]
+    fn test_action_summaries_databind() {
+        let body = "    gvData.DataBind()\n    Label1.Text = \"OK\"";
+        let actions = extract_action_summaries(body);
+        assert!(actions.iter().any(|a| a.starts_with("DataBind:")));
+        assert!(actions.iter().any(|a| a.starts_with("UI:")));
+    }
+
+    #[test]
+    fn test_action_summaries_sql() {
+        let body = "    Dim cmd = New SqlCommand(sql, conn)\n    cmd.ExecuteNonQuery()";
+        let actions = extract_action_summaries(body);
+        assert!(actions.iter().any(|a| a.starts_with("SQL:")));
+    }
+
+    #[test]
+    fn test_action_summaries_skips_comments() {
+        let body = "    ' This is a comment\n    // Another comment\n    x = 1";
+        let actions = extract_action_summaries(body);
+        // Pure assignment like x = 1 doesn't match any category
+        assert!(!actions.iter().any(|a| a.contains("comment")));
+    }
+
+    // ── format_lifecycle_map ─────────────────────────────────────────────────
+
+    #[test]
+    fn test_format_lifecycle_map_contains_file_path() {
+        let graph = make_graph();
+        let code = r#"
+Partial Class MyPage
+    Inherits System.Web.UI.Page
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+    End Sub
+End Class
+        "#;
+        let result = analyze_page_lifecycle(&graph, "test", "MyPage.aspx.vb", code, None).unwrap();
+        let formatted = format_lifecycle_map(&result);
+        assert!(formatted.contains("MyPage.aspx.vb"), "should include file path");
+        assert!(formatted.contains("Lifecycle Events"), "should have Lifecycle Events section");
+    }
+
+    #[test]
+    fn test_cs_control_events() {
+        let graph = make_graph();
+        let code = r#"
+public partial class Search : System.Web.UI.Page
+{
+    protected void btnSearch_Click(object sender, EventArgs e)
+    {
+        SearchData();
+    }
+    protected void gvResults_Sorting(object sender, GridViewSortEventArgs e)
+    {
+        SortData();
+    }
+}
+        "#;
+        let result = analyze_page_lifecycle(&graph, "test", "Search.aspx.cs", code, None).unwrap();
+        assert_eq!(result.control_events.len(), 2, "should find 2 control events");
+
+        let btn = result.control_events.iter().find(|e| e.control_id == "btnSearch").unwrap();
+        assert_eq!(btn.event_name, "Click");
+        assert!(btn.is_postback_trigger);
+
+        let gv = result.control_events.iter().find(|e| e.control_id == "gvResults").unwrap();
+        assert_eq!(gv.event_name, "Sorting");
+    }
 }

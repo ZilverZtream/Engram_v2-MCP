@@ -847,4 +847,351 @@ EndProject
             "configs: {configs:?}"
         );
     }
+
+    // ── New tests ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_empty_sln_returns_empty() {
+        let projects = parse_solution("");
+        assert!(projects.is_empty(), "Empty .sln should return no projects");
+    }
+
+    #[test]
+    fn parse_single_csharp_project() {
+        let sln = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MyLib", "MyLib\MyLib.csproj", "{11111111-1111-1111-1111-111111111111}"
+EndProject
+"#;
+        let projects = parse_solution(sln);
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "MyLib");
+        assert_eq!(projects[0].project_type, ProjectType::CSharp);
+    }
+
+    #[test]
+    fn parse_single_vb_project() {
+        let sln = r#"
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "VbApp", "VbApp\VbApp.vbproj", "{22222222-2222-2222-2222-222222222222}"
+EndProject
+"#;
+        let projects = parse_solution(sln);
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "VbApp");
+        assert_eq!(projects[0].project_type, ProjectType::VbNet);
+    }
+
+    #[test]
+    fn parse_multiple_projects() {
+        let projects = parse_solution(SAMPLE_SLN);
+        assert_eq!(projects.len(), 3, "Should parse exactly 3 real projects (solution folder excluded)");
+    }
+
+    #[test]
+    fn project_name_extracted() {
+        let projects = parse_solution(SAMPLE_SLN);
+        assert!(projects.iter().any(|p| p.name == "WebApp"));
+        assert!(projects.iter().any(|p| p.name == "BusinessLogic"));
+        assert!(projects.iter().any(|p| p.name == "DataAccess"));
+    }
+
+    #[test]
+    fn project_path_extracted() {
+        let projects = parse_solution(SAMPLE_SLN);
+        let web = projects.iter().find(|p| p.name == "WebApp").unwrap();
+        // Backslashes are normalized to forward slashes
+        assert!(web.relative_path.contains("WebApp"), "path: {}", web.relative_path);
+        assert!(web.relative_path.ends_with(".csproj"), "path: {}", web.relative_path);
+        assert!(!web.relative_path.contains('\\'), "backslash should be normalized");
+    }
+
+    #[test]
+    fn project_guid_extracted() {
+        let sln = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alpha", "Alpha\Alpha.csproj", "{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}"
+EndProject
+"#;
+        let projects = parse_solution(sln);
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].project_guid, "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
+        assert_eq!(projects[0].type_guid, "FAE04EC0-301F-11D3-BF4B-00C04F79EFBC");
+    }
+
+    #[test]
+    fn project_type_csharp_detected() {
+        let projects = parse_solution(SAMPLE_SLN);
+        // All three projects in SAMPLE_SLN use the C# GUID
+        assert!(projects.iter().all(|p| p.project_type == ProjectType::CSharp));
+    }
+
+    #[test]
+    fn project_type_vbnet_detected() {
+        let sln = r#"
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "VbLib", "VbLib\VbLib.vbproj", "{33333333-3333-3333-3333-333333333333}"
+EndProject
+"#;
+        let projects = parse_solution(sln);
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].project_type, ProjectType::VbNet);
+    }
+
+    #[test]
+    fn solution_folder_not_treated_as_project() {
+        // 2150E333 is the solution folder GUID
+        let sln = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealProject", "RealProject\RealProject.csproj", "{AAAA0000-0000-0000-0000-000000000001}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BBBB0000-0000-0000-0000-000000000002}"
+EndProject
+"#;
+        let projects = parse_solution(sln);
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "RealProject");
+    }
+
+    #[test]
+    fn project_build_configuration_parsed() {
+        let configs = parse_solution_configs(SAMPLE_SLN);
+        assert!(configs.contains(&"Debug".to_string()), "configs: {configs:?}");
+        assert!(configs.contains(&"Release".to_string()), "configs: {configs:?}");
+    }
+
+    #[test]
+    fn parse_sln_configurations_deduplicated() {
+        let sln = r#"
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Any CPU = Debug|Any CPU
+        Debug|x64 = Debug|x64
+        Release|Any CPU = Release|Any CPU
+        Release|x64 = Release|x64
+    EndGlobalSection
+EndGlobal
+"#;
+        let configs = parse_solution_configs(sln);
+        // "Debug" appears twice but should only be in the set once
+        let debug_count = configs.iter().filter(|c| c.as_str() == "Debug").count();
+        assert_eq!(debug_count, 1, "Debug should appear only once: {configs:?}");
+    }
+
+    #[test]
+    fn project_file_root_namespace_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        assert_eq!(info.root_namespace.as_deref(), Some("MyApp.Web"));
+    }
+
+    #[test]
+    fn project_file_assembly_name_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        assert_eq!(info.assembly_name.as_deref(), Some("MyApp.Web"));
+    }
+
+    #[test]
+    fn project_file_target_framework_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        assert_eq!(info.target_framework.as_deref(), Some("net48"));
+    }
+
+    #[test]
+    fn project_file_output_type_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        assert_eq!(info.output_type.as_deref(), Some("Library"));
+    }
+
+    #[test]
+    fn project_file_project_references_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        assert_eq!(info.project_references.len(), 2);
+        assert!(info.project_references.iter().any(|r| r.contains("BusinessLogic")));
+        assert!(info.project_references.iter().any(|r| r.contains("DataAccess")));
+    }
+
+    #[test]
+    fn project_references_backslash_normalized() {
+        let csproj = r#"<Project><ItemGroup><ProjectReference Include="..\Shared\Shared.csproj" /></ItemGroup></Project>"#;
+        let info = parse_project_file(csproj, "App/App.csproj");
+        assert_eq!(info.project_references.len(), 1);
+        // Backslashes must be normalized to forward slashes
+        assert!(!info.project_references[0].contains('\\'), "ref: {}", info.project_references[0]);
+        assert!(info.project_references[0].contains('/'));
+    }
+
+    #[test]
+    fn package_reference_name_and_version_extracted() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "WebApp/WebApp.csproj");
+        let nj = info.package_references.iter().find(|r| r.name == "Newtonsoft.Json");
+        assert!(nj.is_some(), "Newtonsoft.Json not found");
+        assert_eq!(nj.unwrap().version.as_deref(), Some("13.0.1"));
+    }
+
+    #[test]
+    fn assembly_reference_captured_without_version() {
+        let csproj = r#"<Project><ItemGroup>
+  <Reference Include="System.Web" />
+  <Reference Include="System.Data" />
+</ItemGroup></Project>"#;
+        let info = parse_project_file(csproj, "proj.csproj");
+        let names: Vec<&str> = info.package_references.iter().map(|r| r.name.as_str()).collect();
+        assert!(names.contains(&"System.Web"), "refs: {names:?}");
+        assert!(names.contains(&"System.Data"), "refs: {names:?}");
+        // Assembly references parsed without a version
+        assert!(info.package_references.iter().all(|r| r.version.is_none()));
+    }
+
+    #[test]
+    fn compile_includes_extracted() {
+        let csproj = r#"<Project><ItemGroup>
+  <Compile Include="Form1.cs" />
+  <Compile Include="Services\DataService.cs" />
+  <Compile Include="Models\UserModel.cs" />
+</ItemGroup></Project>"#;
+        let info = parse_project_file(csproj, "App/App.csproj");
+        assert_eq!(info.source_files.len(), 3);
+        assert!(info.source_files.iter().any(|f| f.contains("Form1.cs")));
+        assert!(info.source_files.iter().any(|f| f.contains("DataService.cs")));
+    }
+
+    #[test]
+    fn compile_includes_backslash_normalized() {
+        let csproj = r#"<Project><ItemGroup>
+  <Compile Include="Models\User.cs" />
+</ItemGroup></Project>"#;
+        let info = parse_project_file(csproj, "App/App.csproj");
+        assert_eq!(info.source_files.len(), 1);
+        assert!(!info.source_files[0].contains('\\'), "backslash in source file: {}", info.source_files[0]);
+    }
+
+    #[test]
+    fn project_with_no_references_has_empty_lists() {
+        let info = parse_project_file(SAMPLE_DA_CSPROJ, "DataAccess/DataAccess.csproj");
+        assert!(info.project_references.is_empty());
+        assert!(info.package_references.is_empty());
+        assert!(info.source_files.is_empty());
+    }
+
+    #[test]
+    fn dependency_graph_populated_correctly() {
+        let mut project_files = HashMap::new();
+        project_files.insert("WebApp".to_string(), SAMPLE_CSPROJ.to_string());
+        project_files.insert("BusinessLogic".to_string(), SAMPLE_BL_CSPROJ.to_string());
+        project_files.insert("DataAccess".to_string(), SAMPLE_DA_CSPROJ.to_string());
+
+        let structure = build_solution_structure(SAMPLE_SLN, &project_files);
+
+        // WebApp depends on BusinessLogic and DataAccess
+        let wa_deps = structure.dependency_graph.get("WebApp").unwrap();
+        assert!(wa_deps.iter().any(|d| d == "BusinessLogic"), "wa_deps: {wa_deps:?}");
+        assert!(wa_deps.iter().any(|d| d == "DataAccess"), "wa_deps: {wa_deps:?}");
+
+        // BusinessLogic depends on DataAccess
+        let bl_deps = structure.dependency_graph.get("BusinessLogic").unwrap();
+        assert!(bl_deps.iter().any(|d| d == "DataAccess"), "bl_deps: {bl_deps:?}");
+
+        // DataAccess has no deps
+        let da_deps = structure.dependency_graph.get("DataAccess").unwrap();
+        assert!(da_deps.is_empty(), "da_deps: {da_deps:?}");
+    }
+
+    #[test]
+    fn cross_project_multiplier_three_refs() {
+        // When 3-5 projects reference a library, multiplier should be 2.0
+        let sln = r#"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{C0000000-0000-0000-0000-000000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppA", "AppA\AppA.csproj", "{A0000000-0000-0000-0000-000000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppB", "AppB\AppB.csproj", "{B0000000-0000-0000-0000-000000000003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppC", "AppC\AppC.csproj", "{D0000000-0000-0000-0000-000000000004}"
+EndProject
+"#;
+        let core_proj = r#"<Project><PropertyGroup><RootNamespace>Core</RootNamespace></PropertyGroup></Project>"#;
+        let app_proj = |core_path: &str| format!(r#"<Project><ItemGroup><ProjectReference Include="{core_path}" /></ItemGroup></Project>"#);
+
+        let mut files = HashMap::new();
+        files.insert("Core".to_string(), core_proj.to_string());
+        files.insert("AppA".to_string(), app_proj("..\\Core\\Core.csproj"));
+        files.insert("AppB".to_string(), app_proj("..\\Core\\Core.csproj"));
+        files.insert("AppC".to_string(), app_proj("..\\Core\\Core.csproj"));
+
+        let structure = build_solution_structure(sln, &files);
+        let mult = cross_project_multiplier(&structure, "Core");
+        assert!(
+            (mult - 2.0).abs() < 0.01,
+            "3 references should give 2.0x multiplier, got {mult}"
+        );
+    }
+
+    #[test]
+    fn classify_web_application_type() {
+        assert_eq!(
+            classify_project_type("349C5851-65DF-11DA-9384-00065B846F21"),
+            ProjectType::WebApplication
+        );
+    }
+
+    #[test]
+    fn classify_web_site_type() {
+        assert_eq!(
+            classify_project_type("E24C65DC-7377-472B-9ABA-BC803B73C61A"),
+            ProjectType::WebSite
+        );
+    }
+
+    #[test]
+    fn classify_wpf_application_type() {
+        assert_eq!(
+            classify_project_type("60DC8134-EBA5-43B8-BCC9-BB4BC16C2548"),
+            ProjectType::WpfApplication
+        );
+    }
+
+    #[test]
+    fn classify_unknown_guid_returns_unknown() {
+        assert_eq!(
+            classify_project_type("00000000-0000-0000-0000-000000000000"),
+            ProjectType::Unknown
+        );
+    }
+
+    #[test]
+    fn classify_project_type_case_insensitive() {
+        // GUIDs in .sln files may appear in different cases
+        assert_eq!(
+            classify_project_type("fae04ec0-301f-11d3-bf4b-00c04f79efbc"),
+            ProjectType::CSharp
+        );
+    }
+
+    #[test]
+    fn no_circular_dependency_warning_for_linear_chain() {
+        let mut project_files = HashMap::new();
+        project_files.insert("WebApp".to_string(), SAMPLE_CSPROJ.to_string());
+        project_files.insert("BusinessLogic".to_string(), SAMPLE_BL_CSPROJ.to_string());
+        project_files.insert("DataAccess".to_string(), SAMPLE_DA_CSPROJ.to_string());
+
+        let structure = build_solution_structure(SAMPLE_SLN, &project_files);
+        assert!(
+            structure.warnings.is_empty(),
+            "Linear chain should produce no warnings: {:?}",
+            structure.warnings
+        );
+    }
+
+    #[test]
+    fn project_file_info_path_set_correctly() {
+        let info = parse_project_file(SAMPLE_CSPROJ, "src/WebApp/WebApp.csproj");
+        assert_eq!(info.project_path, "src/WebApp/WebApp.csproj");
+    }
+
+    #[test]
+    fn empty_project_file_returns_empty_info() {
+        let info = parse_project_file("", "empty.csproj");
+        assert!(info.root_namespace.is_none());
+        assert!(info.assembly_name.is_none());
+        assert!(info.target_framework.is_none());
+        assert!(info.output_type.is_none());
+        assert!(info.project_references.is_empty());
+        assert!(info.package_references.is_empty());
+        assert!(info.source_files.is_empty());
+    }
 }

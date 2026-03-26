@@ -580,6 +580,311 @@ mod tests {
         );
     }
 
+    // ── RiskLevel display ────────────────────────────────────────────────────
+
+    #[test]
+    fn risk_level_display() {
+        assert_eq!(RiskLevel::Low.to_string(), "low");
+        assert_eq!(RiskLevel::Medium.to_string(), "medium");
+        assert_eq!(RiskLevel::High.to_string(), "high");
+        assert_eq!(RiskLevel::Critical.to_string(), "critical");
+    }
+
+    // ── compute_risk_level ───────────────────────────────────────────────────
+
+    #[test]
+    fn risk_level_low_for_simple_rename() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 2,
+            impact_confidence: 0.95,
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 2,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert_eq!(decision.risk_level, RiskLevel::Low);
+    }
+
+    #[test]
+    fn risk_level_increases_with_many_files() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: (0..35).map(|i| format!("file{i}.cs")).collect(),
+            refactor_type: "refactor".into(),
+            impact_node_count: 100,
+            impact_confidence: 0.95,
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 3,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        // 35 files → file-count score = 3; downstream 3 → 0; total = 3 → Medium
+        assert!(
+            matches!(decision.risk_level, RiskLevel::Medium | RiskLevel::High | RiskLevel::Critical),
+            "many files should raise risk level, got {:?}", decision.risk_level
+        );
+    }
+
+    #[test]
+    fn risk_level_high_when_global_state_and_database() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["Global.asax".into()],
+            refactor_type: "modify_state".into(),
+            impact_node_count: 50,
+            impact_confidence: 0.95,
+            test_coverage: 0.95,
+            anti_pattern_clear: true,
+            downstream_dependents: 3,
+            touches_global_state: true,
+            touches_database: true,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        // global state +2, database +2 = at least 4 → Medium or higher
+        assert!(
+            matches!(decision.risk_level, RiskLevel::Medium | RiskLevel::High | RiskLevel::Critical),
+            "global state + database should raise risk"
+        );
+    }
+
+    #[test]
+    fn risk_level_low_confidence_adds_risk() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 5,
+            impact_confidence: 0.40, // <0.5 → adds 2 points
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 2,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        // low confidence only → 2 pts → Low (0..=2)
+        assert!(matches!(decision.risk_level, RiskLevel::Low | RiskLevel::Medium));
+    }
+
+    // ── evaluate_safety: individual check pass/fail ──────────────────────────
+
+    #[test]
+    fn exactly_at_confidence_threshold_passes() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.70, // exactly at threshold
+            test_coverage: 0.60,
+            anti_pattern_clear: true,
+            downstream_dependents: 5,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.70, 0.60);
+        let conf_check = decision.checks.iter().find(|c| c.name == "impact_confidence").unwrap();
+        assert!(conf_check.passed);
+    }
+
+    #[test]
+    fn just_below_confidence_threshold_fails() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.699,
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 5,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.70, 0.60);
+        let conf_check = decision.checks.iter().find(|c| c.name == "impact_confidence").unwrap();
+        assert!(!conf_check.passed);
+        assert!(!decision.allowed);
+    }
+
+    #[test]
+    fn unknown_coverage_negative_one_passes_coverage_check() {
+        // test_coverage = -1.0 means unknown → coverage_known = false → passes
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.95,
+            test_coverage: -1.0,
+            anti_pattern_clear: true,
+            downstream_dependents: 5,
+            touches_global_state: false,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let cov_check = decision.checks.iter().find(|c| c.name == "test_coverage").unwrap();
+        assert!(cov_check.passed, "unknown coverage should pass the check");
+    }
+
+    #[test]
+    fn exactly_50_downstream_passes_blast_radius() {
+        let mut req = make_safe_request();
+        req.downstream_dependents = 50;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let blast = decision.checks.iter().find(|c| c.name == "blast_radius").unwrap();
+        assert!(blast.passed, "exactly 50 dependents should pass (threshold is <= 50)");
+    }
+
+    #[test]
+    fn fifty_one_downstream_fails_blast_radius() {
+        let mut req = make_safe_request();
+        req.downstream_dependents = 51;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let blast = decision.checks.iter().find(|c| c.name == "blast_radius").unwrap();
+        assert!(!blast.passed);
+        assert!(!decision.allowed);
+    }
+
+    #[test]
+    fn global_state_with_high_confidence_passes() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.95, // >= 0.9
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 3,
+            touches_global_state: true, // but high confidence → safe
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let state_check = decision.checks.iter().find(|c| c.name == "global_state_safety").unwrap();
+        assert!(state_check.passed, "global state with 0.95 confidence should pass");
+    }
+
+    #[test]
+    fn global_state_with_low_confidence_fails() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["a.cs".into()],
+            refactor_type: "rename".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.80, // <0.9 — not enough for global state
+            test_coverage: 0.9,
+            anti_pattern_clear: true,
+            downstream_dependents: 3,
+            touches_global_state: true,
+            touches_database: false,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let state_check = decision.checks.iter().find(|c| c.name == "global_state_safety").unwrap();
+        assert!(!state_check.passed);
+    }
+
+    #[test]
+    fn database_with_high_confidence_and_high_coverage_passes() {
+        let req = SafetyEvalRequest {
+            project_id: "p".into(),
+            affected_files: vec!["Repo.cs".into()],
+            refactor_type: "refactor".into(),
+            impact_node_count: 1,
+            impact_confidence: 0.95,
+            test_coverage: 0.85, // >=0.8
+            anti_pattern_clear: true,
+            downstream_dependents: 3,
+            touches_global_state: false,
+            touches_database: true,
+        };
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        let db_check = decision.checks.iter().find(|c| c.name == "database_safety").unwrap();
+        assert!(db_check.passed, "db with high confidence AND coverage should pass");
+    }
+
+    // ── evaluate_safety: overall confidence score ───────────────────────────
+
+    #[test]
+    fn all_checks_pass_confidence_is_one() {
+        let req = make_safe_request();
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.allowed);
+        assert!((decision.confidence - 1.0).abs() < 0.001, "all 6 checks pass → confidence = 1.0");
+    }
+
+    #[test]
+    fn one_check_fails_confidence_is_five_sixths() {
+        let mut req = make_safe_request();
+        req.anti_pattern_clear = false; // 1 check fails out of 6
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(!decision.allowed);
+        let expected = 5.0 / 6.0;
+        assert!(
+            (decision.confidence - expected).abs() < 0.01,
+            "5/6 checks pass → confidence ~0.833, got {}", decision.confidence
+        );
+    }
+
+    // ── summary message format ───────────────────────────────────────────────
+
+    #[test]
+    fn allowed_summary_says_approved() {
+        let req = make_safe_request();
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.summary.contains("approved") || decision.summary.contains("Edit approved"));
+    }
+
+    #[test]
+    fn blocked_summary_says_blocked() {
+        let mut req = make_safe_request();
+        req.downstream_dependents = 100;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.summary.contains("BLOCKED"));
+    }
+
+    // ── mitigation messages ──────────────────────────────────────────────────
+
+    #[test]
+    fn mitigation_for_blast_radius_mentions_incremental_changes() {
+        let mut req = make_safe_request();
+        req.downstream_dependents = 100;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.mitigations.iter().any(|m| m.contains("incremental")));
+    }
+
+    #[test]
+    fn mitigation_for_anti_pattern_mentions_resolve() {
+        let mut req = make_safe_request();
+        req.anti_pattern_clear = false;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.mitigations.iter().any(|m| m.contains("anti-pattern")));
+    }
+
+    #[test]
+    fn mitigation_for_low_coverage_mentions_tests() {
+        let mut req = make_safe_request();
+        req.test_coverage = 0.1;
+        let decision = evaluate_safety(&req, true, 0.7, 0.6);
+        assert!(decision.mitigations.iter().any(|m| m.to_lowercase().contains("test")));
+    }
+
+    #[test]
+    fn policy_disabled_returns_empty_checks() {
+        let req = make_safe_request();
+        let decision = evaluate_safety(&req, false, 0.7, 0.6);
+        assert!(decision.checks.is_empty(), "policy disabled → no checks run");
+        assert_eq!(decision.confidence, 1.0);
+        assert_eq!(decision.risk_level, RiskLevel::Low);
+    }
+
     #[test]
     fn every_deny_has_mitigations() {
         let scenarios = calibration_corpus();

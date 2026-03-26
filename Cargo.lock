@@ -1852,6 +1852,7 @@ dependencies = [
  "rustworkx-core",
  "serde",
  "serde_json",
+ "tempfile",
  "tracing",
 ]
 
@@ -1881,6 +1882,7 @@ dependencies = [
  "serde_json",
  "streaming-iterator",
  "tantivy",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",

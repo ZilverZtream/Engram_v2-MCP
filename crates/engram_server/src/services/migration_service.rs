@@ -1053,4 +1053,342 @@ EndProject
             "DataLayer should have no cross-project deps"
         );
     }
+
+    // ── classify_file ────────────────────────────────────────────────────────
+
+    #[test]
+    fn classify_file_aspx_is_page() {
+        assert_eq!(classify_file("Login.aspx"), MigrationItemType::Page);
+        assert_eq!(classify_file("Orders.cshtml"), MigrationItemType::Page);
+        assert_eq!(classify_file("About.razor"), MigrationItemType::Page);
+    }
+
+    #[test]
+    fn classify_file_ascx_is_component() {
+        assert_eq!(classify_file("Header.ascx"), MigrationItemType::Component);
+    }
+
+    #[test]
+    fn classify_file_service_is_service() {
+        assert_eq!(classify_file("UserService.cs"), MigrationItemType::Service);
+        assert_eq!(classify_file("OrdersApi.asmx"), MigrationItemType::Service);
+        assert_eq!(classify_file("Payment.svc"), MigrationItemType::Service);
+    }
+
+    #[test]
+    fn classify_file_data_access_patterns() {
+        assert_eq!(classify_file("App_Code/DataAccess.cs"), MigrationItemType::DataAccess);
+        assert_eq!(classify_file("Repository/UserRepo.cs"), MigrationItemType::DataAccess);
+        assert_eq!(classify_file("DAL/OrderDal.cs"), MigrationItemType::DataAccess);
+    }
+
+    #[test]
+    fn classify_file_config_files() {
+        assert_eq!(classify_file("web.config"), MigrationItemType::Configuration);
+        assert_eq!(classify_file("appsettings.json"), MigrationItemType::Configuration);
+        assert_eq!(classify_file("settings.yaml"), MigrationItemType::Configuration);
+    }
+
+    #[test]
+    fn classify_file_static_assets() {
+        assert_eq!(classify_file("Scripts/app.js"), MigrationItemType::StaticAsset);
+        assert_eq!(classify_file("Styles/main.css"), MigrationItemType::StaticAsset);
+        assert_eq!(classify_file("Images/logo.png"), MigrationItemType::StaticAsset);
+    }
+
+    #[test]
+    fn classify_file_database_migration() {
+        assert_eq!(classify_file("20240101_AddUsers.sql"), MigrationItemType::DatabaseMigration);
+        assert_eq!(classify_file("Migrations/AddIndex.cs"), MigrationItemType::DatabaseMigration);
+    }
+
+    #[test]
+    fn classify_file_shared_library_fallback() {
+        assert_eq!(classify_file("Utils.cs"), MigrationItemType::SharedLibrary);
+        assert_eq!(classify_file("Models/User.cs"), MigrationItemType::SharedLibrary);
+    }
+
+    // ── classify_seam_type ───────────────────────────────────────────────────
+
+    #[test]
+    fn classify_seam_type_api_edge_kinds() {
+        assert_eq!(classify_seam_type("exposes_web_service"), SeamType::Api);
+        assert_eq!(classify_seam_type("exposes_http_handler"), SeamType::Api);
+        assert_eq!(classify_seam_type("exposes_wcf_service"), SeamType::Api);
+        assert_eq!(classify_seam_type("api_call"), SeamType::Api);
+    }
+
+    #[test]
+    fn classify_seam_type_data_edge_kinds() {
+        assert_eq!(classify_seam_type("sql_calls"), SeamType::Data);
+        assert_eq!(classify_seam_type("queries_table"), SeamType::Data);
+        assert_eq!(classify_seam_type("reads_column"), SeamType::Data);
+        assert_eq!(classify_seam_type("data_binding"), SeamType::Data);
+    }
+
+    #[test]
+    fn classify_seam_type_event_edge_kinds() {
+        assert_eq!(classify_seam_type("triggers_postback"), SeamType::Event);
+        assert_eq!(classify_seam_type("manipulates_dom"), SeamType::Event);
+    }
+
+    #[test]
+    fn classify_seam_type_config_edge_kinds() {
+        assert_eq!(classify_seam_type("registers_module"), SeamType::Config);
+        assert_eq!(classify_seam_type("includes_file"), SeamType::Config);
+    }
+
+    #[test]
+    fn classify_seam_type_unknown_falls_back_to_api() {
+        assert_eq!(classify_seam_type("unknown_edge_kind"), SeamType::Api);
+    }
+
+    // ── suggest_adapter_pattern ──────────────────────────────────────────────
+
+    #[test]
+    fn suggest_adapter_pattern_api_call_mentions_facade() {
+        let adapter = suggest_adapter_pattern("api_call");
+        assert!(adapter.to_lowercase().contains("facade") || adapter.contains("REST"));
+    }
+
+    #[test]
+    fn suggest_adapter_pattern_sql_calls_mentions_translator() {
+        let adapter = suggest_adapter_pattern("sql_calls");
+        assert!(adapter.contains("translator") || adapter.contains("EF Core") || adapter.contains("ADO.NET"));
+    }
+
+    #[test]
+    fn suggest_adapter_pattern_state_mentions_state_bridge() {
+        let adapter = suggest_adapter_pattern("reads_state");
+        assert!(adapter.contains("bridge") || adapter.contains("Session") || adapter.contains("cache"));
+    }
+
+    #[test]
+    fn suggest_adapter_pattern_postback_mentions_ajax() {
+        let adapter = suggest_adapter_pattern("triggers_postback");
+        assert!(adapter.contains("AJAX") || adapter.contains("proxy") || adapter.contains("adapter"));
+    }
+
+    // ── generate_contract_test_template ──────────────────────────────────────
+
+    #[test]
+    fn contract_test_template_contains_seam_info() {
+        let seam = Seam {
+            seam_id: "seam-c1-c2".into(),
+            legacy_endpoint: "Legacy.aspx.cs".into(),
+            modern_endpoint: "ModernService.cs".into(),
+            seam_type: SeamType::Data,
+            contract: "Contract: ...".into(),
+            adapter_pattern: "Translator".into(),
+        };
+        let template = generate_contract_test_template(&seam);
+        assert!(template.contains("Legacy.aspx.cs"), "should include legacy endpoint");
+        assert!(template.contains("ModernService.cs"), "should include modern endpoint");
+        assert!(template.contains("[Test]") || template.contains("Test"), "should include test marker");
+    }
+
+    // ── generate_adapter_template ────────────────────────────────────────────
+
+    #[test]
+    fn adapter_template_facade_mentions_legacy_modern() {
+        let tmpl = generate_adapter_template("LegacySvc", "ModernSvc", AdapterType::Facade);
+        assert!(tmpl.contains("LegacySvc") || tmpl.contains("facade"));
+    }
+
+    #[test]
+    fn adapter_template_translator_mentions_data_mapping() {
+        let tmpl = generate_adapter_template("LegacySvc", "ModernSvc", AdapterType::Translator);
+        assert!(tmpl.contains("translator") || tmpl.contains("Translate") || tmpl.contains("DataRow"));
+    }
+
+    #[test]
+    fn adapter_template_state_bridge_mentions_session() {
+        let tmpl = generate_adapter_template("LegacySvc", "ModernSvc", AdapterType::StateBridge);
+        assert!(tmpl.contains("session") || tmpl.contains("Session") || tmpl.contains("State"));
+    }
+
+    // ── to_pascal_case ────────────────────────────────────────────────────────
+
+    #[test]
+    fn to_pascal_case_hyphenated() {
+        assert_eq!(to_pascal_case("seam-c1-c2"), "SeamC1C2");
+    }
+
+    #[test]
+    fn to_pascal_case_underscored() {
+        assert_eq!(to_pascal_case("my_seam_id"), "MySeamId");
+    }
+
+    #[test]
+    fn to_pascal_case_single_word() {
+        assert_eq!(to_pascal_case("seam"), "Seam");
+    }
+
+    #[test]
+    fn to_pascal_case_empty_string() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    // ── generate_rollback_playbook ────────────────────────────────────────────
+
+    #[test]
+    fn rollback_playbook_has_steps_for_each_wave() {
+        let waves = vec![
+            MigrationWave {
+                wave_number: 0,
+                name: "Shared Infra".into(),
+                description: "".into(),
+                items: vec![],
+                depends_on: vec![],
+                contract_tests: vec![],
+                adapters: vec![],
+                risk_level: WaveRisk::High,
+                estimated_effort: 5,
+                project_scope: None,
+                cross_project_deps: vec![],
+            },
+            MigrationWave {
+                wave_number: 1,
+                name: "Web UI".into(),
+                description: "".into(),
+                items: vec![],
+                depends_on: vec![0],
+                contract_tests: vec![],
+                adapters: vec![],
+                risk_level: WaveRisk::Low,
+                estimated_effort: 3,
+                project_scope: None,
+                cross_project_deps: vec![],
+            },
+        ];
+        let playbook = generate_rollback_playbook(&waves);
+        assert_eq!(playbook.waves.len(), 2, "one rollback entry per wave");
+        assert!(!playbook.global_rollback_steps.is_empty(), "global steps must be present");
+        for wr in &playbook.waves {
+            assert!(!wr.steps.is_empty(), "each wave rollback must have steps");
+            assert!(!wr.verification.is_empty(), "each wave rollback must have verification steps");
+        }
+    }
+
+    #[test]
+    fn rollback_time_matches_wave_risk() {
+        let waves = vec![
+            MigrationWave { wave_number: 0, name: "W0".into(), description: "".into(), items: vec![], depends_on: vec![], contract_tests: vec![], adapters: vec![], risk_level: WaveRisk::Low, estimated_effort: 1, project_scope: None, cross_project_deps: vec![] },
+            MigrationWave { wave_number: 1, name: "W1".into(), description: "".into(), items: vec![], depends_on: vec![], contract_tests: vec![], adapters: vec![], risk_level: WaveRisk::Critical, estimated_effort: 8, project_scope: None, cross_project_deps: vec![] },
+        ];
+        let playbook = generate_rollback_playbook(&waves);
+        let low_time = &playbook.waves[0].estimated_rollback_time;
+        let critical_time = &playbook.waves[1].estimated_rollback_time;
+        assert!(low_time.contains("15 minutes") || low_time.contains("< 15"),
+            "low risk should have fast rollback: {low_time}");
+        assert!(critical_time.contains("hour") || critical_time.contains("manual"),
+            "critical risk should have long rollback: {critical_time}");
+    }
+
+    // ── WaveRisk and related enum display ────────────────────────────────────
+
+    #[test]
+    fn wave_risk_display() {
+        assert_eq!(WaveRisk::Low.to_string(), "low");
+        assert_eq!(WaveRisk::Medium.to_string(), "medium");
+        assert_eq!(WaveRisk::High.to_string(), "high");
+        assert_eq!(WaveRisk::Critical.to_string(), "critical");
+    }
+
+    #[test]
+    fn migration_item_type_display() {
+        assert_eq!(MigrationItemType::Page.to_string(), "page");
+        assert_eq!(MigrationItemType::Component.to_string(), "component");
+        assert_eq!(MigrationItemType::Service.to_string(), "service");
+        assert_eq!(MigrationItemType::DataAccess.to_string(), "data_access");
+        assert_eq!(MigrationItemType::Configuration.to_string(), "configuration");
+        assert_eq!(MigrationItemType::SharedLibrary.to_string(), "shared_library");
+        assert_eq!(MigrationItemType::StaticAsset.to_string(), "static_asset");
+        assert_eq!(MigrationItemType::DatabaseMigration.to_string(), "database_migration");
+    }
+
+    #[test]
+    fn complexity_display() {
+        assert_eq!(Complexity::Low.to_string(), "low");
+        assert_eq!(Complexity::Medium.to_string(), "medium");
+        assert_eq!(Complexity::High.to_string(), "high");
+        assert_eq!(Complexity::VeryHigh.to_string(), "very_high");
+    }
+
+    #[test]
+    fn seam_type_display() {
+        assert_eq!(SeamType::Api.to_string(), "api");
+        assert_eq!(SeamType::Data.to_string(), "data");
+        assert_eq!(SeamType::Ui.to_string(), "ui");
+        assert_eq!(SeamType::Event.to_string(), "event");
+        assert_eq!(SeamType::Config.to_string(), "config");
+    }
+
+    #[test]
+    fn adapter_type_display() {
+        assert_eq!(AdapterType::Facade.to_string(), "facade");
+        assert_eq!(AdapterType::Translator.to_string(), "translator");
+        assert_eq!(AdapterType::Proxy.to_string(), "proxy");
+        assert_eq!(AdapterType::StateBridge.to_string(), "state_bridge");
+        assert_eq!(AdapterType::AuthBridge.to_string(), "auth_bridge");
+    }
+
+    // ── topological_sort_clusters ────────────────────────────────────────────
+
+    #[test]
+    fn topological_sort_single_cluster_no_edges() {
+        let clusters = vec![BoundaryCluster {
+            cluster_id: "only".into(), name: "Only".into(), files: vec![], internal_edges: 0, shared_across: vec![],
+        }];
+        let order = topological_sort_clusters(&clusters, &[]);
+        assert_eq!(order, vec!["only"]);
+    }
+
+    #[test]
+    fn topological_sort_respects_dependency_order() {
+        let clusters = vec![
+            BoundaryCluster { cluster_id: "a".into(), name: "A".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
+            BoundaryCluster { cluster_id: "b".into(), name: "B".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
+            BoundaryCluster { cluster_id: "c".into(), name: "C".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
+        ];
+        let edges = vec![
+            CrossBoundaryEdge { source_cluster: "a".into(), target_cluster: "b".into(), source_file: "".into(), target_file: "".into(), edge_kind: "".into() },
+            CrossBoundaryEdge { source_cluster: "b".into(), target_cluster: "c".into(), source_file: "".into(), target_file: "".into(), edge_kind: "".into() },
+        ];
+        let order = topological_sort_clusters(&clusters, &edges);
+        assert_eq!(order.len(), 3);
+        let pos_a = order.iter().position(|x| x == "a").unwrap();
+        let pos_b = order.iter().position(|x| x == "b").unwrap();
+        let pos_c = order.iter().position(|x| x == "c").unwrap();
+        assert!(pos_a < pos_b, "a must come before b");
+        assert!(pos_b < pos_c, "b must come before c");
+    }
+
+    // ── risk summary recommendation ───────────────────────────────────────────
+
+    #[test]
+    fn risk_summary_low_risk_recommendation() {
+        let input = PlanInput {
+            project_id: "test".into(),
+            boundaries: vec![BoundaryCluster {
+                cluster_id: "c1".into(),
+                name: "Simple".into(),
+                files: vec!["Simple.aspx".into()],
+                internal_edges: 1,
+                shared_across: vec![],
+            }],
+            cross_boundary_edges: vec![],
+            global_state_files: vec![],
+            database_files: vec![],
+            timestamp_ms: 0,
+            solution_structure: None,
+        };
+        let plan = generate_migration_plan(&input);
+        assert!(
+            plan.risk_summary.recommendation.contains("Low risk")
+                || plan.risk_summary.recommendation.contains("standard review"),
+            "no high-risk items should produce low-risk recommendation: {}",
+            plan.risk_summary.recommendation
+        );
+    }
 }

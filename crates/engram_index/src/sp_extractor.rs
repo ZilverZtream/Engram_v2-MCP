@@ -323,9 +323,17 @@ pub fn parse_sp_definitions(source: &str) -> Vec<StoredProcedureDefinition> {
     for cap in alter_re.captures_iter(source) {
         let m = cap.get(0).expect("full match");
         let name = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-        // Only add ALTER if no CREATE at the same position
-        if !proc_starts.iter().any(|(pos, _)| *pos == m.start()) {
-            proc_starts.push((m.start(), name));
+        let alter_start = m.start();
+        // Skip this ALTER match if it falls within an already-recorded CREATE OR ALTER span.
+        // CREATE OR ALTER PROCEDURE contains the word ALTER, so the alter_re would match it
+        // as a second procedure start at a different offset than the create_re match.
+        let already_covered = proc_starts.iter().any(|(pos, _)| {
+            // The CREATE OR ALTER match starts before this ALTER position and covers it
+            // (spans at least "CREATE OR ALTER " = ~16 chars ahead).
+            *pos < alter_start && alter_start.saturating_sub(*pos) < 32
+        });
+        if !already_covered {
+            proc_starts.push((alter_start, name));
         }
     }
 
@@ -1701,5 +1709,538 @@ End Class
             "Should detect SqlDataAdapter constructor SP call, got: {:?}",
             sp_names
         );
+    }
+
+    // ── Additional tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn extract_sp_with_set_options() {
+        let sql = r#"
+CREATE PROCEDURE usp_GetActiveUsers
+AS
+BEGIN
+    SET NOCOUNT ON
+    SET XACT_ABORT ON
+    SELECT UserId, UserName FROM Users WHERE Active = 1
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_GetActiveUsers");
+        assert!(
+            defs[0].tables_read.contains(&"Users".to_string()),
+            "Should read Users table"
+        );
+    }
+
+    #[test]
+    fn extract_sp_with_multiple_resultsets() {
+        let sql = r#"
+CREATE PROCEDURE usp_GetDashboard
+    @UserId INT
+AS
+BEGIN
+    SELECT OrderId, Total FROM Orders WHERE UserId = @UserId
+    SELECT ProductId, Name FROM Products WHERE Active = 1
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        let sp = &defs[0];
+        // return_columns come from the FIRST select statement only
+        assert!(!sp.return_columns.is_empty(), "Should detect return columns");
+        assert!(
+            sp.tables_read.contains(&"Orders".to_string()),
+            "Should read Orders"
+        );
+        assert!(
+            sp.tables_read.contains(&"Products".to_string()),
+            "Should read Products"
+        );
+    }
+
+    #[test]
+    fn extract_sp_internal_variable_declared() {
+        let sql = r#"
+CREATE PROCEDURE usp_CalcTotal
+    @OrderId INT
+AS
+BEGIN
+    DECLARE @Total DECIMAL(18,2)
+    DECLARE @Tax DECIMAL(18,2)
+    SELECT @Total = SUM(Price * Qty) FROM OrderLines WHERE OrderId = @OrderId
+    SET @Tax = @Total * 0.1
+    SELECT @Total + @Tax AS GrandTotal
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_CalcTotal");
+        // DECLARE is inside body so tables_read should have OrderLines
+        assert!(
+            defs[0].tables_read.contains(&"OrderLines".to_string()),
+            "Should read OrderLines"
+        );
+    }
+
+    #[test]
+    fn extract_sp_error_handling() {
+        let sql = r#"
+CREATE PROCEDURE usp_SafeInsert
+    @Name NVARCHAR(100)
+AS
+BEGIN
+    BEGIN TRY
+        INSERT INTO Products (Name) VALUES (@Name)
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE()
+        RAISERROR(@ErrMsg, 16, 1)
+    END CATCH
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_SafeInsert");
+        assert!(
+            defs[0].tables_written.contains(&"Products".to_string()),
+            "Should write Products"
+        );
+    }
+
+    #[test]
+    fn extract_sp_dynamic_sql() {
+        let sql = r#"
+CREATE PROCEDURE usp_RunDynamic
+    @TableName NVARCHAR(128)
+AS
+BEGIN
+    DECLARE @sql NVARCHAR(MAX)
+    SET @sql = 'SELECT * FROM ' + @TableName
+    EXEC(@sql)
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert!(
+            defs[0].has_dynamic_sql,
+            "EXEC(@sql) should be detected as dynamic SQL"
+        );
+    }
+
+    #[test]
+    fn extract_sp_temp_table_created() {
+        let sql = r#"
+CREATE PROCEDURE usp_BuildTemp
+AS
+BEGIN
+    SELECT OrderId, CustomerId
+    INTO #TempOrders
+    FROM Orders
+    WHERE Status = 'Pending'
+
+    SELECT * FROM #TempOrders
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        // #TempOrders starts with '#' so should be filtered from tables_read
+        assert!(
+            defs[0].tables_read.contains(&"Orders".to_string()),
+            "Should read Orders"
+        );
+        assert!(
+            !defs[0].tables_read.contains(&"#TempOrders".to_string()),
+            "Temp table should not appear in tables_read"
+        );
+    }
+
+    #[test]
+    fn extract_sp_with_cursor() {
+        let sql = r#"
+CREATE PROCEDURE usp_CursorProc
+AS
+BEGIN
+    DECLARE @Id INT
+    DECLARE myCursor CURSOR FOR
+        SELECT Id FROM Items WHERE Active = 1
+    OPEN myCursor
+    FETCH NEXT FROM myCursor INTO @Id
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        UPDATE Items SET ProcessedAt = GETDATE() WHERE Id = @Id
+        FETCH NEXT FROM myCursor INTO @Id
+    END
+    CLOSE myCursor
+    DEALLOCATE myCursor
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert!(defs[0].has_cursor, "Should detect CURSOR usage");
+        assert!(
+            defs[0].tables_read.contains(&"Items".to_string()),
+            "Should read Items"
+        );
+        assert!(
+            defs[0].tables_written.contains(&"Items".to_string()),
+            "Should write Items"
+        );
+    }
+
+    #[test]
+    fn extract_trigger_after_insert() {
+        // Triggers are not stored procedures — parse_sp_definitions should NOT
+        // match them (no CREATE PROCEDURE keyword). This test verifies no false
+        // positives from trigger files in the same SQL script.
+        let sql = r#"
+CREATE TRIGGER trg_AfterInsert ON Orders
+AFTER INSERT
+AS
+BEGIN
+    INSERT INTO AuditLog (Action, TableName, ActionDate)
+    SELECT 'INSERT', 'Orders', GETDATE()
+END
+GO
+
+CREATE PROCEDURE usp_GetOrders
+AS
+BEGIN
+    SELECT * FROM Orders
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        // Should only find the procedure, not the trigger
+        assert_eq!(defs.len(), 1, "Trigger should not be parsed as a procedure");
+        assert_eq!(defs[0].name, "usp_GetOrders");
+    }
+
+    #[test]
+    fn extract_view_created() {
+        // CREATE VIEW is not a procedure. Verify no false positives.
+        let sql = r#"
+CREATE VIEW vw_ActiveOrders AS
+    SELECT OrderId, CustomerId, TotalAmount
+    FROM Orders
+    WHERE Status != 'Cancelled'
+GO
+
+CREATE PROCEDURE usp_CountViews
+AS
+BEGIN
+    SELECT COUNT(*) FROM vw_ActiveOrders
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1, "Only the procedure should be extracted");
+        assert_eq!(defs[0].name, "usp_CountViews");
+    }
+
+    #[test]
+    fn multiple_procedures_in_one_script() {
+        let sql = r#"
+CREATE PROCEDURE usp_First
+AS
+BEGIN
+    SELECT * FROM TableA
+END
+GO
+
+CREATE PROCEDURE usp_Second
+    @Id INT
+AS
+BEGIN
+    SELECT * FROM TableB WHERE Id = @Id
+END
+GO
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 2, "Should extract exactly 2 procedures");
+        let names: Vec<&str> = defs.iter().map(|d| d.name.as_str()).collect();
+        assert!(names.contains(&"usp_First"), "Should find usp_First");
+        assert!(names.contains(&"usp_Second"), "Should find usp_Second");
+
+        let first = defs.iter().find(|d| d.name == "usp_First").unwrap();
+        let second = defs.iter().find(|d| d.name == "usp_Second").unwrap();
+
+        assert_eq!(first.parameters.len(), 0);
+        assert_eq!(second.parameters.len(), 1);
+        assert_eq!(second.parameters[0].name, "@Id");
+    }
+
+    #[test]
+    fn extract_sp_with_no_as_keyword() {
+        // A CREATE PROC with no AS (unlikely but handled): body extraction returns empty.
+        let sql = r#"
+CREATE PROCEDURE usp_NoBody
+    @X INT
+"#;
+        let defs = parse_sp_definitions(sql);
+        // Should still be found even without AS
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_NoBody");
+        assert_eq!(defs[0].parameters.len(), 1);
+    }
+
+    #[test]
+    fn extract_sp_return_type_integer() {
+        // RETURNS in a CREATE FUNCTION should not appear in procedures, but
+        // a procedure can have a RETURN statement. Verify no crash.
+        let sql = r#"
+CREATE PROCEDURE usp_CheckFlag
+    @Flag INT
+AS
+BEGIN
+    IF @Flag = 0
+        RETURN 0
+    RETURN 1
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_CheckFlag");
+    }
+
+    #[test]
+    fn extract_sp_drop_if_exists_pattern() {
+        // IF OBJECT_ID(...) IS NOT NULL DROP PROCEDURE ... followed by CREATE
+        let sql = r#"
+IF OBJECT_ID('dbo.usp_Legacy', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_Legacy
+GO
+
+CREATE PROCEDURE dbo.usp_Legacy
+    @Id INT
+AS
+BEGIN
+    SELECT * FROM LegacyTable WHERE Id = @Id
+END
+GO
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_Legacy");
+        assert!(
+            defs[0].tables_read.contains(&"LegacyTable".to_string()),
+            "Should read LegacyTable"
+        );
+    }
+
+    #[test]
+    fn extract_sp_with_schema_bracket_prefix() {
+        let sql = r#"
+CREATE PROCEDURE [dbo].[usp_BracketedName]
+    @Input NVARCHAR(50)
+AS
+BEGIN
+    SELECT * FROM [dbo].[SomeTable] WHERE Col = @Input
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(
+            defs[0].name, "usp_BracketedName",
+            "Schema+brackets should be stripped"
+        );
+    }
+
+    #[test]
+    fn extract_sp_or_alter_pattern() {
+        // CREATE OR ALTER PROCEDURE (SQL Server 2016+)
+        let sql = r#"
+CREATE OR ALTER PROCEDURE usp_OA_Test
+    @Val INT
+AS
+BEGIN
+    SELECT @Val + 1 AS Result
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].name, "usp_OA_Test");
+    }
+
+    #[test]
+    fn extract_sp_reads_table_from_join() {
+        let sql = r#"
+CREATE PROCEDURE usp_JoinTest
+AS
+BEGIN
+    SELECT o.Id, c.Name, p.Title
+    FROM Orders o
+    INNER JOIN Customers c ON o.CustomerId = c.Id
+    LEFT JOIN Products p ON o.ProductId = p.Id
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        let sp = &defs[0];
+        assert!(sp.tables_read.contains(&"Orders".to_string()));
+        assert!(sp.tables_read.contains(&"Customers".to_string()));
+        assert!(sp.tables_read.contains(&"Products".to_string()));
+    }
+
+    #[test]
+    fn extract_sp_writes_delete() {
+        let sql = r#"
+CREATE PROCEDURE usp_CleanupOld
+    @CutoffDate DATETIME
+AS
+BEGIN
+    DELETE FROM AuditLog WHERE LogDate < @CutoffDate
+    DELETE FROM TempData WHERE CreatedDate < @CutoffDate
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert!(defs[0].tables_written.contains(&"AuditLog".to_string()));
+        assert!(defs[0].tables_written.contains(&"TempData".to_string()));
+    }
+
+    #[test]
+    fn extract_sp_update_writes_table() {
+        let sql = r#"
+CREATE PROCEDURE usp_UpdateStatus
+    @OrderId INT,
+    @Status NVARCHAR(20)
+AS
+BEGIN
+    UPDATE Orders SET Status = @Status, UpdatedAt = GETDATE() WHERE OrderId = @OrderId
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        assert!(defs[0].tables_written.contains(&"Orders".to_string()));
+    }
+
+    #[test]
+    fn extract_sp_empty_source_returns_empty() {
+        let defs = parse_sp_definitions("");
+        assert!(defs.is_empty(), "Empty source should return empty Vec");
+    }
+
+    #[test]
+    fn extract_sp_no_procedures_returns_empty() {
+        let sql = r#"
+SELECT * FROM SomeTable WHERE Id = 1
+INSERT INTO Log (Msg) VALUES ('test')
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert!(
+            defs.is_empty(),
+            "Plain SQL without CREATE PROC should return empty"
+        );
+    }
+
+    #[test]
+    fn extract_sp_csharp_type_mapping_in_metadata() {
+        let sql = r#"
+CREATE PROCEDURE usp_TypeTest
+    @IntParam INT,
+    @GuidParam UNIQUEIDENTIFIER,
+    @DateParam DATETIME2,
+    @BitParam BIT,
+    @MoneyParam MONEY
+AS
+BEGIN
+    SELECT 1
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        let sp = &defs[0];
+        assert_eq!(sp.parameters.len(), 5);
+
+        assert_eq!(sp.parameters[0].csharp_type, "int");
+        assert_eq!(sp.parameters[1].csharp_type, "Guid");
+        assert_eq!(sp.parameters[2].csharp_type, "DateTime");
+        assert_eq!(sp.parameters[3].csharp_type, "bool");
+        assert_eq!(sp.parameters[4].csharp_type, "decimal");
+    }
+
+    #[test]
+    fn extract_sp_symbols_have_correct_edge_source_kind() {
+        let sql = r#"
+CREATE PROCEDURE usp_EdgeTest
+AS
+BEGIN
+    SELECT * FROM EdgeTable
+    INSERT INTO WriteTable (X) VALUES (1)
+END
+"#;
+        let rel = RelPath::new("sp/edge_test.sql");
+        let (_, edges) = extract_stored_procedures(&rel, sql);
+
+        for e in &edges {
+            if e.kind == "stored_proc_reads_table" || e.kind == "stored_proc_writes_table" {
+                assert_eq!(e.source_kind, "stored_procedure");
+                assert_eq!(e.source_language, "sql");
+            }
+        }
+
+        let reads: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "stored_proc_reads_table")
+            .collect();
+        assert!(reads.iter().any(|e| e.target_name == "EdgeTable"));
+
+        let writes: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "stored_proc_writes_table")
+            .collect();
+        assert!(writes.iter().any(|e| e.target_name == "WriteTable"));
+    }
+
+    #[test]
+    fn extract_sp_called_procedures_via_execute() {
+        let sql = r#"
+CREATE PROCEDURE usp_Parent
+AS
+BEGIN
+    EXEC usp_ChildA
+    EXECUTE usp_ChildB
+    EXEC [dbo].[usp_ChildC]
+    EXEC sp_executesql N'SELECT 1'
+END
+"#;
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        let sp = &defs[0];
+        assert!(sp.called_procedures.contains(&"usp_ChildA".to_string()));
+        assert!(sp.called_procedures.contains(&"usp_ChildB".to_string()));
+        assert!(sp.called_procedures.contains(&"usp_ChildC".to_string()));
+        // sp_executesql is dynamic SQL — should NOT appear in called_procedures
+        assert!(
+            !sp.called_procedures.contains(&"sp_executesql".to_string()),
+            "sp_executesql should be filtered out from called procedures"
+        );
+    }
+
+    #[test]
+    fn extract_sp_return_columns_with_alias() {
+        let body = r#"
+    SELECT o.OrderId AS Id, c.CustomerName AS Customer, o.TotalAmount
+    FROM Orders o
+    JOIN Customers c ON o.CustomerId = c.Id
+"#;
+        let cols = extract_return_columns(body);
+        assert!(cols.contains(&"Id".to_string()), "AS alias should be used");
+        assert!(
+            cols.contains(&"Customer".to_string()),
+            "AS alias should be used"
+        );
+        assert!(
+            cols.contains(&"TotalAmount".to_string()),
+            "Column without alias"
+        );
+    }
+
+    #[test]
+    fn extract_sp_line_count_reflects_body_size() {
+        let sql = "CREATE PROCEDURE usp_OneLineBody AS BEGIN SELECT 1 END";
+        let defs = parse_sp_definitions(sql);
+        assert_eq!(defs.len(), 1);
+        // All on one line means line_count should be at least 1
+        assert!(defs[0].line_count >= 1);
     }
 }
