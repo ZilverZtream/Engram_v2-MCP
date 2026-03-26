@@ -1963,9 +1963,13 @@ fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::E
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "text-embedding-3-small".into());
-            Arc::new(engram_ml::embed::RemoteEmbedder::openai(
-                model, api_key, api_base, 1536,
-            ))
+            match engram_ml::embed::RemoteEmbedder::openai(model, api_key, api_base, 1536) {
+                Ok(e) => Arc::new(e),
+                Err(err) => {
+                    tracing::error!("ENG-AUD-2026-0007: failed to build OpenAI embedder, falling back to ProjectionEmbedder: {err}");
+                    Arc::new(engram_ml::embed::ProjectionEmbedder::new(crate::vector::VECTOR_DIM))
+                }
+            }
         }
         "ollama" => {
             let url = cfg
@@ -1976,7 +1980,13 @@ fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::E
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "nomic-embed-text".into());
-            Arc::new(engram_ml::embed::RemoteEmbedder::ollama(model, url, 768))
+            match engram_ml::embed::RemoteEmbedder::ollama(model, url, 768) {
+                Ok(e) => Arc::new(e),
+                Err(err) => {
+                    tracing::error!("ENG-AUD-2026-0007: failed to build Ollama embedder, falling back to ProjectionEmbedder: {err}");
+                    Arc::new(engram_ml::embed::ProjectionEmbedder::new(crate::vector::VECTOR_DIM))
+                }
+            }
         }
         "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
         _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(

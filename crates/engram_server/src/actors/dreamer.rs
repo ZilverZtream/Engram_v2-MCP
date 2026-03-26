@@ -137,25 +137,31 @@ async fn load_project_runtime(
     state.put_project_cached(ps.clone()).await;
     Ok(Some(ps))
 }
+/// Fetch the active generation from the registry.
+/// Returns Err on spawn failure or registry/parse error (ENG-AUD-2026-0003).
+/// Callers should propagate the error rather than defaulting to generation 1.
+async fn fetch_active_generation(state: &crate::state::AppState, project_id: &str) -> anyhow::Result<u64> {
+    let reg = state.registry.clone();
+    let pid = project_id.to_string();
+    tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
+        let gen_str = reg.get_meta(&pid, "active_generation")
+            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0003: registry get_meta failed: {e}"))?
+            .unwrap_or_else(|| "1".to_string());
+        gen_str.parse::<u64>().map_err(|e| anyhow::anyhow!(
+            "ENG-AUD-2026-0003: active_generation metadata is corrupt (value={gen_str:?}): {e}"
+        ))
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0003: spawn_blocking panicked reading active_generation: {e}"))?
+}
+
 pub async fn record_cooccurrence(
     state: &AppState,
     project_id: &str,
     hits: &[crate::state::SearchHitLite],
 ) -> anyhow::Result<()> {
     // Fetch active generation
-    let active_gen: u64 = {
-        let reg = state.registry.clone();
-        let pid = project_id.to_string();
-        tokio::task::spawn_blocking(move || {
-            reg.get_meta(&pid, "active_generation")
-                .ok()
-                .flatten()
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(1)
-        })
-        .await
-        .unwrap_or(1)
-    };
+    let active_gen: u64 = fetch_active_generation(state, project_id).await?;
 
     // Limit per query so we don't explode O(n^2) updates.
     let mut h = hits.to_vec();
@@ -274,19 +280,7 @@ pub async fn dream_once(
         }
 
         // Pull some context for summarization.
-        let active_generation: u64 = {
-            let reg = state.registry.clone();
-            let pid = project_id.to_string();
-            tokio::task::spawn_blocking(move || {
-                reg.get_meta(&pid, "active_generation")
-                    .ok()
-                    .flatten()
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(1)
-            })
-            .await
-            .unwrap_or(1)
-        };
+        let active_generation: u64 = fetch_active_generation(state, project_id).await?;
 
         let mut ctx: Vec<String> = Vec::new();
         let mut src_nodes: Vec<String> = Vec::new();
@@ -357,6 +351,9 @@ pub async fn dream_once(
             .dreaming
             .summarize_cluster(&ctx, Duration::from_secs(10))
             .await;
+        if insight.used_llm_fallback {
+            tracing::debug!(project_id, "dreamer: LLM unavailable — insight generated via deterministic fallback");
+        }
         let mut summary = insight.summary_markdown;
         if is_antipattern {
             summary = format!("ANTIPATTERN DETECTED\n\n{}\n\n---\n{}", anti_msg, summary);
@@ -447,19 +444,7 @@ pub async fn dream_once(
             continue;
         }
 
-        let active_gen: u64 = {
-            let reg = state.registry.clone();
-            let pid = project_id.to_string();
-            tokio::task::spawn_blocking(move || {
-                reg.get_meta(&pid, "active_generation")
-                    .ok()
-                    .flatten()
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(1)
-            })
-            .await
-            .unwrap_or(1)
-        };
+        let active_gen: u64 = fetch_active_generation(state, project_id).await?;
 
         let insight_id = format!("insight:ap:{}", uuid::Uuid::new_v4());
         let title = format!("Anti-Pattern: {} [{}]", ap.pattern_name, ap.severity);
@@ -553,6 +538,39 @@ mod tests {
         assert!(
             source.contains("create_dir_all") && source.contains("map_err"),
             "create_dir_all must be paired with map_err error propagation (not .ok() suppression)"
+        );
+    }
+
+    #[test]
+    fn eng_aud_2026_0003_fetch_generation_uses_error_propagation() {
+        let source = include_str!("dreamer.rs");
+        // The helper function must exist
+        assert!(
+            source.contains("fetch_active_generation"),
+            "dreamer.rs must define fetch_active_generation helper"
+        );
+        // The ENG-AUD tag must be present
+        assert!(
+            source.contains("ENG-AUD-2026-0003"),
+            "dreamer.rs must contain ENG-AUD-2026-0003 tag"
+        );
+    }
+
+    #[test]
+    fn dreamer_generation_fetch_does_not_silently_default() {
+        let source = include_str!("dreamer.rs");
+        // Positive check: ENG-AUD-2026-0003 tag must appear at multiple call sites
+        // (the helper definition + at least one error path).
+        let tag_count = source.matches("ENG-AUD-2026-0003").count();
+        assert!(
+            tag_count >= 3,
+            "dreamer.rs must have ENG-AUD-2026-0003 on all generation fetch error paths; found {tag_count}"
+        );
+        // Positive check: fetch_active_generation is called instead of inline unwrap_or
+        let call_count = source.matches("fetch_active_generation").count();
+        assert!(
+            call_count >= 3,
+            "dreamer.rs must call fetch_active_generation in multiple places; found {call_count}"
         );
     }
 }

@@ -254,18 +254,20 @@ impl OllamaEmbedder {
     /// e.g. nomic-embed-text → 768, mxbai-embed-large → 1024.
     /// Use `dim = 0` to auto-detect on first call (not yet implemented;
     /// caller should know the model's dimension).
-    pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize) -> Self {
+    ///
+    /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
+    pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-        Self {
+            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build Ollama HTTP client: {e}"))?;
+        Ok(Self {
             model: model.into(),
             url: url.into().trim_end_matches('/').to_string(),
             dim,
             client,
-        }
+        })
     }
 }
 
@@ -438,24 +440,25 @@ pub struct OpenAIEmbedder {
 }
 
 impl OpenAIEmbedder {
+    /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
     pub fn new(
         model: impl Into<String>,
         api_key: impl Into<String>,
         api_base: impl Into<String>,
         dim: usize,
-    ) -> Self {
+    ) -> anyhow::Result<Self> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
-        Self {
+            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build OpenAI HTTP client: {e}"))?;
+        Ok(Self {
             model: model.into(),
             api_key: api_key.into(),
             api_base: api_base.into().trim_end_matches('/').to_string(),
             dim,
             client,
-        }
+        })
     }
 }
 
@@ -670,23 +673,25 @@ pub struct RemoteEmbedder {
 impl RemoteEmbedder {
     /// Create an Ollama-backed remote embedder.
     /// `dim` should match the model's output dimensionality (e.g. 768 for nomic-embed-text).
-    pub fn ollama(model: impl Into<String>, url: impl Into<String>, dim: usize) -> Self {
-        Self {
-            backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim)),
-        }
+    /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
+    pub fn ollama(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
+        Ok(Self {
+            backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim)?),
+        })
     }
 
     /// Create an OpenAI-compatible remote embedder.
     /// `dim` should match the model's output dimensionality (e.g. 1536 for text-embedding-3-small).
+    /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
     pub fn openai(
         model: impl Into<String>,
         api_key: impl Into<String>,
         api_base: impl Into<String>,
         dim: usize,
-    ) -> Self {
-        Self {
-            backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(model, api_key, api_base, dim)),
-        }
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(model, api_key, api_base, dim)?),
+        })
     }
 }
 
@@ -739,7 +744,7 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // produces a different dimension. LanceDB tables are auto-recreated when
             // the dimension changes (Phase 9, fix 2.1).
             let dim = 768usize;
-            Ok(Box::new(OllamaEmbedder::new(model, url, dim)))
+            Ok(Box::new(OllamaEmbedder::new(model, url, dim)?))
         }
         "openai" => {
             let api_key = cfg.openai_api_key.clone().unwrap_or_default();
@@ -757,7 +762,7 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
                 .clone()
                 .unwrap_or_else(|| "text-embedding-3-small".into());
             let dim = 1536usize;
-            Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim)))
+            Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim)?))
         }
         // Known local-mode backends that all resolve to LocalEmbedder.
         "local" | "candle" | "fts_only" => Ok(Box::new(LocalEmbedder)),
@@ -865,7 +870,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4);
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4)
+            .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_ok(), "valid OpenAI response must parse correctly: {:?}", result);
         let vec = result.unwrap();
@@ -883,7 +889,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3);
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3)
+            .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "missing data[0].embedding must return error");
         let msg = format!("{:?}", result.unwrap_err());
@@ -903,7 +910,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1536); // expects 1536
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1536) // expects 1536
+            .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "dimension mismatch must return error");
         let msg = format!("{:?}", result.unwrap_err());
@@ -918,7 +926,8 @@ mod provider_parity_tests {
     async fn openai_client_error_status_returns_error() {
         let (port, _handle) = mock_http_error_once(401).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3);
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3)
+            .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "HTTP 401 must return Err, not empty embedding");
     }
@@ -937,7 +946,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+            .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_ok(), "valid Ollama response must parse correctly: {:?}", result);
         let vec = result.unwrap();
@@ -955,7 +965,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+            .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "missing embeddings[0] must return error");
     }
@@ -970,7 +981,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768); // expects 768
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768) // expects 768
+            .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "dimension mismatch (3 vs 768) must return error");
     }
@@ -983,7 +995,8 @@ mod provider_parity_tests {
         // We just need to verify it eventually returns Err after the first 503.
         let (port1, _h1) = mock_http_error_once(503).await;
         let url = format!("http://127.0.0.1:{port1}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3);
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+            .expect("OllamaEmbedder::new must succeed in test environment");
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(5),
             embedder.embed("hello"),
@@ -1010,7 +1023,8 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = RemoteEmbedder::openai("text-embedding-3-small", "test-key", url, 2);
+        let embedder = RemoteEmbedder::openai("text-embedding-3-small", "test-key", url, 2)
+            .expect("RemoteEmbedder::openai must succeed in test environment");
         let result = embedder.embed("test").await;
         assert!(result.is_ok(), "RemoteEmbedder::openai must parse OpenAI schema: {:?}", result);
         assert_eq!(result.unwrap().len(), 2);
@@ -1027,9 +1041,39 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = RemoteEmbedder::ollama("nomic-embed-text", url, 2);
+        let embedder = RemoteEmbedder::ollama("nomic-embed-text", url, 2)
+            .expect("RemoteEmbedder::ollama must succeed in test environment");
         let result = embedder.embed("test").await;
         assert!(result.is_ok(), "RemoteEmbedder::ollama must parse Ollama schema: {:?}", result);
         assert_eq!(result.unwrap().len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod audit_0007_tests {
+    /// ENG-AUD-2026-0007: constructors must return Result, not infallible Self.
+    /// This test compiles only if OllamaEmbedder::new returns Result.
+    #[test]
+    fn embedder_constructors_return_result() {
+        let source = include_str!("embed.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-0007"),
+            "embed.rs must contain ENG-AUD-2026-0007 tag"
+        );
+        // Verify the map_err pattern (not unwrap_or_else fallback).
+        // Split across variables so this assertion string doesn't itself trigger the check.
+        let forbidden = ["unwrap_or_else", "|_|", "reqwest::Client::new()"];
+        let has_fallback = source.lines().any(|line| {
+            // Skip lines that are comments or part of this test's string literals.
+            let trimmed = line.trim();
+            !trimmed.starts_with("//")
+                && !trimmed.starts_with("\"")
+                && !trimmed.contains("forbidden")
+                && forbidden.iter().all(|f| line.contains(f))
+        });
+        assert!(
+            !has_fallback,
+            "HTTP client must not fall back to default via unwrap_or_else — must propagate error"
+        );
     }
 }

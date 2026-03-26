@@ -374,12 +374,11 @@ fn graph_impact_metrics_are_accepted() {
 fn evidence_depth_from_str_parses_correctly() {
     use engram_server::services::evidence_orchestration::EvidenceDepth;
 
-    assert_eq!(EvidenceDepth::from_str("fast"), EvidenceDepth::Fast);
-    assert_eq!(EvidenceDepth::from_str("DEEP"), EvidenceDepth::Deep);
-    assert_eq!(EvidenceDepth::from_str("standard"), EvidenceDepth::Standard);
-    assert_eq!(
-        EvidenceDepth::from_str("unknown"),
-        EvidenceDepth::Standard,
-        "unknown string should default to Standard"
+    assert_eq!(EvidenceDepth::from_str("fast"), Ok(EvidenceDepth::Fast));
+    assert_eq!(EvidenceDepth::from_str("DEEP"), Ok(EvidenceDepth::Deep));
+    assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+    assert!(
+        EvidenceDepth::from_str("unknown").is_err(),
+        "unknown string should return an error"
     );
 }

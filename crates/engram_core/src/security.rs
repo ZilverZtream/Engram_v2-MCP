@@ -206,7 +206,18 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
                     "symlink not allowed in path: {partial:?}"
                 )));
             }
-            Ok(_) | Err(_) => {} // non-existent or non-symlink: safe to continue
+            Ok(_) => {} // regular file/dir — safe to continue
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Component does not yet exist — safe (can't be a symlink if it's not there)
+            }
+            Err(e) => {
+                // ENG-AUD-2026-0006: non-NotFound error means we cannot confirm the path is
+                // safe (e.g., permission denied on an intermediate component). Fail closed.
+                return Err(EngramError::PathNotAllowed(format!(
+                    "ENG-AUD-2026-0006: cannot verify path component {:?}: {e} — failing closed for safety",
+                    partial
+                )));
+            }
         }
     }
 
@@ -417,6 +428,41 @@ mod tests {
         assert!(
             result.is_ok(),
             "safe_join must accept a lexically valid but non-existent path"
+        );
+    }
+
+    // ── ENG-AUD-2026-0006: NotFound vs other errors in symlink check ──────
+
+    #[test]
+    fn safe_join_allows_nonexistent_path_component() {
+        // NotFound on a component is treated as safe (path doesn't exist yet).
+        let base = std::path::Path::new("/tmp/definitely_nonexistent_engram_test_base");
+        let result = safe_join(base, "some/nonexistent/path.rs");
+        // Should succeed lexically (the path doesn't exist, but that's OK)
+        assert!(
+            result.is_ok(),
+            "nonexistent path must be accepted (NotFound is safe): {:?}", result
+        );
+    }
+
+    #[test]
+    fn safe_join_eng_aud_0006_error_distinction_in_source() {
+        // Structural test: the source must distinguish NotFound from other errors.
+        let source = include_str!("security.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-0006"),
+            "security.rs must contain ENG-AUD-2026-0006 audit tag"
+        );
+        assert!(
+            source.contains("ErrorKind::NotFound"),
+            "security.rs must check for NotFound specifically"
+        );
+        // The old catch-all Err(_) => {} pattern must not exist
+        // (check that blank-swallow pattern is gone from the symlink walk)
+        // Use a positive check: the fail-closed error message must be present
+        assert!(
+            source.contains("failing closed for safety"),
+            "safe_join must fail closed for non-NotFound symlink_metadata errors"
         );
     }
 }

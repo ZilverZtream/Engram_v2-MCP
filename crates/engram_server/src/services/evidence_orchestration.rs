@@ -33,11 +33,15 @@ pub enum EvidenceDepth {
 
 impl EvidenceDepth {
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
-            "fast" => Self::Fast,
-            "deep" => Self::Deep,
-            _ => Self::Standard,
+            "fast" => Ok(Self::Fast),
+            "deep" => Ok(Self::Deep),
+            "standard" => Ok(Self::Standard),
+            "" => Ok(Self::Standard), // empty → default
+            other => Err(format!(
+                "ENG-AUD-2026-0002: unknown evidence_depth '{other}'; valid values: fast, standard, deep"
+            )),
         }
     }
 }
@@ -494,14 +498,30 @@ mod tests {
 
     #[test]
     fn evidence_depth_from_str_parses_all_variants() {
-        assert_eq!(EvidenceDepth::from_str("fast"), EvidenceDepth::Fast);
-        assert_eq!(EvidenceDepth::from_str("FAST"), EvidenceDepth::Fast);
-        assert_eq!(EvidenceDepth::from_str("deep"), EvidenceDepth::Deep);
-        assert_eq!(EvidenceDepth::from_str("Deep"), EvidenceDepth::Deep);
-        assert_eq!(EvidenceDepth::from_str("standard"), EvidenceDepth::Standard);
-        // Unknown strings default to Standard
-        assert_eq!(EvidenceDepth::from_str(""), EvidenceDepth::Standard);
-        assert_eq!(EvidenceDepth::from_str("unknown"), EvidenceDepth::Standard);
+        assert_eq!(EvidenceDepth::from_str("fast"), Ok(EvidenceDepth::Fast));
+        assert_eq!(EvidenceDepth::from_str("FAST"), Ok(EvidenceDepth::Fast));
+        assert_eq!(EvidenceDepth::from_str("deep"), Ok(EvidenceDepth::Deep));
+        assert_eq!(EvidenceDepth::from_str("Deep"), Ok(EvidenceDepth::Deep));
+        assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+        // Empty defaults to Standard (explicit)
+        assert_eq!(EvidenceDepth::from_str(""), Ok(EvidenceDepth::Standard));
+        // Unknown strings must now return Err (ENG-AUD-2026-0002)
+        assert!(EvidenceDepth::from_str("unknown").is_err());
+        assert!(EvidenceDepth::from_str("stnadard").is_err());
+        assert!(EvidenceDepth::from_str("deepest").is_err());
+    }
+
+    #[test]
+    fn evidence_depth_invalid_value_returns_error_message() {
+        let err = EvidenceDepth::from_str("deepest").unwrap_err();
+        assert!(
+            err.contains("ENG-AUD-2026-0002"),
+            "error must contain audit tag, got: {err}"
+        );
+        assert!(
+            err.contains("deepest"),
+            "error must echo the invalid value, got: {err}"
+        );
     }
 
     #[test]
