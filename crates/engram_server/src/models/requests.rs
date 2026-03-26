@@ -126,6 +126,7 @@ pub const MAX_SQL_LENGTH: usize = 1_000_000;
 // -------------------- Project lifecycle --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct IndexProjectRequest {
     pub directory: String,
     pub project_name: String,
@@ -137,6 +138,7 @@ pub struct IndexProjectRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
     pub project_id: String,
     #[serde(default = "default_true")]
@@ -181,6 +183,7 @@ pub struct RepairProjectRequest {
 // -------------------- Search --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
+#[serde(deny_unknown_fields)]
 pub struct SearchMemoryRequest {
     pub query: String,
     pub project_id: String,
@@ -223,6 +226,7 @@ pub struct GetChunkRequest {
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct GraphSearchRequest {
     pub project_id: String,
     pub query: String,
@@ -1055,6 +1059,7 @@ pub struct ComputeBlastRadiusRequest {
 // -------------------- Autonomous Decision Gate --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AutonomousDecisionGateRequest {
     pub project_id: String,
     /// Diff or code snippet representing the proposed change.
@@ -1882,4 +1887,64 @@ pub struct CheckEditSafetyRequest {
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
+}
+
+#[cfg(test)]
+mod unknown_field_tests {
+    use super::*;
+
+    #[test]
+    fn index_project_rejects_unknown_fields() {
+        // Correct JSON should still deserialize fine
+        let good = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms"}"#;
+        let result: Result<IndexProjectRequest, _> = serde_json::from_str(good);
+        assert!(result.is_ok(), "valid JSON must deserialize: {:?}", result);
+
+        // Unknown field must be rejected
+        let bad = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms","max_reslts":5}"#;
+        let result: Result<IndexProjectRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "unknown field max_reslts must be rejected");
+    }
+
+    #[test]
+    fn update_project_rejects_unknown_fields() {
+        let bad = r#"{"project_id":"p1","projcet_type":"aspnet"}"#;
+        let result: Result<UpdateProjectRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "unknown field projcet_type must be rejected");
+    }
+
+    #[test]
+    fn search_memory_rejects_unknown_fields() {
+        // valid
+        let good = r#"{"project_id":"p1","query":"hello"}"#;
+        let result: Result<SearchMemoryRequest, _> = serde_json::from_str(good);
+        assert!(result.is_ok(), "valid search JSON must deserialize: {:?}", result);
+
+        // typo in field name
+        let bad = r#"{"project_id":"p1","qurey":"hello","top_kk":5}"#;
+        let result: Result<SearchMemoryRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "typo field qurey/top_kk must be rejected");
+    }
+
+    #[test]
+    fn graph_search_rejects_unknown_fields() {
+        let good = r#"{"project_id":"p1","query":"hello"}"#;
+        let result: Result<GraphSearchRequest, _> = serde_json::from_str(good);
+        assert!(result.is_ok(), "valid graph search JSON must deserialize: {:?}", result);
+
+        let bad = r#"{"project_id":"p1","query":"hello","unknwon_field":true}"#;
+        let result: Result<GraphSearchRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "unknown field must be rejected");
+    }
+
+    #[test]
+    fn adp_request_rejects_unknown_fields() {
+        let good = r#"{"project_id":"p1","proposed_change":"diff"}"#;
+        let result: Result<AutonomousDecisionGateRequest, _> = serde_json::from_str(good);
+        assert!(result.is_ok(), "valid ADP JSON must deserialize: {:?}", result);
+
+        let bad = r#"{"project_id":"p1","proposed_change":"diff","evidnece_depth":"fast"}"#;
+        let result: Result<AutonomousDecisionGateRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "typo field evidnece_depth must be rejected");
+    }
 }

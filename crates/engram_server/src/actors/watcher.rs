@@ -154,13 +154,30 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                         let active_gen = {
                             let reg = state_clone.registry.clone();
                             let pid_clone = pid.clone();
-                            tokio::task::spawn_blocking(move || {
-                                reg.get_meta(&pid_clone, "active_generation")
-                                    .ok()
-                                    .flatten()
-                                    .and_then(|s| s.parse::<u64>().ok())
-                                    .unwrap_or(1)
-                            }).await.unwrap_or(1)
+                            match tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
+                                let gen_str = reg.get_meta(&pid_clone, "active_generation")
+                                    .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0004: registry get_meta failed: {e}"))?
+                                    .unwrap_or_else(|| "1".to_string());
+                                gen_str.parse::<u64>().map_err(|e| anyhow::anyhow!(
+                                    "ENG-AUD-2026-0004: active_generation metadata corrupt (value={gen_str:?}): {e}"
+                                ))
+                            }).await {
+                                Ok(Ok(g)) => g,
+                                Ok(Err(e)) => {
+                                    tracing::error!(
+                                        project_id = %pid,
+                                        "ENG-AUD-2026-0004: failed to read active_generation — skipping watcher update: {e}"
+                                    );
+                                    return;
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        project_id = %pid,
+                                        "ENG-AUD-2026-0004: spawn_blocking panicked reading active_generation — skipping watcher update: {e}"
+                                    );
+                                    return;
+                                }
+                            }
                         };
                         let new_gen = active_gen.saturating_add(1);
                         let max_commits = state_clone.cfg.max_commits_per_watch;
@@ -285,6 +302,20 @@ mod tests {
         assert!(
             tag_count >= 3,
             "watcher.rs must have ENG-AUD-S1-0001 on all bootstrap error paths; found {tag_count}"
+        );
+    }
+
+    #[test]
+    fn eng_aud_2026_0004_generation_fetch_does_not_silently_default() {
+        let source = include_str!("watcher.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-0004"),
+            "watcher.rs must contain ENG-AUD-2026-0004 audit tag"
+        );
+        // Verify the explicit error-and-return path
+        assert!(
+            source.contains("skipping watcher update"),
+            "watcher.rs must log and skip (not silently default generation) on fetch failure"
         );
     }
 }

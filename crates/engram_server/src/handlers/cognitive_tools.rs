@@ -2140,7 +2140,7 @@ impl Engram {
         };
         use crate::services::evidence_orchestration::{EvidenceDepth, EvidenceOverrides};
 
-        let depth = EvidenceDepth::from_str(evidence_depth);
+        let depth = EvidenceDepth::from_str(evidence_depth).map_err(|e| McpError::invalid_params(e, None))?;
         let mut items = Vec::with_capacity(wave_items.len());
 
         for item in &wave_items {
@@ -2243,7 +2243,7 @@ impl Engram {
         let risk_profile =
             crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile);
         let depth =
-            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth);
+            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth).map_err(|e| McpError::invalid_params(e, None))?;
 
         let adp_input = crate::services::evidence_orchestration::gather_evidence(
             &self.state,

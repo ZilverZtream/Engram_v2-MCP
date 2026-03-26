@@ -109,6 +109,9 @@ pub struct DreamInsight {
     pub title: String,
     pub summary_markdown: String,
     pub key_terms: Vec<String>,
+    /// True when the result was produced by deterministic fallback (not the configured LLM).
+    /// Callers can use this to annotate reports or downweight confidence. (ENG-AUD-2026-0008)
+    pub used_llm_fallback: bool,
 }
 
 /// Proposed microservice / bounded-context boundary from the Architecture Mimicry pipeline.
@@ -175,7 +178,7 @@ impl LlmBackend {
             .timeout(Duration::from_secs(120))
             .connect_timeout(Duration::from_secs(10))
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build LLM HTTP client: {e}"))?;
 
         let backend = cfg
             .llm_provider
@@ -305,11 +308,11 @@ impl DreamingEngine {
         match timeout(max_wait, self.llm_summarize(context_blobs)).await {
             Ok(Ok(insight)) => insight,
             Ok(Err(e)) => {
-                tracing::debug!("LLM summarize failed (using deterministic fallback): {e:#}");
+                tracing::warn!("ENG-AUD-2026-0008: LLM summarize failed (using deterministic fallback): {e:#}");
                 self.deterministic_summarize(context_blobs)
             }
             Err(_) => {
-                tracing::debug!("LLM summarize timed out (using deterministic fallback)");
+                tracing::warn!("ENG-AUD-2026-0008: LLM summarize timed out (using deterministic fallback)");
                 self.deterministic_summarize(context_blobs)
             }
         }
@@ -344,11 +347,11 @@ impl DreamingEngine {
                 }
             }
             Ok(Err(e)) => {
-                tracing::debug!("LLM insight generation failed: {e:#}");
+                tracing::warn!("ENG-AUD-2026-0008: LLM insight generation failed (using empty fallback): {e:#}");
                 String::new()
             }
             Err(_) => {
-                tracing::debug!("LLM insight generation timed out");
+                tracing::warn!("ENG-AUD-2026-0008: LLM insight generation timed out (using empty fallback)");
                 String::new()
             }
         }
@@ -403,7 +406,7 @@ impl DreamingEngine {
             Ok(Ok(raw)) => {
                 let boundaries = parse_boundary_response(&raw);
                 if boundaries.is_empty() {
-                    tracing::debug!("LLM returned unparseable boundary response, using fallback");
+                    tracing::warn!("ENG-AUD-2026-0008: LLM returned unparseable boundary response, using deterministic fallback");
                     deterministic_boundaries_with_data(
                         clusters_text,
                         shared_state_text,
@@ -414,7 +417,7 @@ impl DreamingEngine {
                 }
             }
             Ok(Err(e)) => {
-                tracing::debug!("LLM boundary suggestion failed (using fallback): {e:#}");
+                tracing::warn!("ENG-AUD-2026-0008: LLM boundary suggestion failed (using fallback): {e:#}");
                 deterministic_boundaries_with_data(
                     clusters_text,
                     shared_state_text,
@@ -422,7 +425,7 @@ impl DreamingEngine {
                 )
             }
             Err(_) => {
-                tracing::debug!("LLM boundary suggestion timed out (using fallback)");
+                tracing::warn!("ENG-AUD-2026-0008: LLM boundary suggestion timed out (using fallback)");
                 deterministic_boundaries_with_data(
                     clusters_text,
                     shared_state_text,
@@ -491,6 +494,7 @@ impl DreamingEngine {
                 title: "Insight".into(),
                 summary_markdown: "No context was available to summarize.".into(),
                 key_terms: Vec::new(),
+                used_llm_fallback: true,
             };
         }
 
@@ -503,6 +507,7 @@ impl DreamingEngine {
                     "Unable to compute deterministic summary due to regex initialization failure."
                         .into(),
                 key_terms: Vec::new(),
+                used_llm_fallback: true,
             };
         };
         let mut counts: HashMap<String, usize> = HashMap::new();
@@ -559,6 +564,7 @@ impl DreamingEngine {
             title,
             summary_markdown: summary,
             key_terms,
+            used_llm_fallback: true,
         }
     }
 }
@@ -654,6 +660,7 @@ fn parse_llm_cluster_response(raw: &str, context_blobs: &[String]) -> DreamInsig
         },
         summary_markdown,
         key_terms,
+        used_llm_fallback: false,
     }
 }
 
@@ -965,6 +972,52 @@ Cluster 2: Customers/CustomerPage.aspx, Customers/CustomerService.vb
                 backend,
                 err_msg
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod dreaming_fallback_tests {
+    use super::*;
+
+    #[test]
+    fn deterministic_summarize_sets_fallback_flag() {
+        let engine = DreamingEngine::new();
+        let result = engine.deterministic_summarize(&["context a".to_string()]);
+        assert!(
+            result.used_llm_fallback,
+            "deterministic_summarize must set used_llm_fallback=true"
+        );
+    }
+
+    #[test]
+    fn eng_aud_2026_0008_fallback_logs_use_warn_level() {
+        let source = include_str!("dreaming.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-0008"),
+            "dreaming.rs must contain ENG-AUD-2026-0008 audit tag"
+        );
+        // All fallback paths must use warn! not debug!
+        // We check the production code only (before the test modules).
+        // Stop scanning at the first `#[cfg(test)]` marker.
+        let production_code = source
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or(source);
+        for line in production_code.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("//") {
+                continue;
+            }
+            // A production fallback log must not use debug! — only warn! is allowed.
+            if trimmed.contains("tracing::debug!")
+                && (trimmed.contains("fallback") || trimmed.contains("Fallback"))
+            {
+                panic!(
+                    "Fallback log in production code must use warn! not debug!: {}",
+                    trimmed
+                );
+            }
         }
     }
 }
