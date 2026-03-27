@@ -623,7 +623,7 @@ async fn w4_analyze_sync_hazards_detects_result() {
         .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
             project_id: pid.clone(),
             file_path: None,
-            min_severity: "medium".into(),
+            min_severity: engram_server::models::MinSeverity::Medium,
             output_json: false,
         }))
         .await
@@ -649,7 +649,7 @@ async fn w4_analyze_sync_hazards_severity_filter() {
         .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
             project_id: pid.clone(),
             file_path: None,
-            min_severity: "critical".into(),
+            min_severity: engram_server::models::MinSeverity::Critical,
             output_json: false,
         }))
         .await
@@ -675,7 +675,7 @@ async fn w4_analyze_sync_hazards_specific_file() {
         .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
             project_id: pid.clone(),
             file_path: Some("default.aspx.vb".into()),
-            min_severity: "medium".into(),
+            min_severity: engram_server::models::MinSeverity::Medium,
             output_json: false,
         }))
         .await
@@ -697,7 +697,7 @@ async fn w4_analyze_sync_hazards_json() {
         .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
             project_id: pid.clone(),
             file_path: None,
-            min_severity: "medium".into(),
+            min_severity: engram_server::models::MinSeverity::Medium,
             output_json: true,
         }))
         .await
@@ -710,20 +710,14 @@ async fn w4_analyze_sync_hazards_json() {
     assert!(parsed["reports"].is_array());
 }
 
-#[tokio::test]
-async fn w4_analyze_sync_hazards_invalid_severity() {
-    let (engram, pid, _tmp) = setup_project("", FIXTURE_VB, "", "").await;
-
-    let result = engram
-        .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
-            project_id: pid.clone(),
-            file_path: None,
-            min_severity: "invalid".into(),
-            output_json: false,
-        }))
-        .await;
-
-    assert!(result.is_err(), "should reject invalid severity value");
+#[test]
+fn w4_analyze_sync_hazards_invalid_severity_rejected_at_deserialization() {
+    // Invalid enum values are rejected by serde at deserialization time,
+    // before the handler ever runs. This test verifies fail-closed behavior.
+    let json = r#"{"project_id":"p1","min_severity":"invalid","output_json":false}"#;
+    let result: Result<engram_server::AnalyzeSyncHazardsRequest, _> =
+        serde_json::from_str(json);
+    assert!(result.is_err(), "should reject invalid min_severity value at deserialization");
 }
 
 #[tokio::test]
@@ -774,7 +768,7 @@ public class CleanAsync {
         .analyze_sync_hazards(Parameters(engram_server::AnalyzeSyncHazardsRequest {
             project_id: pid.clone(),
             file_path: None,
-            min_severity: "medium".into(),
+            min_severity: engram_server::models::MinSeverity::Medium,
             output_json: false,
         }))
         .await

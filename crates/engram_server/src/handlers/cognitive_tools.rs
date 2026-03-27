@@ -1760,7 +1760,7 @@ impl Engram {
         let max_depth = req.sanitized_max_depth();
         let output_json = req.output_json;
         let compile_time_only = req.compile_time_only;
-        let direction = req.direction.to_lowercase();
+        let direction = req.direction; // Direction enum — no string conversion needed
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let entry_raw = req.entry.clone();
@@ -1811,12 +1811,8 @@ impl Engram {
                 EdgeKind::ALL.to_vec()
             };
 
-            let graph_direction = match direction.as_str() {
-                "incoming" => "in",
-                "outgoing" => "out",
-                "both" => "both",
-                _ => "out",
-            };
+            // Direction enum: exhaustive match — no silent fallback possible.
+            let graph_direction = direction.as_str();
 
             let traversal = graph
                 .traverse(
@@ -2147,7 +2143,7 @@ impl Engram {
             let overrides = EvidenceOverrides::default();
             let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(
                 &item.risk_profile,
-            );
+            ).map_err(|e| McpError::invalid_params(e, None))?;
 
             match crate::services::evidence_orchestration::gather_evidence(
                 &self.state,
@@ -2241,7 +2237,8 @@ impl Engram {
         };
 
         let risk_profile =
-            crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile);
+            crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile)
+                .map_err(|e| McpError::invalid_params(e, None))?;
         let depth =
             crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth).map_err(|e| McpError::invalid_params(e, None))?;
 

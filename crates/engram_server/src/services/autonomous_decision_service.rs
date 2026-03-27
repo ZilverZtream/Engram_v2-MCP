@@ -85,11 +85,15 @@ pub enum RiskProfile {
 
 impl RiskProfile {
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
-            "low" => Self::Low,
-            "high" => Self::High,
-            _ => Self::Medium,
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            other => Err(format!(
+                "unknown risk_profile '{}': must be one of low, medium, high",
+                other
+            )),
         }
     }
 }
@@ -956,12 +960,16 @@ pub enum RolloutPhase {
 
 impl RolloutPhase {
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
-            "advisory" => Self::Advisory,
-            "guarded" => Self::Guarded,
-            "autonomous" => Self::Autonomous,
-            _ => Self::Shadow,
+            "shadow" => Ok(Self::Shadow),
+            "advisory" => Ok(Self::Advisory),
+            "guarded" => Ok(Self::Guarded),
+            "autonomous" => Ok(Self::Autonomous),
+            other => Err(format!(
+                "unknown rollout_phase '{}': must be one of shadow, advisory, guarded, autonomous",
+                other
+            )),
         }
     }
 
@@ -1174,7 +1182,7 @@ pub fn build_decision_report(
 /// returning the same deterministic verdict for identical inputs.
 pub fn replay_from_scenario(
     scenario_input: &engram_core::benchmark::AdpScenarioInput,
-) -> AdpDecision {
+) -> Result<AdpDecision, String> {
     let safety_decision = match (
         scenario_input.safety_allowed,
         scenario_input.safety_confidence,
@@ -1255,7 +1263,7 @@ pub fn replay_from_scenario(
         immune_confidence: scenario_input.immune_confidence,
         require_runtime_evidence: scenario_input.require_runtime_evidence,
         has_runtime_evidence: scenario_input.has_runtime_evidence,
-        risk_profile: RiskProfile::from_str(&scenario_input.risk_profile),
+        risk_profile: RiskProfile::from_str(&scenario_input.risk_profile)?,
         min_extraction_confidence: scenario_input.min_extraction_confidence,
         min_safety_confidence: scenario_input.min_safety_confidence,
         max_blast_radius_for_auto: scenario_input.max_blast_radius_for_auto,
@@ -1265,7 +1273,7 @@ pub fn replay_from_scenario(
         migration_class: scenario_input.migration_class.clone(),
     };
 
-    evaluate_gates(&input)
+    Ok(evaluate_gates(&input))
 }
 
 /// Run a full ADP corpus and return per-scenario results with pass/fail.
@@ -1274,7 +1282,8 @@ pub fn run_corpus(corpus: &engram_core::benchmark::AdpCorpus) -> Vec<AdpCorpusRe
         .scenarios
         .iter()
         .map(|scenario| {
-            let decision = replay_from_scenario(&scenario.input);
+            let decision = replay_from_scenario(&scenario.input)
+                .expect("corpus scenario has invalid risk_profile value");
             let actual_verdict = decision.verdict.to_string();
             let verdict_matches = actual_verdict == scenario.expected_verdict;
 
@@ -1609,8 +1618,8 @@ mod tests {
     fn replay_determinism_identical_inputs_same_verdict() {
         let scenario_input = make_scenario_input();
 
-        let d1 = replay_from_scenario(&scenario_input);
-        let d2 = replay_from_scenario(&scenario_input);
+        let d1 = replay_from_scenario(&scenario_input).unwrap();
+        let d2 = replay_from_scenario(&scenario_input).unwrap();
 
         assert_eq!(d1.verdict, d2.verdict);
         assert!((d1.confidence - d2.confidence).abs() < 1e-10);
@@ -1631,7 +1640,7 @@ mod tests {
         si.retrieval_recall = Some(0.9);
         si.blast_radius_risk = Some(2);
         si.blast_radius_downstream = Some(3);
-        let decision = replay_from_scenario(&si);
+        let decision = replay_from_scenario(&si).unwrap();
         assert_eq!(decision.verdict, AdpVerdict::Allow);
     }
 
@@ -1645,7 +1654,7 @@ mod tests {
         si.retrieval_recall = Some(0.9);
         si.blast_radius_risk = Some(2);
         si.blast_radius_downstream = Some(3);
-        let decision = replay_from_scenario(&si);
+        let decision = replay_from_scenario(&si).unwrap();
         assert_eq!(decision.verdict, AdpVerdict::Deny);
         assert!(decision.failed_gates.contains(&"safety_policy".into()));
     }
@@ -1834,15 +1843,15 @@ mod tests {
 
     #[test]
     fn rollout_phase_parsing() {
-        assert_eq!(RolloutPhase::from_str("shadow"), RolloutPhase::Shadow);
-        assert_eq!(RolloutPhase::from_str("advisory"), RolloutPhase::Advisory);
-        assert_eq!(RolloutPhase::from_str("guarded"), RolloutPhase::Guarded);
+        assert_eq!(RolloutPhase::from_str("shadow").unwrap(), RolloutPhase::Shadow);
+        assert_eq!(RolloutPhase::from_str("advisory").unwrap(), RolloutPhase::Advisory);
+        assert_eq!(RolloutPhase::from_str("guarded").unwrap(), RolloutPhase::Guarded);
         assert_eq!(
-            RolloutPhase::from_str("autonomous"),
+            RolloutPhase::from_str("autonomous").unwrap(),
             RolloutPhase::Autonomous
         );
-        assert_eq!(RolloutPhase::from_str("SHADOW"), RolloutPhase::Shadow);
-        assert_eq!(RolloutPhase::from_str("unknown"), RolloutPhase::Shadow); // Default
+        assert_eq!(RolloutPhase::from_str("SHADOW").unwrap(), RolloutPhase::Shadow); // case-insensitive
+        assert!(RolloutPhase::from_str("unknown").is_err()); // fail-closed
     }
 
     #[test]
@@ -2092,7 +2101,7 @@ mod tests {
             retrieval_mode: Some("live".into()),
             migration_class: None,
         };
-        let decision = replay_from_scenario(&scenario_input);
+        let decision = replay_from_scenario(&scenario_input).unwrap();
         assert_eq!(
             decision.verdict,
             AdpVerdict::Allow,
@@ -2130,7 +2139,7 @@ mod tests {
             retrieval_mode: Some("cached".into()),
             migration_class: None,
         };
-        let decision = replay_from_scenario(&scenario_input);
+        let decision = replay_from_scenario(&scenario_input).unwrap();
         // Should still pass but with staleness discount on retrieval confidence
         assert_eq!(decision.verdict, AdpVerdict::Allow);
         // Verify the retrieval gate mentions "Cached"
