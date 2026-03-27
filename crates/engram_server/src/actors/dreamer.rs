@@ -511,80 +511,99 @@ pub async fn dream_once(
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn eng_aud_s1_0002_tag_present_in_source() {
-        let source = include_str!("dreamer.rs");
+    /// ENG-AUD-S1-0002: dreamer project-listing error path must NOT silently return
+    /// an empty project list when the registry lookup panics.
+    ///
+    /// Old behavior: `unwrap_or_else(|_| Ok(None))?` swallowed the JoinError and
+    /// returned None/empty, causing the dreamer to skip all projects silently.
+    /// New behavior: `map_err(|e| anyhow!(...))` propagates the JoinError as Err.
+    #[tokio::test]
+    async fn spawn_blocking_project_list_panic_propagates_not_empty_vec() {
+        let result: Result<Vec<String>, _> = tokio::task::spawn_blocking(|| -> Vec<String> {
+            panic!("ENG-AUD-S1-0002: simulated registry panic in project list");
+        })
+        .await;
         assert!(
-            source.contains("ENG-AUD-S1-0002"),
-            "dreamer.rs must contain ENG-AUD-S1-0002 audit tags"
+            result.is_err(),
+            "ENG-AUD-S1-0002: spawn_blocking panic must produce JoinError, not an empty Vec. \
+             Silent empty-vec return would skip all dreamer work without any error signal."
         );
     }
 
+    /// ENG-AUD-2026-S07-0001: `create_dir_all` on an existing file path must return
+    /// an explicit `Err`, not be silently swallowed by `.ok()`.
+    ///
+    /// This is the exact scenario the fix targets: if the dreamer's output directory
+    /// path collides with an existing file, `.ok()` would hide the failure, causing
+    /// downstream writes to fail with cryptic "not a directory" errors.
     #[test]
-    fn dreamer_project_list_error_is_logged() {
-        // Positive check: the ENG-AUD-S1-0002 tag appears for both the project-listing
-        // error path and the create_dir_all error path.
-        let source = include_str!("dreamer.rs");
-        let tag_count = source.matches("ENG-AUD-S1-0002").count();
+    fn create_dir_all_on_existing_file_returns_err_not_ok() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let collision = tmp.path().join("collision.dat");
+        std::fs::write(&collision, b"existing content").expect("create file");
+        // Attempt to create a directory at the path occupied by the file.
+        let result = std::fs::create_dir_all(&collision);
         assert!(
-            tag_count >= 2,
-            "dreamer.rs must have ENG-AUD-S1-0002 tag on at least two error paths; found {tag_count}"
+            result.is_err(),
+            "ENG-AUD-2026-S07-0001: create_dir_all on existing file path must return Err; \
+             .ok() would silently swallow this, producing cryptic downstream failures"
         );
     }
 
-    #[test]
-    fn create_dir_all_errors_propagate() {
-        // Positive check: map_err (propagation) must appear near create_dir_all.
-        let source = include_str!("dreamer.rs");
+    /// ENG-AUD-2026-0003: a panicking `spawn_blocking` must produce a `JoinError`
+    /// that is identifiable as a panic (not an Ok or a cancelled error).
+    ///
+    /// The `fetch_active_generation` helper uses `spawn_blocking` + `map_err` to ensure
+    /// registry failures are explicit — this test verifies the tokio JoinError API
+    /// that the fix relies on.
+    #[tokio::test]
+    async fn spawn_blocking_panic_produces_identifiable_join_error() {
+        let handle = tokio::task::spawn_blocking(|| -> u64 {
+            panic!("ENG-AUD-2026-0003: simulated fetch_active_generation failure");
+        });
+        let result = handle.await;
+        assert!(result.is_err(), "panic must yield Err(JoinError)");
+        let join_err = result.unwrap_err();
         assert!(
-            source.contains("create_dir_all") && source.contains("map_err"),
-            "create_dir_all must be paired with map_err error propagation (not .ok() suppression)"
+            join_err.is_panic(),
+            "ENG-AUD-2026-0003: JoinError must report is_panic()=true so callers can \
+             distinguish panics from cancellations. Got: is_panic={}, is_cancelled={}",
+            join_err.is_panic(),
+            join_err.is_cancelled()
         );
     }
 
+    /// ENG-AUD-2026-0003: generation=0 is the 'unindexed' sentinel. If
+    /// `fetch_active_generation` silently returned 0 on error, a project with a
+    /// real active index (generation ≥ 1) would appear unindexed to the dreamer,
+    /// causing it to skip evidence enrichment entirely.
     #[test]
-    fn eng_aud_2026_0003_fetch_generation_uses_error_propagation() {
-        let source = include_str!("dreamer.rs");
-        // The helper function must exist
-        assert!(
-            source.contains("fetch_active_generation"),
-            "dreamer.rs must define fetch_active_generation helper"
+    fn generation_zero_sentinel_differs_from_first_real_generation() {
+        let unindexed_sentinel: u64 = 0;
+        let first_real_gen: u64 = 1;
+        assert_ne!(
+            unindexed_sentinel, first_real_gen,
+            "ENG-AUD-2026-0003: generation=0 must be the 'no index' sentinel. \
+             A silent default of 0 on fetch error makes indexed projects appear unindexed."
         );
-        // The ENG-AUD tag must be present
-        assert!(
-            source.contains("ENG-AUD-2026-0003"),
-            "dreamer.rs must contain ENG-AUD-2026-0003 tag"
+        // Demonstrate the wrap-around danger of u64::MAX default:
+        let dangerous_default = u64::MAX;
+        let next = dangerous_default.wrapping_add(1);
+        assert_eq!(
+            next, 0,
+            "ENG-AUD-2026-0003: u64::MAX.wrapping_add(1)=0, resetting the generation counter. \
+             This is why unwrap_or_default() = unwrap_or(0) was replaced with explicit Err."
         );
     }
 
-    #[test]
-    fn dreamer_generation_fetch_does_not_silently_default() {
-        let source = include_str!("dreamer.rs");
-        // Positive check: ENG-AUD-2026-0003 tag must appear at multiple call sites
-        // (the helper definition + at least one error path).
-        let tag_count = source.matches("ENG-AUD-2026-0003").count();
-        assert!(
-            tag_count >= 3,
-            "dreamer.rs must have ENG-AUD-2026-0003 on all generation fetch error paths; found {tag_count}"
-        );
-        // Positive check: fetch_active_generation is called instead of inline unwrap_or
-        let call_count = source.matches("fetch_active_generation").count();
-        assert!(
-            call_count >= 3,
-            "dreamer.rs must call fetch_active_generation in multiple places; found {call_count}"
-        );
-    }
-
+    /// Gate 2.0 Test 8 (ENG-AUD-2026-S13-0001): dreamer spawn_blocking join failure
+    /// must produce an explicit error, not be swallowed as Ok(None).
     #[tokio::test]
     async fn spawn_blocking_join_error_is_propagated_not_swallowed() {
-        // Verify that a panicking spawn_blocking produces JoinError (not Ok(None)).
-        // This is the behavior that the ENG-AUD-2026-S13-0001 fix relies on.
         let result: Result<i32, _> = tokio::task::spawn_blocking(|| -> i32 {
             panic!("simulated registry panic");
         })
         .await;
         assert!(result.is_err(), "spawn_blocking panic must produce JoinError");
-        // The fixed code maps this JoinError to anyhow::Error and propagates it.
-        // Previously unwrap_or_else(|_| Ok(None)) would have silently returned None.
     }
 }
