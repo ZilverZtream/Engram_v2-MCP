@@ -92,7 +92,8 @@ async fn load_project_runtime(
     let pid = project_id.to_string();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
         .await
-        .unwrap_or_else(|_| Ok(None))?;
+        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S13-0001: spawn_blocking panicked in dreamer registry lookup: {e}"))?
+        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S13-0001: registry get_project failed: {e}"))?;
     let Some(rec) = rec else {
         return Ok(None);
     };
@@ -572,5 +573,18 @@ mod tests {
             call_count >= 3,
             "dreamer.rs must call fetch_active_generation in multiple places; found {call_count}"
         );
+    }
+
+    #[tokio::test]
+    async fn spawn_blocking_join_error_is_propagated_not_swallowed() {
+        // Verify that a panicking spawn_blocking produces JoinError (not Ok(None)).
+        // This is the behavior that the ENG-AUD-2026-S13-0001 fix relies on.
+        let result: Result<i32, _> = tokio::task::spawn_blocking(|| -> i32 {
+            panic!("simulated registry panic");
+        })
+        .await;
+        assert!(result.is_err(), "spawn_blocking panic must produce JoinError");
+        // The fixed code maps this JoinError to anyhow::Error and propagates it.
+        // Previously unwrap_or_else(|_| Ok(None)) would have silently returned None.
     }
 }

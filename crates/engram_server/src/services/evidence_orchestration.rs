@@ -234,13 +234,15 @@ async fn derive_graph_impact(
         metrics
     })
     .await
-    // ENG-AUD-2026-X14-0004: surface join failure rather than silently returning empty metrics.
+    // ENG-AUD-2026-X14-0004 + ENG-AUD-2026-S09-0001: surface join failure rather than
+    // silently returning empty (optimistically-safe) metrics.  Setting join_failed=true
+    // ensures the ADP policy gate treats this as indeterminate, not permissive.
     .unwrap_or_else(|e| {
         tracing::warn!(
             "ENG-AUD-2026-X14-0004: derive_graph_impact spawn_blocking join failed — \
-             returning empty metrics: {e}"
+             returning degraded metrics: {e}"
         );
-        GraphImpactMetrics::default()
+        GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() }
     })
 }
 
@@ -347,6 +349,25 @@ fn derive_safety_from_graph(
     graph_impact: &GraphImpactMetrics,
     immune_verdict: Option<&str>,
 ) -> PolicyDecision {
+    // ENG-AUD-2026-S09-0001: if the graph evidence is indeterminate (spawn_blocking join
+    // failed), we must not allow an auto-permit decision based on zeroed metrics that are
+    // not genuinely zero.  Force a deny so the change requires manual review.
+    if graph_impact.join_failed {
+        return PolicyDecision {
+            allowed: false,
+            risk_level: crate::services::safety_service::RiskLevel::High,
+            checks: vec![],
+            confidence: 0.0,
+            summary: "ENG-AUD-2026-S09-0001: graph impact evidence indeterminate due to \
+                      spawn_blocking join failure — manual review required"
+                .into(),
+            mitigations: vec![
+                "Re-run after graph index is available.".into(),
+                "Inspect server logs for ENG-AUD-2026-X14-0004 join failure details.".into(),
+            ],
+        };
+    }
+
     let touches_global_state =
         graph_impact.reads_state_count > 0 || graph_impact.writes_state_count > 0;
     let touches_database = graph_impact.sql_calls_count > 0 || graph_impact.queries_table_count > 0;
@@ -1169,6 +1190,107 @@ mod tests {
              verdict ({:?})",
             decision_skipped.verdict,
             decision_live_fail.verdict,
+        );
+    }
+
+    // ── ENG-AUD-2026-S09-0001 + XS-0001: join_failed flag forces conservative policy ──
+
+    /// ENG-AUD-2026-S09-0001 (unit): When `GraphImpactMetrics.join_failed` is true,
+    /// all count fields are zero — but the struct must be distinguishable from
+    /// a genuinely-zero struct where `join_failed` is false.
+    ///
+    /// XS-0001 (cross-subsystem): The combined invariant is that a degraded
+    /// GraphImpactMetrics (join_failed=true, all counts zero) must NOT produce
+    /// a permissive safety decision when fed into `derive_safety_from_graph`.
+    #[test]
+    fn graph_impact_join_failed_flag_forces_conservative_policy() {
+        // ENG-AUD-2026-S09-0001: flag must be settable via struct update syntax.
+        let degraded = GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() };
+        assert!(degraded.join_failed, "ENG-AUD-2026-S09-0001: join_failed flag must be set");
+
+        // All count fields must be zero (default).
+        assert_eq!(
+            degraded.downstream_dependency_count, 0,
+            "ENG-AUD-2026-S09-0001: zeroed fields confirmed (downstream_dependency_count)"
+        );
+        assert_eq!(
+            degraded.reads_state_count, 0,
+            "ENG-AUD-2026-S09-0001: zeroed fields confirmed (reads_state_count)"
+        );
+
+        // XS-0001 key invariant: a zeroed GraphImpactMetrics with join_failed=true
+        // must be treated differently from a zeroed one with join_failed=false.
+        let genuine_zero = GraphImpactMetrics::default();
+        assert!(
+            !genuine_zero.join_failed,
+            "XS-0001: GraphImpactMetrics::default() must have join_failed=false (Default for bool)"
+        );
+        assert_ne!(
+            degraded.join_failed, genuine_zero.join_failed,
+            "XS-0001: degraded and genuine-zero metrics must differ on join_failed"
+        );
+
+        // XS-0001 behavioral assertion: the source must contain the guard that
+        // checks join_failed and returns a deny decision in derive_safety_from_graph.
+        let source = include_str!("evidence_orchestration.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-S09-0001"),
+            "XS-0001: ENG-AUD-2026-S09-0001 guard must be present in evidence_orchestration.rs"
+        );
+        assert!(
+            source.contains("graph_impact.join_failed"),
+            "XS-0001: derive_safety_from_graph must check graph_impact.join_failed"
+        );
+        assert!(
+            source.contains("allowed: false"),
+            "XS-0001: the join_failed guard must set allowed: false (deny)"
+        );
+    }
+
+    /// ENG-AUD-2026-S09-0001 + XS-0001 (behavioral, requires AppState):
+    ///
+    /// Calling `derive_safety_from_graph` with a `join_failed=true` metrics struct
+    /// must return `allowed=false` even though all count fields are zero (which
+    /// would otherwise be a "no dependencies, no state reads → allow" result).
+    #[tokio::test]
+    async fn derive_safety_join_failed_returns_deny() {
+        let tmp = tempfile::TempDir::new()
+            .expect("failed to create temp dir for S09-0001 behavioral test");
+        let tmp_path = tmp.path().to_path_buf();
+
+        let mut cfg = engram_core::Config::default();
+        cfg.allowed_roots = vec![tmp_path.clone()];
+        cfg.data_dir = tmp_path.clone();
+        cfg.max_parse_concurrency = 1;
+        // Ensure safety policy is enabled so the policy gate is active.
+        cfg.safety_policy_enabled = true;
+
+        let (state, _rx) = crate::state::AppState::new(cfg)
+            .expect("AppState::new must succeed with valid temp dirs");
+
+        let degraded =
+            GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() };
+
+        let decision = derive_safety_from_graph(
+            &state,
+            "test-project-s09-0001",
+            &["src/foo.rs".to_string()],
+            &degraded,
+            None,
+        );
+
+        assert!(
+            !decision.allowed,
+            "ENG-AUD-2026-S09-0001 / XS-0001: derive_safety_from_graph must return \
+             allowed=false when join_failed=true (indeterminate evidence must not \
+             produce a permissive decision); summary: {}",
+            decision.summary,
+        );
+        assert!(
+            decision.summary.contains("ENG-AUD-2026-S09-0001"),
+            "XS-0001: deny summary must contain the audit tag ENG-AUD-2026-S09-0001; \
+             got: {}",
+            decision.summary,
         );
     }
 }

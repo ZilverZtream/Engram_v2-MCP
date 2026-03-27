@@ -361,6 +361,7 @@ fn graph_impact_metrics_are_accepted() {
         sql_calls_count: 5,
         queries_table_count: 3,
         injects_script_count: 0,
+        join_failed: false,
     });
     let decision = evaluate_gates(&input);
     // Should still Allow — graph_impact is informational for the EOE layer,
