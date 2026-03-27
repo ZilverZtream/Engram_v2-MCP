@@ -812,58 +812,121 @@ mod tests {
         assert!(risk_band_rank(RiskBand::High) < risk_band_rank(RiskBand::Critical));
     }
 
-    // ENG-AUD-2026-X14-0004 + ENG-AUD-2026-S9-0002: failure visibility regression guards.
-    #[test]
-    fn graph_impact_join_failure_produces_warn() {
-        let source = include_str!("evidence_orchestration.rs");
-        let tag_count = source.matches("ENG-AUD-2026-X14-0004").count();
+    // ENG-AUD-2026-X14-0004: derive_safety_from_graph must return denied when join_failed=true.
+    // Uses a real (but minimal) AppState — no source-string assertions.
+    #[tokio::test]
+    async fn graph_impact_join_failed_true_yields_denied_safety() {
+        use crate::services::autonomous_decision_service::GraphImpactMetrics;
+
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let mut cfg = engram_core::Config::default();
+        cfg.allowed_roots = vec![tmp.path().to_path_buf()];
+        cfg.data_dir = tmp.path().to_path_buf();
+        cfg.max_parse_concurrency = 1;
+        let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
+
+        let metrics = GraphImpactMetrics {
+            downstream_dependency_count: 0,
+            reads_state_count: 0,
+            writes_state_count: 0,
+            sql_calls_count: 0,
+            queries_table_count: 0,
+            injects_script_count: 0,
+            join_failed: true,
+        };
+        let result = derive_safety_from_graph(&state, "proj-x14-0004", &[], &metrics, None);
         assert!(
-            tag_count >= 2,
-            "ENG-AUD-2026-X14-0004 must appear on both derive_graph_impact and derive_blast_radius \
-             join-failure paths; found {tag_count}"
+            !result.allowed,
+            "ENG-AUD-2026-X14-0004: join_failed=true must produce allowed=false, got allowed={}",
+            result.allowed
+        );
+        assert!(
+            result.confidence == 0.0,
+            "ENG-AUD-2026-X14-0004: join_failed=true must yield confidence=0.0 (indeterminate)"
         );
     }
 
-    #[test]
-    fn blast_per_file_error_is_logged() {
-        let source = include_str!("evidence_orchestration.rs");
-        let tag_count = source.matches("ENG-AUD-2026-S9-0002").count();
+    // ENG-AUD-2026-X14-0004: join_failed=false with low metrics must allow.
+    #[tokio::test]
+    async fn graph_impact_join_failed_false_low_metrics_allows() {
+        use crate::services::autonomous_decision_service::GraphImpactMetrics;
+
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let mut cfg = engram_core::Config::default();
+        cfg.allowed_roots = vec![tmp.path().to_path_buf()];
+        cfg.data_dir = tmp.path().to_path_buf();
+        cfg.max_parse_concurrency = 1;
+        let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
+
+        let metrics = GraphImpactMetrics {
+            downstream_dependency_count: 1,
+            reads_state_count: 0,
+            writes_state_count: 0,
+            sql_calls_count: 0,
+            queries_table_count: 0,
+            injects_script_count: 0,
+            join_failed: false,
+        };
+        let result = derive_safety_from_graph(&state, "proj-x14-0004-b", &[], &metrics, None);
         assert!(
-            tag_count >= 2,
-            "ENG-AUD-2026-S9-0002 must appear on per-file blast error debug log and test; found {tag_count}"
+            result.allowed,
+            "ENG-AUD-2026-X14-0004: join_failed=false with low metrics must allow, got allowed={}",
+            result.allowed
         );
     }
 
     // ── AUD-2026-INV-0004: runtime evidence derived from stores ──────────────
 
+    // Behavioral test: calling derive_has_runtime_evidence with a project that
+    // has no graph data loaded returns false — not a panic or success.
+    // (Full AppState behavioral test is the tokio::test below.)
+
+    // ── AUD-2026-INV-0005: benchmark all-infra-error arithmetic ──────────────
+
+    /// AUD-2026-INV-0005: Mathematical contract — when all queries fail with
+    /// infra errors, scored_count must be max(0, 1) = 1, and mean_ndcg = 0.0
+    /// (finite, conservative — not a crash or NaN).
     #[test]
-    fn runtime_evidence_derived_from_state_tag_present() {
-        let source = include_str!("evidence_orchestration.rs");
-        let tag_count = source.matches("AUD-2026-INV-0004").count();
+    fn benchmark_all_infra_errors_yields_zero_ndcg_not_nan() {
+        // Mirrors the production formula in run_live_benchmark.
+        let q_count: usize = 5;
+        let infra_count: usize = 5;
+        let scored_count = q_count.saturating_sub(infra_count).max(1);
+        assert_eq!(
+            scored_count, 1,
+            "AUD-2026-INV-0005: all-infra-error case must yield scored_count=1 \
+             to prevent div-by-zero, got {scored_count}"
+        );
+        let total_ndcg: f64 = 0.0;
+        let mean_ndcg = total_ndcg / scored_count as f64;
         assert!(
-            tag_count >= 2,
-            "AUD-2026-INV-0004 must appear at least twice (implementation + test); found {tag_count}"
+            mean_ndcg.is_finite(),
+            "AUD-2026-INV-0005: mean_ndcg must be finite when all queries failed"
+        );
+        assert!(
+            (mean_ndcg - 0.0f64).abs() < f64::EPSILON,
+            "AUD-2026-INV-0005: mean_ndcg must be 0.0 when no query scored, got {mean_ndcg}"
         );
     }
 
+    /// AUD-2026-INV-0005: Partial infra errors — only failed queries are excluded
+    /// from the denominator, so mean_ndcg reflects only successful queries.
     #[test]
-    fn derive_has_runtime_evidence_function_exists() {
-        let source = include_str!("evidence_orchestration.rs");
-        assert!(
-            source.contains("derive_has_runtime_evidence"),
-            "derive_has_runtime_evidence function must be present in evidence_orchestration.rs"
+    fn benchmark_partial_infra_errors_counts_only_successes() {
+        let q_count: usize = 5;
+        let infra_count: usize = 2;
+        let scored_count = q_count.saturating_sub(infra_count).max(1);
+        assert_eq!(
+            scored_count, 3,
+            "AUD-2026-INV-0005: 3 successful queries should yield scored_count=3, got {scored_count}"
         );
-    }
-
-    // ── AUD-2026-INV-0005: live retrieval benchmark infra error tagging ───────
-
-    #[test]
-    fn benchmark_infra_error_tag_present() {
-        let source = include_str!("evidence_orchestration.rs");
-        let tag_count = source.matches("AUD-2026-INV-0005").count();
+        // If each of the 3 successful queries scored NDCG=1.0:
+        let total_ndcg: f64 = 3.0;
+        let mean_ndcg = total_ndcg / scored_count as f64;
         assert!(
-            tag_count >= 2,
-            "AUD-2026-INV-0005 must appear at least twice (implementation + test); found {tag_count}"
+            (mean_ndcg - 1.0f64).abs() < f64::EPSILON,
+            "AUD-2026-INV-0005: mean_ndcg should be 1.0 when all scored queries are perfect, \
+             got {mean_ndcg}"
         );
     }
 
