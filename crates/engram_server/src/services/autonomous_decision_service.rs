@@ -124,6 +124,12 @@ pub struct GraphImpactMetrics {
     pub sql_calls_count: usize,
     pub queries_table_count: usize,
     pub injects_script_count: usize,
+    /// ENG-AUD-2026-S09-0001: set to `true` when the spawn_blocking join
+    /// for graph impact derivation failed.  When `true`, all count fields
+    /// are zero by construction (not genuine) and any policy gate that reads
+    /// this struct must treat the evidence as indeterminate, not permissive.
+    #[serde(default)]
+    pub join_failed: bool,
 }
 
 /// Retrieval evaluation mode for the retrieval quality gate (vNext).

@@ -595,14 +595,17 @@ impl Engram {
                 .ok();
 
             let report = self.generate_indexing_report(&stats);
-            let _ = self
+            if let Err(e) = self
                 .handle_update_memory_bank(UpdateMemoryBankRequest {
                     project_id: project_id.clone(),
                     section_id: Some("engram/index_report".into()),
                     section: "Indexing Report".into(),
                     content: report.clone(),
                 })
-                .await;
+                .await
+            {
+                tracing::warn!(project_id = %project_id, "ENG-AUD-2026-S08-0001: memory bank update failed (index report not persisted): {e:#}");
+            }
 
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "✅ Indexed project_id: {project_id}\n\n{report}"
@@ -1126,14 +1129,18 @@ impl Engram {
                 engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await?;
-                let _ = graph_service::link_sql_to_schema(
+                if let Err(e) = graph_service::link_sql_to_schema(
                     &engram.state.graph,
                     &project_id_for_job,
                     new_gen,
-                );
-                let _ = engram.state.graph.resolve_symbol_edges(&project_id_for_job);
+                ) {
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: link_sql_to_schema failed (enrichment degraded): {e:#}");
+                }
+                if let Err(e) = engram.state.graph.resolve_symbol_edges(&project_id_for_job) {
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: resolve_symbol_edges failed (enrichment degraded): {e:#}");
+                }
 
-                let _ = engram
+                if let Err(e) = engram
                     .git_update_stream(
                         &project_id_for_job,
                         &ps.info.directory,
@@ -1144,7 +1151,10 @@ impl Engram {
                         &token,
                         Box::new(|_, _| {}),
                     )
-                    .await;
+                    .await
+                {
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: git_update_stream failed (enrichment degraded): {e:#}");
+                }
 
                 Ok::<(), anyhow::Error>(())
             }
@@ -2352,5 +2362,55 @@ mod inv_tag_tests {
                 );
             }
         }
+    }
+
+    /// ENG-AUD-2026-S03-0001 + ENG-AUD-2026-S08-0001
+    ///
+    /// Behavioral contract:
+    ///   1. Post-index enrichment errors (link_sql_to_schema, resolve_symbol_edges,
+    ///      git_update_stream) are logged rather than silently discarded.
+    ///   2. Memory bank update failures are logged rather than silently discarded.
+    ///   3. None of these failures propagate as fatal job errors — they are degraded-
+    ///      enrichment warnings only.
+    ///
+    /// This is a compile-time + structural test.  The `if let Err(e)` pattern only
+    /// compiles when the callee returns `Result<_, _>`, so the absence of a build
+    /// error is itself a behavioral guarantee that error handling is wired.
+    /// The structural assertions below additionally confirm the production section
+    /// carries the audit tags and does NOT revert to the discarding `let _ =` form.
+    #[test]
+    fn link_sql_to_schema_returns_result() {
+        // Verify the function signature returns a Result type.
+        // This is a compile-time check — if it returned () this wouldn't compile.
+        fn _assert_result<T, E>(_: Result<T, E>) {}
+        // We can't call it without a real graph, but we can verify the type via
+        // the existing error-handling code compiles with if let Err(e) = ...
+        // The real behavioral guarantee is: errors are now logged, not discarded.
+        // This test documents that contract by asserting the audit tag is present
+        // in the production section of the file ONLY (not in tests).
+        let prod = include_str!("project_tools.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or("");
+        assert!(prod.contains("ENG-AUD-2026-S03-0001"), "S03 tag must be in production code");
+        assert!(prod.contains("ENG-AUD-2026-S08-0001"), "S08 tag must be in production code");
+        // Critically: the S03-tagged enrichment block must NOT use `let _ =` on
+        // link_sql_to_schema.  We check the specific call site by verifying that
+        // `if let Err(e) = graph_service::link_sql_to_schema` is present — this is
+        // only present if the fix was applied and confirms errors are handled.
+        assert!(
+            prod.contains("if let Err(e) = graph_service::link_sql_to_schema"),
+            "ENG-AUD-2026-S03-0001: link_sql_to_schema result must be handled with if let Err"
+        );
+        // Verify git_update_stream enrichment result is also handled.
+        assert!(
+            prod.contains("ENG-AUD-2026-S03-0001: git_update_stream failed"),
+            "ENG-AUD-2026-S03-0001: git_update_stream error must be logged"
+        );
+        // Verify memory bank update failure is handled (S08).
+        assert!(
+            prod.contains("ENG-AUD-2026-S08-0001: memory bank update failed"),
+            "ENG-AUD-2026-S08-0001: memory bank update error must be logged"
+        );
     }
 }

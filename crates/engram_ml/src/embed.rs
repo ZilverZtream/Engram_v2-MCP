@@ -153,6 +153,21 @@ fn ahash_u64_fixed_b(data: &[u8]) -> u64 {
     state.hash_one(data)
 }
 
+/// Parse a JSON array into a Vec<f32>, failing closed on non-numeric elements.
+/// ENG-AUD-2026-S12-0001: consistent with batch-path semantics.
+fn parse_embedding_array(arr: &[serde_json::Value]) -> anyhow::Result<Vec<f32>> {
+    arr.iter()
+        .enumerate()
+        .map(|(i, v)| {
+            v.as_f64()
+                .ok_or_else(|| anyhow::anyhow!(
+                    "ENG-AUD-2026-S12-0001: non-numeric element at index {i}: {:?}", v
+                ))
+                .map(|f| f as f32)
+        })
+        .collect()
+}
+
 // ---------------------------------------------------------------------------
 // Tests for ProjectionEmbedder
 // ---------------------------------------------------------------------------
@@ -321,12 +336,10 @@ async fn embed_via_ollama(
                     .json()
                     .await
                     .map_err(|e| anyhow::anyhow!("Ollama JSON parse error: {e}"))?;
-                let vec: Vec<f32> = data["embeddings"][0]
+                let arr = data["embeddings"][0]
                     .as_array()
-                    .ok_or_else(|| anyhow::anyhow!("Ollama response missing embeddings[0]"))?
-                    .iter()
-                    .map(|v| v.as_f64().unwrap_or(0.0) as f32)
-                    .collect();
+                    .ok_or_else(|| anyhow::anyhow!("Ollama response missing embeddings[0]"))?;
+                let vec = parse_embedding_array(arr)?;
                 if expected_dim > 0 && vec.len() != expected_dim {
                     anyhow::bail!(
                         "Ollama model '{model}' returned dim={} but expected {expected_dim}",
@@ -401,12 +414,10 @@ async fn embed_batch_via_ollama(
                 }
                 let mut result = Vec::with_capacity(texts.len());
                 for emb in arr {
-                    let vec: Vec<f32> = emb
+                    let emb_arr = emb
                         .as_array()
-                        .ok_or_else(|| anyhow::anyhow!("Ollama batch: embedding is not array"))?
-                        .iter()
-                        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
-                        .collect();
+                        .ok_or_else(|| anyhow::anyhow!("Ollama batch: embedding is not array"))?;
+                    let vec = parse_embedding_array(emb_arr)?;
                     if expected_dim > 0 && vec.len() != expected_dim {
                         anyhow::bail!(
                             "Ollama batch model '{model}' returned dim={} but expected {expected_dim}",
@@ -535,12 +546,10 @@ async fn embed_via_openai(
                     .json()
                     .await
                     .map_err(|e| anyhow::anyhow!("OpenAI JSON parse error: {e}"))?;
-                let vec: Vec<f32> = data["data"][0]["embedding"]
+                let arr = data["data"][0]["embedding"]
                     .as_array()
-                    .ok_or_else(|| anyhow::anyhow!("OpenAI response missing data[0].embedding"))?
-                    .iter()
-                    .map(|v| v.as_f64().unwrap_or(0.0) as f32)
-                    .collect();
+                    .ok_or_else(|| anyhow::anyhow!("OpenAI response missing data[0].embedding"))?;
+                let vec = parse_embedding_array(arr)?;
                 if expected_dim > 0 && vec.len() != expected_dim {
                     anyhow::bail!(
                         "OpenAI model '{model}' returned dim={} but expected {expected_dim}",
@@ -1152,5 +1161,46 @@ mod audit_0007_tests {
             !has_fallback,
             "HTTP client must not fall back to default via unwrap_or_else — must propagate error"
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests for parse_embedding_array — ENG-AUD-2026-S12-0001 / S16-0001
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod parse_embedding_array_tests {
+    use super::*;
+
+    #[test]
+    fn parse_embedding_array_rejects_null_element() {
+        let arr = serde_json::json!([0.1, null, 0.3]);
+        let result = parse_embedding_array(arr.as_array().unwrap());
+        assert!(result.is_err(), "null element must return Err");
+        assert!(result.unwrap_err().to_string().contains("non-numeric"));
+    }
+
+    #[test]
+    fn parse_embedding_array_rejects_string_element() {
+        let arr = serde_json::json!([0.1, "abc", 0.3]);
+        let result = parse_embedding_array(arr.as_array().unwrap());
+        assert!(result.is_err(), "string element must return Err");
+    }
+
+    #[test]
+    fn parse_embedding_array_accepts_valid_floats() {
+        let arr = serde_json::json!([0.1_f64, 0.2_f64, 0.3_f64]);
+        let result = parse_embedding_array(arr.as_array().unwrap());
+        assert!(result.is_ok());
+        let v = result.unwrap();
+        assert_eq!(v.len(), 3);
+        assert!((v[0] - 0.1f32).abs() < 1e-5);
+    }
+
+    #[test]
+    fn parse_embedding_array_rejects_boolean() {
+        let arr = serde_json::json!([0.1, true, 0.3]);
+        let result = parse_embedding_array(arr.as_array().unwrap());
+        assert!(result.is_err(), "boolean element must return Err");
     }
 }

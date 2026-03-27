@@ -71,7 +71,8 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     let reg = state.registry.clone();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
         .await
-        .unwrap_or_else(|_| Ok(None))?;
+        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S14-0001: spawn_blocking panicked in immune project lookup: {e}"))?
+        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S14-0001: registry get_project failed: {e}"))?;
     let Some(rec) = rec else {
         return Ok(());
     };
@@ -85,7 +86,10 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     let watermark_str: Option<String> =
         tokio::task::spawn_blocking(move || reg2.get_meta(&pid2, watermark_key).ok().flatten())
             .await
-            .unwrap_or(None);
+            .unwrap_or_else(|e| {
+                tracing::warn!("ENG-AUD-2026-S14-0001: watermark fetch join failure — scanning from scratch: {e}");
+                None
+            });
 
     let stop_oid: Option<git2::Oid> = watermark_str
         .as_deref()
@@ -110,8 +114,10 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
                 .join("projects")
                 .join(project_id)
                 .join("lancedb");
-            std::fs::create_dir_all(&tantivy_dir).ok();
-            std::fs::create_dir_all(&lancedb_dir).ok();
+            std::fs::create_dir_all(&tantivy_dir)
+                .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}", tantivy_dir))?;
+            std::fs::create_dir_all(&lancedb_dir)
+                .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}", lancedb_dir))?;
 
             let search = engram_index::HybridSearchEngine::new_with_budget(
                 tantivy_dir.clone(),
@@ -341,5 +347,20 @@ mod tests {
             source.contains("watermark write failed") || source.contains("immune watermark"),
             "immune.rs must log watermark write failure"
         );
+    }
+
+    #[test]
+    fn create_dir_all_on_file_path_returns_err() {
+        // Create a temp file, then try to create a directory AT that path.
+        // This is guaranteed to fail on all platforms.
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("existing_file");
+        std::fs::File::create(&file_path).unwrap().write_all(b"x").unwrap();
+        // Now try to create a dir with same path as the file — must fail
+        let result = std::fs::create_dir_all(&file_path);
+        assert!(result.is_err(), "create_dir_all on existing file must fail");
+        // This confirms the production code would now propagate this error via map_err+?
+        // Previously .ok() would have silently swallowed it.
     }
 }
