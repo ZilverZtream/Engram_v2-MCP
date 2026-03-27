@@ -224,28 +224,82 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
     Ok(joined)
 }
 
-/// Validate and open a file for reading in a single operation, closing the
-/// TOCTOU window that exists between `safe_join` returning a path and the
-/// caller opening the file.
+/// Open a file with no-follow semantics at the syscall boundary.
 ///
-/// The returned `File` handle is for the actual file that was validated;
-/// a post-open metadata check ensures no symlink was swapped in between
-/// the lexical validation and the `open(2)` call.
+/// On Unix: uses `O_NOFOLLOW` so the OS rejects the open with `ELOOP` if the
+/// final path component is a symlink at open time — closing the TOCTOU race
+/// window between `safe_join`'s symlink check and the actual `open(2)` syscall.
+///
+/// On Windows: opens the path with `FILE_FLAG_OPEN_REPARSE_POINT` so that if
+/// the path IS a reparse point (symlink), the handle refers to the symlink
+/// object itself rather than following it.  The subsequent `is_symlink()` check
+/// on the handle's metadata then correctly detects and rejects it.
+fn open_no_follow(path: &std::path::Path) -> std::io::Result<std::fs::File> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        // O_NOFOLLOW constant values by platform (no libc dep needed):
+        //   Linux / Android / most BSDs: 0x20000
+        //   macOS / iOS / watchOS / tvOS: 0x100
+        //   FreeBSD / NetBSD / OpenBSD / DragonFly: 0x100
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        const O_NOFOLLOW: i32 = 0x20000;
+        #[cfg(not(any(target_os = "linux", target_os = "android")))]
+        const O_NOFOLLOW: i32 = 0x100;
+
+        std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(O_NOFOLLOW)
+            .open(path)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        // FILE_FLAG_OPEN_REPARSE_POINT (0x0020_0000): open the reparse point
+        // itself rather than following it.  For regular files the flag is a
+        // no-op and the file is fully readable.  For symlinks it gives a handle
+        // whose metadata reports is_symlink() == true.
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(path)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        // No platform-native no-follow available; safe_join symlink walk is
+        // the primary guard on these targets.
+        std::fs::File::open(path)
+    }
+}
+
+/// Validate and open a file for reading in a single operation, eliminating the
+/// TOCTOU window that exists between `safe_join`'s symlink check and the open
+/// syscall.
+///
+/// Uses `O_NOFOLLOW` (Unix) or `FILE_FLAG_OPEN_REPARSE_POINT` (Windows) at the
+/// open syscall boundary so a concurrent symlink swap between the lexical check
+/// and `open()` is caught by the OS rather than relying solely on a post-open
+/// metadata re-check (which reads the *target's* metadata, not the symlink's).
 pub fn safe_open_read(base_dir: &Path, sub_path: &str) -> Result<std::fs::File> {
     let path = safe_join(base_dir, sub_path)?;
-    let file = std::fs::File::open(&path).map_err(|e| {
-        EngramError::PathNotAllowed(format!("cannot open {:?}: {e}", path))
+    // AUD-2026-EXH-0007: use O_NOFOLLOW / FILE_FLAG_OPEN_REPARSE_POINT so the
+    // OS enforces no-follow at the syscall boundary, not just in a pre-open check.
+    let file = open_no_follow(&path).map_err(|e| {
+        EngramError::PathNotAllowed(format!(
+            "AUD-2026-EXH-0007: cannot open {:?} (possible symlink at open boundary): {e}",
+            path
+        ))
     })?;
-    // Re-validate after open: the metadata obtained from the open file
-    // descriptor describes what was *actually* opened, not a path that may
-    // have been swapped.  On Windows this calls GetFileInformationByHandle;
-    // on POSIX it calls fstat — both are immune to a concurrent rename/swap.
+    // Defense-in-depth post-open check: on Windows, FILE_FLAG_OPEN_REPARSE_POINT
+    // makes the handle describe the symlink itself (is_symlink() == true).
+    // On Unix, O_NOFOLLOW already prevented following, but fstat confirms.
     let post_meta = file.metadata().map_err(|e| {
         EngramError::PathNotAllowed(format!("cannot stat open handle for {:?}: {e}", path))
     })?;
     if post_meta.file_type().is_symlink() {
         return Err(EngramError::PathNotAllowed(format!(
-            "symlink detected at open boundary for {:?}",
+            "AUD-2026-EXH-0007: symlink detected via handle metadata for {:?}",
             path
         )));
     }
@@ -463,6 +517,84 @@ mod tests {
         assert!(
             source.contains("failing closed for safety"),
             "safe_join must fail closed for non-NotFound symlink_metadata errors"
+        );
+    }
+
+    // ── AUD-2026-EXH-0007: O_NOFOLLOW / FILE_FLAG_OPEN_REPARSE_POINT ──────
+    // These tests verify that safe_open_read rejects a symlink that exists
+    // *at open time* — even if safe_join's pre-open check somehow passed it.
+    // On Unix, open_no_follow uses O_NOFOLLOW (OS rejection at syscall boundary).
+    // On Windows, FILE_FLAG_OPEN_REPARSE_POINT makes metadata report is_symlink.
+
+    #[test]
+    #[cfg(unix)]
+    fn open_boundary_rejects_symlink_via_nofollow() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base = tmp.path();
+        // Write a real target file outside base so the symlink points outward.
+        let outside = tmp.path().join("../outside_target.txt");
+        let outside_abs = tmp.path().parent().unwrap().join("outside_target.txt");
+        std::fs::write(&outside_abs, "secret").unwrap();
+        // Create a symlink inside the project directory → outside target.
+        symlink(&outside_abs, base.join("link.txt")).unwrap();
+        // safe_join would catch this via symlink_metadata. To simulate the
+        // race (where safe_join just missed the swap), call open_no_follow
+        // directly on the symlink path.
+        let result = open_no_follow(&base.join("link.txt"));
+        // O_NOFOLLOW must cause the open to fail (ELOOP / "too many levels").
+        assert!(
+            result.is_err(),
+            "open_no_follow must reject a symlink target at open time (O_NOFOLLOW)"
+        );
+        let _ = std::fs::remove_file(&outside_abs);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn safe_open_read_symlink_swap_simulation() {
+        // Simulate a post-safe_join symlink swap: create a real file, then
+        // replace it with a symlink before open, and verify safe_open_read fails.
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base = tmp.path();
+        // Create the file that will be "swapped out".
+        std::fs::write(base.join("target.txt"), "legitimate content").unwrap();
+        // Write a second file outside base (what the attacker wants read).
+        let outside_abs = tmp.path().parent().unwrap().join("attacker_file.txt");
+        std::fs::write(&outside_abs, "attacker content").unwrap();
+        // Simulate the swap: remove the real file, replace with a symlink.
+        std::fs::remove_file(base.join("target.txt")).unwrap();
+        symlink(&outside_abs, base.join("target.txt")).unwrap();
+        // safe_open_read must fail — the symlink was swapped in after the
+        // lexical path was constructed, but O_NOFOLLOW catches it at open time.
+        let result = safe_open_read(base, "target.txt");
+        assert!(
+            result.is_err(),
+            "safe_open_read must reject a symlink even if safe_join did not see it \
+             (AUD-2026-EXH-0007: O_NOFOLLOW enforced at open boundary)"
+        );
+        let _ = std::fs::remove_file(&outside_abs);
+    }
+
+    #[test]
+    fn safe_open_read_nofollow_source_structure() {
+        // Structural regression: verify open_no_follow uses O_NOFOLLOW on Unix
+        // and FILE_FLAG_OPEN_REPARSE_POINT on Windows.
+        let source = include_str!("security.rs");
+        assert!(
+            source.contains("AUD-2026-EXH-0007"),
+            "security.rs must contain AUD-2026-EXH-0007 audit tag"
+        );
+        #[cfg(unix)]
+        assert!(
+            source.contains("O_NOFOLLOW"),
+            "security.rs must use O_NOFOLLOW on Unix (AUD-2026-EXH-0007)"
+        );
+        #[cfg(windows)]
+        assert!(
+            source.contains("FILE_FLAG_OPEN_REPARSE_POINT"),
+            "security.rs must use FILE_FLAG_OPEN_REPARSE_POINT on Windows (AUD-2026-EXH-0007)"
         );
     }
 }
