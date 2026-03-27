@@ -8,9 +8,10 @@
 //!  - Enrichment degradation message completeness
 //!  - Actor spawn_blocking panic propagation (dreamer + immune regression)
 
+use engram_core::{safe_join, PathContext};
 use engram_server::services::autonomous_decision_service::*;
 use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -275,89 +276,59 @@ async fn actor_immune_spawn_blocking_panic_is_join_error_regression() {
         "immune spawn_blocking panic must be JoinError (regression)");
 }
 
-// ── adversarial path validation ──────────────────────────────────
+// ── adversarial path validation — production code ───────────────────────────
 
-/// Path traversal with `..` components must NOT escape the
-/// allowed root when checked with canonicalization + prefix verification.
-///
-/// Behavioral: Path::starts_with only works on canonical paths —
-/// /allowed/root/../../../etc/passwd does NOT start_with /allowed/root after
-/// canonicalization. This is the defense AUD-2026-INV-0001 relies on.
+/// Parent-directory traversal must be rejected by the production `safe_join`
+/// guard. AUD-2026-INV-0001: `..` in the sub_path cannot escape base_dir.
+/// Calls the production engram_core::safe_join, not a test-local helper.
 #[test]
-fn path_traversal_dotdot_does_not_escape_root_after_canonicalization() {
-    let root = PathBuf::from("/allowed/root");
+fn safe_join_rejects_dotdot_traversal_in_sub_path() {
+    let base = PathBuf::from("/allowed/root");
 
-    // Craft a traversal attempt: /allowed/root/../../../etc/passwd
-    let traversal = root.join("../../../etc/passwd");
-
-    // Naive starts_with fails correctly for this case, but we simulate
-    // what a proper canonicalize-then-check does:
-    let canonical = resolve_dotdot_components(&traversal);
-
+    let r1 = safe_join(&base, "../../../etc/passwd");
     assert!(
-        !canonical.starts_with(&root),
-        "traversal path '{:?}' must not start_with root '{:?}' \
-         after resolving .. components; canonical = '{:?}'",
-        traversal, root, canonical
+        r1.is_err(),
+        "production safe_join must reject '../../../etc/passwd' traversal; got Ok"
+    );
+
+    let r2 = safe_join(&base, "src/../../etc/passwd");
+    assert!(
+        r2.is_err(),
+        "production safe_join must reject nested '..' traversal 'src/../../'; got Ok"
+    );
+
+    let err = r1.unwrap_err().to_string();
+    assert!(
+        err.contains("traversal") || err.contains("..") || err.contains("not allowed"),
+        "traversal rejection error must be informative; got: {err}"
     );
 }
 
-/// A path that appears to be inside the root but contains
-/// encoded or absolute segments must not bypass the starts_with check.
+/// Absolute paths as sub_path must be rejected by production safe_join.
 #[test]
-fn path_absolute_escape_does_not_bypass_prefix_check() {
-    let root = PathBuf::from("/allowed/root");
-    let escape = PathBuf::from("/etc/passwd");
+fn safe_join_rejects_absolute_path_escape() {
+    let base = PathBuf::from("/allowed/root");
 
     assert!(
-        !escape.starts_with(&root),
-        "absolute escape '/etc/passwd' must not start_with '/allowed/root'"
+        safe_join(&base, "/etc/passwd").is_err(),
+        "safe_join must reject absolute path '/etc/passwd'"
     );
-
-    // Also verify a path that looks like it contains the root string but doesn't
-    // share the prefix structure:
-    let lookalike = PathBuf::from("/allowed/root_extra/file.txt");
     assert!(
-        !lookalike.starts_with(&root),
-        "'/allowed/root_extra/...' must not match '/allowed/root' prefix"
+        safe_join(&base, "/allowed/root_extra/file.txt").is_err(),
+        "safe_join must reject absolute path even if it lexically resembles the root"
     );
 }
 
-/// When allowed_roots is empty, any path validation must fail
-/// closed (error), not silently allow all paths.
-///
-/// AUD-2026-INV-0001 behavioral test: empty allowed_roots = deny-by-default.
-#[tokio::test]
-async fn allowed_roots_empty_creates_state_with_validation_error() {
-    // Try to create an AppState with empty allowed_roots
-    // The config must either reject it or produce a state that denies all paths.
-    let tmp = tempfile::TempDir::new().expect("tempdir");
-    let mut cfg = engram_core::Config::default();
-    cfg.allowed_roots = vec![]; // empty — must fail closed
-    cfg.data_dir = tmp.path().to_path_buf();
-    cfg.max_parse_concurrency = 1;
-
-    // Either AppState::new fails (preferred), or it succeeds but path validation fails.
-    // We test the fail-closed contract either way.
-    match engram_server::state::AppState::new(cfg) {
-        Err(e) => {
-            // Preferred: AppState::new rejects empty allowed_roots
-            let err_str = format!("{e:#}");
-            assert!(
-                err_str.to_lowercase().contains("root") ||
-                err_str.to_lowercase().contains("allowed") ||
-                err_str.to_lowercase().contains("empty") ||
-                err_str.to_lowercase().contains("path"),
-                "error must mention roots/allowed/path; got: {err_str}"
-            );
-        }
-        Ok((state, _rx)) => {
-            // Acceptable: AppState succeeds but path validation on any path fails
-            // The project list should be empty (no roots → no valid projects)
-            // We just verify it doesn't panic
-            let _ = state;
-        }
-    }
+/// Empty allowed_roots must be rejected by the production PathContext constructor.
+/// AUD-2026-INV-0001: PathContext::new is the production enforcer —
+/// empty roots must produce an explicit Err, not a permissive instance.
+#[test]
+fn path_context_empty_allowed_roots_fails_closed() {
+    let result = PathContext::new(vec![]);
+    assert!(
+        result.is_err(),
+        "PathContext::new(vec![]) must return Err — deny-by-default when no roots are configured"
+    );
 }
 
 // ── enrichment warnings are ALL surfaced in job message ──────────────
@@ -422,20 +393,3 @@ fn no_project_record_when_dir_creation_fails_explicit_err() {
     );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Resolve `..` components in a path without filesystem access.
-/// This simulates what canonicalize() does for paths that don't exist.
-fn resolve_dotdot_components(path: &Path) -> PathBuf {
-    let mut components = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::ParentDir => {
-                components.pop();
-            }
-            std::path::Component::CurDir => {}
-            other => components.push(other),
-        }
-    }
-    components
-}
