@@ -91,13 +91,28 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
             _ = ticker.tick() => {
                 // ENG-AUD-2026-EXH-0005: drain overflow-dirty set so dropped events
                 // are still eventually processed (convergence guarantee).
-                if let Ok(mut dirty) = overflow_dirty.lock() {
+                // AUD-2026-EXH-0008: recover from a poisoned mutex rather than
+                // silently skipping the drain — a panic while holding the lock
+                // must not cause indefinite event loss for affected projects.
+                // Scoped block: std::sync::MutexGuard is !Send and must be
+                // dropped before any .await point in this arm.
+                {
+                    let mut dirty = match overflow_dirty.lock() {
+                        Ok(guard) => guard,
+                        Err(poisoned) => {
+                            tracing::error!(
+                                "AUD-2026-EXH-0008: overflow_dirty mutex poisoned; \
+                                 recovering inner state to preserve convergence guarantee"
+                            );
+                            poisoned.into_inner()
+                        }
+                    };
                     for pid in dirty.drain() {
                         pending_updates
                             .entry(pid)
                             .or_insert_with(|| Instant::now() + debounce_duration);
                     }
-                }
+                } // MutexGuard dropped here, before any .await below
 
                 let now = Instant::now();
                 let mut to_trigger = Vec::new();
@@ -290,9 +305,19 @@ fn create_watcher(
                         "ENG-AUD-2026-EXH-0005: watcher notify channel full for {pid} — \
                          event dropped; marking project dirty for forced rescan"
                     );
-                    if let Ok(mut dirty) = overflow_dirty.lock() {
-                        dirty.insert(pid.clone());
-                    }
+                    // AUD-2026-EXH-0008: recover from poisoned mutex so that the
+                    // dirty marker is never silently lost even after a panic.
+                    let mut guard = match overflow_dirty.lock() {
+                        Ok(g) => g,
+                        Err(poisoned) => {
+                            tracing::error!(
+                                "AUD-2026-EXH-0008: overflow_dirty mutex poisoned in \
+                                 notify callback for {pid}; recovering to preserve dirty marker"
+                            );
+                            poisoned.into_inner()
+                        }
+                    };
+                    guard.insert(pid.clone());
                 }
                 Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
                     tracing::debug!("watcher notify channel closed for {pid}");

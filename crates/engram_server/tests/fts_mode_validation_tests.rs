@@ -208,3 +208,100 @@ fn watcher_overflow_drain_schedules_each_project_once() {
     let remaining = dirty.lock().unwrap().len();
     assert_eq!(remaining, 0, "EXH-0005: dirty set must be empty after drain");
 }
+
+// ── AUD-2026-EXH-0008: poisoned mutex recovery in watcher overflow path ───────
+// These tests verify that the overflow_dirty drain and insert paths recover from
+// a poisoned mutex (caused by a panic while holding the lock) rather than
+// silently dropping events, which would break the convergence guarantee.
+
+/// EXH-0008: poisoned mutex drain path must recover and preserve project IDs.
+/// A panic inside a lock scope poisons the mutex. The ticker drain must recover
+/// the inner state via `into_inner()` and continue scheduling dirty projects.
+#[test]
+fn watcher_overflow_drain_recovers_from_poisoned_mutex() {
+    use std::collections::{HashMap, HashSet};
+    use std::sync::{Arc, Mutex};
+    use std::time::{Duration, Instant};
+
+    let dirty: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+
+    // Populate dirty set before poisoning
+    dirty.lock().unwrap().insert("proj-poison".into());
+    dirty.lock().unwrap().insert("proj-recover".into());
+
+    // Poison the mutex by panicking inside a lock scope
+    let dirty_clone = dirty.clone();
+    let _ = std::panic::catch_unwind(move || {
+        let _guard = dirty_clone.lock().unwrap();
+        panic!("intentional poison");
+    });
+
+    assert!(dirty.is_poisoned(), "mutex must be poisoned after panic");
+
+    // Now simulate the ticker drain using the EXH-0008 recovery pattern
+    let mut pending: HashMap<String, Instant> = HashMap::new();
+    {
+        let mut set = match dirty.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        for pid in set.drain() {
+            pending.entry(pid).or_insert_with(|| Instant::now() + Duration::from_secs(5));
+        }
+    }
+
+    // Both projects must be scheduled despite the poisoned mutex
+    assert!(
+        pending.contains_key("proj-poison"),
+        "EXH-0008: proj-poison must be recovered and scheduled after mutex poison"
+    );
+    assert!(
+        pending.contains_key("proj-recover"),
+        "EXH-0008: proj-recover must be recovered and scheduled after mutex poison"
+    );
+    assert_eq!(
+        pending.len(),
+        2,
+        "EXH-0008: all dirty projects must survive mutex poisoning; got {} scheduled",
+        pending.len()
+    );
+}
+
+/// EXH-0008: poisoned mutex insert path must recover and preserve the dirty marker.
+/// When a channel overflow fires during a poisoned mutex, the project ID must still
+/// be added to the dirty set via `into_inner()` recovery.
+#[test]
+fn watcher_overflow_insert_recovers_from_poisoned_mutex() {
+    use std::collections::HashSet;
+    use std::sync::{Arc, Mutex};
+
+    let dirty: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
+
+    // Poison the mutex
+    let dirty_clone = dirty.clone();
+    let _ = std::panic::catch_unwind(move || {
+        let _guard = dirty_clone.lock().unwrap();
+        panic!("intentional poison for insert test");
+    });
+
+    assert!(dirty.is_poisoned(), "mutex must be poisoned");
+
+    // Simulate the EXH-0008 recovery pattern in the notify callback insert path
+    {
+        let mut guard = match dirty.lock() {
+            Ok(g) => g,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        guard.insert("proj-overflow".into());
+    }
+
+    // The dirty marker must survive the poisoned mutex
+    let check = match dirty.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    assert!(
+        check.contains("proj-overflow"),
+        "EXH-0008: dirty marker must be preserved through poisoned mutex insert"
+    );
+}
