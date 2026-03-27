@@ -57,6 +57,44 @@ fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
 // ─── Panic-safe job cleanup guard ────────────────────────────────────────────
 
 /// RAII guard that commits critical bookkeeping even when a `tokio::spawn` task
+/// ENG-AUD-2026-S03-0001: Determine the final job status string from the three
+/// independent outcome signals.  Extracted as a pure function so it can be
+/// tested directly without a running AppState.
+///
+/// Priority: cancelled > failed > degraded > done.
+fn determine_job_status(cancelled: bool, res_failed: bool, enrich_warnings: &[String]) -> &'static str {
+    if cancelled {
+        "cancelled"
+    } else if res_failed {
+        "failed"
+    } else if !enrich_warnings.is_empty() {
+        "degraded"
+    } else {
+        "done"
+    }
+}
+
+/// ENG-AUD-2026-S03-0001: Build the final job message that includes enrichment
+/// warnings when present.
+fn determine_job_message(
+    cancelled: bool,
+    res_err: Option<&str>,
+    enrich_warnings: &[String],
+) -> String {
+    if cancelled {
+        "cancelled by user".to_string()
+    } else if let Some(e) = res_err {
+        e.to_string()
+    } else if !enrich_warnings.is_empty() {
+        format!(
+            "completed with enrichment warnings: {}",
+            enrich_warnings.join("; ")
+        )
+    } else {
+        "completed".to_string()
+    }
+}
+
 /// terminates abnormally (panic, `abort()`, or early `?`-return before the
 /// normal cleanup path).
 ///
@@ -1037,6 +1075,12 @@ impl Engram {
             let reg_for_cb = state.registry.clone();
             let job_id_for_cb = job_id_for_job.clone();
 
+            // ENG-AUD-2026-S03-0001: Collect enrichment-phase warnings so they can
+            // be surfaced as "degraded" status — not silently swallowed by warn!().
+            let enrichment_warnings: std::sync::Arc<std::sync::Mutex<Vec<String>>> =
+                std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let enrich_warn_inner = enrichment_warnings.clone();
+
             let res = async {
                 let engram = Engram::new(state.clone());
                 let ps = engram
@@ -1134,10 +1178,18 @@ impl Engram {
                     &project_id_for_job,
                     new_gen,
                 ) {
-                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: link_sql_to_schema failed (enrichment degraded): {e:#}");
+                    let msg = format!("link_sql_to_schema failed (enrichment degraded): {e:#}");
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: {msg}");
+                    if let Ok(mut w) = enrich_warn_inner.lock() {
+                        w.push(msg);
+                    }
                 }
                 if let Err(e) = engram.state.graph.resolve_symbol_edges(&project_id_for_job) {
-                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: resolve_symbol_edges failed (enrichment degraded): {e:#}");
+                    let msg = format!("resolve_symbol_edges failed (enrichment degraded): {e:#}");
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: {msg}");
+                    if let Ok(mut w) = enrich_warn_inner.lock() {
+                        w.push(msg);
+                    }
                 }
 
                 if let Err(e) = engram
@@ -1153,32 +1205,43 @@ impl Engram {
                     )
                     .await
                 {
-                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: git_update_stream failed (enrichment degraded): {e:#}");
+                    let msg = format!("git_update_stream failed (enrichment degraded): {e:#}");
+                    tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: {msg}");
+                    if let Ok(mut w) = enrich_warn_inner.lock() {
+                        w.push(msg);
+                    }
                 }
 
                 Ok::<(), anyhow::Error>(())
             }
             .await;
 
-            let final_status = if token.is_cancelled() {
-                "cancelled"
-            } else if res.is_err() {
-                "failed"
-            } else {
-                "done"
-            };
+            // ENG-AUD-2026-S03-0001: Surface enrichment warnings as "degraded"
+            // status so callers can distinguish clean success from partial success.
+            let enrich_warnings_collected: Vec<String> = enrichment_warnings
+                .lock()
+                .map(|g| g.clone())
+                .unwrap_or_default();
 
-            let final_msg = match (&res, token.is_cancelled()) {
-                (_, true) => "cancelled by user".to_string(),
-                (Err(e), false) => e.to_string(),
-                _ => "completed".to_string(),
-            };
+            let final_status = determine_job_status(
+                token.is_cancelled(),
+                res.is_err(),
+                &enrich_warnings_collected,
+            );
+            let final_msg = determine_job_message(
+                token.is_cancelled(),
+                res.as_ref().err().map(|e| e.to_string()).as_deref(),
+                &enrich_warnings_collected,
+            );
 
             // Fix 12: Derive progress from the actual outcome, not a pre-set constant.
-            let final_progress: u8 = if final_status == "done" { 100 } else { 0 };
+            // "degraded" counts as complete (indexing finished, enrichment partial).
+            let final_progress: u8 =
+                if final_status == "done" || final_status == "degraded" { 100 } else { 0 };
 
             // Fix 11: Write failure/cancellation checkpoint on abnormal exit.
-            if final_status != "done" {
+            // "degraded" still advances generation — do not write a failure checkpoint for it.
+            if final_status != "done" && final_status != "degraded" {
                 let engram = Engram::new(state.clone());
                 engram
                     .write_checkpoint(
@@ -1194,7 +1257,7 @@ impl Engram {
                     .await;
             }
 
-            if final_status == "done" {
+            if final_status == "done" || final_status == "degraded" {
                 let reg = state.registry.clone();
                 let pid2 = project_id_for_job.clone();
                 let gen_str = new_gen.to_string();
@@ -2187,6 +2250,8 @@ impl Engram {
 
 #[cfg(test)]
 mod inv_tag_tests {
+    use super::{determine_job_message, determine_job_status};
+
     /// AUD-2026-INV-0002: verify that the repair-project error paths are tagged.
     #[test]
     fn repair_project_set_meta_failure_test_tag_present() {
@@ -2364,53 +2429,90 @@ mod inv_tag_tests {
         }
     }
 
-    /// ENG-AUD-2026-S03-0001 + ENG-AUD-2026-S08-0001
-    ///
-    /// Behavioral contract:
-    ///   1. Post-index enrichment errors (link_sql_to_schema, resolve_symbol_edges,
-    ///      git_update_stream) are logged rather than silently discarded.
-    ///   2. Memory bank update failures are logged rather than silently discarded.
-    ///   3. None of these failures propagate as fatal job errors — they are degraded-
-    ///      enrichment warnings only.
-    ///
-    /// This is a compile-time + structural test.  The `if let Err(e)` pattern only
-    /// compiles when the callee returns `Result<_, _>`, so the absence of a build
-    /// error is itself a behavioral guarantee that error handling is wired.
-    /// The structural assertions below additionally confirm the production section
-    /// carries the audit tags and does NOT revert to the discarding `let _ =` form.
+    // ── Gate 2.0 Tests 1–3: enrichment failures surface as "degraded" ───────
+    // These call the extracted pure functions directly — no AppState, no I/O,
+    // deterministic inputs, deterministic outputs.
+
+    /// Gate 2.0 Test 1 (S03): link_sql_to_schema failure → "degraded" status.
+    /// Old behavior: final_status was "done" even with enrichment failure.
+    /// New behavior: any non-empty enrichment warnings → "degraded".
     #[test]
-    fn link_sql_to_schema_returns_result() {
-        // Verify the function signature returns a Result type.
-        // This is a compile-time check — if it returned () this wouldn't compile.
-        fn _assert_result<T, E>(_: Result<T, E>) {}
-        // We can't call it without a real graph, but we can verify the type via
-        // the existing error-handling code compiles with if let Err(e) = ...
-        // The real behavioral guarantee is: errors are now logged, not discarded.
-        // This test documents that contract by asserting the audit tag is present
-        // in the production section of the file ONLY (not in tests).
-        let prod = include_str!("project_tools.rs")
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap_or("");
-        assert!(prod.contains("ENG-AUD-2026-S03-0001"), "S03 tag must be in production code");
-        assert!(prod.contains("ENG-AUD-2026-S08-0001"), "S08 tag must be in production code");
-        // Critically: the S03-tagged enrichment block must NOT use `let _ =` on
-        // link_sql_to_schema.  We check the specific call site by verifying that
-        // `if let Err(e) = graph_service::link_sql_to_schema` is present — this is
-        // only present if the fix was applied and confirms errors are handled.
-        assert!(
-            prod.contains("if let Err(e) = graph_service::link_sql_to_schema"),
-            "ENG-AUD-2026-S03-0001: link_sql_to_schema result must be handled with if let Err"
+    fn link_sql_failure_surfaces_degraded_status() {
+        let warnings = vec!["link_sql_to_schema failed: connection refused".to_string()];
+        let status = determine_job_status(false, false, &warnings);
+        assert_eq!(
+            status, "degraded",
+            "ENG-AUD-2026-S03-0001: link_sql_to_schema failure must produce status='degraded', \
+             not 'done'. Got: '{status}'"
         );
-        // Verify git_update_stream enrichment result is also handled.
-        assert!(
-            prod.contains("ENG-AUD-2026-S03-0001: git_update_stream failed"),
-            "ENG-AUD-2026-S03-0001: git_update_stream error must be logged"
+    }
+
+    /// Gate 2.0 Test 2 (S03): resolve_symbol_edges failure → "degraded" status.
+    #[test]
+    fn resolve_symbol_failure_surfaces_degraded_status() {
+        let warnings = vec!["resolve_symbol_edges failed: graph unavailable".to_string()];
+        let status = determine_job_status(false, false, &warnings);
+        assert_eq!(
+            status, "degraded",
+            "ENG-AUD-2026-S03-0001: resolve_symbol_edges failure must produce status='degraded', \
+             not 'done'. Got: '{status}'"
         );
-        // Verify memory bank update failure is handled (S08).
+    }
+
+    /// Gate 2.0 Test 3 (S03): git_update_stream failure → not clean "done".
+    /// The job message must contain the warning text so it is visible to callers.
+    #[test]
+    fn git_update_failure_does_not_report_clean_success() {
+        let warnings = vec!["git_update_stream failed: not a git repo".to_string()];
+
+        let status = determine_job_status(false, false, &warnings);
+        assert_ne!(
+            status, "done",
+            "ENG-AUD-2026-S03-0001: git_update_stream failure must not report clean 'done' status"
+        );
+
+        let msg = determine_job_message(false, None, &warnings);
         assert!(
-            prod.contains("ENG-AUD-2026-S08-0001: memory bank update failed"),
-            "ENG-AUD-2026-S08-0001: memory bank update error must be logged"
+            msg.contains("git_update_stream"),
+            "ENG-AUD-2026-S03-0001: job message must contain enrichment warning text so callers \
+             can see what degraded. Message: '{msg}'"
+        );
+        assert!(
+            msg.contains("enrichment warnings"),
+            "ENG-AUD-2026-S03-0001: job message must use 'enrichment warnings' framing. \
+             Message: '{msg}'"
+        );
+    }
+
+    /// Sanity: clean completion (no failures, no warnings) → "done".
+    #[test]
+    fn clean_completion_produces_done_status() {
+        let status = determine_job_status(false, false, &[]);
+        assert_eq!(status, "done", "Clean completion must produce 'done'");
+        let msg = determine_job_message(false, None, &[]);
+        assert_eq!(msg, "completed", "Clean completion message must be 'completed'");
+    }
+
+    /// Sanity: hard failure (res.is_err()) → "failed", not "degraded".
+    #[test]
+    fn hard_failure_produces_failed_not_degraded() {
+        // Even with enrichment warnings, a hard failure takes priority.
+        let warnings = vec!["some enrichment warning".to_string()];
+        let status = determine_job_status(false, true, &warnings);
+        assert_eq!(
+            status, "failed",
+            "Hard job failure must produce 'failed', not 'degraded'"
+        );
+    }
+
+    /// Sanity: cancellation takes priority over everything else.
+    #[test]
+    fn cancellation_takes_priority_over_enrichment_warnings() {
+        let warnings = vec!["some enrichment warning".to_string()];
+        let status = determine_job_status(true, false, &warnings);
+        assert_eq!(
+            status, "cancelled",
+            "Cancellation must produce 'cancelled' regardless of enrichment warnings"
         );
     }
 }
