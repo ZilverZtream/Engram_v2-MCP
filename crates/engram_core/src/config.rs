@@ -725,6 +725,46 @@ impl Config {
             cfg.allowed_roots.push(cwd);
         }
 
+        // AUD-2026-INV-0001: canonicalize allowed_roots so that relative paths
+        // (including traversal attempts like "../../../etc") are resolved to
+        // absolute paths.  A relative path's meaning depends on the process CWD
+        // at the moment of first use, which is unpredictable in containers and
+        // automation.  We resolve eagerly at load time so the trust boundary is
+        // unambiguous.  If a path cannot be canonicalized (e.g. it does not
+        // exist), we resolve it relative to CWD to produce an absolute path
+        // rather than silently storing the traversal string.
+        {
+            let mut resolved: Vec<PathBuf> = Vec::with_capacity(cfg.allowed_roots.len());
+            for root in cfg.allowed_roots.drain(..) {
+                if root.is_absolute() {
+                    resolved.push(root);
+                } else {
+                    // Relative path: attempt fs::canonicalize first (works when
+                    // the path exists), fall back to joining with CWD (makes it
+                    // absolute even when the target does not exist yet).
+                    let abs = match std::fs::canonicalize(&root) {
+                        Ok(canon) => canon,
+                        Err(_) => {
+                            let cwd = std::env::current_dir().map_err(|e| {
+                                EngramError::Config(format!(
+                                    "AUD-2026-INV-0001: cannot resolve relative allowed_root \
+                                     {root:?} — failed to get CWD: {e}"
+                                ))
+                            })?;
+                            cwd.join(&root)
+                        }
+                    };
+                    tracing::warn!(
+                        "AUD-2026-INV-0001: relative allowed_root {:?} canonicalized to {}",
+                        root,
+                        abs.display()
+                    );
+                    resolved.push(abs);
+                }
+            }
+            cfg.allowed_roots = resolved;
+        }
+
         // Default data_dir to the platform-standard data directory if not specified.
         if cfg.data_dir.as_os_str().is_empty() {
             if let Some(dirs) = ProjectDirs::from("io", "engram", "engram") {
@@ -942,5 +982,156 @@ mod tests {
             !cfg.allowed_roots.is_empty(),
             "allowed_roots must be non-empty after CWD fallback"
         );
+    }
+
+    // ── Gate 3.0→3.5: adversarial config security tests ──────────────────────
+    #[cfg(test)]
+    mod adversarial_config_tests {
+        use super::*;
+        use std::io::Write;
+
+        // Helper: write a temp YAML file and return its path.
+        fn write_temp_yaml(filename: &str, content: &str) -> std::path::PathBuf {
+            let path = std::env::temp_dir().join(filename);
+            let mut f = std::fs::File::create(&path)
+                .unwrap_or_else(|e| panic!("create temp yaml {filename}: {e}"));
+            f.write_all(content.as_bytes())
+                .unwrap_or_else(|e| panic!("write temp yaml {filename}: {e}"));
+            path
+        }
+
+        /// AUD-2026-INV-0001 Gate 3.0→3.5: a path-traversal string supplied as
+        /// an allowed_root must either be canonicalized to an absolute path or
+        /// cause load to fail.  In no case should the raw traversal string
+        /// `"../../../etc"` survive into `cfg.allowed_roots` as-is.
+        ///
+        /// Rationale: storing a relative traversal path verbatim in the trust
+        /// boundary list is a security hazard — the effective root depends on
+        /// the process CWD at the moment the path is first resolved, which is
+        /// unpredictable in containers/automation.
+        #[test]
+        fn path_traversal_in_allowed_roots_is_resolved_or_rejected() {
+            // AUD-2026-INV-0001
+            let traversal_input = "../../../etc";
+            let yaml = format!(
+                "allowed_roots: [\"{traversal_input}\"]\ndata_dir: /tmp\n"
+            );
+            let path = write_temp_yaml(
+                "engram_adv_path_traversal_test.yaml",
+                &yaml,
+            );
+
+            let result = Config::load_from_path(&path);
+            let _ = std::fs::remove_file(&path);
+
+            match result {
+                Err(_) => {
+                    // Acceptable: the load rejected the traversal path outright.
+                    // No further assertions needed.
+                }
+                Ok(cfg) => {
+                    // Acceptable only if every root has been canonicalized to an
+                    // absolute path.  The raw traversal string must not appear as-is.
+                    for root in &cfg.allowed_roots {
+                        let root_str = root.to_string_lossy();
+                        assert!(
+                            root.is_absolute(),
+                            "AUD-2026-INV-0001: path traversal root must be canonicalized to \
+                             an absolute path, got: {root_str}"
+                        );
+                        assert!(
+                            root_str != traversal_input,
+                            "AUD-2026-INV-0001: raw traversal string must not appear verbatim \
+                             in allowed_roots; got: {root_str}"
+                        );
+                    }
+                }
+            }
+        }
+
+        /// AUD-2026-INV-0001 Gate 3.0→3.5: `allowed_roots: []` without
+        /// `allow_cwd_default: true` must produce an error that clearly names
+        /// the audit tag and conveys the refusal to the operator.
+        ///
+        /// This is the core Gate 3.0→3.5 security assertion: operators must
+        /// receive a message that is unambiguous about why startup was refused.
+        #[test]
+        fn empty_allowed_roots_without_opt_in_fails_with_clear_message() {
+            // AUD-2026-INV-0001
+            let path = write_temp_yaml(
+                "engram_adv_empty_roots_clear_msg_test.yaml",
+                "allowed_roots: []\ndata_dir: /tmp\n",
+            );
+
+            let result = Config::load_from_path(&path);
+            let _ = std::fs::remove_file(&path);
+
+            assert!(
+                result.is_err(),
+                "AUD-2026-INV-0001: load_from_path must return Err when allowed_roots is empty \
+                 and allow_cwd_default is not set"
+            );
+
+            let msg = result.unwrap_err().to_string();
+
+            // The audit tag must be present so operators can look up the KB article.
+            assert!(
+                msg.contains("AUD-2026-INV-0001"),
+                "AUD-2026-INV-0001: error message must contain the audit tag; got: {msg}"
+            );
+
+            // The message must also convey the refusal clearly.
+            let conveys_refusal = msg.contains("fail")
+                || msg.contains("empty")
+                || msg.contains("refused")
+                || msg.contains("refusing");
+            assert!(
+                conveys_refusal,
+                "AUD-2026-INV-0001: error message must contain 'fail', 'empty', 'refused', \
+                 or 'refusing' so operators understand why startup was blocked; got: {msg}"
+            );
+        }
+
+        /// AUD-2026-INV-0001 Gate 3.0→3.5: `load_from_path` must succeed when
+        /// `data_dir` points to a path that does not exist on disk.  Existence
+        /// checking is intentionally deferred to the first use of the directory,
+        /// allowing operators to pre-configure the server before the storage
+        /// volume is mounted.
+        ///
+        /// This test documents and locks the expected behaviour so that a future
+        /// refactor does not accidentally add an existence check at load time.
+        #[test]
+        fn config_with_nonexistent_data_dir_is_accepted_until_use() {
+            // AUD-2026-INV-0001 (deferred-existence behaviour documentation)
+            // Use a path that is very unlikely to exist on any CI machine.
+            let nonexistent_data_dir =
+                "/tmp/engram_adv_nonexistent_sentinel_dir_xK9z2Q7w/data";
+
+            let yaml = format!(
+                "allowed_roots: [/tmp]\ndata_dir: {nonexistent_data_dir}\n"
+            );
+            let path = write_temp_yaml(
+                "engram_adv_nonexistent_data_dir_test.yaml",
+                &yaml,
+            );
+
+            let result = Config::load_from_path(&path);
+            let _ = std::fs::remove_file(&path);
+
+            assert!(
+                result.is_ok(),
+                "AUD-2026-INV-0001: load_from_path must accept a nonexistent data_dir \
+                 (existence is checked at use time, not load time); err: {:?}",
+                result.err()
+            );
+
+            // Confirm data_dir was stored verbatim (no silent mutation).
+            let cfg = result.unwrap();
+            assert_eq!(
+                cfg.data_dir,
+                std::path::PathBuf::from(nonexistent_data_dir),
+                "AUD-2026-INV-0001: data_dir must be stored as supplied when path does not exist"
+            );
+        }
     }
 }
