@@ -9,6 +9,7 @@
 //!  - Enrichment degradation regression checks
 //!  - Infra-error vs low-relevance score isolation in ADP confidence
 
+use engram_core::Registry;
 use engram_server::services::autonomous_decision_service::*;
 use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
 
@@ -64,51 +65,59 @@ fn all_green_input() -> AdpInput {
     }
 }
 
-// ── Generation ordering contracts ─────────────────────────────────────────────
+// ── Generation ordering contracts — production Registry API ───────────────────
 
-/// Repair persistence ordering: process_ingest_stats must run before set_meta,
-/// and set_meta must run before the success banner. If any step fails, the
-/// generation must not advance (fail-before-commit contract).
+/// The Registry set_meta → get_meta contract: after set_meta commits,
+/// the new generation value is immediately visible. This is the production
+/// persistence path (redb write transaction) that must succeed for
+/// generation advancement to occur.
 #[test]
-fn generation_must_not_advance_on_persistence_failure() {
-    let old_gen: u64 = 10;
-    let new_gen: u64 = old_gen + 1;
+fn registry_set_meta_makes_generation_visible() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("reg.redb")).expect("open registry");
 
-    // Simulate the commit-then-banner contract:
-    // Step 1: process_ingest_stats (can fail)
-    // Step 2: set_meta(active_generation) (can fail)
-    // Step 3: emit success banner (only if steps 1+2 succeeded)
+    reg.set_meta("proj-gen-contract", "active_generation", "10")
+        .expect("set_meta must commit successfully");
 
-    let ingest_stats_ok = true;
-    let set_meta_ok = false; // simulate set_meta failure
-
-    let committed_gen = if ingest_stats_ok && set_meta_ok {
-        new_gen
-    } else {
-        old_gen // no advancement on failure
-    };
+    let val = reg
+        .get_meta("proj-gen-contract", "active_generation")
+        .expect("get_meta must not error")
+        .expect("active_generation must be present after set_meta commits");
 
     assert_eq!(
-        committed_gen, old_gen,
-        "AUD-2026-INV-0002: generation must not advance when set_meta fails; \
-         old={old_gen}, new={new_gen}, committed={committed_gen}"
+        val, "10",
+        "AUD-2026-INV-0002: generation must be visible as '10' immediately after set_meta commits"
     );
-    assert_ne!(committed_gen, new_gen,
-        "AUD-2026-INV-0002: new_gen must not be visible after set_meta failure");
 }
 
-/// When process_ingest_stats fails (before set_meta), the generation pointer
-/// must remain at the old value.
+/// The fail-before-commit contract: if set_meta is never called for a new
+/// generation (e.g. process_ingest_stats failed before reaching set_meta),
+/// the old generation value is the only value visible in the Registry.
+/// Tests the production redb read path directly.
 #[test]
-fn generation_not_visible_before_set_meta_completes() {
-    let old_gen: u64 = 5;
-    let new_gen: u64 = 6;
+fn registry_generation_absent_before_set_meta_is_called() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("reg.redb")).expect("open registry");
 
-    let ingest_stats_ok = false; // early failure
-    let visible = if ingest_stats_ok { new_gen } else { old_gen };
+    // Establish old generation at 5
+    reg.set_meta("proj-gen-order", "active_generation", "5")
+        .expect("establish old generation");
 
-    assert_eq!(visible, old_gen,
-        "AUD-2026-INV-0002: generation must not be visible before process_ingest_stats completes");
+    // new_gen=6 was computed but set_meta was NOT called (process_ingest_stats failed first).
+    // The Registry must still show 5, not 6.
+    let visible = reg
+        .get_meta("proj-gen-order", "active_generation")
+        .expect("get_meta must not error")
+        .expect("baseline generation must be present");
+
+    assert_eq!(
+        visible, "5",
+        "AUD-2026-INV-0002: generation must remain at '5' when set_meta(6) was never called"
+    );
+    assert_ne!(
+        visible, "6",
+        "AUD-2026-INV-0002: uncommitted generation '6' must not appear in the registry"
+    );
 }
 
 // ── ADP infra-error isolation from gate confidence ────────────────────────────

@@ -1,0 +1,290 @@
+#![allow(clippy::unwrap_used)]
+//! Behavioral parity tests for the production embedder implementations.
+//!
+//! Tests call production code directly: ProjectionEmbedder, LocalEmbedder,
+//! OllamaEmbedder, OpenAIEmbedder, build_embedder — verifying dimension
+//! contracts, output normalization, determinism, and backend dispatch.
+//! No network access required for local-path tests.
+
+use engram_ml::{
+    build_embedder, Embedder, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder,
+};
+
+// ── ProjectionEmbedder — fully local, deterministic ───────────────────────────
+
+/// Output vector length must exactly match the configured dimension.
+/// This is the fundamental dimension contract: dim=N → embed() returns N f32 values.
+#[tokio::test]
+async fn projection_embedder_output_length_matches_configured_dimension() {
+    for dim in [64usize, 128, 256, 384, 768] {
+        let embedder = ProjectionEmbedder::new(dim);
+        let embedding = embedder.embed("hello world").await.expect("embed must succeed");
+        assert_eq!(
+            embedding.len(),
+            dim,
+            "ProjectionEmbedder(dim={dim}) must return exactly {dim} f32 elements; got {}",
+            embedding.len()
+        );
+    }
+}
+
+/// Output must be an L2-normalized unit vector (norm ≈ 1.0).
+/// Cosine-similarity databases (LanceDB) require normalized vectors.
+#[tokio::test]
+async fn projection_embedder_output_is_unit_normalized() {
+    let embedder = ProjectionEmbedder::new(128);
+    let embedding = embedder.embed("test text for normalization").await.expect("embed");
+    let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        (norm - 1.0).abs() < 1e-4,
+        "ProjectionEmbedder output must be L2-unit-normalized; got norm={norm:.6}"
+    );
+}
+
+/// Same input text must produce identical output on every call.
+/// Fixed-seed ahash ensures cross-process determinism (not OS-entropy seeded).
+#[tokio::test]
+async fn projection_embedder_is_deterministic_across_repeated_calls() {
+    let embedder = ProjectionEmbedder::new(128);
+    let text = "determinism test: fixed-seed ahash must give identical output";
+
+    let v1 = embedder.embed(text).await.expect("first embed");
+    let v2 = embedder.embed(text).await.expect("second embed");
+    let v3 = embedder.embed(text).await.expect("third embed");
+
+    for (i, ((a, b), c)) in v1.iter().zip(v2.iter()).zip(v3.iter()).enumerate() {
+        assert_eq!(
+            a, b,
+            "element[{i}] must be identical between call 1 and call 2"
+        );
+        assert_eq!(
+            a, c,
+            "element[{i}] must be identical between call 1 and call 3"
+        );
+    }
+}
+
+/// Different input texts must produce different embedding vectors.
+#[tokio::test]
+async fn projection_embedder_different_texts_produce_different_vectors() {
+    let embedder = ProjectionEmbedder::new(256);
+    let v_foo = embedder.embed("foo").await.expect("embed foo");
+    let v_bar = embedder.embed("bar").await.expect("embed bar");
+
+    assert_ne!(
+        v_foo, v_bar,
+        "different input texts must produce different embedding vectors"
+    );
+}
+
+/// dim=0 must return an explicit Err — never panic, never return a 0-element vector.
+/// A 0-element vector would divide-by-zero in cosine similarity.
+#[tokio::test]
+async fn projection_embedder_dim_zero_returns_err_not_panic() {
+    let embedder = ProjectionEmbedder::new(0);
+    let result = embedder.embed("dim zero test").await;
+    assert!(
+        result.is_err(),
+        "ProjectionEmbedder(dim=0) must return Err — not panic or return Ok([])"
+    );
+}
+
+/// Empty text must return a stable unit vector (vec[0]=1.0, rest=0.0).
+/// An all-zero vector causes cosine div-by-zero in LanceDB — this is the fix.
+#[tokio::test]
+async fn projection_embedder_empty_text_returns_stable_unit_vector() {
+    let embedder = ProjectionEmbedder::new(64);
+    let embedding = embedder.embed("").await.expect("empty text embed must not fail");
+
+    assert_eq!(
+        embedding.len(),
+        64,
+        "empty text must still produce a full-length vector"
+    );
+    assert!(
+        (embedding[0] - 1.0).abs() < 1e-6,
+        "empty text unit vector must have 1.0 at dim[0] to prevent cosine div-by-zero; got {}",
+        embedding[0]
+    );
+    let rest_nonzero = embedding[1..].iter().filter(|&&x| x.abs() > 1e-6).count();
+    assert_eq!(
+        rest_nonzero, 0,
+        "empty text unit vector must have 0.0 for all dims > 0; {rest_nonzero} non-zero found"
+    );
+}
+
+/// Whitespace-only text must return the same stable unit vector as empty text.
+#[tokio::test]
+async fn projection_embedder_whitespace_text_returns_unit_vector() {
+    let embedder = ProjectionEmbedder::new(64);
+    let embedding = embedder.embed("   \t\n  ").await.expect("whitespace embed");
+    assert_eq!(embedding.len(), 64);
+    assert!(
+        (embedding[0] - 1.0).abs() < 1e-6,
+        "whitespace-only text must produce unit vector at dim[0]; got {}",
+        embedding[0]
+    );
+}
+
+// ── LocalEmbedder — delegates to ProjectionEmbedder(384) ─────────────────────
+
+/// LocalEmbedder output length must equal its dimension() method return value.
+#[tokio::test]
+async fn local_embedder_output_length_matches_dimension_method() {
+    let embedder = LocalEmbedder;
+    let declared_dim = embedder.dimension();
+    let embedding = embedder.embed("local embedder test").await.expect("embed");
+
+    assert_eq!(
+        embedding.len(),
+        declared_dim,
+        "LocalEmbedder output length ({}) must equal dimension() ({})",
+        embedding.len(),
+        declared_dim
+    );
+}
+
+/// LocalEmbedder must produce identical output to ProjectionEmbedder(384).
+/// This is the parity contract between the two local provider implementations.
+#[tokio::test]
+async fn local_embedder_output_matches_projection_embedder_384_parity() {
+    let local = LocalEmbedder;
+    let projection = ProjectionEmbedder::new(384);
+    let text = "parity test: local and projection embedder must produce identical output";
+
+    let local_v = local.embed(text).await.expect("local embed");
+    let proj_v = projection.embed(text).await.expect("projection embed");
+
+    assert_eq!(
+        local_v.len(),
+        proj_v.len(),
+        "LocalEmbedder and ProjectionEmbedder(384) must produce same-length output"
+    );
+    for (i, (a, b)) in local_v.iter().zip(proj_v.iter()).enumerate() {
+        assert!(
+            (a - b).abs() < 1e-6,
+            "parity failure at element[{i}]: LocalEmbedder={a} vs ProjectionEmbedder(384)={b}"
+        );
+    }
+}
+
+// ── OllamaEmbedder / OpenAIEmbedder — dimension contract at construction ──────
+
+/// OllamaEmbedder must report the dimension it was constructed with.
+/// No network access: dimension() is a pure accessor on the configured value.
+#[test]
+fn ollama_embedder_dimension_method_returns_constructor_argument() {
+    let embedder =
+        OllamaEmbedder::new("nomic-embed-text", "http://localhost:11434", 768)
+            .expect("OllamaEmbedder::new must succeed");
+    assert_eq!(
+        embedder.dimension(),
+        768,
+        "OllamaEmbedder::dimension() must return the dim passed to ::new()"
+    );
+}
+
+/// OpenAIEmbedder must report the dimension it was constructed with.
+#[test]
+fn openai_embedder_dimension_method_returns_constructor_argument() {
+    let embedder =
+        OpenAIEmbedder::new("text-embedding-3-small", "test-key", "https://api.openai.com/v1", 1536)
+            .expect("OpenAIEmbedder::new must succeed");
+    assert_eq!(
+        embedder.dimension(),
+        1536,
+        "OpenAIEmbedder::dimension() must return the dim passed to ::new()"
+    );
+}
+
+/// Both remote embedders must support custom (non-default) dimensions.
+/// This verifies the operator-configured dimension override path.
+#[test]
+fn remote_embedders_support_custom_dimension_overrides() {
+    let ollama_custom = OllamaEmbedder::new("mxbai-embed-large", "http://localhost:11434", 1024)
+        .expect("OllamaEmbedder custom dim");
+    assert_eq!(
+        ollama_custom.dimension(),
+        1024,
+        "OllamaEmbedder must support custom dimension 1024"
+    );
+
+    let openai_custom = OpenAIEmbedder::new(
+        "text-embedding-3-large",
+        "test-key",
+        "https://api.openai.com/v1",
+        3072,
+    )
+    .expect("OpenAIEmbedder custom dim");
+    assert_eq!(
+        openai_custom.dimension(),
+        3072,
+        "OpenAIEmbedder must support custom dimension 3072"
+    );
+}
+
+// ── build_embedder factory — backend dispatch and validation ─────────────────
+
+/// Local backend must produce a working embedder with dimension 384.
+#[tokio::test]
+async fn build_embedder_local_backend_produces_dim384_working_embedder() {
+    let mut cfg = engram_core::Config::default();
+    cfg.embedding_backend = "local".to_string();
+
+    let embedder = build_embedder(&cfg).expect("build_embedder(local) must succeed");
+    assert_eq!(
+        embedder.dimension(),
+        384,
+        "local backend embedder must report dimension 384"
+    );
+
+    let v = embedder.embed("build_embedder smoke test").await.expect("embed");
+    assert_eq!(
+        v.len(),
+        384,
+        "local backend embed() must return 384-element vector"
+    );
+}
+
+/// Unknown backend must return Err — not panic, not fall back silently.
+#[test]
+fn build_embedder_unknown_backend_returns_err_not_panic() {
+    let mut cfg = engram_core::Config::default();
+    cfg.embedding_backend = "totally_unknown_backend_xyz".to_string();
+
+    let result = build_embedder(&cfg);
+    assert!(
+        result.is_err(),
+        "build_embedder with unknown backend must return Err, not fall back silently"
+    );
+}
+
+/// OpenAI backend without api_key must return Err.
+/// This gate prevents silent empty-key API requests.
+#[test]
+fn build_embedder_openai_without_api_key_returns_err() {
+    let mut cfg = engram_core::Config::default();
+    cfg.embedding_backend = "openai".to_string();
+    cfg.openai_api_key = None;
+
+    let result = build_embedder(&cfg);
+    assert!(
+        result.is_err(),
+        "build_embedder(openai) with no api_key must return Err, not make unauthenticated requests"
+    );
+}
+
+/// Candle backend (alias for local) must produce a valid embedder — it is
+/// a known synonym for local-mode operation.
+#[tokio::test]
+async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
+    let mut cfg = engram_core::Config::default();
+    cfg.embedding_backend = "candle".to_string();
+
+    let embedder = build_embedder(&cfg).expect("build_embedder(candle) must succeed");
+    let v = embedder.embed("candle alias test").await.expect("embed");
+    assert!(
+        !v.is_empty(),
+        "candle alias embedder must return a non-empty vector"
+    );
+}
