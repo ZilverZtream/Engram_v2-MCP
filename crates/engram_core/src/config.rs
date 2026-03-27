@@ -725,37 +725,38 @@ impl Config {
             cfg.allowed_roots.push(cwd);
         }
 
-        // AUD-2026-INV-0001: canonicalize allowed_roots so that relative paths
-        // (including traversal attempts like "../../../etc") are resolved to
-        // absolute paths.  A relative path's meaning depends on the process CWD
-        // at the moment of first use, which is unpredictable in containers and
-        // automation.  We resolve eagerly at load time so the trust boundary is
-        // unambiguous.  If a path cannot be canonicalized (e.g. it does not
-        // exist), we resolve it relative to CWD to produce an absolute path
-        // rather than silently storing the traversal string.
+        // ENG-AUD-2026-EXH-0002 + AUD-2026-INV-0001: canonicalize allowed_roots
+        // so that relative paths are resolved to absolute paths.  Relative paths
+        // MUST be resolved against the config file's parent directory — not the
+        // process CWD — so the trust boundary is deterministic regardless of
+        // where the process is launched from (containers, CI, IDE terminals).
         {
+            // Base directory for resolving relative roots: the directory that
+            // contains the config file, not the process CWD.
+            let config_dir = path
+                .parent()
+                .unwrap_or_else(|| std::path::Path::new("."))
+                .to_path_buf();
+            let config_dir = if config_dir.as_os_str().is_empty() {
+                std::path::Path::new(".").to_path_buf()
+            } else {
+                config_dir
+            };
+
             let mut resolved: Vec<PathBuf> = Vec::with_capacity(cfg.allowed_roots.len());
             for root in cfg.allowed_roots.drain(..) {
                 if root.is_absolute() {
                     resolved.push(root);
                 } else {
-                    // Relative path: attempt fs::canonicalize first (works when
-                    // the path exists), fall back to joining with CWD (makes it
-                    // absolute even when the target does not exist yet).
-                    let abs = match std::fs::canonicalize(&root) {
-                        Ok(canon) => canon,
-                        Err(_) => {
-                            let cwd = std::env::current_dir().map_err(|e| {
-                                EngramError::Config(format!(
-                                    "AUD-2026-INV-0001: cannot resolve relative allowed_root \
-                                     {root:?} — failed to get CWD: {e}"
-                                ))
-                            })?;
-                            cwd.join(&root)
-                        }
-                    };
+                    // Relative path: join with config dir first, then canonicalize
+                    // (resolves symlinks and ".." components when the path exists).
+                    // If canonicalize fails (path does not exist yet), use the
+                    // joined-but-non-canonical form — still anchored to config dir.
+                    let joined = config_dir.join(&root);
+                    let abs = std::fs::canonicalize(&joined).unwrap_or(joined);
                     tracing::warn!(
-                        "AUD-2026-INV-0001: relative allowed_root {:?} canonicalized to {}",
+                        "ENG-AUD-2026-EXH-0002: relative allowed_root {:?} resolved to {} \
+                         (anchored to config dir, not process CWD)",
                         root,
                         abs.display()
                     );
@@ -1132,6 +1133,71 @@ mod tests {
                 std::path::PathBuf::from(nonexistent_data_dir),
                 "AUD-2026-INV-0001: data_dir must be stored as supplied when path does not exist"
             );
+        }
+
+        /// ENG-AUD-2026-EXH-0002: a relative `allowed_root` must be resolved
+        /// against the config file's **parent directory**, not the process CWD.
+        ///
+        /// Rationale: CWD varies between IDE, container, and CI environments.
+        /// A relative path that resolves correctly in one environment silently
+        /// grants trust to a different directory in another.  Anchoring to the
+        /// config file's location is deterministic and operator-visible.
+        #[test]
+        fn relative_allowed_root_anchors_to_config_dir_not_cwd() {
+            // ENG-AUD-2026-EXH-0002
+            //
+            // Strategy: write the config file into a temp subdirectory.  The
+            // relative root "." in the config should resolve to that subdir,
+            // NOT to the process CWD (which is very likely a different path).
+            let tmp = tempfile::TempDir::new()
+                .expect("EXH-0002: create temp dir");
+            let config_dir = tmp.path();
+            let config_path = config_dir.join("engram_exh0002_test.yaml");
+
+            // Use "." as the relative root — it must resolve to `config_dir`.
+            let yaml = "allowed_roots: [.]\ndata_dir: /tmp\n";
+            let mut f = std::fs::File::create(&config_path)
+                .expect("EXH-0002: create config file");
+            f.write_all(yaml.as_bytes()).expect("EXH-0002: write config");
+            drop(f);
+
+            let result = Config::load_from_path(&config_path);
+            let _ = std::fs::remove_file(&config_path);
+
+            let cfg = result.expect(
+                "EXH-0002: load_from_path must succeed with relative root '.'"
+            );
+
+            assert!(
+                !cfg.allowed_roots.is_empty(),
+                "EXH-0002: allowed_roots must be non-empty after resolving '.'"
+            );
+
+            let resolved = &cfg.allowed_roots[0];
+            assert!(
+                resolved.is_absolute(),
+                "EXH-0002: resolved allowed_root must be absolute; got: {}",
+                resolved.display()
+            );
+
+            // The resolved path must equal config_dir (possibly via
+            // canonicalization), not the process CWD.
+            let canon_config_dir = std::fs::canonicalize(config_dir)
+                .unwrap_or_else(|_| config_dir.to_path_buf());
+            let canon_cwd = std::env::current_dir()
+                .unwrap_or_else(|_| std::path::PathBuf::from("/"));
+
+            // If CWD happens to equal config_dir this assertion is vacuous but
+            // harmless — we can at least confirm the path is absolute.
+            if canon_cwd != canon_config_dir {
+                assert_eq!(
+                    *resolved, canon_config_dir,
+                    "ENG-AUD-2026-EXH-0002: relative root '.' must resolve to config dir \
+                     ({}) not process CWD ({})",
+                    canon_config_dir.display(),
+                    canon_cwd.display()
+                );
+            }
         }
     }
 }

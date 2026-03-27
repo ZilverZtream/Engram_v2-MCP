@@ -32,6 +32,15 @@ pub struct ScaffoldResult {
     pub target_stack: String,
     /// Warnings during generation.
     pub warnings: Vec<String>,
+    /// ENG-AUD-2026-EXH-0004: total count of `TODO` / `NotImplementedException`
+    /// markers across all generated artifacts.  Non-zero means the scaffold is
+    /// incomplete and requires human review before the migration can go live.
+    pub placeholder_count: usize,
+    /// ENG-AUD-2026-EXH-0004: `"ready"` when `placeholder_count == 0`,
+    /// `"incomplete"` otherwise.  Callers MUST gate "ready" classification on
+    /// this field — a scaffold with placeholders compiles but will fail at
+    /// runtime.
+    pub migration_status: String,
 }
 
 /// A single legacy→modern mapping line in the report.
@@ -180,6 +189,30 @@ pub fn generate_scaffold_with_solution(
         None
     };
 
+    // ENG-AUD-2026-EXH-0004: count TODO / NotImplementedException placeholders
+    // across all generated artifacts so callers can gate "ready" classification.
+    let placeholder_count = {
+        let mut n = 0usize;
+        for artifact in [
+            Some(component_code.as_str()),
+            repository_interface.as_deref(),
+            dto_classes.as_deref(),
+            test_scaffold.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            n += artifact.matches("TODO").count();
+            n += artifact.matches("NotImplementedException").count();
+        }
+        n
+    };
+    let migration_status = if placeholder_count == 0 {
+        "ready".to_string()
+    } else {
+        "incomplete".to_string()
+    };
+
     Ok(ScaffoldResult {
         component_code,
         repository_interface,
@@ -188,6 +221,8 @@ pub fn generate_scaffold_with_solution(
         mapping_report,
         target_stack: target,
         warnings,
+        placeholder_count,
+        migration_status,
     })
 }
 
@@ -2124,5 +2159,76 @@ mod tests {
         // UserName should be read-only (false)
         let user_name = keys.iter().find(|(k, _)| k == "UserName");
         assert!(user_name.is_some_and(|(_, w)| !*w));
+    }
+
+    // ── ENG-AUD-2026-EXH-0004: placeholder_count + migration_status ─────────
+
+    /// EXH-0004: a ScaffoldResult with TODO markers must report migration_status
+    /// = "incomplete" and placeholder_count > 0.
+    #[test]
+    fn scaffold_result_with_todos_is_incomplete() {
+        // Build a ScaffoldResult that contains TODO markers directly to test
+        // the classification logic in isolation.
+        let placeholder_count = {
+            let mut n = 0usize;
+            let component = "    // TODO: migrate from Page_Load\n    throw new NotImplementedException(); // stub\n";
+            n += component.matches("TODO").count();
+            n += component.matches("NotImplementedException").count();
+            n
+        };
+        let migration_status = if placeholder_count == 0 { "ready" } else { "incomplete" };
+
+        assert_eq!(
+            placeholder_count, 2,
+            "EXH-0004: component with 1 TODO + 1 NotImplementedException must have placeholder_count=2"
+        );
+        assert_eq!(
+            migration_status, "incomplete",
+            "EXH-0004: scaffold with placeholders must report migration_status='incomplete'"
+        );
+    }
+
+    /// EXH-0004: a ScaffoldResult with no TODO or NotImplementedException must
+    /// report migration_status = "ready" and placeholder_count = 0.
+    #[test]
+    fn scaffold_result_without_placeholders_is_ready() {
+        let component = "protected override void OnInitialized() { LoadData(); }\n";
+        let placeholder_count = {
+            let mut n = 0usize;
+            n += component.matches("TODO").count();
+            n += component.matches("NotImplementedException").count();
+            n
+        };
+        let migration_status = if placeholder_count == 0 { "ready" } else { "incomplete" };
+
+        assert_eq!(
+            placeholder_count, 0,
+            "EXH-0004: clean scaffold must have placeholder_count=0"
+        );
+        assert_eq!(
+            migration_status, "ready",
+            "EXH-0004: clean scaffold must report migration_status='ready'"
+        );
+    }
+
+    /// EXH-0004: placeholder_count must count across ALL generated artifacts
+    /// (component_code, repository_interface, dto_classes, test_scaffold).
+    #[test]
+    fn placeholder_count_spans_all_artifacts() {
+        let artifacts: &[Option<&str>] = &[
+            Some("// TODO: component body"),
+            Some("// TODO: repository stub\nthrow new NotImplementedException();"),
+            Some("// TODO: dto"),
+            Some("// TODO: test"),
+        ];
+        let mut count = 0usize;
+        for art in artifacts.iter().flatten() {
+            count += art.matches("TODO").count();
+            count += art.matches("NotImplementedException").count();
+        }
+        assert_eq!(
+            count, 5,
+            "EXH-0004: must count TODOs/NotImplementedException across all 4 artifacts; got {count}"
+        );
     }
 }

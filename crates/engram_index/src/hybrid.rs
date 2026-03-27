@@ -1162,6 +1162,8 @@ impl HybridSearchEngine {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
 
+        // ENG-AUD-2026-EXH-0003: fail-closed on unknown fts_mode — callers must
+        // validate before reaching here, but defend in depth at the index layer too.
         let content_q: Box<dyn tantivy::query::Query> = match q.fts_mode.as_str() {
             "regex" => {
                 let mut parser =
@@ -1173,11 +1175,17 @@ impl HybridSearchEngine {
                 let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
                 parser.parse_query(&escape_tantivy_literal(&q.text))?
             }
-            _ => {
+            "strict" => {
                 let mut parser =
                     QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
                 parser.set_conjunction_by_default();
                 parser.parse_query(&escape_tantivy_literal(&q.text))?
+            }
+            unknown => {
+                anyhow::bail!(
+                    "ENG-AUD-2026-EXH-0003: unknown fts_mode '{}': must be strict, loose, or regex",
+                    unknown
+                );
             }
         };
 
