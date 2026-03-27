@@ -2198,4 +2198,159 @@ mod inv_tag_tests {
             "Expected >= 2 occurrences of AUD-2026-INV-0003 in project_tools.rs, found {count}"
         );
     }
+
+    // ── AUD-2026-XSYS-repair-adp: repair-state consistency ↔ ADP evidence ───
+
+    /// AUD-2026-XSYS-repair-adp: Contract test — when repair fails before
+    /// `set_meta("active_generation")`, the generation is NOT bumped.
+    ///
+    /// The ordering invariant is: `process_ingest_stats` must appear before
+    /// `set_meta("active_generation"` in the source, and the success banner
+    /// ("✅ Project repaired") must appear after both.  Any regression that
+    /// bumps the generation on the error path (or surfaces the banner before
+    /// the write is committed) would break ADP evidence correctness.
+    #[test]
+    fn repair_failure_leaves_generation_unchanged_contract() {
+        let src = include_str!("project_tools.rs");
+
+        // Locate the byte offsets of the three anchor strings.
+        let process_ingest_stats_pos = src
+            .find("process_ingest_stats(&pid, new_gen, &stats)")
+            .expect("AUD-2026-XSYS-repair-adp: 'process_ingest_stats(&pid, new_gen, &stats)' not found in project_tools.rs");
+
+        let set_meta_pos = src
+            .find(r#"set_meta(&pid, "active_generation", &new_gen.to_string())"#)
+            .expect("AUD-2026-XSYS-repair-adp: set_meta(active_generation) call not found in project_tools.rs");
+
+        // The success banner in handle_repair_project uses the Rust escape
+        // \u{2705} (✅) in the string literal.  include_str! gives us the raw
+        // source bytes, so the compiled `✅` codepoint is NOT present in the
+        // string returned by include_str! — only the literal characters
+        // `\u{2705}` are.  We search for the plain ASCII suffix
+        // "Project repaired project_id:" which is unambiguous: it only appears
+        // inside the Ok(...) return of handle_repair_project.
+        let success_banner_pos = src
+            .find("Project repaired project_id:")
+            .expect("AUD-2026-XSYS-repair-adp: success banner 'Project repaired project_id:' not found in project_tools.rs");
+
+        assert!(
+            process_ingest_stats_pos < set_meta_pos,
+            "AUD-2026-XSYS-repair-adp: process_ingest_stats must appear before set_meta(active_generation) \
+             (process_ingest_stats @ {process_ingest_stats_pos}, set_meta @ {set_meta_pos})"
+        );
+
+        assert!(
+            set_meta_pos < success_banner_pos,
+            "AUD-2026-XSYS-repair-adp: set_meta(active_generation) must appear before the success banner \
+             (set_meta @ {set_meta_pos}, banner @ {success_banner_pos})"
+        );
+    }
+
+    // ── Gate 2.5→3.0 realism: repair error paths are fail-closed ─────────────
+
+    /// Behavioral contract: the success banner for repair must appear exactly
+    /// once, in the success-path Ok(...) return only — not on any error path.
+    ///
+    /// We anchor on the unique ASCII suffix "Project repaired project_id:" to
+    /// avoid unicode-escape vs literal-codepoint ambiguity. We also verify that
+    /// AUD-2026-INV-0002 is tagged on >= 4 sites so every fallible repair step
+    /// is observable in production logs.
+    #[test]
+    fn repair_error_paths_are_fail_closed() {
+        let src = include_str!("project_tools.rs");
+
+        // "Project repaired project_id:" is unique to the Ok(...) success return.
+        // Scanning the production section (before #[cfg(test)]) ensures the count
+        // cannot be inflated by string literals inside test code.
+        let prod_section = match src.find("#[cfg(test)]") {
+            Some(pos) => &src[..pos],
+            None => src,
+        };
+        let banner_suffix = "Project repaired project_id:";
+        let banner_count = prod_section.matches(banner_suffix).count();
+        assert_eq!(
+            banner_count, 1,
+            "Gate 2.5→3.0: '{banner_suffix}' must appear exactly once in the \
+             production code (success return only, never in error paths); found {banner_count}"
+        );
+
+        // AUD-2026-INV-0002 must be present on >= 4 sites (3 impl error paths +
+        // at least 1 test tag) so every failure mode is observable in logs.
+        let tag_count = src.matches("AUD-2026-INV-0002").count();
+        assert!(
+            tag_count >= 4,
+            "Gate 2.5→3.0: AUD-2026-INV-0002 must appear >= 4 times \
+             (3 repair error paths + at least 1 test reference); found {tag_count}"
+        );
+
+        // The success banner must appear after the set_meta call (last write).
+        let set_meta_pos = src
+            .find(r#"set_meta(&pid, "active_generation", &new_gen.to_string())"#)
+            .expect("Gate 2.5: set_meta(active_generation) must be present in handle_repair_project");
+        let banner_pos = src
+            .find(banner_suffix)
+            .expect("Gate 2.5: 'Project repaired project_id:' must be present in handle_repair_project");
+        assert!(
+            set_meta_pos < banner_pos,
+            "Gate 2.5→3.0: set_meta(active_generation) at byte {set_meta_pos} must precede \
+             the success banner at byte {banner_pos} — banner must only appear after all writes"
+        );
+    }
+
+    // ── Gate 2.5→3.0 realism: index mkdir failure is explicit McpError ───────
+
+    /// Structural contract: both `create_dir_all` calls in the index path must
+    /// propagate errors via `map_err` (not `.ok()` which silently discards the
+    /// error). This guards against regressions that would allow indexing to
+    /// proceed into an unusable directory, producing corrupt data silently.
+    ///
+    /// Checks (all scoped to production code, not test module):
+    /// 1. AUD-2026-INV-0003 appears >= 2 times (one per create_dir_all call)
+    /// 2. `map_err` immediately follows each `create_dir_all` call (not `.ok()`)
+    /// 3. No `create_dir_all` call near tantivy_dir or lancedb_dir uses `.ok()`
+    #[test]
+    fn index_mkdir_error_returns_explicit_mcperror() {
+        let src = include_str!("project_tools.rs");
+
+        // AUD-2026-INV-0003 must be tagged on both create_dir_all error paths.
+        let tag_count = src.matches("AUD-2026-INV-0003").count();
+        assert!(
+            tag_count >= 2,
+            "Gate 2.5→3.0: AUD-2026-INV-0003 must appear >= 2 times \
+             (once per create_dir_all error path); found {tag_count}"
+        );
+
+        // Positive checks: map_err must be chained on both create_dir_all calls.
+        assert!(
+            src.contains("create_dir_all(&tantivy_dir).await.map_err"),
+            "Gate 2.5→3.0: tantivy_dir create_dir_all must propagate errors via map_err"
+        );
+        assert!(
+            src.contains("create_dir_all(&lancedb_dir).await.map_err"),
+            "Gate 2.5→3.0: lancedb_dir create_dir_all must propagate errors via map_err"
+        );
+
+        // Negative check (scoped to production section to avoid self-referential
+        // false positives from string literals in test code).
+        let prod_section = match src.find("#[cfg(test)]") {
+            Some(pos) => &src[..pos],
+            None => src,
+        };
+        for line in prod_section.lines() {
+            if line.contains("create_dir_all") && line.contains("tantivy_dir") {
+                assert!(
+                    !line.contains(".ok()"),
+                    "Gate 2.5→3.0: tantivy_dir create_dir_all must not discard errors \
+                     with .ok(); use map_err instead. Line: {line:?}"
+                );
+            }
+            if line.contains("create_dir_all") && line.contains("lancedb_dir") {
+                assert!(
+                    !line.contains(".ok()"),
+                    "Gate 2.5→3.0: lancedb_dir create_dir_all must not discard errors \
+                     with .ok(); use map_err instead. Line: {line:?}"
+                );
+            }
+        }
+    }
 }

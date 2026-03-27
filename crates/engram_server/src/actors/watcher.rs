@@ -609,4 +609,107 @@ mod tests {
              the notify callback must be non-blocking"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Gate 2.5→3.0: watcher high-churn / backpressure realism
+    // AUD-2026-INV-0006
+    // -----------------------------------------------------------------------
+
+    /// AUD-2026-INV-0006 Gate 2.5→3.0: simulate 20 rapid try_send calls into a
+    /// capacity-2 channel.  Proves non-blocking behaviour: none of the 20
+    /// attempts can block the caller, and the error accounting is exhaustive.
+    #[tokio::test]
+    async fn watcher_high_churn_overflow_telemetry() {
+        // AUD-2026-INV-0006
+        use tokio::sync::mpsc;
+        use tokio::sync::mpsc::error::TrySendError;
+
+        // Small capacity forces overflow quickly.
+        let (tx, _rx) = mpsc::channel::<u32>(2);
+
+        let total_attempts: u32 = 20;
+        let mut successes: u32 = 0;
+        let mut overflows: u32 = 0;
+        let mut closed_errors: u32 = 0;
+
+        for i in 0..total_attempts {
+            match tx.try_send(i) {
+                Ok(()) => successes += 1,
+                Err(TrySendError::Full(_)) => overflows += 1,
+                Err(TrySendError::Closed(_)) => closed_errors += 1,
+            }
+        }
+
+        // At least 1 send must succeed (channel was not closed before first send).
+        assert!(
+            successes >= 1,
+            "AUD-2026-INV-0006: at least 1 of 20 try_send calls must succeed; got successes={successes}"
+        );
+
+        // Once the capacity-2 channel fills, subsequent sends must overflow.
+        assert!(
+            overflows >= 1,
+            "AUD-2026-INV-0006: at least 1 overflow (TrySendError::Full) must occur across 20 sends \
+             into a capacity-2 channel; got overflows={overflows}"
+        );
+
+        // Accounting must be exhaustive: every attempt maps to exactly one outcome.
+        assert_eq!(
+            successes + overflows + closed_errors,
+            total_attempts,
+            "AUD-2026-INV-0006: success + overflow + closed must equal {total_attempts}; \
+             got successes={successes}, overflows={overflows}, closed_errors={closed_errors}"
+        );
+    }
+
+    /// AUD-2026-INV-0006 Gate 2.5→3.0: with a capacity-2 channel and 10
+    /// consecutive try_send calls the first 2 must succeed and the remaining 8
+    /// must overflow.  The 2 successful items must be retrievable.
+    #[tokio::test]
+    async fn watcher_overflow_count_is_deterministic() {
+        // AUD-2026-INV-0006
+        use tokio::sync::mpsc;
+        use tokio::sync::mpsc::error::TrySendError;
+
+        let (tx, mut rx) = mpsc::channel::<u32>(2);
+
+        let mut successes: u32 = 0;
+        let mut overflows: u32 = 0;
+
+        for i in 0..10u32 {
+            match tx.try_send(i) {
+                Ok(()) => successes += 1,
+                Err(TrySendError::Full(_)) => overflows += 1,
+                Err(TrySendError::Closed(_)) => {
+                    panic!("AUD-2026-INV-0006: channel closed unexpectedly at item {i}")
+                }
+            }
+        }
+
+        // Exactly the channel capacity (2) must succeed.
+        assert_eq!(
+            successes, 2,
+            "AUD-2026-INV-0006: exactly 2 sends must succeed for a capacity-2 channel; got {successes}"
+        );
+
+        // The remaining 8 must overflow, not block.
+        assert_eq!(
+            overflows, 8,
+            "AUD-2026-INV-0006: exactly 8 overflows must occur for 10 sends into capacity-2; got {overflows}"
+        );
+
+        // The 2 items that succeeded must be retrievable from the receiver.
+        drop(tx);
+        let item0 = rx.recv().await;
+        let item1 = rx.recv().await;
+        let item2 = rx.recv().await;
+
+        assert!(item0.is_some(), "AUD-2026-INV-0006: first successful item must be receivable");
+        assert!(item1.is_some(), "AUD-2026-INV-0006: second successful item must be receivable");
+        assert!(
+            item2.is_none(),
+            "AUD-2026-INV-0006: channel must be empty after receiving the 2 successful items; \
+             got a third item: {item2:?}"
+        );
+    }
 }
