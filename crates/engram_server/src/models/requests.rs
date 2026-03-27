@@ -185,7 +185,7 @@ pub struct RepairProjectRequest {
 
 // -------------------- Search --------------------
 
-#[derive(Debug, Clone, Deserialize, JsonSchema, Default)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchMemoryRequest {
     pub query: String,
@@ -210,6 +210,25 @@ pub struct SearchMemoryRequest {
     pub language_filters: Option<Vec<String>>,
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
+}
+
+impl Default for SearchMemoryRequest {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            project_id: String::new(),
+            namespace: default_namespace_memory(),
+            max_results: default_top_k(),
+            use_mmr: default_true(),
+            fts_mode: default_fts_strict(),
+            include_content: default_true(),
+            max_content_chars_per_result: default_max_content_chars(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            metadata_filter: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

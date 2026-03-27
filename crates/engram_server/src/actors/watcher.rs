@@ -1,7 +1,7 @@
 use crate::state::{AppEvent, AppState};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc;
@@ -14,6 +14,11 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
     // Prevents unbounded concurrent spawns for the same project under heavy file churn.
     let in_flight: Arc<tokio::sync::Mutex<std::collections::HashSet<String>>> =
         Arc::new(tokio::sync::Mutex::new(std::collections::HashSet::new()));
+
+    // ENG-AUD-2026-EXH-0005: projects whose notify events were dropped due to channel
+    // saturation.  The ticker loop drains this set and re-queues them in pending_updates
+    // so no update is permanently lost.
+    let overflow_dirty: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
 
     // Internal channel to receive notify events
     let (tx_notify, mut rx_notify) = mpsc::channel::<(String, notify::Result<notify::Event>)>(8192);
@@ -57,7 +62,7 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                 && let Ok(canon) = state.paths.resolve_path(&p.directory)
             {
                 tracing::info!("Watcher: restoring for {} at {}", pid, canon.display());
-                match create_watcher(pid.clone(), tx_notify.clone()) {
+                match create_watcher(pid.clone(), tx_notify.clone(), overflow_dirty.clone()) {
                     None => {
                         tracing::error!(
                             "Watcher: failed to create watcher for {} at {} — project will not be watched",
@@ -84,6 +89,16 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
     loop {
         tokio::select! {
             _ = ticker.tick() => {
+                // ENG-AUD-2026-EXH-0005: drain overflow-dirty set so dropped events
+                // are still eventually processed (convergence guarantee).
+                if let Ok(mut dirty) = overflow_dirty.lock() {
+                    for pid in dirty.drain() {
+                        pending_updates
+                            .entry(pid)
+                            .or_insert_with(|| Instant::now() + debounce_duration);
+                    }
+                }
+
                 let now = Instant::now();
                 let mut to_trigger = Vec::new();
                 for (pid, deadline) in &pending_updates {
@@ -204,7 +219,7 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
                                 match state.paths.resolve_path(&directory) {
                                     Ok(canon) => {
                                         tracing::info!("Watcher: enabling for {} at {}", project_id, canon.display());
-                                        match create_watcher(project_id.clone(), tx_notify.clone()) {
+                                        match create_watcher(project_id.clone(), tx_notify.clone(), overflow_dirty.clone()) {
                                             None => {
                                                 tracing::error!(
                                                     "Watcher: failed to create watcher for {} at {} — project will not be watched",
@@ -259,24 +274,28 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
 fn create_watcher(
     pid: String,
     tx_notify: mpsc::Sender<(String, notify::Result<notify::Event>)>,
+    overflow_dirty: Arc<Mutex<HashSet<String>>>,
 ) -> Option<RecommendedWatcher> {
     let config = Config::default().with_poll_interval(Duration::from_secs(2));
     RecommendedWatcher::new(
         move |res| {
-            // AUD-2026-INV-0006: use try_send (non-blocking) so the OS notify
-            // callback thread is never stalled under a sustained event storm.
-            // Events are dropped under saturation rather than blocking the
-            // filesystem event thread; the warn! makes overflow observable.
+            // AUD-2026-INV-0006 / ENG-AUD-2026-EXH-0005: use try_send so the OS
+            // notify callback thread is never stalled under a sustained event storm.
+            // On channel saturation, mark the project dirty so the ticker loop
+            // re-queues a rescan — no event is permanently lost.
             match tx_notify.try_send((pid.clone(), res)) {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
                     tracing::warn!(
-                        "AUD-2026-INV-0006: watcher notify channel full for {pid} — \
-                         event dropped (backpressure overflow)"
+                        "ENG-AUD-2026-EXH-0005: watcher notify channel full for {pid} — \
+                         event dropped; marking project dirty for forced rescan"
                     );
+                    if let Ok(mut dirty) = overflow_dirty.lock() {
+                        dirty.insert(pid.clone());
+                    }
                 }
                 Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
-                    tracing::debug!("AUD-2026-INV-0006: watcher notify channel closed for {pid}");
+                    tracing::debug!("watcher notify channel closed for {pid}");
                 }
             }
         },
@@ -506,7 +525,8 @@ mod tests {
 
         // create_watcher always succeeds (returns Some) — the notify crate can
         // always construct a watcher object; success does not depend on the path.
-        let mut watcher_opt = super::create_watcher("test_pid".to_string(), tx);
+        let overflow = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
+        let mut watcher_opt = super::create_watcher("test_pid".to_string(), tx, overflow);
         assert!(
             watcher_opt.is_some(),
             "ENG-AUD-2026-T18-0005: create_watcher must return Some(watcher) for a valid channel"

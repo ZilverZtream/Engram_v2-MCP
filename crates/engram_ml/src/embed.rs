@@ -926,16 +926,26 @@ mod provider_parity_tests {
         (port, handle)
     }
 
-    /// Mock server that returns an HTTP error status.
+    /// Mock server that returns an HTTP error status for one connection.
     async fn mock_http_error_once(status: u16) -> (u16, tokio::task::JoinHandle<()>) {
+        mock_http_error_n(status, 1).await
+    }
+
+    /// Mock server that returns an HTTP error status for `n` consecutive connections.
+    /// Use this when the caller retries — otherwise the retry hangs on a closed port.
+    async fn mock_http_error_n(status: u16, n: usize) -> (u16, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         let handle = tokio::spawn(async move {
-            if let Ok((mut stream, _)) = listener.accept().await {
-                let mut buf = vec![0u8; 8192];
-                let _ = stream.read(&mut buf).await;
-                let resp = format!("HTTP/1.1 {status} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-                let _ = stream.write_all(resp.as_bytes()).await;
+            for _ in 0..n {
+                if let Ok((mut stream, _)) = listener.accept().await {
+                    let mut buf = vec![0u8; 8192];
+                    let _ = stream.read(&mut buf).await;
+                    let resp = format!(
+                        "HTTP/1.1 {status} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    );
+                    let _ = stream.write_all(resp.as_bytes()).await;
+                }
             }
         });
         (port, handle)
@@ -1073,26 +1083,30 @@ mod provider_parity_tests {
         assert!(result.is_err(), "dimension mismatch (3 vs 768) must return error");
     }
 
-    /// S1-0007: Ollama 5xx server error is retried and eventually returns Err.
-    /// (Don't make this spin for too long — the test should complete quickly)
+    /// ENG-AUD-2026-EXH-0006: Ollama 5xx server error must return Err within
+    /// a deterministic timeout — timeout is NOT an acceptable outcome.
+    /// The mock services all 3 retry attempts (attempt 0 + 2 retries) so the
+    /// retry loop can complete without hanging on a closed port.
+    /// Backoff: 0s + 1s + 2s = 3s max; 10s timeout gives ample headroom.
     #[tokio::test]
     async fn ollama_server_error_returns_error() {
-        // Spawn a mock server that returns 503 for the first (and only) connection.
-        // We just need to verify it eventually returns Err after the first 503.
-        let (port1, _h1) = mock_http_error_once(503).await;
+        // 3 connections = initial attempt + 2 retries (embed_via_ollama loops 0..3)
+        let (port1, _h1) = mock_http_error_n(503, 3).await;
         let url = format!("http://127.0.0.1:{port1}");
         let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
+            std::time::Duration::from_secs(10),
             embedder.embed("hello"),
         )
         .await;
-        // Either timeout (retry loop took too long) or Err result
         match result {
-            Ok(Err(_)) => {} // expected: error returned
-            Ok(Ok(_)) => panic!("503 response must not produce successful embedding"),
-            Err(_timeout) => {} // acceptable: retry backoff exceeded timeout
+            Ok(Err(_)) => {} // expected: error returned after all retries exhausted
+            Ok(Ok(_)) => panic!("503 response must not produce a successful embedding"),
+            Err(_timeout) => panic!(
+                "ENG-AUD-2026-EXH-0006: Ollama 503 retry loop did not complete within 10 s — \
+                 infinite backoff or hang regression detected"
+            ),
         }
     }
 
