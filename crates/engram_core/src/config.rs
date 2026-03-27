@@ -9,6 +9,10 @@ use std::path::{Path, PathBuf};
 #[serde(deny_unknown_fields)]
 pub struct Config {
     /// Allowed roots for indexing (security boundary).
+    /// AUD-2026-INV-0001: absence (or empty list) is now a serde-level default
+    /// so the AUD guard in `load_from_path` can produce a clear error rather
+    /// than a raw "missing field" deserialization error.
+    #[serde(default)]
     pub allowed_roots: Vec<PathBuf>,
 
     /// Directory for all persistent data.
@@ -263,6 +267,15 @@ pub struct Config {
     /// text-embedding-3-small).  Defaults to 1536 when not set.
     #[serde(default)]
     pub openai_embed_dim: Option<usize>,
+
+    // ── AUD-2026-INV-0001: explicit opt-in required for CWD trust expansion ──
+    /// When `allowed_roots` is empty and this field is `false` (the default),
+    /// `load_from_path` returns an error rather than silently expanding the
+    /// security trust boundary to the process CWD.  Set to `true` only in
+    /// development or single-project local environments where the CWD fallback
+    /// is intentional and acceptable.
+    #[serde(default)]
+    pub allow_cwd_default: bool,
 }
 
 fn default_max_concurrent_jobs() -> usize {
@@ -467,6 +480,7 @@ impl Default for Config {
             characterization_test_framework: default_characterization_test_framework(),
             ollama_embed_dim: None,
             openai_embed_dim: None,
+            allow_cwd_default: false,
         }
     }
 }
@@ -685,17 +699,27 @@ impl Config {
         let bytes = std::fs::read(path)?;
         let mut cfg: Config = serde_yaml::from_slice(&bytes)?;
 
-        // Default allowed_roots to the current working directory if not specified.
-        // This enables ad-hoc local use without requiring explicit config while
-        // still enforcing the security boundary once the server starts.
+        // AUD-2026-INV-0001: guard against silent trust-boundary expansion.
+        // When allowed_roots is empty we must not silently fall back to CWD in
+        // containers / automation where the CWD is unpredictable.  An explicit
+        // opt-in (`allow_cwd_default: true`) is required to enable the fallback.
         if cfg.allowed_roots.is_empty() {
+            if !cfg.allow_cwd_default {
+                return Err(EngramError::Config(
+                    "AUD-2026-INV-0001: allowed_roots is empty and allow_cwd_default is false \
+                     — refusing to start to prevent implicit trust boundary expansion. \
+                     Set allowed_roots explicitly or set allow_cwd_default: true in config."
+                        .into(),
+                ));
+            }
+            // Explicit opt-in: fall back to CWD but surface a visible warning.
             let cwd = std::env::current_dir().map_err(|e| {
                 EngramError::Config(format!(
                     "allowed_roots is empty and cannot determine cwd: {e}"
                 ))
             })?;
             tracing::warn!(
-                "allowed_roots is empty — defaulting to current directory: {}",
+                "AUD-2026-INV-0001: allow_cwd_default=true — using CWD as allowed root: {}",
                 cwd.display()
             );
             cfg.allowed_roots.push(cwd);
@@ -860,6 +884,63 @@ mod tests {
             result.is_ok(),
             "load_from_path must succeed for a minimal valid config; err: {:?}",
             result.err()
+        );
+    }
+
+    // ── AUD-2026-INV-0001 tests ───────────────────────────────────────────────
+
+    /// AUD-2026-INV-0001: when `allowed_roots` is empty and `allow_cwd_default`
+    /// is false (the default), `load_from_path` must fail closed with a clear
+    /// error rather than silently expanding the trust boundary to the CWD.
+    #[test]
+    fn empty_allowed_roots_fails_closed_by_default() {
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+        let path = dir.join("engram_inv0001_fail_closed_test.yaml");
+        {
+            let mut f = std::fs::File::create(&path).expect("create temp yaml");
+            // Explicit empty list; allow_cwd_default omitted → false.
+            // (allowed_roots now has #[serde(default)] so an absent key also
+            //  deserializes to an empty Vec and hits the same guard.)
+            writeln!(f, "allowed_roots: []\ndata_dir: /tmp\n").expect("write yaml");
+        }
+        let result = Config::load_from_path(&path);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            result.is_err(),
+            // AUD-2026-INV-0001: must refuse to start, not silently use CWD
+            "load_from_path must return Err when allowed_roots is empty and allow_cwd_default is false"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("AUD-2026-INV-0001"),
+            "error message must contain the audit tag AUD-2026-INV-0001; got: {msg}"
+        );
+    }
+
+    /// AUD-2026-INV-0001: when `allow_cwd_default: true` is set and
+    /// `allowed_roots` is empty, `load_from_path` must succeed and populate
+    /// `allowed_roots` with the current working directory.
+    #[test]
+    fn allow_cwd_default_true_enables_cwd_fallback() {
+        use std::io::Write;
+        let dir = std::env::temp_dir();
+        let path = dir.join("engram_inv0001_cwd_fallback_test.yaml");
+        {
+            let mut f = std::fs::File::create(&path).expect("create temp yaml");
+            writeln!(f, "data_dir: /tmp\nallow_cwd_default: true\n").expect("write yaml");
+        }
+        let result = Config::load_from_path(&path);
+        let _ = std::fs::remove_file(&path);
+        assert!(
+            result.is_ok(),
+            "load_from_path must succeed when allow_cwd_default: true; err: {:?}",
+            result.err()
+        );
+        let cfg = result.unwrap();
+        assert!(
+            !cfg.allowed_roots.is_empty(),
+            "allowed_roots must be non-empty after CWD fallback"
         );
     }
 }

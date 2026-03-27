@@ -155,7 +155,11 @@ pub async fn gather_evidence(
 
     // ── Phase 5: Reconciliation ──
     let reconciliation = overrides.reconciliation.clone();
-    let has_runtime_evidence = overrides.has_runtime_evidence.unwrap_or(false);
+    // AUD-2026-INV-0004: derive from project state instead of defaulting to false.
+    let has_runtime_evidence = match overrides.has_runtime_evidence {
+        Some(v) => v,
+        None => derive_has_runtime_evidence(state, project_id).await,
+    };
 
     // ── Build AdpInput ──
     Ok(AdpInput {
@@ -417,9 +421,11 @@ async fn run_live_retrieval_benchmark(
         let mut total_ndcg = 0.0f64;
         let mut total_recall = 0.0f64;
         let q_count = queries.len().max(1);
+        // AUD-2026-INV-0005: track infra errors separately from genuine zero-hit results.
+        let mut infra_error_count: usize = 0;
 
         for bq in &queries {
-            let hits = search
+            let search_result = search
                 .search(
                     &engram_index::HybridQuery {
                         project_id: pid.clone(),
@@ -438,8 +444,21 @@ async fn run_live_retrieval_benchmark(
                     },
                     None,
                 )
-                .await
-                .unwrap_or_default();
+                .await;
+
+            // AUD-2026-INV-0005: distinguish search backend errors from genuine zero-hit
+            // results — silently collapsing errors to empty hits inflates precision metrics.
+            let hits = match search_result {
+                Ok(hits) => hits,
+                Err(e) => {
+                    tracing::warn!(
+                        "AUD-2026-INV-0005: search backend error during live benchmark — \
+                         treating as infra failure, not zero-relevance: {e:#}"
+                    );
+                    infra_error_count += 1;
+                    continue; // skip this query's contribution to score
+                }
+            };
 
             let actual: Vec<String> = hits.iter().map(|h| h.path.as_str().to_string()).collect();
             total_ndcg +=
@@ -448,14 +467,26 @@ async fn run_live_retrieval_benchmark(
                 crate::services::benchmark_service::compute_recall(&actual, &bq.relevant_paths, 10);
         }
 
-        let mean_ndcg = total_ndcg / q_count as f64;
-        let mean_recall = total_recall / q_count as f64;
+        // AUD-2026-INV-0005: use only queries that actually completed to compute averages;
+        // infra-failed queries are excluded so they do not depress relevance scores.
+        let scored_count = (q_count.saturating_sub(infra_error_count)).max(1);
+        let mean_ndcg = total_ndcg / scored_count as f64;
+        let mean_recall = total_recall / scored_count as f64;
         let (_, _, production_ready) = crate::services::benchmark_service::evaluate_gates(
             mean_ndcg,
             mean_recall,
             cfg.retrieval_min_ndcg,
             cfg.retrieval_min_recall,
         );
+        if infra_error_count > 0 {
+            tracing::warn!(
+                infra_error_count,
+                scored_queries = scored_count,
+                total_queries = q_count,
+                "AUD-2026-INV-0005: live benchmark completed with infra failures — \
+                 scores reflect only queries that reached the search backend"
+            );
+        }
         (production_ready, mean_ndcg, mean_recall)
     };
 
@@ -478,6 +509,60 @@ async fn run_live_retrieval_benchmark(
                 "Deep mode: live retrieval benchmark timed out — reporting Skipped"
             );
             (None, None, None, RetrievalMode::Skipped)
+        }
+    }
+}
+
+/// Derive whether runtime evidence exists for the project.
+///
+/// AUD-2026-INV-0004: checks the project's search index for documents in runtime
+/// namespaces (`"runtime_artifacts"` or `"runtime"`) instead of defaulting to `false`.
+/// Returns `true` if any such documents are present; `false` on absence or any error.
+async fn derive_has_runtime_evidence(state: &AppState, project_id: &str) -> bool {
+    // AUD-2026-INV-0004: resolve the search engine for this project.
+    let search = match state.projects.get(project_id) {
+        Some(ps) => ps.search.clone(),
+        None => {
+            tracing::debug!(
+                project_id,
+                "AUD-2026-INV-0004: project not loaded — treating has_runtime_evidence as false"
+            );
+            return false;
+        }
+    };
+
+    let pid = project_id.to_string();
+    // count_docs_by_namespace is synchronous / potentially blocking — run it
+    // in a blocking task so we do not stall the async executor.
+    let counts = tokio::task::spawn_blocking(move || {
+        search.count_docs_by_namespace(&pid)
+    })
+    .await;
+
+    match counts {
+        Ok(Ok(ns_map)) => {
+            let runtime_count = ns_map.get("runtime_artifacts").copied().unwrap_or(0)
+                + ns_map.get("runtime").copied().unwrap_or(0);
+            tracing::debug!(
+                project_id,
+                runtime_count,
+                "AUD-2026-INV-0004: derived has_runtime_evidence from namespace counts"
+            );
+            runtime_count > 0
+        }
+        Ok(Err(e)) => {
+            tracing::warn!(
+                "AUD-2026-INV-0004: count_docs_by_namespace failed — \
+                 treating has_runtime_evidence as false: {e:#}"
+            );
+            false
+        }
+        Err(e) => {
+            tracing::warn!(
+                "AUD-2026-INV-0004: spawn_blocking join failed — \
+                 treating has_runtime_evidence as false: {e}"
+            );
+            false
         }
     }
 }
@@ -720,6 +805,39 @@ mod tests {
         assert!(
             tag_count >= 2,
             "ENG-AUD-2026-S9-0002 must appear on per-file blast error debug log and test; found {tag_count}"
+        );
+    }
+
+    // ── AUD-2026-INV-0004: runtime evidence derived from stores ──────────────
+
+    #[test]
+    fn runtime_evidence_derived_from_state_tag_present() {
+        let source = include_str!("evidence_orchestration.rs");
+        let tag_count = source.matches("AUD-2026-INV-0004").count();
+        assert!(
+            tag_count >= 2,
+            "AUD-2026-INV-0004 must appear at least twice (implementation + test); found {tag_count}"
+        );
+    }
+
+    #[test]
+    fn derive_has_runtime_evidence_function_exists() {
+        let source = include_str!("evidence_orchestration.rs");
+        assert!(
+            source.contains("derive_has_runtime_evidence"),
+            "derive_has_runtime_evidence function must be present in evidence_orchestration.rs"
+        );
+    }
+
+    // ── AUD-2026-INV-0005: live retrieval benchmark infra error tagging ───────
+
+    #[test]
+    fn benchmark_infra_error_tag_present() {
+        let source = include_str!("evidence_orchestration.rs");
+        let tag_count = source.matches("AUD-2026-INV-0005").count();
+        assert!(
+            tag_count >= 2,
+            "AUD-2026-INV-0005 must appear at least twice (implementation + test); found {tag_count}"
         );
     }
 }

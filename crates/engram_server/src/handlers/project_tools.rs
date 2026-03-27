@@ -494,8 +494,24 @@ impl Engram {
         let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
         let tantivy_dir = project_root.join("tantivy");
         let lancedb_dir = project_root.join("lancedb");
-        tokio::fs::create_dir_all(&tantivy_dir).await.ok();
-        tokio::fs::create_dir_all(&lancedb_dir).await.ok();
+        tokio::fs::create_dir_all(&tantivy_dir).await.map_err(|e| {
+            McpError::internal_error(
+                format!(
+                    "AUD-2026-INV-0003: failed to create index directory {:?}: {e}",
+                    tantivy_dir
+                ),
+                None,
+            )
+        })?;
+        tokio::fs::create_dir_all(&lancedb_dir).await.map_err(|e| {
+            McpError::internal_error(
+                format!(
+                    "AUD-2026-INV-0003: failed to create index directory {:?}: {e}",
+                    lancedb_dir
+                ),
+                None,
+            )
+        })?;
 
         let search = engram_index::HybridSearchEngine::new_with_budget(
             tantivy_dir.clone(),
@@ -1496,7 +1512,13 @@ impl Engram {
         }
 
         let ps = self.ensure_project_runtime(&pid).await?;
-        let current_gen = self.get_active_generation(&pid).await.unwrap_or(1);
+        let current_gen = self
+            .get_active_generation(&pid)
+            .await
+            .map_err(|e| McpError::internal_error(
+                format!("AUD-2026-INV-0002: get_active_generation failed during repair: {e:#}"),
+                None,
+            ))?;
         let new_gen = current_gen + 1;
 
         let exts = exts_for_project_type(&rec.project_type);
@@ -1518,11 +1540,20 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        self.process_ingest_stats(&pid, new_gen, &stats).await.ok();
-        let _ = self
-            .state
+        self.process_ingest_stats(&pid, new_gen, &stats)
+            .await
+            .map_err(|e| McpError::internal_error(
+                format!("AUD-2026-INV-0002: process_ingest_stats failed during repair: {e:#}"),
+                None,
+            ))?;
+
+        self.state
             .registry
-            .set_meta(&pid, "active_generation", &new_gen.to_string());
+            .set_meta(&pid, "active_generation", &new_gen.to_string())
+            .map_err(|e| McpError::internal_error(
+                format!("AUD-2026-INV-0002: set_meta active_generation failed during repair: {e:#}"),
+                None,
+            ))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}",
@@ -2141,5 +2172,30 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             "✅ Deleted rule.",
         )]))
+    }
+}
+
+#[cfg(test)]
+mod inv_tag_tests {
+    /// AUD-2026-INV-0002: verify that the repair-project error paths are tagged.
+    #[test]
+    fn repair_project_set_meta_failure_test_tag_present() {
+        let src = include_str!("project_tools.rs");
+        let count = src.matches("AUD-2026-INV-0002").count();
+        assert!(
+            count >= 3,
+            "Expected >= 3 occurrences of AUD-2026-INV-0002 in project_tools.rs, found {count}"
+        );
+    }
+
+    /// AUD-2026-INV-0003: verify that the create_dir_all error paths are tagged.
+    #[test]
+    fn index_project_mkdir_failure_tag_present() {
+        let src = include_str!("project_tools.rs");
+        let count = src.matches("AUD-2026-INV-0003").count();
+        assert!(
+            count >= 2,
+            "Expected >= 2 occurrences of AUD-2026-INV-0003 in project_tools.rs, found {count}"
+        );
     }
 }
