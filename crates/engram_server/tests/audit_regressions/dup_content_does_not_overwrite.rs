@@ -72,7 +72,7 @@ async fn test_dup_content_does_not_overwrite() {
         query: "shared_logic".into(),
         max_results: 10,
         use_mmr: false,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         max_content_chars_per_result: 1200,
         ..Default::default()

@@ -128,7 +128,7 @@ async fn test_update_project_keeps_full_snapshot() {
         query: "file2".into(),
         max_results: 10,
         use_mmr: false,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         ..Default::default()
     };

@@ -868,18 +868,9 @@ impl Engram {
         let content_limit = req.max_content_chars;
         let limit = req.sanitized_limit();
 
-        // ENG-AUD-2026-EXH-0001: fail-closed on unknown fts_mode — do not silently
-        // coerce to "strict", which would mask client misconfiguration.
-        let fts_mode = req.fts_mode.clone();
-        if !matches!(fts_mode.as_str(), "strict" | "loose" | "regex") {
-            return Err(McpError::invalid_params(
-                format!(
-                    "unknown fts_mode '{}': must be one of strict, loose, regex",
-                    fts_mode
-                ),
-                None,
-            ));
-        }
+        // fts_mode is now a validated enum — invalid values are rejected by serde
+        // at the request boundary before this handler runs.
+        let fts_mode = req.fts_mode.as_str().to_owned();
 
         // Map path filters
         let include_path_prefixes = req.file_filter.map(|f| vec![f]);

@@ -67,7 +67,7 @@ async fn test_index_and_search_flow() {
         query: "hello engram".into(),
         max_results: 10,
         use_mmr: true,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         max_content_chars_per_result: 1200,
         include_path_prefixes: None,
@@ -410,7 +410,7 @@ async fn test_path_normalization() {
         query: "my_function".into(),
         max_results: 10,
         use_mmr: false,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         max_content_chars_per_result: 1200,
         include_path_prefixes: None,
@@ -540,7 +540,7 @@ async fn test_memory_bank_persistence() {
             query: "hybrid search".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -629,7 +629,7 @@ async fn test_indexing_deduplication() {
         query: "println".into(),
         max_results: 10,
         use_mmr: false,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         max_content_chars_per_result: 1200,
         include_path_prefixes: None,
@@ -787,7 +787,7 @@ async fn test_gc_preserves_global_namespaces() {
                 query: "persist".into(),
                 max_results: 1,
                 use_mmr: false,
-                fts_mode: "strict".into(),
+                fts_mode: engram_server::models::FtsMode::Strict,
                 include_content: false,
                 max_content_chars_per_result: 0,
                 include_path_prefixes: None,
@@ -813,7 +813,7 @@ async fn test_gc_preserves_global_namespaces() {
             query: "persist".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -1232,7 +1232,7 @@ async fn test_watch_project() {
             query: "updated".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -1331,7 +1331,7 @@ async fn test_search_features() {
             query: "rust".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "regex".into(),
+            fts_mode: engram_server::models::FtsMode::Regex,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -1358,7 +1358,7 @@ async fn test_search_features() {
             query: "logic".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: Some(vec!["src".into()]),
@@ -1383,7 +1383,7 @@ async fn test_search_features() {
             query: "script".into(),
             max_results: 5,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -1408,7 +1408,7 @@ async fn test_search_features() {
             query: "project".into(),
             max_results: 5,
             use_mmr: true,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: true,
             max_content_chars_per_result: 1200,
             include_path_prefixes: None,
@@ -1480,7 +1480,7 @@ async fn test_get_chunk_hardening() {
             query: "println".into(),
             max_results: 1,
             use_mmr: false,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             include_content: false,
             max_content_chars_per_result: 0,
             include_path_prefixes: None,
@@ -1755,7 +1755,7 @@ async fn test_find_references() {
             project_id: project_id.to_string(),
             node_id: "A".into(),
             edge_kind: Some("dependency".into()),
-            direction: "out".into(),
+            direction: engram_server::models::Direction::Out,
         }))
         .await
         .unwrap();
@@ -1772,7 +1772,7 @@ async fn test_find_references() {
             project_id: project_id.to_string(),
             node_id: "B".into(),
             edge_kind: Some("dependency".into()),
-            direction: "in".into(),
+            direction: engram_server::models::Direction::In,
         }))
         .await
         .unwrap();
@@ -1868,7 +1868,7 @@ async fn test_graph_search() {
             max_results: 5,
             symbol_boost: 0.1,
             namespace: "memory".into(),
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
             hop_depth: 1,
             include_content: false,
@@ -1921,7 +1921,7 @@ async fn test_graph_search() {
             max_results: 5,
             symbol_boost: 0.1,
             namespace: "memory".into(),
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
             hop_depth: 1,
             include_content: false,
@@ -2049,7 +2049,7 @@ async fn test_search_history() {
             date_after: None,
             date_before: None,
             limit: 5,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
             max_content_chars: 800,
         }))
@@ -2077,7 +2077,7 @@ async fn test_search_history() {
             date_after: None,
             date_before: None,
             limit: 5,
-            fts_mode: "strict".into(),
+            fts_mode: engram_server::models::FtsMode::Strict,
             use_mmr: false,
             max_content_chars: 800,
         }))
@@ -3036,7 +3036,7 @@ async fn test_dream_immune_integration() {
             query: "unsafe".into(),
             namespace: "antipattern".into(),
             max_results: 1,
-            fts_mode: "loose".into(),
+            fts_mode: engram_server::models::FtsMode::Loose,
             ..Default::default()
         }))
         .await
@@ -3721,7 +3721,7 @@ async fn test_graph_structure_edges() {
             project_id: project_id.to_string(),
             node_id: class_node_id,
             edge_kind: Some("contains".into()),
-            direction: "out".into(),
+            direction: engram_server::models::Direction::Out,
         }))
         .await
         .unwrap();
@@ -3943,7 +3943,7 @@ async fn test_graph_traversal() {
             node_id: "A".into(),
             max_hops: 2,
             edge_kinds: Some(vec!["contains".into()]),
-            direction: "out".into(),
+            direction: engram_server::models::Direction::Out,
         }))
         .await
         .unwrap();

@@ -6,7 +6,7 @@ use crate::models::{
     GenerateMigrationScaffoldRequest, GenerateStranglerFigRequest, GetInstrumentationPackRequest,
     GetJQueryInventoryRequest, GetMigrationDossierRequest, GetMigrationProgressRequest,
     GetSpDetailsRequest, IngestInstrumentationLogsRequest, ListTriggersRequest,
-    MapAuthConfigRequest, MapPageLifecycleRequest, MapValidationControlsRequest,
+    MapAuthConfigRequest, MapPageLifecycleRequest, MapValidationControlsRequest, MinSeverity,
     ReconcileRuntimeEvidenceRequest, SuggestMigrationBoundariesRequest,
     SuggestMigrationOrderRequest, SuggestStateMigrationRequest, TraceDataFlowRequest,
     UpdateMigrationStatusRequest,
@@ -349,7 +349,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
-        let target = req.target_stack.clone();
+        let target = req.target_stack.as_str().to_owned();
         let include_tests = req.include_test_scaffold;
         let format = req.output_format.clone();
 
@@ -613,7 +613,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
-        let target_stack = req.target_stack.clone();
+        let target_stack = req.target_stack.as_str().to_owned();
         let project_dir = rec.directory.clone();
 
         let aspx_full = safe_join(Path::new(&project_dir), &file_path)
@@ -847,7 +847,7 @@ impl Engram {
         let rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let target_stack = req.target_stack.clone();
+        let target_stack = req.target_stack.as_str().to_owned();
         let max_files = req.max_files;
         let project_dir = rec.directory.clone();
 
@@ -1409,7 +1409,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let file_path = req.file_path.clone();
-        let framework = req.framework.clone();
+        let framework = req.framework.as_str().to_owned();
 
         let result = tokio::task::spawn_blocking(move || {
             crate::services::characterization_test_service::generate_characterization_tests(
@@ -2456,20 +2456,13 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = rec.directory.clone();
-        let min_severity = req.min_severity.to_lowercase();
         let output_json = req.output_json;
 
-        // Validate min_severity
-        let severity_threshold = match min_severity.as_str() {
-            "medium" => 0,
-            "high" => 1,
-            "critical" => 2,
-            _ => {
-                return Err(McpError::invalid_params(
-                    "min_severity must be one of: \"medium\", \"high\", \"critical\"",
-                    None,
-                ));
-            }
+        // MinSeverity is a validated enum — exhaustive match, no fallback needed.
+        let severity_threshold = match req.min_severity {
+            MinSeverity::Medium => 0,
+            MinSeverity::High => 1,
+            MinSeverity::Critical => 2,
         };
 
         // Collect files to analyze
@@ -2612,7 +2605,7 @@ impl Engram {
             total_critical,
             total_high,
             total_medium,
-            min_severity,
+            req.min_severity.as_str(),
         );
 
         if per_file_reports.is_empty() {

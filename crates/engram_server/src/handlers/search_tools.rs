@@ -78,7 +78,7 @@ impl Engram {
                     generation: gen_,
                     text: req.query.clone(),
                     top_k: req.sanitized_max_results(),
-                    fts_mode: req.fts_mode.clone(),
+                    fts_mode: req.fts_mode.as_str().to_owned(),
                     include_path_prefixes: req.include_path_prefixes.clone(),
                     exclude_path_prefixes: req.exclude_path_prefixes.clone(),
                     language_filters: req.language_filters.clone(),

@@ -53,11 +53,15 @@ pub enum TestFramework {
 
 impl TestFramework {
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
-            "xunit" | "x-unit" => Self::XUnit,
-            "mstest" | "ms-test" | "ms_test" => Self::MSTest,
-            _ => Self::NUnit,
+            "nunit" | "n-unit" => Ok(Self::NUnit),
+            "xunit" | "x-unit" => Ok(Self::XUnit),
+            "mstest" | "ms-test" | "ms_test" => Ok(Self::MSTest),
+            other => Err(format!(
+                "unknown test framework '{}': must be one of nunit, xunit, mstest",
+                other
+            )),
         }
     }
 
@@ -135,7 +139,8 @@ pub fn generate_characterization_tests(
     file_path: &str,
     framework_str: &str,
 ) -> anyhow::Result<CharacterizationTestResult> {
-    let fw = TestFramework::from_str(framework_str);
+    let fw = TestFramework::from_str(framework_str)
+        .map_err(|e| anyhow::anyhow!(e))?;
     let ctx = collect_test_context(graph, project_id, file_path)?;
     let mut warnings = Vec::new();
 
@@ -1369,10 +1374,10 @@ mod tests {
 
     #[test]
     fn test_framework_from_str() {
-        assert_eq!(TestFramework::from_str("nunit"), TestFramework::NUnit);
-        assert_eq!(TestFramework::from_str("xunit"), TestFramework::XUnit);
-        assert_eq!(TestFramework::from_str("mstest"), TestFramework::MSTest);
-        assert_eq!(TestFramework::from_str("unknown"), TestFramework::NUnit);
+        assert_eq!(TestFramework::from_str("nunit").unwrap(), TestFramework::NUnit);
+        assert_eq!(TestFramework::from_str("xunit").unwrap(), TestFramework::XUnit);
+        assert_eq!(TestFramework::from_str("mstest").unwrap(), TestFramework::MSTest);
+        assert!(TestFramework::from_str("unknown").is_err()); // fail-closed
     }
 
     #[test]

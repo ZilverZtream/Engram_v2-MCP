@@ -98,7 +98,7 @@ async fn test_incremental_no_changes_is_zero() {
         query: "file1".into(),
         max_results: 10,
         use_mmr: false,
-        fts_mode: "strict".into(),
+        fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
         ..Default::default()
     };

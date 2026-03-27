@@ -1,5 +1,6 @@
 use crate::models::{
-    FindReferencesRequest, GraphSearchRequest, QueryGraphNodesRequest, TraverseGraphRequest,
+    Direction, FindReferencesRequest, GraphSearchRequest, QueryGraphNodesRequest,
+    TraverseGraphRequest,
 };
 use crate::tools::Engram;
 use engram_graph::EdgeKind;
@@ -75,7 +76,7 @@ impl Engram {
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let mut out = String::new();
 
-            if req.direction == "in" || req.direction == "both" {
+            if matches!(req.direction, Direction::In | Direction::Both) {
                 let incoming = graph
                     .find_incoming_edges(&req.project_id, kind.clone(), &req.node_id, 100)
                     .map_err(|e| e.to_string())?;
@@ -93,7 +94,7 @@ impl Engram {
                 }
             }
 
-            if req.direction == "out" || req.direction == "both" {
+            if matches!(req.direction, Direction::Out | Direction::Both) {
                 let search_kind = kind.unwrap_or(EdgeKind::Dependency);
                 let outgoing = graph
                     .neighbors(&req.project_id, search_kind, &req.node_id, 100)
@@ -139,18 +140,9 @@ impl Engram {
         let hop_depth = req.sanitized_hop_depth();
         let max_content_chars = req.sanitized_max_content_chars();
 
-        // ENG-AUD-2026-EXH-0001: fail-closed on unknown fts_mode — do not silently
-        // coerce to "strict", which would mask client misconfiguration.
-        let fts_mode = req.fts_mode.clone();
-        if !matches!(fts_mode.as_str(), "strict" | "loose" | "regex") {
-            return Err(McpError::invalid_params(
-                format!(
-                    "unknown fts_mode '{}': must be one of strict, loose, regex",
-                    fts_mode
-                ),
-                None,
-            ));
-        }
+        // fts_mode is now a validated enum — invalid values are rejected by serde
+        // at the request boundary, so no runtime guard is needed here.
+        let fts_mode = req.fts_mode.as_str().to_owned();
 
         // 1. Hybrid text search for initial candidates
         let hits = ps
@@ -365,7 +357,7 @@ impl Engram {
                 &req.node_id,
                 req.sanitized_max_hops(),
                 kinds,
-                &req.direction,
+                req.direction.as_str(),
             )
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 

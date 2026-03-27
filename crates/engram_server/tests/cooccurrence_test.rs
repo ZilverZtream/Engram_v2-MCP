@@ -54,7 +54,7 @@ async fn test_cooccurrence_uses_pk_not_chunk_id() {
             query: "shared_utility".to_string(),
             namespace: "memory".to_string(),
             max_results: 10,
-            fts_mode: "loose".to_string(),
+            fts_mode: engram_server::models::FtsMode::Loose,
             ..Default::default()
         }))
         .await

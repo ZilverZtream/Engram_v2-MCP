@@ -1,5 +1,121 @@
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+
+// ── Validated enum types (fail-closed at JSON deserialization) ────────────────
+//
+// These replace String fields that previously accepted arbitrary values and
+// silently coerced unknown inputs to a default.  With enum types, serde rejects
+// unknown values at the request boundary — before any handler code runs —
+// producing a clear deserialization error that names the bad value.
+
+/// Full-text search mode. Unknown values are rejected at the JSON boundary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum FtsMode {
+    /// Exact phrase match (default).
+    #[default]
+    Strict,
+    /// Any token match.
+    Loose,
+    /// Regular-expression match.
+    Regex,
+}
+
+impl FtsMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Strict => "strict",
+            Self::Loose => "loose",
+            Self::Regex => "regex",
+        }
+    }
+}
+
+/// Target modern framework for scaffold/dossier generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum TargetStack {
+    #[default]
+    Blazor,
+    React,
+    Angular,
+}
+
+impl TargetStack {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Blazor => "blazor",
+            Self::React => "react",
+            Self::Angular => "angular",
+        }
+    }
+}
+
+/// Graph traversal direction.  `"incoming"` and `"outgoing"` are accepted as
+/// aliases for `"in"` and `"out"` respectively.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Direction {
+    /// Follow edges pointing at the node (default).
+    #[default]
+    #[serde(alias = "incoming")]
+    In,
+    /// Follow edges originating from the node.
+    #[serde(alias = "outgoing")]
+    Out,
+    /// Follow edges in both directions.
+    Both,
+}
+
+impl Direction {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::In => "in",
+            Self::Out => "out",
+            Self::Both => "both",
+        }
+    }
+}
+
+/// Test framework for characterization test generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum TestFramework {
+    #[default]
+    NUnit,
+    XUnit,
+    MSTest,
+}
+
+impl TestFramework {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NUnit => "nunit",
+            Self::XUnit => "xunit",
+            Self::MSTest => "mstest",
+        }
+    }
+}
+
+/// Minimum severity threshold for hazard/sync-hazard filtering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum MinSeverity {
+    #[default]
+    Medium,
+    High,
+    Critical,
+}
+
+impl MinSeverity {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+}
 
 // -------------------- Default value functions --------------------
 
@@ -15,20 +131,17 @@ pub fn default_max_commits() -> usize {
 pub fn default_namespace_memory() -> String {
     "memory".to_string()
 }
-pub fn default_fts_strict() -> String {
-    "strict".to_string()
-}
 pub fn default_max_content_chars() -> usize {
     1200
 }
 pub fn default_priority() -> i32 {
     5
 }
-pub fn default_direction_in() -> String {
-    "in".to_string()
+pub fn default_direction_in() -> Direction {
+    Direction::In
 }
-pub fn default_direction_both() -> String {
-    "both".to_string()
+pub fn default_direction_both() -> Direction {
+    Direction::Both
 }
 pub fn default_limit_5() -> usize {
     5
@@ -87,8 +200,8 @@ pub fn default_repair_scope() -> String {
 pub fn default_repair_max_commits() -> usize {
     500
 }
-pub fn default_direction_outgoing() -> String {
-    "outgoing".to_string()
+pub fn default_direction_outgoing() -> Direction {
+    Direction::Out
 }
 pub fn default_antipattern_action() -> String {
     "stats".to_string()
@@ -196,8 +309,9 @@ pub struct SearchMemoryRequest {
     pub max_results: usize,
     #[serde(default = "default_true")]
     pub use_mmr: bool,
-    #[serde(default = "default_fts_strict")]
-    pub fts_mode: String,
+    /// Full-text search mode. Default: "strict".
+    #[serde(default)]
+    pub fts_mode: FtsMode,
     #[serde(default = "default_true")]
     pub include_content: bool,
     #[serde(default = "default_max_content_chars")]
@@ -210,25 +324,6 @@ pub struct SearchMemoryRequest {
     pub language_filters: Option<Vec<String>>,
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
-}
-
-impl Default for SearchMemoryRequest {
-    fn default() -> Self {
-        Self {
-            query: String::new(),
-            project_id: String::new(),
-            namespace: default_namespace_memory(),
-            max_results: default_top_k(),
-            use_mmr: default_true(),
-            fts_mode: default_fts_strict(),
-            include_content: default_true(),
-            max_content_chars_per_result: default_max_content_chars(),
-            include_path_prefixes: None,
-            exclude_path_prefixes: None,
-            language_filters: None,
-            metadata_filter: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -261,8 +356,8 @@ pub struct GraphSearchRequest {
     #[serde(default = "default_namespace_memory")]
     pub namespace: String,
     /// Full-text search mode: "strict" (exact phrase), "loose" (any token), "regex". Default: "strict".
-    #[serde(default = "default_fts_strict")]
-    pub fts_mode: String,
+    #[serde(default)]
+    pub fts_mode: FtsMode,
     /// Enable MMR reranking for diversity. Default: false.
     #[serde(default)]
     pub use_mmr: bool,
@@ -370,7 +465,7 @@ pub struct FindReferencesRequest {
     #[serde(default)]
     pub edge_kind: Option<String>,
     #[serde(default = "default_direction_in")]
-    pub direction: String, // "in", "out", "both"
+    pub direction: Direction,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -383,7 +478,7 @@ pub struct TraverseGraphRequest {
     #[serde(default)]
     pub edge_kinds: Option<Vec<String>>,
     #[serde(default = "default_direction_both")]
-    pub direction: String, // "in", "out", "both"
+    pub direction: Direction,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -483,8 +578,8 @@ pub struct SearchHistoryRequest {
     #[serde(default = "default_limit_5")]
     pub limit: usize,
     /// Full-text search mode: "strict", "loose", "regex". Default: "strict".
-    #[serde(default = "default_fts_strict")]
-    pub fts_mode: String,
+    #[serde(default)]
+    pub fts_mode: FtsMode,
     /// Enable MMR reranking for diversity. Default: false.
     #[serde(default)]
     pub use_mmr: bool,
@@ -647,9 +742,9 @@ pub struct AstDependencyGraphRequest {
     /// Maximum depth of dependency traversal. Default: 3, max: 12.
     #[serde(default = "default_max_depth_3")]
     pub max_depth: u8,
-    /// Direction: "outgoing" (what this depends on), "incoming" (what depends on this), "both". Default: "outgoing".
+    /// Direction: "outgoing"/"out" (what this depends on), "incoming"/"in" (what depends on this), "both". Default: "out".
     #[serde(default = "default_direction_outgoing")]
-    pub direction: String,
+    pub direction: Direction,
     /// Only include compile-time dependencies (Dependency, Imports, Contains). Default: true.
     #[serde(default = "default_true")]
     pub compile_time_only: bool,
@@ -795,6 +890,25 @@ impl SearchMemoryRequest {
     pub fn sanitized_max_content_chars_per_result(&self) -> usize {
         self.max_content_chars_per_result
             .clamp(1, MAX_CONTENT_CHARS_PER_RESULT)
+    }
+}
+
+impl Default for SearchMemoryRequest {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            project_id: String::new(),
+            namespace: default_namespace_memory(),
+            max_results: default_top_k(),
+            use_mmr: true,
+            fts_mode: FtsMode::default(),
+            include_content: true,
+            max_content_chars_per_result: default_max_content_chars(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            metadata_filter: None,
+        }
     }
 }
 
@@ -1286,9 +1400,6 @@ pub struct DetectDesignPatternsRequest {
 
 // -------------------- Phase 30: Migration Engine --------------------
 
-fn default_target_stack() -> String {
-    "blazor".into()
-}
 fn default_output_format() -> String {
     "full".into()
 }
@@ -1300,8 +1411,8 @@ pub struct GenerateMigrationScaffoldRequest {
     /// Path of the legacy file to scaffold from.
     pub file_path: String,
     /// Target stack: "blazor", "react", or "angular". Default: "blazor".
-    #[serde(default = "default_target_stack")]
-    pub target_stack: String,
+    #[serde(default)]
+    pub target_stack: TargetStack,
     /// Also generate a test scaffold. Default: false.
     #[serde(default)]
     pub include_test_scaffold: bool,
@@ -1343,10 +1454,6 @@ pub struct SuggestStateMigrationRequest {
     pub output_json: bool,
 }
 
-fn default_test_framework() -> String {
-    "nunit".into()
-}
-
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GenerateCharacterizationTestsRequest {
@@ -1354,8 +1461,8 @@ pub struct GenerateCharacterizationTestsRequest {
     /// File path to generate tests for.
     pub file_path: String,
     /// Test framework: "nunit", "xunit", or "mstest". Default: "nunit".
-    #[serde(default = "default_test_framework")]
-    pub framework: String,
+    #[serde(default)]
+    pub framework: TestFramework,
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
@@ -1468,8 +1575,8 @@ pub struct GetMigrationDossierRequest {
     /// Project-relative path to the .aspx (or .ascx / .master) file.
     pub file_path: String,
     /// Target stack for scaffold preview: "blazor", "react", "angular". Default: "blazor".
-    #[serde(default = "default_target_stack")]
-    pub target_stack: String,
+    #[serde(default)]
+    pub target_stack: TargetStack,
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
@@ -1544,8 +1651,8 @@ fn default_max_files() -> usize {
 pub struct AnalyzeFullProjectMigrationRequest {
     pub project_id: String,
     /// Target stack: "blazor", "react", or "angular". Default: "blazor".
-    #[serde(default = "default_target_stack")]
-    pub target_stack: String,
+    #[serde(default)]
+    pub target_stack: TargetStack,
     /// Maximum number of markup files to analyze. Default: 200.
     #[serde(default = "default_max_files")]
     pub max_files: usize,
@@ -1605,9 +1712,6 @@ pub struct QueryBusinessLogicRequest {
 fn default_sp_limit() -> usize {
     50
 }
-fn default_min_severity() -> String {
-    "medium".to_string()
-}
 
 /// Full database analysis: schema, stored procedures, triggers, call chains.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -1660,8 +1764,8 @@ pub struct AnalyzeSyncHazardsRequest {
     #[serde(default)]
     pub file_path: Option<String>,
     /// Only return hazards at or above this severity: "medium" | "high" | "critical". Default: "medium".
-    #[serde(default = "default_min_severity")]
-    pub min_severity: String,
+    #[serde(default)]
+    pub min_severity: MinSeverity,
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
