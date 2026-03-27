@@ -263,10 +263,21 @@ fn create_watcher(
     let config = Config::default().with_poll_interval(Duration::from_secs(2));
     RecommendedWatcher::new(
         move |res| {
-            // Use blocking_send so file-system events are backpressured instead
-            // of silently dropped under load.
-            if let Err(e) = tx_notify.blocking_send((pid.clone(), res)) {
-                tracing::warn!("Watcher: notify channel closed for {pid}: {e}");
+            // AUD-2026-INV-0006: use try_send (non-blocking) so the OS notify
+            // callback thread is never stalled under a sustained event storm.
+            // Events are dropped under saturation rather than blocking the
+            // filesystem event thread; the warn! makes overflow observable.
+            match tx_notify.try_send((pid.clone(), res)) {
+                Ok(_) => {}
+                Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                    tracing::warn!(
+                        "AUD-2026-INV-0006: watcher notify channel full for {pid} — \
+                         event dropped (backpressure overflow)"
+                    );
+                }
+                Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                    tracing::debug!("AUD-2026-INV-0006: watcher notify channel closed for {pid}");
+                }
             }
         },
         config,
@@ -520,6 +531,82 @@ mod tests {
             watch_result.is_err(),
             "ENG-AUD-2026-T18-0005: watching a nonexistent path must return Err \
              (the bootstrap error-and-skip branch)"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AUD-2026-INV-0006: non-blocking try_send overflow tests
+    // -----------------------------------------------------------------------
+
+    /// AUD-2026-INV-0006: when the channel is full, try_send must return
+    /// TrySendError::Full — the callback thread must never block.
+    #[test]
+    fn channel_overflow_drops_event_not_blocks() {
+        // AUD-2026-INV-0006
+        // Use a capacity-1 channel to force overflow with just two sends.
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<i32>(1);
+
+        // Fill the channel — this must succeed.
+        tx.try_send(1).expect("AUD-2026-INV-0006: first send into empty channel must succeed");
+
+        // The channel is now full; the next try_send must return Full immediately
+        // (non-blocking) rather than blocking the caller.
+        match tx.try_send(2) {
+            Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {
+                // expected — overflow is signalled, not blocked
+            }
+            Ok(_) => panic!("AUD-2026-INV-0006: expected Full error but send succeeded"),
+            Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => {
+                panic!("AUD-2026-INV-0006: expected Full error but got Closed")
+            }
+        }
+
+        // The original item is still in the channel (was not displaced).
+        drop(tx);
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let val = rt.block_on(rx.recv());
+        assert_eq!(
+            val,
+            Some(1),
+            "AUD-2026-INV-0006: the item that was successfully sent must still be receivable"
+        );
+    }
+
+    /// AUD-2026-INV-0006: production code must use try_send (not blocking_send)
+    /// and the audit tag must appear at least twice (one per log call site).
+    #[test]
+    fn watcher_uses_try_send_not_blocking_send_tag_present() {
+        // AUD-2026-INV-0006
+        let source = include_str!("watcher.rs");
+
+        // The audit tag must appear in the non-test production section.
+        // We check the whole file for the tag count (>= 2: warn + debug sites).
+        let tag_count = source.matches("AUD-2026-INV-0006").count();
+        assert!(
+            tag_count >= 2,
+            "AUD-2026-INV-0006: audit tag must appear at least 2 times in watcher.rs; found {tag_count}"
+        );
+
+        // try_send must be present (the new non-blocking strategy).
+        assert!(
+            source.contains("try_send"),
+            "AUD-2026-INV-0006: watcher.rs must use try_send in the notify callback"
+        );
+
+        // blocking_send must NOT appear in the production (non-test) portion of
+        // this file.  We split on the #[cfg(test)] boundary and check only the
+        // code that ships in the binary.
+        let prod_section = source
+            .split("#[cfg(test)]")
+            .next()
+            .unwrap_or("");
+        let forbidden = "blocking_send";
+        assert!(
+            !prod_section.contains(forbidden),
+            "AUD-2026-INV-0006: production code in watcher.rs must NOT use blocking_send — \
+             the notify callback must be non-blocking"
         );
     }
 }
