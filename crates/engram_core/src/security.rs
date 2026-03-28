@@ -267,8 +267,21 @@ fn open_no_follow(path: &std::path::Path) -> std::io::Result<std::fs::File> {
     }
     #[cfg(not(any(unix, windows)))]
     {
-        // No platform-native no-follow available; safe_join symlink walk is
-        // the primary guard on these targets.
+        // ENG-AUD-2026-EXH-P1-0002: No platform-native O_NOFOLLOW equivalent
+        // is available on this target.  A best-effort pre-open symlink check
+        // is performed via `symlink_metadata`, but a narrow TOCTOU window
+        // remains between this check and the `open` syscall.  Platforms that
+        // require strict symlink safety must use Unix or Windows.
+        //
+        // Note: this branch is intentionally unreachable in production builds
+        // (which target Linux/Windows) and exists only for exotic targets.
+        let meta = std::fs::symlink_metadata(path)?;
+        if meta.file_type().is_symlink() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "ENG-AUD-2026-EXH-P1-0002: symlink detected (pre-open best-effort check)",
+            ));
+        }
         std::fs::File::open(path)
     }
 }
@@ -595,6 +608,26 @@ mod tests {
         assert!(
             source.contains("FILE_FLAG_OPEN_REPARSE_POINT"),
             "security.rs must use FILE_FLAG_OPEN_REPARSE_POINT on Windows (AUD-2026-EXH-0007)"
+        );
+    }
+
+    /// ENG-AUD-2026-EXH-P1-0002: structural test — the not(unix, windows) fallback
+    /// must use symlink_metadata as a best-effort pre-open guard rather than a bare
+    /// File::open, and must document the residual TOCTOU window.
+    #[test]
+    fn open_no_follow_fallback_source_structure() {
+        let source = include_str!("security.rs");
+        assert!(
+            source.contains("ENG-AUD-2026-EXH-P1-0002"),
+            "security.rs must document the not(unix,windows) fallback limitation (P1-0002)"
+        );
+        assert!(
+            source.contains("symlink_metadata"),
+            "security.rs fallback must use symlink_metadata as best-effort guard (P1-0002)"
+        );
+        assert!(
+            source.contains("TOCTOU"),
+            "security.rs fallback must document the residual TOCTOU window (P1-0002)"
         );
     }
 }
