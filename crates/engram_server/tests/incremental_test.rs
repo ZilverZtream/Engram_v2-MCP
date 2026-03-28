@@ -49,7 +49,7 @@ async fn test_incremental_indexing() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "inc_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))

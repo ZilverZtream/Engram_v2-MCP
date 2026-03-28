@@ -173,7 +173,7 @@ async fn deterministic_node_ids_across_clean_runs() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "GoldenRun1".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -195,7 +195,7 @@ async fn deterministic_node_ids_across_clean_runs() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "GoldenRun2".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -311,7 +311,7 @@ async fn edge_stability_across_incremental_update() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "EdgeStable".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -441,7 +441,7 @@ async fn search_results_stable_across_queries() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "SearchStable".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

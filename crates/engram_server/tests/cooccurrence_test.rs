@@ -37,7 +37,7 @@ async fn test_cooccurrence_uses_pk_not_chunk_id() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "CoocTest".into(),
-            project_type: "rust".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

@@ -54,7 +54,7 @@ async fn setup_project(
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "Phase37Test".into(),
-            project_type: "webforms".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -754,7 +754,7 @@ public class CleanAsync {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "CleanTest".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -962,7 +962,7 @@ async fn w5_jquery_inventory_no_files() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "NoJQ".into(),
-            project_type: "vbnet".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

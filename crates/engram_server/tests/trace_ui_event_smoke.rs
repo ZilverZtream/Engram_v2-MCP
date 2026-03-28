@@ -48,7 +48,7 @@ namespace App {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "TraceTest".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -151,7 +151,7 @@ End Namespace"#;
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "TraceTestVb".into(),
-            project_type: "vb".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsVb,
             wait: true,
             dedupe_by_directory: false,
         }))

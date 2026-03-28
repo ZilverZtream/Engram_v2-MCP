@@ -98,7 +98,7 @@ async fn test_anti_pattern_guard_smoke() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "AntiPatternTest".into(),
-            project_type: "python".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

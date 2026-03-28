@@ -54,7 +54,7 @@ namespace MyApp {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "StableIDTest".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -197,7 +197,7 @@ namespace MyApp {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "SqlIDTest".into(),
-            project_type: "csharp".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
             wait: true,
             dedupe_by_directory: false,
         }))

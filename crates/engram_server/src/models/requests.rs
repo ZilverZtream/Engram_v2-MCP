@@ -117,6 +117,51 @@ impl MinSeverity {
     }
 }
 
+/// ENG-AUD-2026-EXH-P1-0001: Project type — replaces the stringly-typed
+/// `project_type: String` field.  Unknown values are rejected at the JSON
+/// deserialization boundary before any handler code runs.
+///
+/// Aliases accept the existing case-insensitive variant spellings so existing
+/// MCP clients continue to work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ProjectType {
+    /// ASP.NET WebForms — C# backend.
+    /// Aliases: `dotnetwebformscs`, `webforms_cs`, `webformscs`
+    #[serde(
+        alias = "dotnetwebformscs",
+        alias = "webforms_cs",
+        alias = "webformscs",
+        alias = "aspnet_webforms_cs",
+        alias = "aspnet_webformscs"
+    )]
+    DotnetWebformsCs,
+    /// ASP.NET WebForms — VB.NET backend.
+    /// Aliases: `dotnetwebformsvb`, `webforms_vb`, `webformsvb`
+    #[serde(
+        alias = "dotnetwebformsvb",
+        alias = "webforms_vb",
+        alias = "webformsvb",
+        alias = "aspnet_webforms_vb",
+        alias = "aspnet_webformsvb"
+    )]
+    DotnetWebformsVb,
+    /// General-purpose project: indexes all common source extensions.
+    /// Use this when the project type does not match a known specialisation.
+    #[serde(alias = "general_purpose", alias = "other")]
+    General,
+}
+
+impl ProjectType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DotnetWebformsCs => "dotnet_webforms_cs",
+            Self::DotnetWebformsVb => "dotnet_webforms_vb",
+            Self::General => "general",
+        }
+    }
+}
+
 // -------------------- Default value functions --------------------
 
 pub fn default_true() -> bool {
@@ -243,7 +288,7 @@ pub const MAX_SQL_LENGTH: usize = 1_000_000;
 pub struct IndexProjectRequest {
     pub directory: String,
     pub project_name: String,
-    pub project_type: String,
+    pub project_type: ProjectType,
     #[serde(default = "default_true")]
     pub wait: bool,
     #[serde(default = "default_true")]
@@ -2109,15 +2154,49 @@ mod unknown_field_tests {
 
     #[test]
     fn index_project_rejects_unknown_fields() {
-        // Correct JSON should still deserialize fine
-        let good = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms"}"#;
+        // Valid canonical project_type must deserialize
+        let good = r#"{"directory":"/tmp","project_name":"n","project_type":"dotnet_webforms_cs"}"#;
         let result: Result<IndexProjectRequest, _> = serde_json::from_str(good);
         assert!(result.is_ok(), "valid JSON must deserialize: {:?}", result);
 
         // Unknown field must be rejected
-        let bad = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms","max_reslts":5}"#;
+        let bad = r#"{"directory":"/tmp","project_name":"n","project_type":"dotnet_webforms_cs","max_reslts":5}"#;
         let result: Result<IndexProjectRequest, _> = serde_json::from_str(bad);
         assert!(result.is_err(), "unknown field max_reslts must be rejected");
+    }
+
+    #[test]
+    fn index_project_rejects_unknown_project_type() {
+        // ENG-AUD-2026-EXH-P1-0001: unknown project_type values must be rejected
+        // at deserialization, not silently broadened to the full extension set.
+        let bad = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms"}"#;
+        let result: Result<IndexProjectRequest, _> = serde_json::from_str(bad);
+        assert!(result.is_err(), "unknown project_type must be rejected at deserialization");
+
+        let bad2 = r#"{"directory":"/tmp","project_name":"n","project_type":"dotnet_webform_cs"}"#;
+        let result2: Result<IndexProjectRequest, _> = serde_json::from_str(bad2);
+        assert!(result2.is_err(), "typo'd project_type must be rejected");
+    }
+
+    #[test]
+    fn index_project_accepts_all_valid_project_types() {
+        // All canonical and aliased values must deserialize.
+        for s in &[
+            "dotnet_webforms_cs",
+            "dotnetwebformscs",
+            "webforms_cs",
+            "dotnet_webforms_vb",
+            "dotnetwebformsvb",
+            "webforms_vb",
+            "general",
+        ] {
+            let json = format!(
+                r#"{{"directory":"/tmp","project_name":"n","project_type":"{}"}}"#,
+                s
+            );
+            let result: Result<IndexProjectRequest, _> = serde_json::from_str(&json);
+            assert!(result.is_ok(), "project_type {:?} should be valid, got: {:?}", s, result);
+        }
     }
 
     #[test]

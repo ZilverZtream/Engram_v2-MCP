@@ -39,7 +39,7 @@ async fn test_fixture_dotnet_webforms_cs() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: fixture_dir.to_string_lossy().to_string(),
             project_name: "WebFormsCsFixture".into(),
-            project_type: "dotnetwebformscs".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -123,7 +123,7 @@ async fn test_fixture_dotnet_webforms_vb() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: fixture_dir.to_string_lossy().to_string(),
             project_name: "WebFormsVbFixture".into(),
-            project_type: "dotnetwebformsvb".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsVb,
             wait: true,
             dedupe_by_directory: false,
         }))

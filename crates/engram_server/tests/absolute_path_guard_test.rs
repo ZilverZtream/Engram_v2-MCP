@@ -31,7 +31,7 @@ async fn test_absolute_path_rejection() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: root.to_string_lossy().to_string(),
             project_name: "GuardTest".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

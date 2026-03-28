@@ -37,7 +37,7 @@ async fn test_index_and_search_flow() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "test_project".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -136,7 +136,7 @@ async fn test_csharp_symbol_extraction() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "csharp_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -231,7 +231,7 @@ async fn test_vbnet_graceful_fallback() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "vb_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -278,7 +278,7 @@ async fn test_job_cancellation() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "cancel_project".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: false,
         dedupe_by_directory: true,
     };
@@ -370,7 +370,7 @@ async fn test_path_normalization() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "path_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -490,7 +490,7 @@ async fn test_memory_bank_persistence() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "persistence_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -602,7 +602,7 @@ async fn test_indexing_deduplication() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dedup_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -658,7 +658,7 @@ async fn test_indexing_deduplication() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dedup_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false, // force re-indexing
         }))
@@ -720,7 +720,7 @@ async fn test_gc_preserves_global_namespaces() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "gc_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -866,7 +866,7 @@ async fn test_project_health() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "health_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -957,7 +957,7 @@ async fn test_project_repair() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "repair_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1037,7 +1037,7 @@ async fn test_delete_project() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "delete_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1182,7 +1182,7 @@ async fn test_watch_project() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "watch_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1303,7 +1303,7 @@ async fn test_search_features() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "search_features_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1452,7 +1452,7 @@ async fn test_get_chunk_hardening() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "get_chunk_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1599,7 +1599,7 @@ async fn test_query_graph_nodes() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "query_graph_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -1822,7 +1822,7 @@ async fn test_graph_search() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "graph_search_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2007,7 +2007,7 @@ async fn test_search_history() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "history_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2264,7 +2264,7 @@ async fn test_dream_project() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dream_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2463,7 +2463,7 @@ async fn test_analyze_file_coding_style() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "style_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2577,7 +2577,7 @@ fn test_it() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "style_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2722,7 +2722,7 @@ async fn test_immune_system_end_to_end() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "immune_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -2864,7 +2864,7 @@ async fn test_dream_immune_integration() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dream_immune".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -3114,7 +3114,7 @@ async fn test_find_symbol_references() {
     let rec = engram_core::ProjectRecord {
         project_id: project_id.to_string(),
         project_name: "test_sym".into(),
-        project_type: "code".into(),
+        project_type: "general".to_string(),
         directory: data_dir.to_string_lossy().to_string(),
         created_at_ms: 0,
         updated_at_ms: 0,
@@ -3228,7 +3228,7 @@ async fn test_analyze_error_stack() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "error_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -3314,7 +3314,7 @@ async fn test_cpp_symbol_extraction() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "cpp_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -3398,7 +3398,7 @@ async fn test_gc_policy_preservation() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "gc_policy_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -3589,7 +3589,7 @@ async fn test_language_aware_resolution() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "lang_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -3674,7 +3674,7 @@ async fn test_graph_structure_edges() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "struct_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -4015,7 +4015,7 @@ async fn test_incremental_temporal_coupling() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "coupling_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -4182,7 +4182,7 @@ async fn test_rename_preserves_coupling() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "rename_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -4451,7 +4451,7 @@ async fn test_structural_revert_detection() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "revert_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -4520,7 +4520,7 @@ async fn test_insight_deduplication() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dedup_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -4719,7 +4719,7 @@ async fn test_analyze_directory_coding_style() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "dir_style_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))

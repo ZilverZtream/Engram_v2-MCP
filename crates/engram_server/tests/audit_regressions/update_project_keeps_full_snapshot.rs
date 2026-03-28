@@ -56,7 +56,7 @@ async fn test_update_project_keeps_full_snapshot() {
     let index_req = IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "test_project".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
