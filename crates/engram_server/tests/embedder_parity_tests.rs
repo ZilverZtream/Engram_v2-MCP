@@ -288,3 +288,92 @@ async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
         "candle alias embedder must return a non-empty vector"
     );
 }
+
+// ── Live provider tests (env-gated, ENG-AUD-2026-EXH-P1-0006) ───────────────
+//
+// These tests are skipped unless the corresponding environment variable is set.
+// They are NOT run in CI by default; they are opt-in for operators who have a
+// running Ollama instance or a valid OpenAI API key available.
+//
+//   ENGRAM_TEST_OLLAMA_URL=http://localhost:11434 cargo test ollama_live
+//   ENGRAM_TEST_OPENAI_KEY=sk-... cargo test openai_live
+
+/// Live Ollama smoke test: actually call embed() and verify the output.
+/// Skipped unless `ENGRAM_TEST_OLLAMA_URL` is set.
+/// ENG-AUD-2026-EXH-P1-0006
+#[tokio::test]
+async fn ollama_live_embed_returns_normalized_vector() {
+    let url = match std::env::var("ENGRAM_TEST_OLLAMA_URL") {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("SKIP: ENGRAM_TEST_OLLAMA_URL not set — ollama live test skipped");
+            return;
+        }
+    };
+    let model = std::env::var("ENGRAM_TEST_OLLAMA_MODEL")
+        .unwrap_or_else(|_| "nomic-embed-text".to_string());
+    let dim: usize = std::env::var("ENGRAM_TEST_OLLAMA_DIM")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(768);
+
+    let embedder =
+        OllamaEmbedder::new(&model, &url, dim).expect("OllamaEmbedder::new must succeed");
+    let v = embedder
+        .embed("live Ollama smoke test: hello world")
+        .await
+        .expect("OllamaEmbedder::embed must succeed against live instance");
+
+    assert_eq!(
+        v.len(),
+        dim,
+        "OllamaEmbedder live embed must return {dim} elements; got {}",
+        v.len()
+    );
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        norm > 0.0,
+        "OllamaEmbedder live embed must return a non-zero vector"
+    );
+}
+
+/// Live OpenAI smoke test: actually call embed() and verify the output.
+/// Skipped unless `ENGRAM_TEST_OPENAI_KEY` is set.
+/// ENG-AUD-2026-EXH-P1-0006
+#[tokio::test]
+async fn openai_live_embed_returns_normalized_vector() {
+    let api_key = match std::env::var("ENGRAM_TEST_OPENAI_KEY") {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("SKIP: ENGRAM_TEST_OPENAI_KEY not set — openai live test skipped");
+            return;
+        }
+    };
+    let base_url = std::env::var("ENGRAM_TEST_OPENAI_BASE_URL")
+        .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+    let model = std::env::var("ENGRAM_TEST_OPENAI_MODEL")
+        .unwrap_or_else(|_| "text-embedding-3-small".to_string());
+    let dim: usize = std::env::var("ENGRAM_TEST_OPENAI_DIM")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1536);
+
+    let embedder = OpenAIEmbedder::new(&model, &api_key, &base_url, dim)
+        .expect("OpenAIEmbedder::new must succeed");
+    let v = embedder
+        .embed("live OpenAI smoke test: hello world")
+        .await
+        .expect("OpenAIEmbedder::embed must succeed against live API");
+
+    assert_eq!(
+        v.len(),
+        dim,
+        "OpenAIEmbedder live embed must return {dim} elements; got {}",
+        v.len()
+    );
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        norm > 0.0,
+        "OpenAIEmbedder live embed must return a non-zero vector"
+    );
+}
