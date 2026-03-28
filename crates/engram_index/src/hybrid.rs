@@ -184,6 +184,27 @@ impl HybridSearchEngine {
             return Ok(());
         }
 
+        // ENG-AUD-2026-S05-0001: enforce homogeneous namespace at the entry point,
+        // before either the Tantivy or vector write paths, so the invariant is
+        // always checked regardless of which storage backend is active.
+        // Mixed-namespace batches are rejected here rather than silently mis-keying
+        // vector rows with docs[0].namespace.
+        {
+            let first_ns = &docs[0].namespace;
+            let bad = docs
+                .iter()
+                .enumerate()
+                .find(|(_, d)| d.namespace != *first_ns);
+            if let Some((idx, bad_doc)) = bad {
+                return Err(anyhow::anyhow!(
+                    "ENG-AUD-2026-S05-0001: heterogeneous namespace batch rejected — \
+                     docs[0].namespace={first_ns:?} but docs[{idx}].namespace={:?}; \
+                     callers must partition by namespace before calling index_docs",
+                    bad_doc.namespace
+                ));
+            }
+        }
+
         // 1. Lexical index (Tantivy) — pk-based upsert
         {
             let _tantivy_guard = self
@@ -342,6 +363,7 @@ impl HybridSearchEngine {
                     })
                     .transpose()?;
 
+                // Namespace homogeneity is guaranteed by the entry-point check above.
                 let ns = &docs[0].namespace;
                 let batch = crate::vector::create_record_batch_with_gens(
                     project_id,
@@ -1602,12 +1624,21 @@ impl HybridSearchEngine {
             match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled)).await {
                 Ok(result) => result?,
                 Err(_) => {
+                    // ENG-AUD-2026-S05-0002: return a typed Err rather than
+                    // Ok(Vec::new()) so callers can distinguish "backend timed
+                    // out" (infra failure) from "no matching documents" (correct
+                    // empty result).  Masking as empty silently degrades ADP
+                    // evidence consumers and any retry/circuit-breaker logic.
                     tracing::warn!(
                         timeout_ms = timeout_ms,
-                        "vector search timed out after {}ms",
+                        "vector search timed out after {}ms — returning error (not empty result)",
                         timeout_ms
                     );
-                    return Ok(Vec::new());
+                    return Err(anyhow::anyhow!(
+                        "ENG-AUD-2026-S05-0002: vector search infrastructure timeout after \
+                         {timeout_ms}ms; backend may be unavailable — treat as transient failure, \
+                         not an empty result set"
+                    ));
                 }
             };
 

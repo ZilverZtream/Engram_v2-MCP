@@ -246,6 +246,22 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> Cancellation
                 CancellationOutcome::CancelledWithoutTombstone
             }
         } else {
+            // ENG-AUD-2026-S12-0001: no active token or handle was found, but a
+            // resumable checkpoint may still exist for this job_id (e.g. after a
+            // process restart or state divergence).  Tombstone it so the job
+            // cannot be accidentally resumed by a future recovery path.
+            //
+            // We still return NotFound (no live job was running) but we must not
+            // leave a resumable checkpoint orphaned when the caller believes the
+            // cancellation request was acknowledged.
+            let cp_mark_ok = mark_checkpoint_cancelled(&state.checkpoints, job_id).await;
+            if !cp_mark_ok {
+                tracing::warn!(
+                    job_id = %job_id,
+                    "ENG-AUD-2026-S12-0001: NotFound cancel path: failed to tombstone \
+                     resumable checkpoint — checkpoint may still be resumable"
+                );
+            }
             CancellationOutcome::NotFound
         }
     }
