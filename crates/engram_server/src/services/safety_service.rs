@@ -120,8 +120,12 @@ pub fn evaluate_safety(
     }
 
     // Check 2: Test coverage
+    // ENG-AUD-2026-EXH-P1-0005: fail-closed — unknown coverage (-1.0) is treated as a
+    // blocking failure, not a pass. Callers that cannot measure coverage must supply a
+    // real value or explicitly opt out via a policy override rather than having the gate
+    // silently wave them through.
     let coverage_known = req.test_coverage >= 0.0;
-    let coverage_passed = !coverage_known || req.test_coverage >= min_coverage;
+    let coverage_passed = coverage_known && req.test_coverage >= min_coverage;
     checks.push(PolicyCheck {
         name: "test_coverage".into(),
         passed: coverage_passed,
@@ -134,7 +138,9 @@ pub fn evaluate_safety(
                 min_coverage * 100.0
             )
         } else {
-            "Test coverage unknown — consider adding tests before refactoring".into()
+            "Test coverage unknown — coverage gate is fail-closed; measure coverage or \
+             use a policy override (ENG-AUD-2026-EXH-P1-0005)"
+                .into()
         },
     });
     if !coverage_passed {
@@ -715,8 +721,9 @@ mod tests {
     }
 
     #[test]
-    fn unknown_coverage_negative_one_passes_coverage_check() {
-        // test_coverage = -1.0 means unknown → coverage_known = false → passes
+    fn unknown_coverage_negative_one_fails_coverage_check() {
+        // ENG-AUD-2026-EXH-P1-0005: coverage gate is fail-closed.
+        // test_coverage = -1.0 means unknown → must block, not pass.
         let req = SafetyEvalRequest {
             project_id: "p".into(),
             affected_files: vec!["a.cs".into()],
@@ -731,7 +738,14 @@ mod tests {
         };
         let decision = evaluate_safety(&req, true, 0.7, 0.6);
         let cov_check = decision.checks.iter().find(|c| c.name == "test_coverage").unwrap();
-        assert!(cov_check.passed, "unknown coverage should pass the check");
+        assert!(
+            !cov_check.passed,
+            "unknown coverage must block (fail-closed, ENG-AUD-2026-EXH-P1-0005)"
+        );
+        assert!(
+            cov_check.detail.contains("fail-closed"),
+            "detail must mention fail-closed policy"
+        );
     }
 
     #[test]
