@@ -316,3 +316,120 @@ async fn cancel_stale_job_id_tombstones_resumable_checkpoint() {
         "ENG-AUD-2026-S12-0001: stale cancel must tombstone resumable checkpoint as Failed"
     );
 }
+
+/// ENG-AUD-2026-S14-001: when cancel_job_internal takes the NotFound path AND
+/// a prior job record exists in the registry, it must write a cancelled tombstone
+/// so the audit trail can distinguish "never ran" from "cancelled post-restart".
+///
+/// Without this, a cancel request on a stale ID leaves no trace — orchestration
+/// replays cannot reconstruct the cancellation event.
+#[tokio::test]
+async fn cancel_stale_job_writes_registry_tombstone_when_prior_record_exists() {
+    use engram_core::JobRecord;
+
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+
+    let cfg = Config {
+        allowed_roots: vec![root.to_path_buf()],
+        data_dir: root.join("data"),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+
+    let job_id = "stale-job-s14-001";
+
+    // Pre-insert a job record (simulates a job that ran in a previous process).
+    let prior = JobRecord {
+        job_id: job_id.to_string(),
+        kind: "indexing".to_string(),
+        project_id: Some("proj-s14".to_string()),
+        status: "running".to_string(),
+        message: "was running before restart".to_string(),
+        progress_pct: 40,
+        estimated_time_remaining_ms: None,
+        created_at_ms: 1_000_000,
+        updated_at_ms: 1_000_000,
+    };
+    state.registry.put_job(&prior).expect("pre-condition: put prior job record");
+
+    // No cancellation token — cancel takes the NotFound path.
+    let outcome = engram_server::services::job_service::cancel_job_internal(&state, job_id).await;
+    assert_eq!(
+        outcome,
+        engram_server::services::job_service::CancellationOutcome::NotFound,
+        "cancel_job_internal must return NotFound for a stale ID"
+    );
+
+    // The registry must now have a tombstone with status "cancelled".
+    let tombstone = state
+        .registry
+        .get_job(job_id)
+        .expect("get_job must not error after stale cancel")
+        .expect("ENG-AUD-2026-S14-001: a job tombstone must exist after stale cancel");
+
+    assert_eq!(
+        tombstone.status, "cancelled",
+        "ENG-AUD-2026-S14-001: tombstone status must be 'cancelled'; got '{}'",
+        tombstone.status
+    );
+    assert_eq!(
+        tombstone.project_id.as_deref(),
+        Some("proj-s14"),
+        "tombstone must preserve original project_id for audit attribution"
+    );
+    assert_eq!(
+        tombstone.kind, "indexing",
+        "tombstone must preserve original job kind"
+    );
+}
+
+/// ENG-AUD-2026-S14-001: cancel_job_internal must NOT fabricate a registry
+/// record when cancelling a completely unknown job_id (no prior record, no
+/// checkpoint, no token).
+///
+/// Only known jobs should be tombstoned — fabricating records for unknown IDs
+/// would pollute the audit log and confuse orchestration replay.
+#[tokio::test]
+async fn cancel_completely_unknown_job_does_not_fabricate_registry_record() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+
+    let cfg = Config {
+        allowed_roots: vec![root.to_path_buf()],
+        data_dir: root.join("data"),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+
+    let job_id = "completely-unknown-job-s14-001";
+
+    // Precondition: nothing in the system for this job_id.
+    assert!(
+        state.registry.get_job(job_id).expect("get must not error").is_none(),
+        "precondition: no prior job record must exist"
+    );
+    assert!(
+        state.checkpoints.get(job_id).expect("get must not error").is_none(),
+        "precondition: no checkpoint must exist"
+    );
+
+    let outcome = engram_server::services::job_service::cancel_job_internal(&state, job_id).await;
+    assert_eq!(
+        outcome,
+        engram_server::services::job_service::CancellationOutcome::NotFound,
+        "cancel_job_internal must return NotFound for unknown job_id"
+    );
+
+    // No tombstone must have been fabricated.
+    let after = state.registry.get_job(job_id).expect("get after cancel");
+    assert!(
+        after.is_none(),
+        "ENG-AUD-2026-S14-001: cancel of unknown ID must NOT fabricate a registry record; \
+         found record: {after:?}"
+    );
+}
