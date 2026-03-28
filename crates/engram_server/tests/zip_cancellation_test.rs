@@ -60,7 +60,7 @@ async fn test_zip_history_background_cancellation_token_is_wired() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: proj_dir.to_string_lossy().into(),
             project_name: "ZipCancelTest".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -169,7 +169,7 @@ async fn test_zip_history_background_cancel_removes_token() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: proj_dir.to_string_lossy().into(),
             project_name: "ZipCancelTest2".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))
@@ -204,7 +204,7 @@ async fn test_zip_history_background_cancel_removes_token() {
 
     // Cancel via the service function (replicates what the cancel_job tool does).
     let cancelled = engram_server::services::job_service::cancel_job_internal(&state, &job_id).await;
-    assert!(cancelled, "cancel_job_internal must return true when token exists");
+    assert!(cancelled.was_cancelled(), "cancel_job_internal must return a cancellation outcome when token exists");
 
     // Token must be removed by cancel_job_internal immediately.
     {

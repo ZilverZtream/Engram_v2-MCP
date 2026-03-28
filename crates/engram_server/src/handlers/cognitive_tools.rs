@@ -20,7 +20,7 @@ use std::path::PathBuf;
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
 impl Engram {
-    pub(crate) async fn cancel_job_internal(&self, job_id: &str) -> bool {
+    pub(crate) async fn cancel_job_internal(&self, job_id: &str) -> job_service::CancellationOutcome {
         job_service::cancel_job_internal(&self.state, job_id).await
     }
 

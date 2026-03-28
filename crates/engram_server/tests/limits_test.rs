@@ -53,7 +53,7 @@ async fn test_max_files_limit() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "limit_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -109,7 +109,7 @@ async fn test_binary_file_skip() {
     let index_req = engram_server::IndexProjectRequest {
         directory: project_dir.to_string_lossy().to_string(),
         project_name: "binary_test".into(),
-        project_type: "code".into(),
+        project_type: engram_server::models::ProjectType::General,
         wait: true,
         dedupe_by_directory: true,
     };
@@ -156,7 +156,7 @@ async fn test_initial_index_byte_budget_enforced() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "byte_limit_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -201,7 +201,7 @@ async fn test_incremental_update_byte_budget_enforced() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "update_byte_limit_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -292,7 +292,7 @@ async fn test_chunk_cap_respected_for_index_and_update() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "chunk_limit_test".into(),
-            project_type: "code".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: true,
         }))
@@ -382,7 +382,7 @@ async fn test_background_index_jobs_respect_shared_parse_guard_under_load() {
                 .index_project(Parameters(engram_server::IndexProjectRequest {
                     directory,
                     project_name: format!("stress_{idx}"),
-                    project_type: "code".into(),
+                    project_type: engram_server::models::ProjectType::General,
                     wait: false,
                     dedupe_by_directory: true,
                 }))

@@ -5,7 +5,7 @@ use crate::models::{
     ProjectIdRequest, RepairProjectRequest, UpdateMemoryBankRequest, UpdateProjectRequest,
     WatchProjectRequest,
 };
-use crate::services::{graph_service, ingest_service, project_service};
+use crate::services::{graph_service, ingest_service, job_service, project_service};
 use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 use crate::utils::files::exts_for_project_type;
@@ -493,7 +493,9 @@ impl Engram {
         let dir_str = dir.to_string_lossy().to_string();
         let project_id = Uuid::new_v4().to_string();
         let project_name = req.project_name.clone();
-        let project_type = req.project_type.clone();
+        // ENG-AUD-2026-EXH-P1-0001: project_type is now a validated enum;
+        // store the canonical string so registry reads work unchanged.
+        let project_type = req.project_type.as_str().to_owned();
         let now = now_ms();
         let rec_candidate = ProjectRecord {
             project_id: project_id.clone(),
@@ -1767,11 +1769,14 @@ impl Engram {
         &self,
         req: CancelJobRequest,
     ) -> Result<CallToolResult, McpError> {
-        let ok = self.cancel_job_internal(&req.job_id).await;
-        Ok(CallToolResult::success(vec![Content::text(if ok {
-            format!("✅ cancelled job_id: {}", req.job_id)
-        } else {
-            format!("❌ job_id not active: {}", req.job_id)
+        let outcome = self.cancel_job_internal(&req.job_id).await;
+        Ok(CallToolResult::success(vec![Content::text(match outcome {
+            job_service::CancellationOutcome::CancelledWithTombstone =>
+                format!("✅ cancelled job_id: {} (tombstone persisted)", req.job_id),
+            job_service::CancellationOutcome::CancelledWithoutTombstone =>
+                format!("⚠️ cancelled job_id: {} (WARNING: tombstone persistence failed — audit metadata may be missing)", req.job_id),
+            job_service::CancellationOutcome::NotFound =>
+                format!("❌ job_id not active: {}", req.job_id),
         })]))
     }
 

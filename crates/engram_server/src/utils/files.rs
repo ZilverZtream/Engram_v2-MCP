@@ -8,36 +8,68 @@ fn default_exts() -> Vec<&'static str> {
     ]
 }
 
-/// Return the file extensions to index for a given project_type.
+/// Return the file extensions to index for a given project_type string.
+///
+/// This function accepts the canonical strings produced by `ProjectType::as_str()`
+/// (stored in the registry) as well as the legacy alias spellings that existed
+/// before the `ProjectType` enum was introduced, so registry reads remain valid.
+/// New code receiving user input should use `ProjectType` and call
+/// `exts_for_project_type_enum` to get exhaustive, compile-time-verified dispatch.
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     if [
         "dotnetwebformscs",
         "dotnet_webforms_cs",
         "webforms_cs",
         "webformscs",
+        "aspnet_webforms_cs",
+        "aspnet_webformscs",
     ]
     .iter()
     .any(|v| project_type.eq_ignore_ascii_case(v))
     {
-        vec![
-            "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-            "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
-        ]
+        dotnet_webforms_cs_exts()
     } else if [
         "dotnetwebformsvb",
         "dotnet_webforms_vb",
         "webforms_vb",
         "webformsvb",
+        "aspnet_webforms_vb",
+        "aspnet_webformsvb",
     ]
     .iter()
     .any(|v| project_type.eq_ignore_ascii_case(v))
     {
-        vec![
-            "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-            "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
-        ]
+        dotnet_webforms_vb_exts()
     } else {
         default_exts()
+    }
+}
+
+fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
+    vec![
+        "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
+        "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
+    ]
+}
+
+fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
+    vec![
+        "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
+        "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
+    ]
+}
+
+/// Exhaustive, enum-dispatched variant for use with validated `ProjectType` input.
+///
+/// ENG-AUD-2026-EXH-P1-0001: new indexing paths receive a `ProjectType` enum
+/// (fail-closed at serde boundary) and call this function, so the compiler
+/// catches any unhandled variant at compile time.
+pub fn exts_for_project_type_enum(pt: crate::models::ProjectType) -> Vec<&'static str> {
+    use crate::models::ProjectType;
+    match pt {
+        ProjectType::DotnetWebformsCs => dotnet_webforms_cs_exts(),
+        ProjectType::DotnetWebformsVb => dotnet_webforms_vb_exts(),
+        ProjectType::General => default_exts(),
     }
 }
 

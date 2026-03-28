@@ -43,7 +43,7 @@ async fn test_indexing_report_smoke() {
         .index_project(Parameters(engram_server::IndexProjectRequest {
             directory: project_dir.to_string_lossy().to_string(),
             project_name: "ReportTest".into(),
-            project_type: "python".into(),
+            project_type: engram_server::models::ProjectType::General,
             wait: true,
             dedupe_by_directory: false,
         }))

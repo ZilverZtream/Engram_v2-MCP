@@ -59,8 +59,33 @@ async fn mark_checkpoint_cancelled(cp_store: &CheckpointStore, job_id: &str) -> 
     }
 }
 
-/// Cancel a running job by its ID. Returns true if the job was found and cancelled.
-pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
+/// Outcome of a job cancellation attempt.
+///
+/// ENG-AUD-2026-EXH-P1-0003: callers must distinguish between a successful
+/// cancellation (with audit tombstone persisted) and a partial cancellation
+/// (job stopped but tombstone write failed) to avoid treating audit gaps as
+/// full success.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CancellationOutcome {
+    /// Job was cancelled and its tombstone was persisted to the registry.
+    CancelledWithTombstone,
+    /// Job was cancelled (token fired / handle aborted) but the tombstone
+    /// persistence write failed. The job will not resume, but audit/replay
+    /// metadata for this cancellation may be missing.
+    CancelledWithoutTombstone,
+    /// No active job or handle found for the given ID.
+    NotFound,
+}
+
+impl CancellationOutcome {
+    /// Returns `true` if the job was cancelled (regardless of tombstone status).
+    pub fn was_cancelled(&self) -> bool {
+        matches!(self, Self::CancelledWithTombstone | Self::CancelledWithoutTombstone)
+    }
+}
+
+/// Cancel a running job by its ID.
+pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> CancellationOutcome {
     // Take cancellation_tokens lock, extract token, then release lock
     // BEFORE acquiring active_jobs to avoid lock-order inversion.
     let token = {
@@ -98,7 +123,10 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
         // ENG-AUD-P1-0005: capture result and embed failure into the job tombstone.
         let cp_mark_ok = mark_checkpoint_cancelled(&state.checkpoints, job_id).await;
 
-        if let Err(e) = tokio::task::spawn_blocking(move || {
+        // ENG-AUD-2026-EXH-P1-0003: persist tombstone and capture whether it succeeded.
+        // The closure returns true iff put_job succeeded so the outer code can
+        // return the appropriate CancellationOutcome.
+        let tombstone_ok = match tokio::task::spawn_blocking(move || {
             let now = now_ms();
             let message = if cp_mark_ok {
                 "cancelled by user".to_string()
@@ -124,15 +152,27 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
                     .unwrap_or_else(now_ms),
                 updated_at_ms: now,
             };
-            if let Err(e) = reg.put_job(&jr) {
-                tracing::warn!(job_id = %jid, "failed to persist cancelled-job tombstone: {e}");
+            match reg.put_job(&jr) {
+                Ok(()) => true,
+                Err(e) => {
+                    tracing::warn!(job_id = %jid, "ENG-AUD-2026-EXH-P1-0003: failed to persist cancelled-job tombstone: {e}");
+                    false
+                }
             }
         })
         .await
         {
-            tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone: {e}");
+            Ok(ok) => ok,
+            Err(e) => {
+                tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone: {e}");
+                false
+            }
+        };
+        if tombstone_ok {
+            CancellationOutcome::CancelledWithTombstone
+        } else {
+            CancellationOutcome::CancelledWithoutTombstone
         }
-        true
     } else {
         // Cancellation token not found — check for divergence where active_jobs
         // still holds a handle with no corresponding token and abort if present.
@@ -155,7 +195,8 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
             // ENG-AUD-P1-0005: capture result and embed failure into the job tombstone.
             let cp_mark_ok = mark_checkpoint_cancelled(&state.checkpoints, job_id).await;
 
-            if let Err(e) = tokio::task::spawn_blocking(move || {
+            // ENG-AUD-2026-EXH-P1-0003: capture tombstone persistence outcome.
+            let tombstone_ok = match tokio::task::spawn_blocking(move || {
                 let now = now_ms();
                 let base_msg = "cancelled by user (token/handle divergence recovery)";
                 let message = if cp_mark_ok {
@@ -183,17 +224,29 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> bool {
                         .unwrap_or_else(now_ms),
                     updated_at_ms: now,
                 };
-                if let Err(e) = reg.put_job(&jr) {
-                    tracing::warn!(job_id = %jid, "failed to persist cancelled-job tombstone (divergence): {e}");
+                match reg.put_job(&jr) {
+                    Ok(()) => true,
+                    Err(e) => {
+                        tracing::warn!(job_id = %jid, "ENG-AUD-2026-EXH-P1-0003: failed to persist cancelled-job tombstone (divergence): {e}");
+                        false
+                    }
                 }
             })
             .await
             {
-                tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone (divergence): {e}");
+                Ok(ok) => ok,
+                Err(e) => {
+                    tracing::warn!(job_id = %job_id, "spawn_blocking panicked writing cancelled-job tombstone (divergence): {e}");
+                    false
+                }
+            };
+            if tombstone_ok {
+                CancellationOutcome::CancelledWithTombstone
+            } else {
+                CancellationOutcome::CancelledWithoutTombstone
             }
-            true
         } else {
-            false
+            CancellationOutcome::NotFound
         }
     }
 }

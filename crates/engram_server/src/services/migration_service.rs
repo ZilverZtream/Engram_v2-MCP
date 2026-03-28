@@ -131,6 +131,9 @@ pub enum SeamType {
     Ui,
     Event,
     Config,
+    /// ENG-AUD-2026-EXH-P1-0004: unrecognised edge kind. Excluded from adapter
+    /// generation to avoid inflating API seam counts with misclassified entries.
+    Unknown,
 }
 
 impl std::fmt::Display for SeamType {
@@ -141,6 +144,7 @@ impl std::fmt::Display for SeamType {
             Self::Ui => write!(f, "ui"),
             Self::Event => write!(f, "event"),
             Self::Config => write!(f, "config"),
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -450,6 +454,9 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
         let adapters: Vec<CompatibilityAdapter> = seams
             .iter()
             .filter(|s| cluster.files.contains(&s.modern_endpoint))
+            // ENG-AUD-2026-EXH-P1-0004: exclude Unknown seams from adapter generation
+            // to avoid producing incorrect Facade adapters for unclassified edge kinds.
+            .filter(|s| s.seam_type != SeamType::Unknown)
             .take(3)
             .map(|s| {
                 let adapter_type = match s.seam_type {
@@ -458,6 +465,9 @@ pub fn generate_migration_plan(input: &PlanInput) -> MigrationPlan {
                     SeamType::Event => AdapterType::Proxy,
                     SeamType::Config => AdapterType::StateBridge,
                     SeamType::Ui => AdapterType::Facade,
+                    // Unknown is filtered out above; this arm is unreachable but
+                    // required for exhaustiveness.
+                    SeamType::Unknown => AdapterType::Facade,
                 };
                 CompatibilityAdapter {
                     name: format!("{}Adapter", to_pascal_case(&s.seam_id)),
@@ -661,7 +671,10 @@ fn classify_seam_type(edge_kind: &str) -> SeamType {
         "sql_calls" | "queries_table" | "reads_column" | "data_binding" => SeamType::Data,
         "triggers_postback" | "manipulates_dom" => SeamType::Event,
         "registers_module" | "registers_handler" | "includes_file" => SeamType::Config,
-        _ => SeamType::Api,
+        // ENG-AUD-2026-EXH-P1-0004: unknown edge kinds must not silently inflate API
+        // seam counts. Return Unknown so the caller can warn/exclude rather than
+        // misclassify.
+        _ => SeamType::Unknown,
     }
 }
 
@@ -1139,8 +1152,15 @@ EndProject
     }
 
     #[test]
-    fn classify_seam_type_unknown_falls_back_to_api() {
-        assert_eq!(classify_seam_type("unknown_edge_kind"), SeamType::Api);
+    fn classify_seam_type_unknown_returns_unknown_not_api() {
+        // ENG-AUD-2026-EXH-P1-0004: unrecognised edge kinds must NOT silently
+        // inflate API seam counts by defaulting to SeamType::Api.
+        assert_eq!(classify_seam_type("unknown_edge_kind"), SeamType::Unknown);
+        assert_eq!(classify_seam_type("co_occurrence"), SeamType::Unknown);
+        assert_eq!(classify_seam_type(""), SeamType::Unknown);
+        // And known kinds still map correctly
+        assert_eq!(classify_seam_type("api_call"), SeamType::Api);
+        assert_eq!(classify_seam_type("sql_calls"), SeamType::Data);
     }
 
     // ── suggest_adapter_pattern ──────────────────────────────────────────────
