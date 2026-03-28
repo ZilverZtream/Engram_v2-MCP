@@ -247,3 +247,72 @@ async fn test_zip_history_background_cancel_removes_token() {
         job.status
     );
 }
+
+/// ENG-AUD-2026-S12-0001: cancel_job_internal must tombstone any resumable
+/// checkpoint even when no active token or handle is found (stale ID path).
+///
+/// Scenario: process restart or state divergence where the token map is empty
+/// but a resumable checkpoint exists for the given job_id.  Invoking cancel on
+/// the stale job must mark the checkpoint as Failed so it cannot be resumed.
+#[tokio::test]
+async fn cancel_stale_job_id_tombstones_resumable_checkpoint() {
+    use engram_core::{Checkpoint, JobPhase};
+
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+
+    let cfg = Config {
+        allowed_roots: vec![root.to_path_buf()],
+        data_dir: root.join("data"),
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+
+    // Directly insert a resumable checkpoint for a job that has no active token.
+    let job_id = "stale-job-s12-0001";
+    let cp = Checkpoint {
+        job_id: job_id.to_string(),
+        project_id: "stale-project".to_string(),
+        phase: JobPhase::Parsing, // resumable
+        items_processed: 0,
+        items_total: 100,
+        generation: 1,
+        idempotency_key: Checkpoint::compute_idempotency_key("stale-project", "/dir", 1),
+        resume_state: None,
+        updated_at_ms: 0,
+        error: None,
+    };
+    state.checkpoints.put(&cp).expect("put checkpoint");
+
+    // Verify checkpoint is resumable before cancel.
+    let before = state.checkpoints.get(job_id).unwrap().unwrap();
+    assert!(before.is_resumable(), "precondition: checkpoint must be resumable before cancel");
+
+    // No token is registered — cancel_job_internal takes the NotFound path.
+    {
+        let tokens = state.cancellation_tokens.read().await;
+        assert!(
+            !tokens.contains_key(job_id),
+            "precondition: no cancellation token must exist for this stale job"
+        );
+    }
+
+    let outcome = engram_server::services::job_service::cancel_job_internal(&state, job_id).await;
+
+    // The function correctly returns NotFound (no live job was running)…
+    assert_eq!(
+        outcome,
+        engram_server::services::job_service::CancellationOutcome::NotFound,
+        "cancel_job_internal must return NotFound for a stale job ID"
+    );
+
+    // …but the resumable checkpoint must now be tombstoned as Failed.
+    let after = state.checkpoints.get(job_id).unwrap().unwrap();
+    assert_eq!(
+        after.phase,
+        JobPhase::Failed,
+        "ENG-AUD-2026-S12-0001: stale cancel must tombstone resumable checkpoint as Failed"
+    );
+}

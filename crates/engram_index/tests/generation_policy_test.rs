@@ -53,8 +53,14 @@ async fn test_generation_semantics_enforcement() {
         content_hash: "hash2".into(),
     };
 
+    // index_docs requires homogeneous namespace per call (ENG-AUD-2026-S05-0001);
+    // doc_mem and doc_mb have different namespaces so they must be indexed separately.
     engine
-        .index_docs(project_id, &[doc_mem, doc_mb], &cancel)
+        .index_docs(project_id, &[doc_mem], &cancel)
+        .await
+        .unwrap();
+    engine
+        .index_docs(project_id, &[doc_mb], &cancel)
         .await
         .unwrap();
 
