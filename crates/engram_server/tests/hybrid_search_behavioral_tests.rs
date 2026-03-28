@@ -514,3 +514,285 @@ fn vector_search_timeout_is_not_masked_as_empty_result() {
         "hybrid.rs timeout branch must emit infrastructure timeout error message"
     );
 }
+
+// ── S06-001: sort determinism ──────────────────────────────────────────────────
+
+/// ENG-AUD-2026-S06-001: lexical_search must return identical hit ordering
+/// across repeated calls for the same query.
+///
+/// Prior to the tie-break fix, equal-BM25-score docs had non-deterministic order
+/// because Tantivy's internal segment ordering was not a stable sort key.
+/// After the fix, results are ordered by (score DESC, path ASC, doc_id ASC, chunk_id ASC).
+#[tokio::test]
+async fn lexical_search_results_are_identical_across_repeated_calls() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    let docs = vec![
+        make_doc("s6-doc-gamma", "src/gamma.rs", "functions", "fn process_event() {}"),
+        make_doc("s6-doc-alpha", "src/alpha.rs", "functions", "fn process_event() {}"),
+        make_doc("s6-doc-beta",  "src/beta.rs",  "functions", "fn process_event() {}"),
+        make_doc("s6-doc-delta", "src/delta.rs", "functions", "fn process_event() {}"),
+        make_doc("s6-doc-echo",  "src/echo.rs",  "functions", "fn process_event() {}"),
+    ];
+    engine.index_docs("proj-s06-repeat", &docs, &cancel).await.expect("index_docs");
+
+    let q = fts_query("proj-s06-repeat", "functions", "process_event");
+
+    let first = engine.lexical_search(&q).expect("search run 1");
+    assert!(
+        !first.is_empty(),
+        "lexical_search must return hits for 'process_event' query (S06-001)"
+    );
+    let first_key: Vec<(String, String, u64)> = first
+        .iter()
+        .map(|h| (h.path.as_str().to_string(), h.doc_id.clone(), h.chunk_id))
+        .collect();
+
+    for run in 2..=10 {
+        let result = engine.lexical_search(&q).expect(&format!("search run {run}"));
+        let key: Vec<(String, String, u64)> = result
+            .iter()
+            .map(|h| (h.path.as_str().to_string(), h.doc_id.clone(), h.chunk_id))
+            .collect();
+        assert_eq!(
+            first_key, key,
+            "ENG-AUD-2026-S06-001: run {run} ordering must be byte-identical to run 1; \
+             got {key:?}, expected {first_key:?}"
+        );
+    }
+}
+
+/// ENG-AUD-2026-S06-001: when multiple docs have equal BM25 scores (identical
+/// content), the tie-break must be ascending path order.
+///
+/// Contract: docs with identical content index to identical BM25 scores.
+/// The secondary sort key is path ASC so the result is deterministic and
+/// predictable regardless of Tantivy's internal segment ordering.
+#[tokio::test]
+async fn lexical_search_equal_score_docs_sorted_by_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    // All docs have identical content → identical BM25 score for the query term.
+    // Tie-break must produce alphabetical path order: alpha < bravo < charlie.
+    let same_content = "fn seam_function() { /* identical implementation */ }";
+    let docs = vec![
+        make_doc("id-charlie", "src/charlie.rs", "functions", same_content),
+        make_doc("id-alpha",   "src/alpha.rs",   "functions", same_content),
+        make_doc("id-bravo",   "src/bravo.rs",   "functions", same_content),
+    ];
+    engine.index_docs("proj-s06-tiebreak", &docs, &cancel).await.expect("index_docs");
+
+    let q = fts_query("proj-s06-tiebreak", "functions", "seam_function");
+    let hits = engine.lexical_search(&q).expect("lexical_search");
+    assert_eq!(hits.len(), 3, "must return all 3 equal-score docs; got {}", hits.len());
+
+    // All scores must be equal (identical content, identical doc length).
+    let scores: Vec<f32> = hits.iter().map(|h| h.score).collect();
+    let first_score = scores[0];
+    for (i, &s) in scores.iter().enumerate() {
+        assert!(
+            (s - first_score).abs() < 1e-4,
+            "all docs must have equal BM25 score for tie-break to apply; \
+             doc[{i}] score {s} != doc[0] score {first_score}"
+        );
+    }
+
+    // Tie-break: ascending by path.
+    let paths: Vec<&str> = hits.iter().map(|h| h.path.as_str()).collect();
+    assert_eq!(
+        paths,
+        ["src/alpha.rs", "src/bravo.rs", "src/charlie.rs"],
+        "ENG-AUD-2026-S06-001: equal-score docs must be sorted by path ASC; got {paths:?}"
+    );
+}
+
+/// ENG-AUD-2026-S06-001: secondary sort by doc_id when path is equal.
+///
+/// When two chunks come from the same file (path) with equal scores, the
+/// doc_id ASC tie-break must apply.
+#[tokio::test]
+async fn lexical_search_equal_path_sorted_by_doc_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    let content = "fn dispatch_event() {}";
+    // Two chunks from the same file; doc_id order determines final ordering.
+    let mut doc_z = make_doc("z-chunk", "src/handler.rs", "functions", content);
+    doc_z.chunk_id = 0;
+    let mut doc_a = make_doc("a-chunk", "src/handler.rs", "functions", content);
+    doc_a.chunk_id = 1;
+
+    engine
+        .index_docs("proj-s06-docid", &[doc_z, doc_a], &cancel)
+        .await
+        .expect("index_docs");
+
+    let q = fts_query("proj-s06-docid", "functions", "dispatch_event");
+    let hits = engine.lexical_search(&q).expect("lexical_search");
+    assert_eq!(hits.len(), 2, "must return 2 hits");
+
+    let doc_ids: Vec<&str> = hits.iter().map(|h| h.doc_id.as_str()).collect();
+    assert_eq!(
+        doc_ids,
+        ["a-chunk", "z-chunk"],
+        "ENG-AUD-2026-S06-001: equal-path docs must be sorted by doc_id ASC; got {doc_ids:?}"
+    );
+}
+
+// ── S18-001: always-on vector parity ─────────────────────────────────────────
+
+/// ENG-AUD-2026-S18-001: vector_search with the ProjectionEmbedder (hermetic,
+/// deterministic, no environment variables required) must return consistent
+/// results across repeated invocations.
+///
+/// This test is always-on (no env var guard) because ProjectionEmbedder is a
+/// local hash-based projection — it never calls a remote service.
+#[cfg(feature = "vector")]
+#[tokio::test]
+async fn vector_search_projection_backend_is_deterministic() {
+    use engram_core::Config;
+
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+
+    // "projection" falls through to ProjectionEmbedder (hermetic, no network).
+    let cfg = Config {
+        embedding_backend: "projection".into(),
+        ..Default::default()
+    };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .expect("HybridSearchEngine with projection backend must succeed");
+
+    let cancel = CancellationToken::new();
+    let docs: Vec<_> = (0..6)
+        .map(|i| {
+            make_doc(
+                &format!("vp-{i}"),
+                &format!("src/module_{i}.rs"),
+                "memory",
+                &format!("fn authenticate_user_{i}(token: &str) -> bool {{ false }}"),
+            )
+        })
+        .collect();
+    engine
+        .index_docs("proj-vp-determinism", &docs, &cancel)
+        .await
+        .expect("index_docs must succeed with projection backend");
+
+    let q = fts_query("proj-vp-determinism", "memory", "authenticate");
+
+    // Run vector_search 5 times.  Results must be byte-identical across all runs.
+    let first: Vec<(String, u64)> = engine
+        .vector_search(&q)
+        .await
+        .expect("vector_search run 1 must not error")
+        .into_iter()
+        .map(|h| (h.doc_id, h.chunk_id))
+        .collect();
+
+    assert!(
+        !first.is_empty(),
+        "ENG-AUD-2026-S18-001: vector_search must return at least one hit \
+         after indexing 6 docs with query term in content"
+    );
+
+    for run in 2..=5 {
+        let result: Vec<(String, u64)> = engine
+            .vector_search(&q)
+            .await
+            .unwrap_or_else(|e| panic!("vector_search run {run} failed: {e}"))
+            .into_iter()
+            .map(|h| (h.doc_id, h.chunk_id))
+            .collect();
+        assert_eq!(
+            first, result,
+            "ENG-AUD-2026-S18-001: vector_search run {run} must produce identical \
+             (doc_id, chunk_id) sequence as run 1"
+        );
+    }
+}
+
+/// ENG-AUD-2026-S18-001: the ProjectionEmbedder backend must produce non-empty
+/// vector search results for a corpus where the query term appears in content.
+///
+/// This tests the behavioral contract: after indexing, the vector path must
+/// return at least one hit.  It does NOT require Ollama or OpenAI env vars.
+#[cfg(feature = "vector")]
+#[tokio::test]
+async fn vector_search_projection_backend_returns_nonempty_results() {
+    use engram_core::Config;
+
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+
+    let cfg = Config {
+        embedding_backend: "projection".into(),
+        ..Default::default()
+    };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .expect("engine");
+
+    let cancel = CancellationToken::new();
+    let docs = vec![
+        make_doc("vp-a", "src/auth.rs",    "memory", "fn validate_session(id: &str) -> bool { true }"),
+        make_doc("vp-b", "src/payment.rs", "memory", "fn charge_card(amount: f64) -> Result<(), Error> { Ok(()) }"),
+        make_doc("vp-c", "src/db.rs",      "memory", "fn query_users() -> Vec<User> { vec![] }"),
+    ];
+    engine
+        .index_docs("proj-vp-nonempty", &docs, &cancel)
+        .await
+        .expect("index_docs");
+
+    let q = fts_query("proj-vp-nonempty", "memory", "session");
+    let hits = engine
+        .vector_search(&q)
+        .await
+        .expect("vector_search must not error");
+
+    assert!(
+        !hits.is_empty(),
+        "ENG-AUD-2026-S18-001: vector_search with projection backend must return \
+         at least one hit after indexing; got 0 hits"
+    );
+}
+
+/// ENG-AUD-2026-S18-001: source structure — verify the search_tools handler
+/// emits the machine-parseable sentinel for empty results (S01-001) and
+/// returns McpError for doc-miss lookups.
+#[test]
+fn search_tools_handler_has_correct_not_found_contract() {
+    let source = include_str!("../../engram_server/src/handlers/search_tools.rs");
+
+    assert!(
+        source.contains("ENG-AUD-2026-S01-001"),
+        "search_tools.rs must contain ENG-AUD-2026-S01-001 audit tag"
+    );
+    assert!(
+        source.contains("result: no_hits"),
+        "search_tools.rs empty-result branch must emit 'result: no_hits' sentinel \
+         so programmatic callers can distinguish no-match from found results"
+    );
+    assert!(
+        source.contains("McpError::invalid_params"),
+        "search_tools.rs doc-miss branch must return McpError::invalid_params, \
+         not a success payload (ENG-AUD-2026-S01-001)"
+    );
+    assert!(
+        source.contains("not found in project"),
+        "search_tools.rs McpError message must include 'not found in project' \
+         to identify which project/namespace/generation was queried"
+    );
+}

@@ -458,3 +458,221 @@ fn registry_memory_section_project_isolation() {
         "proj-X must not see proj-Y's section 'sec-y' — project isolation failure"
     );
 }
+
+// ── S09-001: composite key delimiter adversarial inputs ───────────────────────
+
+/// ENG-AUD-2026-S09-001: put_memory_section must reject a section_id that
+/// contains the NUL byte (\0), which is the composite key delimiter.
+///
+/// If \0 is allowed, a section_id like "sec\0\proj-B" could encode a
+/// second project_id component and read/write across project boundaries.
+#[test]
+fn put_memory_section_rejects_nul_in_section_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut sec = make_memory_section("legitimate-section", "Notes");
+    sec.section_id = "sec\0injection".to_string(); // NUL byte injection
+
+    let result = reg.put_memory_section("proj-adv", &sec);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_memory_section must reject section_id containing \\0; \
+         got Ok (security: NUL byte allows composite key manipulation)"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("ENG-AUD-2026-S09-001"),
+        "error must cite ENG-AUD-2026-S09-001; got: {msg}"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: put_memory_section must reject an empty section_id.
+///
+/// An empty section_id would produce a key of "project_id\0" without a
+/// section component, making it indistinguishable from other empty-id writes
+/// and potentially overwriting unrelated records.
+#[test]
+fn put_memory_section_rejects_empty_section_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut sec = make_memory_section("", "Notes"); // empty section_id
+    sec.section_id = String::new();
+
+    let result = reg.put_memory_section("proj-adv-empty", &sec);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_memory_section must reject empty section_id"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: delete_memory_section must reject a section_id
+/// containing the NUL delimiter byte.
+#[test]
+fn delete_memory_section_rejects_nul_in_section_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    // First create a valid section so delete has something to act on.
+    reg.put_memory_section("proj-del-adv", &make_memory_section("real-sec", "Title"))
+        .expect("pre-condition: put must succeed for a valid section_id");
+
+    // Now attempt to delete with an adversarial section_id.
+    let result = reg.delete_memory_section("proj-del-adv", "real\0sec");
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: delete_memory_section must reject section_id with \\0"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: put_repo_rule must reject a rule_id containing \0.
+#[test]
+fn put_repo_rule_rejects_nul_in_rule_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut rule = make_repo_rule("rule\0evil", "*.cs");
+    rule.rule_id = "rule\0evil".to_string();
+
+    let result = reg.put_repo_rule("proj-rule-adv", &rule);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_repo_rule must reject rule_id containing \\0"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("ENG-AUD-2026-S09-001"),
+        "error must cite audit tag; got: {msg}"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: put_repo_rule must reject an empty rule_id.
+#[test]
+fn put_repo_rule_rejects_empty_rule_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut rule = make_repo_rule("", "*.cs");
+    rule.rule_id = String::new();
+
+    let result = reg.put_repo_rule("proj-rule-empty", &rule);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_repo_rule must reject empty rule_id"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: delete_repo_rule must reject a rule_id with \0.
+#[test]
+fn delete_repo_rule_rejects_nul_in_rule_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    reg.put_repo_rule("proj-drule-adv", &make_repo_rule("real-rule", "*.rs"))
+        .expect("pre-condition");
+
+    let result = reg.delete_repo_rule("proj-drule-adv", "real\0rule");
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: delete_repo_rule must reject rule_id with \\0"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: put_watch must reject a watch_id containing \0.
+#[test]
+fn put_watch_rejects_nul_in_watch_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut watch = make_watch("watch\0evil", "/code/src");
+    watch.watch_id = "watch\0evil".to_string();
+
+    let result = reg.put_watch("proj-watch-adv", &watch);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_watch must reject watch_id containing \\0"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("ENG-AUD-2026-S09-001"),
+        "error must cite audit tag; got: {msg}"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: put_watch must reject an empty watch_id.
+#[test]
+fn put_watch_rejects_empty_watch_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let mut watch = make_watch("", "/code/src");
+    watch.watch_id = String::new();
+
+    let result = reg.put_watch("proj-watch-empty", &watch);
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: put_watch must reject empty watch_id"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: set_meta must reject a key containing \0.
+#[test]
+fn set_meta_rejects_nul_in_key() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let result = reg.set_meta("proj-meta-adv", "key\0evil", "value");
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: set_meta must reject key containing \\0"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("ENG-AUD-2026-S09-001"),
+        "error must cite audit tag; got: {msg}"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: set_meta must reject an empty key.
+#[test]
+fn set_meta_rejects_empty_key() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let result = reg.set_meta("proj-meta-empty", "", "value");
+    assert!(
+        result.is_err(),
+        "ENG-AUD-2026-S09-001: set_meta must reject empty meta key"
+    );
+}
+
+/// ENG-AUD-2026-S09-001: valid IDs containing hyphens and underscores must
+/// still be accepted (regression check — validation must not be too broad).
+#[test]
+fn composite_key_validation_accepts_normal_ids() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    // These should all succeed — they are normal IDs without NUL bytes.
+    reg.put_memory_section(
+        "proj-normal",
+        &make_memory_section("section-001_v2", "Title"),
+    )
+    .expect("put_memory_section must accept id with hyphens and underscores");
+
+    reg.put_repo_rule(
+        "proj-normal",
+        &make_repo_rule("rule_001-alpha", "*.cs"),
+    )
+    .expect("put_repo_rule must accept id with hyphens and underscores");
+
+    reg.put_watch(
+        "proj-normal",
+        &make_watch("watch-alpha_01", "/code"),
+    )
+    .expect("put_watch must accept id with hyphens and underscores");
+
+    reg.set_meta("proj-normal", "active_generation", "5")
+        .expect("set_meta must accept key with underscores");
+}
