@@ -234,6 +234,15 @@ impl HybridSearchEngine {
                         d.generation
                     }
                 } else {
+                    // ENG-AUD-2026-S15-001: policy load failed for this namespace.
+                    // Falling back to the provided generation preserves data but may
+                    // silently diverge from the intended retention/versioning policy.
+                    tracing::warn!(
+                        namespace = %d.namespace,
+                        generation = d.generation,
+                        "ENG-AUD-2026-S15-001: get_policy failed for namespace; \
+                         using provided generation as fallback — versioning semantics may drift"
+                    );
                     d.generation
                 };
 
@@ -303,6 +312,15 @@ impl HybridSearchEngine {
                         d.generation
                     }
                 } else {
+                    // ENG-AUD-2026-S15-001: policy load failed for this namespace.
+                    // Falling back to the provided generation preserves data but may
+                    // silently diverge from the intended retention/versioning policy.
+                    tracing::warn!(
+                        namespace = %d.namespace,
+                        generation = d.generation,
+                        "ENG-AUD-2026-S15-001: get_policy failed for namespace; \
+                         using provided generation as fallback — versioning semantics may drift"
+                    );
                     d.generation
                 };
 
@@ -1351,6 +1369,20 @@ impl HybridSearchEngine {
                 doc_id: doc_id_str,
             });
         }
+
+        // ENG-AUD-2026-S06-001: apply the same deterministic tie-break as the
+        // hybrid search path so repeated lexical_search calls for the same query
+        // always return identical ordering. Tantivy's TopDocs collector sorts by
+        // score but does not guarantee stable ordering for equal-score documents.
+        out.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.path.as_str().cmp(b.path.as_str()))
+                .then_with(|| a.doc_id.cmp(&b.doc_id))
+                .then_with(|| a.chunk_id.cmp(&b.chunk_id))
+        });
+
         Ok(out)
     }
 
@@ -1864,10 +1896,17 @@ impl HybridSearchEngine {
             })
             .collect();
 
+        // ENG-AUD-2026-S06-001: stable tie-break after score to make ranking
+        // deterministic across identical queries.  HashMap iteration order and
+        // f32 NaN-equality can otherwise produce different orderings run-to-run,
+        // which breaks ADP reproducibility and regression assertions.
         merged.sort_by(|a, b| {
             b.score
                 .partial_cmp(&a.score)
                 .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.path.as_str().cmp(b.path.as_str()))
+                .then_with(|| a.doc_id.cmp(&b.doc_id))
+                .then_with(|| a.chunk_id.cmp(&b.chunk_id))
         });
 
         #[cfg(feature = "vector")]
