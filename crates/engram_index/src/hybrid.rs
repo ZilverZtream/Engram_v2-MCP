@@ -279,12 +279,20 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         if self.embedding_backend != "fts_only" {
             let table_name = format!("project_{}", project_id.replace('-', "_"));
-            let table = crate::vector::open_or_create_table(
+            let (table, open_outcome) = crate::vector::open_or_create_table(
                 &self.lance_conn,
                 &table_name,
                 self.embedder.dimension(),
             )
             .await?;
+            if let crate::vector::TableOpenOutcome::Recreated { ref reason } = open_outcome {
+                tracing::error!(
+                    table = %table_name,
+                    reason = %reason,
+                    "VEC1: vector table was recreated due to schema mismatch — all vector data was lost; \
+                     a full re-index is required to restore search quality"
+                );
+            }
 
             let mut pks = Vec::with_capacity(docs.len());
             let mut doc_ids = Vec::with_capacity(docs.len());
@@ -1649,7 +1657,9 @@ impl HybridSearchEngine {
             3
         };
         let mut q_oversampled = q.clone();
-        q_oversampled.top_k = q.top_k * oversample_factor;
+        // FTS2: cap the oversampled fetch size so large top_k + multiplier combos
+        // cannot allocate unbounded intermediate buffers or cause OOM under the engine.
+        q_oversampled.top_k = (q.top_k.saturating_mul(oversample_factor)).min(10_000);
 
         let timeout_dur = std::time::Duration::from_millis(timeout_ms);
         let mut hits =
@@ -1830,7 +1840,8 @@ impl HybridSearchEngine {
         centrality_boost: Option<&std::collections::HashMap<String, f32>>,
     ) -> anyhow::Result<Vec<HybridHit>> {
         let fetch_k = if q.use_mmr {
-            q.top_k * self.mmr_oversampling.max(2)
+            // FTS2: saturating_mul + cap prevents OOM on large top_k × multiplier combos.
+            (q.top_k.saturating_mul(self.mmr_oversampling.max(2))).min(10_000)
         } else {
             q.top_k
         };

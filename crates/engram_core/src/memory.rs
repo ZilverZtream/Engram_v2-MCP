@@ -367,4 +367,75 @@ mod tests {
         assert!(q.try_send(2).is_ok());
         assert!(q.try_send(3).is_err()); // full
     }
+
+    // ── MEM1: concurrent allocation stress test ───────────────────────────────
+    // Verifies that under concurrent allocations near the hard limit:
+    //   (a) the budget never remains permanently over limit after all operations settle
+    //   (b) every rejected allocation results in a clean rollback (usage unchanged)
+    // Note: a brief transient oversubscription window between fetch_add and the
+    // rollback fetch_sub is an accepted trade-off of the lock-free design; this
+    // test ensures the steady-state invariant holds after contention.
+    #[test]
+    fn budget_never_permanently_exceeds_hard_limit_under_concurrent_load() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicU64, Ordering};
+
+        let budget_bytes: u64 = 100_000;
+        let mb = Arc::new(MemoryBudget::new(budget_bytes));
+        // Deliberately exceed budget with many concurrent small allocations.
+        let alloc_size: u64 = 10_000; // 10 of these = 100KB = exactly the budget
+        let num_threads = 20; // 200KB total attempted — 2× over budget
+
+        let rejected = Arc::new(AtomicU64::new(0));
+        let allowed = Arc::new(AtomicU64::new(0));
+
+        let handles: Vec<_> = (0..num_threads)
+            .map(|_| {
+                let mb_clone = mb.clone();
+                let rejected_clone = rejected.clone();
+                let allowed_clone = allowed.clone();
+                std::thread::spawn(move || {
+                    match mb_clone.try_allocate(alloc_size, Subsystem::Misc) {
+                        MemoryDecision::Rejected => {
+                            rejected_clone.fetch_add(1, Ordering::Relaxed);
+                        }
+                        _ => {
+                            allowed_clone.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().expect("thread must not panic");
+        }
+
+        let final_used = mb.used();
+        let accepted_count = allowed.load(Ordering::Relaxed);
+        let rejected_count = rejected.load(Ordering::Relaxed);
+
+        // After all threads complete, accepted allocations × alloc_size must equal used.
+        assert_eq!(
+            final_used,
+            accepted_count * alloc_size,
+            "MEM1: final used ({final_used}) must equal accepted_count ({accepted_count}) * alloc_size ({alloc_size})"
+        );
+        // The steady-state used must never exceed the hard budget.
+        assert!(
+            final_used <= budget_bytes,
+            "MEM1: final used ({final_used}) must not exceed hard budget ({budget_bytes}) after rollback"
+        );
+        // Sanity: at least some threads must have been rejected (since 20 × 10KB > 100KB budget).
+        assert!(
+            rejected_count > 0,
+            "MEM1: at least one allocation must be rejected when total demand exceeds budget; got 0 rejections"
+        );
+        // Sanity: total accepted + rejected must equal num_threads.
+        assert_eq!(
+            accepted_count + rejected_count,
+            num_threads as u64,
+            "MEM1: accepted + rejected must equal num_threads"
+        );
+    }
 }

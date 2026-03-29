@@ -110,6 +110,7 @@ impl Registry {
     }
 
     pub fn get_project(&self, project_id: &str) -> anyhow::Result<Option<ProjectRecord>> {
+        vk("project_id", project_id)?;
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(PROJECTS)?;
         if let Some(v) = t.get(project_id)? {
@@ -248,6 +249,7 @@ impl Registry {
     }
 
     pub fn list_memory_sections(&self, project_id: &str) -> anyhow::Result<Vec<MemorySection>> {
+        vk("project_id", project_id)?;
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(MEMORY_BANK)?;
@@ -268,6 +270,8 @@ impl Registry {
         project_id: &str,
         section_id: &str,
     ) -> anyhow::Result<Option<MemorySection>> {
+        vk("project_id", project_id)?;
+        vk("section_id", section_id)?;
         let key = format!("{project_id}\0{section_id}");
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(MEMORY_BANK)?;
@@ -307,6 +311,7 @@ impl Registry {
     }
 
     pub fn list_repo_rules(&self, project_id: &str) -> anyhow::Result<Vec<RepoRule>> {
+        vk("project_id", project_id)?;
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(REPO_RULES)?;
@@ -351,6 +356,7 @@ impl Registry {
     }
 
     pub fn list_watches(&self, project_id: &str) -> anyhow::Result<Vec<WatchRecord>> {
+        vk("project_id", project_id)?;
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(WATCHES)?;
@@ -379,6 +385,7 @@ impl Registry {
     }
 
     pub fn get_job(&self, job_id: &str) -> anyhow::Result<Option<JobRecord>> {
+        vk("job_id", job_id)?;
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(JOBS)?;
         if let Some(v) = t.get(job_id)? {
@@ -389,6 +396,9 @@ impl Registry {
     }
 
     pub fn list_jobs(&self, project_id: Option<&str>) -> anyhow::Result<Vec<JobRecord>> {
+        if let Some(pid) = project_id {
+            vk("project_id", pid)?;
+        }
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(JOBS)?;
         let mut out = Vec::new();
@@ -458,6 +468,8 @@ impl Registry {
     }
 
     pub fn get_meta(&self, project_id: &str, key: &str) -> anyhow::Result<Option<String>> {
+        vk("project_id", project_id)?;
+        vk("key", key)?;
         let k = format!("{project_id}\0{key}");
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(META)?;

@@ -1,12 +1,38 @@
 use crate::state::AppState;
 use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
-pub async fn run_gc_scheduler(state: AppState) {
+/// CANCEL1: accepts a shutdown token so the GC loop exits cooperatively on process shutdown
+/// rather than being forcibly killed mid-purge (which could leave storage in a partial state).
+///
+/// JOB1: skips the purge tick when active indexing is in progress to prevent a GC generation
+/// deletion from racing with an in-flight index job that is still writing to the same generation.
+pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
     let tick = Duration::from_secs(3600); // Once an hour
     let mut interval = tokio::time::interval(tick);
 
     loop {
-        interval.tick().await;
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                tracing::info!("GC scheduler: shutdown token cancelled — exiting");
+                return;
+            }
+            _ = interval.tick() => {}
+        }
+
+        // JOB1: skip purge when any indexing job is active to avoid racing with
+        // in-flight generation writes.  The next hourly tick will retry.
+        let active = state
+            .active_indexing_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+        if active > 0 {
+            tracing::debug!(
+                active_jobs = active,
+                "GC: skipping purge tick — {active} indexing job(s) in progress (JOB1 guard)"
+            );
+            continue;
+        }
+
         tracing::info!("GC: starting periodic generation purge");
 
         let registry = state.registry.clone();
@@ -20,6 +46,10 @@ pub async fn run_gc_scheduler(state: AppState) {
         .unwrap_or_default();
 
         for pid in project_ids {
+            if shutdown.is_cancelled() {
+                tracing::info!("GC: shutdown requested mid-sweep — stopping");
+                return;
+            }
             if let Err(e) = purge_project_old_gens(&state, &pid).await {
                 tracing::error!("GC error for project {}: {:?}", pid, e);
             }

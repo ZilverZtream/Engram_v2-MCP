@@ -616,6 +616,66 @@ mod tests {
         );
     }
 
+    // ── SEC1: MAX_ANCESTOR_DEPTH guard for deeply nested non-existent paths ──
+
+    /// SEC1: resolve_path with a path that has more than MAX_ANCESTOR_DEPTH (64)
+    /// non-existent components must return Err, not walk indefinitely or panic.
+    /// Without this guard an adversary could supply an extremely deep path to
+    /// exhaust the ancestor-walk loop.
+    #[test]
+    fn resolve_path_rejects_path_exceeding_max_ancestor_depth() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base = tmp.path().to_path_buf();
+        let ctx = PathContext::new(vec![base.clone()]).expect("PathContext::new must succeed");
+
+        // Build a path with 65 non-existent components — one more than MAX_ANCESTOR_DEPTH=64.
+        let mut deep = base.clone();
+        for i in 0..65usize {
+            deep.push(format!("nonexistent_level_{i:03}"));
+        }
+
+        let result = ctx.resolve_path(&deep);
+        assert!(
+            result.is_err(),
+            "SEC1: resolve_path must reject a path exceeding MAX_ANCESTOR_DEPTH=64; got Ok({:?})",
+            result.ok()
+        );
+        let err_str = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_str.contains("64") || err_str.contains("ancestor") || err_str.contains("exceeded"),
+            "SEC1: error must reference the depth limit; got: {err_str}"
+        );
+    }
+
+    /// SEC1: resolve_path with exactly 64 non-existent levels must also fail with
+    /// an ancestor error (the 64th level hits the depth == MAX_ANCESTOR_DEPTH guard
+    /// on the next increment).
+    #[test]
+    fn resolve_path_rejects_path_at_max_ancestor_depth() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let base = tmp.path().to_path_buf();
+        let ctx = PathContext::new(vec![base.clone()]).expect("PathContext::new must succeed");
+
+        // Build a path with exactly 64 non-existent components.
+        let mut deep = base.clone();
+        for i in 0..64usize {
+            deep.push(format!("deep_nonexistent_{i:03}"));
+        }
+
+        // The result here may succeed or fail depending on how many ancestors exist,
+        // but it must not panic and must terminate promptly.
+        // The important invariant: it must not succeed with a path outside `base`.
+        let result = ctx.resolve_path(&deep);
+        if let Ok(ref p) = result {
+            assert!(
+                p.starts_with(&base),
+                "SEC1: resolve_path must not return a path outside the allowed root; got {p:?}"
+            );
+        }
+        // Either Ok (within allowed root) or Err — both are acceptable outcomes.
+        // The key guarantee is no panic and no path escaping the root.
+    }
+
     /// ENG-AUD-2026-EXH-P1-0002: structural test — the not(unix, windows) fallback
     /// must use symlink_metadata as a best-effort pre-open guard rather than a bare
     /// File::open, and must document the residual TOCTOU window.

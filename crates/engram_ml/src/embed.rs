@@ -17,6 +17,20 @@ pub trait Embedder: Send + Sync {
         }
         Ok(results)
     }
+
+    /// Embed multiple texts with cancellation support.
+    /// Implementations should check `cancel.is_cancelled()` between batches/retries.
+    /// Default impl delegates to embed_batch ignoring the token (sub-optimal but safe).
+    async fn embed_batch_cancellable(
+        &self,
+        texts: &[&str],
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Embedding>> {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled before start");
+        }
+        self.embed_batch(texts).await
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +286,11 @@ impl OllamaEmbedder {
     ///
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
     pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
+        // EMB3: reject dim=0 at construction time; hybrid.rs also catches this but
+        // fail-fast here avoids deferred surprises.
+        if dim == 0 {
+            anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
+        }
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .connect_timeout(std::time::Duration::from_secs(10))
@@ -299,6 +318,18 @@ impl Embedder for OllamaEmbedder {
     async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
         embed_batch_via_ollama(&self.client, &self.url, &self.model, texts, self.dim).await
     }
+
+    /// EMB1: cancellable batch embed — checks cancel before sending and between retries.
+    async fn embed_batch_cancellable(
+        &self,
+        texts: &[&str],
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Embedding>> {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled before start");
+        }
+        embed_batch_via_ollama_cancellable(&self.client, &self.url, &self.model, texts, self.dim, cancel).await
+    }
 }
 
 /// Shared HTTP helper for Ollama /api/embed with exponential-backoff retry.
@@ -309,6 +340,15 @@ async fn embed_via_ollama(
     text: &str,
     expected_dim: usize,
 ) -> anyhow::Result<Embedding> {
+    // EMB2: normalize empty/whitespace text to unit vector matching ProjectionEmbedder behavior
+    if text.trim().is_empty() {
+        if expected_dim == 0 {
+            anyhow::bail!("cannot embed empty text with dim=0");
+        }
+        let mut v = vec![0.0f32; expected_dim];
+        v[0] = 1.0;
+        return Ok(v);
+    }
     let url = format!("{base_url}/api/embed");
     let body = serde_json::json!({
         "model": model,
@@ -436,6 +476,93 @@ async fn embed_batch_via_ollama(
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Ollama batch embedding failed after retries")))
 }
 
+/// EMB1: cancellable variant of embed_batch_via_ollama — checks cancel before each retry sleep.
+async fn embed_batch_via_ollama_cancellable(
+    client: &reqwest::Client,
+    base_url: &str,
+    model: &str,
+    texts: &[&str],
+    expected_dim: usize,
+    cancel: &tokio_util::sync::CancellationToken,
+) -> anyhow::Result<Vec<Embedding>> {
+    if texts.is_empty() {
+        return Ok(Vec::new());
+    }
+    if texts.len() == 1 {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled before request");
+        }
+        return Ok(vec![
+            embed_via_ollama(client, base_url, model, texts[0], expected_dim).await?,
+        ]);
+    }
+    let url = format!("{base_url}/api/embed");
+    let body = serde_json::json!({
+        "model": model,
+        "input": texts,
+    });
+
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3u32 {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled during retry loop");
+        }
+        if attempt > 0 {
+            let backoff = std::time::Duration::from_millis(500 * (1 << attempt));
+            tokio::time::sleep(backoff).await;
+            if cancel.is_cancelled() {
+                anyhow::bail!("embedding cancelled after backoff sleep");
+            }
+        }
+        match client.post(&url).json(&body).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_server_error()
+                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
+                {
+                    last_err = Some(anyhow::anyhow!("Ollama batch HTTP {status}"));
+                    continue;
+                }
+                let data: serde_json::Value = resp
+                    .error_for_status()?
+                    .json()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Ollama batch JSON parse error: {e}"))?;
+                let arr = data["embeddings"]
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("Ollama batch response missing embeddings"))?;
+                if arr.len() != texts.len() {
+                    anyhow::bail!(
+                        "Ollama batch returned {} embeddings but expected {}",
+                        arr.len(),
+                        texts.len()
+                    );
+                }
+                let mut result = Vec::with_capacity(texts.len());
+                for emb in arr {
+                    let emb_arr = emb
+                        .as_array()
+                        .ok_or_else(|| anyhow::anyhow!("Ollama batch: embedding is not array"))?;
+                    let vec = parse_embedding_array(emb_arr)?;
+                    if expected_dim > 0 && vec.len() != expected_dim {
+                        anyhow::bail!(
+                            "Ollama batch model '{model}' returned dim={} but expected {expected_dim}",
+                            vec.len()
+                        );
+                    }
+                    result.push(vec);
+                }
+                return Ok(result);
+            }
+            Err(e) => {
+                last_err = Some(anyhow::anyhow!("Ollama batch request error: {e}"));
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("Ollama batch embedding failed after retries")))
+}
+
 // ---------------------------------------------------------------------------
 // OpenAIEmbedder — calls an OpenAI-compatible /embeddings endpoint.
 // ---------------------------------------------------------------------------
@@ -458,6 +585,10 @@ impl OpenAIEmbedder {
         api_base: impl Into<String>,
         dim: usize,
     ) -> anyhow::Result<Self> {
+        // EMB3: reject dim=0 at construction time; fail-fast before any HTTP call.
+        if dim == 0 {
+            anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
+        }
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .connect_timeout(std::time::Duration::from_secs(10))
@@ -502,6 +633,27 @@ impl Embedder for OpenAIEmbedder {
         )
         .await
     }
+
+    /// EMB1: cancellable batch embed — checks cancel before sending and between retries.
+    async fn embed_batch_cancellable(
+        &self,
+        texts: &[&str],
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Embedding>> {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled before start");
+        }
+        embed_batch_via_openai_cancellable(
+            &self.client,
+            &self.api_base,
+            &self.api_key,
+            &self.model,
+            texts,
+            self.dim,
+            cancel,
+        )
+        .await
+    }
 }
 
 /// Shared HTTP helper for OpenAI /embeddings with exponential-backoff retry.
@@ -513,6 +665,15 @@ async fn embed_via_openai(
     text: &str,
     expected_dim: usize,
 ) -> anyhow::Result<Embedding> {
+    // EMB2: normalize empty/whitespace text to unit vector matching ProjectionEmbedder behavior
+    if text.trim().is_empty() {
+        if expected_dim == 0 {
+            anyhow::bail!("cannot embed empty text with dim=0");
+        }
+        let mut v = vec![0.0f32; expected_dim];
+        v[0] = 1.0;
+        return Ok(v);
+    }
     let url = format!("{api_base}/embeddings");
     let body = serde_json::json!({
         "model": model,
@@ -664,6 +825,111 @@ async fn embed_batch_via_openai(
     Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI batch embedding failed after retries")))
 }
 
+/// EMB1: cancellable variant of embed_batch_via_openai — checks cancel before each retry sleep.
+async fn embed_batch_via_openai_cancellable(
+    client: &reqwest::Client,
+    api_base: &str,
+    api_key: &str,
+    model: &str,
+    texts: &[&str],
+    expected_dim: usize,
+    cancel: &tokio_util::sync::CancellationToken,
+) -> anyhow::Result<Vec<Embedding>> {
+    if texts.is_empty() {
+        return Ok(Vec::new());
+    }
+    if texts.len() == 1 {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled before request");
+        }
+        return Ok(vec![
+            embed_via_openai(client, api_base, api_key, model, texts[0], expected_dim).await?,
+        ]);
+    }
+    let url = format!("{api_base}/embeddings");
+    let body = serde_json::json!({
+        "model": model,
+        "input": texts,
+    });
+
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 0..3u32 {
+        if cancel.is_cancelled() {
+            anyhow::bail!("embedding cancelled during retry loop");
+        }
+        if attempt > 0 {
+            let backoff = std::time::Duration::from_millis(500 * (1 << attempt));
+            tokio::time::sleep(backoff).await;
+            if cancel.is_cancelled() {
+                anyhow::bail!("embedding cancelled after backoff sleep");
+            }
+        }
+        match client
+            .post(&url)
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status();
+                if status.is_server_error()
+                    || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+                    || status == reqwest::StatusCode::REQUEST_TIMEOUT
+                {
+                    last_err = Some(anyhow::anyhow!("OpenAI batch HTTP {status}"));
+                    continue;
+                }
+                let data: serde_json::Value = resp
+                    .error_for_status()?
+                    .json()
+                    .await
+                    .map_err(|e| anyhow::anyhow!("OpenAI batch JSON parse error: {e}"))?;
+                let arr = data["data"]
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("OpenAI batch response missing data"))?;
+                if arr.len() != texts.len() {
+                    anyhow::bail!(
+                        "OpenAI batch returned {} embeddings but expected {}",
+                        arr.len(),
+                        texts.len()
+                    );
+                }
+                let mut indexed: Vec<(usize, Vec<f32>)> = Vec::with_capacity(arr.len());
+                for item in arr {
+                    let idx = item["index"]
+                        .as_u64()
+                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: item missing 'index' field"))?
+                        as usize;
+                    let vec: Vec<f32> = item["embedding"]
+                        .as_array()
+                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: missing embedding"))?
+                        .iter()
+                        .map(|v| {
+                            v.as_f64()
+                                .ok_or_else(|| anyhow::anyhow!("OpenAI batch: non-numeric element"))
+                                .map(|f| f as f32)
+                        })
+                        .collect::<Result<Vec<f32>, _>>()?;
+                    if expected_dim > 0 && vec.len() != expected_dim {
+                        anyhow::bail!(
+                            "OpenAI model '{model}' returned dim={} but expected {expected_dim}",
+                            vec.len()
+                        );
+                    }
+                    indexed.push((idx, vec));
+                }
+                indexed.sort_by_key(|(idx, _)| *idx);
+                return Ok(indexed.into_iter().map(|(_, v)| v).collect());
+            }
+            Err(e) => {
+                last_err = Some(anyhow::anyhow!("OpenAI batch request error: {e}"));
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("OpenAI batch embedding failed after retries")))
+}
+
 // ---------------------------------------------------------------------------
 // RemoteEmbedder — runtime-dispatched wrapper (Ollama or OpenAI).
 // Constructed via RemoteEmbedder::ollama() / RemoteEmbedder::openai().
@@ -724,6 +990,18 @@ impl Embedder for RemoteEmbedder {
         match &self.backend {
             RemoteBackend::Ollama(e) => e.embed_batch(texts).await,
             RemoteBackend::OpenAI(e) => e.embed_batch(texts).await,
+        }
+    }
+
+    /// EMB1: dispatch cancellable batch to the correct backend.
+    async fn embed_batch_cancellable(
+        &self,
+        texts: &[&str],
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Embedding>> {
+        match &self.backend {
+            RemoteBackend::Ollama(e) => e.embed_batch_cancellable(texts, cancel).await,
+            RemoteBackend::OpenAI(e) => e.embed_batch_cancellable(texts, cancel).await,
         }
     }
 }
@@ -895,6 +1173,92 @@ mod embed_factory_tests {
             embedder.dimension(),
             1536,
             "ENG-AUD-2026-S12-0004: embedder must default to dim=1536 when openai_embed_dim is not set"
+        );
+    }
+
+    /// EMB3: build_embedder with ollama_embed_dim=0 must fail at construction time
+    /// so misconfiguration is detected at startup, not deferred to first embed call.
+    #[test]
+    fn build_embedder_ollama_rejects_zero_dim() {
+        let cfg = engram_core::Config {
+            embedding_backend: "ollama".to_string(),
+            ollama_embed_dim: Some(0),
+            ..Default::default()
+        };
+        let result = build_embedder(&cfg);
+        assert!(
+            result.is_err(),
+            "EMB3: build_embedder must reject ollama_embed_dim=0 at construction time"
+        );
+        let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            msg.contains("dim") || msg.contains("EMB-AUD"),
+            "error must mention dim config; got: {msg}"
+        );
+    }
+
+    /// EMB3: build_embedder with openai_embed_dim=0 must fail at construction time.
+    #[test]
+    fn build_embedder_openai_rejects_zero_dim() {
+        let cfg = engram_core::Config {
+            embedding_backend: "openai".to_string(),
+            openai_api_key: Some("test-key".to_string()),
+            openai_embed_dim: Some(0),
+            ..Default::default()
+        };
+        let result = build_embedder(&cfg);
+        assert!(
+            result.is_err(),
+            "EMB3: build_embedder must reject openai_embed_dim=0 at construction time"
+        );
+        let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            msg.contains("dim") || msg.contains("EMB-AUD"),
+            "error must mention dim config; got: {msg}"
+        );
+    }
+
+    /// EMB1: embed_batch_cancellable called with a pre-cancelled token must return Err
+    /// immediately without making any HTTP requests.
+    #[tokio::test]
+    async fn ollama_embed_batch_cancellable_respects_pre_cancel() {
+        let embedder = OllamaEmbedder::new("nomic-embed-text", "http://127.0.0.1:19999", 768)
+            .expect("OllamaEmbedder::new must succeed with valid params");
+        let cancel = tokio_util::sync::CancellationToken::new();
+        cancel.cancel();
+        let result = embedder.embed_batch_cancellable(&["hello"], &cancel).await;
+        assert!(
+            result.is_err(),
+            "EMB1: embed_batch_cancellable must return Err when token is pre-cancelled"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("cancel"),
+            "error must mention cancellation; got: {msg}"
+        );
+    }
+
+    /// EMB1: embed_batch_cancellable on OpenAI with pre-cancelled token must return Err immediately.
+    #[tokio::test]
+    async fn openai_embed_batch_cancellable_respects_pre_cancel() {
+        let embedder = OpenAIEmbedder::new(
+            "text-embedding-3-small",
+            "test-api-key",
+            "http://127.0.0.1:19999/v1",
+            1536,
+        )
+        .expect("OpenAIEmbedder::new must succeed with valid params");
+        let cancel = tokio_util::sync::CancellationToken::new();
+        cancel.cancel();
+        let result = embedder.embed_batch_cancellable(&["hello"], &cancel).await;
+        assert!(
+            result.is_err(),
+            "EMB1: openai embed_batch_cancellable must return Err when token is pre-cancelled"
+        );
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("cancel"),
+            "error must mention cancellation; got: {msg}"
         );
     }
 }

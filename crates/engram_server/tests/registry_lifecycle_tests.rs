@@ -647,6 +647,47 @@ fn set_meta_rejects_empty_key() {
     );
 }
 
+// ── REG1: key-space aliasing prevention — read methods must also validate ──
+
+#[test]
+fn get_memory_section_rejects_null_byte_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
+    // Adversarial project_id with embedded NUL delimiter
+    let result = reg.get_memory_section("proj\0other", "sec");
+    assert!(result.is_err(), "get_memory_section must reject NUL in project_id");
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("invalid") || msg.contains("null") || msg.contains("\\0")
+            || msg.contains("NUL") || msg.contains("ENG-AUD"),
+        "error should mention invalid key component; got: {msg}"
+    );
+}
+
+#[test]
+fn get_meta_rejects_null_byte_in_key() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
+    let result = reg.get_meta("proj", "key\0injected");
+    assert!(result.is_err(), "get_meta must reject NUL in key");
+}
+
+#[test]
+fn list_memory_sections_rejects_null_byte_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
+    let result = reg.list_memory_sections("proj\0other");
+    assert!(result.is_err(), "list_memory_sections must reject NUL in project_id");
+}
+
+#[test]
+fn get_project_rejects_null_byte_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
+    let result = reg.get_project("proj\0bad");
+    assert!(result.is_err(), "get_project must reject NUL in project_id");
+}
+
 /// ENG-AUD-2026-S09-001: valid IDs containing hyphens and underscores must
 /// still be accepted (regression check — validation must not be too broad).
 #[test]

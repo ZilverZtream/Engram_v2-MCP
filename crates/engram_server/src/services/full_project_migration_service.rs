@@ -7,6 +7,33 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use engram_graph::{EdgeKind, GraphStore};
+
+/// MIG1: helper that runs a graph query for edge lists, returning an empty Vec on error
+/// while logging a warning so partial graph failures are observable rather than silently
+/// producing truncated reports.  Previously these called `.unwrap_or_default()` which
+/// swallowed errors without any diagnostic signal.
+#[inline]
+fn edges_or_warn(
+    result: anyhow::Result<Vec<engram_graph::Edge>>,
+    context: &'static str,
+) -> Vec<engram_graph::Edge> {
+    result.unwrap_or_else(|e| {
+        tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        Vec::new()
+    })
+}
+
+/// MIG1: same pattern for node-list graph queries.
+#[inline]
+fn nodes_or_warn(
+    result: anyhow::Result<Vec<engram_graph::Node>>,
+    context: &'static str,
+) -> Vec<engram_graph::Node> {
+    result.unwrap_or_else(|e| {
+        tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        Vec::new()
+    })
+}
 use engram_index::solution_parser::PackageRef;
 use regex::Regex;
 use serde::Serialize;
@@ -2440,26 +2467,14 @@ fn build_service_endpoint_summary(
     graph: &Arc<GraphStore>,
     project_id: &str,
 ) -> ServiceEndpointSummary {
-    let ws = graph
-        .list_edges_by_kind(project_id, EdgeKind::ExposesWebService, 1_000)
-        .unwrap_or_default();
-    let hh = graph
-        .list_edges_by_kind(project_id, EdgeKind::ExposesHttpHandler, 1_000)
-        .unwrap_or_default();
-    let wcf = graph
-        .list_edges_by_kind(project_id, EdgeKind::ExposesWcfService, 1_000)
-        .unwrap_or_default();
-    let mods = graph
-        .list_edges_by_kind(project_id, EdgeKind::RegistersModule, 1_000)
-        .unwrap_or_default();
-    let routes = graph
-        .list_edges_by_kind(project_id, EdgeKind::RegistersHandler, 1_000)
-        .unwrap_or_default();
+    let ws = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesWebService, 1_000), "ExposesWebService");
+    let hh = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesHttpHandler, 1_000), "ExposesHttpHandler");
+    let wcf = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesWcfService, 1_000), "ExposesWcfService");
+    let mods = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::RegistersModule, 1_000), "RegistersModule");
+    let routes = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::RegistersHandler, 1_000), "RegistersHandler");
 
     // Get ApiCall edges to cross-reference callers
-    let api_calls = graph
-        .list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000)
-        .unwrap_or_default();
+    let api_calls = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000), "ApiCall");
 
     let build_endpoints = |edges: &[engram_graph::Edge], modern: &str| -> Vec<ServiceEndpoint> {
         let mut map: BTreeMap<String, ServiceEndpoint> = BTreeMap::new();
@@ -2627,18 +2642,10 @@ fn build_js_analysis(
     markup_files: &[FileContent],
     js_files: &[(String, String)],
 ) -> JsAnalysisSummary {
-    let dom_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000)
-        .unwrap_or_default();
-    let postback_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::TriggersPostback, 10_000)
-        .unwrap_or_default();
-    let api_call_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000)
-        .unwrap_or_default();
-    let contains_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::Contains, 50_000)
-        .unwrap_or_default();
+    let dom_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000), "ManipulatesDom");
+    let postback_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::TriggersPostback, 10_000), "TriggersPostback");
+    let api_call_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000), "ApiCall/js");
+    let contains_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::Contains, 50_000), "Contains");
 
     // Build DOM manipulation refs
     let dom_manipulations: Vec<JsDomRef> = dom_edges
@@ -2798,14 +2805,10 @@ fn build_gis_analysis(
     project_id: &str,
     target_stack: &str,
 ) -> GisAnalysisSummary {
-    let spatial_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::SpatialCall, 10_000)
-        .unwrap_or_default();
+    let spatial_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::SpatialCall, 10_000), "SpatialCall");
 
     // Query insight nodes for GIS inventories
-    let gis_insights = graph
-        .query_nodes(project_id, Some("insight"), None, None, 1_000)
-        .unwrap_or_default()
+    let gis_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 1_000), "gis_insights")
         .into_iter()
         .filter(|n| {
             let name_lower = n.name.to_lowercase();
@@ -3086,9 +3089,7 @@ fn build_classic_asp_summary(
 ) -> ClassicAspSummary {
     if asp_files.is_empty() {
         // Check graph for any existing classic ASP insights
-        let asp_insights = graph
-            .query_nodes(project_id, Some("insight"), None, None, 1_000)
-            .unwrap_or_default()
+        let asp_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 1_000), "asp_insights")
             .into_iter()
             .filter(|n| n.name.to_lowercase().contains("classic_asp"))
             .count();
@@ -3105,9 +3106,7 @@ fn build_classic_asp_summary(
         }
     }
 
-    let include_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::IncludesFile, 5_000)
-        .unwrap_or_default();
+    let include_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::IncludesFile, 5_000), "IncludesFile");
 
     let mut com_objects = Vec::new();
     let mut ado_connections = 0usize;
@@ -3178,9 +3177,7 @@ fn build_report_summary(
     report_files: &[(String, String)],
 ) -> ReportSummary {
     // Query graph for report-related insights
-    let all_insights = graph
-        .query_nodes(project_id, Some("insight"), None, None, 2_000)
-        .unwrap_or_default();
+    let all_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 2_000), "report_insights");
 
     let report_insights: Vec<_> = all_insights
         .iter()
@@ -3194,9 +3191,7 @@ fn build_report_summary(
         .collect();
 
     // Also query for anti-pattern edges related to Crystal Reports
-    let ap_edges = graph
-        .list_edges_by_kind(project_id, EdgeKind::AntiPattern, 5_000)
-        .unwrap_or_default();
+    let ap_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::AntiPattern, 5_000), "AntiPattern/reports");
     let crystal_edges: Vec<_> = ap_edges
         .iter()
         .filter(|e| {

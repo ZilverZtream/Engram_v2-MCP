@@ -1678,9 +1678,11 @@ fn dedup_edges(edges: &mut Vec<ExtractedEdge>) {
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
+// PARSE1: The crate-level `#![cfg_attr(test, allow(clippy::unwrap_used))]` in
+// lib.rs already permits unwrap inside test modules across this crate. The
+// redundant per-module allow was removed to keep the lint posture signal clean.
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
