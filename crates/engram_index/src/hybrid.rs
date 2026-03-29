@@ -138,9 +138,12 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         let lance_conn = crate::vector::connect(&lance_dir).await?;
 
+        // EMB2: fail-fast if the configured remote embedder cannot be built.
+        // Silent fallback to ProjectionEmbedder would degrade semantic search
+        // quality without any operator-visible signal.
         #[cfg(feature = "vector")]
         let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
-            "openai" | "remote" => build_embedder_for_backend(cfg),
+            "openai" | "remote" => build_embedder_for_backend(cfg)?,
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
             _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
                 crate::vector::VECTOR_DIM,
@@ -286,11 +289,16 @@ impl HybridSearchEngine {
             )
             .await?;
             if let crate::vector::TableOpenOutcome::Recreated { ref reason } = open_outcome {
-                tracing::error!(
-                    table = %table_name,
-                    reason = %reason,
-                    "VEC1: vector table was recreated due to schema mismatch — all vector data was lost; \
-                     a full re-index is required to restore search quality"
+                // VEC1/X1: fail-closed so the caller knows a full re-index is required.
+                // Returning Err here propagates up to the job runner, which must
+                // schedule a full project reindex to repopulate the vector store.
+                // The Tantivy write committed above is idempotent — retrying the
+                // full batch is safe and will repair both stores.
+                anyhow::bail!(
+                    "VEC1: vector table '{table_name}' was recreated due to schema mismatch \
+                     ({reason}) — all historical vector data was lost. A full re-index is \
+                     required to restore semantic search quality. Schedule a reindex job for \
+                     project '{project_id}' and retry."
                 );
             }
 
@@ -367,7 +375,9 @@ impl HybridSearchEngine {
                             )
                         })
                         .transpose()?;
-                    let batch_vecs = self.embedder.embed_batch(chunk).await?;
+                    // EMB1: use cancellable batch embed so in-flight remote HTTP
+                    // calls can be preempted when the cancellation token fires.
+                    let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
                     vectors.extend(batch_vecs);
                 }
             }
@@ -2038,9 +2048,14 @@ fn is_web_config(path: &std::path::Path) -> bool {
 }
 
 /// Build an embedder from the configured embedding backend.
-/// Falls back to ProjectionEmbedder for unknown backends.
+/// Returns `Err` when a remote backend is configured but cannot be constructed,
+/// so callers fail fast rather than silently degrading to ProjectionEmbedder.
+/// EMB2: silent fallback was replaced with explicit fail-closed error to ensure
+/// operators are notified when the configured backend is unavailable.
 #[cfg(feature = "vector")]
-fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::Embedder> {
+fn build_embedder_for_backend(
+    cfg: &engram_core::Config,
+) -> anyhow::Result<Arc<dyn engram_ml::Embedder>> {
     match cfg.embedding_backend.as_str() {
         "openai" | "remote" => {
             let api_key = cfg.openai_api_key.clone().unwrap_or_default();
@@ -2052,13 +2067,16 @@ fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::E
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "text-embedding-3-small".into());
-            match engram_ml::embed::RemoteEmbedder::openai(model, api_key, api_base, 1536) {
-                Ok(e) => Arc::new(e),
-                Err(err) => {
-                    tracing::error!("ENG-AUD-2026-0007: failed to build OpenAI embedder, falling back to ProjectionEmbedder: {err}");
-                    Arc::new(engram_ml::embed::ProjectionEmbedder::new(crate::vector::VECTOR_DIM))
-                }
-            }
+            let embedder = engram_ml::embed::RemoteEmbedder::openai(model, api_key, api_base, 1536)
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "ENG-AUD-2026-0007 EMB2: failed to build OpenAI embedder \
+                         (embedding_backend=openai) — refusing to fall back to \
+                         ProjectionEmbedder; fix the configuration or switch to \
+                         a different backend: {e}"
+                    )
+                })?;
+            Ok(Arc::new(embedder))
         }
         "ollama" => {
             let url = cfg
@@ -2069,17 +2087,20 @@ fn build_embedder_for_backend(cfg: &engram_core::Config) -> Arc<dyn engram_ml::E
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "nomic-embed-text".into());
-            match engram_ml::embed::RemoteEmbedder::ollama(model, url, 768) {
-                Ok(e) => Arc::new(e),
-                Err(err) => {
-                    tracing::error!("ENG-AUD-2026-0007: failed to build Ollama embedder, falling back to ProjectionEmbedder: {err}");
-                    Arc::new(engram_ml::embed::ProjectionEmbedder::new(crate::vector::VECTOR_DIM))
-                }
-            }
+            let embedder =
+                engram_ml::embed::RemoteEmbedder::ollama(model, url, 768).map_err(|e| {
+                    anyhow::anyhow!(
+                        "ENG-AUD-2026-0007 EMB2: failed to build Ollama embedder \
+                         (embedding_backend=ollama) — refusing to fall back to \
+                         ProjectionEmbedder; fix the configuration or switch to \
+                         a different backend: {e}"
+                    )
+                })?;
+            Ok(Arc::new(embedder))
         }
-        "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
-        _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
+        "local" | "candle" => Ok(Arc::new(engram_ml::embed::LocalEmbedder)),
+        _ => Ok(Arc::new(engram_ml::embed::ProjectionEmbedder::new(
             crate::vector::VECTOR_DIM,
-        )),
+        ))),
     }
 }

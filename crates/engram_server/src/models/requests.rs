@@ -553,6 +553,13 @@ pub struct TraceStateUsageRequest {
     pub limit: usize,
 }
 
+impl TraceStateUsageRequest {
+    /// MCP1: clamp limit to MAX_SEARCH_RESULTS to prevent resource amplification.
+    pub fn sanitized_limit(&self) -> usize {
+        self.limit.clamp(1, MAX_SEARCH_RESULTS)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TraceUiActionRequest {
@@ -1750,6 +1757,13 @@ pub struct QueryBusinessLogicRequest {
     /// Maximum number of results. Default: 5.
     #[serde(default = "default_limit_5")]
     pub top_k: usize,
+}
+
+impl QueryBusinessLogicRequest {
+    /// MCP1: clamp top_k to MAX_SEARCH_RESULTS to prevent resource amplification.
+    pub fn sanitized_top_k(&self) -> usize {
+        self.top_k.clamp(1, MAX_SEARCH_RESULTS)
+    }
 }
 
 // ── Phase 37: Wiring — Expose Existing Services ──────────────────────────────

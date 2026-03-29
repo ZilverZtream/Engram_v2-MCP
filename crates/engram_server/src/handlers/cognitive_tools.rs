@@ -377,12 +377,14 @@ impl Engram {
                 req.state_type, req.state_key
             );
 
+            // MCP1: use sanitized limit to prevent resource amplification.
+            let limit = req.sanitized_limit();
             let writers = graph
                 .find_incoming_edges(
                     &req.project_id,
                     Some(EdgeKind::WritesState),
                     &state_id,
-                    req.limit,
+                    limit,
                 )
                 .map_err(|e| format!("DB error querying writers: {e}"))?;
 
@@ -411,7 +413,7 @@ impl Engram {
                     &req.project_id,
                     Some(EdgeKind::ReadsState),
                     &state_id,
-                    req.limit,
+                    limit,
                 )
                 .map_err(|e| format!("DB error querying readers: {e}"))?;
 
@@ -1426,7 +1428,7 @@ impl Engram {
             project_id: p.project_id.clone(),
             namespace: "business_logic".to_string(),
             generation: gen_,
-            top_k: p.top_k,
+            top_k: p.sanitized_top_k(), // MCP1: clamp to MAX_SEARCH_RESULTS
             fts_mode: "loose".to_string(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
