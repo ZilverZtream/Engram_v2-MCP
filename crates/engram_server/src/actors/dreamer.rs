@@ -4,8 +4,12 @@ use engram_graph::{EdgeKind, Node};
 use engram_index::IndexDoc;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Receiver;
+use tokio_util::sync::CancellationToken;
 
-pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>) {
+/// CANCEL1: accepts a shutdown token so the dreamer loop exits cooperatively on
+/// process shutdown rather than being aborted mid-dream (which could leave
+/// partial insight/cluster writes outstanding).
+pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: CancellationToken) {
     let mut last_event = Instant::now();
 
     // Config-driven defaults.
@@ -19,6 +23,10 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>) {
 
     loop {
         tokio::select! {
+            _ = shutdown.cancelled() => {
+                tracing::info!("dreamer: shutdown token cancelled — exiting");
+                return;
+            }
             _ = interval.tick() => {
                 if last_event.elapsed() >= idle_after {
                     // Skip dreaming if system is busy indexing.
@@ -73,7 +81,10 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>) {
                             AppEvent::WatchUpdate { .. } => {}
                         }
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        tracing::info!("dreamer: event broadcast channel closed — exiting");
+                        return;
+                    }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 }
             }

@@ -26,6 +26,8 @@ pub mod vb_extractor;
 pub mod vb_translation_traps;
 #[cfg(feature = "vector")]
 pub mod vector;
+#[cfg(feature = "vector")]
+pub use vector::TableOpenOutcome;
 pub mod webforms;
 
 pub use confidence::{

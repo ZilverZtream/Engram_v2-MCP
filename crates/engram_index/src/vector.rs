@@ -12,6 +12,18 @@ use std::sync::Arc;
 /// External callers should use the embedder's `dimension()` method instead of this constant.
 pub const VECTOR_DIM: usize = 384;
 
+/// Outcome of opening or creating a vector table.
+#[derive(Debug, Clone)]
+pub enum TableOpenOutcome {
+    /// Table already existed with compatible schema — no data was lost.
+    Opened,
+    /// Table was newly created (no prior data existed).
+    Created,
+    /// Table had incompatible schema and was dropped+recreated — ALL vector data was lost.
+    /// The caller MUST trigger a full re-index to restore search quality.
+    Recreated { reason: String },
+}
+
 /// Connect to a local LanceDB database.
 pub async fn connect(db_dir: &Path) -> anyhow::Result<Connection> {
     std::fs::create_dir_all(db_dir)?;
@@ -63,11 +75,15 @@ fn stored_vector_dim(tschema: &arrow_schema::Schema) -> Option<usize> {
 /// If the existing table has a different vector dimension (e.g. an old 384-dim table
 /// when the embedder now produces 1536-dim vectors), the stale table is dropped and
 /// recreated with the correct schema so inserts do not panic.
+///
+/// Returns `(table, outcome)` where `outcome` signals whether data was lost
+/// (see [`TableOpenOutcome`]). The caller MUST handle `Recreated` by logging a
+/// prominent warning and triggering a full re-index.
 pub async fn open_or_create_table(
     conn: &Connection,
     name: &str,
     dim: usize,
-) -> anyhow::Result<Table> {
+) -> anyhow::Result<(Table, TableOpenOutcome)> {
     let schema = vector_schema(dim);
 
     if conn
@@ -83,26 +99,23 @@ pub async fn open_or_create_table(
             tschema.field_with_name("pk").is_err() || stored_vector_dim(&tschema) != Some(dim);
         if needs_recreate {
             let reason = if tschema.field_with_name("pk").is_err() {
-                "missing pk column"
+                "missing pk column".to_string()
             } else {
-                "vector dimension mismatch"
+                "vector dimension mismatch".to_string()
             };
-            tracing::warn!(
-                table = %name,
-                reason = %reason,
-                "dropping and recreating vector table due to schema incompatibility; all existing vector data will be lost"
-            );
             conn.drop_table(name, &[]).await?;
             let batch = RecordBatch::new_empty(schema.clone());
             let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
-            Ok(conn.create_table(name, reader).execute().await?)
+            let new_table = conn.create_table(name, reader).execute().await?;
+            Ok((new_table, TableOpenOutcome::Recreated { reason }))
         } else {
-            Ok(table)
+            Ok((table, TableOpenOutcome::Opened))
         }
     } else {
         let batch = RecordBatch::new_empty(schema.clone());
         let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
-        Ok(conn.create_table(name, reader).execute().await?)
+        let new_table = conn.create_table(name, reader).execute().await?;
+        Ok((new_table, TableOpenOutcome::Created))
     }
 }
 
@@ -134,7 +147,12 @@ pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow:
     // Now insert new rows
     let schema = batches[0].schema();
     let reader = RecordBatchIterator::new(batches.into_iter().map(Ok), schema);
-    table.add(reader).execute().await?;
+    table.add(reader).execute().await.map_err(|e| {
+        anyhow::anyhow!(
+            "VEC2: LanceDB add failed after delete — rows are temporarily missing; \
+             retry the full upsert to restore them: {e:#}"
+        )
+    })?;
     Ok(())
 }
 

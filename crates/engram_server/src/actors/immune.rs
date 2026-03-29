@@ -28,13 +28,24 @@ const MAX_COMMITS_PER_SCAN: usize = 200;
 /// Maximum bytes of diff text extracted per file per revert commit.
 const MAX_DIFF_BYTES: usize = 16_384; // 16 KB
 
-pub async fn run_immune_actor(state: AppState) {
+/// CANCEL1: accepts a shutdown token so the immune loop exits cooperatively on
+/// process shutdown rather than being killed mid-scan.
+pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
     let mut interval = tokio::time::interval(SCAN_INTERVAL);
     // Don't run immediately on start — let indexing settle first.
-    interval.tick().await;
+    tokio::select! {
+        _ = shutdown.cancelled() => { return; }
+        _ = interval.tick() => {}
+    }
 
     loop {
-        interval.tick().await;
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                tracing::info!("immune actor: shutdown token cancelled — exiting");
+                return;
+            }
+            _ = interval.tick() => {}
+        }
 
         // Skip while indexing is active (immune scan is low priority).
         if state

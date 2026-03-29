@@ -1917,6 +1917,7 @@ dependencies = [
  "streaming-iterator",
  "thiserror 2.0.18",
  "tokio",
+ "tokio-util",
  "tracing",
  "tree-sitter",
  "tree-sitter-c-sharp",

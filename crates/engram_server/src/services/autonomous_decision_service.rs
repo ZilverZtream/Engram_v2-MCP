@@ -1107,6 +1107,10 @@ pub struct GateEvidence {
 }
 
 /// Config snapshot for replay reproducibility.
+///
+/// ADP1: includes implementation identity metadata so replaying a decision
+/// after a code update is detectable — threshold equality alone does not
+/// guarantee gate logic equivalence across binary versions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigSnapshot {
     pub adp_min_extraction_confidence: f64,
@@ -1114,6 +1118,13 @@ pub struct ConfigSnapshot {
     pub safety_min_coverage: f64,
     pub adp_max_blast_radius: u8,
     pub safety_policy_enabled: bool,
+    /// Semver or git-hash of the gate-evaluation engine at decision time.
+    /// Used during replay to detect code-version drift between the original
+    /// decision and the replay run, even when all threshold values are identical.
+    pub gate_code_version: String,
+    /// Schema version of the evidence/report format (e.g. "1.0.0").
+    /// Bumped when the evidence structure changes to invalidate stale replays.
+    pub evidence_schema_version: String,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1871,6 +1882,8 @@ mod tests {
                 safety_min_coverage: 0.6,
                 adp_max_blast_radius: 6,
                 safety_policy_enabled: true,
+                gate_code_version: "test-0.0.0".to_string(),
+                evidence_schema_version: "1.0.0".to_string(),
             },
             "test-build-001",
         );

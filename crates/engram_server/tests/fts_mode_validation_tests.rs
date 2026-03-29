@@ -86,6 +86,42 @@ async fn lexical_search_rejects_empty_fts_mode() {
     );
 }
 
+/// FTS1: lexical_search with fts_mode="regex" and a malformed regex expression
+/// must return Err (request-level error), NOT panic, NOT fail open, and NOT
+/// silently return empty results.  The Tantivy regex backend validates the
+/// expression and returns a parse error which must propagate as Err.
+#[tokio::test]
+async fn lexical_search_regex_mode_rejects_malformed_pattern() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Unbalanced bracket — syntactically invalid regex in any engine.
+    let mut q = make_query("proj-regex-malformed", "regex");
+    q.text = "[unclosed bracket".to_string();
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "FTS1: lexical_search with malformed regex '[unclosed bracket' must return Err, not Ok or panic"
+    );
+}
+
+/// FTS1: a valid regex pattern in regex mode must succeed without panic.
+#[tokio::test]
+async fn lexical_search_regex_mode_accepts_valid_pattern() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-regex-valid", "regex");
+    q.text = "pay.*process".to_string(); // valid regex
+    // No docs indexed — Ok(empty) is the correct result.
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_ok(),
+        "FTS1: valid regex pattern must succeed; got: {:?}",
+        result.err()
+    );
+}
+
 /// EXH-0003: all three valid fts_mode values must still succeed.
 #[tokio::test]
 async fn lexical_search_accepts_all_valid_fts_modes() {

@@ -2,6 +2,7 @@ use engram_core::Config;
 use engram_server::actors;
 use engram_server::state::AppState;
 use engram_server::tools;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -23,14 +24,19 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => tracing::warn!("Orphaned-job cleanup task panicked: {e}"),
     }
 
+    // CANCEL1: shared shutdown token propagated to all background actors so they
+    // exit cooperatively when the process receives a shutdown signal rather than
+    // being forcibly killed mid-cycle.
+    let shutdown = CancellationToken::new();
+
     // Background cognitive features.
-    tokio::spawn(actors::dreamer::run_dreamer(state.clone(), events_rx));
+    tokio::spawn(actors::dreamer::run_dreamer(state.clone(), events_rx, shutdown.clone()));
     tokio::spawn(actors::watcher::run_watcher(
         state.clone(),
         state.events_tx.subscribe(),
     ));
-    tokio::spawn(actors::gc::run_gc_scheduler(state.clone()));
-    tokio::spawn(actors::immune::run_immune_actor(state.clone()));
+    tokio::spawn(actors::gc::run_gc_scheduler(state.clone(), shutdown.clone()));
+    tokio::spawn(actors::immune::run_immune_actor(state.clone(), shutdown.clone()));
 
     // Data integrity sentinel (periodic cross-store consistency checks).
     tokio::spawn(engram_server::services::integrity_service::run_integrity_checker(state.clone()));
