@@ -1,7 +1,12 @@
+use crate::security::validate_key_component as validate_key_raw;
 use redb::{Database, ReadableTable, TableDefinition};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Arc;
+
+fn vk(name: &str, value: &str) -> anyhow::Result<()> {
+    validate_key_raw(name, value).map_err(|e| anyhow::anyhow!("{e}"))
+}
 
 /// Registry tables store JSON blobs keyed by string keys.
 ///
@@ -93,6 +98,7 @@ impl Registry {
 
     // ---- Projects ----
     pub fn put_project(&self, rec: &ProjectRecord) -> anyhow::Result<()> {
+        vk("project_id", rec.project_id.as_str())?;
         let bytes = serde_json::to_vec(rec)?;
         let wtx = self.db.begin_write()?;
         {
@@ -127,6 +133,7 @@ impl Registry {
     }
 
     pub fn delete_project(&self, project_id: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(PROJECTS)?;
@@ -137,6 +144,7 @@ impl Registry {
     }
 
     pub fn delete_all_for_project(&self, project_id: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
         let prefix = format!("{project_id}\0");
         let wtx = self.db.begin_write()?;
 
@@ -226,6 +234,8 @@ impl Registry {
 
     // ---- Memory bank ----
     pub fn put_memory_section(&self, project_id: &str, sec: &MemorySection) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("section_id", &sec.section_id)?;
         let key = format!("{project_id}\0{}", sec.section_id);
         let bytes = serde_json::to_vec(sec)?;
         let wtx = self.db.begin_write()?;
@@ -269,6 +279,8 @@ impl Registry {
     }
 
     pub fn delete_memory_section(&self, project_id: &str, section_id: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("section_id", section_id)?;
         let key = format!("{project_id}\0{section_id}");
         let wtx = self.db.begin_write()?;
         {
@@ -281,6 +293,8 @@ impl Registry {
 
     // ---- Repo rules ----
     pub fn put_repo_rule(&self, project_id: &str, rule: &RepoRule) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("rule_id", &rule.rule_id)?;
         let key = format!("{project_id}\0{}", rule.rule_id);
         let bytes = serde_json::to_vec(rule)?;
         let wtx = self.db.begin_write()?;
@@ -309,6 +323,8 @@ impl Registry {
     }
 
     pub fn delete_repo_rule(&self, project_id: &str, rule_id: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("rule_id", rule_id)?;
         let key = format!("{project_id}\0{rule_id}");
         let wtx = self.db.begin_write()?;
         {
@@ -321,6 +337,8 @@ impl Registry {
 
     // ---- Watches ----
     pub fn put_watch(&self, project_id: &str, watch: &WatchRecord) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("watch_id", &watch.watch_id)?;
         let key = format!("{project_id}\0{}", watch.watch_id);
         let bytes = serde_json::to_vec(watch)?;
         let wtx = self.db.begin_write()?;
@@ -349,6 +367,7 @@ impl Registry {
 
     // ---- Jobs ----
     pub fn put_job(&self, job: &JobRecord) -> anyhow::Result<()> {
+        vk("job_id", job.job_id.as_str())?;
         let bytes = serde_json::to_vec(job)?;
         let wtx = self.db.begin_write()?;
         {
@@ -386,6 +405,7 @@ impl Registry {
     }
 
     pub fn delete_job(&self, job_id: &str) -> anyhow::Result<()> {
+        vk("job_id", job_id)?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(JOBS)?;
@@ -425,6 +445,8 @@ impl Registry {
 
     // ---- Meta ----
     pub fn set_meta(&self, project_id: &str, key: &str, value: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        vk("key", key)?;
         let k = format!("{project_id}\0{key}");
         let wtx = self.db.begin_write()?;
         {

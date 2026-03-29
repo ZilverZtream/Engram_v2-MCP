@@ -223,7 +223,7 @@ pub fn extract_state_accesses(
             edges.push(ExtractedEdge {
                 source_name: enclosing,
                 source_kind: "function",
-                source_start_line: line_idx as u32,
+                source_start_line: line_idx as u32 + 1,
                 source_language: language,
                 target_name: target_id,
                 target_kind: Some("global_state"),
@@ -241,8 +241,8 @@ pub fn extract_state_accesses(
                 symbols.push(ExtractedSymbol {
                     name: format!("{}:{}", state_type, key),
                     kind: "global_state",
-                    start_line: line_idx as u32,
-                    end_line: line_idx as u32,
+                    start_line: line_idx as u32 + 1,
+                    end_line: line_idx as u32 + 1,
                     metadata: Some(meta),
                 });
             }
@@ -338,7 +338,7 @@ pub fn extract_state_accesses(
                 edges.push(ExtractedEdge {
                     source_name: enclosing,
                     source_kind: "function",
-                    source_start_line: line_idx as u32,
+                    source_start_line: line_idx as u32 + 1,
                     source_language: language,
                     target_name: target_id,
                     target_kind: Some("global_state"),
@@ -355,8 +355,8 @@ pub fn extract_state_accesses(
                     symbols.push(ExtractedSymbol {
                         name: format!("{}:{}", state_type, key),
                         kind: "global_state",
-                        start_line: line_idx as u32,
-                        end_line: line_idx as u32,
+                        start_line: line_idx as u32 + 1,
+                        end_line: line_idx as u32 + 1,
                         metadata: Some(meta),
                     });
                 }
@@ -1658,7 +1658,7 @@ protected void Page_Load(object sender, EventArgs e) {
 }
 "#;
         let rel = RelPath::new("Complex.aspx.cs");
-        let (syms, edges) = extract_state_accesses(&rel, code, "csharp");
+        let (syms, _edges) = extract_state_accesses(&rel, code, "csharp");
 
         assert_eq!(syms.len(), 4, "Four unique state keys across four stores");
 

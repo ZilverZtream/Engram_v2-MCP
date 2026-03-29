@@ -829,7 +829,7 @@ mod tests {
                 ddoc("ns","c","c.rs"),ddoc("ns","d","d.rs"),ddoc("ns","e","e.rs"),
             ],
         );
-        let overall_healthy = mismatches.is_empty() || false;
+        let overall_healthy = mismatches.is_empty();
         assert!(overall_healthy, "no mismatches means healthy");
     }
 

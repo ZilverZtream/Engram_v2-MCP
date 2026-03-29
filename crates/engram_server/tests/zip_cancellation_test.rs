@@ -104,10 +104,8 @@ async fn test_zip_history_background_cancellation_token_is_wired() {
     loop {
         tokio::time::sleep(Duration::from_millis(50)).await;
         let job = state.registry.get_job(&job_id).unwrap();
-        if let Some(j) = &job {
-            if j.status == "completed" || j.status == "failed" {
-                break;
-            }
+        if let Some(j) = &job && (j.status == "completed" || j.status == "failed") {
+            break;
         }
         if std::time::Instant::now() > deadline {
             panic!("zip history background job did not reach terminal state within 30 s");
@@ -221,10 +219,8 @@ async fn test_zip_history_background_cancel_removes_token() {
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     loop {
         tokio::time::sleep(Duration::from_millis(20)).await;
-        if let Ok(Some(j)) = state.registry.get_job(&job_id) {
-            if j.status == "cancelled" || j.status == "failed" {
-                break;
-            }
+        if let Ok(Some(j)) = state.registry.get_job(&job_id) && (j.status == "cancelled" || j.status == "failed") {
+            break;
         }
         if std::time::Instant::now() > deadline {
             let status = state

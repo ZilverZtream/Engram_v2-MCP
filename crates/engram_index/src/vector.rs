@@ -82,6 +82,16 @@ pub async fn open_or_create_table(
         let needs_recreate =
             tschema.field_with_name("pk").is_err() || stored_vector_dim(&tschema) != Some(dim);
         if needs_recreate {
+            let reason = if tschema.field_with_name("pk").is_err() {
+                "missing pk column"
+            } else {
+                "vector dimension mismatch"
+            };
+            tracing::warn!(
+                table = %name,
+                reason = %reason,
+                "dropping and recreating vector table due to schema incompatibility; all existing vector data will be lost"
+            );
             conn.drop_table(name, &[]).await?;
             let batch = RecordBatch::new_empty(schema.clone());
             let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
@@ -242,7 +252,7 @@ pub fn create_record_batch_with_gens(
     // downstream analytics that filter on these fields.
     let author_refs: Vec<Option<&str>> = authors.iter().map(|a| a.as_deref()).collect();
     let author_arr = StringArray::from(author_refs);
-    let ts_vals: Vec<Option<u64>> = timestamps.iter().copied().collect();
+    let ts_vals: Vec<Option<u64>> = timestamps.to_vec();
     let timestamp_arr = UInt64Array::from(ts_vals);
 
     // Validate that all vectors match the expected dimension.
@@ -265,9 +275,8 @@ pub fn create_record_batch_with_gens(
     // a 10K × 1536-dim batch.
     let mut flat_vectors = vec![0.0f32; vectors.len() * dim];
     for (i, v) in vectors.iter().enumerate() {
-        let copy_len = v.len().min(dim);
-        flat_vectors[i * dim..i * dim + copy_len].copy_from_slice(&v[..copy_len]);
-        // Remaining slots stay 0.0 (zero-padded from vec! initialization).
+        debug_assert_eq!(v.len(), dim, "vector dimension invariant violated");
+        flat_vectors[i * dim..(i + 1) * dim].copy_from_slice(v);
     }
 
     let vector_values = Float32Array::from(flat_vectors);

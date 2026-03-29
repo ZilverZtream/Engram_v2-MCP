@@ -1,5 +1,6 @@
 #![deny(clippy::print_stdout)]
 #![deny(clippy::unwrap_used)]
+#![cfg_attr(test, allow(clippy::unwrap_used))]
 
 pub mod asp_classic_extractor;
 pub mod chunking;

@@ -337,16 +337,21 @@ pub fn safe_read_to_string(base_dir: &Path, sub_path: &str) -> Result<String> {
 /// Both the graph store (NUL-separated keys) and the doc store (newline-separated keys)
 /// use this function to reject values that would corrupt composite keys.
 pub fn validate_key_component(name: &str, value: &str) -> std::result::Result<(), String> {
+    if value.is_empty() {
+        return Err(format!(
+            "ENG-AUD-2026-S09-001: key component '{name}' must not be empty"
+        ));
+    }
     if value.contains('\0') {
         return Err(format!(
-            "key component '{name}' contains NUL byte — this would corrupt composite keys. \
+            "ENG-AUD-2026-S09-001: key component '{name}' contains NUL byte — this would corrupt composite keys. \
              Value (truncated): {:?}",
             &value[..value.len().min(80)]
         ));
     }
     if value.contains('\n') {
         return Err(format!(
-            "key component '{name}' contains newline — this would corrupt composite keys. \
+            "ENG-AUD-2026-S09-001: key component '{name}' contains newline — this would corrupt composite keys. \
              Value (truncated): {:?}",
             &value[..value.len().min(80)]
         ));

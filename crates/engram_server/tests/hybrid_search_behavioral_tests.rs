@@ -551,7 +551,7 @@ async fn lexical_search_results_are_identical_across_repeated_calls() {
         .collect();
 
     for run in 2..=10 {
-        let result = engine.lexical_search(&q).expect(&format!("search run {run}"));
+        let result = engine.lexical_search(&q).unwrap_or_else(|_| panic!("search run {run}"));
         let key: Vec<(String, String, u64)> = result
             .iter()
             .map(|h| (h.path.as_str().to_string(), h.doc_id.clone(), h.chunk_id))

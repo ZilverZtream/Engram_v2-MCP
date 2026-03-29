@@ -237,7 +237,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &rust_lang,
         r#"
         (mod_item name: (identifier) @ns)
-        (struct_item name: (type_identifier) @class)
+        (struct_item name: (type_identifier) @struct)
         (impl_item type: (type_identifier) @class)
         (function_item name: (identifier) @method)
         "#,
@@ -519,8 +519,9 @@ impl SymbolExtractor {
                 if tag.starts_with("sql.literal") {
                     let mut sql_text = content[node.start_byte()..node.end_byte()].to_string();
                     // Strip quotes
-                    if (sql_text.starts_with('"') && sql_text.ends_with('"'))
-                        || (sql_text.starts_with('\'') && sql_text.ends_with('\''))
+                    if sql_text.len() >= 2
+                        && ((sql_text.starts_with('"') && sql_text.ends_with('"'))
+                            || (sql_text.starts_with('\'') && sql_text.ends_with('\'')))
                     {
                         sql_text = sql_text[1..sql_text.len() - 1].to_string();
                     }
@@ -584,7 +585,8 @@ impl SymbolExtractor {
 
                 let kind: &'static str = match tag {
                     "func" => "function",
-                    "class" | "struct" => "class",
+                    "class" => "class",
+                    "struct" => "class",
                     "impl" => "impl",
                     "field" => {
                         if is_designer {

@@ -182,7 +182,8 @@ fn re_import_project() -> &'static Regex {
 
 /// Classify project type from its type GUID in the solution file.
 pub fn classify_project_type(type_guid: &str) -> ProjectType {
-    match type_guid.to_uppercase().as_str() {
+    let guid = type_guid.trim_matches(|c| c == '{' || c == '}');
+    match guid.to_uppercase().as_str() {
         // FAE04EC0 = C#
         "FAE04EC0-301F-11D3-BF4B-00C04F79EFBC" => ProjectType::CSharp,
         // F184B08F = VB.NET

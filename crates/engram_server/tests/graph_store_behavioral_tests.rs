@@ -71,7 +71,7 @@ fn graph_store_upsert_and_get_node_round_trips() {
 
     let node = make_node("node-001", "function", "my_function");
     store
-        .upsert_nodes("proj-test", &[node.clone()])
+        .upsert_nodes("proj-test", std::slice::from_ref(&node))
         .expect("upsert_nodes must succeed");
 
     let retrieved = store

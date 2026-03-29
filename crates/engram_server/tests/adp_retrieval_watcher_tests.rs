@@ -9,7 +9,6 @@
 
 use engram_server::services::autonomous_decision_service::*;
 use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
-use serde_json;
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -269,7 +268,7 @@ fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
 /// functions directly — no AppState, fully deterministic.
 #[test]
 fn post_index_enrichment_degraded_message_describes_all_failures() {
-    let warnings = vec![
+    let warnings = [
         "link_sql_to_schema failed: no schema available".to_string(),
         "resolve_symbol_edges failed: graph write lock timeout".to_string(),
     ];
