@@ -21,7 +21,6 @@ fn init_repo(project_dir: &std::path::Path) {
 }
 
 #[tokio::test]
-#[ignore = "Flaky in CI: rmcp update_project decode path"]
 async fn update_project_resumes_from_checkpoint_after_restart() {
     let tmp = tempdir().unwrap();
     let data_dir = tmp.path().join("data");

@@ -228,8 +228,7 @@ fn remote_embedders_support_custom_dimension_overrides() {
 /// Local backend must produce a working embedder with dimension 384.
 #[tokio::test]
 async fn build_embedder_local_backend_produces_dim384_working_embedder() {
-    let mut cfg = engram_core::Config::default();
-    cfg.embedding_backend = "local".to_string();
+    let cfg = engram_core::Config { embedding_backend: "local".to_string(), ..Default::default() };
 
     let embedder = build_embedder(&cfg).expect("build_embedder(local) must succeed");
     assert_eq!(
@@ -249,8 +248,7 @@ async fn build_embedder_local_backend_produces_dim384_working_embedder() {
 /// Unknown backend must return Err — not panic, not fall back silently.
 #[test]
 fn build_embedder_unknown_backend_returns_err_not_panic() {
-    let mut cfg = engram_core::Config::default();
-    cfg.embedding_backend = "totally_unknown_backend_xyz".to_string();
+    let cfg = engram_core::Config { embedding_backend: "totally_unknown_backend_xyz".to_string(), ..Default::default() };
 
     let result = build_embedder(&cfg);
     assert!(
@@ -263,9 +261,7 @@ fn build_embedder_unknown_backend_returns_err_not_panic() {
 /// This gate prevents silent empty-key API requests.
 #[test]
 fn build_embedder_openai_without_api_key_returns_err() {
-    let mut cfg = engram_core::Config::default();
-    cfg.embedding_backend = "openai".to_string();
-    cfg.openai_api_key = None;
+    let cfg = engram_core::Config { embedding_backend: "openai".to_string(), openai_api_key: None, ..Default::default() };
 
     let result = build_embedder(&cfg);
     assert!(
@@ -278,8 +274,7 @@ fn build_embedder_openai_without_api_key_returns_err() {
 /// a known synonym for local-mode operation.
 #[tokio::test]
 async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
-    let mut cfg = engram_core::Config::default();
-    cfg.embedding_backend = "candle".to_string();
+    let cfg = engram_core::Config { embedding_backend: "candle".to_string(), ..Default::default() };
 
     let embedder = build_embedder(&cfg).expect("build_embedder(candle) must succeed");
     let v = embedder.embed("candle alias test").await.expect("embed");

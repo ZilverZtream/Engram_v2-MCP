@@ -489,6 +489,8 @@ impl GraphStore {
     // ── Meta ─────────────────────────────────────────────────────────────────
 
     pub fn set_meta(&self, project_id: &str, key: &str, value: &str) -> anyhow::Result<()> {
+        validate_key_component("project_id", project_id)?;
+        validate_key_component("key", key)?;
         let wtx = self.db.begin_write()?;
         {
             let mut mt = wtx.open_table(META)?;

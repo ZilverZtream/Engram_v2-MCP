@@ -1,3 +1,4 @@
+// ENG-AUD-2026-S01-001
 use crate::models::{
     AnalyzeErrorStackRequest, FindSymbolReferencesRequest, GetChunkRequest, SearchMemoryRequest,
     VectorSearchRequest,
@@ -47,13 +48,14 @@ impl Engram {
         };
 
         // On cache miss launch a background task so the next search gets the
-        // boost. Use `entry().or_insert_with` so two concurrent misses don't
-        // both insert (last-writer wins is harmless, but we prefer idempotency).
-        if centrality.is_none() {
+        // boost. Guard with `pagerank_inflight` so concurrent misses only ever
+        // spawn one background task per (project_id, generation) key.
+        if centrality.is_none() && self.state.pagerank_inflight.insert(cache_key.clone()) {
             let graph_bg = self.state.graph.clone();
             let pid_bg = req.project_id.clone();
             let gen_bg = gen_;
             let cache_bg = self.state.pagerank_cache.clone();
+            let inflight_bg = self.state.pagerank_inflight.clone();
             let key_bg = cache_key;
             tokio::spawn(async move {
                 if let Ok(Ok(metrics)) = tokio::task::spawn_blocking(move || {
@@ -61,10 +63,11 @@ impl Engram {
                 })
                 .await
                 {
-                    cache_bg.entry(key_bg).or_insert_with(|| {
+                    cache_bg.entry(key_bg.clone()).or_insert_with(|| {
                         (std::time::Instant::now(), std::sync::Arc::new(metrics))
                     });
                 }
+                inflight_bg.remove(&key_bg);
             });
         }
 
@@ -110,7 +113,9 @@ impl Engram {
         });
 
         if hits.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text("No hits.")]));
+            return Ok(CallToolResult::success(vec![Content::text(
+                "result: no_hits",
+            )]));
         }
 
         let mut out = String::new();
@@ -229,7 +234,13 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let Some((path, lang, content, start_line, end_line)) = doc else {
-            return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
+            return Err(McpError::invalid_params(
+                format!(
+                    "doc_id '{}' not found in project '{}'",
+                    req.doc_id, req.project_id
+                ),
+                None,
+            ));
         };
 
         // Fix 7: Apply the logical slice FIRST on the syntactically valid source

@@ -133,7 +133,7 @@ pub async fn gather_evidence(
                 overrides.retrieval_production_ready,
                 overrides.retrieval_ndcg,
                 overrides.retrieval_recall,
-                if overrides.retrieval_production_ready.is_some() {
+                if overrides.retrieval_production_ready == Some(true) {
                     RetrievalMode::Live
                 } else {
                     RetrievalMode::Skipped
@@ -707,15 +707,9 @@ mod tests {
     fn live_benchmark_timeout_constant_is_positive() {
         // Sanity-check that the timeout value is meaningful (> 0) and fits in a
         // Duration::from_millis call (u64).
-        assert!(
-            LIVE_BENCHMARK_TIMEOUT_MS > 0,
-            "live benchmark timeout must be positive"
-        );
+        const { assert!(LIVE_BENCHMARK_TIMEOUT_MS > 0, "live benchmark timeout must be positive") };
         // 30 s hard upper bound so ADP never blocks for more than half a minute.
-        assert!(
-            LIVE_BENCHMARK_TIMEOUT_MS <= 30_000,
-            "live benchmark timeout must not exceed 30 s"
-        );
+        const { assert!(LIVE_BENCHMARK_TIMEOUT_MS <= 30_000, "live benchmark timeout must not exceed 30 s") };
     }
 
     // ── ENG-AUD-2026-N9-0003: multi-file blast radius uses max risk policy ────
@@ -751,10 +745,8 @@ mod tests {
             if replace {
                 best_risk = Some(risk);
                 best_band = Some(band);
-            } else if let Some(br) = best_risk {
-                if risk > br {
-                    best_risk = Some(risk);
-                }
+            } else if let Some(br) = best_risk && risk > br {
+                best_risk = Some(risk);
             }
             total_downstream += downstream;
         }
@@ -819,10 +811,12 @@ mod tests {
         use crate::services::autonomous_decision_service::GraphImpactMetrics;
 
         let tmp = tempfile::TempDir::new().expect("temp dir");
-        let mut cfg = engram_core::Config::default();
-        cfg.allowed_roots = vec![tmp.path().to_path_buf()];
-        cfg.data_dir = tmp.path().to_path_buf();
-        cfg.max_parse_concurrency = 1;
+        let cfg = engram_core::Config {
+            allowed_roots: vec![tmp.path().to_path_buf()],
+            data_dir: tmp.path().to_path_buf(),
+            max_parse_concurrency: 1,
+            ..Default::default()
+        };
         let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
 
         let metrics = GraphImpactMetrics {
@@ -852,10 +846,12 @@ mod tests {
         use crate::services::autonomous_decision_service::GraphImpactMetrics;
 
         let tmp = tempfile::TempDir::new().expect("temp dir");
-        let mut cfg = engram_core::Config::default();
-        cfg.allowed_roots = vec![tmp.path().to_path_buf()];
-        cfg.data_dir = tmp.path().to_path_buf();
-        cfg.max_parse_concurrency = 1;
+        let cfg = engram_core::Config {
+            allowed_roots: vec![tmp.path().to_path_buf()],
+            data_dir: tmp.path().to_path_buf(),
+            max_parse_concurrency: 1,
+            ..Default::default()
+        };
         let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
 
         let metrics = GraphImpactMetrics {
@@ -973,10 +969,12 @@ mod tests {
             .expect("failed to create temp dir for AppState realism test");
         let tmp_path = tmp.path().to_path_buf();
 
-        let mut cfg = engram_core::Config::default();
-        cfg.allowed_roots = vec![tmp_path.clone()];
-        cfg.data_dir = tmp_path.clone();
-        cfg.max_parse_concurrency = 1;
+        let cfg = engram_core::Config {
+            allowed_roots: vec![tmp_path.clone()],
+            data_dir: tmp_path.clone(),
+            max_parse_concurrency: 1,
+            ..Default::default()
+        };
 
         let (state, _rx) = crate::state::AppState::new(cfg)
             .expect("AppState::new must succeed with valid temp dirs");
@@ -1000,10 +998,12 @@ mod tests {
     #[tokio::test]
     async fn derive_has_runtime_evidence_empty_namespaces_returns_false() {
         let tmp = tempfile::TempDir::new().expect("tempdir");
-        let mut cfg = engram_core::Config::default();
-        cfg.allowed_roots = vec![tmp.path().to_path_buf()];
-        cfg.data_dir = tmp.path().to_path_buf();
-        cfg.max_parse_concurrency = 1;
+        let cfg = engram_core::Config {
+            allowed_roots: vec![tmp.path().to_path_buf()],
+            data_dir: tmp.path().to_path_buf(),
+            max_parse_concurrency: 1,
+            ..Default::default()
+        };
         let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
 
         // A project that is not in the projects DashMap has no runtime documents.
@@ -1248,12 +1248,14 @@ mod tests {
             .expect("failed to create temp dir for S09-0001 behavioral test");
         let tmp_path = tmp.path().to_path_buf();
 
-        let mut cfg = engram_core::Config::default();
-        cfg.allowed_roots = vec![tmp_path.clone()];
-        cfg.data_dir = tmp_path.clone();
-        cfg.max_parse_concurrency = 1;
         // Ensure safety policy is enabled so the policy gate is active.
-        cfg.safety_policy_enabled = true;
+        let cfg = engram_core::Config {
+            allowed_roots: vec![tmp_path.clone()],
+            data_dir: tmp_path.clone(),
+            max_parse_concurrency: 1,
+            safety_policy_enabled: true,
+            ..Default::default()
+        };
 
         let (state, _rx) = crate::state::AppState::new(cfg)
             .expect("AppState::new must succeed with valid temp dirs");

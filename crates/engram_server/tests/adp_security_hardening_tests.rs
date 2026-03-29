@@ -26,17 +26,6 @@ fn safe_policy() -> PolicyDecision {
     }
 }
 
-fn unsafe_policy() -> PolicyDecision {
-    PolicyDecision {
-        allowed: false,
-        risk_level: RiskLevel::High,
-        checks: vec![],
-        confidence: 0.3,
-        summary: "Unsafe".into(),
-        mitigations: vec!["review required".into()],
-    }
-}
-
 fn all_green_input() -> AdpInput {
     AdpInput {
         extraction_confidence: Some(0.9),
@@ -76,7 +65,7 @@ fn all_green_input() -> AdpInput {
 #[test]
 fn embedding_valid_floats_parse_to_correct_f32_values() {
     // Mirror of parse_embedding_array success path using the same serde_json::Value::as_f64() API
-    let values = vec![
+    let values = [
         serde_json::json!(0.1f64),
         serde_json::json!(0.5f64),
         serde_json::json!(-0.3f64),

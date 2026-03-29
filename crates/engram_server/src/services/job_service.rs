@@ -112,11 +112,23 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> Cancellation
         let original = {
             let reg2 = reg.clone();
             let jid2 = jid.clone();
-            tokio::task::spawn_blocking(move || reg2.get_job(&jid2))
-                .await
-                .ok()
-                .and_then(|r| r.ok())
-                .flatten()
+            match tokio::task::spawn_blocking(move || reg2.get_job(&jid2)).await {
+                Ok(Ok(record)) => record,
+                Ok(Err(e)) => {
+                    tracing::warn!(
+                        job_id = %jid,
+                        "failed to read prior job record for cancel provenance: {e}"
+                    );
+                    None
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        job_id = %jid,
+                        "spawn_blocking panicked reading prior job record for cancel provenance: {e}"
+                    );
+                    None
+                }
+            }
         };
 
         // Mark any resumable checkpoint as Failed so it cannot be accidentally resumed.
@@ -185,11 +197,23 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> Cancellation
             let original = {
                 let reg2 = reg.clone();
                 let jid2 = jid.clone();
-                tokio::task::spawn_blocking(move || reg2.get_job(&jid2))
-                    .await
-                    .ok()
-                    .and_then(|r| r.ok())
-                    .flatten()
+                match tokio::task::spawn_blocking(move || reg2.get_job(&jid2)).await {
+                    Ok(Ok(record)) => record,
+                    Ok(Err(e)) => {
+                        tracing::warn!(
+                            job_id = %jid,
+                            "failed to read prior job record for cancel provenance (divergence): {e}"
+                        );
+                        None
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            job_id = %jid,
+                            "spawn_blocking panicked reading prior job record for cancel provenance (divergence): {e}"
+                        );
+                        None
+                    }
+                }
             };
             // Mark any resumable checkpoint as Failed so it cannot be accidentally resumed.
             // ENG-AUD-P1-0005: capture result and embed failure into the job tombstone.
@@ -260,6 +284,51 @@ pub async fn cancel_job_internal(state: &AppState, job_id: &str) -> Cancellation
                     job_id = %job_id,
                     "ENG-AUD-2026-S12-0001: NotFound cancel path: failed to tombstone \
                      resumable checkpoint — checkpoint may still be resumable"
+                );
+            }
+            // S14-001: if a stale registry record exists with a non-terminal status
+            // (e.g. 'running'), overwrite it with a cancelled tombstone so that
+            // post-mortem and replay logic sees the correct terminal state rather
+            // than a dangling 'running' record.  Return NotFound regardless to
+            // preserve the existing cancellation contract.
+            let reg = state.registry.clone();
+            let jid = job_id.to_string();
+            if let Err(e) = tokio::task::spawn_blocking(move || {
+                const NON_TERMINAL: &[&str] = &["running", "queued", "pending"];
+                match reg.get_job(&jid) {
+                    Ok(Some(existing)) if NON_TERMINAL.contains(&existing.status.as_str()) => {
+                        let tombstone = JobRecord {
+                            job_id: jid.clone(),
+                            kind: existing.kind.clone(),
+                            project_id: existing.project_id.clone(),
+                            status: "cancelled".into(),
+                            message: "cancelled: stale job tombstoned on cancel request".into(),
+                            progress_pct: existing.progress_pct,
+                            estimated_time_remaining_ms: None,
+                            created_at_ms: existing.created_at_ms,
+                            updated_at_ms: now_ms(),
+                        };
+                        if let Err(e) = reg.put_job(&tombstone) {
+                            tracing::warn!(
+                                job_id = %jid,
+                                "S14-001: failed to write stale job tombstone: {e}"
+                            );
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::warn!(
+                            job_id = %jid,
+                            "S14-001: failed to read registry for stale job tombstone: {e}"
+                        );
+                    }
+                }
+            })
+            .await
+            {
+                tracing::warn!(
+                    job_id = %job_id,
+                    "S14-001: spawn_blocking JoinError writing stale job tombstone: {e}"
                 );
             }
             CancellationOutcome::NotFound

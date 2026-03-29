@@ -105,9 +105,9 @@ pub fn semantic_chunk_lines(
     // reallocations when concatenating prefix + existing content.
     if out.len() > 1 {
         for idx in 1..out.len() {
-            let prev_end = out[idx - 1].end_line as usize; // 1-based end line
             let curr_start_0 = out[idx].start_line as usize - 1; // 0-based start index
-            if curr_start_0 > 0 && prev_end > 0 {
+            // Chunks are always contiguous; overlap is relative to curr_start_0 only.
+            if curr_start_0 > 0 {
                 let overlap_start = curr_start_0.saturating_sub(OVERLAP_LINES);
                 if overlap_start < curr_start_0 {
                     // Calculate exact prefix size for a single allocation.
@@ -133,6 +133,39 @@ pub fn semantic_chunk_lines(
     }
 
     out
+}
+
+fn build_chunk(lines: &[&str], start: usize, end: usize, symbols: &[ExtractedSymbol]) -> Chunk {
+    let cap: usize = lines[start..end].iter().map(|l| l.len() + 1).sum();
+    let mut buf = String::with_capacity(cap);
+    for line in lines.iter().take(end).skip(start) {
+        buf.push_str(line);
+        buf.push('\n');
+    }
+
+    let content_hash = ContentHash::compute(buf.as_bytes());
+
+    // Find the innermost enclosing symbol for the chunk's start line
+    let start_line_1based = (start + 1) as u32;
+    let enclosing = symbols
+        .iter()
+        .filter(|s| s.start_line <= start_line_1based && s.end_line >= start_line_1based)
+        .max_by_key(|s| s.start_line) // innermost = latest start
+        .and_then(|s| {
+            s.metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn").cloned())
+                .or_else(|| Some(s.name.clone()))
+        });
+
+    Chunk {
+        start_line: (start + 1) as u32,
+        end_line: end as u32,
+        content: buf,
+        content_hash,
+        doc_id: DocIdStr(String::new()),
+        enclosing_symbol: enclosing,
+    }
 }
 
 #[cfg(test)]
@@ -277,7 +310,7 @@ mod tests {
         let chunks = chunk_lines(&text, 60);
         assert!(chunks.len() >= 3, "need ≥3 chunks to check overlap cap");
 
-        for idx in 1..chunks.len() {
+        for (idx, _chunk) in chunks.iter().enumerate().skip(1) {
             let curr_start_0 = chunks[idx].start_line as usize - 1; // 0-indexed original start
             // The overlap prefix is lines[overlap_start..curr_start_0].
             // Number of prepended lines = curr_start_0 - overlap_start ≤ OVERLAP_LINES.
@@ -529,38 +562,5 @@ mod tests {
             assert!(c.start_line >= 1);
             assert!(c.end_line >= c.start_line);
         }
-    }
-}
-
-fn build_chunk(lines: &[&str], start: usize, end: usize, symbols: &[ExtractedSymbol]) -> Chunk {
-    let cap: usize = lines[start..end].iter().map(|l| l.len() + 1).sum();
-    let mut buf = String::with_capacity(cap);
-    for line in lines.iter().take(end).skip(start) {
-        buf.push_str(line);
-        buf.push('\n');
-    }
-
-    let content_hash = ContentHash::compute(buf.as_bytes());
-
-    // Find the innermost enclosing symbol for the chunk's start line
-    let start_line_1based = (start + 1) as u32;
-    let enclosing = symbols
-        .iter()
-        .filter(|s| s.start_line <= start_line_1based && s.end_line >= start_line_1based)
-        .max_by_key(|s| s.start_line) // innermost = latest start
-        .and_then(|s| {
-            s.metadata
-                .as_ref()
-                .and_then(|m| m.get("fqn").cloned())
-                .or_else(|| Some(s.name.clone()))
-        });
-
-    Chunk {
-        start_line: (start + 1) as u32,
-        end_line: end as u32,
-        content: buf,
-        content_hash,
-        doc_id: DocIdStr(String::new()),
-        enclosing_symbol: enclosing,
     }
 }

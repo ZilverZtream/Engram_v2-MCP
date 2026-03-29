@@ -1362,6 +1362,21 @@ impl Engram {
             .await
             .map_err(|e| anyhow::anyhow!(e))?;
 
+        // Resume from a previously interrupted job: narrow the pending-file list
+        // so only files not yet processed are re-indexed.
+        let changed = if let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await {
+            if !rs.pending_files.is_empty() {
+                engram_core::metrics().checkpoints_resumed.inc();
+                let pending_set: std::collections::HashSet<PathBuf> =
+                    from_rel_paths(&dir, &rs.pending_files).into_iter().collect();
+                changed.into_iter().filter(|p| pending_set.contains(p)).collect()
+            } else {
+                changed
+            }
+        } else {
+            changed
+        };
+
         self.enforce_project_byte_budget(&changed).await?;
 
         // Copy-forward unchanged files to the new generation (Snapshot namespaces).
@@ -1695,6 +1710,7 @@ impl Engram {
         let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
 
         self.state.projects.remove(&pid);
+        self.state.project_update_locks.write().await.remove(&pid);
         self.state
             .registry
             .delete_all_for_project(&pid)

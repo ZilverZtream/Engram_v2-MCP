@@ -1,5 +1,5 @@
 use crate::services::migration_progress_service::MigrationProgressStore;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use engram_core::{CheckpointStore, Config, MemoryBudget, PathContext, Registry};
 use engram_graph::GraphStore;
 use engram_index::HybridSearchEngine;
@@ -121,6 +121,14 @@ pub struct AppState {
             ),
         >,
     >,
+
+    /// In-flight keys for PageRank background tasks.
+    ///
+    /// Before spawning a background PageRank task, a handler inserts the cache
+    /// key into this set. If the insert returns `false` the key was already
+    /// present (another task is running), so the spawn is skipped. The entry
+    /// is removed by the background task when it finishes.
+    pub pagerank_inflight: Arc<DashSet<String>>,
 }
 
 impl AppState {
@@ -180,6 +188,7 @@ impl AppState {
                 checkpoints: Arc::new(checkpoints),
                 migration_progress: Arc::new(migration_progress),
                 pagerank_cache: Arc::new(DashMap::new()),
+                pagerank_inflight: Arc::new(DashSet::new()),
             },
             events_rx,
         ))
