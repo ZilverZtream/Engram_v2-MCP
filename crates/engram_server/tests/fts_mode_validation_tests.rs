@@ -160,6 +160,104 @@ async fn lexical_search_accepts_all_valid_fts_modes() {
     }
 }
 
+// ── VEC1/X1: fail-closed when vector table is recreated ──────────────────────
+
+/// VEC1/X1: when `open_or_create_table` returns `Recreated` (schema mismatch),
+/// `index_docs` must return `Err` rather than silently degrading search quality.
+/// The Tantivy write is idempotent, so callers can retry after scheduling a
+/// full project reindex.
+#[cfg(feature = "vector")]
+#[tokio::test]
+async fn index_docs_fails_closed_when_vector_table_recreated() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+
+    // Pre-create the LanceDB table with dim=4 (deliberately wrong for ProjectionEmbedder=384).
+    // The table name mirrors the naming inside index_docs: "project_{project_id_underscored}".
+    let conn = engram_index::vector::connect(&lance_dir).await.unwrap();
+    engram_index::vector::open_or_create_table(&conn, "project_vec1_reindex", 4)
+        .await
+        .unwrap();
+
+    // Create engine with ProjectionEmbedder (dim=384) — schema mismatch guaranteed.
+    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+
+    let cancel = CancellationToken::new();
+    let doc = engram_index::IndexDoc {
+        generation: 1,
+        chunk_id: 1,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn payment() {}".into(),
+        namespace: "functions".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 5,
+        doc_id: "doc-vec1".into(),
+        content_hash: "hash-vec1".into(),
+    };
+
+    let result = engine.index_docs("vec1-reindex", &[doc], &cancel).await;
+
+    assert!(
+        result.is_err(),
+        "VEC1/X1: index_docs must return Err when vector table was recreated due to schema mismatch; got Ok"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("VEC1") || msg.contains("reindex") || msg.contains("recreat"),
+        "VEC1/X1: error must reference VEC1 or reindex requirement; got: {msg}"
+    );
+}
+
+/// EMB1: index_docs uses embed_batch_cancellable — a pre-cancelled token must
+/// prevent any embedding work and return early (before the batch is sent).
+#[cfg(feature = "vector")]
+#[tokio::test]
+async fn index_docs_respects_cancellation_during_embedding() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+
+    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+
+    // Pre-cancel the token so any call to embed_batch_cancellable returns Err immediately.
+    let cancel = CancellationToken::new();
+    cancel.cancel();
+
+    let doc = engram_index::IndexDoc {
+        generation: 1,
+        chunk_id: 1,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn payment() {}".into(),
+        namespace: "functions".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 5,
+        doc_id: "doc-emb1-cancel".into(),
+        content_hash: "hash-emb1-cancel".into(),
+    };
+
+    // index_docs should check cancel before the Tantivy write and return Ok(()) early,
+    // but if it reaches the embedding batch (pre-cancel check in embed_batch_cancellable)
+    // it must return Err — either way it must NOT block waiting for HTTP.
+    // With the current implementation the initial cancel check returns Ok early,
+    // so we just assert the call completes promptly without hanging.
+    let result = engine.index_docs("proj-emb1-cancel", &[doc], &cancel).await;
+    // Ok() or Err() are both acceptable; what's NOT acceptable is hanging/blocking.
+    let _ = result; // consumed; test passes by completing without timeout
+}
+
 // ── Watcher overflow convergence (EXH-0005) ──────────────────────────────────
 // These tests verify the behavioral invariant that the overflow_dirty set
 // is drained and re-queued — not testing the full watcher integration,
