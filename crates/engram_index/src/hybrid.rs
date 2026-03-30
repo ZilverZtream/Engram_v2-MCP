@@ -1222,8 +1222,18 @@ impl HybridSearchEngine {
 
         // ENG-AUD-2026-EXH-0003: fail-closed on unknown fts_mode — callers must
         // validate before reaching here, but defend in depth at the index layer too.
+        // FTS1: cap regex patterns to prevent catastrophic backtracking / ReDoS.
+        const MAX_REGEX_PATTERN_LEN: usize = 500;
+
         let content_q: Box<dyn tantivy::query::Query> = match q.fts_mode.as_str() {
             "regex" => {
+                if q.text.len() > MAX_REGEX_PATTERN_LEN {
+                    anyhow::bail!(
+                        "FTS1: regex pattern too long ({} bytes, max {})",
+                        q.text.len(),
+                        MAX_REGEX_PATTERN_LEN
+                    );
+                }
                 let mut parser =
                     QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
                 parser.set_conjunction_by_default();

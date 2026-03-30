@@ -104,8 +104,8 @@ pub fn semantic_chunk_lines(
     // Pre-allocate the combined buffer to exact capacity to avoid repeated
     // reallocations when concatenating prefix + existing content.
     if out.len() > 1 {
-        for idx in 1..out.len() {
-            let curr_start_0 = out[idx].start_line as usize - 1; // 0-based start index
+        for chunk in out.iter_mut().skip(1) {
+            let curr_start_0 = chunk.start_line as usize - 1; // 0-based start index
             // Chunks are always contiguous; overlap is relative to curr_start_0 only.
             if curr_start_0 > 0 {
                 let overlap_start = curr_start_0.saturating_sub(OVERLAP_LINES);
@@ -116,16 +116,16 @@ pub fn semantic_chunk_lines(
                         .map(|l| l.len() + 1)
                         .sum();
                     if prefix_len > 0 {
-                        let total = prefix_len + out[idx].content.len();
+                        let total = prefix_len + chunk.content.len();
                         let mut combined = String::with_capacity(total);
                         for line in lines.iter().take(curr_start_0).skip(overlap_start) {
                             combined.push_str(line);
                             combined.push('\n');
                         }
-                        combined.push_str(&out[idx].content);
-                        out[idx].content = combined;
+                        combined.push_str(&chunk.content);
+                        chunk.content = combined;
                         // Recompute hash for the overlapped content.
-                        out[idx].content_hash = ContentHash::compute(out[idx].content.as_bytes());
+                        chunk.content_hash = ContentHash::compute(chunk.content.as_bytes());
                     }
                 }
             }
