@@ -19,6 +19,7 @@ use engram_graph::GraphStore;
 use engram_server::services::full_project_migration_service::{
     analyze_full_project, FileContent, ProjectFileBundle, ProjectReferenceBundle,
 };
+use tokio_util::sync::CancellationToken;
 
 fn empty_bundle() -> ProjectFileBundle {
     ProjectFileBundle {
@@ -49,7 +50,7 @@ fn mig1_report_completeness_fields_present_and_correct_on_happy_path() {
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
 
     let bundle = empty_bundle();
-    let report = analyze_full_project(&graph, "test-proj", "react", &bundle, 100)
+    let report = analyze_full_project(&graph, "test-proj", "react", &bundle, 100, &CancellationToken::new())
         .expect("analyze_full_project must succeed on empty graph");
 
     assert!(
@@ -78,8 +79,8 @@ fn mig1_consecutive_calls_do_not_accumulate_across_calls() {
 
     let bundle = empty_bundle();
 
-    let r1 = analyze_full_project(&graph, "proj-a", "blazor", &bundle, 50).unwrap();
-    let r2 = analyze_full_project(&graph, "proj-b", "blazor", &bundle, 50).unwrap();
+    let r1 = analyze_full_project(&graph, "proj-a", "blazor", &bundle, 50, &CancellationToken::new()).unwrap();
+    let r2 = analyze_full_project(&graph, "proj-b", "blazor", &bundle, 50, &CancellationToken::new()).unwrap();
 
     // Neither call should pollute the other's completeness state.
     assert!(r1.report_is_complete, "call 1 must be complete");
@@ -102,11 +103,11 @@ fn mig1_concurrent_calls_on_separate_threads_have_isolated_tls() {
     // Run both analyze_full_project calls concurrently on separate threads.
     let g1 = graph1.clone();
     let handle1 = std::thread::spawn(move || {
-        analyze_full_project(&g1, "thread-proj-1", "react", &empty_bundle(), 100)
+        analyze_full_project(&g1, "thread-proj-1", "react", &empty_bundle(), 100, &CancellationToken::new())
     });
     let g2 = graph2.clone();
     let handle2 = std::thread::spawn(move || {
-        analyze_full_project(&g2, "thread-proj-2", "blazor", &empty_bundle(), 100)
+        analyze_full_project(&g2, "thread-proj-2", "blazor", &empty_bundle(), 100, &CancellationToken::new())
     });
 
     let r1 = handle1.join().expect("thread 1 must not panic").expect("analyze 1 must succeed");
@@ -144,7 +145,7 @@ fn mig1_four_concurrent_threads_all_isolated() {
         let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
         let project_type = ["react", "blazor", "general", "react"][i];
         std::thread::spawn(move || {
-            let r = analyze_full_project(&graph, &format!("proj-{i}"), project_type, &empty_bundle(), 50)
+            let r = analyze_full_project(&graph, &format!("proj-{i}"), project_type, &empty_bundle(), 50, &CancellationToken::new())
                 .expect("analyze_full_project must succeed");
             // Keep tmp alive until after analyze completes.
             let _ = tmp;
@@ -194,7 +195,7 @@ fn mig1_bundle_with_minimal_content_does_not_panic() {
         ..empty_bundle()
     };
 
-    let result = analyze_full_project(&graph, "real-proj", "react", &bundle, 10);
+    let result = analyze_full_project(&graph, "real-proj", "react", &bundle, 10, &CancellationToken::new());
     assert!(
         result.is_ok(),
         "MIG1: minimal non-empty bundle must not panic; got: {:?}",
@@ -265,7 +266,7 @@ fn mig1_report_completeness_invariant_holds_on_happy_path() {
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
 
     let bundle = empty_bundle();
-    let report = analyze_full_project(&graph, "inv-proj", "react", &bundle, 10)
+    let report = analyze_full_project(&graph, "inv-proj", "react", &bundle, 10, &CancellationToken::new())
         .expect("analyze_full_project must succeed");
 
     // Invariant: report_is_complete == degraded_sections.is_empty()
@@ -288,5 +289,63 @@ fn mig1_report_completeness_invariant_holds_on_happy_path() {
         report.degraded_sections.is_empty(),
         "MIG1-c7y2: happy-path degraded_sections must be empty; got: {:?}",
         report.degraded_sections
+    );
+}
+
+/// MIG1-cancel: a pre-cancelled token causes analyze_full_project to return Err
+/// immediately, proving the cooperative cancellation contract is implemented.
+///
+/// Without this contract, in-flight migrations cannot be aborted cooperatively —
+/// callers would have to wait for the entire synchronous analysis to complete.
+#[test]
+fn mig1_pre_cancelled_token_returns_err() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let db_path = tmp.path().join("graph.redb");
+    let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open"));
+
+    let cancel = CancellationToken::new();
+    cancel.cancel(); // pre-cancel before calling
+
+    let result = analyze_full_project(
+        &graph,
+        "cancel-test-proj",
+        "react",
+        &empty_bundle(),
+        100,
+        &cancel,
+    );
+
+    assert!(
+        result.is_err(),
+        "MIG1-cancel: pre-cancelled token must cause analyze_full_project to return Err; \
+         got Ok — cooperative cancellation contract is not implemented"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("cancel") || err.to_string().contains("MIG1"),
+        "MIG1-cancel: error message must reference cancellation; got: {err}"
+    );
+}
+
+/// MIG1-cancel: structural check — the migration service source must import
+/// and use CancellationToken, and the function must check is_cancelled().
+#[test]
+fn mig1_source_contains_cancellation_checks() {
+    let source = include_str!("../src/services/full_project_migration_service.rs");
+
+    assert!(
+        source.contains("CancellationToken"),
+        "MIG1-cancel: full_project_migration_service.rs must use CancellationToken \
+         so callers can cooperatively abort long migrations"
+    );
+    assert!(
+        source.contains("is_cancelled()"),
+        "MIG1-cancel: full_project_migration_service.rs must call is_cancelled() \
+         at phase boundaries to enable preemption of in-flight analyses"
+    );
+    assert!(
+        source.contains("cancel: &CancellationToken"),
+        "MIG1-cancel: analyze_full_project must accept cancel: &CancellationToken \
+         as a parameter — without it, cancellation is impossible"
     );
 }

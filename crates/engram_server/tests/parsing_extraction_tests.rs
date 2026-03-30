@@ -448,3 +448,131 @@ fn extract_very_long_single_line_does_not_panic() {
          took {elapsed:?}"
     );
 }
+
+// ── PARSE2: recursion depth and extractor robustness ─────────────────────────
+
+/// PARSE2: tree-sitter-backed SymbolExtractor must not stack-overflow or hang
+/// on a Go source file with 200 levels of nested function literals.
+///
+/// Go nesting is relevant because it uses closures-in-closures which can stress
+/// recursive AST walkers more than flat statement lists.
+#[test]
+fn parse2_deeply_nested_go_functions_does_not_panic() {
+    let deadline = std::time::Duration::from_secs(10);
+    let ex = extractor();
+    let path = Path::new("deep.go");
+
+    // Build 200 levels of nested func literals: func() { func() { ... } }
+    let inner = "println(\"hi\")";
+    let mut src = inner.to_string();
+    for _ in 0..200 {
+        src = format!("func() {{\n{src}\n}}()");
+    }
+    let full = format!("package main\nfunc main() {{\n{src}\n}}");
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| ex.extract(path, &full));
+    let elapsed = start.elapsed();
+
+    assert!(result.is_ok(), "PARSE2: deeply nested Go functions must not panic; panicked");
+    assert!(
+        elapsed < deadline,
+        "PARSE2: deeply nested Go functions must complete within {deadline:?}; took {elapsed:?}"
+    );
+}
+
+/// PARSE2: tree-sitter-backed SymbolExtractor must not stack-overflow or hang
+/// on a Python source file with 200 levels of nested class definitions.
+#[test]
+fn parse2_deeply_nested_python_classes_does_not_panic() {
+    let deadline = std::time::Duration::from_secs(10);
+    let ex = extractor();
+    let path = Path::new("deep.py");
+
+    // Build 200 levels of nested class defs: class A:\n  class B:\n    ...
+    let mut src = "pass".to_string();
+    for i in 0..200 {
+        src = format!("class C{i}:\n    {}", src.replace('\n', "\n    "));
+    }
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| ex.extract(path, &src));
+    let elapsed = start.elapsed();
+
+    assert!(result.is_ok(), "PARSE2: deeply nested Python classes must not panic; panicked");
+    assert!(
+        elapsed < deadline,
+        "PARSE2: deeply nested Python classes must complete within {deadline:?}; took {elapsed:?}"
+    );
+}
+
+/// PARSE2: tree-sitter-backed SymbolExtractor must not stack-overflow on a
+/// Java source file with 150 levels of nested class declarations.
+#[test]
+fn parse2_deeply_nested_java_classes_does_not_panic() {
+    let deadline = std::time::Duration::from_secs(10);
+    let ex = extractor();
+    let path = Path::new("deep.java");
+
+    // Build nested Java inner classes: class A { class B { class C { ... } } }
+    let mut src = "int x = 0;".to_string();
+    for i in 0..150 {
+        src = format!("class Inner{i} {{ {src} }}");
+    }
+    let full = format!("public class Deep {{ {src} }}");
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| ex.extract(path, &full));
+    let elapsed = start.elapsed();
+
+    assert!(result.is_ok(), "PARSE2: deeply nested Java classes must not panic; panicked");
+    assert!(
+        elapsed < deadline,
+        "PARSE2: deeply nested Java classes must complete within {deadline:?}; took {elapsed:?}"
+    );
+}
+
+/// PARSE2: extractors for all supported tree-sitter languages must handle
+/// a file consisting of a single deeply-indented block (stress test for
+/// any O(depth) path in the post-processing walk).
+#[test]
+fn parse2_all_languages_handle_deep_nesting_without_panic() {
+    let deadline = std::time::Duration::from_secs(15);
+    let ex = extractor();
+
+    // (extension, source template) — each generates ~100-level nesting
+    let cases = [
+        (
+            "deep.rs",
+            {
+                let mut s = "let x = 1;".to_string();
+                for i in 0..100 { s = format!("mod m{i} {{ {s} }}"); }
+                s
+            },
+        ),
+        (
+            "deep.ts",
+            {
+                let mut s = "const x = 1;".to_string();
+                for i in 0..100 { s = format!("namespace N{i} {{ {s} }}"); }
+                s
+            },
+        ),
+    ];
+
+    for (name, src) in &cases {
+        let path = Path::new(name);
+        let start = std::time::Instant::now();
+        let result = std::panic::catch_unwind(|| ex.extract(path, src));
+        let elapsed = start.elapsed();
+
+        assert!(
+            result.is_ok(),
+            "PARSE2: extractor for {name} must not panic on deeply nested input"
+        );
+        assert!(
+            elapsed < deadline,
+            "PARSE2: extractor for {name} must complete within {deadline:?}; took {elapsed:?}"
+        );
+    }
+}

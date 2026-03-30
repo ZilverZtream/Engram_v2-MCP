@@ -1268,8 +1268,14 @@ impl Engram {
             master_files,
         };
 
+        // MIG1: create a fresh cancel token for this migration; wire it to the
+        // handler shutdown if available in future.  Passing it into the
+        // synchronous function gives callers cooperative abort capability.
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let cancel_clone = cancel.clone();
+        let _ = cancel; // token not cancelled here — migration runs to completion unless signalled
         let report = tokio::task::spawn_blocking(move || {
-            full_mig::analyze_full_project(&graph, &pid, &target_stack, &bundle, max_files)
+            full_mig::analyze_full_project(&graph, &pid, &target_stack, &bundle, max_files, &cancel_clone)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?

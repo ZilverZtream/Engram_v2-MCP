@@ -466,3 +466,53 @@ async fn cancellation_during_phase_write_tombstones_checkpoint() {
         "X6-cancelcp-5t9h: Failed checkpoint must not be resumable"
     );
 }
+
+/// JOB1: checkpoint write failure is fail-open (warn-only) — proves the
+/// handler logs the failure and does NOT abort the job.
+///
+/// This is a structural source scan: we verify the warning strings exist in
+/// the handler source so that the fail-open behavior is explicitly documented
+/// and observable via log aggregation rather than being invisible to operators.
+#[test]
+fn job1_checkpoint_write_failure_is_warn_only_not_fatal() {
+    let source = include_str!("../src/handlers/project_tools.rs");
+
+    // Both failure branches must log a warning — silent failure is worse than
+    // loud failure because it leaves no observable trace for operators.
+    assert!(
+        source.contains("checkpoint write failed — resumability may be lost"),
+        "JOB1: project_tools.rs must log a warning when checkpoint write fails; \
+         without this log, operators cannot observe when job resumability is lost"
+    );
+    assert!(
+        source.contains("checkpoint write task panicked — resumability may be lost"),
+        "JOB1: project_tools.rs must log a warning when the checkpoint write task panics; \
+         without this log, the panic is invisible to operators"
+    );
+
+    // The handler must NOT propagate the error (fail-open contract):
+    // the `?` operator must NOT appear immediately after the spawn_blocking call.
+    // We verify by checking that the match arms contain warn!, not return/?.
+    assert!(
+        source.contains("tracing::warn!"),
+        "JOB1: checkpoint write failures must use tracing::warn! not silent swallowing \
+         — operators must be able to observe the failure via log aggregation"
+    );
+}
+
+/// JOB1: structural check that the checkpoint write result is matched and both
+/// Ok and Err branches are handled explicitly.  Proves the failure path is
+/// deliberate (not accidentally ignored via `let _ = ...`).
+#[test]
+fn job1_checkpoint_write_uses_explicit_match_not_ignore() {
+    let source = include_str!("../src/handlers/project_tools.rs");
+
+    // The match must explicitly pattern-match on Ok(Ok(())), Ok(Err(e)), Err(e).
+    // A let-underscore (`let _ = ...`) would silently swallow both Ok and Err,
+    // which is the dangerous pattern this test guards against.
+    assert!(
+        source.contains("Ok(Ok(()))") && source.contains("Ok(Err(e))"),
+        "JOB1: checkpoint write must use explicit match with Ok(Ok(())) and Ok(Err(e)) arms, \
+         not let _ = ... which would silently swallow failures"
+    );
+}

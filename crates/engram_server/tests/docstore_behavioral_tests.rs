@@ -572,3 +572,112 @@ fn docstore_count_after_delete_namespace_reflects_removal() {
     let after = store.count_docs_for_project("proj-recount").expect("count after");
     assert_eq!(after, 1, "must have 1 doc remaining after deleting rust namespace; got {after}");
 }
+
+/// DS3: `delete_namespace` must also remove FILE_FINGERPRINT entries for every
+/// file that belonged to the deleted namespace.
+///
+/// Without this fix, orphaned fingerprints accumulate indefinitely and can bias
+/// copy-forward change detection (e.g. a file deleted from the project may still
+/// look "unchanged" because its old fingerprint survives namespace deletion).
+#[test]
+fn ds3_delete_namespace_clears_file_fingerprints() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Populate DOCS_BY_FILE via set_docs_for_file so delete_namespace can
+    // enumerate which files belong to the namespace.
+    store
+        .set_docs_for_file("proj-ds3", "functions", "src/main.rs", &["d1".to_string()])
+        .expect("set docs for main.rs");
+    store
+        .set_docs_for_file("proj-ds3", "functions", "src/lib.rs", &["d2".to_string()])
+        .expect("set docs for lib.rs");
+
+    // Plant fingerprints for those files.
+    let fp1 = FileFingerprint {
+        rel_path: "src/main.rs".into(),
+        file_hash: "hash-main".into(),
+        size: 42,
+        mtime_ms: 0,
+    };
+    let fp2 = FileFingerprint {
+        rel_path: "src/lib.rs".into(),
+        file_hash: "hash-lib".into(),
+        size: 100,
+        mtime_ms: 0,
+    };
+    store
+        .set_fingerprints("proj-ds3", &[fp1, fp2])
+        .expect("set fingerprints");
+
+    // Verify fingerprints exist before deletion.
+    assert!(
+        store.get_fingerprint("proj-ds3", "src/main.rs").unwrap().is_some(),
+        "DS3: fingerprint for src/main.rs must exist before delete_namespace"
+    );
+    assert!(
+        store.get_fingerprint("proj-ds3", "src/lib.rs").unwrap().is_some(),
+        "DS3: fingerprint for src/lib.rs must exist before delete_namespace"
+    );
+
+    // Delete the namespace — this should also clear the fingerprints.
+    store
+        .delete_namespace("proj-ds3", "functions")
+        .expect("delete_namespace must succeed");
+
+    // After deletion, fingerprints must be gone — no stale row accumulation.
+    assert!(
+        store.get_fingerprint("proj-ds3", "src/main.rs").unwrap().is_none(),
+        "DS3: delete_namespace must purge the FILE_FINGERPRINT row for src/main.rs; \
+         stale fingerprint will bias copy-forward change detection"
+    );
+    assert!(
+        store.get_fingerprint("proj-ds3", "src/lib.rs").unwrap().is_none(),
+        "DS3: delete_namespace must purge the FILE_FINGERPRINT row for src/lib.rs; \
+         stale fingerprint will bias copy-forward change detection"
+    );
+}
+
+/// DS3: fingerprints for files in a *different* namespace must not be affected
+/// by deleting another namespace.  This proves the fingerprint cleanup is scoped
+/// to files that actually belonged to the deleted namespace, not a project-wide wipe.
+#[test]
+fn ds3_delete_namespace_preserves_other_namespace_fingerprints() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Two namespaces, one file each — use set_docs_for_file to populate DOCS_BY_FILE.
+    store
+        .set_docs_for_file("proj-ds3b", "ns-a", "a.rs", &["x1".to_string()])
+        .expect("set ns-a docs");
+    store
+        .set_docs_for_file("proj-ds3b", "ns-b", "b.rs", &["y1".to_string()])
+        .expect("set ns-b docs");
+
+    let fp_a = FileFingerprint {
+        rel_path: "a.rs".into(),
+        file_hash: "hash-a".into(),
+        size: 1,
+        mtime_ms: 0,
+    };
+    let fp_b = FileFingerprint {
+        rel_path: "b.rs".into(),
+        file_hash: "hash-b".into(),
+        size: 2,
+        mtime_ms: 0,
+    };
+    store.set_fingerprints("proj-ds3b", &[fp_a, fp_b]).expect("set fps");
+
+    // Delete ns-a — only a.rs fingerprint should be removed.
+    store.delete_namespace("proj-ds3b", "ns-a").expect("delete ns-a");
+
+    assert!(
+        store.get_fingerprint("proj-ds3b", "a.rs").unwrap().is_none(),
+        "DS3: a.rs fingerprint must be removed when ns-a is deleted"
+    );
+    assert!(
+        store.get_fingerprint("proj-ds3b", "b.rs").unwrap().is_some(),
+        "DS3: b.rs fingerprint must survive deletion of ns-a (belongs to ns-b)"
+    );
+}
+
