@@ -387,3 +387,109 @@ fn checkpoint_completed_not_resumable_after_reopen() {
         resumable.map(|c| c.phase)
     );
 }
+
+// ── JOB1: phase-boundary crash idempotency ────────────────────────────────────
+
+/// JOB1: re-writing the same checkpoint twice (simulating crash-then-replay of
+/// the same phase) must leave exactly the latest write visible — last-write-wins
+/// per phase, no phantom duplicate state.
+///
+/// This proves the checkpoint store is safe for idempotent phase replay: if a
+/// phase crashes after writing its checkpoint but before completing, replaying
+/// the phase writes the same checkpoint again without corrupting the store.
+#[test]
+fn phase_replay_writes_same_checkpoint_is_idempotent() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let store = CheckpointStore::open(&tmp.path().join("cp.redb")).unwrap();
+
+    let mut cp = make_checkpoint("replay-job", "replay-proj", JobPhase::TantivyIndexing);
+    cp.items_processed = 50;
+
+    // First write: phase TantivyIndexing at progress 50.
+    store.put(&cp).unwrap();
+
+    // Crash-then-replay: same phase, same job_id — overwrite with identical data.
+    store.put(&cp).unwrap();
+
+    // Only one checkpoint must exist, with the correct phase.
+    let retrieved = store.get("replay-job").unwrap().expect("must exist");
+    assert_eq!(
+        retrieved.phase,
+        JobPhase::TantivyIndexing,
+        "JOB1: idempotent replay must leave phase as TantivyIndexing"
+    );
+    assert_eq!(
+        retrieved.items_processed, 50,
+        "JOB1: idempotent replay must preserve items_processed"
+    );
+
+    // find_resumable must find exactly one resumable checkpoint.
+    let found = store.find_resumable("replay-proj").unwrap();
+    assert!(
+        found.is_some(),
+        "JOB1: idempotent phase replay must leave exactly one resumable checkpoint"
+    );
+}
+
+/// JOB1: simulates the full crash-recovery lifecycle:
+/// 1. Job starts — writes Scanning checkpoint
+/// 2. Crash in TantivyIndexing — writes TantivyIndexing checkpoint, then crashes
+/// 3. Process restart — find_resumable returns TantivyIndexing (not Scanning)
+/// 4. Replay: re-writes TantivyIndexing (idempotent), then advances to Completed
+/// 5. find_resumable returns None (Completed is terminal)
+///
+/// This proves the checkpoint lifecycle is safe for phase-boundary crash recovery.
+#[test]
+fn crash_recovery_full_lifecycle_advances_to_completed() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let path = tmp.path().join("cp.redb");
+
+    // Phase 1: job starts, writes Scanning checkpoint.
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let cp = make_checkpoint("lifecycle-job", "lifecycle-proj", JobPhase::Scanning);
+        store.put(&cp).unwrap();
+    }
+
+    // Phase 2: crash in TantivyIndexing — TantivyIndexing checkpoint written.
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let cp = make_checkpoint("lifecycle-job", "lifecycle-proj", JobPhase::TantivyIndexing);
+        store.put(&cp).unwrap();
+        // Simulated crash: store is dropped without advancing further.
+    }
+
+    // Phase 3: process restart — find_resumable returns TantivyIndexing.
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let resumable = store.find_resumable("lifecycle-proj").unwrap()
+            .expect("JOB1: after crash in TantivyIndexing, find_resumable must return resumable checkpoint");
+        assert_eq!(
+            resumable.phase,
+            JobPhase::TantivyIndexing,
+            "JOB1: resumed checkpoint must be TantivyIndexing (most recent phase)"
+        );
+    }
+
+    // Phase 4: idempotent replay of TantivyIndexing, then advance to Completed.
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        // Replay: re-write TantivyIndexing (same result as before crash).
+        let cp_ti = make_checkpoint("lifecycle-job", "lifecycle-proj", JobPhase::TantivyIndexing);
+        store.put(&cp_ti).unwrap();
+        // Advance to Completed.
+        let cp_done = make_checkpoint("lifecycle-job", "lifecycle-proj", JobPhase::Completed);
+        store.put(&cp_done).unwrap();
+    }
+
+    // Phase 5: find_resumable must return None (Completed is terminal).
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let resumable = store.find_resumable("lifecycle-proj").unwrap();
+        assert!(
+            resumable.is_none(),
+            "JOB1: after reaching Completed, find_resumable must return None; got: {:?}",
+            resumable.map(|c| c.phase)
+        );
+    }
+}

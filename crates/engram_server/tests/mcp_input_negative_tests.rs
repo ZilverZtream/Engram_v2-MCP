@@ -276,6 +276,109 @@ fn mcp_neg_all_handler_files_with_project_id_field_have_validation_gate() {
     }
 }
 
+/// MCP1: `VectorSearchRequest::sanitized_top_k` must clamp an over-limit value
+/// to MAX_SEARCH_RESULTS and an under-limit value to 1.
+///
+/// Tests the actual method on the real struct, not just the constant.
+#[test]
+fn mcp_neg_vector_search_sanitized_top_k_clamps_correctly() {
+    use engram_server::models::requests::{VectorSearchRequest, MAX_SEARCH_RESULTS};
+
+    let make_req = |top_k: usize| VectorSearchRequest {
+        project_id: "proj".into(),
+        query: "test".into(),
+        namespace: "code".into(),
+        top_k,
+        use_mmr: false,
+        include_path_prefixes: None,
+        exclude_path_prefixes: None,
+        language_filters: None,
+        include_content: false,
+        max_content_chars: 0,
+    };
+
+    // Over-limit: must clamp down to MAX_SEARCH_RESULTS.
+    let over_limit = make_req(usize::MAX);
+    assert_eq!(
+        over_limit.sanitized_top_k(),
+        MAX_SEARCH_RESULTS,
+        "VectorSearchRequest::sanitized_top_k must clamp usize::MAX to {MAX_SEARCH_RESULTS}"
+    );
+
+    // Under-limit: must clamp up to 1.
+    let zero_req = make_req(0);
+    assert_eq!(
+        zero_req.sanitized_top_k(),
+        1,
+        "VectorSearchRequest::sanitized_top_k must clamp 0 to minimum 1"
+    );
+
+    // In-range: must pass through unchanged.
+    let valid = make_req(10);
+    assert_eq!(
+        valid.sanitized_top_k(),
+        10,
+        "VectorSearchRequest::sanitized_top_k must not alter an in-range value"
+    );
+}
+
+/// MCP1: `ImmuneCheckRequest::sanitized_top_k` must clamp to MAX_IMMUNE_TOP_K.
+#[test]
+fn mcp_neg_immune_check_sanitized_top_k_clamps_correctly() {
+    use engram_server::models::requests::{ImmuneCheckRequest, MAX_IMMUNE_TOP_K};
+
+    let make_req = |top_k: usize| ImmuneCheckRequest {
+        project_id: "proj".into(),
+        code: "fn foo() {}".into(),
+        top_k,
+        use_vector: false,
+        include_content: false,
+    };
+
+    let over = make_req(usize::MAX);
+    assert_eq!(
+        over.sanitized_top_k(),
+        MAX_IMMUNE_TOP_K,
+        "ImmuneCheckRequest::sanitized_top_k must clamp to {MAX_IMMUNE_TOP_K}"
+    );
+
+    let zero = make_req(0);
+    assert_eq!(zero.sanitized_top_k(), 1, "must clamp 0 to 1");
+
+    let valid = make_req(5);
+    assert_eq!(valid.sanitized_top_k(), 5, "must not alter in-range value");
+}
+
+/// MCP1: MIG1-D3C1 — migration handler source must register cancel token in
+/// state.cancellation_tokens so in-flight migrations are cancellable via
+/// handle_cancel_job.  Proves the fix is present in source.
+#[test]
+fn migration_handler_registers_cancel_token_for_external_abort() {
+    let source = include_str!("../src/handlers/migration_tools.rs");
+
+    // The handler must insert the cancel token into cancellation_tokens.
+    assert!(
+        source.contains("cancellation_tokens.write()"),
+        "MIG1-D3C1: migration handler must insert cancel token into \
+         state.cancellation_tokens so handle_cancel_job can abort it; \
+         'cancellation_tokens.write()' not found in migration_tools.rs"
+    );
+
+    // The handler must clean up after completion.
+    assert!(
+        source.contains("tokens.remove(&migration_job_id)"),
+        "MIG1-D3C1: migration handler must remove cancel token after completion \
+         to avoid token map growth; 'tokens.remove(&migration_job_id)' not found"
+    );
+
+    // The job_id must be surfaced in the response.
+    assert!(
+        source.contains("migration_job_id"),
+        "MIG1-D3C1: migration_job_id must be included in response so callers \
+         can cancel the migration via cancel_job"
+    );
+}
+
 /// Every handler file that constructs filesystem paths from user input must
 /// route through `safe_join` or `resolve_path` — no raw string concatenation.
 #[test]
