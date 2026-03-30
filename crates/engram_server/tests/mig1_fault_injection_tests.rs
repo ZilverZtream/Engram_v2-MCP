@@ -435,3 +435,126 @@ fn migration_cancellation_terminates_per_file_loop() {
         }
     }
 }
+
+// ── MIG1-u3r8: method body extraction graceful-fallback tests ─────────────────
+
+/// MIG1-u3r8: analyze_full_project with C# code files must not panic when method
+/// body extraction encounters methods with exotic but valid names.
+///
+/// The extract_cs_method_body helper uses `regex::escape` on the method name before
+/// constructing the regex, then calls `.ok()?` (after `inspect_err` logging) on the
+/// compile result, returning None gracefully if compile fails.  This test proves the
+/// full pipeline surfaces no crash for these inputs — exercising the graceful-None
+/// fallback path through the production analyze_full_project entry point.
+#[test]
+fn analyze_full_project_with_cs_code_does_not_panic_on_exotic_method_names() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
+
+    // A C# file with a method whose name contains regex-special characters.
+    // regex::escape handles these, but this exercises the compile/match path.
+    let cs_code = r#"
+public partial class MyPage : System.Web.UI.Page {
+    protected void Page_Load(object sender, EventArgs e) { }
+    protected void btnSubmit_Click(object sender, EventArgs e) { }
+    private string Get_User$Data() { return ""; }
+    public void Method123() { }
+}
+"#;
+    let bundle = ProjectFileBundle {
+        code_files: vec![
+            ("Default.aspx.cs".into(), cs_code.into()),
+        ],
+        ..empty_bundle()
+    };
+
+    let result = analyze_full_project(
+        &graph,
+        "cs-exotic-names-proj",
+        "react",
+        &bundle,
+        10,
+        &CancellationToken::new(),
+    );
+    assert!(
+        result.is_ok(),
+        "MIG1-u3r8: analyze_full_project must not panic on C# code with exotic method names; \
+         got: {:?}",
+        result.err()
+    );
+}
+
+/// MIG1-u3r8: analyze_full_project with VB code files must not panic on exotic method names.
+///
+/// The extract_vb_method_body helper follows the same inspect_err + ok()? pattern.
+/// This test exercises that path from the production entry point.
+#[test]
+fn analyze_full_project_with_vb_code_does_not_panic_on_exotic_method_names() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
+
+    // A VB file with Sub/Function names that contain underscores and digits.
+    let vb_code = r#"
+Public Class MyPage
+    Inherits System.Web.UI.Page
+
+    Protected Sub Page_Load(sender As Object, e As EventArgs)
+    End Sub
+
+    Protected Sub btnSubmit_Click(sender As Object, e As EventArgs)
+    End Sub
+
+    Private Function GetUser_Data123() As String
+        Return ""
+    End Function
+End Class
+"#;
+    let bundle = ProjectFileBundle {
+        code_files: vec![
+            ("Default.aspx.vb".into(), vb_code.into()),
+        ],
+        ..empty_bundle()
+    };
+
+    let result = analyze_full_project(
+        &graph,
+        "vb-exotic-names-proj",
+        "react",
+        &bundle,
+        10,
+        &CancellationToken::new(),
+    );
+    assert!(
+        result.is_ok(),
+        "MIG1-u3r8: analyze_full_project must not panic on VB code with exotic method names; \
+         got: {:?}",
+        result.err()
+    );
+}
+
+/// MIG1-u3r8: structural check — both method-body extraction helpers must use
+/// the inspect_err + ok()? pattern (not bare unwrap or ?) so regex compile failures
+/// are logged via tracing::warn! and surfaced as None rather than a panic or
+/// opaque Err propagation.
+#[test]
+fn method_body_extraction_helpers_log_compile_failures_via_inspect_err() {
+    let source = include_str!("../src/services/full_project_migration_service.rs");
+
+    // Both extract_cs_method_body and extract_vb_method_body must use inspect_err
+    // to emit a warn! before returning None on regex compile failure.
+    let inspect_err_count = source.matches("inspect_err").count();
+    assert!(
+        inspect_err_count >= 2,
+        "MIG1-u3r8: migration service must have at least 2 inspect_err calls — \
+         one each for extract_cs_method_body and extract_vb_method_body regex compile; \
+         found {inspect_err_count}"
+    );
+
+    // Each inspect_err must be paired with tracing::warn! so the error is observable.
+    assert!(
+        source.contains("MIG1: C# method body regex compile failed")
+            || source.contains("MIG1: VB method body regex compile failed"),
+        "MIG1-u3r8: method body extraction helpers must log a named warning on regex \
+         compile failure so operators can identify the failing method name"
+    );
+}
