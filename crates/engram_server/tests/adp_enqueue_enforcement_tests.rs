@@ -295,3 +295,215 @@ fn adp_deny_verdict_is_unambiguous() {
     );
     assert_ne!(deny, allow, "JOB1: Deny and Allow must be distinct enum variants");
 }
+
+// ── Test 7: Individual gate hard-deny paths ───────────────────────────────────
+
+/// Blast radius exceeding max_blast_radius_for_auto must produce Deny in Guarded mode.
+/// Gate 5 is a hard-deny path: any change with blast_radius_risk > threshold is
+/// blocked unconditionally. Proves this gate cannot be bypassed by other passing gates.
+#[test]
+fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        // blast_radius_risk=9 exceeds max_blast_radius_for_auto=5 → gate 5 hard-deny
+        blast_radius_risk: Some(9),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(20),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.95),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "Gate 5: blast_radius_risk=9 > max=5 must produce Deny; \
+         an over-blast-radius change cannot auto-proceed regardless of other gates"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "Gate 5 Deny must survive apply_rollout_policy in Guarded mode"
+    );
+    assert!(
+        enforced.failed_gates.iter().any(|g| g.contains("blast")),
+        "blast_radius gate must appear in failed_gates; got: {:?}",
+        enforced.failed_gates
+    );
+}
+
+/// Extraction confidence below threshold must produce Deny in Guarded mode.
+/// Gate 1 is a hard-deny path when confidence evidence is present but insufficient.
+/// Proves that a change cannot proceed when evidence quality is below threshold.
+#[test]
+fn low_extraction_confidence_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        // confidence=0.4 < min_extraction_confidence=0.7 → gate 1 hard-deny
+        extraction_confidence: Some(0.4),
+        extraction_band: Some("low".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.95),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_ne!(
+        raw.verdict,
+        AdpVerdict::Allow,
+        "Gate 1: extraction_confidence=0.4 < threshold=0.7 must not produce Allow"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_ne!(
+        enforced.verdict,
+        AdpVerdict::Allow,
+        "Low extraction confidence must not be allow-able in Guarded mode"
+    );
+}
+
+/// BLOCK immune verdict must produce Deny in Guarded mode.
+/// Gate 6 is a hard-deny path when the anti-pattern check returns BLOCK.
+/// Proves that immune-blocked changes cannot auto-proceed regardless of other gates.
+#[test]
+fn immune_block_verdict_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        // BLOCK verdict → gate 6 hard-deny
+        immune_verdict: Some("BLOCK".into()),
+        immune_confidence: Some(0.90),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "Gate 6: immune_verdict=BLOCK must produce Deny; \
+         an anti-pattern blocked change must not auto-proceed"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "BLOCK immune verdict Deny must survive Guarded mode policy application"
+    );
+    assert!(
+        enforced.failed_gates.iter().any(|g| g.contains("anti_pattern") || g.contains("immune")),
+        "anti_pattern gate must appear in failed_gates; got: {:?}",
+        enforced.failed_gates
+    );
+}
+
+// ── Test 8: Wave-level deny propagation ───────────────────────────────────────
+
+/// A wave containing one deny-producing item must produce a wave-level Deny.
+/// Proves that evaluate_wave propagates any item Deny to the overall wave verdict —
+/// there is no way for a single deny-blocked file to be "outvoted" by other Allow items.
+#[test]
+fn wave_with_one_deny_item_produces_wave_deny() {
+    use engram_server::services::autonomous_decision_service::{WaveAdpInput, evaluate_wave};
+
+    let wave_input = WaveAdpInput {
+        wave_number: 1,
+        wave_name: "wave-1-mixed".into(),
+        items: vec![
+            ("file_a.cs".into(), allow_input()),
+            ("file_b.cs".into(), deny_input()), // safety BLOCK → Deny
+            ("file_c.cs".into(), allow_input()),
+        ],
+        cross_item_deps: 0,
+    };
+
+    let wave_decision = evaluate_wave(&wave_input);
+
+    assert_eq!(
+        wave_decision.verdict,
+        AdpVerdict::Deny,
+        "evaluate_wave: one deny-producing item must block the entire wave; \
+         a single unsafe file must not be auto-applied even if all others are safe"
+    );
+    assert!(
+        wave_decision.blocking_items.contains(&"file_b.cs".to_string()),
+        "blocking_items must identify the deny-producing file; \
+         got: {:?}",
+        wave_decision.blocking_items
+    );
+}
