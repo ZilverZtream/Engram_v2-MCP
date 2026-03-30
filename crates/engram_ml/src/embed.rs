@@ -494,9 +494,13 @@ async fn embed_batch_via_ollama_cancellable(
         if cancel.is_cancelled() {
             anyhow::bail!("embedding cancelled before request");
         }
-        return Ok(vec![
-            embed_via_ollama(client, base_url, model, texts[0], expected_dim).await?,
-        ]);
+        // EMB1: wrap single-item HTTP call so cancellation interrupts the await.
+        let emb = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during single-item HTTP request"),
+            r = embed_via_ollama(client, base_url, model, texts[0], expected_dim) => r?,
+        };
+        return Ok(vec![emb]);
     }
     let url = format!("{base_url}/api/embed");
     let body = serde_json::json!({
@@ -516,7 +520,13 @@ async fn embed_batch_via_ollama_cancellable(
                 anyhow::bail!("embedding cancelled after backoff sleep");
             }
         }
-        match client.post(&url).json(&body).send().await {
+        // EMB1: wrap send().await so cancellation can interrupt the in-flight request.
+        let send_result = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during HTTP send"),
+            r = client.post(&url).json(&body).send() => r,
+        };
+        match send_result {
             Ok(resp) => {
                 let status = resp.status();
                 if status.is_server_error()
@@ -526,11 +536,13 @@ async fn embed_batch_via_ollama_cancellable(
                     last_err = Some(anyhow::anyhow!("Ollama batch HTTP {status}"));
                     continue;
                 }
-                let data: serde_json::Value = resp
-                    .error_for_status()?
-                    .json()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Ollama batch JSON parse error: {e}"))?;
+                let resp_ok = resp.error_for_status()?;
+                // EMB1: wrap response body read so cancellation interrupts it too.
+                let data: serde_json::Value = tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during response read"),
+                    r = resp_ok.json() => r.map_err(|e| anyhow::anyhow!("Ollama batch JSON parse error: {e}"))?,
+                };
                 let arr = data["embeddings"]
                     .as_array()
                     .ok_or_else(|| anyhow::anyhow!("Ollama batch response missing embeddings"))?;
@@ -847,9 +859,13 @@ async fn embed_batch_via_openai_cancellable(
         if cancel.is_cancelled() {
             anyhow::bail!("embedding cancelled before request");
         }
-        return Ok(vec![
-            embed_via_openai(client, api_base, api_key, model, texts[0], expected_dim).await?,
-        ]);
+        // EMB1: wrap single-item HTTP call so cancellation interrupts the await.
+        let emb = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during single-item HTTP request"),
+            r = embed_via_openai(client, api_base, api_key, model, texts[0], expected_dim) => r?,
+        };
+        return Ok(vec![emb]);
     }
     let url = format!("{api_base}/embeddings");
     let body = serde_json::json!({
@@ -869,13 +885,13 @@ async fn embed_batch_via_openai_cancellable(
                 anyhow::bail!("embedding cancelled after backoff sleep");
             }
         }
-        match client
-            .post(&url)
-            .bearer_auth(api_key)
-            .json(&body)
-            .send()
-            .await
-        {
+        // EMB1: wrap send().await so cancellation can interrupt the in-flight request.
+        let send_result = tokio::select! {
+            biased;
+            _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during HTTP send"),
+            r = client.post(&url).bearer_auth(api_key).json(&body).send() => r,
+        };
+        match send_result {
             Ok(resp) => {
                 let status = resp.status();
                 if status.is_server_error()
@@ -885,11 +901,13 @@ async fn embed_batch_via_openai_cancellable(
                     last_err = Some(anyhow::anyhow!("OpenAI batch HTTP {status}"));
                     continue;
                 }
-                let data: serde_json::Value = resp
-                    .error_for_status()?
-                    .json()
-                    .await
-                    .map_err(|e| anyhow::anyhow!("OpenAI batch JSON parse error: {e}"))?;
+                let resp_ok = resp.error_for_status()?;
+                // EMB1: wrap response body read so cancellation interrupts it too.
+                let data: serde_json::Value = tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => anyhow::bail!("EMB1: embedding cancelled during response read"),
+                    r = resp_ok.json() => r.map_err(|e| anyhow::anyhow!("OpenAI batch JSON parse error: {e}"))?,
+                };
                 let arr = data["data"]
                     .as_array()
                     .ok_or_else(|| anyhow::anyhow!("OpenAI batch response missing data"))?;
@@ -1650,5 +1668,91 @@ mod parse_embedding_array_tests {
         let arr = serde_json::json!([0.1, true, 0.3]);
         let result = parse_embedding_array(arr.as_array().unwrap());
         assert!(result.is_err(), "boolean element must return Err");
+    }
+
+    // ── EMB1: mid-flight cancellation tests ───────────────────────────────────
+
+    /// EMB1: Cancellation fires while the mock server is slow to respond.
+    /// The `tokio::select!` around `send().await` must interrupt the await
+    /// and return an error within a short deadline, not wait for the HTTP timeout.
+    #[tokio::test]
+    async fn ollama_batch_mid_flight_cancellation_interrupts_request() {
+        // Spawn a server that accepts a connection but never sends a response.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let _server_handle = tokio::spawn(async move {
+            // Accept but never respond — simulates network stall.
+            if let Ok((_stream, _)) = listener.accept().await {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            }
+        });
+
+        let url = format!("http://127.0.0.1:{port}");
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 4, 60)
+            .expect("OllamaEmbedder::new must succeed");
+
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let cancel_clone = cancel.clone();
+
+        // Cancel after a short delay — well within the 60-second HTTP timeout.
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            cancel_clone.cancel();
+        });
+
+        let start = std::time::Instant::now();
+        let result = embedder
+            .embed_batch_cancellable(&["text_a", "text_b"], &cancel)
+            .await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            result.is_err(),
+            "EMB1: mid-flight cancellation must return Err, not hang until HTTP timeout"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "EMB1: cancellation must interrupt within 5s, not wait for 60s HTTP timeout (elapsed: {:?})",
+            elapsed
+        );
+    }
+
+    /// EMB1: Same test for the OpenAI path — select! around send().await interrupts.
+    #[tokio::test]
+    async fn openai_batch_mid_flight_cancellation_interrupts_request() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let _server_handle = tokio::spawn(async move {
+            if let Ok((_stream, _)) = listener.accept().await {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            }
+        });
+
+        let url = format!("http://127.0.0.1:{port}/v1");
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4, 60)
+            .expect("OpenAIEmbedder::new must succeed");
+
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let cancel_clone = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            cancel_clone.cancel();
+        });
+
+        let start = std::time::Instant::now();
+        let result = embedder
+            .embed_batch_cancellable(&["text_a", "text_b"], &cancel)
+            .await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            result.is_err(),
+            "EMB1: OpenAI mid-flight cancellation must return Err"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "EMB1: OpenAI cancellation must interrupt within 5s (elapsed: {:?})",
+            elapsed
+        );
     }
 }
