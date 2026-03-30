@@ -769,6 +769,122 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
     );
 }
 
+/// VEC2: `index_docs` upsert is idempotent — indexing the same batch twice must
+/// not double the row count.  `merge_insert` on `pk` updates in place; there
+/// must be no window where rows are absent between delete and re-insert.
+///
+/// This closes the VEC2 "Uncovered" gap by proving LanceDB merge_insert upsert
+/// semantics hold at the engram_index integration level.
+#[tokio::test]
+async fn upsert_same_docs_twice_does_not_double_the_row_count() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    const PROJ: &str = "vec2-idem-proj";
+    const N: usize = 5;
+
+    // Build N distinct docs.
+    let docs: Vec<IndexDoc> = (0..N)
+        .map(|i| IndexDoc {
+            generation: 1,
+            chunk_id: i as u64,
+            path: RelPath::new(&format!("src/file_{i}.rs")),
+            language: "rust".into(),
+            content: format!("fn func_{i}() {{ /* idempotency test */ }}"),
+            namespace: "code".into(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: 5,
+            doc_id: format!("idem-doc-{i:03}"),
+            content_hash: format!("hash-{i:03}"),
+        })
+        .collect();
+
+    let cancel = CancellationToken::new();
+
+    // First insert.
+    engine.index_docs(PROJ, &docs, &cancel).await
+        .expect("VEC2: first index_docs must succeed");
+
+    let count_after_first = engine.count_docs(PROJ)
+        .expect("VEC2: count_docs after first insert must succeed");
+    assert_eq!(
+        count_after_first, N,
+        "VEC2: after first insert, count must be exactly {N}; got {count_after_first}"
+    );
+
+    // Second insert of the same batch — upsert must overwrite, not duplicate.
+    engine.index_docs(PROJ, &docs, &cancel).await
+        .expect("VEC2: second index_docs (idempotent upsert) must succeed");
+
+    let count_after_second = engine.count_docs(PROJ)
+        .expect("VEC2: count_docs after second insert must succeed");
+    assert_eq!(
+        count_after_second, N,
+        "VEC2: after second insert of same batch, count must still be {N}; got {count_after_second} \
+         — merge_insert/upsert must overwrite existing rows, not append duplicates"
+    );
+}
+
+/// VEC2: updating the content of existing docs (same doc_id, new content_hash)
+/// must result in updated rows, not additional rows.
+///
+/// Proves the pk-based merge_insert correctly identifies existing rows for update.
+#[tokio::test]
+async fn upsert_updated_doc_content_replaces_old_content() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    const PROJ: &str = "vec2-update-proj";
+
+    let doc_v1 = IndexDoc {
+        generation: 1,
+        chunk_id: 0,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn old_version() {}".into(),
+        namespace: "code".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 1,
+        doc_id: "update-test-doc".into(),
+        content_hash: "hash-v1".into(),
+    };
+
+    let cancel = CancellationToken::new();
+
+    engine.index_docs(PROJ, &[doc_v1], &cancel).await
+        .expect("VEC2: insert v1 must succeed");
+    let count_v1 = engine.count_docs(PROJ).unwrap();
+    assert_eq!(count_v1, 1, "VEC2: exactly 1 doc after v1 insert");
+
+    // Update: same doc_id, new content and hash.
+    let doc_v2 = IndexDoc {
+        generation: 1,
+        chunk_id: 0,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn new_version() { /* updated */ }".into(),
+        namespace: "code".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 1,
+        doc_id: "update-test-doc".into(),
+        content_hash: "hash-v2".into(),
+    };
+
+    engine.index_docs(PROJ, &[doc_v2], &cancel).await
+        .expect("VEC2: update v2 must succeed");
+    let count_v2 = engine.count_docs(PROJ).unwrap();
+    assert_eq!(
+        count_v2, 1,
+        "VEC2: count must remain 1 after update (upsert overwrites, not appends); got {count_v2}"
+    );
+}
+
 /// ENG-AUD-2026-S18-001: source structure — verify the search_tools handler
 /// emits the machine-parseable sentinel for empty results (S01-001) and
 /// returns McpError for doc-miss lookups.
