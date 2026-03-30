@@ -8,10 +8,26 @@ use std::sync::Arc;
 
 use engram_graph::{EdgeKind, GraphStore};
 
+// MIG1/D2: typed partial-failure surface.
+// Thread-local accumulator collects every graph-query context that failed during
+// a single `analyze_full_project` call.  Thread-local is safe here because the
+// function is synchronous; concurrent callers each own their own TLS cell.
+use std::cell::RefCell;
+thread_local! {
+    static MIG_DEGRADED: RefCell<Vec<String>> = RefCell::new(Vec::new());
+}
+#[inline]
+fn record_mig_degraded(context: &'static str) {
+    MIG_DEGRADED.with(|v| v.borrow_mut().push(context.to_string()));
+}
+#[inline]
+fn take_mig_degraded() -> Vec<String> {
+    MIG_DEGRADED.with(|v| std::mem::take(&mut *v.borrow_mut()))
+}
+
 /// MIG1: helper that runs a graph query for edge lists, returning an empty Vec on error
-/// while logging a warning so partial graph failures are observable rather than silently
-/// producing truncated reports.  Previously these called `.unwrap_or_default()` which
-/// swallowed errors without any diagnostic signal.
+/// while logging a warning AND recording the failure context so the final report can
+/// carry an explicit `degraded_sections` list and `report_is_complete = false` flag.
 #[inline]
 fn edges_or_warn(
     result: anyhow::Result<Vec<engram_graph::Edge>>,
@@ -19,6 +35,7 @@ fn edges_or_warn(
 ) -> Vec<engram_graph::Edge> {
     result.unwrap_or_else(|e| {
         tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        record_mig_degraded(context);
         Vec::new()
     })
 }
@@ -31,6 +48,7 @@ fn nodes_or_warn(
 ) -> Vec<engram_graph::Node> {
     result.unwrap_or_else(|e| {
         tracing::warn!("MIG1: graph query failed ({context}): {e:#} — returning empty result");
+        record_mig_degraded(context);
         Vec::new()
     })
 }
@@ -111,6 +129,14 @@ pub struct FullProjectMigrationReport {
 
     // ── The single markdown report ────────────────────────────────────────
     pub markdown_report: String,
+
+    // ── MIG1/D2: report completeness surface ─────────────────────────────
+    /// Contexts of every graph query that failed and returned empty defaults
+    /// rather than live data.  Empty when `report_is_complete` is `true`.
+    pub degraded_sections: Vec<String>,
+    /// `true` iff every graph query succeeded and no section was substituted
+    /// with an empty default.  Consumers should warn operators when `false`.
+    pub report_is_complete: bool,
 }
 
 /// Aggregated cross-cutting concerns derived from per-file dossiers.
@@ -1058,6 +1084,9 @@ pub fn analyze_full_project(
     bundle: &ProjectFileBundle,
     max_files: usize,
 ) -> anyhow::Result<FullProjectMigrationReport> {
+    // MIG1/D2: reset per-call degradation accumulator before any graph queries.
+    MIG_DEGRADED.with(|v| v.borrow_mut().clear());
+
     let now = {
         use std::time::{SystemTime, UNIX_EPOCH};
         let secs = SystemTime::now()
@@ -1498,6 +1527,21 @@ pub fn analyze_full_project(
         &session_workflows,
     );
 
+    // MIG1/D2: drain the TLS accumulator before constructing the report.
+    // Both derived variables must be computed before the struct literal so that
+    // `report_is_complete` is based on the same drain as `degraded_sections`.
+    let degraded_sections = take_mig_degraded();
+    if !degraded_sections.is_empty() {
+        tracing::warn!(
+            project_id,
+            degraded_count = degraded_sections.len(),
+            "MIG1: report generated with {} degraded section(s) — \
+             some graph queries failed and sections contain empty defaults",
+            degraded_sections.len()
+        );
+    }
+    let report_is_complete = degraded_sections.is_empty();
+
     Ok(FullProjectMigrationReport {
         project_id: project_id.to_string(),
         target_stack: target_stack.to_string(),
@@ -1537,6 +1581,8 @@ pub fn analyze_full_project(
         database_intelligence,
         session_workflows,
         markdown_report,
+        degraded_sections,
+        report_is_complete,
     })
 }
 
@@ -12392,6 +12438,78 @@ public class MapData : WebService {
             tag,
             count
         );
+    }
+
+    // ── MIG1/D2: report completeness surface ──────────────────────────────────
+
+    /// MIG1/D2: `edges_or_warn` records degraded sections in TLS when it handles
+    /// an error, and `take_mig_degraded` drains the accumulator correctly.
+    #[test]
+    fn mig1_edges_or_warn_records_degradation() {
+        // Reset any stale TLS state from prior tests.
+        MIG_DEGRADED.with(|v| v.borrow_mut().clear());
+
+        // Simulate an error path in edges_or_warn.
+        let _empty: Vec<engram_graph::Edge> =
+            edges_or_warn(Err(anyhow::anyhow!("simulated graph failure")), "test_context_A");
+        let _empty2: Vec<engram_graph::Edge> =
+            edges_or_warn(Err(anyhow::anyhow!("another failure")), "test_context_B");
+
+        let degraded = take_mig_degraded();
+        assert_eq!(degraded.len(), 2, "MIG1: two failures must produce two degraded entries");
+        assert!(degraded.contains(&"test_context_A".to_string()));
+        assert!(degraded.contains(&"test_context_B".to_string()));
+
+        // After drain, TLS is empty.
+        let after = take_mig_degraded();
+        assert!(after.is_empty(), "MIG1: TLS must be empty after drain");
+    }
+
+    /// MIG1/D2: `nodes_or_warn` also records degraded sections.
+    #[test]
+    fn mig1_nodes_or_warn_records_degradation() {
+        MIG_DEGRADED.with(|v| v.borrow_mut().clear());
+
+        let _empty: Vec<engram_graph::Node> =
+            nodes_or_warn(Err(anyhow::anyhow!("node query failure")), "node_context");
+
+        let degraded = take_mig_degraded();
+        assert_eq!(degraded.len(), 1, "MIG1: one node failure must produce one degraded entry");
+        assert_eq!(degraded[0], "node_context");
+    }
+
+    /// MIG1/D2: `edges_or_warn` does NOT record when the query succeeds.
+    #[test]
+    fn mig1_edges_or_warn_does_not_record_on_success() {
+        MIG_DEGRADED.with(|v| v.borrow_mut().clear());
+
+        let _result: Vec<engram_graph::Edge> =
+            edges_or_warn(Ok(Vec::new()), "success_context");
+
+        let degraded = take_mig_degraded();
+        assert!(
+            degraded.is_empty(),
+            "MIG1: successful graph query must not add to degraded_sections"
+        );
+    }
+
+    /// MIG1/D2: `report_is_complete` is derived correctly from the degraded list.
+    #[test]
+    fn mig1_report_is_complete_derived_correctly() {
+        MIG_DEGRADED.with(|v| v.borrow_mut().clear());
+
+        // No failures → report_is_complete should be true.
+        let degraded = take_mig_degraded();
+        assert!(degraded.is_empty());
+        let complete = degraded.is_empty();
+        assert!(complete, "MIG1: empty degraded_sections must give report_is_complete = true");
+
+        // One failure → report_is_complete should be false.
+        let _: Vec<engram_graph::Edge> =
+            edges_or_warn(Err(anyhow::anyhow!("failure")), "ctx");
+        let degraded2 = take_mig_degraded();
+        let complete2 = degraded2.is_empty();
+        assert!(!complete2, "MIG1: non-empty degraded_sections must give report_is_complete = false");
     }
 
     /// Verifies that when Global.asax does not exist on disk, the analysis
