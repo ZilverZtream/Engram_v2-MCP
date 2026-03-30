@@ -6,7 +6,13 @@ use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc;
 
-pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
+/// CANCEL1: watcher now accepts a shutdown token, matching the contract of
+/// dreamer/immune/gc so all background actors exit cooperatively on shutdown.
+pub async fn run_watcher(
+    state: AppState,
+    mut rx: Receiver<AppEvent>,
+    shutdown: tokio_util::sync::CancellationToken,
+) {
     let mut watchers: HashMap<String, RecommendedWatcher> = HashMap::new();
     let mut pending_updates: HashMap<String, Instant> = HashMap::new();
     let mut update_cancels: HashMap<String, tokio_util::sync::CancellationToken> = HashMap::new();
@@ -88,6 +94,10 @@ pub async fn run_watcher(state: AppState, mut rx: Receiver<AppEvent>) {
 
     loop {
         tokio::select! {
+            _ = shutdown.cancelled() => {
+                tracing::info!("watcher: shutdown token cancelled — exiting");
+                return;
+            }
             _ = ticker.tick() => {
                 // ENG-AUD-2026-EXH-0005: drain overflow-dirty set so dropped events
                 // are still eventually processed (convergence guarantee).

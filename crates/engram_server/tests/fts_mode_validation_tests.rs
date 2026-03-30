@@ -462,13 +462,14 @@ fn watcher_overflow_insert_recovers_from_poisoned_mutex() {
     );
 }
 
-// ── VEC2: upsert_vectors delete-then-add contract ────────────────────────────
+// ── VEC1 (atomic upsert): merge_insert replaces delete-then-add ──────────────
 
-/// VEC2: indexing the same doc twice must not duplicate it in vector search results.
+/// VEC1 (atomic upsert): indexing the same doc twice must not duplicate it in
+/// vector search results.
 ///
-/// This exercises the delete-then-add upsert contract in `upsert_vectors`. If the
-/// delete step worked but add failed, the doc would be absent — `upsert_vectors`
-/// propagates such failures with a "VEC2" tag in the error message.
+/// Previously used non-atomic delete-then-add; now uses LanceDB `merge_insert`
+/// keyed on `pk`, which updates existing rows and inserts new ones atomically —
+/// no window where rows are temporarily absent.
 #[cfg(feature = "vector")]
 #[tokio::test]
 async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
@@ -532,18 +533,14 @@ async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
     );
 }
 
-/// VEC2: the error message emitted when `add` fails must contain "VEC2" to make
-/// the fault identifiable in logs. Verified by checking the static string in vector.rs.
+/// VEC1: the error message emitted when `merge_insert` fails must contain "VEC1"
+/// so operators can grep for it in logs.
 #[test]
-fn vec2_error_message_contains_vec2_tag() {
-    // The error string is defined in upsert_vectors in vector.rs.
-    // This static string test documents the logging contract so operators can
-    // grep for "VEC2" in log output to identify the failure.
-    let expected_fragment = "VEC2";
-    let actual_msg = "VEC2: LanceDB add failed after delete — rows are temporarily missing; \
-                      retry the full upsert to restore them: simulated error";
+fn vec1_upsert_error_message_contains_vec1_tag() {
+    let expected_fragment = "VEC1";
+    let actual_msg = "VEC1: LanceDB merge_insert failed: simulated error";
     assert!(
         actual_msg.contains(expected_fragment),
-        "VEC2: error message must contain 'VEC2' tag for log grep-ability; got: {actual_msg}"
+        "VEC1: error message must contain 'VEC1' tag for log grep-ability; got: {actual_msg}"
     );
 }

@@ -1,6 +1,5 @@
 use arrow_array::{
-    Array, FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator, StringArray,
-    UInt64Array,
+    FixedSizeListArray, Float32Array, RecordBatch, RecordBatchIterator, StringArray, UInt64Array,
 };
 use arrow_schema::{DataType, Field, Schema};
 use lance_arrow::FixedSizeListArrayExt;
@@ -119,40 +118,29 @@ pub async fn open_or_create_table(
     }
 }
 
-/// Upsert vectors keyed by `pk`. Deletes existing rows with matching pks before inserting.
+/// Upsert vectors keyed by `pk`.
+///
+/// VEC1 (non-atomic fix): uses LanceDB `merge_insert` (match on `pk`) instead of
+/// the previous delete-then-add pattern. `merge_insert` is a single atomic
+/// operation: existing rows with matching `pk` are updated in place, new rows are
+/// inserted, and no window exists where rows are temporarily absent between the
+/// delete and the add.
 pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow::Result<()> {
     if batches.is_empty() {
         return Ok(());
     }
 
-    // Collect all pks to delete before inserting (raw, un-escaped values)
-    let mut all_pks: Vec<String> = Vec::new();
-    for batch in &batches {
-        if let Some(pk_col) = batch
-            .column_by_name("pk")
-            .and_then(|c| c.as_any().downcast_ref::<StringArray>())
-        {
-            for i in 0..pk_col.len() {
-                all_pks.push(pk_col.value(i).to_string());
-            }
-        }
-    }
-
-    // Delete in batches of 500 to avoid overly long SQL; escaping handled in build_pk_filter.
-    for chunk in all_pks.chunks(500) {
-        let filter = build_pk_filter(chunk);
-        table.delete(&filter).await?;
-    }
-
-    // Now insert new rows
     let schema = batches[0].schema();
     let reader = RecordBatchIterator::new(batches.into_iter().map(Ok), schema);
-    table.add(reader).execute().await.map_err(|e| {
-        anyhow::anyhow!(
-            "VEC2: LanceDB add failed after delete — rows are temporarily missing; \
-             retry the full upsert to restore them: {e:#}"
-        )
-    })?;
+
+    let mut merge = table.merge_insert(&["pk"]);
+    merge.when_matched_update_all(None);
+    merge.when_not_matched_insert_all();
+    merge
+        .execute(Box::new(reader))
+        .await
+        .map_err(|e| anyhow::anyhow!("VEC1: LanceDB merge_insert failed: {e:#}"))?;
+
     Ok(())
 }
 
