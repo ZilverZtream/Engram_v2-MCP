@@ -54,6 +54,9 @@ fn from_rel_paths(root: &Path, rels: &[String]) -> Vec<PathBuf> {
         .collect()
 }
 
+// Use the shared handler-boundary validation from mod.rs.
+use super::validate_project_id;
+
 // ─── Panic-safe job cleanup guard ────────────────────────────────────────────
 
 /// RAII guard that commits critical bookkeeping even when a `tokio::spawn` task
@@ -1378,6 +1381,7 @@ impl Engram {
         &self,
         req: UpdateProjectRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let active_gen = self.get_active_generation(&req.project_id).await?;
         let new_gen = active_gen.saturating_add(1);
 
@@ -1598,6 +1602,7 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         // Fix 6: Redb reads are synchronous blocking I/O and must not execute on
         // a Tokio worker thread directly.
         let reg = self.state.registry.clone();
@@ -1623,6 +1628,7 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let generation = self.get_active_generation(&pid).await.unwrap_or(1);
@@ -1656,6 +1662,7 @@ impl Engram {
         &self,
         req: RepairProjectRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id.clone();
         let _ = self.ensure_project_record(&pid).await?;
 
@@ -1728,6 +1735,7 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id;
 
         // Fix 9: Signal and abort every active job for this project before
@@ -1806,6 +1814,7 @@ impl Engram {
         &self,
         req: WatchProjectRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let rec = self.ensure_project_record(&req.project_id).await?;
         let watch = WatchRecord {
             watch_id: "default".into(),
@@ -1831,6 +1840,7 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.state.events_tx.send(AppEvent::WatchUpdate {
             project_id: req.project_id,
             directory: "".into(),
@@ -1891,6 +1901,7 @@ impl Engram {
         &self,
         req: IncrementalIndexingGcRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let active_gen = self.get_active_generation(&pid).await?;
@@ -2185,6 +2196,7 @@ impl Engram {
         &self,
         req: UpdateMemoryBankRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_record(&req.project_id).await?;
 
         let section_id = req.section_id.unwrap_or_else(|| req.section.clone());
@@ -2295,6 +2307,7 @@ impl Engram {
         &self,
         req: AddRepoRuleRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let rule_id = req.rule_id.unwrap_or_else(|| Uuid::new_v4().to_string());
         let rule = engram_core::RepoRule {
             rule_id: rule_id.clone(),

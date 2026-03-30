@@ -1,4 +1,5 @@
 // ENG-AUD-2026-S01-001
+use crate::handlers::validate_project_id;
 use crate::models::{
     AnalyzeErrorStackRequest, FindSymbolReferencesRequest, GetChunkRequest, SearchMemoryRequest,
     VectorSearchRequest,
@@ -16,6 +17,7 @@ impl Engram {
         &self,
         req: SearchMemoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
@@ -181,6 +183,7 @@ impl Engram {
         &self,
         req: VectorSearchRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top_k = req.sanitized_top_k();
@@ -247,6 +250,7 @@ impl Engram {
     }
 
     pub async fn handle_get_chunk(&self, req: GetChunkRequest) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
@@ -302,6 +306,7 @@ impl Engram {
         &self,
         req: FindSymbolReferencesRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let max_incoming = req.sanitized_max_incoming();
         let max_outgoing_per_kind = req.sanitized_max_outgoing_per_kind();
         let ps = self.ensure_project_runtime(&req.project_id).await?;
@@ -569,6 +574,7 @@ impl Engram {
         &self,
         req: AnalyzeErrorStackRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 

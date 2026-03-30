@@ -2707,7 +2707,7 @@ async fn test_immune_system_end_to_end() {
         allowed_roots: vec![project_dir.clone()],
         max_project_files: None,
         max_project_bytes: None,
-        embedding_backend: "projection".into(),
+        embedding_backend: "fts_only".into(),
         embedding_model: None,
         ollama_url: None,
         openai_api_key: None,

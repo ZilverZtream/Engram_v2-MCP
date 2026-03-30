@@ -1,3 +1,4 @@
+use crate::handlers::validate_project_id;
 use crate::models::{
     AntiPatternGuardRequest, AstDependencyGraphRequest, ComputeBlastRadiusRequest,
     DetectDesignPatternsRequest, DreamProjectRequest, ExportCapturePackRequest,
@@ -56,6 +57,7 @@ impl Engram {
         &self,
         req: ImpactAnalysisRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         if req.symbol_fqn.is_none() && req.file_path.is_none() {
@@ -209,6 +211,7 @@ impl Engram {
         &self,
         req: crate::models::GetTableSchemaRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         let graph = self.state.graph.clone();
@@ -337,6 +340,7 @@ impl Engram {
         &self,
         req: TraceStateUsageRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         let graph = self.state.graph.clone();
@@ -449,6 +453,7 @@ impl Engram {
         &self,
         req: TraceUiEventRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         let mut start_id = if let Some(ref ctrl) = req.control_id {
@@ -591,6 +596,7 @@ impl Engram {
         &self,
         req: TraceUiActionRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
@@ -694,6 +700,7 @@ impl Engram {
         &self,
         req: ExportCapturePackRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id.clone();
         let _ps = self.ensure_project_runtime(&pid).await?;
 
@@ -804,6 +811,7 @@ impl Engram {
         &self,
         req: GetUiBlueprintRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
         let graph = self.state.graph.clone();
@@ -890,6 +898,7 @@ impl Engram {
         &self,
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let pid = req.project_id;
         let rec = self.ensure_project_record(&pid).await?;
         let gen_ = self.get_active_generation(&pid).await.unwrap_or(1);
@@ -1254,6 +1263,7 @@ impl Engram {
         &self,
         req: MapAjaxRegionsRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
@@ -2269,10 +2279,17 @@ impl Engram {
             &self.state.cfg.adp_rollout_phase,
         )
         .map_err(|e| McpError::internal_error(format!("invalid adp_rollout_phase: {e}"), None))?;
+        // ADP1: read the runtime kill-switch (OR of config + persisted registry
+        // value) rather than the immutable Config field. This ensures the kill-
+        // switch survives process restarts and can be toggled at runtime.
+        let kill_switch = self
+            .state
+            .adp_kill_switch
+            .load(std::sync::atomic::Ordering::Acquire);
         let decision = crate::services::autonomous_decision_service::apply_rollout_policy(
             &raw_decision,
             phase,
-            self.state.cfg.adp_kill_switch,
+            kill_switch,
         );
 
         if req.output_json {

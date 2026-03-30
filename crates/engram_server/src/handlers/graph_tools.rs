@@ -1,3 +1,4 @@
+use crate::handlers::validate_project_id;
 use crate::models::{
     Direction, FindReferencesRequest, GraphSearchRequest, QueryGraphNodesRequest,
     TraverseGraphRequest,
@@ -16,6 +17,7 @@ impl Engram {
         &self,
         req: QueryGraphNodesRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let nodes = graph
@@ -60,6 +62,7 @@ impl Engram {
         &self,
         req: FindReferencesRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let kind = match req.edge_kind.as_deref() {
             Some("co_occurrence") => Some(EdgeKind::CoOccurrence),
             Some("temporal_coupling") => Some(EdgeKind::TemporalCoupling),
@@ -134,6 +137,7 @@ impl Engram {
         &self,
         req: GraphSearchRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let max_results = req.sanitized_max_results();
@@ -343,6 +347,7 @@ impl Engram {
         &self,
         req: TraverseGraphRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let kinds = req.edge_kinds.as_ref().map(|v| {
             v.iter()
                 .filter_map(|s| EdgeKind::parse(s.as_str()))
