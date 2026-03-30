@@ -9,6 +9,7 @@
 use engram_ml::{
     build_embedder, Embedder, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder,
 };
+use tokio_util::sync::CancellationToken;
 
 // ── ProjectionEmbedder — fully local, deterministic ───────────────────────────
 
@@ -282,6 +283,93 @@ async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
     assert!(
         !v.is_empty(),
         "candle alias embedder must return a non-empty vector"
+    );
+}
+
+// ── EMB1: mid-flight cancellation tests ──────────────────────────────────────
+//
+// These tests prove that `embed_batch_cancellable` actually interrupts an
+// in-flight HTTP request when the CancellationToken fires, rather than waiting
+// for the full HTTP timeout (60 s).  A mock server accepts the TCP connection
+// but never sends a response, simulating a stalled remote.
+
+/// EMB1: Cancellation fires while the Ollama mock server is slow to respond.
+/// The `tokio::select!` around `send().await` must interrupt within 5 s,
+/// not wait for the 60-second HTTP timeout.
+#[tokio::test]
+async fn ollama_batch_mid_flight_cancellation_interrupts_request() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let _server_handle = tokio::spawn(async move {
+        // Accept but never respond — simulates a network stall.
+        if let Ok((_stream, _)) = listener.accept().await {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    });
+
+    let url = format!("http://127.0.0.1:{port}");
+    let embedder = OllamaEmbedder::new("nomic-embed-text", url, 4, 60)
+        .expect("OllamaEmbedder::new must succeed");
+
+    let cancel = CancellationToken::new();
+    let cancel_clone = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        cancel_clone.cancel();
+    });
+
+    let start = std::time::Instant::now();
+    let result = embedder
+        .embed_batch_cancellable(&["text_a", "text_b"], &cancel)
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_err(),
+        "EMB1: mid-flight cancellation must return Err, not hang until HTTP timeout"
+    );
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "EMB1: cancellation must interrupt within 5s, not wait for 60s HTTP timeout (elapsed: {elapsed:?})"
+    );
+}
+
+/// EMB1: Same test for the OpenAI path — `tokio::select!` around `send().await`
+/// must interrupt on cancellation rather than waiting for the HTTP timeout.
+#[tokio::test]
+async fn openai_batch_mid_flight_cancellation_interrupts_request() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let _server_handle = tokio::spawn(async move {
+        if let Ok((_stream, _)) = listener.accept().await {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    });
+
+    let url = format!("http://127.0.0.1:{port}/v1");
+    let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4, 60)
+        .expect("OpenAIEmbedder::new must succeed");
+
+    let cancel = CancellationToken::new();
+    let cancel_clone = cancel.clone();
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        cancel_clone.cancel();
+    });
+
+    let start = std::time::Instant::now();
+    let result = embedder
+        .embed_batch_cancellable(&["text_a", "text_b"], &cancel)
+        .await;
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_err(),
+        "EMB1: OpenAI mid-flight cancellation must return Err, not hang until HTTP timeout"
+    );
+    assert!(
+        elapsed < std::time::Duration::from_secs(5),
+        "EMB1: OpenAI cancellation must interrupt within 5s (elapsed: {elapsed:?})"
     );
 }
 
