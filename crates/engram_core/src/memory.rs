@@ -75,37 +75,49 @@ impl MemoryBudget {
     }
 
     /// Attempt to allocate `bytes` from the budget.
+    ///
+    /// MEM1: uses a CAS loop (`fetch_update`) instead of optimistic `fetch_add` +
+    /// rollback to eliminate the transient over-commit window where concurrent
+    /// callers could simultaneously exceed the hard limit before either rolls back.
     pub fn try_allocate(&self, bytes: u64, subsystem: Subsystem) -> MemoryDecision {
         let budget = self.inner.budget.load(Ordering::Relaxed);
         let soft_limit = (budget as f64 * SOFT_LIMIT_RATIO) as u64;
-        let prev = self.inner.used.fetch_add(bytes, Ordering::Relaxed);
-        let new_used = prev + bytes;
 
-        // Update subsystem counter
+        // CAS loop: only commit the addition when the new value stays within budget.
+        let result = self.inner.used.fetch_update(
+            Ordering::SeqCst,
+            Ordering::SeqCst,
+            |current| {
+                let new_used = current.saturating_add(bytes);
+                if new_used > budget {
+                    None // reject — don't commit
+                } else {
+                    Some(new_used)
+                }
+            },
+        );
+
+        let new_used = match result {
+            Err(_current) => {
+                // Hard limit: CAS refused; no bytes were written.
+                self.inner.pressure_active.store(true, Ordering::Relaxed);
+                metrics::metrics().backpressure_rejections.inc();
+                tracing::warn!(
+                    budget,
+                    subsystem = ?subsystem,
+                    "Memory budget hard limit exceeded — rejecting allocation of {bytes} bytes"
+                );
+                return MemoryDecision::Rejected;
+            }
+            Ok(new_used) => new_used,
+        };
+
+        // Allocation committed — update subsystem counter and metrics.
         self.subsystem_counter(subsystem)
             .fetch_add(bytes, Ordering::Relaxed);
-
-        // Update global metrics
         metrics::metrics().memory_bytes_used.set(new_used as i64);
 
-        if new_used > budget {
-            // Hard limit: roll back and reject
-            self.inner.used.fetch_sub(bytes, Ordering::Relaxed);
-            self.subsystem_counter(subsystem)
-                .fetch_sub(bytes, Ordering::Relaxed);
-            self.inner.pressure_active.store(true, Ordering::Relaxed);
-            metrics::metrics().backpressure_rejections.inc();
-            metrics::metrics()
-                .memory_bytes_used
-                .set(self.inner.used.load(Ordering::Relaxed) as i64);
-            tracing::warn!(
-                used = new_used,
-                budget,
-                subsystem = ?subsystem,
-                "Memory budget hard limit exceeded — rejecting allocation of {bytes} bytes"
-            );
-            MemoryDecision::Rejected
-        } else if new_used > soft_limit {
+        if new_used > soft_limit {
             self.inner.pressure_active.store(true, Ordering::Relaxed);
             metrics::metrics().memory_pressure_events.inc();
             tracing::debug!(

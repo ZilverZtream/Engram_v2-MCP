@@ -34,6 +34,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(actors::watcher::run_watcher(
         state.clone(),
         state.events_tx.subscribe(),
+        shutdown.clone(),
     ));
     tokio::spawn(actors::gc::run_gc_scheduler(state.clone(), shutdown.clone()));
     tokio::spawn(actors::immune::run_immune_actor(state.clone(), shutdown.clone()));

@@ -1171,10 +1171,11 @@ async fn test_watch_project() {
     let (state, _events_rx) = AppState::new(cfg).unwrap();
     let engram = Engram::new(state.clone());
 
-    // Start the watcher actor
+    // Start the watcher actor (shutdown token unused in tests — dropped immediately)
     tokio::spawn(engram_server::actors::watcher::run_watcher(
         state.clone(),
         state.events_tx.subscribe(),
+        tokio_util::sync::CancellationToken::new(),
     ));
 
     // 1. Index Project
