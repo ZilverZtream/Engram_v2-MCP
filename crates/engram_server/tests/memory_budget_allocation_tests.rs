@@ -201,3 +201,55 @@ fn breakdown_reflects_per_subsystem_usage() {
     assert_eq!(bd.graph, 3_000, "graph counter must reflect 3 KB allocation");
     assert_eq!(bd.total_used, 6_000, "total_used must be sum of all subsystem allocations");
 }
+
+/// MEM1-e5d7: AllocationGuard must release its reserved bytes even when the
+/// enclosing scope exits via panic unwinding.
+///
+/// Uses `std::panic::catch_unwind` to simulate a panic mid-task and verifies
+/// that the budget shows the reservation was returned after unwinding.
+/// This proves the RAII Drop impl is called on unwind, preventing "memory leak"
+/// in the budget accounting when tasks crash.
+#[test]
+fn allocation_guard_releases_bytes_on_panic_unwind() {
+    let budget = MemoryBudget::new(200_000); // 200 KB
+
+    // Record used bytes before the panicking scope.
+    let used_before = budget.used();
+
+    // Clone budget so it can be moved into the catch_unwind closure.
+    let budget_clone = budget.clone();
+    let _ = std::panic::catch_unwind(move || {
+        let _guard = AllocationGuard::try_new(&budget_clone, 100_000, Subsystem::Graph, "panic-test-op")
+            .expect("allocation must succeed within budget");
+        // Guard is held — panic here — Drop must run on unwind.
+        panic!("MEM1-e5d7: intentional panic to test unwind cleanup");
+    });
+
+    // After unwind, the guard's Drop must have released the 100 KB.
+    let used_after = budget.used();
+    assert_eq!(
+        used_after, used_before,
+        "MEM1-e5d7: AllocationGuard must release {} bytes on panic unwind; \
+         used before={used_before}, used after={used_after} — budget leak detected",
+        100_000
+    );
+}
+
+/// MEM1-e5d7: structural check — AllocationGuard Drop calls release().
+///
+/// Verifies the source explicitly implements Drop for AllocationGuard and
+/// calls budget.release() — not a no-op or commented-out implementation.
+#[test]
+fn allocation_guard_drop_impl_calls_release() {
+    let source = include_str!("../../engram_core/src/memory.rs");
+
+    assert!(
+        source.contains("impl Drop for AllocationGuard"),
+        "MEM1-e5d7: AllocationGuard must implement Drop to guarantee bytes are released on unwind"
+    );
+    assert!(
+        source.contains("self.budget.release("),
+        "MEM1-e5d7: AllocationGuard::drop must call self.budget.release() — \
+         without this call, budget bytes leak on panic unwind or early returns"
+    );
+}

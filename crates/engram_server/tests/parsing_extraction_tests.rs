@@ -354,3 +354,97 @@ fn f5() {}
         "must extract exactly 5 function symbols; got {fn_count}: {syms:?}"
     );
 }
+
+// ── PARSE1-u2k8: adversarial deeply-nested inputs ────────────────────────────
+
+/// PARSE1-u2k8: deeply nested Rust blocks (200 levels) must not cause a stack
+/// overflow or panic — the extractor must return within a bounded time budget.
+///
+/// Regression: naive recursive AST walkers can hit stack limits on pathological
+/// nesting. This test proves the extractor terminates without panic.
+#[test]
+fn extract_deeply_nested_rust_blocks_does_not_panic() {
+    const DEPTH: usize = 200;
+    let deadline = std::time::Duration::from_secs(5);
+
+    let ex = extractor();
+
+    // Build deeply nested block: fn f() { fn g() { fn h() { ... } } }
+    let open: String = (0..DEPTH).map(|i| format!("mod m{i} {{\n")).collect();
+    let close: String = "}\n".repeat(DEPTH);
+    let src = format!("fn outer() {{}}\n{open}fn inner() {{}}\n{close}");
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| {
+        ex.extract(std::path::Path::new("deep.rs"), &src)
+    });
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_ok(),
+        "PARSE1-u2k8: extractor must not panic on deeply nested Rust source ({DEPTH} levels)"
+    );
+    assert!(
+        elapsed < deadline,
+        "PARSE1-u2k8: extractor on deeply nested Rust source must complete within {deadline:?}; \
+         took {elapsed:?} — likely exponential recursion in AST traversal"
+    );
+}
+
+/// PARSE1-u2k8: deeply nested C# braces must not cause a stack overflow or panic.
+#[test]
+fn extract_deeply_nested_csharp_classes_does_not_panic() {
+    const DEPTH: usize = 150;
+    let deadline = std::time::Duration::from_secs(5);
+
+    let ex = extractor();
+
+    // Build deeply nested C# class: class A { class B { class C { ... } } }
+    let open: String = (0..DEPTH).map(|i| format!("class C{i} {{\n")).collect();
+    let close: String = "}\n".repeat(DEPTH);
+    let src = format!("{open}public void Method() {{}}\n{close}");
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| {
+        ex.extract(std::path::Path::new("deep.cs"), &src)
+    });
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_ok(),
+        "PARSE1-u2k8: extractor must not panic on deeply nested C# source ({DEPTH} levels)"
+    );
+    assert!(
+        elapsed < deadline,
+        "PARSE1-u2k8: extractor on deeply nested C# source must complete within {deadline:?}; \
+         took {elapsed:?}"
+    );
+}
+
+/// PARSE1-u2k8: a file containing extremely long lines (1 MB of repeated chars)
+/// must not cause a panic or allocation failure — proves no O(n²) line splitting.
+#[test]
+fn extract_very_long_single_line_does_not_panic() {
+    let deadline = std::time::Duration::from_secs(5);
+    let ex = extractor();
+
+    // A single 500 KB line with a valid Rust function prefix.
+    let long_comment = "// ".to_string() + &"a".repeat(500_000);
+    let src = format!("{long_comment}\nfn ok() {{}}");
+
+    let start = std::time::Instant::now();
+    let result = std::panic::catch_unwind(|| {
+        ex.extract(std::path::Path::new("longline.rs"), &src)
+    });
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_ok(),
+        "PARSE1-u2k8: extractor must not panic on 500 KB single line"
+    );
+    assert!(
+        elapsed < deadline,
+        "PARSE1-u2k8: extractor on long-line source must complete within {deadline:?}; \
+         took {elapsed:?}"
+    );
+}

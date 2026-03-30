@@ -74,7 +74,12 @@ async fn gc_skips_purge_when_active_indexing_count_nonzero() {
     );
 
     shutdown.cancel();
-    let _ = tokio::time::timeout(Duration::from_secs(2), gc_handle).await;
+    let shutdown_result = tokio::time::timeout(Duration::from_secs(2), gc_handle).await;
+    assert!(
+        shutdown_result.is_ok(),
+        "X5-gcjob-7m3d: GC task must exit within 2s after shutdown cancellation — \
+         timeout indicates cooperative cancellation via select! is not propagating correctly"
+    );
 }
 
 /// JOB1-m2q7: GC must skip a project when `active_generation` metadata is corrupt
@@ -193,5 +198,10 @@ async fn gc_does_not_delete_active_job_checkpoint() {
     );
 
     shutdown.cancel();
-    let _ = tokio::time::timeout(Duration::from_secs(2), gc_handle).await;
+    let shutdown_result = tokio::time::timeout(Duration::from_secs(2), gc_handle).await;
+    assert!(
+        shutdown_result.is_ok(),
+        "X5-gcjob-7m3d: GC must exit cleanly within 2s after cancellation with an \
+         active checkpoint present — timeout means the GC loop is not responding to shutdown"
+    );
 }

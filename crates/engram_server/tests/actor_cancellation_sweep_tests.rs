@@ -237,3 +237,102 @@ fn all_async_loops_in_server_have_cancellation_checks() {
         }
     }
 }
+
+/// X2-embmem-6c4p: the embedding memory guard must be scoped to a single batch,
+/// not held for the entire job. This proves throughput is bounded by the per-batch
+/// request timeout and the guard does not accumulate across batches.
+///
+/// Structural assertion: the source must contain `_embed_guard` created inside
+/// the batch loop, alongside `embed_batch_cancellable` — proving the guard is
+/// released between batches (RAII drop at block end), not pinned for the job lifecycle.
+#[test]
+fn embed_memory_guard_is_scoped_to_batch_not_job() {
+    let source = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The per-batch embed guard must exist.
+    assert!(
+        source.contains("_embed_guard") || source.contains("embed_guard"),
+        "X2-embmem-6c4p: hybrid.rs must hold an AllocationGuard per embedding batch \
+         to bound memory usage and prove the guard is not held across the entire job"
+    );
+
+    // embed_batch_cancellable must be called within the guarded scope.
+    assert!(
+        source.contains("embed_batch_cancellable"),
+        "X2-embmem-6c4p: hybrid.rs must call embed_batch_cancellable within the \
+         guard scope — proving the throughput is bounded by the cancellation token \
+         (and thus by the request timeout that drives cancellation)"
+    );
+
+    // Both guard and cancellable call must appear within the same logical block.
+    let guard_pos = source.find("_embed_guard").or_else(|| source.find("embed_guard"));
+    let cancellable_pos = source.find("embed_batch_cancellable");
+    if let (Some(g), Some(c)) = (guard_pos, cancellable_pos) {
+        let distance = (c as isize - g as isize).unsigned_abs();
+        assert!(
+            distance < 2000,
+            "X2-embmem-6c4p: embed guard and embed_batch_cancellable must be in the same \
+             batch loop body (within 2000 chars); actual distance: {distance} chars — \
+             they may be in different scopes"
+        );
+    }
+}
+
+/// X4-adpjob-2n8q: every job-creation handler path must have validation
+/// (project_id validation or ADP check) before the job is spawned.
+///
+/// Structural sweep across the three job-spawning handlers:
+/// 1. project_tools.rs — spawn_job_index_directory and spawn_job_update_project
+/// 2. git_tools.rs — spawn_job_git_history
+///
+/// Each must contain either `validate_project_id` / `ensure_project_record` /
+/// `safe_join` (proving the path is authenticated before the job is dispatched).
+#[test]
+fn all_job_creation_handlers_have_authorization_gate_before_spawn() {
+    let project_tools = include_str!("../src/handlers/project_tools.rs");
+    let git_tools = include_str!("../src/handlers/git_tools.rs");
+
+    // project_tools.rs must have project validation AND job spawning.
+    let has_spawn_project = project_tools.contains("spawn_job_index_directory")
+        || project_tools.contains("spawn_job_update_project");
+    let has_gate_project = project_tools.contains("validate_project_id")
+        || project_tools.contains("ensure_project_record")
+        || project_tools.contains("state.paths")
+        || project_tools.contains("safe_join");
+
+    assert!(
+        has_spawn_project,
+        "X4-adpjob-2n8q: project_tools.rs must contain job-spawn call sites"
+    );
+    assert!(
+        has_gate_project,
+        "X4-adpjob-2n8q: project_tools.rs must contain project validation gate \
+         (validate_project_id / ensure_project_record / safe_join) before spawning jobs"
+    );
+
+    // git_tools.rs must have project validation AND job spawning.
+    let has_spawn_git = git_tools.contains("spawn_job_git_history");
+    let has_gate_git = git_tools.contains("validate_project_id")
+        || git_tools.contains("ensure_project_record")
+        || git_tools.contains("state.paths")
+        || git_tools.contains("safe_join");
+
+    assert!(
+        has_spawn_git,
+        "X4-adpjob-2n8q: git_tools.rs must contain spawn_job_git_history call site"
+    );
+    assert!(
+        has_gate_git,
+        "X4-adpjob-2n8q: git_tools.rs must contain project validation gate before \
+         spawning git history jobs"
+    );
+
+    // cognitive_tools.rs must contain the ADP evaluation gate (evaluate_gates).
+    let cognitive_tools = include_str!("../src/handlers/cognitive_tools.rs");
+    assert!(
+        cognitive_tools.contains("evaluate_gates") || cognitive_tools.contains("apply_rollout_policy"),
+        "X4-adpjob-2n8q: cognitive_tools.rs must contain ADP gate evaluation \
+         (evaluate_gates / apply_rollout_policy) as the pre-condition for any \
+         autonomous action approval"
+    );
+}

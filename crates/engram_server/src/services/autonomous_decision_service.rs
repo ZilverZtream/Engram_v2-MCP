@@ -1129,6 +1129,11 @@ pub struct ConfigSnapshot {
     /// Allows replay verification to detect evidence tampering or serialization
     /// drift independently of threshold values and code-version fields.
     pub evidence_hash: String,
+    /// ADP1-s2x6: Cargo package version of the engram_server binary at decision time.
+    /// Allows replays to detect binary-version drift even when gate thresholds
+    /// and gate_code_version strings are identical — a new release may change
+    /// gate logic without changing the manually-maintained gate_code_version tag.
+    pub crate_version: String,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1170,6 +1175,9 @@ pub fn build_decision_report(
     let evidence_hash = blake3::hash(&evidence_json).to_hex().to_string();
     let config_snapshot = ConfigSnapshot {
         evidence_hash,
+        // ADP1-s2x6: always stamp with the compile-time binary version so that
+        // replays can detect gate-logic drift even when gate_code_version is unchanged.
+        crate_version: env!("CARGO_PKG_VERSION").into(),
         ..config_snapshot
     };
 
@@ -1682,100 +1690,274 @@ mod tests {
         assert!(decision.failed_gates.contains(&"safety_policy".into()));
     }
 
+    /// ADP2-q8l4: expanded confusion matrix with ≥20 synthetic scenarios covering
+    /// diverse edge cases across all three verdicts (allow / deny / abstain).
+    ///
+    /// Scenarios are arranged in three blocks:
+    ///  - s001–s005: Allow (5 scenarios)
+    ///  - s006–s013: Deny  (8 scenarios)
+    ///  - s014–s020: Abstain (7 scenarios)
     #[test]
     fn corpus_runner_computes_confusion_matrix() {
-        let mut s1 = make_scenario_input();
-        s1.extraction_confidence = Some(0.9);
-        s1.retrieval_ndcg = Some(0.8);
-        s1.retrieval_recall = Some(0.9);
-        s1.blast_radius_risk = Some(2);
-        s1.blast_radius_downstream = Some(3);
+        use engram_core::benchmark::{AdpCorpus, AdpScenario};
 
-        let mut s2 = make_scenario_input();
-        s2.extraction_confidence = Some(0.9);
-        s2.safety_allowed = Some(false);
-        s2.safety_confidence = Some(0.2);
-        s2.retrieval_ndcg = Some(0.8);
-        s2.retrieval_recall = Some(0.9);
-        s2.blast_radius_risk = Some(2);
-        s2.blast_radius_downstream = Some(3);
-        s2.risk_profile = "high".into();
+        // ── Allow scenarios ───────────────────────────────────────────────────
 
-        let mut s3 = make_scenario_input();
-        s3.extraction_confidence = None;
-        s3.extraction_band = None;
-        s3.safety_allowed = None;
-        s3.safety_confidence = None;
-        s3.retrieval_production_ready = None;
-        s3.retrieval_ndcg = None;
-        s3.retrieval_recall = None;
-        s3.blast_radius_risk = None;
-        s3.blast_radius_band = None;
-        s3.blast_radius_downstream = None;
-        s3.immune_verdict = None;
-        s3.immune_confidence = None;
+        // s001: Full-green standard allow
+        let mut s001 = make_scenario_input();
+        s001.extraction_confidence = Some(0.9);
+        s001.retrieval_ndcg = Some(0.8);
+        s001.retrieval_recall = Some(0.9);
+        s001.blast_radius_risk = Some(2);
+        s001.blast_radius_downstream = Some(3);
 
-        let corpus = engram_core::benchmark::AdpCorpus {
+        // s002: Extraction confidence exactly at threshold (0.5 >= 0.5 → passes)
+        let mut s002 = make_scenario_input();
+        s002.extraction_confidence = Some(0.5);
+        s002.retrieval_ndcg = Some(0.8);
+        s002.retrieval_recall = Some(0.9);
+        s002.blast_radius_risk = Some(3);
+
+        // s003: Blast radius exactly at max (6 <= 6 → passes)
+        let mut s003 = make_scenario_input();
+        s003.extraction_confidence = Some(0.88);
+        s003.retrieval_ndcg = Some(0.82);
+        s003.retrieval_recall = Some(0.88);
+        s003.blast_radius_risk = Some(6);
+        s003.blast_radius_band = Some("Medium".into());
+        s003.blast_radius_downstream = Some(10);
+
+        // s004: Cached retrieval mode — staleness discount applied but ready=true still allows
+        let mut s004 = make_scenario_input();
+        s004.extraction_confidence = Some(0.92);
+        s004.retrieval_production_ready = Some(true);
+        s004.retrieval_ndcg = Some(0.85);
+        s004.retrieval_recall = Some(0.90);
+        s004.retrieval_mode = Some("cached".into());
+        s004.blast_radius_risk = Some(2);
+
+        // s005: Very high confidence all gates
+        let mut s005 = make_scenario_input();
+        s005.extraction_confidence = Some(0.99);
+        s005.retrieval_ndcg = Some(0.95);
+        s005.retrieval_recall = Some(0.95);
+        s005.blast_radius_risk = Some(1);
+        s005.blast_radius_downstream = Some(2);
+        s005.immune_confidence = Some(0.02);
+
+        // ── Deny scenarios ────────────────────────────────────────────────────
+
+        // s006: Safety evaluation blocked
+        let mut s006 = make_scenario_input();
+        s006.extraction_confidence = Some(0.9);
+        s006.safety_allowed = Some(false);
+        s006.safety_confidence = Some(0.2);
+        s006.retrieval_ndcg = Some(0.8);
+        s006.retrieval_recall = Some(0.9);
+        s006.blast_radius_risk = Some(2);
+        s006.blast_radius_downstream = Some(3);
+
+        // s007: Blast radius exceeds max (7 > 6)
+        let mut s007 = make_scenario_input();
+        s007.extraction_confidence = Some(0.9);
+        s007.retrieval_ndcg = Some(0.8);
+        s007.retrieval_recall = Some(0.9);
+        s007.blast_radius_risk = Some(7);
+        s007.blast_radius_band = Some("High".into());
+        s007.blast_radius_downstream = Some(15);
+
+        // s008: Immune BLOCK verdict
+        let mut s008 = make_scenario_input();
+        s008.extraction_confidence = Some(0.88);
+        s008.retrieval_ndcg = Some(0.78);
+        s008.retrieval_recall = Some(0.82);
+        s008.blast_radius_risk = Some(3);
+        s008.immune_verdict = Some("BLOCK".into());
+        s008.immune_confidence = Some(0.92);
+
+        // s009: Extraction below threshold (0.3 < 0.5, Some provided → hard deny)
+        let mut s009 = make_scenario_input();
+        s009.extraction_confidence = Some(0.3);
+        s009.retrieval_ndcg = Some(0.8);
+        s009.retrieval_recall = Some(0.9);
+        s009.blast_radius_risk = Some(2);
+
+        // s010: Retrieval not production-ready (Some(false) → hard deny)
+        let mut s010 = make_scenario_input();
+        s010.extraction_confidence = Some(0.88);
+        s010.retrieval_production_ready = Some(false);
+        s010.retrieval_ndcg = Some(0.35);
+        s010.retrieval_recall = Some(0.40);
+        s010.blast_radius_risk = Some(3);
+
+        // s011: Blast radius at critical level (10 >> 6)
+        let mut s011 = make_scenario_input();
+        s011.extraction_confidence = Some(0.9);
+        s011.retrieval_ndcg = Some(0.82);
+        s011.retrieval_recall = Some(0.88);
+        s011.blast_radius_risk = Some(10);
+        s011.blast_radius_band = Some("Critical".into());
+        s011.blast_radius_downstream = Some(50);
+
+        // s012: Safety blocked with high risk profile
+        let mut s012 = make_scenario_input();
+        s012.extraction_confidence = Some(0.88);
+        s012.safety_allowed = Some(false);
+        s012.safety_confidence = Some(0.15);
+        s012.retrieval_ndcg = Some(0.8);
+        s012.retrieval_recall = Some(0.9);
+        s012.blast_radius_risk = Some(4);
+        s012.risk_profile = "high".into();
+
+        // s013: Very low extraction confidence (0.1 << 0.5)
+        let mut s013 = make_scenario_input();
+        s013.extraction_confidence = Some(0.1);
+        s013.extraction_band = Some("low".into());
+        s013.retrieval_ndcg = Some(0.75);
+        s013.retrieval_recall = Some(0.80);
+        s013.blast_radius_risk = Some(3);
+
+        // ── Abstain scenarios ─────────────────────────────────────────────────
+
+        // s014: No extraction confidence data — evidence gate fails (g8)
+        let mut s014 = make_scenario_input();
+        s014.extraction_confidence = None;
+        s014.extraction_band = None;
+
+        // s015: Trace fallback used — trace_certainty gate fails → has_abstain
+        let mut s015 = make_scenario_input();
+        s015.extraction_confidence = Some(0.88);
+        s015.retrieval_ndcg = Some(0.80);
+        s015.retrieval_recall = Some(0.88);
+        s015.blast_radius_risk = Some(3);
+        s015.trace_used_fallback = true;
+        s015.trace_candidate_count = 3;
+
+        // s016: All evidence missing — everything skipped → evidence_sufficiency fails
+        let mut s016 = make_scenario_input();
+        s016.extraction_confidence = None;
+        s016.extraction_band = None;
+        s016.safety_allowed = None;
+        s016.safety_confidence = None;
+        s016.retrieval_production_ready = None;
+        s016.retrieval_ndcg = None;
+        s016.retrieval_recall = None;
+        s016.blast_radius_risk = None;
+        s016.blast_radius_band = None;
+        s016.blast_radius_downstream = None;
+        s016.immune_verdict = None;
+        s016.immune_confidence = None;
+
+        // s017: Runtime evidence required but not available
+        let mut s017 = make_scenario_input();
+        s017.extraction_confidence = Some(0.88);
+        s017.retrieval_ndcg = Some(0.78);
+        s017.retrieval_recall = Some(0.82);
+        s017.blast_radius_risk = Some(3);
+        s017.require_runtime_evidence = true;
+        s017.has_runtime_evidence = false;
+
+        // s018: Immune WARN on medium risk → anti_pattern fails → has_abstain
+        let mut s018 = make_scenario_input();
+        s018.extraction_confidence = Some(0.88);
+        s018.retrieval_ndcg = Some(0.80);
+        s018.retrieval_recall = Some(0.85);
+        s018.blast_radius_risk = Some(4);
+        s018.immune_verdict = Some("WARN".into());
+        s018.immune_confidence = Some(0.45);
+        s018.risk_profile = "medium".into();
+
+        // s019: Immune WARN on high risk → same abstain path
+        let mut s019 = make_scenario_input();
+        s019.extraction_confidence = Some(0.85);
+        s019.retrieval_ndcg = Some(0.78);
+        s019.retrieval_recall = Some(0.82);
+        s019.blast_radius_risk = Some(5);
+        s019.immune_verdict = Some("WARN".into());
+        s019.immune_confidence = Some(0.60);
+        s019.risk_profile = "high".into();
+
+        // s020: Retrieval missing but mode=live → retrieval_quality fails → has_abstain
+        let mut s020 = make_scenario_input();
+        s020.extraction_confidence = Some(0.88);
+        s020.retrieval_production_ready = None;
+        s020.retrieval_ndcg = None;
+        s020.retrieval_recall = None;
+        s020.retrieval_mode = Some("live".into());
+        s020.blast_radius_risk = Some(3);
+
+        fn scenario(
+            id: &str,
+            desc: &str,
+            risk_class: &str,
+            input: engram_core::benchmark::AdpScenarioInput,
+            verdict: &str,
+            gates: Vec<String>,
+        ) -> AdpScenario {
+            AdpScenario {
+                scenario_id: id.into(),
+                description: desc.into(),
+                risk_class: risk_class.into(),
+                source: "synthetic".into(),
+                input,
+                expected_verdict: verdict.into(),
+                expected_failed_gates: gates,
+                rationale: desc.into(),
+            }
+        }
+
+        let corpus = AdpCorpus {
             schema_version: "1.0.0".into(),
-            name: "test-corpus".into(),
-            description: "Test".into(),
+            name: "adp2-q8l4-corpus".into(),
+            description: "20-scenario confusion matrix for ADP2 coverage".into(),
             scenarios: vec![
-                engram_core::benchmark::AdpScenario {
-                    scenario_id: "s001_allow".into(),
-                    description: "All green".into(),
-                    risk_class: "low".into(),
-                    source: "synthetic".into(),
-                    input: s1,
-                    expected_verdict: "allow".into(),
-                    expected_failed_gates: vec![],
-                    rationale: "All signals green".into(),
-                },
-                engram_core::benchmark::AdpScenario {
-                    scenario_id: "s002_deny_safety".into(),
-                    description: "Safety blocked".into(),
-                    risk_class: "high".into(),
-                    source: "synthetic".into(),
-                    input: s2,
-                    expected_verdict: "deny".into(),
-                    expected_failed_gates: vec!["safety_policy".into()],
-                    rationale: "Safety evaluation blocked".into(),
-                },
-                engram_core::benchmark::AdpScenario {
-                    scenario_id: "s003_abstain_missing".into(),
-                    description: "Missing evidence".into(),
-                    risk_class: "medium".into(),
-                    source: "synthetic".into(),
-                    input: s3,
-                    expected_verdict: "abstain".into(),
-                    expected_failed_gates: vec![
-                        "extraction_confidence".into(),
-                        "safety_policy".into(),
-                        "retrieval_quality".into(),
-                        "blast_radius".into(),
-                        "anti_pattern".into(),
-                        "evidence_sufficiency".into(),
-                    ],
-                    rationale: "No evidence provided".into(),
-                },
+                scenario("s001_allow_full_green", "All signals green", "low", s001, "allow", vec![]),
+                scenario("s002_allow_extraction_boundary", "Extraction at threshold", "low", s002, "allow", vec![]),
+                scenario("s003_allow_blast_at_max", "Blast radius at allowed max", "medium", s003, "allow", vec![]),
+                scenario("s004_allow_cached_retrieval", "Cached retrieval still passes", "low", s004, "allow", vec![]),
+                scenario("s005_allow_high_confidence", "Very high confidence all gates", "low", s005, "allow", vec![]),
+
+                scenario("s006_deny_safety_blocked", "Safety evaluation blocked", "high", s006, "deny", vec!["safety_policy".into()]),
+                scenario("s007_deny_blast_exceeds_max", "Blast radius > max allowed", "high", s007, "deny", vec!["blast_radius".into()]),
+                scenario("s008_deny_immune_block", "Immune BLOCK verdict", "high", s008, "deny", vec!["anti_pattern".into()]),
+                scenario("s009_deny_extraction_low", "Extraction below threshold", "medium", s009, "deny", vec!["extraction_confidence".into()]),
+                scenario("s010_deny_retrieval_not_ready", "Retrieval not production ready", "medium", s010, "deny", vec!["retrieval_quality".into()]),
+                scenario("s011_deny_blast_critical", "Blast radius at critical level", "high", s011, "deny", vec!["blast_radius".into()]),
+                scenario("s012_deny_safety_high_risk", "Safety blocked with high risk profile", "high", s012, "deny", vec!["safety_policy".into()]),
+                scenario("s013_deny_extraction_very_low", "Very low extraction confidence", "medium", s013, "deny", vec!["extraction_confidence".into()]),
+
+                scenario("s014_abstain_no_extraction", "No extraction data — evidence gate fails", "medium", s014, "abstain", vec!["evidence_sufficiency".into()]),
+                scenario("s015_abstain_trace_fallback", "Trace fallback used", "medium", s015, "abstain", vec!["trace_certainty".into()]),
+                scenario("s016_abstain_missing_all", "All evidence missing", "medium", s016, "abstain", vec!["evidence_sufficiency".into()]),
+                scenario("s017_abstain_runtime_required", "Runtime evidence required but absent", "medium", s017, "abstain", vec!["runtime_evidence".into()]),
+                scenario("s018_abstain_immune_warn_medium", "Immune WARN on medium risk", "medium", s018, "abstain", vec!["anti_pattern".into()]),
+                scenario("s019_abstain_immune_warn_high", "Immune WARN on high risk", "high", s019, "abstain", vec!["anti_pattern".into()]),
+                scenario("s020_abstain_retrieval_missing_live", "Retrieval missing in live mode", "medium", s020, "abstain", vec!["retrieval_quality".into()]),
             ],
         };
 
         let results = run_corpus(&corpus);
-        assert_eq!(results.len(), 3);
-        assert!(results[0].verdict_matches, "s001 should be allow");
-        assert!(results[1].verdict_matches, "s002 should be deny");
-        assert!(results[2].verdict_matches, "s003 should be abstain");
+        assert_eq!(results.len(), 20, "corpus must produce exactly 20 results");
+
+        // Every scenario must match its expected verdict.
+        for r in &results {
+            assert!(
+                r.verdict_matches,
+                "ADP2-q8l4: scenario '{}' expected verdict '{}' but got '{}'",
+                r.scenario_id, r.expected_verdict, r.actual_verdict
+            );
+        }
 
         let matrix = AdpConfusionMatrix::from_results(&results);
-        assert_eq!(matrix.total, 3);
-        assert_eq!(matrix.true_allow, 1);
-        assert_eq!(matrix.true_deny, 1);
-        assert_eq!(matrix.true_abstain, 1);
-        assert_eq!(matrix.false_allow, 0);
-        assert_eq!(matrix.false_deny, 0);
+        assert_eq!(matrix.total, 20);
+        assert_eq!(matrix.true_allow, 5, "5 allow scenarios must all pass");
+        assert_eq!(matrix.true_deny, 8, "8 deny scenarios must all pass");
+        assert_eq!(matrix.true_abstain, 7, "7 abstain scenarios must all pass");
+        assert_eq!(matrix.false_allow, 0, "no false-allow predictions");
+        assert_eq!(matrix.false_deny, 0, "no false-deny predictions");
         assert!(
             matrix.false_allow_rate() < 0.01,
-            "false-allow rate must be < 1%"
+            "false-allow rate must be < 1% across 20 scenarios"
         );
     }
 
@@ -1897,6 +2079,7 @@ mod tests {
                 gate_code_version: "test-0.0.0".to_string(),
                 evidence_schema_version: "1.0.0".to_string(),
                 evidence_hash: String::new(), // populated by build_decision_report
+                crate_version: String::new(), // overridden by build_decision_report
             },
             "test-build-001",
         );
