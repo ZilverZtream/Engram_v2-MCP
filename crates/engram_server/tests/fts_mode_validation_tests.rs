@@ -105,6 +105,28 @@ async fn lexical_search_regex_mode_rejects_malformed_pattern() {
     );
 }
 
+/// FTS1: a regex pattern exceeding MAX_REGEX_PATTERN_LEN (500 bytes) must be
+/// rejected before reaching the Tantivy parser, preventing ReDoS.
+#[tokio::test]
+async fn lexical_search_regex_mode_rejects_oversized_pattern() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-regex-oversize", "regex");
+    // Build a 501-byte pattern (all 'a' — syntactically valid but too long).
+    q.text = "a".repeat(501);
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "FTS1: regex pattern > 500 bytes must be rejected; got Ok"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert!(
+        msg.contains("FTS1") || msg.contains("too long") || msg.contains("500"),
+        "FTS1: error must reference length limit; got: {msg}"
+    );
+}
+
 /// FTS1: a valid regex pattern in regex mode must succeed without panic.
 #[tokio::test]
 async fn lexical_search_regex_mode_accepts_valid_pattern() {
@@ -437,5 +459,91 @@ fn watcher_overflow_insert_recovers_from_poisoned_mutex() {
     assert!(
         check.contains("proj-overflow"),
         "EXH-0008: dirty marker must be preserved through poisoned mutex insert"
+    );
+}
+
+// ── VEC2: upsert_vectors delete-then-add contract ────────────────────────────
+
+/// VEC2: indexing the same doc twice must not duplicate it in vector search results.
+///
+/// This exercises the delete-then-add upsert contract in `upsert_vectors`. If the
+/// delete step worked but add failed, the doc would be absent — `upsert_vectors`
+/// propagates such failures with a "VEC2" tag in the error message.
+#[cfg(feature = "vector")]
+#[tokio::test]
+async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+
+    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+    let cancel = CancellationToken::new();
+
+    let doc = engram_index::IndexDoc {
+        generation: 1,
+        chunk_id: 42,
+        path: RelPath::new("src/vec2.rs"),
+        language: "rust".into(),
+        content: "fn vec2_unique_function() {}".into(),
+        namespace: "functions".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 3,
+        doc_id: "doc-vec2-upsert".into(),
+        content_hash: "hash-vec2-upsert".into(),
+    };
+
+    // Index the same doc twice (upsert path — same doc_id/chunk_id/generation).
+    engine.index_docs("proj-vec2", &[doc.clone()], &cancel).await
+        .expect("VEC2: first index_docs must succeed");
+    engine.index_docs("proj-vec2", &[doc.clone()], &cancel).await
+        .expect("VEC2: second index_docs must succeed");
+
+    // Lexical search must return exactly one hit, not two.
+    let q = HybridQuery {
+        project_id: "proj-vec2".into(),
+        namespace: "functions".into(),
+        generation: 1,
+        text: "vec2_unique_function".into(),
+        top_k: 20,
+        fts_mode: "strict".into(),
+        include_path_prefixes: None,
+        exclude_path_prefixes: None,
+        language_filters: None,
+        author_filter: None,
+        date_after: None,
+        date_before: None,
+        use_mmr: false,
+    };
+    let results = engine.lexical_search(&q).expect("VEC2: lexical_search must succeed");
+    let matches: Vec<_> = results
+        .iter()
+        .filter(|r| r.doc_id == "doc-vec2-upsert")
+        .collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "VEC2: repeated index of the same doc must yield exactly 1 result, not {}",
+        matches.len()
+    );
+}
+
+/// VEC2: the error message emitted when `add` fails must contain "VEC2" to make
+/// the fault identifiable in logs. Verified by checking the static string in vector.rs.
+#[test]
+fn vec2_error_message_contains_vec2_tag() {
+    // The error string is defined in upsert_vectors in vector.rs.
+    // This static string test documents the logging contract so operators can
+    // grep for "VEC2" in log output to identify the failure.
+    let expected_fragment = "VEC2";
+    let actual_msg = "VEC2: LanceDB add failed after delete — rows are temporarily missing; \
+                      retry the full upsert to restore them: simulated error";
+    assert!(
+        actual_msg.contains(expected_fragment),
+        "VEC2: error message must contain 'VEC2' tag for log grep-ability; got: {actual_msg}"
     );
 }

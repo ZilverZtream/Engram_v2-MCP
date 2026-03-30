@@ -10,6 +10,7 @@
 //!  - `delete_namespace`
 
 use engram_index::{DocRecord, DocStore, FileFingerprint};
+use redb::{Database, TableDefinition};
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -458,6 +459,90 @@ fn docstore_delete_namespace_nonexistent_is_idempotent() {
 
     let result = store.delete_namespace("proj-none", "no-such-ns");
     assert!(result.is_ok(), "delete_namespace of nonexistent namespace must be idempotent");
+}
+
+// ── DS1: corruption-injection tests ──────────────────────────────────────────
+//
+// Verify that `de_bincode_or_json` fails closed on corrupt bytes — i.e. it
+// returns Err rather than panicking or silently returning garbage data.
+// We inject corrupt bytes by writing directly to the underlying Redb tables
+// (same key format used by DocStore internals).
+
+/// DS1: get_doc returns Err (not panic, not garbage) when the stored value is corrupt.
+#[test]
+fn docstore_get_doc_fails_closed_on_corrupt_bytes() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    // First, insert a valid doc so the table exists.
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        store
+            .put_doc("proj-corrupt", &make_doc("doc-bad", "src/bad.rs", "rust"))
+            .expect("put_doc");
+    }
+
+    // Now overwrite the stored value with corrupt bytes via raw Redb API.
+    {
+        static DOC_BY_ID: TableDefinition<&str, &[u8]> = TableDefinition::new("doc_by_id");
+        let db = Database::open(&db_path).expect("raw open");
+        let wtx = db.begin_write().expect("write tx");
+        {
+            let mut t = wtx.open_table(DOC_BY_ID).expect("open table");
+            let corrupt: &[u8] = b"\xff\xfe\xfd corrupt garbage bytes \x00\x01\x02";
+            t.insert("proj-corrupt\0rust\0doc-bad", corrupt)
+                .expect("raw insert corrupt bytes");
+        }
+        wtx.commit().expect("commit");
+    }
+
+    // Re-open through DocStore and verify get_doc fails closed.
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.get_doc("proj-corrupt", "rust", "doc-bad");
+    assert!(
+        result.is_err(),
+        "DS1: get_doc must return Err on corrupt bytes, got: {:?}",
+        result
+    );
+}
+
+/// DS1: get_fingerprint returns Err (not panic, not garbage) when the stored value is corrupt.
+#[test]
+fn docstore_get_fingerprint_fails_closed_on_corrupt_bytes() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    // Insert a valid fingerprint first.
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        store
+            .set_fingerprints("proj-fp-corrupt", &[make_fingerprint("src/lib.rs")])
+            .expect("set_fingerprints");
+    }
+
+    // Overwrite with corrupt bytes.
+    {
+        static FILE_FINGERPRINT: TableDefinition<&str, &[u8]> =
+            TableDefinition::new("file_fingerprint");
+        let db = Database::open(&db_path).expect("raw open");
+        let wtx = db.begin_write().expect("write tx");
+        {
+            let mut t = wtx.open_table(FILE_FINGERPRINT).expect("open table");
+            let corrupt: &[u8] = b"\xde\xad\xbe\xef not a fingerprint";
+            t.insert("proj-fp-corrupt\0src/lib.rs", corrupt)
+                .expect("raw insert corrupt bytes");
+        }
+        wtx.commit().expect("commit");
+    }
+
+    // Re-open and verify get_fingerprint fails closed.
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.get_fingerprint("proj-fp-corrupt", "src/lib.rs");
+    assert!(
+        result.is_err(),
+        "DS1: get_fingerprint must return Err on corrupt bytes, got: {:?}",
+        result
+    );
 }
 
 /// count_docs_for_project must reflect the correct count after delete_namespace.

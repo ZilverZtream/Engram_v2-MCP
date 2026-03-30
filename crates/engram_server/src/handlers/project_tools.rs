@@ -898,6 +898,66 @@ impl Engram {
                 Err(e) => Err(e),
             };
 
+            // VEC1/X1: if index_docs bailed because the vector table was recreated,
+            // emit a FullReindexRequired event and retry once with a fresh engine.
+            // The fresh engine will find the now-correct empty table and succeed;
+            // semantic search quality is degraded until the operator runs a reindex.
+            let mut res = res;
+            if let Err(ref e) = res {
+                let msg = format!("{e:#}");
+                if msg.contains("VEC1") {
+                    tracing::warn!(
+                        project_id = %project_id_for_job,
+                        "VEC1/X1: retrying index after vector table recreation"
+                    );
+                    let _ = state_for_spawn.events_tx.send(
+                        crate::state::AppEvent::FullReindexRequired {
+                            project_id: project_id_for_job.clone(),
+                        },
+                    );
+                    // Reconstruct paths (always cfg.data_dir/projects/{id}/...)
+                    let project_root = state_for_spawn
+                        .cfg
+                        .data_dir
+                        .join("projects")
+                        .join(&project_id_for_job);
+                    let retry_tantivy = project_root.join("tantivy");
+                    let retry_lancedb = project_root.join("lancedb");
+                    match engram_index::HybridSearchEngine::new_with_budget(
+                        retry_tantivy,
+                        retry_lancedb,
+                        &state_for_spawn.cfg,
+                        Some(state_for_spawn.memory_budget.clone()),
+                    )
+                    .await
+                    {
+                        Ok(fresh_search) => {
+                            let exts = exts_for_project_type(&project_type);
+                            let files = engram_index::ingest::iter_files(&directory, &exts);
+                            res = Engram::new(state_for_spawn.clone())
+                                .index_files_with_parse_guard(
+                                    &fresh_search,
+                                    &project_id_for_job,
+                                    "memory",
+                                    1,
+                                    &directory,
+                                    files,
+                                    max_chunks,
+                                    &token,
+                                    |_, _| {},
+                                )
+                                .await;
+                        }
+                        Err(e2) => {
+                            tracing::error!(
+                                project_id = %project_id_for_job,
+                                "VEC1/X1: retry engine creation failed: {e2:#}"
+                            );
+                        }
+                    }
+                }
+            }
+
             // Normal-path cleanup: disarm the guard so its Drop is a no-op, then
             // perform the explicit teardown that updates progress and removes maps.
             cleanup_guard.disarm();

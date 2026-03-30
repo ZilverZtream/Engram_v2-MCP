@@ -79,6 +79,26 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                                 }
                             }
                             AppEvent::WatchUpdate { .. } => {}
+                            AppEvent::FullReindexRequired { project_id } => {
+                                tracing::error!(
+                                    project_id = %project_id,
+                                    "VEC1/X1: full reindex required after vector table recreation \
+                                     — semantic search quality degraded until reindex completes"
+                                );
+                                // Trigger a dream pass as partial recovery; the operator must
+                                // schedule a full reindex to restore vector coverage.
+                                if let Err(e) = dream_once(
+                                    &state,
+                                    &project_id,
+                                    min_edge_weight,
+                                    min_cluster_size,
+                                    max_clusters,
+                                )
+                                .await
+                                {
+                                    tracing::debug!("VEC1/X1 trigger dream error: {e:#}");
+                                }
+                            }
                         }
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {

@@ -32,6 +32,12 @@ pub enum AppEvent {
         directory: String,
         enabled: bool,
     },
+    /// VEC1/X1: vector table was recreated due to schema mismatch; all historical
+    /// vector data was lost. Consumers must schedule a full reindex. Emitted by
+    /// the index job when `open_or_create_table` returns `Recreated`.
+    FullReindexRequired {
+        project_id: String,
+    },
 }
 
 #[derive(Debug, Clone)]

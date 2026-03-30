@@ -1125,6 +1125,10 @@ pub struct ConfigSnapshot {
     /// Schema version of the evidence/report format (e.g. "1.0.0").
     /// Bumped when the evidence structure changes to invalidate stale replays.
     pub evidence_schema_version: String,
+    /// ADP1: BLAKE3 hex-digest of the serialized gate_evidence array.
+    /// Allows replay verification to detect evidence tampering or serialization
+    /// drift independently of threshold values and code-version fields.
+    pub evidence_hash: String,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1160,6 +1164,14 @@ pub fn build_decision_report(
             }
         })
         .collect();
+
+    // ADP1: compute BLAKE3 hash of the serialized gate evidence for replay integrity.
+    let evidence_json = serde_json::to_vec(&gate_evidence).unwrap_or_default();
+    let evidence_hash = blake3::hash(&evidence_json).to_hex().to_string();
+    let config_snapshot = ConfigSnapshot {
+        evidence_hash,
+        ..config_snapshot
+    };
 
     AdpDecisionReport {
         schema_version: "1.0.0".into(),
@@ -1884,6 +1896,7 @@ mod tests {
                 safety_policy_enabled: true,
                 gate_code_version: "test-0.0.0".to_string(),
                 evidence_schema_version: "1.0.0".to_string(),
+                evidence_hash: String::new(), // populated by build_decision_report
             },
             "test-build-001",
         );

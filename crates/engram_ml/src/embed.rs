@@ -970,6 +970,25 @@ impl RemoteEmbedder {
     }
 }
 
+/// EMB2 (R3): L2-normalize an embedding vector to unit length.
+///
+/// Remote providers (Ollama, OpenAI) return raw float vectors whose norms vary
+/// slightly between models and API versions. Normalizing at the boundary ensures
+/// dot-product scores are equivalent to cosine similarity, preventing cross-provider
+/// score drift when the embedder backend is changed.
+///
+/// Zero vectors (all-zero input or catastrophic cancellation) are returned as-is to
+/// avoid NaN from division by zero.
+fn l2_normalize(mut v: Embedding) -> Embedding {
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm > 1e-10 {
+        for x in &mut v {
+            *x /= norm;
+        }
+    }
+    v
+}
+
 #[async_trait]
 impl Embedder for RemoteEmbedder {
     fn dimension(&self) -> usize {
@@ -980,17 +999,19 @@ impl Embedder for RemoteEmbedder {
     }
 
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
-        match &self.backend {
+        let v = match &self.backend {
             RemoteBackend::Ollama(e) => e.embed(text).await,
             RemoteBackend::OpenAI(e) => e.embed(text).await,
-        }
+        }?;
+        Ok(l2_normalize(v))
     }
 
     async fn embed_batch(&self, texts: &[&str]) -> anyhow::Result<Vec<Embedding>> {
-        match &self.backend {
+        let vecs = match &self.backend {
             RemoteBackend::Ollama(e) => e.embed_batch(texts).await,
             RemoteBackend::OpenAI(e) => e.embed_batch(texts).await,
-        }
+        }?;
+        Ok(vecs.into_iter().map(l2_normalize).collect())
     }
 
     /// EMB1: dispatch cancellable batch to the correct backend.
@@ -999,10 +1020,11 @@ impl Embedder for RemoteEmbedder {
         texts: &[&str],
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<Vec<Embedding>> {
-        match &self.backend {
+        let vecs = match &self.backend {
             RemoteBackend::Ollama(e) => e.embed_batch_cancellable(texts, cancel).await,
             RemoteBackend::OpenAI(e) => e.embed_batch_cancellable(texts, cancel).await,
-        }
+        }?;
+        Ok(vecs.into_iter().map(l2_normalize).collect())
     }
 }
 
