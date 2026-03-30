@@ -57,17 +57,26 @@ pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
     }
 }
 
-async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
+pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
     let reg = state.registry.clone();
     let pid = project_id.to_string();
-    let active_gen = tokio::task::spawn_blocking(move || {
+    let active_gen_opt = tokio::task::spawn_blocking(move || {
         reg.get_meta(&pid, "active_generation")
             .ok()
             .flatten()
             .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(1)
     })
     .await?;
+
+    // JOB1-m2q7: if active_generation metadata is missing or corrupt, skip this
+    // project rather than defaulting to gen=1 (which could purge live data).
+    let Some(active_gen) = active_gen_opt else {
+        tracing::warn!(
+            project_id = project_id,
+            "JOB1/GC: skipping purge — active_generation metadata missing or not parseable as u64"
+        );
+        return Ok(());
+    };
 
     // Purge GraphStore (always available via state)
     state.graph.purge_old_generations(project_id, active_gen)?;

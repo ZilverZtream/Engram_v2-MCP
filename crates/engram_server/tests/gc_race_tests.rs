@@ -6,7 +6,7 @@
 
 use engram_core::Config;
 use engram_server::state::AppState;
-use engram_server::actors::gc::run_gc_scheduler;
+use engram_server::actors::gc::{run_gc_scheduler, purge_project_old_gens};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -75,6 +75,62 @@ async fn gc_skips_purge_when_active_indexing_count_nonzero() {
 
     shutdown.cancel();
     let _ = tokio::time::timeout(Duration::from_secs(2), gc_handle).await;
+}
+
+/// JOB1-m2q7: GC must skip a project when `active_generation` metadata is corrupt
+/// (not parseable as u64) rather than defaulting to generation 1.
+///
+/// Regression: previously `unwrap_or(1)` caused GC to purge against gen=1 on any
+/// metadata read/parse failure, potentially deleting live generation data.
+/// The fix returns `Ok(())` early with a `tracing::warn!` instead.
+#[tokio::test]
+async fn gc_skips_project_with_corrupt_active_gen_metadata() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let cfg = minimal_cfg(&tmp);
+    let (state, _rx) = AppState::new(cfg).unwrap();
+
+    // Register a project but write a non-parseable active_generation value.
+    // "corrupt_value" cannot be parsed as u64 — triggers the skip path.
+    let reg = state.registry.clone();
+    tokio::task::spawn_blocking({
+        let reg = reg.clone();
+        move || {
+            use engram_core::ProjectRecord;
+            reg.put_project(&ProjectRecord {
+                project_id: "corrupt-gen-proj".into(),
+                project_name: "Corrupt Gen Project".into(),
+                project_type: "general".into(),
+                directory: "/tmp/proj".into(),
+                created_at_ms: 1_000,
+                updated_at_ms: 1_000,
+                reindex_required_since_ms: None,
+            })
+            .expect("put_project must succeed");
+            reg.set_meta("corrupt-gen-proj", "active_generation", "not_a_number")
+                .expect("set_meta must succeed");
+        }
+    })
+    .await
+    .unwrap();
+
+    // Direct call — must return Ok(()) without touching graph or search storage.
+    // Before fix: unwrap_or(1) would call purge_old_generations with gen=1.
+    // After fix: early-return Ok(()) with tracing::warn.
+    let result: anyhow::Result<()> = purge_project_old_gens(&state, "corrupt-gen-proj").await;
+    assert!(
+        result.is_ok(),
+        "JOB1-m2q7: purge must skip (Ok) when active_generation is corrupt, got: {result:?}"
+    );
+
+    // Verify project record still exists — nothing was deleted.
+    let rec = tokio::task::spawn_blocking(move || reg.get_project("corrupt-gen-proj"))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        rec.is_some(),
+        "JOB1-m2q7: project record must survive GC skip when active_generation is corrupt"
+    );
 }
 
 /// D3/JOB1: Registry checkpoint written by a job must survive a concurrent GC tick.
