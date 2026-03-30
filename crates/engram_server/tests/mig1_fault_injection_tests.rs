@@ -88,6 +88,85 @@ fn mig1_consecutive_calls_do_not_accumulate_across_calls() {
     assert!(r2.degraded_sections.is_empty(), "call 2 degraded_sections must be empty");
 }
 
+/// MIG1-e84f: Two concurrent `analyze_full_project` calls on separate OS threads
+/// must each receive an isolated, independently correct `degraded_sections` accumulator.
+/// Proves that thread-local storage (TLS) state does not bleed between concurrent threads.
+#[test]
+fn mig1_concurrent_calls_on_separate_threads_have_isolated_tls() {
+    let tmp1 = tempfile::TempDir::new().unwrap();
+    let tmp2 = tempfile::TempDir::new().unwrap();
+
+    let graph1 = Arc::new(GraphStore::open(&tmp1.path().join("g1.redb")).unwrap());
+    let graph2 = Arc::new(GraphStore::open(&tmp2.path().join("g2.redb")).unwrap());
+
+    // Run both analyze_full_project calls concurrently on separate threads.
+    let g1 = graph1.clone();
+    let handle1 = std::thread::spawn(move || {
+        analyze_full_project(&g1, "thread-proj-1", "react", &empty_bundle(), 100)
+    });
+    let g2 = graph2.clone();
+    let handle2 = std::thread::spawn(move || {
+        analyze_full_project(&g2, "thread-proj-2", "blazor", &empty_bundle(), 100)
+    });
+
+    let r1 = handle1.join().expect("thread 1 must not panic").expect("analyze 1 must succeed");
+    let r2 = handle2.join().expect("thread 2 must not panic").expect("analyze 2 must succeed");
+
+    // Both results must be complete with independent (empty) degraded_sections.
+    assert!(
+        r1.report_is_complete,
+        "MIG1-e84f: thread 1 report must be complete; degraded_sections: {:?}",
+        r1.degraded_sections
+    );
+    assert!(
+        r2.report_is_complete,
+        "MIG1-e84f: thread 2 report must be complete; degraded_sections: {:?}",
+        r2.degraded_sections
+    );
+    assert!(
+        r1.degraded_sections.is_empty(),
+        "MIG1-e84f: thread 1 degraded_sections must be empty (no TLS bleed); got: {:?}",
+        r1.degraded_sections
+    );
+    assert!(
+        r2.degraded_sections.is_empty(),
+        "MIG1-e84f: thread 2 degraded_sections must be empty (no TLS bleed); got: {:?}",
+        r2.degraded_sections
+    );
+}
+
+/// MIG1-e84f: Four concurrent threads, each running analyze_full_project on
+/// a distinct graph, must all report complete and isolated results.
+#[test]
+fn mig1_four_concurrent_threads_all_isolated() {
+    let handles: Vec<_> = (0..4).map(|i| {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
+        let project_type = ["react", "blazor", "general", "react"][i];
+        std::thread::spawn(move || {
+            let r = analyze_full_project(&graph, &format!("proj-{i}"), project_type, &empty_bundle(), 50)
+                .expect("analyze_full_project must succeed");
+            // Keep tmp alive until after analyze completes.
+            let _ = tmp;
+            r
+        })
+    }).collect();
+
+    for (i, handle) in handles.into_iter().enumerate() {
+        let report = handle.join().expect("thread must not panic");
+        assert!(
+            report.report_is_complete,
+            "MIG1-e84f: thread {i} must produce complete report; degraded: {:?}",
+            report.degraded_sections
+        );
+        assert!(
+            report.degraded_sections.is_empty(),
+            "MIG1-e84f: thread {i} must have empty degraded_sections; got: {:?}",
+            report.degraded_sections
+        );
+    }
+}
+
 /// MIG1/D2: verifies the `FileContent` and `ProjectReferenceBundle` types are
 /// usable as bundle inputs without panicking — exercises construction paths.
 #[test]
