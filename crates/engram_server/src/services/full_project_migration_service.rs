@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use engram_graph::{EdgeKind, GraphStore};
+use tokio_util::sync::CancellationToken;
 
 // MIG1/D2: typed partial-failure surface.
 // Thread-local accumulator collects every graph-query context that failed during
@@ -1077,13 +1078,23 @@ pub struct ResourceFileInfo {
 ///
 /// All file content must be pre-read (async) and passed in via [`ProjectFileBundle`].
 /// Every sub-service call inside is synchronous and safe for `spawn_blocking`.
+///
+/// MIG1: The `cancel` token enables cooperative cancellation of long-running
+/// migrations.  The function checks the token at the boundary of each major
+/// analysis phase; if cancelled it returns `Err` immediately, allowing the
+/// caller to surface the abort without leaving the service in partial state.
 pub fn analyze_full_project(
     graph: &Arc<GraphStore>,
     project_id: &str,
     target_stack: &str,
     bundle: &ProjectFileBundle,
     max_files: usize,
+    cancel: &CancellationToken,
 ) -> anyhow::Result<FullProjectMigrationReport> {
+    // MIG1: early-exit if already cancelled before we start any work.
+    if cancel.is_cancelled() {
+        return Err(anyhow::anyhow!("MIG1: migration cancelled before start"));
+    }
     // MIG1/D2: reset per-call degradation accumulator before any graph queries.
     MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
@@ -1170,6 +1181,13 @@ pub fn analyze_full_project(
             vec![]
         });
 
+    // MIG1: check before entering per-file phase (most expensive part).
+    if cancel.is_cancelled() {
+        return Err(anyhow::anyhow!(
+            "MIG1: migration cancelled after project-wide graph analyses"
+        ));
+    }
+
     // ── 2. Per-file dossiers ──────────────────────────────────────────────
 
     let file_contents = &bundle.markup_files;
@@ -1182,6 +1200,13 @@ pub fn analyze_full_project(
     let mut page_dossiers: Vec<MigrationDossier> = Vec::with_capacity(capped.len());
 
     for fc in capped {
+        // MIG1: check cancel inside the per-file loop so large projects can
+        // be preempted between files rather than waiting for all to complete.
+        if cancel.is_cancelled() {
+            return Err(anyhow::anyhow!(
+                "MIG1: migration cancelled during per-file dossier phase"
+            ));
+        }
         match dossier_service::build_migration_dossier(
             graph,
             project_id,
@@ -1196,6 +1221,13 @@ pub fn analyze_full_project(
                 tracing::warn!(file = %fc.file_path, "dossier failed: {e}");
             }
         }
+    }
+
+    // MIG1: check cancel before Phase 32 bulk analyses.
+    if cancel.is_cancelled() {
+        return Err(anyhow::anyhow!(
+            "MIG1: migration cancelled before Phase 32 analyses"
+        ));
     }
 
     // ── 3. Phase 32 analyses ─────────────────────────────────────────────
@@ -1526,6 +1558,13 @@ pub fn analyze_full_project(
         &database_intelligence,
         &session_workflows,
     );
+
+    // MIG1: final cancel check before assembling the report.
+    if cancel.is_cancelled() {
+        return Err(anyhow::anyhow!(
+            "MIG1: migration cancelled before report assembly"
+        ));
+    }
 
     // MIG1/D2: drain the TLS accumulator before constructing the report.
     // Both derived variables must be computed before the struct literal so that
