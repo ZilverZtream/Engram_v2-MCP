@@ -24,7 +24,7 @@ async fn open_engine(tmp: &tempfile::TempDir) -> HybridSearchEngine {
     std::fs::create_dir_all(&lance_dir).expect("create lance dir");
 
     let cfg = Config {
-        embedding_backend: "fts_only".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
 
@@ -80,7 +80,7 @@ async fn hybrid_engine_new_fts_only_succeeds() {
     std::fs::create_dir_all(&lance_dir).expect("mkdir lance");
 
     let cfg = Config {
-        embedding_backend: "fts_only".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let result = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await;
@@ -665,7 +665,7 @@ async fn vector_search_projection_backend_is_deterministic() {
 
     // "projection" falls through to ProjectionEmbedder (hermetic, no network).
     let cfg = Config {
-        embedding_backend: "projection".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
@@ -738,7 +738,7 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
     std::fs::create_dir_all(&lance_dir).unwrap();
 
     let cfg = Config {
-        embedding_backend: "projection".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)

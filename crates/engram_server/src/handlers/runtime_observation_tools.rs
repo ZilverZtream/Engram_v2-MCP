@@ -1,3 +1,4 @@
+use crate::handlers::validate_project_id;
 use crate::models::{
     IngestRuntimeArtifactsRequest, RuntimeArtifactInputRequest, RuntimeArtifactKindRequest,
 };
@@ -13,6 +14,7 @@ impl Engram {
         &self,
         req: IngestRuntimeArtifactsRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
         let generation = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();

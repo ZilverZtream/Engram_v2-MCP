@@ -104,6 +104,21 @@ impl PathContext {
         })?;
         // On Windows, canonicalize returns \\?\ UNC paths. Strip the prefix for consistency.
         let canon = Self::strip_unc_prefix(&canon);
+
+        // SEC1: Reject paths whose canonical form has an unreasonable component
+        // depth. This catches symlink chains that resolve to deep system paths
+        // even though the input path was short (e.g. a single-hop symlink whose
+        // target is "/proc/sys/…/…/…"). The check is on the *resolved* path so
+        // it cannot be bypassed by omitting components from the input.
+        const MAX_CANONICAL_DEPTH: usize = 64;
+        let canonical_depth = canon.components().count();
+        if canonical_depth > MAX_CANONICAL_DEPTH {
+            return Err(EngramError::PathNotAllowed(format!(
+                "{canon:?} resolved to {canonical_depth} components, \
+                 exceeding the maximum allowed depth of {MAX_CANONICAL_DEPTH}"
+            )));
+        }
+
         for root in &self.allowed_roots {
             if canon.starts_with(root) {
                 return Ok(canon);

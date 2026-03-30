@@ -145,9 +145,18 @@ impl HybridSearchEngine {
         let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
             "openai" | "remote" => build_embedder_for_backend(cfg)?,
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
-            _ => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
+            // "fts_only" and empty-string (Config::default()) signal that vector
+            // embeddings are intentionally disabled. Use a no-op stub embedder.
+            // EMB2: any OTHER string is a misconfiguration — fail fast rather than
+            // silently degrading to stub behaviour.
+            "fts_only" | "" => Arc::new(engram_ml::embed::ProjectionEmbedder::new(
                 crate::vector::VECTOR_DIM,
             )),
+            _ => anyhow::bail!(
+                "EMB2: unknown embedding backend {:?} — check embedding_backend in config \
+                 (valid: openai, remote, local, candle, fts_only)",
+                embedding_backend
+            ),
         };
         // Eagerly validate that the embedder dimension is non-zero to catch
         // misconfigured backends before any data is written.
