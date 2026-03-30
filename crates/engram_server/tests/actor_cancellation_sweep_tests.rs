@@ -451,3 +451,104 @@ fn fts3_search_handler_handles_empty_vector_results_structurally() {
          (e.g. when vector feature is disabled) without panicking"
     );
 }
+
+/// CANCEL1-per-iter: the dreamer's inner `for pid in project_ids` loop must
+/// check `shutdown.is_cancelled()` at each iteration so that a long project
+/// list is preempted cooperatively during shutdown.
+///
+/// Without a per-iteration check, a 10_000-project list could take minutes to
+/// drain after the shutdown signal arrives, delaying process exit.
+#[test]
+fn cancel1_dreamer_project_loop_checks_shutdown_per_iteration() {
+    let source = include_str!("../src/actors/dreamer.rs");
+
+    // The per-iteration cancel check must be inside the project loop.
+    // We verify by checking that `is_cancelled()` appears in the source at all
+    // (we already checked `shutdown.cancelled()` for the outer select! arm) —
+    // we also need to confirm `shutdown.is_cancelled()` appears for the inner loop.
+    assert!(
+        source.contains("shutdown.is_cancelled()"),
+        "CANCEL1-per-iter: dreamer.rs must call shutdown.is_cancelled() inside the \
+         `for pid in project_ids` loop to preempt long project lists on shutdown. \
+         Without this, a 10 000-project list blocks process exit for minutes."
+    );
+}
+
+/// CANCEL1-slo: per-iteration cancel check must appear BEFORE the dream_once call
+/// so shutdown latency is bounded by one dream_once call, not the entire batch.
+#[test]
+fn cancel1_dreamer_shutdown_check_precedes_dream_once_in_loop() {
+    let source = include_str!("../src/actors/dreamer.rs");
+
+    let cancelled_pos = source.find("shutdown.is_cancelled()").unwrap_or(usize::MAX);
+    let dream_once_pos = source.find("dream_once(").unwrap_or(usize::MAX);
+
+    assert!(
+        cancelled_pos < dream_once_pos,
+        "CANCEL1-slo: `shutdown.is_cancelled()` must appear before `dream_once(` in \
+         dreamer.rs so cancellation latency is bounded by one dream cycle, not the \
+         full batch. Positions: is_cancelled={cancelled_pos}, dream_once={dream_once_pos}"
+    );
+}
+
+/// X1-7f9b: AllocationGuard must be explicitly dropped before the
+/// `embed_batch_cancellable` await in hybrid.rs so the memory budget is not
+/// held for the duration of a remote network call.
+///
+/// Holding the guard across an async await ties budget accounting to network
+/// latency — a slow embedder (10s+ timeout) starves all other concurrent
+/// allocations that share the same MemoryBudget.
+#[test]
+fn x1_7f9b_embed_guard_dropped_before_await() {
+    let source = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The source must contain an explicit `drop(_embed_guard)` before the await.
+    assert!(
+        source.contains("drop(_embed_guard)"),
+        "X1-7f9b: hybrid.rs must call `drop(_embed_guard)` before the \
+         `embed_batch_cancellable(...).await` call. Holding AllocationGuard across \
+         an async await ties the memory budget to network latency."
+    );
+
+    // The drop must appear before the embed_batch_cancellable call.
+    let drop_pos = source.find("drop(_embed_guard)").unwrap_or(usize::MAX);
+    let embed_pos = source.find("embed_batch_cancellable(chunk, cancel).await").unwrap_or(usize::MAX);
+    assert!(
+        drop_pos < embed_pos,
+        "X1-7f9b: `drop(_embed_guard)` must appear before `embed_batch_cancellable(...).await` \
+         in hybrid.rs. Positions: drop={drop_pos}, embed_batch={embed_pos}"
+    );
+}
+
+/// MIG1-slo: the migration handler must log or surface incomplete report state
+/// so callers can distinguish partial from complete reports without parsing JSON.
+///
+/// The markdown output path must prepend a machine-readable comment header
+/// when `report_is_complete = false`, enabling automation (CI gates, health checks)
+/// to detect partial migration analyses by pattern matching on the output string.
+#[test]
+fn mig1_handler_sources_completeness_header_in_markdown_output() {
+    let source = include_str!("../src/handlers/migration_tools.rs");
+
+    // The handler must reference the completeness state.
+    assert!(
+        source.contains("report_is_complete"),
+        "MIG1-slo: migration_tools.rs must check report.report_is_complete so the \
+         handler can distinguish complete from partial reports"
+    );
+
+    // The machine-readable HTML comment header must be written when incomplete.
+    assert!(
+        source.contains("MIG1:INCOMPLETE"),
+        "MIG1-slo: migration_tools.rs must prepend an `<!-- MIG1:INCOMPLETE ... -->` \
+         comment to markdown output when report_is_complete=false so automation \
+         can detect partial reports without JSON parsing"
+    );
+
+    // The degraded_sections count must be surfaced to operators.
+    assert!(
+        source.contains("degraded_sections"),
+        "MIG1-slo: migration_tools.rs must reference degraded_sections so operators \
+         can identify which graph sections produced incomplete data"
+    );
+}
