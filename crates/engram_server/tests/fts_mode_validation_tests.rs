@@ -544,3 +544,158 @@ fn vec1_upsert_error_message_contains_vec1_tag() {
         "VEC1: error message must contain 'VEC1' tag for log grep-ability; got: {actual_msg}"
     );
 }
+
+// ── FTS1-a17d: adversarial regex time-budget enforcement ─────────────────────
+
+const FTS_REGEX_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// FTS1-a17d: a pathological alternation pattern `(a|aa)+` within the 500-byte cap
+/// must complete within the time budget.  Proves the Tantivy DFA-based engine
+/// does not exhibit catastrophic backtracking on this ReDoS-prone class of pattern.
+#[tokio::test]
+async fn fts1_adversarial_alternation_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-fts1-alt", "regex");
+    q.text = "(a|aa)+b".to_string(); // ReDoS-prone in NFA engines; DFA handles in O(n)
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: alternation pattern must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    // Ok(empty) or Err are both acceptable; hanging is not.
+    let _ = result;
+}
+
+/// FTS1-a17d: nested quantifier pattern `(a+)+` within the 500-byte cap must
+/// complete within the time budget.
+#[tokio::test]
+async fn fts1_nested_quantifier_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-fts1-nested", "regex");
+    q.text = "(a+)+".to_string(); // classic ReDoS pattern for NFA engines
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: nested quantifier must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: a 499-byte pattern at the boundary (just under the cap) consisting
+/// of alternating groups must complete within the time budget.
+/// This is the hardest case: syntactically valid, maximum allowed size, adversarial structure.
+#[tokio::test]
+async fn fts1_max_size_adversarial_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build a 495-byte pattern of repeated "(a|b)" — tests DFA construction on max-size input.
+    let unit = "(a|b)";
+    let count = 499 / unit.len(); // 99 units = 495 bytes — under the 500-byte cap
+    let pattern = unit.repeat(count);
+    assert!(pattern.len() < 500, "pattern must be <500 bytes for this test");
+
+    let mut q = make_query("proj-fts1-maxsize", "regex");
+    q.text = pattern;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: 495-byte adversarial alternation pattern must complete \
+         within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: deeply nested groups `(((a)+)+)+` must complete within deadline.
+/// Verifies the engine does not stack-overflow on deeply parenthesised patterns.
+#[tokio::test]
+async fn fts1_deeply_nested_group_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build "(((a)+)+)+" style nesting — 30 levels of wrapping
+    let mut pattern = "a".to_string();
+    for _ in 0..30 {
+        pattern = format!("({pattern})+");
+    }
+    assert!(pattern.len() < 500, "nested pattern must be <500 bytes");
+
+    let mut q = make_query("proj-fts1-nested-deep", "regex");
+    q.text = pattern;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: deeply nested group pattern must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: an adversarial pattern indexed against 50 documents must complete
+/// within the time budget.  Proves per-doc matching is linear even for ReDoS-prone
+/// patterns when the engine uses a DFA/automaton backend.
+#[tokio::test]
+async fn fts1_adversarial_pattern_over_multiple_docs_completes_within_deadline() {
+    use engram_core::RelPath;
+    use engram_index::IndexDoc;
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    // Index 50 docs, each containing a string that would catastrophically backtrack
+    // an NFA against the pattern "(a+)+b".
+    for i in 0..50usize {
+        let content = format!("{} function_{i}", "a".repeat(40));
+        let doc = IndexDoc {
+            generation: 1,
+            chunk_id: i as u64,
+            path: RelPath::new(&format!("src/f{i}.rs")),
+            language: "rust".into(),
+            content,
+            namespace: "functions".into(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: 1,
+            doc_id: format!("doc-fts1-large-{i}"),
+            content_hash: format!("hash-fts1-large-{i}"),
+        };
+        engine.index_docs("proj-fts1-multi", &[doc], &cancel).await.unwrap();
+    }
+
+    let mut q = make_query("proj-fts1-multi", "regex");
+    q.namespace = "functions".into();
+    q.text = "(a+)+b".into();
+    q.top_k = 50;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: adversarial pattern over 50 docs must complete within \
+         {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
