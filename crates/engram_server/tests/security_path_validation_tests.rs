@@ -209,3 +209,75 @@ fn safe_open_read_returns_err_for_missing_file() {
         "safe_open_read must return Err for a file that does not exist, not panic"
     );
 }
+
+/// SEC1-TOCTOU: resolve_path on a non-existent file inside an existing root
+/// must succeed (ancestor walk finds the root and appends the suffix lexically).
+/// This exercises the fixed ancestor-walk code path without a `exists()` gate.
+#[test]
+fn sec1_resolve_path_nonexistent_file_in_existing_root_succeeds() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
+        .expect("PathContext::new must succeed for existing root");
+
+    // The file does not exist, but the directory does — ancestor walk must
+    // canonicalize the existing parent and re-append the file name.
+    let target = tmp.path().join("newfile.txt");
+    let result = ctx.resolve_path(&target);
+    assert!(
+        result.is_ok(),
+        "SEC1-TOCTOU: resolve_path must succeed for a non-existent file inside an \
+         allowed root; got: {:?}",
+        result.err()
+    );
+}
+
+/// SEC1-TOCTOU: structural check — `resolve_path` in security.rs must NOT contain
+/// an `ancestor.exists()` call followed by `canonicalize`. After the TOCTOU fix,
+/// only a single `canonicalize` call is made (no preceding `exists()` gate).
+#[test]
+fn sec1_source_does_not_contain_exists_plus_canonicalize_toctou_pattern() {
+    let source = include_str!("../../engram_core/src/security.rs");
+
+    // The old TOCTOU pattern: `ancestor.exists()` as a gate before `canonicalize`.
+    // After the fix this must not appear — `canonicalize` is called directly.
+    let toctou_pattern = source.contains("ancestor.exists()");
+    assert!(
+        !toctou_pattern,
+        "SEC1-TOCTOU: security.rs must not contain `ancestor.exists()` as a gate \
+         before `canonicalize`. This is a TOCTOU race: between exists() returning \
+         true and canonicalize() executing, a symlink swap can bypass root checks. \
+         Fix: call canonicalize() directly and handle Err as 'not found'."
+    );
+
+    // The fixed pattern: `match std::fs::canonicalize(ancestor)` is used directly.
+    assert!(
+        source.contains("canonicalize(ancestor)"),
+        "SEC1-TOCTOU: security.rs must call canonicalize(ancestor) directly \
+         (single-syscall pattern) to eliminate the TOCTOU window"
+    );
+}
+
+/// SEC1-TOCTOU: structural check — `partial.exists()` as a gate before
+/// `symlink_metadata` must not appear in the fixed source.
+#[test]
+fn sec1_source_does_not_contain_partial_exists_toctou_pattern() {
+    let source = include_str!("../../engram_core/src/security.rs");
+
+    // Check specifically for the guarded form `if partial.exists() {` — the
+    // bare string `partial.exists()` may appear in comments explaining the fix.
+    let toctou_pattern = source.contains("if partial.exists()");
+    assert!(
+        !toctou_pattern,
+        "SEC1-TOCTOU: security.rs must not contain `if partial.exists()` as a gate \
+         before `symlink_metadata`. This is a TOCTOU race: a symlink could be \
+         injected between the exists() check and the metadata read. Fix: call \
+         symlink_metadata() directly and treat Err(NotFound) as 'no symlink'."
+    );
+
+    // The fixed pattern: symlink_metadata is called unconditionally.
+    assert!(
+        source.contains("symlink_metadata(&partial)"),
+        "SEC1-TOCTOU: security.rs must call symlink_metadata(&partial) directly \
+         (single-syscall pattern) without a preceding exists() gate"
+    );
+}

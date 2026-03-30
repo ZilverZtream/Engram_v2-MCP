@@ -55,6 +55,13 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                     };
 
                     for pid in project_ids {
+                        // CANCEL1: check shutdown token at each project iteration so
+                        // a long project list can be preempted cooperatively rather
+                        // than running to completion during process shutdown.
+                        if shutdown.is_cancelled() {
+                            tracing::info!("dreamer: shutdown cancelled during project loop — exiting");
+                            return;
+                        }
                         if let Err(e) = dream_once(&state, &pid, min_edge_weight, min_cluster_size, max_clusters).await {
                             tracing::debug!("dreamer error: {e:#}");
                         }

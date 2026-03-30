@@ -638,6 +638,101 @@ fn ds3_delete_namespace_clears_file_fingerprints() {
     );
 }
 
+/// DS1: `purge_old_generation_docs` must remove docs whose generation is strictly
+/// less than `min_generation` and preserve docs at or above it.
+///
+/// Without this, old records accumulate as orphans across generations — each
+/// incremental reindex adds new-generation docs but leaves prior-generation
+/// copies in storage, causing unbounded growth and stale reads.
+#[test]
+fn ds1_purge_old_generation_removes_stale_keeps_current() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Insert docs at three generations.
+    for g in [1u64, 2, 3] {
+        let mut doc = make_doc(&format!("doc_gen{g}"), &format!("src/gen{g}.rs"), "code");
+        doc.generation = g;
+        store.put_doc("ds1-proj", &doc).expect("put_doc");
+    }
+
+    // Purge generation < 3 — only g=3 should survive.
+    let removed = store
+        .purge_old_generation_docs("ds1-proj", "code", 3)
+        .expect("purge_old_generation_docs must succeed");
+
+    assert_eq!(removed, 2, "DS1: must remove exactly 2 stale docs (gen=1 and gen=2)");
+
+    // gen=3 must still be readable.
+    let surviving = store
+        .get_doc("ds1-proj", "code", "doc_gen3")
+        .expect("get_doc must not error")
+        .expect("doc_gen3 must still exist after purge");
+    assert_eq!(surviving.generation, 3);
+
+    // gen=1 and gen=2 must be gone.
+    for id in &["doc_gen1", "doc_gen2"] {
+        assert!(
+            store.get_doc("ds1-proj", "code", id).unwrap().is_none(),
+            "DS1: doc {id} (old generation) must be absent after purge"
+        );
+    }
+}
+
+/// DS1: purging with `min_generation=1` (no docs are stale) must return 0
+/// and leave all records intact — the call must be a no-op when there is
+/// nothing to purge.
+#[test]
+fn ds1_purge_old_generation_noop_when_nothing_stale() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    let mut doc = make_doc("doc_fresh", "src/fresh.rs", "code");
+    doc.generation = 5;
+    store.put_doc("ds1-noop", &doc).expect("put_doc");
+
+    // min_generation=5 means generation < 5 is stale — doc is at 5, so it's current.
+    let removed = store
+        .purge_old_generation_docs("ds1-noop", "code", 5)
+        .expect("purge must succeed");
+    assert_eq!(removed, 0, "DS1: nothing stale at generation=5; must remove 0");
+
+    // Doc must survive.
+    assert!(
+        store.get_doc("ds1-noop", "code", "doc_fresh").unwrap().is_some(),
+        "DS1: doc at current generation must survive purge"
+    );
+}
+
+/// DS1: purge is namespace-scoped — docs in other namespaces must not be affected.
+#[test]
+fn ds1_purge_old_generation_namespace_isolation() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Gen=1 doc in "code" namespace (will be purged).
+    let mut stale = make_doc("stale_doc", "src/stale.rs", "code");
+    stale.generation = 1;
+    store.put_doc("ds1-iso", &stale).expect("put stale");
+
+    // Gen=1 doc in "memory" namespace (must survive — different namespace).
+    let mut keeper = make_doc("keeper_doc", "src/keeper.rs", "memory");
+    keeper.generation = 1;
+    store.put_doc("ds1-iso", &keeper).expect("put keeper");
+
+    // Purge only "code" namespace.
+    let removed = store
+        .purge_old_generation_docs("ds1-iso", "code", 2)
+        .expect("purge must succeed");
+    assert_eq!(removed, 1, "DS1: only the 'code' namespace doc must be removed");
+
+    // "memory" namespace doc must still exist.
+    assert!(
+        store.get_doc("ds1-iso", "memory", "keeper_doc").unwrap().is_some(),
+        "DS1: docs in other namespaces must not be affected by purge"
+    );
+}
+
 /// DS3: fingerprints for files in a *different* namespace must not be affected
 /// by deleting another namespace.  This proves the fingerprint cleanup is scoped
 /// to files that actually belonged to the deleted namespace, not a project-wide wipe.

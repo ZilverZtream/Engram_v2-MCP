@@ -60,10 +60,13 @@ impl PathContext {
                             suffix = new_suffix;
                         }
                         ancestor = parent;
-                        if ancestor.exists() {
-                            let canon_ancestor = std::fs::canonicalize(ancestor).map_err(|e| {
-                                EngramError::PathNotAllowed(format!("cannot access {input:?}: {e}"))
-                            })?;
+                        // SEC1-TOCTOU: call canonicalize directly (single syscall) instead
+                        // of `exists()` + `canonicalize()`. Between `exists()` returning
+                        // true and the follow-up syscall, a race could replace the directory
+                        // with a symlink. Canonicalize errors mean the ancestor doesn't exist
+                        // yet — we continue walking up.
+                        match std::fs::canonicalize(ancestor) {
+                            Ok(canon_ancestor) => {
                             // Security: reject any suffix component that is `..`.
                             // Such components would escape the canonicalized ancestor and
                             // bypass the allowed-roots check below (lexical starts_with
@@ -79,21 +82,29 @@ impl PathContext {
                             // of the suffix and reject any that is a symlink.  A symlink
                             // in the unresolved suffix can point outside allowed_roots even
                             // though the lexical `starts_with` check below would pass.
+                            //
+                            // SEC1-TOCTOU: call symlink_metadata directly without a preceding
+                            // `exists()` check. NotFound or any other error means the
+                            // component is not a symlink — treat both Ok(non-symlink) and Err
+                            // as "safe to continue".
                             let mut partial = canon_ancestor.clone();
                             for component in suffix.components() {
                                 partial.push(component);
-                                if partial.exists() {
-                                    match std::fs::symlink_metadata(&partial) {
-                                        Ok(meta) if meta.file_type().is_symlink() => {
-                                            return Err(EngramError::PathNotAllowed(format!(
-                                                "cannot access {input:?}: symlink in unresolved path component {partial:?}"
-                                            )));
-                                        }
-                                        _ => {}
+                                match std::fs::symlink_metadata(&partial) {
+                                    Ok(meta) if meta.file_type().is_symlink() => {
+                                        return Err(EngramError::PathNotAllowed(format!(
+                                            "cannot access {input:?}: symlink in unresolved path component {partial:?}"
+                                        )));
                                     }
+                                    Ok(_) | Err(_) => {}
                                 }
                             }
                             break Ok(canon_ancestor.join(&suffix));
+                            }
+                            Err(_) => {
+                                // Ancestor does not exist or is inaccessible — continue
+                                // walking up the directory tree.
+                            }
                         }
                     }
                     None => {
@@ -511,11 +522,12 @@ mod tests {
 
     #[test]
     fn safe_join_single_stat_no_double_check() {
-        // Regression: safe_join must not call `exists()` before `symlink_metadata`
-        // (double-stat TOCTOU). We cannot directly observe system calls in a unit
-        // test, but we can verify that safe_join on a non-existent path succeeds —
-        // which the old `if partial.exists()` guard also allowed, and the new
-        // single-stat path also allows (NotFound → treat as non-symlink, OK).
+        // Regression (SEC1-TOCTOU): safe_join must not gate symlink_metadata on a
+        // preceding exists() call. The single-stat pattern (symlink_metadata directly,
+        // Err treated as non-symlink) eliminates the TOCTOU window. We cannot directly
+        // observe system calls in a unit test, but we verify that safe_join on a
+        // non-existent path succeeds — the old double-stat guard allowed this and the
+        // new single-stat path also allows it (Err::NotFound → treat as non-symlink).
         let base = Path::new("/project");
         // Non-existent path should be accepted (lexically safe, not yet on disk)
         let result = safe_join(base, "src/does_not_exist.rs");

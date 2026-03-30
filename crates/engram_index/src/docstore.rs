@@ -447,6 +447,45 @@ impl DocStore {
         wtx.commit()?;
         Ok(())
     }
+
+    /// DS1: remove all DocRecords for a project+namespace whose `generation` is
+    /// strictly less than `min_generation`, returning the count of deleted records.
+    ///
+    /// Old records accumulate as orphans when incremental indexing emits
+    /// newer-generation docs without cleaning up stale ones.  Call this after
+    /// advancing the active generation to keep storage bounded.
+    pub fn purge_old_generation_docs(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        min_generation: u64,
+    ) -> anyhow::Result<usize> {
+        validate_key_component(project_id, "project_id")?;
+        validate_key_component(namespace, "namespace")?;
+        let prefix = format!("{}\0{}\0", project_id, namespace);
+        let wtx = self.db.begin_write()?;
+        let removed = {
+            let mut t = wtx.open_table(DOC_BY_ID)?;
+            let mut stale_keys: Vec<String> = Vec::new();
+            for r in t.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let rec: DocRecord = de_bincode_or_json(v.value())?;
+                if rec.generation < min_generation {
+                    stale_keys.push(k.value().to_string());
+                }
+            }
+            let count = stale_keys.len();
+            for k in stale_keys {
+                t.remove(k.as_str())?;
+            }
+            count
+        };
+        wtx.commit()?;
+        Ok(removed)
+    }
 }
 
 #[cfg(test)]

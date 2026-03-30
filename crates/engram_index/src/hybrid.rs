@@ -384,6 +384,11 @@ impl HybridSearchEngine {
                             )
                         })
                         .transpose()?;
+                    // X1-7f9b: release the allocation budget before awaiting the remote
+                    // embed call. Holding AllocationGuard across an async .await ties the
+                    // memory budget to network latency — a slow remote embedder starves all
+                    // other concurrent allocations for the full round-trip duration.
+                    drop(_embed_guard);
                     // EMB1: use cancellable batch embed so in-flight remote HTTP
                     // calls can be preempted when the cancellation token fires.
                     let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
