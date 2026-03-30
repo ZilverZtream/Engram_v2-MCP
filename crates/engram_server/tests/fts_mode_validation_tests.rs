@@ -655,7 +655,6 @@ async fn fts1_deeply_nested_group_pattern_completes_within_deadline() {
 /// patterns when the engine uses a DFA/automaton backend.
 #[tokio::test]
 async fn fts1_adversarial_pattern_over_multiple_docs_completes_within_deadline() {
-    use engram_core::RelPath;
     use engram_index::IndexDoc;
 
     let tmp = tempfile::TempDir::new().unwrap();
