@@ -19,6 +19,21 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
+        // VEC1/D1: check if a full reindex is pending — surface degraded-mode
+        // warning so callers know semantic search quality may be reduced.
+        let reindex_since_ms: Option<u64> = {
+            let reg = self.state.registry.clone();
+            let pid = req.project_id.clone();
+            tokio::task::spawn_blocking(move || {
+                reg.get_project(&pid)
+                    .ok()
+                    .flatten()
+                    .and_then(|r| r.reindex_required_since_ms)
+            })
+            .await
+            .unwrap_or(None)
+        };
+
         // 1. Fetch PageRank centrality for boosting (project-wide).
         //
         // Fix 5: Running compute_pagerank synchronously on every search request
@@ -119,6 +134,13 @@ impl Engram {
         }
 
         let mut out = String::new();
+        // VEC1/D1: prepend degraded-mode warning when reindex is pending.
+        if let Some(since_ms) = reindex_since_ms {
+            out.push_str(&format!(
+                "WARNING: semantic search quality degraded — vector table was recreated at {}ms; full reindex required. Results may be incomplete.\n\n",
+                since_ms
+            ));
+        }
         out.push_str(&format!("active_generation: {gen_}\n"));
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
