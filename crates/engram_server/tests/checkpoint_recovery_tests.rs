@@ -267,3 +267,123 @@ fn cleanup_old_removes_expired_checkpoints() {
         "recent checkpoint must survive cleanup"
     );
 }
+
+// ── Fault injection and idempotent retry ─────────────────────────────────────
+
+/// Opening a CheckpointStore on a path whose parent is a file (not a directory)
+/// must return Err, not panic.  Proves the store is fail-closed on bad paths.
+#[test]
+fn checkpoint_open_on_blocked_path_returns_err() {
+    let tmp = tempfile::TempDir::new().unwrap();
+
+    // Write a regular file where the parent directory is expected.
+    let blocker = tmp.path().join("checkpoints");
+    std::fs::write(&blocker, b"I am a file, not a directory").unwrap();
+
+    // Attempting to open a DB inside the file must fail gracefully.
+    let bad_path = blocker.join("cp.redb");
+    let result = CheckpointStore::open(&bad_path);
+    assert!(
+        result.is_err(),
+        "CheckpointStore::open must return Err when parent path is a file; got Ok"
+    );
+}
+
+/// Writing the same job_id twice must succeed and the second write must win
+/// (last-writer semantics).  This is the idempotent retry contract: a job that
+/// failed after writing a checkpoint can retry and overwrite with a new phase.
+#[test]
+fn checkpoint_overwrite_is_last_write_wins() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let store = CheckpointStore::open(&tmp.path().join("cp.redb")).unwrap();
+
+    let cp1 = make_checkpoint("retry-job", "retry-proj", JobPhase::Scanning);
+    store.put(&cp1).unwrap();
+
+    let cp2 = Checkpoint {
+        job_id: "retry-job".to_string(),
+        project_id: "retry-proj".to_string(),
+        phase: JobPhase::Failed,
+        items_processed: 10,
+        items_total: 100,
+        generation: 1,
+        idempotency_key: Checkpoint::compute_idempotency_key("retry-proj", "/proj", 1),
+        resume_state: None,
+        updated_at_ms: 2_000_000,
+        error: Some("injected fault".to_string()),
+    };
+    store.put(&cp2).unwrap();
+
+    let got = store.get("retry-job").unwrap().unwrap();
+    assert_eq!(
+        got.phase, JobPhase::Failed,
+        "second write must win; expected Failed, got {:?}", got.phase
+    );
+    assert!(
+        got.error.as_deref().unwrap_or("").contains("injected"),
+        "error message from second write must be present"
+    );
+}
+
+/// A crashed job's checkpoint (any non-Completed phase) must be discoverable
+/// via `find_resumable` after a store reopen, proving crash recovery works.
+#[test]
+fn checkpoint_crash_recovery_finds_resumable_after_reopen() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let path = tmp.path().join("cp.redb");
+
+    // Write a mid-flight checkpoint then "crash" (drop store).
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let cp = Checkpoint {
+            job_id: "crash-job-001".to_string(),
+            project_id: "crash-proj".to_string(),
+            phase: JobPhase::VectorIndexing,
+            items_processed: 70,
+            items_total: 100,
+            generation: 1,
+            idempotency_key: Checkpoint::compute_idempotency_key("crash-proj", "/proj", 1),
+            resume_state: None,
+            updated_at_ms: 5_000_000,
+            error: None,
+        };
+        store.put(&cp).unwrap();
+    } // drop = simulated crash
+
+    // Recovery: reopen and locate resumable checkpoint.
+    let recovery_store = CheckpointStore::open(&path).unwrap();
+    let resumable = recovery_store.find_resumable("crash-proj").unwrap();
+
+    assert!(
+        resumable.is_some(),
+        "find_resumable must locate the mid-flight checkpoint after crash + reopen"
+    );
+    let cp = resumable.unwrap();
+    assert_eq!(
+        cp.phase, JobPhase::VectorIndexing,
+        "recovered checkpoint must have the phase written before crash"
+    );
+    assert_eq!(cp.items_processed, 70, "items_processed must match checkpoint");
+}
+
+/// A Completed checkpoint must NOT be returned by find_resumable.
+/// Resuming a completed job would duplicate work.
+#[test]
+fn checkpoint_completed_not_resumable_after_reopen() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let path = tmp.path().join("cp.redb");
+
+    {
+        let store = CheckpointStore::open(&path).unwrap();
+        let cp = make_checkpoint("done-job", "done-proj", JobPhase::Completed);
+        store.put(&cp).unwrap();
+    }
+
+    let store2 = CheckpointStore::open(&path).unwrap();
+    let resumable = store2.find_resumable("done-proj").unwrap();
+    assert!(
+        resumable.is_none(),
+        "Completed checkpoint must not be resumable; got: {:?}",
+        resumable.map(|c| c.phase)
+    );
+}
