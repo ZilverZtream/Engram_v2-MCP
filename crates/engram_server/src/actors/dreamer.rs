@@ -82,11 +82,28 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                             AppEvent::FullReindexRequired { project_id } => {
                                 tracing::error!(
                                     project_id = %project_id,
-                                    "VEC1/X1: full reindex required after vector table recreation \
+                                    "VEC1/D1: full reindex required after vector table recreation \
                                      — semantic search quality degraded until reindex completes"
                                 );
-                                // Trigger a dream pass as partial recovery; the operator must
-                                // schedule a full reindex to restore vector coverage.
+                                // D1: persist the reindex-required flag so search callers and
+                                // operators can observe the degraded state durably.
+                                let reg = state.registry.clone();
+                                let pid = project_id.clone();
+                                let since_ms = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_millis() as u64;
+                                if let Err(e) = tokio::task::spawn_blocking(move || {
+                                    reg.set_reindex_required(&pid, since_ms)
+                                })
+                                .await
+                                {
+                                    tracing::warn!(
+                                        project_id = %project_id,
+                                        "VEC1/D1: failed to persist reindex_required flag: {e:#}"
+                                    );
+                                }
+                                // Trigger a dream pass as partial recovery.
                                 if let Err(e) = dream_once(
                                     &state,
                                     &project_id,
@@ -96,7 +113,7 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                                 )
                                 .await
                                 {
-                                    tracing::debug!("VEC1/X1 trigger dream error: {e:#}");
+                                    tracing::debug!("VEC1/D1 trigger dream error: {e:#}");
                                 }
                             }
                         }

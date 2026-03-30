@@ -32,6 +32,12 @@ pub struct ProjectRecord {
     pub directory: String,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+    /// VEC1/D1: set when the vector table was recreated due to schema mismatch,
+    /// causing all historical vector data to be lost. Cleared when a full
+    /// index job completes successfully. While set, semantic search results
+    /// may be degraded. Value is the Unix-ms timestamp of the recreation event.
+    #[serde(default)]
+    pub reindex_required_since_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -119,6 +125,30 @@ impl Registry {
         } else {
             Ok(None)
         }
+    }
+
+    /// VEC1/D1: Mark the project as requiring a full reindex (vector table recreated).
+    /// Sets `reindex_required_since_ms` to the current time. No-op if project not found.
+    pub fn set_reindex_required(&self, project_id: &str, since_ms: u64) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        if let Some(mut rec) = self.get_project(project_id)? {
+            rec.reindex_required_since_ms = Some(since_ms);
+            rec.updated_at_ms = since_ms;
+            self.put_project(&rec)?;
+        }
+        Ok(())
+    }
+
+    /// VEC1/D1: Clear the reindex-required flag after a successful full reindex.
+    pub fn clear_reindex_required(&self, project_id: &str) -> anyhow::Result<()> {
+        vk("project_id", project_id)?;
+        if let Some(mut rec) = self.get_project(project_id)? {
+            if rec.reindex_required_since_ms.is_some() {
+                rec.reindex_required_since_ms = None;
+                self.put_project(&rec)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn list_projects(&self) -> anyhow::Result<Vec<ProjectRecord>> {

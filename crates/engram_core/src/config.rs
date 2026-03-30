@@ -127,6 +127,12 @@ pub struct Config {
     #[serde(default = "default_vector_search_timeout_ms")]
     pub vector_search_timeout_ms: u64,
 
+    // --- Embedding configuration ---
+    /// Maximum wall-clock seconds for a single remote embedding HTTP request
+    /// (applies to OllamaEmbedder and OpenAIEmbedder). Default: 30s.  EMB1/D6.
+    #[serde(default = "default_embedding_request_timeout_secs")]
+    pub embedding_request_timeout_secs: u64,
+
     // --- Immune system configuration ---
     /// Default similarity threshold for WARN decisions.
     #[serde(default = "default_immune_warn_threshold")]
@@ -329,6 +335,10 @@ fn default_vector_search_timeout_ms() -> u64 {
     5000
 }
 
+fn default_embedding_request_timeout_secs() -> u64 {
+    30
+}
+
 fn default_immune_warn_threshold() -> f32 {
     0.15
 }
@@ -450,6 +460,7 @@ impl Default for Config {
             dream_default_min_edge_weight: default_dream_min_edge_weight(),
             dream_default_min_cluster_size: default_dream_min_cluster_size(),
             vector_search_timeout_ms: default_vector_search_timeout_ms(),
+            embedding_request_timeout_secs: default_embedding_request_timeout_secs(),
             immune_warn_threshold: default_immune_warn_threshold(),
             immune_block_threshold: default_immune_block_threshold(),
             boundary_suggestion_timeout_secs: default_boundary_suggestion_timeout_secs(),
