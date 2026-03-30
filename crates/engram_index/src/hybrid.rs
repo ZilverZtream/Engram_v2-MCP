@@ -1260,6 +1260,21 @@ impl HybridSearchEngine {
                         MAX_REGEX_PATTERN_LEN
                     );
                 }
+                // FTS1: cap top-level alternation count to bound DFA state explosion.
+                // Each top-level `|` (at paren depth 0) creates an additional branch;
+                // 50+ top-level branches → unbounded DFA state growth.
+                // Alternations inside `(a|b)` groups are bounded sub-expressions and
+                // are excluded from this count.
+                const MAX_ALTERNATIONS: usize = 20;
+                let alternation_count = count_unescaped_alternations(&q.text);
+                if alternation_count > MAX_ALTERNATIONS {
+                    anyhow::bail!(
+                        "FTS1: regex pattern has {} top-level alternations (max {}); \
+                         reduce the number of top-level '|' branches to prevent DFA state explosion",
+                        alternation_count,
+                        MAX_ALTERNATIONS
+                    );
+                }
                 let mut parser =
                     QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
                 parser.set_conjunction_by_default();
@@ -1992,6 +2007,36 @@ impl HybridSearchEngine {
 ///
 /// Covers all Tantivy 0.22+ special characters including `<` and `>` (used in
 /// range queries like `[A TO Z]` and `{A TO Z}`).
+/// FTS1: Count unescaped top-level `|` alternations in a regex pattern.
+/// Only counts alternations at parenthesis depth 0 — alternations inside
+/// `(a|b)` groups or `[a|b]` character classes are NOT counted, because
+/// they are bounded sub-expressions with predictable DFA size.
+/// Only top-level alternatives like `a|b|c|...` cause unbounded DFA growth.
+fn count_unescaped_alternations(pat: &str) -> usize {
+    let mut count = 0usize;
+    let mut in_class = false;
+    let mut paren_depth: i32 = 0;
+    let mut escaped = false;
+    for c in pat.chars() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match c {
+            '\\' => escaped = true,
+            '[' if !in_class => in_class = true,
+            ']' if in_class => in_class = false,
+            '(' if !in_class => paren_depth += 1,
+            ')' if !in_class && paren_depth > 0 => paren_depth -= 1,
+            // Only count top-level alternations (paren_depth == 0).
+            '|' if !in_class && paren_depth == 0 => count += 1,
+            _ => {}
+        }
+    }
+    count
+}
+
+
 pub fn escape_tantivy_literal(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {

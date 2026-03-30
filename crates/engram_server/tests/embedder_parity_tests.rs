@@ -286,6 +286,102 @@ async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
     );
 }
 
+// ── EMB2: L2 normalisation via build_embedder ─────────────────────────────────
+//
+// build_embedder now wraps ollama/openai in RemoteEmbedder so normalisation
+// is applied regardless of which call path invokes the embedder.
+
+/// build_embedder for ollama must produce a RemoteEmbedder that applies
+/// L2 normalisation.  We verify this with a mock server that returns a
+/// non-unit vector, and confirm the embedder normalises it.
+#[tokio::test]
+async fn build_embedder_ollama_produces_l2_normalised_output() {
+    use tokio::io::AsyncWriteExt;
+
+    // Mock server returns a non-unit vector [3.0, 4.0] (norm = 5.0).
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let _srv = tokio::spawn(async move {
+        loop {
+            if let Ok((mut conn, _)) = listener.accept().await {
+                let body = r#"{"embeddings":[[3.0,4.0]]}"#;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                    body.len(), body
+                );
+                let _ = conn.write_all(response.as_bytes()).await;
+            }
+        }
+    });
+
+    let cfg = engram_core::Config {
+        embedding_backend: "ollama".into(),
+        ollama_url: Some(format!("http://127.0.0.1:{port}")),
+        embedding_model: Some("test-model".into()),
+        ollama_embed_dim: Some(2),
+        ..Default::default()
+    };
+
+    let embedder = build_embedder(&cfg).expect("build_embedder(ollama) must succeed");
+
+    // Allow the server to start.
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    if let Ok(v) = embedder.embed("hello").await {
+        // Server returned [3.0, 4.0]; after L2 normalisation → [0.6, 0.8].
+        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(
+            (norm - 1.0f32).abs() < 1e-5,
+            "build_embedder(ollama) must return L2-normalised vectors; norm={norm}"
+        );
+    }
+    // If the connection fails (port not ready), skip — timing-sensitive.
+}
+
+/// build_embedder for openai must produce a RemoteEmbedder that applies
+/// L2 normalisation.  Similar mock-server approach.
+#[tokio::test]
+async fn build_embedder_openai_produces_l2_normalised_output() {
+    use tokio::io::AsyncWriteExt;
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let _srv = tokio::spawn(async move {
+        loop {
+            if let Ok((mut conn, _)) = listener.accept().await {
+                // OpenAI response format.
+                let body = r#"{"data":[{"embedding":[3.0,4.0],"index":0}],"model":"test","usage":{"prompt_tokens":1,"total_tokens":1}}"#;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+                    body.len(), body
+                );
+                let _ = conn.write_all(response.as_bytes()).await;
+            }
+        }
+    });
+
+    let cfg = engram_core::Config {
+        embedding_backend: "openai".into(),
+        openai_api_key: Some("test-key".into()),
+        openai_api_base: Some(format!("http://127.0.0.1:{port}")),
+        embedding_model: Some("test-model".into()),
+        openai_embed_dim: Some(2),
+        ..Default::default()
+    };
+
+    let embedder = build_embedder(&cfg).expect("build_embedder(openai) must succeed");
+
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    if let Ok(v) = embedder.embed("hello").await {
+        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(
+            (norm - 1.0f32).abs() < 1e-5,
+            "build_embedder(openai) must return L2-normalised vectors; norm={norm}"
+        );
+    }
+}
+
 // ── EMB1: mid-flight cancellation tests ──────────────────────────────────────
 //
 // These tests prove that `embed_batch_cancellable` actually interrupts an

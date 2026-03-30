@@ -775,3 +775,80 @@ async fn mmr_oversample_cap_large_top_k_completes_without_error() {
     let _result = engine.search(&q, None).await;
     // Not panicking is the primary assertion.
 }
+
+// ── FTS1: regex alternation count cap (DFA state explosion prevention) ────────
+
+/// A regex pattern with 21 top-level alternations (branches at depth 0) must be
+/// rejected before reaching Tantivy's DFA builder.
+/// Without this cap, 50+ branches create exponential DFA state counts.
+#[tokio::test]
+async fn regex_excessive_top_level_alternations_rejected() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 21 top-level alternations (22 branches separated by |).
+    let pattern = (0..22)
+        .map(|i| format!("branch{i}"))
+        .collect::<Vec<_>>()
+        .join("|");
+
+    let mut q = make_query("proj-alt-cap", "regex");
+    q.text = pattern.clone();
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "regex with 21+ top-level alternations must be rejected; pattern len={}", pattern.len()
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("alternation") || err.to_string().contains("FTS1"),
+        "error must describe the alternation limit; got: {err}"
+    );
+}
+
+/// A pattern with exactly 20 top-level alternations must be accepted.
+#[tokio::test]
+async fn regex_twenty_top_level_alternations_accepted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 20 alternations = 21 branches.
+    let pattern = (0..21).map(|i| format!("br{i}")).collect::<Vec<_>>().join("|");
+
+    let mut q = make_query("proj-alt-limit", "regex");
+    q.text = pattern;
+    let result = engine.lexical_search(&q);
+    // Must succeed (or return Ok with empty results) — not rejected for count.
+    assert!(
+        result.is_ok(),
+        "regex with exactly 20 top-level alternations must be accepted; got: {:?}",
+        result.err()
+    );
+}
+
+/// Alternations inside `(...)` groups must NOT count toward the top-level limit.
+/// This ensures `(a|b)(a|b)...` patterns (used by existing adversarial tests)
+/// are not broken by the new cap.
+#[tokio::test]
+async fn regex_alternations_inside_groups_not_counted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 99 groups each with 1 alternation — 0 top-level alternations.
+    // This is the existing adversarial test pattern; must still be accepted.
+    let unit = "(a|b)";
+    let count = 499 / unit.len(); // ~99 groups, 495 bytes
+    let pattern = unit.repeat(count);
+
+    let mut q = make_query("proj-grp-alt", "regex");
+    q.text = pattern;
+    let result = engine.lexical_search(&q);
+    // Must not be rejected for alternation count (groups don't count).
+    if let Err(e) = &result {
+        assert!(
+            !e.to_string().contains("alternation"),
+            "alternations inside () groups must not count toward top-level limit; got: {e}"
+        );
+    }
+}
+

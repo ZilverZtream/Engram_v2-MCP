@@ -978,6 +978,19 @@ impl RemoteEmbedder {
         })
     }
 
+    /// Like `ollama` but honours a caller-supplied HTTP request timeout.
+    /// Used by `build_embedder` to thread the operator-configured timeout through.
+    pub fn ollama_with_timeout(
+        model: impl Into<String>,
+        url: impl Into<String>,
+        dim: usize,
+        timeout_secs: u64,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim, timeout_secs)?),
+        })
+    }
+
     /// Create an OpenAI-compatible remote embedder.
     /// `dim` should match the model's output dimensionality (e.g. 1536 for text-embedding-3-small).
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
@@ -989,6 +1002,22 @@ impl RemoteEmbedder {
     ) -> anyhow::Result<Self> {
         Ok(Self {
             backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(model, api_key, api_base, dim, 30)?),
+        })
+    }
+
+    /// Like `openai` but honours a caller-supplied HTTP request timeout.
+    /// Used by `build_embedder` to thread the operator-configured timeout through.
+    pub fn openai_with_timeout(
+        model: impl Into<String>,
+        api_key: impl Into<String>,
+        api_base: impl Into<String>,
+        dim: usize,
+        timeout_secs: u64,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(
+                model, api_key, api_base, dim, timeout_secs,
+            )?),
         })
     }
 }
@@ -1077,7 +1106,9 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // Operator sets ollama_embed_dim in engram_mcp.yaml; we fall back to
             // 768 only when the field is absent for backward compatibility.
             let dim = cfg.ollama_embed_dim.unwrap_or(768);
-            Ok(Box::new(OllamaEmbedder::new(model, url, dim, cfg.embedding_request_timeout_secs)?))
+            // EMB2: wrap in RemoteEmbedder so L2 normalisation is always applied,
+            // regardless of which code path calls the embedder.
+            Ok(Box::new(RemoteEmbedder::ollama_with_timeout(model, url, dim, cfg.embedding_request_timeout_secs)?))
         }
         "openai" => {
             let api_key = cfg.openai_api_key.clone().unwrap_or_default();
@@ -1097,7 +1128,8 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // ENG-AUD-2026-S12-0004: use operator-configured dimension.
             // Defaults to 1536 (text-embedding-3-small) for backward compatibility.
             let dim = cfg.openai_embed_dim.unwrap_or(1536);
-            Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim, cfg.embedding_request_timeout_secs)?))
+            // EMB2: wrap in RemoteEmbedder so L2 normalisation is always applied.
+            Ok(Box::new(RemoteEmbedder::openai_with_timeout(model, api_key, api_base, dim, cfg.embedding_request_timeout_secs)?))
         }
         // Known local-mode backends that all resolve to LocalEmbedder.
         "local" | "candle" | "fts_only" => Ok(Box::new(LocalEmbedder)),
