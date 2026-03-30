@@ -44,7 +44,7 @@ fn empty_bundle() -> ProjectFileBundle {
 /// `degraded_sections` empty — proving the TLS accumulator is wired correctly
 /// into the returned report.
 #[test]
-fn mig1_report_completeness_fields_present_and_correct_on_happy_path() {
+fn analyze_full_project_empty_graph_returns_complete_with_no_degraded_sections() {
     let tmp = tempfile::TempDir::new().unwrap();
     let db_path = tmp.path().join("graph.redb");
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
@@ -72,7 +72,7 @@ fn mig1_report_completeness_fields_present_and_correct_on_happy_path() {
 /// second call resets the TLS accumulator, so stale state from the previous
 /// call doesn't bleed into the new report.
 #[test]
-fn mig1_consecutive_calls_do_not_accumulate_across_calls() {
+fn consecutive_analysis_calls_reset_tls_accumulator_independently() {
     let tmp = tempfile::TempDir::new().unwrap();
     let db_path = tmp.path().join("graph.redb");
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open"));
@@ -93,7 +93,7 @@ fn mig1_consecutive_calls_do_not_accumulate_across_calls() {
 /// must each receive an isolated, independently correct `degraded_sections` accumulator.
 /// Proves that thread-local storage (TLS) state does not bleed between concurrent threads.
 #[test]
-fn mig1_concurrent_calls_on_separate_threads_have_isolated_tls() {
+fn concurrent_analysis_threads_have_isolated_tls_accumulators() {
     let tmp1 = tempfile::TempDir::new().unwrap();
     let tmp2 = tempfile::TempDir::new().unwrap();
 
@@ -139,7 +139,7 @@ fn mig1_concurrent_calls_on_separate_threads_have_isolated_tls() {
 /// MIG1-e84f: Four concurrent threads, each running analyze_full_project on
 /// a distinct graph, must all report complete and isolated results.
 #[test]
-fn mig1_four_concurrent_threads_all_isolated() {
+fn four_concurrent_analysis_threads_all_produce_isolated_complete_reports() {
     let handles: Vec<_> = (0..4).map(|i| {
         let tmp = tempfile::TempDir::new().unwrap();
         let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
@@ -171,7 +171,7 @@ fn mig1_four_concurrent_threads_all_isolated() {
 /// MIG1/D2: verifies the `FileContent` and `ProjectReferenceBundle` types are
 /// usable as bundle inputs without panicking — exercises construction paths.
 #[test]
-fn mig1_bundle_with_minimal_content_does_not_panic() {
+fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
     let tmp = tempfile::TempDir::new().unwrap();
     let db_path = tmp.path().join("graph.redb");
     let graph = Arc::new(GraphStore::open(&db_path).unwrap());
@@ -222,7 +222,7 @@ fn mig1_bundle_with_minimal_content_does_not_panic() {
 /// in `full_project_migration_service.rs#[cfg(test)]` cover the fault paths;
 /// this integration-level test proves the wiring of the completeness surface.
 #[test]
-fn mig1_report_source_contains_completeness_surface() {
+fn migration_report_source_has_completeness_fields_and_tls_accumulator() {
     let source = include_str!("../src/services/full_project_migration_service.rs");
 
     // The completeness fields must exist on the report struct.
@@ -260,7 +260,7 @@ fn mig1_report_source_contains_completeness_surface() {
 /// Tests this invariant on the happy-path (empty graph, empty bundle) to verify
 /// the wiring is correct before any degradation occurs.
 #[test]
-fn mig1_report_completeness_invariant_holds_on_happy_path() {
+fn analysis_report_is_complete_and_degraded_sections_is_empty_are_consistent() {
     let tmp = tempfile::TempDir::new().unwrap();
     let db_path = tmp.path().join("graph.redb");
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
@@ -298,7 +298,7 @@ fn mig1_report_completeness_invariant_holds_on_happy_path() {
 /// Without this contract, in-flight migrations cannot be aborted cooperatively —
 /// callers would have to wait for the entire synchronous analysis to complete.
 #[test]
-fn mig1_pre_cancelled_token_returns_err() {
+fn analysis_returns_err_immediately_when_token_is_pre_cancelled() {
     let tmp = tempfile::TempDir::new().unwrap();
     let db_path = tmp.path().join("graph.redb");
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open"));
@@ -330,7 +330,7 @@ fn mig1_pre_cancelled_token_returns_err() {
 /// MIG1-cancel: structural check — the migration service source must import
 /// and use CancellationToken, and the function must check is_cancelled().
 #[test]
-fn mig1_source_contains_cancellation_checks() {
+fn migration_service_source_uses_cancellation_token_at_phase_boundaries() {
     let source = include_str!("../src/services/full_project_migration_service.rs");
 
     assert!(
