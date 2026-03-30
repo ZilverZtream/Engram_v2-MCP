@@ -8,6 +8,7 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::metrics;
+use tokio_util::sync::CancellationToken;
 use engram_index::docstore::{DocStore, DocSummary};
 use engram_index::hybrid::SearchDocSummary;
 use serde::{Deserialize, Serialize};
@@ -466,7 +467,7 @@ async fn attempt_repair(
 }
 
 /// Background actor: periodic integrity checks.
-pub async fn run_integrity_checker(state: AppState) {
+pub async fn run_integrity_checker(state: AppState, shutdown: CancellationToken) {
     let interval_secs = state.cfg.integrity_check_interval_secs;
     if interval_secs == 0 {
         tracing::info!("Integrity checker disabled (interval=0)");
@@ -475,8 +476,17 @@ pub async fn run_integrity_checker(state: AppState) {
 
     tracing::info!(interval_secs, "Starting periodic integrity checker");
 
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
+    interval.tick().await; // consume the immediate first tick
+
     loop {
-        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
+        tokio::select! {
+            _ = shutdown.cancelled() => {
+                tracing::info!("Integrity checker shutting down");
+                return;
+            }
+            _ = interval.tick() => {}
+        }
 
         // Check all cached projects
         let project_ids: Vec<String> = state
@@ -486,6 +496,9 @@ pub async fn run_integrity_checker(state: AppState) {
             .collect();
 
         for pid in project_ids {
+            if shutdown.is_cancelled() {
+                return;
+            }
             match check_project_integrity(&state, &pid).await {
                 Ok(result) => {
                     if !result.overall_healthy {

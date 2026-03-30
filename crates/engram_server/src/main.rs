@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(actors::immune::run_immune_actor(state.clone(), shutdown.clone()));
 
     // Data integrity sentinel (periodic cross-store consistency checks).
-    tokio::spawn(engram_server::services::integrity_service::run_integrity_checker(state.clone()));
+    tokio::spawn(engram_server::services::integrity_service::run_integrity_checker(state.clone(), shutdown.clone()));
 
     tools::run_stdio(state).await?;
     Ok(())

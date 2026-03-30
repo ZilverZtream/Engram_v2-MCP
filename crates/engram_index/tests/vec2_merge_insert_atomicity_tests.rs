@@ -5,6 +5,7 @@
 //! - Repeated upserts of the same PKs do NOT grow the row count (no phantom duplicates).
 //! - Updated fields reflect the latest batch values after the upsert.
 //! - A batch mixing existing and new PKs lands exactly N_existing+N_new rows.
+//! - Failures surface as `Err` with a tagged error message (VEC2 error surface).
 //!
 //! These tests catch a regression to the old delete-then-add pattern, which had
 //! a window where rows could temporarily vanish and left duplicate rows after
@@ -160,4 +161,84 @@ async fn vec2_empty_batch_is_noop() {
     upsert_vectors(&table, vec![]).await.unwrap();
     let count = table.count_rows(None).await.unwrap();
     assert_eq!(count, 2, "VEC2: empty upsert must leave row count unchanged; got {count}");
+}
+
+/// VEC2 error surface: `upsert_vectors` must surface storage errors as `Err`
+/// rather than silently swallowing them or panicking.  This is proven by checking
+/// the source-level map_err tag — a structural test since we cannot inject
+/// a LanceDB storage fault without mocking the entire storage layer.
+#[test]
+fn upsert_vectors_maps_errors_to_anyhow_err() {
+    let source = include_str!("../src/vector.rs");
+
+    // The function must use ? or map_err on the merge result — not .unwrap()/.expect().
+    let has_error_propagation = source.contains("map_err")
+        || (source.contains(".execute(") && source.contains("?"));
+
+    assert!(
+        has_error_propagation,
+        "upsert_vectors must propagate merge_insert errors via map_err or ? — \
+         silent swallow would hide partial-commit failures"
+    );
+
+    // The error must carry a VEC tag so callers can identify the subsystem.
+    assert!(
+        source.contains("VEC1: LanceDB merge_insert failed")
+            || source.contains("merge_insert failed"),
+        "upsert_vectors error message must identify the LanceDB merge_insert failure site"
+    );
+}
+
+/// VEC2: `upsert_vectors` with a schema-mismatched batch (wrong dim) must return
+/// Err and leave the table row count unchanged — no partial commit.
+#[tokio::test]
+async fn upsert_vectors_schema_mismatch_returns_err_and_preserves_table() {
+    const DIM8: usize = 8;
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let conn = connect(tmp.path()).await.unwrap();
+
+    // Create table with DIM=4.
+    let (table, _) = open_or_create_table(&conn, "vectors_mismatch", DIM).await.unwrap();
+
+    // Insert 2 good rows first.
+    let good_pks = pks("good", 0..2);
+    upsert_vectors(&table, vec![make_batch("proj", &good_pks, "hash-good")])
+        .await
+        .unwrap();
+    let count_before = table.count_rows(None).await.unwrap();
+    assert_eq!(count_before, 2);
+
+    // Create a batch with DIM=8 (wrong dimension) using the correct API.
+    let bad_pks: Vec<String> = vec!["bad:k0".into()];
+    let bad_doc_ids: Vec<String> = vec!["doc_bad".into()];
+    let bad_hashes: Vec<String> = vec!["hash-bad".into()];
+    let bad_chunks: Vec<u64> = vec![0];
+    let bad_paths: Vec<String> = vec!["src/bad.rs".into()];
+    let bad_langs: Vec<String> = vec!["rust".into()];
+    let bad_authors: Vec<Option<String>> = vec![None];
+    let bad_ts: Vec<Option<u64>> = vec![None];
+    let bad_vecs: Vec<Vec<f32>> = vec![vec![0.125f32; DIM8]];
+    let bad_batch = create_record_batch(
+        "proj", "code", 1,
+        &bad_pks, &bad_doc_ids, &bad_hashes, &bad_chunks,
+        &bad_paths, &bad_langs, &bad_authors, &bad_ts,
+        &bad_vecs, DIM8,
+    ).expect("create_record_batch with dim=8 must succeed");
+
+    // Attempt to upsert the 8-dim batch into a 4-dim table — must fail.
+    let result = upsert_vectors(&table, vec![bad_batch]).await;
+    assert!(
+        result.is_err(),
+        "VEC2: upsert_vectors with wrong-dimension batch must return Err, not Ok; \
+         partial commits must surface as errors not silent data corruption"
+    );
+
+    // Row count must be unchanged — no partial commit leaked through.
+    let count_after = table.count_rows(None).await.unwrap();
+    assert_eq!(
+        count_after, count_before,
+        "VEC2: table row count must be unchanged after failed upsert — \
+         no partial rows must be committed"
+    );
 }

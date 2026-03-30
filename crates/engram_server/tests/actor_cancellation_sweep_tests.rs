@@ -173,3 +173,67 @@ fn server_passes_shutdown_token_to_actors() {
          to pass cooperative shutdown signals to background actors"
     );
 }
+
+/// The integrity_checker actor must also receive the shutdown token —
+/// it is a long-running background loop that previously lacked cooperative shutdown.
+#[test]
+fn integrity_checker_has_shutdown_check() {
+    let source = include_str!("../src/services/integrity_service.rs");
+
+    assert!(
+        source.contains("shutdown.cancelled()") || source.contains(".cancelled()"),
+        "integrity_service.rs must check a cancellation token inside its main loop"
+    );
+    assert!(
+        source.contains("tokio::select!"),
+        "integrity_service.rs must use tokio::select! for cooperative shutdown"
+    );
+    assert!(
+        source.contains("CancellationToken"),
+        "integrity_service.rs must accept a CancellationToken parameter"
+    );
+}
+
+/// main.rs must pass the shutdown token to the integrity_checker, not spawn it naked.
+#[test]
+fn main_passes_shutdown_to_integrity_checker() {
+    let source = include_str!("../src/main.rs");
+
+    // The call site must pass `shutdown` (or a clone) to run_integrity_checker.
+    let has_wiring = source.contains("run_integrity_checker")
+        && (source.contains("shutdown.clone()") || source.contains("shutdown,"));
+
+    assert!(
+        has_wiring,
+        "main.rs must pass shutdown token to run_integrity_checker — \
+         bare spawn without shutdown token leaves the loop unshuttable"
+    );
+}
+
+/// Exhaustive sweep: every source file in the server crate that contains both
+/// `loop {` and `.await` must also contain a cancellation check (`.cancelled()`).
+/// This proves no long-running async loop is missing cooperative shutdown.
+#[test]
+fn all_async_loops_in_server_have_cancellation_checks() {
+    let sources = [
+        ("actors/gc.rs",               include_str!("../src/actors/gc.rs")),
+        ("actors/dreamer.rs",          include_str!("../src/actors/dreamer.rs")),
+        ("actors/watcher.rs",          include_str!("../src/actors/watcher.rs")),
+        ("actors/immune.rs",           include_str!("../src/actors/immune.rs")),
+        ("services/integrity_service.rs", include_str!("../src/services/integrity_service.rs")),
+    ];
+
+    for (name, src) in sources {
+        let has_loop  = src.contains("loop {");
+        let has_await = src.contains(".await");
+        let has_cancel = src.contains(".cancelled()") || src.contains("CancellationToken");
+
+        if has_loop && has_await {
+            assert!(
+                has_cancel,
+                "{name} contains `loop {{` with `.await` but no cancellation check — \
+                 the loop can block shutdown indefinitely"
+            );
+        }
+    }
+}

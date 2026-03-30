@@ -36,9 +36,11 @@ impl PathContext {
             // canonicalize, then re-append the unresolved suffix beneath it.
             //
             // Depth limit prevents probing top-level system directories when given
-            // a deeply nested non-existent path. 64 components is generous enough
-            // for any legitimate project layout while stopping runaway traversals.
-            const MAX_ANCESTOR_DEPTH: usize = 64;
+            // a deeply nested non-existent path. 128 components accommodates deeply
+            // nested project layouts while stopping runaway traversals.
+            // SEC1-n9b2: raised from 64 → 128 to avoid false denials on legitimate
+            // deeply-nested workspace paths.
+            const MAX_ANCESTOR_DEPTH: usize = 128;
             let mut ancestor = input;
             let mut suffix = std::path::PathBuf::new();
             let mut depth: usize = 0;
@@ -638,7 +640,7 @@ mod tests {
 
     // ── SEC1: MAX_ANCESTOR_DEPTH guard for deeply nested non-existent paths ──
 
-    /// SEC1: resolve_path with a path that has more than MAX_ANCESTOR_DEPTH (64)
+    /// SEC1-n9b2: resolve_path with a path that has more than MAX_ANCESTOR_DEPTH (128)
     /// non-existent components must return Err, not walk indefinitely or panic.
     /// Without this guard an adversary could supply an extremely deep path to
     /// exhaust the ancestor-walk loop.
@@ -648,35 +650,37 @@ mod tests {
         let base = tmp.path().to_path_buf();
         let ctx = PathContext::new(vec![base.clone()]).expect("PathContext::new must succeed");
 
-        // Build a path with 65 non-existent components — one more than MAX_ANCESTOR_DEPTH=64.
+        // Build a path with 129 non-existent components — one more than MAX_ANCESTOR_DEPTH=128.
         let mut deep = base.clone();
-        for i in 0..65usize {
+        for i in 0..129usize {
             deep.push(format!("nonexistent_level_{i:03}"));
         }
 
         let result = ctx.resolve_path(&deep);
         assert!(
             result.is_err(),
-            "SEC1: resolve_path must reject a path exceeding MAX_ANCESTOR_DEPTH=64; got Ok({:?})",
+            "SEC1: resolve_path must reject a path exceeding MAX_ANCESTOR_DEPTH=128; got Ok({:?})",
             result.ok()
         );
         let err_str = format!("{:?}", result.unwrap_err());
         assert!(
-            err_str.contains("64") || err_str.contains("ancestor") || err_str.contains("exceeded"),
+            err_str.contains("128") || err_str.contains("ancestor") || err_str.contains("exceeded"),
             "SEC1: error must reference the depth limit; got: {err_str}"
         );
     }
 
-    /// SEC1: resolve_path with exactly 64 non-existent levels must also fail with
-    /// an ancestor error (the 64th level hits the depth == MAX_ANCESTOR_DEPTH guard
-    /// on the next increment).
+    /// SEC1-n9b2: resolve_path with exactly 64 non-existent levels must now succeed
+    /// (or at minimum not be rejected by the depth guard) because MAX_ANCESTOR_DEPTH
+    /// was raised from 64 → 128. This proves the depth increase reduces false denials
+    /// on legitimate deeply-nested project layouts.
     #[test]
-    fn resolve_path_rejects_path_at_max_ancestor_depth() {
+    fn resolve_path_accepts_path_at_old_depth_limit_of_64() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let base = tmp.path().to_path_buf();
         let ctx = PathContext::new(vec![base.clone()]).expect("PathContext::new must succeed");
 
-        // Build a path with exactly 64 non-existent components.
+        // Build a path with exactly 64 non-existent components — previously rejected,
+        // now within the 128-level budget.
         let mut deep = base.clone();
         for i in 0..64usize {
             deep.push(format!("deep_nonexistent_{i:03}"));
