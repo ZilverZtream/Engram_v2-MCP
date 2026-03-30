@@ -975,6 +975,13 @@ impl HybridSearchEngine {
                         }
 
                         let Ok(bytes) = std::fs::read(p) else {
+                            // DS1/D5: log unexpected read failures so operators can see
+                            // them in structured logs, not just in the indexing report.
+                            // Policy: fail-open (skip file, continue job).
+                            tracing::warn!(
+                                path = %p.display(),
+                                "DS1/D5: file read failed during indexing — file skipped (fail-open)"
+                            );
                             local_stats
                                 .skipped_files
                                 .push((rel_path, "Could not read file content".into()));
@@ -993,6 +1000,11 @@ impl HybridSearchEngine {
                             .unwrap_or(0);
 
                         let Ok(text) = String::from_utf8(bytes) else {
+                            // DS1/D5: log unexpected UTF-8 failures (fail-open: skip file).
+                            tracing::warn!(
+                                path = %p.display(),
+                                "DS1/D5: file UTF-8 decode failed during indexing — file skipped (fail-open)"
+                            );
                             local_stats
                                 .skipped_files
                                 .push((rel_path, "Invalid UTF-8 encoding".into()));

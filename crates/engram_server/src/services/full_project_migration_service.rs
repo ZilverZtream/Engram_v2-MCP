@@ -3362,7 +3362,16 @@ fn build_method_inventories(
                 500,
             ) {
                 Ok(nodes) => nodes,
-                Err(_) => continue,
+                Err(e) => {
+                    // MIG1/D2: log graph query failure so operators can see it.
+                    tracing::warn!(
+                        project_id,
+                        path = %codebehind_path,
+                        error = %e,
+                        "MIG1: graph query for code-behind failed — skipping method node extraction"
+                    );
+                    continue;
+                }
             };
 
             if method_nodes.is_empty() {
@@ -4846,14 +4855,30 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
     let mut object_var_count = 0usize;
     let mut callbyname_count = 0usize;
 
-    let option_strict_re = Regex::new(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b").ok();
-    let method_re = Regex::new(
+    // MIG1/D2: log regex compile failures so silent zero-out is visible to operators.
+    macro_rules! compile_re {
+        ($pattern:expr, $name:expr) => {{
+            match Regex::new($pattern) {
+                Ok(r) => Some(r),
+                Err(e) => {
+                    tracing::warn!(
+                        pattern_name = $name,
+                        error = %e,
+                        "MIG1: VB analysis regex failed to compile — affected metric will be zero"
+                    );
+                    None
+                }
+            }
+        }};
+    }
+    let option_strict_re = compile_re!(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b", "option_strict_re");
+    let method_re = compile_re!(
         r"(?is)\b(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\b.*?\bEnd\s+(?:Sub|Function)\b",
-    )
-    .ok();
-    let object_decl_re = Regex::new(r"(?i)\bDim\s+(\w+)\s+As\s+Object\b").ok();
-    let callbyname_re = Regex::new(r"(?i)\bCallByName\s*\(").ok();
-    let late_call_re = Regex::new(r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?").ok();
+        "method_re"
+    );
+    let object_decl_re = compile_re!(r"(?i)\bDim\s+(\w+)\s+As\s+Object\b", "object_decl_re");
+    let callbyname_re = compile_re!(r"(?i)\bCallByName\s*\(", "callbyname_re");
+    let late_call_re = compile_re!(r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?", "late_call_re");
 
     for (path, content) in code_files {
         let is_vb = path.to_lowercase().ends_with(".vb");
@@ -9118,7 +9143,10 @@ pub(crate) fn extract_vb_method_body(
         r"(?im)^\s*(?:(?:Public|Private|Protected|Friend)\s+)?(?:Shared\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Async\s+)?(Sub|Function)\s+{}\s*\(",
         regex::escape(method_name)
     );
-    let re = Regex::new(&pattern).ok()?;
+    // MIG1/D2: log before early-return so operators can see which method name caused failure.
+    let re = Regex::new(&pattern)
+        .inspect_err(|e| tracing::warn!(method_name, error = %e, "MIG1: VB method body regex compile failed"))
+        .ok()?;
     let m = re.find(content)?;
 
     let start_offset = m.start();
@@ -9202,7 +9230,10 @@ pub(crate) fn extract_cs_method_body(
         r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:void|[\w]+(?:<[\w,\s<>\[\]?]+>)?(?:\[\])?)\s+{}\s*\(",
         regex::escape(method_name)
     );
-    let re = Regex::new(&pattern).ok()?;
+    // MIG1/D2: log before early-return so operators can see which method name caused failure.
+    let re = Regex::new(&pattern)
+        .inspect_err(|e| tracing::warn!(method_name, error = %e, "MIG1: C# method body regex compile failed"))
+        .ok()?;
     let m = re.find(content)?;
 
     let start_offset = m.start();
@@ -9523,7 +9554,10 @@ fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransf
     let mut conn_overrides: Vec<(String, String)> = Vec::new();
     let mut debug_overrides: Vec<(String, bool)> = Vec::new();
     let mut setting_overrides: Vec<(String, String, String)> = Vec::new();
-    let value_attr_re = Regex::new(r#"value\s*=\s*"([^"]*)""#).ok();
+    // MIG1/D2: log if value-attribute regex fails to compile.
+    let value_attr_re = Regex::new(r#"value\s*=\s*"([^"]*)""#)
+        .inspect_err(|e| tracing::warn!(error = %e, "MIG1: config transform value_attr regex compile failed — value extraction disabled"))
+        .ok();
 
     for (path, content) in transform_files {
         // Derive environment name from filename: web.Release.config → Release

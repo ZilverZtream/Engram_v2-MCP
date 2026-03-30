@@ -175,7 +175,7 @@ async fn local_embedder_output_matches_projection_embedder_384_parity() {
 #[test]
 fn ollama_embedder_dimension_method_returns_constructor_argument() {
     let embedder =
-        OllamaEmbedder::new("nomic-embed-text", "http://localhost:11434", 768)
+        OllamaEmbedder::new("nomic-embed-text", "http://localhost:11434", 768, 30)
             .expect("OllamaEmbedder::new must succeed");
     assert_eq!(
         embedder.dimension(),
@@ -188,7 +188,7 @@ fn ollama_embedder_dimension_method_returns_constructor_argument() {
 #[test]
 fn openai_embedder_dimension_method_returns_constructor_argument() {
     let embedder =
-        OpenAIEmbedder::new("text-embedding-3-small", "test-key", "https://api.openai.com/v1", 1536)
+        OpenAIEmbedder::new("text-embedding-3-small", "test-key", "https://api.openai.com/v1", 1536, 30)
             .expect("OpenAIEmbedder::new must succeed");
     assert_eq!(
         embedder.dimension(),
@@ -201,7 +201,7 @@ fn openai_embedder_dimension_method_returns_constructor_argument() {
 /// This verifies the operator-configured dimension override path.
 #[test]
 fn remote_embedders_support_custom_dimension_overrides() {
-    let ollama_custom = OllamaEmbedder::new("mxbai-embed-large", "http://localhost:11434", 1024)
+    let ollama_custom = OllamaEmbedder::new("mxbai-embed-large", "http://localhost:11434", 1024, 30)
         .expect("OllamaEmbedder custom dim");
     assert_eq!(
         ollama_custom.dimension(),
@@ -214,6 +214,7 @@ fn remote_embedders_support_custom_dimension_overrides() {
         "test-key",
         "https://api.openai.com/v1",
         3072,
+        30,
     )
     .expect("OpenAIEmbedder custom dim");
     assert_eq!(
@@ -313,7 +314,7 @@ async fn ollama_live_embed_returns_normalized_vector() {
         .unwrap_or(768);
 
     let embedder =
-        OllamaEmbedder::new(&model, &url, dim).expect("OllamaEmbedder::new must succeed");
+        OllamaEmbedder::new(&model, &url, dim, 30).expect("OllamaEmbedder::new must succeed");
     let v = embedder
         .embed("live Ollama smoke test: hello world")
         .await
@@ -353,7 +354,7 @@ async fn openai_live_embed_returns_normalized_vector() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(1536);
 
-    let embedder = OpenAIEmbedder::new(&model, &api_key, &base_url, dim)
+    let embedder = OpenAIEmbedder::new(&model, &api_key, &base_url, dim, 30)
         .expect("OpenAIEmbedder::new must succeed");
     let v = embedder
         .embed("live OpenAI smoke test: hello world")

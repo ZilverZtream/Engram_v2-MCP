@@ -2258,7 +2258,22 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
+        let raw_decision =
+            crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
+
+        // ADP1/ADP kill-switch: apply the configured rollout policy so that the
+        // deployment phase (shadow/advisory/guarded/autonomous) and the runtime
+        // kill-switch are honoured.  Without this call, the raw ADP verdict is
+        // returned regardless of rollout phase — bypassing the safety guardrails.
+        let phase = crate::services::autonomous_decision_service::RolloutPhase::from_str(
+            &self.state.cfg.adp_rollout_phase,
+        )
+        .map_err(|e| McpError::internal_error(format!("invalid adp_rollout_phase: {e}"), None))?;
+        let decision = crate::services::autonomous_decision_service::apply_rollout_policy(
+            &raw_decision,
+            phase,
+            self.state.cfg.adp_kill_switch,
+        );
 
         if req.output_json {
             let json = serde_json::to_string_pretty(&decision)
