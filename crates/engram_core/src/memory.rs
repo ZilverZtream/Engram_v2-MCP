@@ -97,7 +97,10 @@ impl MemoryBudget {
             },
         );
 
-        let new_used = match result {
+        // MEM1 fix: fetch_update returns Ok(old_value). The actual new usage is
+        // old_value + bytes (the closure guarantees new_used ≤ budget, so the
+        // addition cannot overflow beyond the budget ceiling).
+        let actual_new_used = match result {
             Err(_current) => {
                 // Hard limit: CAS refused; no bytes were written.
                 self.inner.pressure_active.store(true, Ordering::Relaxed);
@@ -109,19 +112,19 @@ impl MemoryBudget {
                 );
                 return MemoryDecision::Rejected;
             }
-            Ok(new_used) => new_used,
+            Ok(old_used) => old_used.saturating_add(bytes),
         };
 
         // Allocation committed — update subsystem counter and metrics.
         self.subsystem_counter(subsystem)
             .fetch_add(bytes, Ordering::Relaxed);
-        metrics::metrics().memory_bytes_used.set(new_used as i64);
+        metrics::metrics().memory_bytes_used.set(actual_new_used as i64);
 
-        if new_used > soft_limit {
+        if actual_new_used > soft_limit {
             self.inner.pressure_active.store(true, Ordering::Relaxed);
             metrics::metrics().memory_pressure_events.inc();
             tracing::debug!(
-                used = new_used,
+                used = actual_new_used,
                 soft_limit,
                 subsystem = ?subsystem,
                 "Memory soft limit exceeded — consider shedding load"

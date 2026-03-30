@@ -504,6 +504,7 @@ impl Engram {
             directory: dir_str.clone(),
             created_at_ms: now,
             updated_at_ms: now,
+            reindex_required_since_ms: None,
         };
         let dedupe = req.dedupe_by_directory;
         let reg = self.state.registry.clone();
@@ -1020,6 +1021,18 @@ impl Engram {
                             content: report,
                         })
                         .await;
+                    // VEC1/D1: clear reindex-required flag now that a full index succeeded.
+                    let reg_clr = engram.state.registry.clone();
+                    let pid_clr = pid.clone();
+                    if let Err(e) =
+                        tokio::task::spawn_blocking(move || reg_clr.clear_reindex_required(&pid_clr))
+                            .await
+                    {
+                        tracing::warn!(
+                            project_id = %pid,
+                            "VEC1/D1: failed to clear reindex_required flag: {e:#}"
+                        );
+                    }
                 }
             } else if let Err(e) = res {
                 status = "failed";

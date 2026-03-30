@@ -3119,6 +3119,7 @@ async fn test_find_symbol_references() {
         directory: data_dir.to_string_lossy().to_string(),
         created_at_ms: 0,
         updated_at_ms: 0,
+        reindex_required_since_ms: None,
     };
     engram.state.registry.put_project(&rec).unwrap();
 

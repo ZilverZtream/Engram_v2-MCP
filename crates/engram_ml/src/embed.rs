@@ -285,14 +285,16 @@ impl OllamaEmbedder {
     /// caller should know the model's dimension).
     ///
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
-    pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
+    /// `timeout_secs`: maximum wall-clock time for a single HTTP request (EMB1/D6).
+    pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize, timeout_secs: u64) -> anyhow::Result<Self> {
         // EMB3: reject dim=0 at construction time; hybrid.rs also catches this but
         // fail-fast here avoids deferred surprises.
         if dim == 0 {
             anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
         }
+        let request_timeout = if timeout_secs == 0 { 30 } else { timeout_secs };
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(std::time::Duration::from_secs(request_timeout))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
             .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build Ollama HTTP client: {e}"))?;
@@ -579,18 +581,21 @@ pub struct OpenAIEmbedder {
 
 impl OpenAIEmbedder {
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
+    /// `timeout_secs`: maximum wall-clock time for a single HTTP request (EMB1/D6).
     pub fn new(
         model: impl Into<String>,
         api_key: impl Into<String>,
         api_base: impl Into<String>,
         dim: usize,
+        timeout_secs: u64,
     ) -> anyhow::Result<Self> {
         // EMB3: reject dim=0 at construction time; fail-fast before any HTTP call.
         if dim == 0 {
             anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
         }
+        let request_timeout = if timeout_secs == 0 { 30 } else { timeout_secs };
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(std::time::Duration::from_secs(request_timeout))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
             .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build OpenAI HTTP client: {e}"))?;
@@ -951,7 +956,7 @@ impl RemoteEmbedder {
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
     pub fn ollama(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
         Ok(Self {
-            backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim)?),
+            backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim, 30)?),
         })
     }
 
@@ -965,7 +970,7 @@ impl RemoteEmbedder {
         dim: usize,
     ) -> anyhow::Result<Self> {
         Ok(Self {
-            backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(model, api_key, api_base, dim)?),
+            backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(model, api_key, api_base, dim, 30)?),
         })
     }
 }
@@ -1054,7 +1059,7 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // Operator sets ollama_embed_dim in engram_mcp.yaml; we fall back to
             // 768 only when the field is absent for backward compatibility.
             let dim = cfg.ollama_embed_dim.unwrap_or(768);
-            Ok(Box::new(OllamaEmbedder::new(model, url, dim)?))
+            Ok(Box::new(OllamaEmbedder::new(model, url, dim, cfg.embedding_request_timeout_secs)?))
         }
         "openai" => {
             let api_key = cfg.openai_api_key.clone().unwrap_or_default();
@@ -1074,7 +1079,7 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // ENG-AUD-2026-S12-0004: use operator-configured dimension.
             // Defaults to 1536 (text-embedding-3-small) for backward compatibility.
             let dim = cfg.openai_embed_dim.unwrap_or(1536);
-            Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim)?))
+            Ok(Box::new(OpenAIEmbedder::new(model, api_key, api_base, dim, cfg.embedding_request_timeout_secs)?))
         }
         // Known local-mode backends that all resolve to LocalEmbedder.
         "local" | "candle" | "fts_only" => Ok(Box::new(LocalEmbedder)),
@@ -1244,7 +1249,7 @@ mod embed_factory_tests {
     /// immediately without making any HTTP requests.
     #[tokio::test]
     async fn ollama_embed_batch_cancellable_respects_pre_cancel() {
-        let embedder = OllamaEmbedder::new("nomic-embed-text", "http://127.0.0.1:19999", 768)
+        let embedder = OllamaEmbedder::new("nomic-embed-text", "http://127.0.0.1:19999", 768, 30)
             .expect("OllamaEmbedder::new must succeed with valid params");
         let cancel = tokio_util::sync::CancellationToken::new();
         cancel.cancel();
@@ -1268,6 +1273,7 @@ mod embed_factory_tests {
             "test-api-key",
             "http://127.0.0.1:19999/v1",
             1536,
+            30,
         )
         .expect("OpenAIEmbedder::new must succeed with valid params");
         let cancel = tokio_util::sync::CancellationToken::new();
@@ -1352,7 +1358,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4)
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_ok(), "valid OpenAI response must parse correctly: {:?}", result);
@@ -1371,7 +1377,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3)
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "missing data[0].embedding must return error");
@@ -1392,7 +1398,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1536) // expects 1536
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1536, 30) // expects 1536
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "dimension mismatch must return error");
@@ -1408,7 +1414,7 @@ mod provider_parity_tests {
     async fn openai_client_error_status_returns_error() {
         let (port, _handle) = mock_http_error_once(401).await;
         let url = format!("http://127.0.0.1:{port}/v1");
-        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3)
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "HTTP 401 must return Err, not empty embedding");
@@ -1428,7 +1434,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3, 30)
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_ok(), "valid Ollama response must parse correctly: {:?}", result);
@@ -1447,7 +1453,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3, 30)
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "missing embeddings[0] must return error");
@@ -1463,7 +1469,7 @@ mod provider_parity_tests {
 
         let (port, _handle) = mock_http_once(&body).await;
         let url = format!("http://127.0.0.1:{port}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768) // expects 768
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768, 30) // expects 768
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
         assert!(result.is_err(), "dimension mismatch (3 vs 768) must return error");
@@ -1479,7 +1485,7 @@ mod provider_parity_tests {
         // 3 connections = initial attempt + 2 retries (embed_via_ollama loops 0..3)
         let (port1, _h1) = mock_http_error_n(503, 3).await;
         let url = format!("http://127.0.0.1:{port1}");
-        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3)
+        let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3, 30)
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(10),
@@ -1494,6 +1500,48 @@ mod provider_parity_tests {
                  infinite backoff or hang regression detected"
             ),
         }
+    }
+
+    // ── EMB1/D6: per-request timeout ──────────────────────────────────────
+
+    /// D6/EMB1: embedding request to a server that accepts the TCP connection
+    /// but never sends a response must time out and return Err within 2x the
+    /// configured timeout window.
+    #[tokio::test]
+    async fn openai_embedder_request_timeout_returns_err_within_deadline() {
+        use tokio::net::TcpListener;
+        // Bind a server that accepts connections but never responds.
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let _server = tokio::spawn(async move {
+            loop {
+                if let Ok((_stream, _)) = listener.accept().await {
+                    // Hold the socket open but never write; this simulates a
+                    // network stall so the HTTP client must fire its own timeout.
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            }
+        });
+
+        let url = format!("http://127.0.0.1:{port}/v1");
+        // 1-second request timeout — well below the server's artificial 60s stall.
+        let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 1, 1)
+            .expect("OpenAIEmbedder::new must succeed");
+
+        let start = std::time::Instant::now();
+        let result = embedder.embed("timeout test").await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            result.is_err(),
+            "D6/EMB1: stalled server must produce Err, not Ok; got {:?}",
+            result
+        );
+        // Must have timed out within 2x the configured timeout (1s * 2 + retry headroom).
+        assert!(
+            elapsed.as_secs() < 10,
+            "D6/EMB1: timeout must fire within 10s headroom; took {elapsed:?}"
+        );
     }
 
     // ── RemoteEmbedder dispatch ────────────────────────────────────────────

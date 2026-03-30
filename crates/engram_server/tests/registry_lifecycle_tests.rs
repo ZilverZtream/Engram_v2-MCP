@@ -26,6 +26,7 @@ fn make_project(id: &str, name: &str) -> ProjectRecord {
         directory: "/code/project".to_string(),
         created_at_ms: 1_000_000,
         updated_at_ms: 1_000_000,
+        reindex_required_since_ms: None,
     }
 }
 
