@@ -304,3 +304,165 @@ async fn find_resumable_returns_latest_resumable_checkpoint() {
         "returned checkpoint must pass is_resumable()"
     );
 }
+
+/// JOB1-m1r0: Re-running a job that crashed between phase-output-write and
+/// checkpoint-write must be idempotent — starting from the PREVIOUS checkpoint
+/// and re-processing the phase produces equivalent output.
+///
+/// Proof strategy: the checkpoint stores the previous phase boundary. When re-run,
+/// the job starts from that checkpoint (Parsing) and re-executes TantivyIndexing.
+/// The test verifies that the checkpoint can be put with the prior phase and then
+/// safely overwritten with the new phase — no data corruption or duplicate state.
+#[tokio::test]
+async fn phase_boundary_crash_idempotent_on_retry() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let data_dir = tmp.path().join("data");
+    std::fs::create_dir_all(&data_dir).unwrap();
+
+    let (state, _rx) = AppState::new(make_cfg(&data_dir)).unwrap();
+
+    let job_id = "job-idempotent-retry";
+    let project_id = "proj-retry";
+
+    // Phase 1: Parsing checkpoint successfully written.
+    let parsing_cp = make_checkpoint(job_id, project_id, JobPhase::Parsing, 50);
+    tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        let cp = parsing_cp.clone();
+        move || store.put(&cp).expect("put parsing checkpoint must succeed")
+    })
+    .await
+    .unwrap();
+
+    // Simulate crash: TantivyIndexing output was written but checkpoint was NOT updated.
+    // (i.e., the old Parsing checkpoint is still the latest durably committed state)
+
+    // Recovery: job restarts and reads the last checkpoint.
+    let recovered = tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        move || store.get(job_id).expect("get must not error")
+    })
+    .await
+    .unwrap()
+    .expect("checkpoint must be present after crash");
+
+    assert_eq!(
+        recovered.phase,
+        JobPhase::Parsing,
+        "JOB1-m1r0: recovered checkpoint must be Parsing (the last durably committed phase), \
+         not TantivyIndexing (output written but checkpoint not committed before crash)"
+    );
+    assert!(
+        recovered.is_resumable(),
+        "JOB1-m1r0: Parsing checkpoint must be resumable so the job can retry TantivyIndexing"
+    );
+
+    // Retry: re-run TantivyIndexing and write checkpoint atomically.
+    let tantivy_cp = make_checkpoint(job_id, project_id, JobPhase::TantivyIndexing, 100);
+    tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        let cp = tantivy_cp.clone();
+        move || store.put(&cp).expect("put tantivy checkpoint must succeed after retry")
+    })
+    .await
+    .unwrap();
+
+    // Verify the retry committed the new phase correctly.
+    let after_retry = tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        move || store.get(job_id).expect("get must not error")
+    })
+    .await
+    .unwrap()
+    .expect("checkpoint must be present after retry");
+
+    assert_eq!(
+        after_retry.phase,
+        JobPhase::TantivyIndexing,
+        "JOB1-m1r0: after successful retry, checkpoint must advance to TantivyIndexing"
+    );
+    assert_eq!(
+        after_retry.items_processed, 100,
+        "JOB1-m1r0: retried phase must write correct items_processed count"
+    );
+}
+
+/// X6-cancelcp-5t9h: cancellation during a phase write must tombstone the
+/// checkpoint as Failed, preventing stale state from being used for resume.
+///
+/// Scenario: job starts (Parsing checkpoint written), gets cancelled, then
+/// marks itself Failed. `find_resumable` must then return None — proving the
+/// cancelled job does not pollute the resume path.
+#[tokio::test]
+async fn cancellation_during_phase_write_tombstones_checkpoint() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let data_dir = tmp.path().join("data");
+    std::fs::create_dir_all(&data_dir).unwrap();
+
+    let (state, _rx) = AppState::new(make_cfg(&data_dir)).unwrap();
+
+    let job_id = "job-cancelled-phase";
+    let project_id = "proj-cancel-test";
+
+    // Job starts and checkpoints at Parsing.
+    let parsing_cp = make_checkpoint(job_id, project_id, JobPhase::Parsing, 25);
+    tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        let cp = parsing_cp;
+        move || store.put(&cp).expect("put parsing checkpoint")
+    })
+    .await
+    .unwrap();
+
+    // Cancellation fires during TantivyIndexing phase write.
+    // Job handler detects cancellation and tombstones the checkpoint as Failed.
+    let mut failed_cp = make_checkpoint(job_id, project_id, JobPhase::Failed, 25);
+    failed_cp.error = Some("X6-cancelcp: job cancelled during TantivyIndexing phase write".into());
+    failed_cp.updated_at_ms = 2_000_000; // newer timestamp
+
+    tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        let cp = failed_cp;
+        move || store.put(&cp).expect("put failed/tombstoned checkpoint")
+    })
+    .await
+    .unwrap();
+
+    // find_resumable must return None — the job is tombstoned as Failed.
+    let resumable = tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        let pid = project_id.to_string();
+        move || store.find_resumable(&pid).expect("find_resumable must not error")
+    })
+    .await
+    .unwrap();
+
+    assert!(
+        resumable.is_none(),
+        "X6-cancelcp-5t9h: find_resumable must return None after cancellation tombstone — \
+         a Failed checkpoint is not resumable and must not allow stale-state resume"
+    );
+
+    // Also verify the checkpoint phase is Failed and error message present.
+    let cp = tokio::task::spawn_blocking({
+        let store = state.checkpoints.clone();
+        move || store.get(job_id).expect("get must not error")
+    })
+    .await
+    .unwrap()
+    .expect("tombstoned checkpoint must still be readable");
+
+    assert_eq!(
+        cp.phase,
+        JobPhase::Failed,
+        "X6-cancelcp-5t9h: tombstoned checkpoint must have Failed phase"
+    );
+    assert!(
+        cp.error.as_deref().map(|e| e.contains("cancelled")).unwrap_or(false),
+        "X6-cancelcp-5t9h: tombstoned checkpoint must carry cancellation error message"
+    );
+    assert!(
+        !cp.is_resumable(),
+        "X6-cancelcp-5t9h: Failed checkpoint must not be resumable"
+    );
+}

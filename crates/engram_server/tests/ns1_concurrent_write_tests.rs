@@ -188,3 +188,62 @@ async fn global_mutable_concurrent_distinct_writes_all_survive() {
         all_hits.len()
     );
 }
+
+/// D4/NS1: Concurrent writes on the same doc_id must complete within a bounded
+/// wall-clock window, proving no unbounded blocking or livelock.
+///
+/// Wraps the concurrent-write section in `tokio::time::timeout` with a generous
+/// deadline (10 seconds for 8 concurrent writers). A deadlock or heavy contention
+/// would cause the timeout to fire, surfacing the issue as a test failure rather
+/// than an infinite hang in CI.
+#[tokio::test]
+async fn global_mutable_concurrent_writes_complete_within_deadline() {
+    use std::time::Duration;
+
+    const DEADLINE: Duration = Duration::from_secs(10);
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = Arc::new(open_engine(&tmp).await);
+
+    let project_id = "ns1-timing-proj";
+    let namespace = "memory_bank";
+    let doc_id = "timing-key-001";
+    let n_writers = 8;
+
+    let engine_clone = engine.clone();
+    let result = tokio::time::timeout(DEADLINE, async move {
+        let mut handles = Vec::new();
+        for i in 0..n_writers {
+            let engine = engine_clone.clone();
+            let doc_id = doc_id.to_string();
+            handles.push(tokio::spawn(async move {
+                let cancel = CancellationToken::new();
+                let doc = IndexDoc {
+                    generation: 0,
+                    chunk_id: 0,
+                    path: RelPath::new("notes/timing.md"),
+                    language: "markdown".into(),
+                    content: format!("timing writer {i}"),
+                    namespace: namespace.to_string(),
+                    author: None,
+                    timestamp: None,
+                    start_line: 1,
+                    end_line: 1,
+                    doc_id: doc_id.clone(),
+                    content_hash: format!("hash-timing-{i}"),
+                };
+                engine.index_docs(project_id, &[doc], &cancel).await
+            }));
+        }
+        for h in handles {
+            h.await.unwrap().unwrap();
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "D4/NS1-a3p9: {n_writers} concurrent writes to the same doc_id must complete \
+         within {DEADLINE:?}; timeout indicates deadlock or unbounded contention"
+    );
+}
