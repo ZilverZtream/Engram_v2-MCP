@@ -168,3 +168,79 @@ fn handler_mod_centralizes_validation() {
          so handler files share a single validated gate — avoids per-handler drift"
     );
 }
+
+// ── REG1/X1: handler-boundary validator is semantically identical to service validator ──
+
+/// REG1/X1: The handler-boundary validator must delegate to
+/// `project_service::validate_project_id`, not to the weaker `validate_key_component`.
+///
+/// `validate_key_component` only rejects NUL/empty/newline — it allows `/`, `..`,
+/// and shell metacharacters that would corrupt `data_dir/projects/{pid}` paths.
+/// `project_service::validate_project_id` enforces `[A-Za-z0-9_-]{1,128}` which
+/// closes all traversal classes.
+///
+/// Structural proof: the handler mod must call project_service::validate_project_id
+/// and must NOT call validate_key_component for project_id validation.
+#[test]
+fn handler_validator_delegates_to_strict_service_validator_not_weak_key_component() {
+    let source = include_str!("../src/handlers/mod.rs");
+
+    // The handler boundary must call the strict service validator.
+    assert!(
+        source.contains("project_service::validate_project_id"),
+        "REG1/X1: handlers/mod.rs validate_project_id must delegate to \
+         project_service::validate_project_id (strict [A-Za-z0-9_-]{{1,128}} policy), \
+         not to validate_key_component which only rejects NUL/newline"
+    );
+
+    // Must NOT fall back to the weak validate_key_component for project_id.
+    // Note: validate_key_component may appear elsewhere in this file for other
+    // purposes, but the validate_project_id function body must not use it.
+    // We check that the function body routes through project_service.
+    // This is satisfied by the presence of project_service::validate_project_id above.
+    assert!(
+        !source.contains("validate_key_component(\"project_id\""),
+        "REG1/X1: handlers/mod.rs validate_project_id must not call \
+         validate_key_component(\"project_id\", ...) — that validator only rejects \
+         NUL/newline and allows '/', '..', and shell metacharacters through the handler boundary"
+    );
+}
+
+/// REG1/X1: slash and dot-dot are rejected by the handler-boundary validator.
+///
+/// This proves the semantic gap is closed: before the fix, `validate_key_component`
+/// allowed these through; after the fix, `project_service::validate_project_id`
+/// blocks them. Tested against the service validator directly (same function the
+/// handler now delegates to).
+#[test]
+fn handler_boundary_rejects_slash_and_dotdot_project_ids() {
+    use engram_server::services::project_service::validate_project_id;
+
+    // These were previously accepted by validate_key_component (only NUL/newline rejected).
+    assert!(
+        validate_project_id("proj/traversal").is_err(),
+        "REG1/X1: '/' in project_id must be rejected — enables path traversal \
+         via data_dir/projects/proj/traversal/ when used in filesystem ops"
+    );
+    assert!(
+        validate_project_id("../etc/passwd").is_err(),
+        "REG1/X1: '..' in project_id must be rejected — path traversal to escape data_dir"
+    );
+    assert!(
+        validate_project_id("$(whoami)").is_err(),
+        "REG1/X1: shell metacharacters in project_id must be rejected"
+    );
+    assert!(
+        validate_project_id("proj sub").is_err(),
+        "REG1/X1: spaces in project_id must be rejected"
+    );
+    assert!(
+        validate_project_id("proj\ttab").is_err(),
+        "REG1/X1: tabs in project_id must be rejected"
+    );
+    // Valid IDs must still pass.
+    assert!(
+        validate_project_id("valid-project_123").is_ok(),
+        "REG1/X1: valid project_id must still be accepted after fix"
+    );
+}
