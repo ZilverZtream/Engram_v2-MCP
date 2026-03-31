@@ -791,6 +791,7 @@ fn make_config_snapshot() -> ConfigSnapshot {
         evidence_hash: String::new(),
         crate_version: String::new(),
         runtime_triple: String::new(),
+        gate_source_hash: String::new(),
     }
 }
 
@@ -1057,6 +1058,77 @@ fn mcp1_search_handler_sanitizes_top_k_and_max_results() {
         has_sanitize,
         "MCP1: search_tools.rs must sanitize top_k/max_results before passing to \
          search engine — unbounded values risk OOM via massive result allocations"
+    );
+}
+
+/// ADP1-z2t4: gate_source_hash in ConfigSnapshot must be a 64-char BLAKE3 hex string
+/// after build_decision_report fills it in. The field reflects the compile-time hash
+/// of autonomous_decision_service.rs — any code change produces a different value,
+/// making stale-replay detection robust independent of manually-maintained version tags.
+#[test]
+fn adp1_gate_source_hash_is_populated_and_is_valid_blake3_hex() {
+    let input = make_passing_adp_input();
+    let decision = evaluate_gates(&input);
+    let report = build_decision_report(
+        &decision,
+        "proj-gate-hash",
+        "add helper",
+        &["src/util.rs".into()],
+        "low",
+        serde_json::json!({}),
+        make_config_snapshot(),
+        "build-001",
+    );
+
+    let hash = &report.config_snapshot.gate_source_hash;
+    assert!(
+        !hash.is_empty(),
+        "ADP1-z2t4: gate_source_hash must be non-empty after build_decision_report; \
+         empty means build.rs did not run or the field is not being populated"
+    );
+    assert_eq!(
+        hash.len(), 64,
+        "ADP1-z2t4: gate_source_hash must be a 64-char BLAKE3 hex digest; got {len} chars: {hash}",
+        len = hash.len()
+    );
+    assert!(
+        hash.chars().all(|c| c.is_ascii_hexdigit()),
+        "ADP1-z2t4: gate_source_hash must contain only hex chars [0-9a-f]; got: {hash}"
+    );
+}
+
+/// ADP1-z2t4: two decisions built from the same binary must produce the same
+/// gate_source_hash, since it is a compile-time constant embedded by build.rs.
+#[test]
+fn adp1_gate_source_hash_is_stable_across_decisions() {
+    let input1 = make_passing_adp_input();
+    let input2 = abstain_input();
+    let d1 = evaluate_gates(&input1);
+    let d2 = evaluate_gates(&input2);
+
+    let r1 = build_decision_report(&d1, "proj-a", "change a", &[], "low", serde_json::json!({}),
+        make_config_snapshot(), "build-a");
+    let r2 = build_decision_report(&d2, "proj-b", "change b", &[], "high", serde_json::json!({}),
+        make_config_snapshot(), "build-b");
+
+    assert_eq!(
+        r1.config_snapshot.gate_source_hash,
+        r2.config_snapshot.gate_source_hash,
+        "ADP1-z2t4: gate_source_hash must be identical for all decisions built from the \
+         same binary — it is a compile-time constant; differing values means the field \
+         is being computed dynamically (it must not be)"
+    );
+}
+
+/// ADP1-z2t4: the autonomous_decision_service.rs source must reference the OUT_DIR
+/// mechanism so that the gate_source_hash compile-time embedding is documented.
+#[test]
+fn adp1_gate_source_hash_build_script_mechanism_is_documented_in_source() {
+    let src = include_str!("../src/services/autonomous_decision_service.rs");
+    assert!(
+        src.contains("gate_source_hash") && src.contains("OUT_DIR"),
+        "ADP1-z2t4: autonomous_decision_service.rs must reference gate_source_hash and \
+         OUT_DIR so the build.rs mechanism is documented at the usage site"
     );
 }
 

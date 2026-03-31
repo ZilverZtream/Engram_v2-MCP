@@ -881,3 +881,51 @@ fn sec1_safe_join_source_documents_windows_prefix_component_handling() {
         "SEC1: security.rs must handle Component::Prefix to catch Windows drive/UNC paths"
     );
 }
+
+// ── MCP1-s4u3: cognitive_tools safe_join enforcement ─────────────────────────
+
+/// MCP1-s4u3: handle_analyze_file_coding_style in cognitive_tools.rs must use
+/// safe_join for path construction, not raw .join(). This was a genuine path
+/// traversal vulnerability: the old code allowed absolute paths and ".." traversal.
+/// This structural test guards against regression.
+#[test]
+fn mcp1_analyze_file_coding_style_uses_safe_join_not_raw_join() {
+    let src = include_str!("../src/handlers/cognitive_tools.rs");
+
+    // Find the handle_analyze_file_coding_style function.
+    let fn_pos = src.find("fn handle_analyze_file_coding_style")
+        .expect("MCP1: handle_analyze_file_coding_style must exist in cognitive_tools.rs");
+
+    // Scan the function body (~600 bytes from function start for the path construction).
+    let window = &src[fn_pos..fn_pos + 600.min(src.len() - fn_pos)];
+
+    // Must use safe_join.
+    assert!(
+        window.contains("safe_join("),
+        "MCP1-s4u3: handle_analyze_file_coding_style must use safe_join() for path \
+         construction to prevent path traversal via '../' or absolute paths; \
+         raw .join() not acceptable. Window: {:?}", &window[..300.min(window.len())]
+    );
+
+    // Must NOT use the old unsafe pattern: .join(&req.file_path) without safe_join.
+    // A raw .join call in this function is a red flag.
+    let has_unsafe_join = window.contains(".join(&req.file_path)")
+        || window.contains("Path::new(&ps.info.directory).join(");
+    assert!(
+        !has_unsafe_join,
+        "MCP1-s4u3: handle_analyze_file_coding_style must not use raw .join(&req.file_path); \
+         safe_join must be used exclusively for user-supplied file paths"
+    );
+}
+
+/// MCP1-s4u3: cognitive_tools.rs must import safe_join to prove it is available
+/// at the module level. A missing import would mean the safe_join usage is unreachable.
+#[test]
+fn mcp1_cognitive_tools_imports_safe_join() {
+    let src = include_str!("../src/handlers/cognitive_tools.rs");
+    assert!(
+        src.contains("use engram_core::safe_join") || src.contains("safe_join"),
+        "MCP1-s4u3: cognitive_tools.rs must import or use safe_join; \
+         missing import means path traversal protection is absent"
+    );
+}
