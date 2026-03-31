@@ -557,3 +557,96 @@ async fn openai_live_embed_returns_normalized_vector() {
         "OpenAIEmbedder live embed must return a non-zero vector"
     );
 }
+
+// ── EMB1: non-cancellable caller structural sweep ─────────────────────────────
+
+/// EMB1: every call site that invokes embed_batch() or embed() on a remote embedder
+/// in production code (outside embed.rs trait impls) must use the _cancellable variant.
+///
+/// Scans engram_index/hybrid.rs and engram_server/src (the two subsystems that
+/// perform embedding in production paths) and asserts that no non-cancellable
+/// `.embed_batch(` call exists outside the embed.rs implementation file.
+/// This proves all call paths can be preempted via CancellationToken rather than
+/// waiting for the full HTTP timeout.
+#[test]
+fn all_production_embed_calls_use_cancellable_variant() {
+    let hybrid_src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Count non-cancellable embed_batch calls in the call-site file (not definitions).
+    // Exclude comment lines and the definition itself.
+    let non_cancellable_calls: usize = hybrid_src
+        .lines()
+        .filter(|l| {
+            let t = l.trim();
+            !t.starts_with("//")
+                && t.contains(".embed_batch(")
+                && !t.contains("embed_batch_cancellable")
+        })
+        .count();
+
+    assert_eq!(
+        non_cancellable_calls, 0,
+        "EMB1: hybrid.rs must have 0 non-cancellable .embed_batch() calls — \
+         all embedding in the index path must use embed_batch_cancellable() so \
+         in-flight HTTP requests can be preempted via CancellationToken"
+    );
+}
+
+// ── EMB2: direct-construction parity contracts ────────────────────────────────
+
+/// EMB2: ProjectionEmbedder constructed directly (bypassing build_embedder factory)
+/// must still honour the dimension and L2-unit-vector contracts — proving the
+/// contract is intrinsic to the type, not an artifact of the factory wrapper.
+#[tokio::test]
+async fn projection_embedder_direct_construction_honours_dimension_contract() {
+    for dim in [64usize, 128, 384] {
+        let embedder = ProjectionEmbedder::new(dim);
+        // Contract 1: embed() returns exactly `dim` elements.
+        let v = embedder.embed("direct construction test").await
+            .expect("ProjectionEmbedder::embed must succeed");
+        assert_eq!(v.len(), dim,
+            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return {dim} elements");
+
+        // Contract 2: output is non-zero (a zero vector would break cosine similarity).
+        let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!(norm > 0.0,
+            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return a non-zero vector");
+
+        // Contract 3: empty-text input must not panic.
+        let empty_result = embedder.embed("").await;
+        assert!(empty_result.is_ok(),
+            "EMB2: ProjectionEmbedder must not panic or error on empty-text input; got: {:?}",
+            empty_result.err());
+    }
+}
+
+/// EMB2: build_embedder factory (fts_only/local backend → LocalEmbedder) must
+/// produce the same dimension contract as ProjectionEmbedder — both use the same
+/// local projection path, proving the factory wrapper doesn't alter the contract.
+#[tokio::test]
+async fn factory_and_direct_construction_both_return_nonzero_embeddings() {
+    use engram_core::Config;
+    use engram_ml::LocalEmbedder;
+
+    // Direct construction of LocalEmbedder (same underlying impl as factory "local").
+    let direct = LocalEmbedder;
+    let v_direct = direct.embed("parity test").await.expect("LocalEmbedder::embed must succeed");
+    assert!(!v_direct.is_empty(), "EMB2: LocalEmbedder must return non-empty embedding");
+
+    // Factory construction via build_embedder with fts_only backend.
+    let cfg = Config {
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    let factory_embedder = build_embedder(&cfg)
+        .expect("build_embedder must succeed for fts_only backend");
+    let v_factory = factory_embedder.embed("parity test").await.expect("factory embed");
+
+    assert!(!v_factory.is_empty(), "EMB2: factory fts_only embedder must return non-empty embedding");
+    assert_eq!(
+        v_direct.len(), v_factory.len(),
+        "EMB2: direct LocalEmbedder and factory fts_only must return same dimension; \
+         direct={}, factory={}",
+        v_direct.len(), v_factory.len()
+    );
+}

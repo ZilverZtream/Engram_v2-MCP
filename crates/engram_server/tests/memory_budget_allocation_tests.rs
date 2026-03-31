@@ -253,3 +253,61 @@ fn allocation_guard_drop_impl_calls_release() {
          without this call, budget bytes leak on panic unwind or early returns"
     );
 }
+
+// ── MEM1: AllocationGuard call-site coverage audit ───────────────────────────
+
+/// MEM1: all known heavy-allocation sites in the production path must use
+/// AllocationGuard. Structural test enumerating expected guarded sites.
+#[test]
+fn mem1_known_heavy_allocation_sites_use_allocation_guard() {
+    let hybrid_src = include_str!("../../engram_index/src/hybrid.rs");
+    let ingest_src = include_str!("../src/services/ingest_service.rs");
+
+    let guarded_sites: &[(&str, &str, &str)] = &[
+        ("hybrid.rs tantivy/vector batch",    hybrid_src,  "AllocationGuard::try_new"),
+        ("ingest_service.rs graph build",     ingest_src,  "AllocationGuard::try_new"),
+    ];
+
+    for (desc, src, pattern) in guarded_sites {
+        assert!(
+            src.contains(pattern),
+            "MEM1: {desc} must use AllocationGuard (pattern {pattern:?} not found) — \
+             unguarded heavy allocations bypass the budget and cause undercount under load"
+        );
+    }
+}
+
+/// MEM1/X2: embed AllocationGuard in hybrid.rs must be dropped BEFORE the async
+/// await for remote embedding so the budget is not held hostage to network latency.
+#[test]
+fn mem1_embed_allocation_guard_dropped_before_await() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    let drop_pos = src.find("drop(_embed_guard)")
+        .expect("MEM1/X2: hybrid.rs must explicitly drop the embed AllocationGuard \
+                 before the remote embed await");
+
+    let after_drop = &src[drop_pos..];
+    let embed_pos = after_drop.find("embed_batch_cancellable")
+        .expect("MEM1/X2: embed_batch_cancellable must appear after drop(_embed_guard)");
+
+    assert!(
+        embed_pos < 500,
+        "MEM1/X2: embed_batch_cancellable must immediately follow drop(_embed_guard); \
+         found {embed_pos} bytes apart — guard must be released before the await"
+    );
+}
+
+/// MEM1: Subsystem enum must cover LanceDb, Tantivy, and DocStore so AllocationGuard
+/// callers can attribute allocations to the correct subsystem.
+#[test]
+fn mem1_subsystem_enum_covers_required_categories() {
+    let src = include_str!("../../engram_core/src/memory.rs");
+
+    for subsystem in ["LanceDb", "Tantivy", "DocStore"] {
+        assert!(
+            src.contains(subsystem),
+            "MEM1: Subsystem enum must include {subsystem} for budget attribution"
+        );
+    }
+}

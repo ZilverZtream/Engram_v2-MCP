@@ -608,3 +608,90 @@ fn resolve_path_rejects_symlink_escaping_allowed_root() {
         result.ok()
     );
 }
+
+// ── SEC1: Windows device-path and UNC-prefix edge cases ──────────────────────
+
+/// SEC1: safe_join must reject paths starting with `\\.\` (Windows device namespace).
+/// Device paths bypass normal path resolution and can access raw devices.
+#[test]
+fn safe_join_rejects_windows_device_prefix() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("C:\\projects\\safe");
+
+    let device_paths = [
+        r"\\.\C:\Windows\System32\config",
+        r"\\.\PhysicalDrive0",
+        r"\\.\\pipe\\injected",
+    ];
+
+    for p in &device_paths {
+        let result = safe_join(base, p);
+        assert!(
+            result.is_err(),
+            "SEC1: safe_join must reject Windows device-path prefix {p:?}; got Ok"
+        );
+    }
+}
+
+/// SEC1: safe_join must reject paths starting with `\\?\` (Windows extended-length prefix).
+/// These bypass the MAX_PATH limit and can reference any path on the system.
+#[test]
+fn safe_join_rejects_windows_extended_length_prefix() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("C:\\projects\\safe");
+
+    let ext_paths = [
+        r"\\?\C:\Windows\System32",
+        r"\\?\UNC\server\share\file.txt",
+    ];
+
+    for p in &ext_paths {
+        let result = safe_join(base, p);
+        assert!(
+            result.is_err(),
+            "SEC1: safe_join must reject Windows extended-length prefix {p:?}; got Ok"
+        );
+    }
+}
+
+/// SEC1: safe_join must reject UNC paths (`\\server\share`).
+/// UNC paths resolve to network shares and can escape the intended project root.
+#[test]
+fn safe_join_rejects_unc_network_paths() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("/projects/safe");
+
+    let unc_paths = [
+        r"\\server\share\file.txt",
+        r"\\192.168.1.1\c$\Windows",
+    ];
+
+    for p in &unc_paths {
+        let result = safe_join(base, p);
+        assert!(
+            result.is_err(),
+            "SEC1: safe_join must reject UNC network path {p:?}; got Ok"
+        );
+    }
+}
+
+/// SEC1: safe_join source code must contain explicit checks for Windows prefixes.
+/// Structural assertion: the implementation cannot silently miss these cases.
+#[test]
+fn sec1_safe_join_source_handles_windows_prefixes() {
+    let src = include_str!("../../engram_core/src/security.rs");
+
+    // The source must reference Windows prefix handling.
+    assert!(
+        src.contains("Prefix") || src.contains("prefix"),
+        "SEC1: security.rs must contain Windows drive-prefix (Prefix component) handling \
+         in safe_join to reject C:-style relative paths that escape project roots"
+    );
+
+    // The source must reject absolute paths including backslash-absolute.
+    assert!(
+        src.contains("starts_with('\\\\')") || src.contains(r#"starts_with('\\')"#),
+        "SEC1: security.rs safe_join must explicitly reject backslash-absolute paths \
+         (starts with '\\') to block UNC and device-path traversal on Windows"
+    );
+}

@@ -1951,3 +1951,179 @@ fn upsert_vectors_propagates_execute_error_not_swallowed() {
          are silently dropped"
     );
 }
+
+// ── VEC2: Tantivy-before-vector commit ordering ───────────────────────────────
+
+/// VEC2: in index_docs, the Tantivy writer.commit() must appear BEFORE the
+/// vector upsert call. This is the documented partial-state contract:
+/// if vector upsert fails after Tantivy commits, the lexical store is ahead of
+/// the vector store (recoverable by reindex), not the reverse (data loss).
+#[test]
+fn vec2_tantivy_commit_precedes_vector_upsert_in_index_docs() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Find the index_docs function.
+    let fn_start = src.find("fn index_docs").expect("index_docs must exist in hybrid.rs");
+    let fn_body = &src[fn_start..];
+
+    // Find first writer.commit() in the function.
+    let commit_pos = fn_body.find("writer.commit()")
+        .expect("VEC2: index_docs must call writer.commit() for Tantivy");
+
+    // Find upsert_vectors call (the vector write path).
+    let upsert_pos = fn_body.find("upsert_vectors")
+        .expect("VEC2: index_docs must call upsert_vectors for vector upsert");
+
+    assert!(
+        commit_pos < upsert_pos,
+        "VEC2: Tantivy writer.commit() (byte {commit_pos}) must precede \
+         upsert_vectors (byte {upsert_pos}) in index_docs — ordering ensures \
+         lexical/vector divergence on vector failure is recoverable by reindex"
+    );
+}
+
+/// VEC2: when the vector table is recreated (Recreated outcome), index_docs must
+/// return an Err (via bail!) rather than silently continuing.
+#[test]
+fn vec2_recreated_table_outcome_triggers_bail() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Find the Recreated arm handling.
+    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+        .expect("VEC2: hybrid.rs must handle TableOpenOutcome::Recreated");
+
+    let after_recreated = &src[recreated_pos..recreated_pos + 1500.min(src.len() - recreated_pos)];
+
+    // The handling must use bail! (anyhow bail macro returns Err).
+    assert!(
+        after_recreated.contains("bail!"),
+        "VEC2: TableOpenOutcome::Recreated must trigger bail! so index_docs returns Err \
+         and callers receive the repair-needed signal"
+    );
+}
+
+// ── X1: cross-store divergence observability ──────────────────────────────────
+
+/// X1: when index_docs encounters a Recreated table outcome, the error message
+/// must include table name, reason, and row count lost.
+#[test]
+fn x1_recreated_error_message_includes_divergence_context() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+        .expect("X1: hybrid.rs must handle TableOpenOutcome::Recreated");
+    // Look for the bail! string which is right after the Recreated match arm.
+    let after = &src[recreated_pos..recreated_pos + 1800.min(src.len() - recreated_pos)];
+
+    assert!(
+        after.contains("table_name") || after.contains("{table_name}"),
+        "X1: Recreated error message must include table_name for operator diagnosis; \
+         context: {:?}", &after[..200.min(after.len())]
+    );
+    assert!(
+        after.contains("prior_row_count") || after.contains("vectors were lost"),
+        "X1: Recreated error message must include row count for data-loss metric"
+    );
+    assert!(
+        after.contains("{reason}") || after.contains("reason"),
+        "X1: Recreated error message must include reason for schema recreation"
+    );
+}
+
+// ── X2: embed guard ordering (cross-subsystem memory + cancel) ────────────────
+
+/// X2: the AllocationGuard for embedding must be explicitly dropped before the
+/// async remote embed call in hybrid.rs. Structural ordering proof.
+#[test]
+fn x2_embed_guard_explicitly_dropped_before_embed_await() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Find the explicit drop of the embed guard.
+    let drop_pos = src.find("drop(_embed_guard)")
+        .expect("X2: hybrid.rs must explicitly drop _embed_guard before remote embed await");
+
+    // embed_batch_cancellable must come AFTER the drop.
+    let after_drop = &src[drop_pos..];
+    assert!(
+        after_drop.contains("embed_batch_cancellable"),
+        "X2: embed_batch_cancellable must appear after drop(_embed_guard) — \
+         the guard must be released before the await to avoid holding budget \
+         across the network round-trip"
+    );
+
+    // There must not be an AllocationGuard::try_new between drop and embed call.
+    let embed_pos = after_drop.find("embed_batch_cancellable").unwrap();
+    let between = &after_drop[..embed_pos];
+    assert!(
+        !between.contains("AllocationGuard::try_new"),
+        "X2: no new AllocationGuard must be created between drop(_embed_guard) and \
+         embed_batch_cancellable — re-acquiring the guard would re-introduce the \
+         budget-hostage problem"
+    );
+}
+
+// ── NS1: GlobalMutable concurrent write last-write-wins ───────────────────────
+
+/// NS1: build_pk() for a GlobalMutable namespace must always produce generation=0,
+/// regardless of the input generation value. This is the clamping contract.
+#[test]
+fn ns1_global_mutable_generation_clamped_to_zero() {
+    use engram_core::{build_pk, get_policy, NamespaceVersioning};
+
+    // Find a namespace that is GlobalMutable.
+    let global_ns = "business_logic"; // Known GlobalMutable namespace from namespaces.rs.
+    let policy = get_policy(global_ns).expect("business_logic namespace must have a policy");
+    assert_eq!(
+        policy.versioning,
+        NamespaceVersioning::GlobalMutable,
+        "NS1: precondition — business_logic must be GlobalMutable versioning"
+    );
+
+    // Build PK with different input generations — all must produce generation=0.
+    for input_gen in [0u64, 1, 5, 100, u64::MAX] {
+        let pk = build_pk("test-proj", global_ns, input_gen, "doc/file.cs");
+        assert!(
+            pk.contains(":0:"),
+            "NS1: GlobalMutable build_pk must clamp generation to 0 for any input gen={input_gen}; \
+             pk={pk:?} does not contain ':0:'"
+        );
+    }
+}
+
+/// NS1: two concurrent writes to the same GlobalMutable doc_id must both produce
+/// the same PK (generation=0), which means the second write overwrites the first
+/// (last-write-wins) rather than creating a new versioned entry.
+#[test]
+fn ns1_concurrent_global_mutable_writes_produce_same_pk() {
+    use engram_core::build_pk;
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    let pks = Arc::new(Mutex::new(Vec::new()));
+    let doc_id = "src/Services/BusinessLogic.cs";
+    let project_id = "test-proj";
+    let ns = "business_logic";
+
+    let handles: Vec<_> = (0u64..8)
+        .map(|input_gen| {
+            let pks = Arc::clone(&pks);
+            thread::spawn(move || {
+                let pk = build_pk(project_id, ns, input_gen, doc_id);
+                pks.lock().unwrap().push(pk);
+            })
+        })
+        .collect();
+
+    for h in handles { h.join().unwrap(); }
+
+    let all_pks = pks.lock().unwrap();
+    // All 8 concurrent writes must produce identical PKs (all clamped to gen=0).
+    let first = &all_pks[0];
+    for pk in all_pks.iter() {
+        assert_eq!(
+            pk, first,
+            "NS1: all concurrent GlobalMutable writes must produce the same PK \
+             (last-write-wins semantics); got divergent PK: {pk:?} vs {first:?}"
+        );
+    }
+}

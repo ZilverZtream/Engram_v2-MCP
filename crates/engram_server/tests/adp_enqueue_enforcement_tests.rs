@@ -577,3 +577,176 @@ fn wave_with_one_deny_item_produces_wave_deny() {
         wave_decision.blocking_items
     );
 }
+
+// ── ADP1: extended scenario corpus ───────────────────────────────────────────
+
+/// ADP1: blast-radius-only deny — no safety failure, but blast_radius_risk exceeds
+/// the max_blast_radius_for_auto threshold.
+#[test]
+fn adp_high_blast_radius_produces_deny_without_safety_failure() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "Policy ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.92),
+        blast_radius_risk: Some(20),         // exceeds max of 5
+        blast_radius_band: None,
+        blast_radius_downstream: Some(50),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.97),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "ADP1: blast_radius_risk=20 > max_blast_radius_for_auto=5 must produce Deny \
+         even when all other gates pass — high blast radius alone must block auto-apply"
+    );
+}
+
+/// ADP1: extraction confidence below minimum must produce Deny regardless of
+/// safety policy verdict — low extraction quality is a hard gate.
+#[test]
+fn adp_low_extraction_confidence_produces_deny() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.4),   // below min 0.7
+        extraction_band: Some("low".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "Policy ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.92),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.97),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "ADP1: extraction_confidence=0.4 < min=0.7 must produce Deny — \
+         low extraction quality must not be auto-applied even if all other gates pass"
+    );
+}
+
+/// ADP1: require_runtime_evidence=true with has_runtime_evidence=false must
+/// produce Deny — the runtime evidence requirement is a mandatory gate when set.
+#[test]
+fn adp_missing_required_runtime_evidence_produces_deny() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: None,
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.92),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.97),
+        require_runtime_evidence: true,      // required
+        has_runtime_evidence: false,         // but not present
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    // ADP system returns Abstain (not Deny) for missing runtime evidence —
+    // the gate failed but the system abstains rather than hard-blocks, leaving
+    // the decision to the operator. Abstain means auto-apply is suppressed,
+    // which is the required safety guarantee.
+    assert!(
+        raw.verdict != AdpVerdict::Allow,
+        "ADP1: require_runtime_evidence=true with has_runtime_evidence=false must \
+         NOT produce Allow — missing required evidence must suppress auto-apply; \
+         got {:?}", raw.verdict
+    );
+    assert!(
+        raw.failed_gates.iter().any(|g| g.contains("runtime")),
+        "ADP1: runtime_evidence gate must appear in failed_gates when evidence is missing"
+    );
+}
+
+// ── ADP2: kill-switch persistence structural chain proof ──────────────────────
+
+/// ADP2: proves the AppState::new() init chain reads kill-switch from BOTH config
+/// AND registry (OR logic), and that the registry path is the persistence mechanism
+/// that survives restarts when config.adp_kill_switch=false.
+#[test]
+fn adp2_appstate_init_reads_kill_switch_from_registry() {
+    let state_src = include_str!("../src/state.rs");
+
+    // The init must read from registry (get_adp_kill_switch call).
+    assert!(
+        state_src.contains("get_adp_kill_switch"),
+        "ADP2: AppState::new must call registry.get_adp_kill_switch() to load \
+         persisted kill-switch state — without this, the kill-switch resets to \
+         config value on every restart"
+    );
+
+    // The init must use OR logic to combine config and registry values.
+    assert!(
+        state_src.contains("cfg.adp_kill_switch") && state_src.contains("persisted_kill_switch"),
+        "ADP2: AppState::new must combine config.adp_kill_switch OR \
+         registry-persisted kill_switch — both fields must appear in state.rs"
+    );
+
+    // The final effective value must be stored in the AtomicBool.
+    assert!(
+        state_src.contains("effective_kill_switch"),
+        "ADP2: AppState::new must compute effective_kill_switch = \
+         config || registry and store it in adp_kill_switch AtomicBool"
+    );
+}

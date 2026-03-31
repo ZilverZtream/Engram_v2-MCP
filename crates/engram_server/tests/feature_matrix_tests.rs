@@ -238,3 +238,51 @@ fn feature_matrix_cargo_toml_has_optional_vector_feature() {
          (expected to include 'vector') so the feature is active in standard builds"
     );
 }
+
+// ── FTS2: vector-off graceful degrade structural contracts ────────────────────
+
+/// FTS2: the vector-off code path in hybrid.rs must return an empty vector half
+/// rather than panicking or propagating an error. This structural test verifies
+/// the `cfg(not(feature = "vector"))` branch exists and contains a degrade path.
+#[test]
+fn fts2_vector_off_branch_exists_in_hybrid_source() {
+    let hybrid_src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The vector-off branch must exist.
+    assert!(
+        hybrid_src.contains(r#"cfg(not(feature = "vector"))"#)
+            || hybrid_src.contains(r#"cfg(not(feature="vector"))"#),
+        "FTS2: hybrid.rs must contain a #[cfg(not(feature = \"vector\"))] branch \
+         implementing vector-off graceful degrade; missing branch means vector-off \
+         builds will fail to compile or will panic at vector call sites"
+    );
+
+    // The degrade path must not just be a todo!() or unimplemented!().
+    let no_vector_idx = hybrid_src
+        .find(r#"cfg(not(feature = "vector"))"#)
+        .or_else(|| hybrid_src.find(r#"cfg(not(feature="vector"))"#))
+        .unwrap_or(0);
+    let window = &hybrid_src[no_vector_idx..no_vector_idx.min(hybrid_src.len() - no_vector_idx) + 200];
+    assert!(
+        !window.contains("todo!()") && !window.contains("unimplemented!()"),
+        "FTS2: vector-off branch must have a real degrade implementation, not todo!/unimplemented!"
+    );
+}
+
+/// FTS2: the no-vector CI workflow file must exist and target the correct crates.
+/// Regression guard: if the workflow is deleted, this test fails before CI does.
+#[test]
+fn fts2_no_vector_ci_workflow_file_exists() {
+    let workflow = include_str!("../../../.github/workflows/no-vector-ci.yml");
+
+    assert!(
+        workflow.contains("no-default-features"),
+        "FTS2: .github/workflows/no-vector-ci.yml must run with --no-default-features \
+         to exercise the vector-off code path in CI"
+    );
+    assert!(
+        workflow.contains("engram_index") || workflow.contains("engram_server"),
+        "FTS2: no-vector CI workflow must target engram_index or engram_server — \
+         these are the crates with vector feature flag"
+    );
+}
