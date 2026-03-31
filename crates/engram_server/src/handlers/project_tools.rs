@@ -2251,6 +2251,14 @@ impl Engram {
         let _ = self.ensure_project_record(&req.project_id).await?;
 
         let section_id = req.section_id.unwrap_or_else(|| req.section.clone());
+        // REG2: validate section_id at the handler boundary before it is used in
+        // registry composite-key paths and search-index document identifiers.
+        // Delimiter bytes (\0, \n) are blocked by the registry layer, but broader
+        // character-class enforcement here prevents namespace/path semantics drift
+        // in downstream index identifiers even for delimiter-safe but structurally
+        // problematic strings (e.g. pure whitespace, empty, >256 chars).
+        engram_core::security::validate_key_component("section_id", &section_id)
+            .map_err(|e| McpError::invalid_params(format!("invalid section_id: {e}"), None))?;
         let sec = MemorySection {
             section_id: section_id.clone(),
             title: req.section,

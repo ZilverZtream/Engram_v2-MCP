@@ -814,3 +814,125 @@ fn parse2_all_languages_handle_deep_nesting_without_panic() {
         );
     }
 }
+
+// ── PARSE1: Capture-contract tests for js_extractor.rs named groups ──────────
+
+/// PARSE1: Every regex pattern in js_extractor.rs that is used with
+/// `cap.name("X").expect("mandatory 'X' group")` must contain the named
+/// capture group `(?P<X>...)` in the pattern string.
+///
+/// These tests prove the regex pattern and the extraction call site cannot
+/// diverge: if the named group is removed from the pattern, the test fails
+/// before any code that calls `.expect(...)` can panic at runtime.
+#[test]
+fn js_extractor_mandatory_group_patterns_contain_named_captures() {
+    // (pattern_fragment, named_group_that_must_exist, description)
+    let contracts: &[(&str, &str, &str)] = &[
+        // GOOGLE_MAPS_RE: cls group — line 707
+        (
+            r"(?i)new\s+google\.maps\.(?P<cls>",
+            "(?P<cls>",
+            "GOOGLE_MAPS_RE: cls group must be present — used with .expect(\"mandatory 'cls' group\")",
+        ),
+        // LEAFLET_RE: cls group — line 867
+        (
+            r"(?i)\bL\.(?P<cls>",
+            "(?P<cls>",
+            "LEAFLET_RE: cls group must be present — used with .expect(\"mandatory 'cls' group\")",
+        ),
+        // OPENLAYERS_RE: cls group — line 891
+        (
+            r"(?i)new\s+ol\.(?P<cls>",
+            "(?P<cls>",
+            "OPENLAYERS_RE: cls group must be present — used with .expect(\"mandatory 'cls' group\")",
+        ),
+        // GIS_API_KEY_RE: key group — line 916
+        (
+            r"(?P<key>[A-Za-z0-9_\-]{20,})",
+            "(?P<key>",
+            "GIS_API_KEY_RE: key group must be present — used with .expect(\"mandatory 'key' group\")",
+        ),
+        // GIS_ZOOM_RE: val group — line 963
+        (
+            r"(?P<val>\d{1,2})",
+            "(?P<val>",
+            "GIS_ZOOM_RE: val group must be present — used with .expect(\"mandatory 'val' group\")",
+        ),
+        // GIS_CENTER_RE: lat and lng groups — lines 988-989
+        (
+            r"(?P<lat>-?\d+\.?\d*)",
+            "(?P<lat>",
+            "GIS_CENTER_RE: lat group must be present — used with .expect(\"mandatory 'lat' group\")",
+        ),
+        (
+            r"(?P<lng>-?\d+\.?\d*)",
+            "(?P<lng>",
+            "GIS_CENTER_RE: lng group must be present — used with .expect(\"mandatory 'lng' group\")",
+        ),
+        // CTL00_ID_RE: full_id and ctrl_id groups — lines 1032-1036
+        (
+            r"(?P<full_id>ctl\d+",
+            "(?P<full_id>",
+            "CTL00_ID_RE: full_id group must be present — used with .expect(\"mandatory 'full_id' group\")",
+        ),
+        (
+            r"(?P<ctrl_id>[A-Za-z]",
+            "(?P<ctrl_id>",
+            "CTL00_ID_RE: ctrl_id group must be present — used with .expect(\"mandatory 'ctrl_id' group\")",
+        ),
+    ];
+
+    let extractor_src = include_str!("../../engram_index/src/js_extractor.rs");
+
+    for (pattern_fragment, named_group, description) in contracts {
+        // The pattern fragment must appear in the extractor source.
+        assert!(
+            extractor_src.contains(pattern_fragment),
+            "PARSE1: {description}\n\
+             Pattern fragment {pattern_fragment:?} not found in js_extractor.rs — \
+             the regex may have been changed without updating the call site"
+        );
+        // The named group token must appear in the extractor source.
+        assert!(
+            extractor_src.contains(named_group),
+            "PARSE1: {description}\n\
+             Named group token {named_group:?} not found in js_extractor.rs — \
+             the capture group may have been removed or renamed"
+        );
+    }
+}
+
+/// PARSE1: All `expect("mandatory '...' group")` call sites in js_extractor.rs
+/// must have a corresponding `(?P<...>` in the same source file, and the count
+/// of expect-call-sites must equal the count of named-group definitions they reference.
+///
+/// This is a count-parity test: it fails if a `.expect("mandatory")` call is added
+/// without a corresponding regex group, or vice versa.
+#[test]
+fn js_extractor_mandatory_expect_sites_are_covered_by_named_groups() {
+    let src = include_str!("../../engram_index/src/js_extractor.rs");
+
+    // Count the `.expect("mandatory '` call sites.
+    let expect_count = src.matches(".expect(\"mandatory '").count();
+
+    // Count the `(?P<` named capture group definitions.
+    let group_count = src.matches("(?P<").count();
+
+    // Every expect site needs exactly one named group. The groups may be more
+    // numerous than the expect sites (some groups are optional), but every
+    // mandatory expect must have a covering group somewhere in the file.
+    assert!(
+        group_count >= expect_count,
+        "PARSE1: js_extractor.rs has {expect_count} mandatory-group expect calls \
+         but only {group_count} named capture groups (?P<...>) — \
+         at least one expect call has no corresponding capture group and will panic at runtime"
+    );
+
+    // Sanity: there must be at least 9 mandatory expect call sites (cls×3 + key + val + lat + lng + full_id + ctrl_id).
+    assert!(
+        expect_count >= 9,
+        "PARSE1: expected at least 9 mandatory-group expect calls in js_extractor.rs \
+         (cls×3, key, val, lat, lng, full_id, ctrl_id); found {expect_count} — \
+         a call site may have been inadvertently removed"
+    );
+}

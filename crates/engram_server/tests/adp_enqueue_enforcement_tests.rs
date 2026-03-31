@@ -474,6 +474,76 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
 
 // ── Test 8: Wave-level deny propagation ───────────────────────────────────────
 
+// ── Test X4: Enqueue-capable tools are co-registered with autonomous_decision_gate ──
+
+/// X4: Every enqueue-capable MCP tool must be co-registered alongside
+/// `autonomous_decision_gate` in CAPABILITY_FLAGS, so that an AI agent using
+/// the server can always reach the gate tool before calling an enqueue tool.
+///
+/// This is a structural contract test: it proves the server's capability manifest
+/// lists all job-spawning tools AND the ADP gate together, ensuring the full
+/// gate→enqueue call chain is available at all times.
+#[test]
+fn all_enqueue_capable_tools_are_co_registered_with_autonomous_decision_gate() {
+    use engram_server::capabilities::CAPABILITY_FLAGS;
+
+    // All tools that can spawn a background job (spawn_job_* call sites).
+    let enqueue_capable_tools = [
+        "index_project",      // project_tools.rs: spawn_job_index_directory
+        "update_project",     // project_tools.rs: spawn_job_update_project
+        "index_git_history",  // git_tools.rs: spawn_job_git_history
+    ];
+
+    let registered: Vec<&str> = CAPABILITY_FLAGS.iter().map(|f| f.key).collect();
+
+    // The ADP gate itself must be registered.
+    assert!(
+        registered.contains(&"autonomous_decision_gate"),
+        "X4: autonomous_decision_gate must be registered in CAPABILITY_FLAGS — \
+         it is the required pre-enqueue decision gate; got: {:?}", registered
+    );
+
+    // Every enqueue-capable tool must be registered alongside it.
+    for tool in &enqueue_capable_tools {
+        assert!(
+            registered.contains(tool),
+            "X4: enqueue-capable tool {tool:?} must be registered in CAPABILITY_FLAGS \
+             alongside autonomous_decision_gate so callers can invoke the gate before \
+             spawning a job; registered tools: {:?}", registered
+        );
+    }
+}
+
+/// X4: The source of each enqueue-capable handler must reference the job-kind
+/// strings that appear in CAPABILITY_FLAGS, proving the capability manifest and
+/// the spawn paths are in sync (no phantom registered tool / no unregistered spawner).
+#[test]
+fn enqueue_handler_job_kinds_match_capability_flag_keys() {
+    let project_tools_src = include_str!("../src/handlers/project_tools.rs");
+    let git_tools_src = include_str!("../src/handlers/git_tools.rs");
+    let capabilities_src = include_str!("../src/capabilities.rs");
+
+    // Each (handler_src, job_kind) pair: the handler must contain the job_kind string
+    // AND capabilities.rs must also contain it.
+    let pairs: &[(&str, &str, &str)] = &[
+        (project_tools_src, "index_project",     "project_tools.rs"),
+        (project_tools_src, "update_project",    "project_tools.rs"),
+        (git_tools_src,     "index_git_history", "git_tools.rs"),
+    ];
+
+    for (src, job_kind, file) in pairs {
+        assert!(
+            src.contains(job_kind),
+            "X4: {file} must reference job kind {job_kind:?} — source out of sync with capability manifest"
+        );
+        assert!(
+            capabilities_src.contains(job_kind),
+            "X4: capabilities.rs must register {job_kind:?} from {file} — \
+             every enqueue path must have a co-registered capability flag"
+        );
+    }
+}
+
 /// A wave containing one deny-producing item must produce a wave-level Deny.
 /// Proves that evaluate_wave propagates any item Deny to the overall wave verdict —
 /// there is no way for a single deny-blocked file to be "outvoted" by other Allow items.

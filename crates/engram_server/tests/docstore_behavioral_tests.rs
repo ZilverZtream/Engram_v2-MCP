@@ -938,3 +938,133 @@ fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
     );
 }
 
+// ── DS1 corruption injection: bincode→JSON fallback fail-closed semantics ─────
+//
+// These tests verify that:
+//   1. Corrupted records fail closed — `get_doc` returns Err, not Ok(garbage).
+//   2. A corrupted record does not abort reads of healthy neighbors in the same
+//      project (per-record error, not per-project failure).
+//   3. `purge_old_generation_docs` can tolerate a corrupted record:
+//      it fails closed on the specific record rather than aborting the entire purge.
+//
+// We inject corruption by writing raw bytes directly into the Redb table that
+// backs DOC_BY_ID, bypassing the DocStore serialization layer.
+
+const DOC_BY_ID_TABLE: TableDefinition<&str, &[u8]> =
+    TableDefinition::new("doc_by_id");
+
+fn inject_corrupted_doc(db_path: &std::path::Path, key: &str) {
+    let db = Database::open(db_path).expect("open for corruption injection");
+    let wtx = db.begin_write().expect("begin_write");
+    {
+        let mut t = wtx.open_table(DOC_BY_ID_TABLE).expect("open table");
+        // Bytes that are neither valid bincode nor valid JSON for a DocRecord.
+        t.insert(key, b"\xff\xfe\xfd\x00invalid-garbage".as_slice())
+            .expect("inject corruption");
+    }
+    wtx.commit().expect("commit corruption");
+}
+
+/// DS1: a corrupted record in DOC_BY_ID must cause `get_doc` to return `Err`,
+/// not `Ok(garbage_doc)` or a panic.  The fail-closed behavior prevents
+/// corrupted data from silently propagating into search results or index reports.
+#[test]
+fn corrupted_doc_record_causes_get_doc_to_fail_closed() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    // Write a legitimate doc first to initialize the table.
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        let doc = make_doc("doc-corrupt-1", "src/lib.rs", "code");
+        store.put_doc("proj-corrupt", &doc).expect("put");
+    }
+
+    // Inject corruption into the record we just wrote.
+    let key = "proj-corrupt\x00code\x00doc-corrupt-1";
+    inject_corrupted_doc(&db_path, key);
+
+    // Re-open the store (simulates the next process lifetime).
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.get_doc("proj-corrupt", "code", "doc-corrupt-1");
+
+    assert!(
+        result.is_err(),
+        "DS1: get_doc must return Err for a corrupted record — \
+         got Ok({:?}) instead; silent success would propagate garbage into search results",
+        result.ok()
+    );
+}
+
+/// DS1: a corrupted record must not prevent listing healthy records in the same
+/// project.  Per-record errors are tolerated; per-project failure is not.
+///
+/// `list_doc_summaries_for_project` uses the `?` operator on each record but
+/// iterates with a prefix scan.  A single corrupted record that causes the scan
+/// to abort would fail all subsequent docs — this test ensures healthy docs
+/// remain accessible even when one sibling is corrupted.
+#[test]
+fn healthy_docs_remain_accessible_when_one_record_is_corrupted() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        // Write two healthy docs.
+        let doc_a = make_doc("doc-healthy-a", "src/a.rs", "code");
+        let doc_b = make_doc("doc-healthy-b", "src/b.rs", "code");
+        store.put_doc("proj-mixed", &doc_a).expect("put a");
+        store.put_doc("proj-mixed", &doc_b).expect("put b");
+    }
+
+    // Corrupt only doc_a.
+    inject_corrupted_doc(&db_path, "proj-mixed\x00code\x00doc-healthy-a");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+
+    // doc_b (healthy) must still be retrievable even after doc_a is corrupt.
+    let result_b = store.get_doc("proj-mixed", "code", "doc-healthy-b");
+    assert!(
+        result_b.is_ok(),
+        "DS1: healthy doc must be readable even when a sibling record is corrupted; \
+         got: {:?}", result_b.err()
+    );
+
+    // doc_a (corrupted) must fail closed.
+    let result_a = store.get_doc("proj-mixed", "code", "doc-healthy-a");
+    assert!(
+        result_a.is_err(),
+        "DS1: corrupted doc must return Err; got Ok({:?})", result_a.ok()
+    );
+}
+
+/// DS1: `purge_old_generation_docs` encountering a corrupted record must fail
+/// closed (return Err) rather than silently skipping the record and leaving
+/// stale/corrupted bytes in the table indefinitely.
+#[test]
+fn purge_with_corrupted_record_fails_closed_rather_than_skipping() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        // Write a gen-1 doc (will be eligible for purge at min_gen=2).
+        let mut doc = make_doc("doc-purge-corrupt", "src/x.rs", "code");
+        doc.generation = 1;
+        store.put_doc("proj-purge-c", &doc).expect("put");
+    }
+
+    // Corrupt the record before purge.
+    inject_corrupted_doc(&db_path, "proj-purge-c\x00code\x00doc-purge-corrupt");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.purge_old_generation_docs("proj-purge-c", "code", 2);
+
+    // Corrupted record must cause purge to fail, not silently skip.
+    assert!(
+        result.is_err(),
+        "DS1: purge must fail closed on a corrupted record rather than silently \
+         leaving corrupt bytes in the table; got Ok({:?})", result.ok()
+    );
+}
+
