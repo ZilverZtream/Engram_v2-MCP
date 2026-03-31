@@ -1268,12 +1268,43 @@ impl Engram {
             master_files,
         };
 
-        let report = tokio::task::spawn_blocking(move || {
-            full_mig::analyze_full_project(&graph, &pid, &target_stack, &bundle, max_files)
+        // MIG1-D3C1: create a cancel token and register it in state.cancellation_tokens
+        // so the caller can fire handle_cancel_job(migration_job_id) to cooperatively
+        // abort the migration at any phase-boundary check.
+        let migration_job_id = format!("mig-{}", uuid::Uuid::new_v4().simple());
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let cancel_for_task = cancel.clone();
+        {
+            let mut tokens = self.state.cancellation_tokens.write().await;
+            tokens.insert(migration_job_id.clone(), cancel);
+        }
+        let report_result = tokio::task::spawn_blocking(move || {
+            full_mig::analyze_full_project(&graph, &pid, &target_stack, &bundle, max_files, &cancel_for_task)
         })
         .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        // Deregister the cancel token — migration is done (completed or failed).
+        {
+            let mut tokens = self.state.cancellation_tokens.write().await;
+            tokens.remove(&migration_job_id);
+        }
+        let report = report_result.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // MIG1: explicitly surface partial-failure state.  Callers (and operators)
+        // must be able to distinguish a complete report from a degraded one without
+        // parsing the full content.  This satisfies the machine-readable completeness
+        // metadata requirement: JSON consumers get structured fields; markdown consumers
+        // get a parseable HTML comment header.
+        if !report.report_is_complete {
+            tracing::warn!(
+                project_id = %req.project_id,
+                degraded_count = report.degraded_sections.len(),
+                degraded_sections = ?report.degraded_sections,
+                "MIG1: migration report is INCOMPLETE — {} graph section(s) returned \
+                 degraded data; report_is_complete=false",
+                report.degraded_sections.len()
+            );
+        }
 
         if req.output_json {
             let json = serde_json::to_string_pretty(&report)
@@ -1281,9 +1312,27 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            report.markdown_report,
-        )]))
+        // MIG1: prepend a machine-readable completeness header to markdown output
+        // so automation can detect partial reports via regex without JSON parsing.
+        // MIG1-D3C1: include migration_job_id so callers can cancel via cancel_job.
+        let header = format!(
+            "<!-- MIG1:job_id={} -->\n",
+            migration_job_id
+        );
+        let markdown = if report.report_is_complete {
+            format!("{}{}", header, report.markdown_report)
+        } else {
+            format!(
+                "{header}<!-- MIG1:INCOMPLETE degraded_sections={count} -->\n\
+                 > **Warning:** This migration report is incomplete. \
+                 {count} graph analysis section(s) returned degraded data: {sections}\n\n\
+                 {body}",
+                count = report.degraded_sections.len(),
+                sections = report.degraded_sections.join(", "),
+                body = report.markdown_report,
+            )
+        };
+        Ok(CallToolResult::success(vec![Content::text(markdown)]))
     }
 
     pub async fn handle_reconcile_runtime_evidence(

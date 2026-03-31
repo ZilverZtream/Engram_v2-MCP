@@ -135,6 +135,14 @@ pub struct AppState {
     /// present (another task is running), so the spawn is skipped. The entry
     /// is removed by the background task when it finishes.
     pub pagerank_inflight: Arc<DashSet<String>>,
+
+    /// ADP1: Runtime kill-switch for autonomous decisions.
+    ///
+    /// Initialised from OR(config.adp_kill_switch, registry-persisted value)
+    /// so that a kill-switch activated at runtime survives process restarts.
+    /// Handlers that invoke the ADP pipeline read this flag rather than the
+    /// (immutable) Config field, allowing runtime toggle without a restart.
+    pub adp_kill_switch: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl AppState {
@@ -173,6 +181,17 @@ impl AppState {
             .join("migration_progress.redb");
         let migration_progress = MigrationProgressStore::open(&progress_path)?;
 
+        // ADP1: load persisted kill-switch; OR with config value so that either
+        // source can activate it. A kill-switch that was set at runtime persists
+        // across restarts even if the config file no longer has the flag set.
+        let persisted_kill_switch = registry.get_adp_kill_switch().unwrap_or(false);
+        let effective_kill_switch = cfg.adp_kill_switch || persisted_kill_switch;
+        // If the config has it set, make sure it's also reflected in the registry
+        // so subsequent restarts without the config flag still see it as active.
+        if cfg.adp_kill_switch && !persisted_kill_switch {
+            let _ = registry.set_adp_kill_switch(true);
+        }
+
         Ok((
             Self {
                 cfg: Arc::new(cfg),
@@ -195,6 +214,7 @@ impl AppState {
                 migration_progress: Arc::new(migration_progress),
                 pagerank_cache: Arc::new(DashMap::new()),
                 pagerank_inflight: Arc::new(DashSet::new()),
+                adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(effective_kill_switch)),
             },
             events_rx,
         ))

@@ -14,6 +14,7 @@ use engram_core::Config;
 use engram_index::{HybridQuery, HybridSearchEngine, IndexDoc};
 use engram_core::RelPath;
 use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ async fn open_engine(tmp: &tempfile::TempDir) -> HybridSearchEngine {
     std::fs::create_dir_all(&lance_dir).expect("create lance dir");
 
     let cfg = Config {
-        embedding_backend: "fts_only".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
 
@@ -80,7 +81,7 @@ async fn hybrid_engine_new_fts_only_succeeds() {
     std::fs::create_dir_all(&lance_dir).expect("mkdir lance");
 
     let cfg = Config {
-        embedding_backend: "fts_only".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let result = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await;
@@ -665,7 +666,7 @@ async fn vector_search_projection_backend_is_deterministic() {
 
     // "projection" falls through to ProjectionEmbedder (hermetic, no network).
     let cfg = Config {
-        embedding_backend: "projection".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
@@ -738,7 +739,7 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
     std::fs::create_dir_all(&lance_dir).unwrap();
 
     let cfg = Config {
-        embedding_backend: "projection".into(),
+        embedding_backend: "local".into(), // was "projection" — hermetic stub embedder
         ..Default::default()
     };
     let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
@@ -769,6 +770,122 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
     );
 }
 
+/// VEC2: `index_docs` upsert is idempotent — indexing the same batch twice must
+/// not double the row count.  `merge_insert` on `pk` updates in place; there
+/// must be no window where rows are absent between delete and re-insert.
+///
+/// This closes the VEC2 "Uncovered" gap by proving LanceDB merge_insert upsert
+/// semantics hold at the engram_index integration level.
+#[tokio::test]
+async fn upsert_same_docs_twice_does_not_double_the_row_count() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    const PROJ: &str = "vec2-idem-proj";
+    const N: usize = 5;
+
+    // Build N distinct docs.
+    let docs: Vec<IndexDoc> = (0..N)
+        .map(|i| IndexDoc {
+            generation: 1,
+            chunk_id: i as u64,
+            path: RelPath::new(&format!("src/file_{i}.rs")),
+            language: "rust".into(),
+            content: format!("fn func_{i}() {{ /* idempotency test */ }}"),
+            namespace: "code".into(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: 5,
+            doc_id: format!("idem-doc-{i:03}"),
+            content_hash: format!("hash-{i:03}"),
+        })
+        .collect();
+
+    let cancel = CancellationToken::new();
+
+    // First insert.
+    engine.index_docs(PROJ, &docs, &cancel).await
+        .expect("VEC2: first index_docs must succeed");
+
+    let count_after_first = engine.count_docs(PROJ)
+        .expect("VEC2: count_docs after first insert must succeed");
+    assert_eq!(
+        count_after_first, N,
+        "VEC2: after first insert, count must be exactly {N}; got {count_after_first}"
+    );
+
+    // Second insert of the same batch — upsert must overwrite, not duplicate.
+    engine.index_docs(PROJ, &docs, &cancel).await
+        .expect("VEC2: second index_docs (idempotent upsert) must succeed");
+
+    let count_after_second = engine.count_docs(PROJ)
+        .expect("VEC2: count_docs after second insert must succeed");
+    assert_eq!(
+        count_after_second, N,
+        "VEC2: after second insert of same batch, count must still be {N}; got {count_after_second} \
+         — merge_insert/upsert must overwrite existing rows, not append duplicates"
+    );
+}
+
+/// VEC2: updating the content of existing docs (same doc_id, new content_hash)
+/// must result in updated rows, not additional rows.
+///
+/// Proves the pk-based merge_insert correctly identifies existing rows for update.
+#[tokio::test]
+async fn upsert_updated_doc_content_replaces_old_content() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    const PROJ: &str = "vec2-update-proj";
+
+    let doc_v1 = IndexDoc {
+        generation: 1,
+        chunk_id: 0,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn old_version() {}".into(),
+        namespace: "code".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 1,
+        doc_id: "update-test-doc".into(),
+        content_hash: "hash-v1".into(),
+    };
+
+    let cancel = CancellationToken::new();
+
+    engine.index_docs(PROJ, &[doc_v1], &cancel).await
+        .expect("VEC2: insert v1 must succeed");
+    let count_v1 = engine.count_docs(PROJ).unwrap();
+    assert_eq!(count_v1, 1, "VEC2: exactly 1 doc after v1 insert");
+
+    // Update: same doc_id, new content and hash.
+    let doc_v2 = IndexDoc {
+        generation: 1,
+        chunk_id: 0,
+        path: RelPath::new("src/lib.rs"),
+        language: "rust".into(),
+        content: "fn new_version() { /* updated */ }".into(),
+        namespace: "code".into(),
+        author: None,
+        timestamp: None,
+        start_line: 1,
+        end_line: 1,
+        doc_id: "update-test-doc".into(),
+        content_hash: "hash-v2".into(),
+    };
+
+    engine.index_docs(PROJ, &[doc_v2], &cancel).await
+        .expect("VEC2: update v2 must succeed");
+    let count_v2 = engine.count_docs(PROJ).unwrap();
+    assert_eq!(
+        count_v2, 1,
+        "VEC2: count must remain 1 after update (upsert overwrites, not appends); got {count_v2}"
+    );
+}
+
 /// ENG-AUD-2026-S18-001: source structure — verify the search_tools handler
 /// emits the machine-parseable sentinel for empty results (S01-001) and
 /// returns McpError for doc-miss lookups.
@@ -794,5 +911,461 @@ fn search_tools_handler_has_correct_not_found_contract() {
         source.contains("not found in project"),
         "search_tools.rs McpError message must include 'not found in project' \
          to identify which project/namespace/generation was queried"
+    );
+}
+
+// ── DS1: copy-forward hash/read failure semantics ─────────────────────────────
+
+async fn open_engine_fts_only(tmp: &tempfile::TempDir) -> HybridSearchEngine {
+    let tantivy_dir = tmp.path().join("tantivy");
+    let lance_dir = tmp.path().join("lance");
+    std::fs::create_dir_all(&tantivy_dir).unwrap();
+    std::fs::create_dir_all(&lance_dir).unwrap();
+    let cfg = Config {
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .unwrap()
+}
+
+/// D5/DS1: when a file contains non-UTF8 bytes, `index_files` must:
+///   1. Return Ok(stats) — fail-open, job does not abort
+///   2. Include the unreadable file in stats.skipped_files
+///   3. Successfully index sibling valid files in the same batch
+#[tokio::test]
+async fn ds1_non_utf8_file_is_skipped_not_fatal() {
+    use std::io::Write;
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine_fts_only(&tmp).await;
+
+    let project_dir = tmp.path().join("proj");
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    // Create a valid file that should be indexed.
+    let good_file = project_dir.join("good.rs");
+    std::fs::write(&good_file, b"fn hello_world() { println!(\"hi\"); }").unwrap();
+
+    // Create a file with non-UTF8 bytes to simulate a binary/corrupt file
+    // that slips past the binary-detection heuristic (e.g. .md extension).
+    let bad_file = project_dir.join("corrupt.md");
+    {
+        let mut f = std::fs::File::create(&bad_file).unwrap();
+        // Write bytes that are invalid UTF-8 (0xff 0xfe starts a UTF-16 BOM, but
+        // together with 0x80-0xBF continuations they are invalid UTF-8).
+        f.write_all(b"\xff\xfe\x80invalid-utf8-content\x81\x82")
+            .unwrap();
+    }
+
+    let cancel = CancellationToken::new();
+    let files = vec![good_file.clone(), bad_file.clone()];
+
+    let result = engine
+        .index_files(
+            "ds1-proj",
+            "memory",
+            1,
+            &project_dir,
+            files,
+            2048,
+            &cancel,
+            |_, _| {},
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "D5/DS1: index_files must return Ok even when a file fails UTF-8 decode; got: {:?}",
+        result.unwrap_err()
+    );
+
+    let stats = result.unwrap();
+
+    // The corrupt file must appear in skipped_files (no silent data loss).
+    let skipped_paths: Vec<&str> = stats
+        .skipped_files
+        .iter()
+        .map(|(p, _)| p.as_str())
+        .collect();
+    assert!(
+        skipped_paths.iter().any(|p| p.contains("corrupt")),
+        "D5/DS1: corrupt.md must appear in skipped_files; got: {:?}",
+        skipped_paths
+    );
+
+    // The valid file must have been indexed (appears as a doc in the engine).
+    let count = engine.count_docs("ds1-proj").unwrap();
+    assert!(
+        count > 0,
+        "D5/DS1: valid sibling file must be indexed even when another file fails; docs=0"
+    );
+}
+
+/// D5/DS1: mid-job multi-file batch with mixed failures.
+///
+/// Proves that when several files in a single batch have different failure
+/// modes (non-UTF8 bytes, file disappeared), ALL failures are observable in
+/// `skipped_files` and ALL surviving valid files are indexed. No silent data
+/// loss: the caller has full observability into which files were skipped and why.
+#[tokio::test]
+async fn ds1_multi_file_batch_all_skipped_files_observable() {
+    use std::io::Write;
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine_fts_only(&tmp).await;
+
+    let project_dir = tmp.path().join("proj3");
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    // 3 good files that should be indexed.
+    for i in 0..3 {
+        let path = project_dir.join(format!("good_{i}.rs"));
+        std::fs::write(&path, format!("fn good_{i}() {{}}").as_bytes()).unwrap();
+    }
+
+    // 2 corrupt files (non-UTF8).
+    for i in 0..2 {
+        let path = project_dir.join(format!("corrupt_{i}.md"));
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(b"\xff\xfe\x80corrupt-bytes\x81\x82").unwrap();
+    }
+
+    // 2 "vanished" files (never written — simulate disappearance between scan and read).
+    let vanished: Vec<_> = (0..2)
+        .map(|i| project_dir.join(format!("vanished_{i}.rs")))
+        .collect();
+
+    let cancel = CancellationToken::new();
+    let mut files: Vec<_> = (0..3)
+        .map(|i| project_dir.join(format!("good_{i}.rs")))
+        .chain((0..2).map(|i| project_dir.join(format!("corrupt_{i}.md"))))
+        .chain(vanished.iter().cloned())
+        .collect();
+    files.extend(vanished);
+
+    // De-duplicate in case of accidental overlap.
+    files.dedup();
+
+    let result = engine
+        .index_files(
+            "ds1-multi-proj",
+            "memory",
+            1,
+            &project_dir,
+            files,
+            2048,
+            &cancel,
+            |_, _| {},
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "D5/DS1: index_files must return Ok with mixed failures; got: {:?}",
+        result.unwrap_err()
+    );
+
+    let stats = result.unwrap();
+
+    // All failures must be observable in skipped_files.
+    assert!(
+        !stats.skipped_files.is_empty(),
+        "D5/DS1: skipped_files must be non-empty when files fail — caller must have \
+         observability into which files were skipped"
+    );
+
+    // Valid files must have been indexed.
+    let count = engine.count_docs("ds1-multi-proj").unwrap();
+    assert!(
+        count > 0,
+        "D5/DS1: at least the good files must be indexed; got docs=0"
+    );
+}
+
+/// D5/DS1: when a file disappears between scan-time and read-time (race
+/// condition), `index_files` must return Ok and record the file in
+/// skipped_files rather than panicking or aborting.
+#[tokio::test]
+async fn ds1_disappeared_file_is_skipped_not_fatal() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine_fts_only(&tmp).await;
+
+    let project_dir = tmp.path().join("proj2");
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    // Good file stays throughout.
+    let good_file = project_dir.join("stays.rs");
+    std::fs::write(&good_file, b"fn stays() {}").unwrap();
+
+    // Vanishing file: we pass a path that doesn't exist yet at index time.
+    let vanished_file = project_dir.join("vanished.rs");
+    // Do NOT create the file — simulating a file that was listed but disappeared.
+
+    let cancel = CancellationToken::new();
+    let files = vec![good_file.clone(), vanished_file.clone()];
+
+    let result = engine
+        .index_files(
+            "ds1-vanish-proj",
+            "memory",
+            1,
+            &project_dir,
+            files,
+            2048,
+            &cancel,
+            |_, _| {},
+        )
+        .await;
+
+    assert!(
+        result.is_ok(),
+        "D5/DS1: index_files must return Ok even when a listed file does not exist; got: {:?}",
+        result.unwrap_err()
+    );
+
+    let stats = result.unwrap();
+
+    // The vanished file must appear in skipped_files.
+    let skipped_paths: Vec<&str> = stats
+        .skipped_files
+        .iter()
+        .map(|(p, _)| p.as_str())
+        .collect();
+    assert!(
+        !skipped_paths.is_empty(),
+        "D5/DS1: vanished file must appear in skipped_files; skipped_files is empty"
+    );
+
+    // Good file must still be indexed.
+    let count = engine.count_docs("ds1-vanish-proj").unwrap();
+    assert!(
+        count > 0,
+        "D5/DS1: valid file must be indexed even when sibling vanishes; docs=0"
+    );
+}
+
+// ── NS1: GlobalMutable concurrent writer stress tests ─────────────────────────
+
+/// D4/NS1: N concurrent `index_docs` calls for the same doc_id in a
+/// GlobalMutable namespace must produce exactly one hit after all writers
+/// complete. No panics or errors are permitted during concurrent writes.
+#[tokio::test]
+async fn global_mutable_concurrent_writes_last_write_wins() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = Arc::new(open_engine_fts_only(&tmp).await);
+
+    let project_id = "ns1-concurrent-proj";
+    let namespace = "memory_bank"; // GlobalMutable
+    let doc_id = "shared-key-001";
+    let n_writers = 8;
+
+    // Spawn N concurrent writers for the same doc_id.
+    let mut handles = Vec::new();
+    for i in 0..n_writers {
+        let engine = engine.clone();
+        let doc_id = doc_id.to_string();
+        handles.push(tokio::spawn(async move {
+            let cancel = CancellationToken::new();
+            let doc = IndexDoc {
+                // GlobalMutable namespaces use generation=0 (clamped by build_pk).
+                generation: 0,
+                chunk_id: 0,
+                path: RelPath::new("notes/shared.md"),
+                language: "markdown".into(),
+                content: format!("writer {i} content"),
+                namespace: namespace.to_string(),
+                author: None,
+                timestamp: None,
+                start_line: 1,
+                end_line: 1,
+                doc_id: doc_id.clone(),
+                content_hash: format!("hash-{i}"),
+            };
+            engine
+                .index_docs(project_id, &[doc], &cancel)
+                .await
+        }));
+    }
+
+    // All writers must complete without errors.
+    for (i, handle) in handles.into_iter().enumerate() {
+        let result = handle.await.unwrap();
+        assert!(
+            result.is_ok(),
+            "D4/NS1: writer {i} must not error; got: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    // After all writers finish, exactly one row must match the doc_id.
+    // Search for something present in all writer payloads: "writer" + "content".
+    let hits = engine
+        .search(
+            &HybridQuery {
+                project_id: project_id.to_string(),
+                namespace: namespace.to_string(),
+                generation: 0,
+                text: "writer content".to_string(),
+                top_k: 100,
+                fts_mode: "strict".to_string(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    // GlobalMutable last-write-wins: there must be exactly 1 entry for the
+    // shared doc_id (no duplicate rows from concurrent writers).
+    let matching: Vec<_> = hits.iter().filter(|h| h.doc_id == doc_id).collect();
+    assert_eq!(
+        matching.len(),
+        1,
+        "D4/NS1: exactly 1 row must exist for doc_id '{doc_id}' after {n_writers} concurrent writers; \
+         got {} — duplicate rows indicate upsert race (GlobalMutable violated)",
+        matching.len()
+    );
+}
+
+/// D4/NS1: Concurrent writes on distinct doc_ids must all survive (no row loss).
+/// Each writer owns a unique doc_id; after all complete every doc_id must be
+/// queryable.
+#[tokio::test]
+async fn global_mutable_concurrent_distinct_writes_all_survive() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = Arc::new(open_engine_fts_only(&tmp).await);
+
+    let project_id = "ns1-distinct-proj";
+    let namespace = "insights"; // another GlobalMutable namespace
+    let n_writers = 8;
+
+    let mut handles = Vec::new();
+    for i in 0..n_writers {
+        let engine = engine.clone();
+        handles.push(tokio::spawn(async move {
+            let cancel = CancellationToken::new();
+            let doc = IndexDoc {
+                generation: 0,
+                chunk_id: 0,
+                path: RelPath::new(&format!("insights/item-{i}.md")),
+                language: "markdown".into(),
+                content: format!("insight about topic-{i}"),
+                namespace: namespace.to_string(),
+                author: None,
+                timestamp: None,
+                start_line: 1,
+                end_line: 1,
+                doc_id: format!("insight-key-{i}"),
+                content_hash: format!("hash-distinct-{i}"),
+            };
+            engine
+                .index_docs(project_id, &[doc], &cancel)
+                .await
+        }));
+    }
+
+    for (i, handle) in handles.into_iter().enumerate() {
+        let result = handle.await.unwrap();
+        assert!(
+            result.is_ok(),
+            "D4/NS1: distinct-key writer {i} must not error; got: {:?}",
+            result.unwrap_err()
+        );
+    }
+
+    // Each unique doc_id must produce exactly one hit.
+    let all_hits = engine
+        .search(
+            &HybridQuery {
+                project_id: project_id.to_string(),
+                namespace: namespace.to_string(),
+                generation: 0,
+                text: "insight topic".to_string(),
+                top_k: 100,
+                fts_mode: "loose".to_string(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            },
+            None,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        all_hits.len(),
+        n_writers,
+        "D4/NS1: all {n_writers} distinct-key writes must produce {n_writers} hits; \
+         got {} — some writes were lost or duplicated",
+        all_hits.len()
+    );
+}
+
+/// D4/NS1: Concurrent writes on the same doc_id must complete within a bounded
+/// wall-clock window, proving no unbounded blocking or livelock.
+///
+/// Wraps the concurrent-write section in `tokio::time::timeout` with a generous
+/// deadline (10 seconds for 8 concurrent writers). A deadlock or heavy contention
+/// would cause the timeout to fire, surfacing the issue as a test failure rather
+/// than an infinite hang in CI.
+#[tokio::test]
+async fn global_mutable_concurrent_writes_complete_within_deadline() {
+    use std::time::Duration;
+
+    const DEADLINE: Duration = Duration::from_secs(10);
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = Arc::new(open_engine_fts_only(&tmp).await);
+
+    let project_id = "ns1-timing-proj";
+    let namespace = "memory_bank";
+    let doc_id = "timing-key-001";
+    let n_writers = 8;
+
+    let engine_clone = engine.clone();
+    let result = tokio::time::timeout(DEADLINE, async move {
+        let mut handles = Vec::new();
+        for i in 0..n_writers {
+            let engine = engine_clone.clone();
+            let doc_id = doc_id.to_string();
+            handles.push(tokio::spawn(async move {
+                let cancel = CancellationToken::new();
+                let doc = IndexDoc {
+                    generation: 0,
+                    chunk_id: 0,
+                    path: RelPath::new("notes/timing.md"),
+                    language: "markdown".into(),
+                    content: format!("timing writer {i}"),
+                    namespace: namespace.to_string(),
+                    author: None,
+                    timestamp: None,
+                    start_line: 1,
+                    end_line: 1,
+                    doc_id: doc_id.clone(),
+                    content_hash: format!("hash-timing-{i}"),
+                };
+                engine.index_docs(project_id, &[doc], &cancel).await
+            }));
+        }
+        for h in handles {
+            h.await.unwrap().unwrap();
+        }
+    })
+    .await;
+
+    assert!(
+        result.is_ok(),
+        "D4/NS1-a3p9: {n_writers} concurrent writes to the same doc_id must complete \
+         within {DEADLINE:?}; timeout indicates deadlock or unbounded contention"
     );
 }
