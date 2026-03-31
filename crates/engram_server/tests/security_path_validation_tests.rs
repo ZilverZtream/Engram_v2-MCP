@@ -416,6 +416,169 @@ fn resolve_path_ancestor_walk_branch_is_race_safe_for_nonexistent_leaf() {
     );
 }
 
+// ── Windows-native path edge cases ───────────────────────────────────────────
+//
+// SEC1-y5k1: safe_join must reject all Windows-native absolute path forms.
+//
+// These tests run on all platforms because safe_join's rejection logic is
+// platform-independent: it checks for leading `\` (which matches `\\?\`, `\\.\`,
+// UNC `\\server\`, etc.) and Component::Prefix (which matches `C:` on Windows).
+// Running cross-platform means the guard is tested in CI regardless of OS.
+
+/// safe_join must reject extended-length Windows paths (`\\?\C:\...`).
+/// Such paths are absolute and must never be accepted as a relative sub_path.
+#[test]
+fn safe_join_rejects_extended_length_windows_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let base = tmp.path();
+
+    // Extended-length Windows path prefix. Leading backslash triggers the
+    // absolute-path rejection guard in safe_join.
+    let result = safe_join(base, r"\\?\C:\Windows\System32\calc.exe");
+    assert!(
+        result.is_err(),
+        "safe_join must reject extended-length path (\\\\?\\C:\\...); got Ok({:?})",
+        result.ok()
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("absolute") || err.contains("not allowed"),
+        "error must describe why the path was rejected; got: {err}"
+    );
+}
+
+/// safe_join must reject UNC network paths (`\\server\share\...`).
+/// Network paths are absolute and must not be used as relative sub-paths.
+#[test]
+fn safe_join_rejects_unc_network_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let base = tmp.path();
+
+    let result = safe_join(base, r"\\server\share\data\secret.db");
+    assert!(
+        result.is_err(),
+        "safe_join must reject UNC network path (\\\\server\\share\\...); got Ok({:?})",
+        result.ok()
+    );
+    let err = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err.contains("absolute") || err.contains("not allowed"),
+        "error must describe why the path was rejected; got: {err}"
+    );
+}
+
+/// safe_join must reject Windows device paths (`\\.\COM1`, `\\.\pipe\...`).
+/// Device paths are absolute and must not escape the base directory.
+#[test]
+fn safe_join_rejects_windows_device_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let base = tmp.path();
+
+    for device_path in &[r"\\.\COM1", r"\\.\pipe\engram", r"\\.\PhysicalDrive0"] {
+        let result = safe_join(base, device_path);
+        assert!(
+            result.is_err(),
+            "safe_join must reject Windows device path {device_path:?}; got Ok({:?})",
+            result.ok()
+        );
+    }
+}
+
+/// safe_join must reject Windows drive-relative paths (`C:foo`, `D:relative`).
+/// On Windows these resolve relative to the current directory of drive C:,
+/// which is unpredictable and can escape `base_dir`.
+#[test]
+fn safe_join_rejects_windows_drive_relative_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let base = tmp.path();
+
+    // "C:foo" is not absolute (no leading slash) but has a Prefix component.
+    // safe_join's Component::Prefix rejection catches this.
+    for drive_rel in &["C:foo", "D:relative\\file.txt", "Z:../escape"] {
+        let result = safe_join(base, drive_rel);
+        // Either rejected by Prefix check or by '..' traversal check.
+        assert!(
+            result.is_err(),
+            "safe_join must reject drive-relative path {drive_rel:?}; got Ok({:?})",
+            result.ok()
+        );
+    }
+}
+
+/// safe_join must reject a path that begins with a single backslash (rooted but
+/// not UNC). On Windows `\path` resolves to the root of the current drive.
+#[test]
+fn safe_join_rejects_single_backslash_rooted_path() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let base = tmp.path();
+
+    let result = safe_join(base, r"\Windows\System32");
+    assert!(
+        result.is_err(),
+        "safe_join must reject single-backslash rooted path (\\Windows\\...); got Ok({:?})",
+        result.ok()
+    );
+}
+
+/// On Windows, PathContext normalises `\\?\`-prefixed paths via strip_unc_prefix
+/// so that the allowed_roots starts_with check works correctly.
+///
+/// This test proves that a path inside the allowed root is accepted even when
+/// Windows canonicalization would return it with the `\\?\` prefix.
+/// It runs on all platforms; on non-Windows strip_unc_prefix is a no-op so
+/// the test just exercises the normal accept-path-under-root code path.
+#[test]
+fn path_context_accepts_path_inside_root_regardless_of_unc_prefix_stripping() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let root = tmp.path().to_path_buf();
+
+    // Create a real file so canonicalize succeeds.
+    let file = root.join("inside.txt");
+    std::fs::write(&file, b"test").expect("write");
+
+    let ctx = PathContext::new(vec![root]).expect("PathContext::new must succeed");
+
+    // resolve_path must accept a file that genuinely lives inside the root.
+    // On Windows, canonicalize returns \\?\ prefix; strip_unc_prefix normalises
+    // it so the starts_with check passes. On Unix, strip_unc_prefix is a no-op.
+    let result = ctx.resolve_path(&file);
+    assert!(
+        result.is_ok(),
+        "SEC1-y5k1: PathContext must accept a path inside the allowed root \
+         regardless of \\\\?\\ prefix stripping; got: {:?}",
+        result.err()
+    );
+}
+
+/// On Windows, a path that uses `\\?\` prefix to reference a location OUTSIDE
+/// the allowed root must still be rejected after strip_unc_prefix normalisation.
+/// Proves that UNC-prefix stripping does not accidentally widen the trust boundary.
+///
+/// Only runs on Windows where the prefix is actually produced by canonicalize.
+#[cfg(windows)]
+#[test]
+fn path_context_rejects_extended_path_outside_allowed_root() {
+    let root_dir = tempfile::TempDir::new().expect("root tmpdir");
+    let outside_dir = tempfile::TempDir::new().expect("outside tmpdir");
+
+    // Create a real file outside the root.
+    let outside_file = outside_dir.path().join("secret.txt");
+    std::fs::write(&outside_file, b"secret").expect("write");
+
+    let ctx = PathContext::new(vec![root_dir.path().to_path_buf()])
+        .expect("PathContext::new must succeed");
+
+    // On Windows, std::fs::canonicalize returns \\?\... for long paths.
+    // The outside_file is genuinely outside the root — must be rejected.
+    let result = ctx.resolve_path(&outside_file);
+    assert!(
+        result.is_err(),
+        "SEC1-y5k1: PathContext must reject a path outside the allowed root \
+         even when it has a \\\\?\\ extended prefix; got Ok({:?})",
+        result.ok()
+    );
+}
+
 /// SEC1: a symlink that would point outside the allowed root must be rejected
 /// by PathContext::resolve_path when canonicalization resolves it.
 ///
