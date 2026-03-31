@@ -482,8 +482,8 @@ async fn search_results_stable_across_queries() {
         use_mmr: false,
     };
 
-    let results1 = ps.search.search(&query, None).await.unwrap_or_default();
-    let results2 = ps.search.search(&query, None).await.unwrap_or_default();
+    let results1 = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
+    let results2 = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
 
     // Same query should yield same results
     assert_eq!(

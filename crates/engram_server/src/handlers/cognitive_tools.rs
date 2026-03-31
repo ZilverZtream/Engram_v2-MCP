@@ -619,6 +619,7 @@ impl Engram {
                     use_mmr: false,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1449,7 +1450,7 @@ impl Engram {
             use_mmr: false,
         };
 
-        let hits = ps.search.search(&query, None).await.unwrap_or_default();
+        let hits = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Hits: {}",
             hits.len()
@@ -1622,6 +1623,7 @@ impl Engram {
                     use_mmr: false,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1709,6 +1711,7 @@ impl Engram {
                     use_mmr: false,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1975,6 +1978,7 @@ impl Engram {
                             use_mmr: false,
                         },
                         None,
+                        &tokio_util::sync::CancellationToken::new(),
                     )
                     .await
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -2365,6 +2369,7 @@ impl Engram {
                         use_mmr: false,
                     },
                     Some(&centrality.pagerank),
+                    &tokio_util::sync::CancellationToken::new(),
                 )
                 .await
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -2616,6 +2621,7 @@ impl Engram {
                         use_mmr: false,
                     },
                     None,
+                    &tokio_util::sync::CancellationToken::new(),
                 )
                 .await
                 .unwrap_or_default();

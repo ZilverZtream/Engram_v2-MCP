@@ -110,6 +110,7 @@ impl Engram {
                 // `centrality` is `Option<Arc<CentralityMetrics>>`; deref through
                 // the Arc to obtain `Option<&CentralityMetrics>` for the call.
                 centrality.as_deref().map(|c| &c.pagerank),
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -208,7 +209,7 @@ impl Engram {
 
         let hits = ps
             .search
-            .pure_vector_search(&q, timeout_ms)
+            .pure_vector_search(&q, timeout_ms, &tokio_util::sync::CancellationToken::new())
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
@@ -544,6 +545,7 @@ impl Engram {
                     use_mmr: false,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -602,6 +604,7 @@ impl Engram {
                     use_mmr: true,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;

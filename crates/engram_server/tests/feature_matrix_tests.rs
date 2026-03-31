@@ -180,6 +180,7 @@ async fn feature_matrix_fts_only_engine_returns_fts_results_without_panic() {
                 use_mmr: false,
             },
             None,
+            &tokio_util::sync::CancellationToken::new(),
         )
         .await;
 

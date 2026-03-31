@@ -1557,3 +1557,42 @@ fn cancel1_job_service_has_no_looped_await_without_cancel_check() {
     // If loop_count == 0, the invariant is trivially satisfied — document this.
     // Future additions of loops must add cancel checks.
 }
+
+// ── X5-j4r3: exhaustive active_indexing_count guard registry ─────────────────
+
+/// X5-j4r3: Explicitly enumerates every handler file that performs write-path
+/// indexing and asserts each one uses `active_indexing_count`.
+///
+/// This is the anti-drift sentinel: any new indexing handler added to the project
+/// must be listed here, forcing an explicit decision about whether it needs the
+/// GC guard.  Convention-based drift (forgetting to add the guard) causes the GC
+/// to race with in-flight writes during purge ticks.
+#[test]
+fn x5_exhaustive_indexing_handler_registry_has_active_indexing_count_guards() {
+    // ALL handler files that spawn or directly perform write-path indexing jobs.
+    // Update this list when adding a new handler that writes to the vector/FTS index.
+    let write_handlers: &[(&str, &str)] = &[
+        ("project_tools.rs", include_str!("../src/handlers/project_tools.rs")),
+        ("git_tools.rs",     include_str!("../src/handlers/git_tools.rs")),
+    ];
+
+    for (name, src) in write_handlers {
+        assert!(
+            src.contains("active_indexing_count"),
+            "X5-j4r3: {name} performs write-path indexing but does not use \
+             active_indexing_count — GC can race with in-flight writes. \
+             Add fetch_add before the job and fetch_sub (or RAII Drop) on completion."
+        );
+        // Both increment and decrement must be present to prevent counter leaks.
+        assert!(
+            src.contains("fetch_add") || src.contains("fetch_update"),
+            "X5-j4r3: {name} must increment active_indexing_count before starting the \
+             write job (fetch_add or CAS fetch_update)"
+        );
+        assert!(
+            src.contains("fetch_sub"),
+            "X5-j4r3: {name} must decrement active_indexing_count on job exit \
+             (fetch_sub in Drop, finally block, or explicit path)"
+        );
+    }
+}

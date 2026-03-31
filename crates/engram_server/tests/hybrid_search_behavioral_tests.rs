@@ -694,7 +694,7 @@ async fn vector_search_projection_backend_is_deterministic() {
 
     // Run vector_search 5 times.  Results must be byte-identical across all runs.
     let first: Vec<(String, u64)> = engine
-        .vector_search(&q)
+        .vector_search(&q, &tokio_util::sync::CancellationToken::new())
         .await
         .expect("vector_search run 1 must not error")
         .into_iter()
@@ -709,7 +709,7 @@ async fn vector_search_projection_backend_is_deterministic() {
 
     for run in 2..=5 {
         let result: Vec<(String, u64)> = engine
-            .vector_search(&q)
+            .vector_search(&q, &tokio_util::sync::CancellationToken::new())
             .await
             .unwrap_or_else(|e| panic!("vector_search run {run} failed: {e}"))
             .into_iter()
@@ -760,7 +760,7 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
 
     let q = fts_query("proj-vp-nonempty", "memory", "session");
     let hits = engine
-        .vector_search(&q)
+        .vector_search(&q, &tokio_util::sync::CancellationToken::new())
         .await
         .expect("vector_search must not error");
 
@@ -1218,6 +1218,7 @@ async fn global_mutable_concurrent_writes_last_write_wins() {
                 use_mmr: false,
             },
             None,
+            &tokio_util::sync::CancellationToken::new(),
         )
         .await
         .unwrap();
@@ -1299,6 +1300,7 @@ async fn global_mutable_concurrent_distinct_writes_all_survive() {
                 use_mmr: false,
             },
             None,
+            &tokio_util::sync::CancellationToken::new(),
         )
         .await
         .unwrap();
@@ -1417,7 +1419,7 @@ async fn lexical_and_hybrid_search_complete_within_bounded_time() {
     );
 
     // Full search path (lexical + vector merge) must also complete within SLO.
-    let search_result = timeout(SLO, engine.search(&q, None)).await;
+    let search_result = timeout(SLO, engine.search(&q, None, &tokio_util::sync::CancellationToken::new())).await;
     assert!(
         search_result.is_ok(),
         "CANCEL1-v4q8: search must complete within {SLO:?} on a 50-doc index; \

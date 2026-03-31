@@ -1031,3 +1031,73 @@ fn mcp1_handler_module_has_centralized_validate_project_id() {
          so all handlers share the same validation logic and future fixes propagate everywhere"
     );
 }
+
+// ── REG1-c7d4: project_id length boundary ─────────────────────────────────────
+
+/// REG1-c7d4: project_id of exactly 128 chars must be accepted; 129 chars rejected.
+/// Documents the hard boundary (1,128) enforced by validate_project_id.
+#[test]
+fn reg1_project_id_length_boundary_128_accepted_129_rejected() {
+    use engram_server::services::project_service::validate_project_id;
+
+    // 128 chars: at the inclusive limit — must be accepted.
+    let at_limit = "a".repeat(128);
+    assert!(
+        validate_project_id(&at_limit).is_ok(),
+        "REG1: project_id of exactly 128 chars must be accepted (inclusive limit)"
+    );
+
+    // 129 chars: one over the limit — must be rejected.
+    let over_limit = "a".repeat(129);
+    assert!(
+        validate_project_id(&over_limit).is_err(),
+        "REG1: project_id of 129 chars must be rejected (exceeds 128-char limit)"
+    );
+}
+
+/// REG1-c7d4: documents the allowed character set [A-Za-z0-9_-].
+/// Dots, spaces, colons, and other punctuation are outside the set.
+#[test]
+fn reg1_project_id_allowed_character_set() {
+    use engram_server::services::project_service::validate_project_id;
+
+    // Characters NOT in [A-Za-z0-9_-] must be rejected.
+    assert!(validate_project_id("my.project").is_err(), "REG1: dot must be rejected");
+    assert!(validate_project_id("my project").is_err(), "REG1: space must be rejected");
+    assert!(validate_project_id("my:project").is_err(), "REG1: colon must be rejected");
+    assert!(validate_project_id("my@proj").is_err(),    "REG1: at-sign must be rejected");
+
+    // Characters IN [A-Za-z0-9_-] must be accepted.
+    assert!(validate_project_id("my-project_v2").is_ok(), "REG1: alphanum+hyphen+underscore accepted");
+    assert!(validate_project_id("UPPER_lower-123").is_ok(), "REG1: mixed case + digits accepted");
+}
+
+// ── MCP1-r5n1: search handlers gate user-supplied limits via sanitized_* ──────
+
+/// MCP1-r5n1: every handler file that calls .search() or .pure_vector_search()
+/// must also use a sanitized_* method to clamp user-supplied limit parameters.
+/// This structural proof guards against future handler drift where a new search
+/// path bypasses the per-request sanitization layer.
+#[test]
+fn mcp1_search_handler_files_use_sanitized_limit_methods() {
+    let sources: &[(&str, &str)] = &[
+        ("search_tools.rs",  include_str!("../src/handlers/search_tools.rs")),
+        ("graph_tools.rs",   include_str!("../src/handlers/graph_tools.rs")),
+        ("cognitive_tools.rs", include_str!("../src/handlers/cognitive_tools.rs")),
+        ("git_tools.rs",     include_str!("../src/handlers/git_tools.rs")),
+    ];
+
+    for (name, src) in sources {
+        // Only check files that actually dispatch to the search engine.
+        let calls_search = src.contains(".search(") || src.contains(".pure_vector_search(");
+        if calls_search {
+            let uses_sanitized = src.contains("sanitized_");
+            assert!(
+                uses_sanitized,
+                "MCP1-r5n1: {name} dispatches to the search engine but does not call any \
+                 sanitized_* method — user-supplied limits may reach the engine unclamped, \
+                 allowing resource amplification. Add req.sanitized_top_k() or equivalent."
+            );
+        }
+    }
+}

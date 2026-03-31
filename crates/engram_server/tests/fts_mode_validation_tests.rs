@@ -772,7 +772,7 @@ async fn mmr_oversample_cap_large_top_k_completes_without_error() {
     // Must not panic — the internal oversample fetch is bounded by the cap.
     // The result may be Ok (found results) or Err (e.g. embedding backend not available),
     // but must never panic or cause an OOM abort.
-    let _result = engine.search(&q, None).await;
+    let _result = engine.search(&q, None, &tokio_util::sync::CancellationToken::new()).await;
     // Not panicking is the primary assertion.
 }
 
