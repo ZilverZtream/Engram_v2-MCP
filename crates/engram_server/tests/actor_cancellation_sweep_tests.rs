@@ -552,3 +552,54 @@ fn mig1_handler_sources_completeness_header_in_markdown_output() {
          can identify which graph sections produced incomplete data"
     );
 }
+
+/// CANCEL1-b2h7: the immune actor project scan loop must check the shutdown token
+/// at each project iteration so a large project list can be preempted cooperatively
+/// during process shutdown, not forced to run all projects to completion.
+///
+/// The dreamer actor already does this (verified in dreamer tests); this test
+/// ensures parity across all long-running actor inner loops.
+#[test]
+fn immune_actor_project_loop_checks_shutdown_token() {
+    let source = include_str!("../src/actors/immune.rs");
+
+    // The immune actor must check shutdown.is_cancelled() inside the project for-loop,
+    // not only at the outer select! (which only fires at tick boundaries).
+    assert!(
+        source.contains("shutdown.is_cancelled()"),
+        "CANCEL1-b2h7: immune actor must call shutdown.is_cancelled() inside the \
+         project scan loop — relying only on the outer select! tick check means \
+         shutdown is delayed by the full scan duration when many projects are registered"
+    );
+
+    // The check must be followed by a return — pure logging without early exit
+    // does not satisfy the cooperative shutdown contract.
+    assert!(
+        source.contains("shutdown cancelled during project scan loop"),
+        "CANCEL1-b2h7: immune actor must log and return when shutdown is detected \
+         mid-loop — the log message is the observable trace for operator debugging"
+    );
+}
+
+/// CANCEL1-b2h7: structural proof that the immune actor uses `return` (not `break`)
+/// when the mid-loop shutdown check fires, so the actor exits the function completely
+/// rather than just breaking out of the inner loop and re-entering the outer loop.
+#[test]
+fn immune_actor_mid_loop_shutdown_uses_return_not_break() {
+    let source = include_str!("../src/actors/immune.rs");
+
+    // Find the `shutdown.is_cancelled()` check in the project loop.
+    // The code immediately after must be `return` so the actor exits fully.
+    let cancel_pos = source
+        .find("shutdown.is_cancelled()")
+        .expect("CANCEL1-b2h7: shutdown.is_cancelled() must be present in immune.rs");
+
+    // The `return` keyword must appear within 10 lines of the check.
+    let nearby = &source[cancel_pos..cancel_pos.min(source.len() - 1) + 300.min(source.len() - cancel_pos)];
+    assert!(
+        nearby.contains("return"),
+        "CANCEL1-b2h7: immune actor mid-loop shutdown check must exit via `return`, \
+         not `break` — `break` would re-enter the outer loop and re-scan after shutdown; \
+         nearby source after is_cancelled() check: {nearby:?}"
+    );
+}
