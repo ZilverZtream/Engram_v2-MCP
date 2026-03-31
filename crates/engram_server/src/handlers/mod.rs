@@ -12,11 +12,13 @@ pub mod runtime_observation_tools;
 
 /// Validate a user-supplied project_id at the MCP handler boundary.
 ///
-/// Rejects empty strings, NUL bytes, and newline characters that would corrupt
-/// composite registry keys. Calling this before any service or registry call
-/// makes the validation surface explicit and prevents bypass via execution paths
-/// that do not immediately reach the registry layer.
+/// Delegates to the canonical strict validator in `project_service` which enforces
+/// `[A-Za-z0-9_-]{1,128}`. This is the single source of truth for project_id
+/// policy — both the handler boundary and every service call use identical rules,
+/// closing the REG1/X1 trust-boundary gap where the weaker `validate_key_component`
+/// (NUL/newline-only) allowed `/`, `..`, and shell metacharacters through the
+/// handler layer before reaching filesystem-sensitive operations.
 pub(super) fn validate_project_id(project_id: &str) -> Result<(), rmcp::ErrorData> {
-    engram_core::security::validate_key_component("project_id", project_id)
-        .map_err(|e| rmcp::ErrorData::invalid_params(e, None))
+    crate::services::project_service::validate_project_id(project_id)
+        .map_err(|e| rmcp::ErrorData::invalid_params(e.to_string(), None))
 }

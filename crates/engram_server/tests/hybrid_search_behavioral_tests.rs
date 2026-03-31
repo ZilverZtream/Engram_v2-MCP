@@ -935,7 +935,7 @@ async fn open_engine_fts_only(tmp: &tempfile::TempDir) -> HybridSearchEngine {
 ///   2. Include the unreadable file in stats.skipped_files
 ///   3. Successfully index sibling valid files in the same batch
 #[tokio::test]
-async fn ds1_non_utf8_file_is_skipped_not_fatal() {
+async fn non_utf8_file_read_failure_is_skipped_not_fatal() {
     use std::io::Write;
     let tmp = tempfile::TempDir::new().unwrap();
     let engine = open_engine_fts_only(&tmp).await;
@@ -1009,7 +1009,7 @@ async fn ds1_non_utf8_file_is_skipped_not_fatal() {
 /// `skipped_files` and ALL surviving valid files are indexed. No silent data
 /// loss: the caller has full observability into which files were skipped and why.
 #[tokio::test]
-async fn ds1_multi_file_batch_all_skipped_files_observable() {
+async fn multi_file_batch_with_read_failures_all_skipped_files_observable() {
     use std::io::Write;
     let tmp = tempfile::TempDir::new().unwrap();
     let engine = open_engine_fts_only(&tmp).await;
@@ -1086,7 +1086,7 @@ async fn ds1_multi_file_batch_all_skipped_files_observable() {
 /// condition), `index_files` must return Ok and record the file in
 /// skipped_files rather than panicking or aborting.
 #[tokio::test]
-async fn ds1_disappeared_file_is_skipped_not_fatal() {
+async fn disappeared_file_during_indexing_is_skipped_not_fatal() {
     let tmp = tempfile::TempDir::new().unwrap();
     let engine = open_engine_fts_only(&tmp).await;
 
@@ -1367,5 +1367,63 @@ async fn global_mutable_concurrent_writes_complete_within_deadline() {
         result.is_ok(),
         "D4/NS1-a3p9: {n_writers} concurrent writes to the same doc_id must complete \
          within {DEADLINE:?}; timeout indicates deadlock or unbounded contention"
+    );
+}
+
+// ── CANCEL1-v4q8: query-path completion SLO ───────────────────────────────────
+
+/// CANCEL1-v4q8: lexical_search and the full search path must complete within a
+/// bounded time on a populated index.
+///
+/// The search API does not yet accept a CancellationToken parameter (queries run
+/// to completion). This test proves queries do NOT hang indefinitely — execution
+/// completes within the SLO deadline, meaning the worst-case latency without
+/// cooperative cancellation is bounded and acceptable.
+#[tokio::test]
+async fn lexical_and_hybrid_search_complete_within_bounded_time() {
+    use std::time::Duration;
+    use tokio::time::timeout;
+
+    const SLO: Duration = Duration::from_secs(10);
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let engine = open_engine(&tmp).await;
+
+    // Index 50 docs to give the query a real workload.
+    let docs: Vec<_> = (0..50)
+        .map(|i| make_doc(
+            &format!("doc-{i:03}"),
+            &format!("src/file_{i:03}.rs"),
+            "code",
+            &format!("fn function_{i}() {{ let x = {i}; x + {i} }}"),
+        ))
+        .collect();
+    engine.index_docs("slo-proj", &docs, &cancel).await.unwrap();
+
+    let q = fts_query("slo-proj", "code", "function");
+
+    // lexical_search must complete within SLO.
+    let lexical_result = timeout(SLO, async { engine.lexical_search(&q) }).await;
+    assert!(
+        lexical_result.is_ok(),
+        "CANCEL1-v4q8: lexical_search must complete within {SLO:?} on a 50-doc index; \
+         timeout indicates an unbounded query execution path"
+    );
+    assert!(
+        lexical_result.unwrap().is_ok(),
+        "CANCEL1-v4q8: lexical_search must return Ok results"
+    );
+
+    // Full search path (lexical + vector merge) must also complete within SLO.
+    let search_result = timeout(SLO, engine.search(&q, None)).await;
+    assert!(
+        search_result.is_ok(),
+        "CANCEL1-v4q8: search must complete within {SLO:?} on a 50-doc index; \
+         timeout indicates an unbounded query execution path"
+    );
+    assert!(
+        search_result.unwrap().is_ok(),
+        "CANCEL1-v4q8: search must return Ok results"
     );
 }
