@@ -31,6 +31,25 @@ pub trait Embedder: Send + Sync {
         }
         self.embed_batch(texts).await
     }
+
+    /// EMB1: cancellation-aware single-text embed. Checks the token before
+    /// issuing the request so callers can avoid starting remote HTTP calls
+    /// after a shutdown/cancel event. Default delegates to embed_batch_cancellable.
+    ///
+    /// Remote embedder implementations should prefer this over bare `embed()`
+    /// when a cancellation token is available.
+    async fn embed_cancellable(
+        &self,
+        text: &str,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Embedding> {
+        if cancel.is_cancelled() {
+            anyhow::bail!("EMB1: embedding cancelled before start");
+        }
+        let results = self.embed_batch_cancellable(&[text], cancel).await?;
+        results.into_iter().next()
+            .ok_or_else(|| anyhow::anyhow!("EMB1: embed_batch_cancellable returned empty result"))
+    }
 }
 
 // ---------------------------------------------------------------------------

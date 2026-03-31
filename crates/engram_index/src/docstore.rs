@@ -140,7 +140,18 @@ impl DocStore {
             let _ = parts.next();
             let namespace = parts.next().unwrap_or_default().to_string();
             let doc_id = parts.next().unwrap_or_default().to_string();
-            let path = de_bincode_or_json::<DocRecord>(v.value())?.path;
+            // DS1: skip corrupt records rather than aborting the entire scan.
+            // A single malformed value must not hide all healthy siblings.
+            let path = match de_bincode_or_json::<DocRecord>(v.value()) {
+                Ok(rec) => rec.path,
+                Err(e) => {
+                    tracing::warn!(
+                        key,
+                        "DS1: skipping corrupt DocRecord in list_doc_summaries: {e:#}"
+                    );
+                    continue;
+                }
+            };
             out.push(DocSummary {
                 namespace,
                 doc_id,

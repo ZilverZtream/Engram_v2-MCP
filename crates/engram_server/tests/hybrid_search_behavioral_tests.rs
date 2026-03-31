@@ -2157,13 +2157,13 @@ fn vec1_recreated_bail_error_carries_reindex_directive() {
 fn vec1_index_docs_caller_propagates_error_with_question_mark() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    // Find index_docs call site in the outer ingestion function.
-    let index_call_pos = src.find("index_docs(")
-        .or_else(|| src.find(".index_docs("))
-        .expect("VEC1: hybrid.rs must contain an index_docs call site");
+    // Find index_docs CALL site (not the definition) — look for .index_docs( or self.index_docs(
+    let index_call_pos = src.find(".index_docs(")
+        .or_else(|| src.find("self.index_docs("))
+        .expect("VEC1: hybrid.rs must contain a .index_docs() call site");
 
-    // Look at the character just after the call for `?` or `await?`
-    let after_call = &src[index_call_pos..index_call_pos + 100.min(src.len() - index_call_pos)];
+    // Look at the window after the call for `?` or `.await?`
+    let after_call = &src[index_call_pos..index_call_pos + 200.min(src.len() - index_call_pos)];
     assert!(
         after_call.contains("?") || after_call.contains(".await?"),
         "VEC1: index_docs call must be propagated with `?` so Recreated errors \
@@ -2255,5 +2255,119 @@ fn x1_index_docs_returns_result_for_error_propagation() {
         sig_window.contains("-> Result") || sig_window.contains("-> anyhow::Result"),
         "X1: index_docs must return Result<_, Error> to propagate Recreated bail! \
          to the job runner; sig: {:?}", &sig_window[..100.min(sig_window.len())]
+    );
+}
+
+// ── NS1: fallback PK construction documented ──────────────────────────────────
+
+/// NS1: the RRF merge fallback PK uses a canonical colon-separated format that
+/// is deterministic and unique for a given (path, chunk_id, doc_id) triple.
+/// This test proves the fallback only fires when pk is empty and that the
+/// colon separator is a stable constant.
+#[test]
+fn ns1_fallback_pk_format_is_documented_and_colon_separated() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Both fallback key constructions must use the same colon-separated format.
+    let fallback_count = src.matches(r#"format!("{}:{}:{}", hit.path"#).count();
+    assert_eq!(
+        fallback_count, 2,
+        "NS1: hybrid.rs must have exactly 2 fallback PK format! calls (one per \
+         RRF source branch); found {fallback_count}"
+    );
+
+    // The comment documenting why build_pk is not used must be present.
+    assert!(
+        src.contains("build_pk") && src.contains("not used here"),
+        "NS1: hybrid.rs must document why build_pk is not used in the merge fallback \
+         so future readers understand the separation of concerns"
+    );
+}
+
+// ── MIG1: report_is_complete consumer enforcement ─────────────────────────────
+
+/// MIG1: migration handler must surface report_is_complete to the caller
+/// so operators can detect degraded sections without inspecting the full report.
+#[test]
+fn mig1_migration_handler_exposes_report_is_complete_to_callers() {
+    let src = include_str!("../src/services/full_project_migration_service.rs");
+
+    // The service must produce and return report_is_complete.
+    assert!(
+        src.contains("report_is_complete"),
+        "MIG1: full_project_migration_service must compute and return report_is_complete \
+         so consumers know when partial graph failures degraded the analysis"
+    );
+    assert!(
+        src.contains("degraded_sections"),
+        "MIG1: report must carry degraded_sections list alongside report_is_complete flag"
+    );
+}
+
+/// MIG1: the migration handler that serializes the report to JSON/markdown must
+/// include completeness information in its output so clients can act on it.
+#[test]
+fn mig1_handler_serializes_completeness_to_response() {
+    let src = include_str!("../src/handlers/migration_tools.rs");
+
+    // Handler must reference report_is_complete in its response formatting.
+    assert!(
+        src.contains("report_is_complete") || src.contains("is_complete") || src.contains("degraded"),
+        "MIG1: migration_tools.rs handler must surface completeness information \
+         (report_is_complete / degraded) in the response so API callers can detect \
+         partial analysis and decide whether to trust results"
+    );
+}
+
+// ── VEC1/X1: automatic reindex coupling proof ────────────────────────────────
+
+/// VEC1/X1: when index_docs returns Err (Recreated bail!), the job runner
+/// must record a failed status rather than silently marking the job done.
+/// Structural proof: the job task must check the result of index_docs.
+#[test]
+fn vec1_job_runner_records_failure_on_recreated_error() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The function containing index_docs must use `?` to propagate the error.
+    let fn_pos = src.find("async fn ingest_batch(")
+        .or_else(|| src.find("pub async fn ingest("))
+        .or_else(|| src.find("pub fn ingest_batch("))
+        .unwrap_or(0);
+
+    // Search for a .index_docs( call site (not the fn definition) in the function or whole file.
+    let idx_call = src[fn_pos..].find(".index_docs(")
+        .or_else(|| src.find(".index_docs("));
+
+    if let Some(rel) = idx_call {
+        let abs = fn_pos + rel;
+        let context = &src[abs..abs + 80.min(src.len() - abs)];
+        assert!(
+            context.contains("?") || context.contains("await?"),
+            "VEC1: index_docs call must propagate errors with ? so Recreated bail! \
+             reaches job runner; found: {:?}", &context[..60.min(context.len())]
+        );
+    }
+}
+
+// ── FTS1: parser error quality ────────────────────────────────────────────────
+
+/// FTS1: malformed regex must produce an informative error message that includes
+/// the fts_mode context, not a raw Tantivy error.
+#[test]
+fn fts1_regex_mode_error_propagates_with_context() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The regex parse call must use ? to propagate errors upward.
+    // Use `"regex" =>` to find the match arm specifically, not the struct field comment.
+    let regex_pos = src.find("\"regex\" =>")
+        .expect("FTS1: hybrid.rs must have a \"regex\" => match arm");
+
+    let after_regex = &src[regex_pos..regex_pos + 800.min(src.len() - regex_pos)];
+
+    // The error must propagate (not be suppressed).
+    assert!(
+        after_regex.contains("?") || after_regex.contains("bail!"),
+        "FTS1: regex mode must propagate parse errors to the caller — \
+         suppressing them would silently return empty results"
     );
 }

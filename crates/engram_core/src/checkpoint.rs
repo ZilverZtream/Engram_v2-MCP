@@ -31,6 +31,8 @@ pub enum JobPhase {
     Completed,
     /// Failed with error.
     Failed,
+    /// Cancelled by request — checkpoint tombstoned if possible.
+    Cancelled,
 }
 
 impl std::fmt::Display for JobPhase {
@@ -44,8 +46,21 @@ impl std::fmt::Display for JobPhase {
             Self::PostProcessing => write!(f, "post_processing"),
             Self::Completed => write!(f, "completed"),
             Self::Failed => write!(f, "failed"),
+            Self::Cancelled => write!(f, "cancelled"),
         }
     }
+}
+
+/// Outcome of a cancellation request for a checkpoint-aware job.
+/// Distinguishes whether checkpoint state was cleaned up (tombstoned) or not,
+/// so callers know whether a resume attempt will see partial-phase state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CancellationOutcome {
+    /// Job was cancelled and the checkpoint tombstoned — resume will not pick up partial state.
+    CancelledWithTombstone,
+    /// Job was cancelled but the checkpoint could not be tombstoned (e.g. write error).
+    /// Callers should treat any existing checkpoint for this job as potentially partial.
+    CancelledWithoutTombstone,
 }
 
 /// A durable checkpoint for a job.
@@ -82,9 +97,9 @@ impl Checkpoint {
         blake3::hash(input.as_bytes()).to_hex().to_string()
     }
 
-    /// Check if this checkpoint is resumable (not completed or failed).
+    /// Check if this checkpoint is resumable (not completed, failed, or cancelled).
     pub fn is_resumable(&self) -> bool {
-        !matches!(self.phase, JobPhase::Completed | JobPhase::Failed)
+        !matches!(self.phase, JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled)
     }
 }
 
@@ -168,6 +183,22 @@ impl CheckpointStore {
         Ok(None)
     }
 
+    /// Mark a checkpoint as cancelled (tombstone it) so resume will not pick up partial state.
+    /// Returns [`CancellationOutcome::CancelledWithTombstone`] on success or
+    /// [`CancellationOutcome::CancelledWithoutTombstone`] if the write fails.
+    pub fn tombstone(&self, job_id: &str) -> CancellationOutcome {
+        match self.get(job_id) {
+            Ok(Some(mut cp)) => {
+                cp.phase = JobPhase::Cancelled;
+                match self.put(&cp) {
+                    Ok(()) => CancellationOutcome::CancelledWithTombstone,
+                    Err(_) => CancellationOutcome::CancelledWithoutTombstone,
+                }
+            }
+            _ => CancellationOutcome::CancelledWithoutTombstone,
+        }
+    }
+
     /// Remove a checkpoint (after successful completion or cleanup).
     pub fn remove(&self, job_id: &str) -> anyhow::Result<()> {
         let wtx = self.db.begin_write()?;
@@ -207,7 +238,7 @@ impl CheckpointStore {
             for r in t.iter()? {
                 let (k, v) = r?;
                 let cp: Checkpoint = serde_json::from_slice(v.value())?;
-                if matches!(cp.phase, JobPhase::Completed | JobPhase::Failed)
+                if matches!(cp.phase, JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled)
                     && cp.updated_at_ms < cutoff
                 {
                     to_remove.push(k.value().to_string());

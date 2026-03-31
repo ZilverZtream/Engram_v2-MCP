@@ -704,7 +704,7 @@ fn extract_google_maps(
     for cap in re.captures_iter(source) {
         let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
+        let cls = cap.name("cls").map_or("", |m| m.as_str());
         emit_spatial_edge(file_name, line, "google_maps", cls, edges);
         gmaps_classes.push((cls.to_string(), line));
 
@@ -864,7 +864,7 @@ fn extract_leaflet(
     for cap in re.captures_iter(source) {
         let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
+        let cls = cap.name("cls").map_or("", |m| m.as_str());
         emit_spatial_edge(file_name, line, "leaflet", cls, edges);
     }
 }
@@ -888,7 +888,7 @@ fn extract_openlayers(
     for cap in re.captures_iter(source) {
         let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let cls = cap.name("cls").expect("mandatory 'cls' group").as_str();
+        let cls = cap.name("cls").map_or("", |m| m.as_str());
         // Normalize dotted sub-classes
         let normalized = cls.replace('.', "_");
         emit_spatial_edge(file_name, line, "openlayers", &normalized, edges);
@@ -913,7 +913,7 @@ fn extract_gis_configs(
         for cap in re.captures_iter(source) {
             let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let key_value = cap.name("key").expect("mandatory 'key' group").as_str();
+            let key_value = cap.name("key").map_or("", |m| m.as_str());
             // Mask the key for safety (show first 8 + last 4 chars)
             let masked = if key_value.len() > 12 {
                 format!(
@@ -960,7 +960,7 @@ fn extract_gis_configs(
         for cap in re.captures_iter(source) {
             let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let val = cap.name("val").expect("mandatory 'val' group").as_str();
+            let val = cap.name("val").map_or("", |m| m.as_str());
 
             let mut meta = HashMap::with_capacity(2);
             meta.insert("config_type".into(), "zoom".into());
@@ -985,8 +985,8 @@ fn extract_gis_configs(
         for cap in re.captures_iter(source) {
             let m = cap.get(0).expect("group 0 always exists");
             let line = line_of(line_starts, m.start());
-            let lat = cap.name("lat").expect("mandatory 'lat' group").as_str();
-            let lng = cap.name("lng").expect("mandatory 'lng' group").as_str();
+            let lat = cap.name("lat").map_or("", |m| m.as_str());
+            let lng = cap.name("lng").map_or("", |m| m.as_str());
 
             let mut meta = HashMap::with_capacity(3);
             meta.insert("config_type".into(), "center".into());
@@ -1027,14 +1027,8 @@ fn extract_ctl00_references(
     for cap in re.captures_iter(source) {
         let m = cap.get(0).expect("group 0 always exists");
         let line = line_of(line_starts, m.start());
-        let full_id = cap
-            .name("full_id")
-            .expect("mandatory 'full_id' group")
-            .as_str();
-        let ctrl_id = cap
-            .name("ctrl_id")
-            .expect("mandatory 'ctrl_id' group")
-            .as_str();
+        let full_id = cap.name("full_id").map_or("", |m| m.as_str());
+        let ctrl_id = cap.name("ctrl_id").map_or("", |m| m.as_str());
 
         let mut meta = HashMap::with_capacity(3);
         meta.insert("selector_type".into(), "ctl00_reverse_map".into());
