@@ -2258,14 +2258,28 @@ impl Engram {
             updated_at_ms: now_ms(),
         };
 
-        // Persist to registry
+        // Persist to registry — REG1/MCP1: propagate failure so the MCP caller
+        // receives a hard error rather than a silent success-but-not-persisted response.
+        // Prior `.ok()` swallowed both JoinError and registry write errors, making the
+        // handler lie to the caller about durable persistence.
         {
             let reg = self.state.registry.clone();
             let pid = req.project_id.clone();
             let sec_clone = sec.clone();
             tokio::task::spawn_blocking(move || reg.put_memory_section(&pid, &sec_clone))
                 .await
-                .ok();
+                .map_err(|e| {
+                    McpError::internal_error(
+                        format!("registry write task panicked: {e}"),
+                        None,
+                    )
+                })?
+                .map_err(|e| {
+                    McpError::internal_error(
+                        format!("registry write failed — memory bank section not persisted: {e}"),
+                        None,
+                    )
+                })?;
         }
 
         // Index to search engine (namespace = memory_bank)

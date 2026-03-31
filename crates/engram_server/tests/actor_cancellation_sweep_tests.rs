@@ -581,6 +581,122 @@ fn immune_actor_project_loop_checks_shutdown_token() {
     );
 }
 
+/// REG1/MCP1: structural proof that `handle_update_memory_bank` does NOT swallow
+/// the registry write result with `.ok()`.
+///
+/// Prior to this fix, `spawn_blocking(...).await.ok()` silently ignored both
+/// the JoinError (task panicked) and the registry write error, causing the MCP
+/// handler to reply with success even when the memory bank section was not
+/// persisted.  The fix replaces `.ok()` with a chained `map_err(...)?` pair so
+/// the caller receives a hard McpError on any failure.
+///
+/// This test scans the source for the registry write block inside the handler
+/// and asserts:
+///   1. `.ok()` is no longer used immediately after the `spawn_blocking` result.
+///   2. `map_err` is present, proving error propagation is wired.
+///   3. The comment "memory bank section not persisted" is present so the error
+///      message is identifiable in operator logs.
+#[test]
+fn handle_update_memory_bank_registry_write_error_is_propagated_not_swallowed() {
+    let source = include_str!("../src/handlers/project_tools.rs");
+
+    // Locate the handle_update_memory_bank function.
+    let fn_start = source
+        .find("fn handle_update_memory_bank")
+        .or_else(|| source.find("handle_update_memory_bank"))
+        .expect("REG1/MCP1: handle_update_memory_bank must exist in project_tools.rs");
+
+    // Take a window spanning the function — it's ≈ 100 lines from the start.
+    let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
+
+    // spawn_blocking for registry write must be present.
+    assert!(
+        fn_body.contains("put_memory_section"),
+        "REG1/MCP1: handle_update_memory_bank must call put_memory_section to persist \
+         the memory bank section to the registry"
+    );
+
+    // The immediate .ok() swallow must be gone.
+    // Check that within 200 chars after "put_memory_section" there is no .ok()
+    // that would swallow the JoinError.
+    let pm_pos = fn_body
+        .find("put_memory_section")
+        .expect("REG1/MCP1: put_memory_section must appear in handle_update_memory_bank");
+    let after_pm = &fn_body[pm_pos..pm_pos + 400.min(fn_body.len() - pm_pos)];
+
+    assert!(
+        !after_pm.contains(".await\n        .ok()") && !after_pm.contains(".await.ok()"),
+        "REG1/MCP1: spawn_blocking(...).await.ok() must not appear in \
+         handle_update_memory_bank — .ok() silently swallows both JoinError and \
+         the registry write error, causing the handler to lie about persistence"
+    );
+
+    // map_err must appear — proving both the JoinError and write error are propagated.
+    assert!(
+        after_pm.contains("map_err"),
+        "REG1/MCP1: handle_update_memory_bank registry write must use map_err to \
+         convert errors into McpError so the MCP caller receives a hard failure \
+         instead of a silent success when the write fails"
+    );
+
+    // The operator-visible error message must be present so failures are identifiable.
+    assert!(
+        fn_body.contains("memory bank section not persisted"),
+        "REG1/MCP1: the error message 'memory bank section not persisted' must appear \
+         in handle_update_memory_bank so registry write failures are identifiable in \
+         operator logs and MCP error responses"
+    );
+}
+
+/// REG1/MCP1: per-file sweep — `spawn_blocking` calls that write to the
+/// registry (put_memory_section, put_project, set_reindex_required,
+/// clear_reindex_required) must NOT swallow the result with `.ok()`.
+///
+/// Scans project_tools.rs for the specific anti-pattern:
+///   `.await\n        .ok()`  or  `.await.ok()`
+/// within 500 characters of a registry-write method name.
+/// Read-only methods (get_project, list_projects) and intentional best-effort
+/// operations (graph.delete_project_data) are NOT covered by this sweep.
+#[test]
+fn registry_write_spawn_blocking_results_are_not_swallowed_across_handlers() {
+    let source = include_str!("../src/handlers/project_tools.rs");
+
+    // These are registry write methods where failure must surface to the caller.
+    let write_methods = [
+        "put_memory_section",
+        "put_project",
+        "set_reindex_required",
+        "clear_reindex_required",
+        "store_job",
+        "update_job",
+    ];
+
+    for method in write_methods {
+        let mut search_from = 0usize;
+        while let Some(rel) = source[search_from..].find(method) {
+            let site = search_from + rel;
+            let window_end = (site + 500).min(source.len());
+            let window = &source[site..window_end];
+
+            let has_ok_swallow = window.contains(".await\n        .ok()")
+                || window.contains(".await.ok()")
+                || window.contains(".await\r\n        .ok()");
+
+            assert!(
+                !has_ok_swallow,
+                "REG1/MCP1: project_tools.rs calls `{method}` inside spawn_blocking \
+                 and swallows the result with .ok() within 500 chars. \
+                 Registry write failures must be propagated with map_err+? so MCP \
+                 callers receive a hard error instead of a silent false success.\n\
+                 Snippet: {:?}",
+                &window[..200.min(window.len())]
+            );
+
+            search_from = site + 1;
+        }
+    }
+}
+
 /// CANCEL1-b2h7: structural proof that the immune actor uses `return` (not `break`)
 /// when the mid-loop shutdown check fires, so the actor exits the function completely
 /// rather than just breaking out of the inner loop and re-entering the outer loop.
@@ -601,5 +717,107 @@ fn immune_actor_mid_loop_shutdown_uses_return_not_break() {
         "CANCEL1-b2h7: immune actor mid-loop shutdown check must exit via `return`, \
          not `break` — `break` would re-enter the outer loop and re-scan after shutdown; \
          nearby source after is_cancelled() check: {nearby:?}"
+    );
+}
+
+// ─── Automated cancellation-loop policy checker ───────────────────────────────
+//
+// The policy: every `loop {` block that contains an `.await` expression MUST
+// also contain a cancellation check (`.cancelled()` or `is_cancelled()`).
+//
+// This rule is checked at three levels of granularity:
+//
+//   Level 1 — file-level sweep: if the file has `loop {` + `.await` it must
+//             have at least one cancellation check (existing test above).
+//
+//   Level 2 — loop-proximity check: for each `loop {` that has `.await` within
+//             the following 3 000 characters, a cancellation token reference
+//             must also appear within those 3 000 characters.
+//
+//   Level 3 — select!-arm ordering: where a `tokio::select!` is used, the
+//             shutdown arm must appear before the tick/event arm (checked in
+//             the ordering tests above).
+//
+// This test implements Level 2 for all five actor files.
+
+/// CANCEL-POLICY-L2: for every `loop {` in each actor file that has `.await`
+/// within its body window, a cancellation check must also appear within that
+/// same window.
+///
+/// "Body window" = 3 000 characters starting at `loop {` — generous enough to
+/// cover any realistically sized actor loop body, tight enough to reject a
+/// cancellation check that is only in an unrelated function below the loop.
+#[test]
+fn cancellation_policy_every_async_loop_body_has_cancel_check() {
+    const WINDOW: usize = 3_000;
+
+    let actor_sources: &[(&str, &str)] = &[
+        ("actors/gc.rs",                  include_str!("../src/actors/gc.rs")),
+        ("actors/dreamer.rs",             include_str!("../src/actors/dreamer.rs")),
+        ("actors/watcher.rs",             include_str!("../src/actors/watcher.rs")),
+        ("actors/immune.rs",              include_str!("../src/actors/immune.rs")),
+        ("services/integrity_service.rs", include_str!("../src/services/integrity_service.rs")),
+    ];
+
+    for (name, src) in actor_sources {
+        let mut search_from = 0usize;
+        while let Some(rel) = src[search_from..].find("loop {") {
+            let loop_start = search_from + rel;
+            let window_end = (loop_start + WINDOW).min(src.len());
+            let window = &src[loop_start..window_end];
+
+            let has_await  = window.contains(".await");
+            let has_cancel = window.contains(".cancelled()")
+                || window.contains("is_cancelled()")
+                || window.contains("CancellationToken");
+
+            if has_await {
+                assert!(
+                    has_cancel,
+                    "CANCEL-POLICY-L2: {name} has `loop {{` at byte {loop_start} with \
+                     `.await` in the next {WINDOW} chars but no cancellation check \
+                     (`.cancelled()` / `is_cancelled()` / `CancellationToken`). \
+                     Every async loop must hold a cooperative shutdown check to prevent \
+                     indefinite blocking during process shutdown.\n\
+                     Snippet: {:?}",
+                    &window[..200.min(window.len())]
+                );
+            }
+
+            search_from = loop_start + 1;
+        }
+    }
+}
+
+/// CANCEL-POLICY-INDEX: hybrid.rs loops in the index crate are synchronous
+/// pagination loops (no `.await`) — they are explicitly exempt from the
+/// cancellation policy.  This test documents and enforces that exemption:
+/// if a future change adds `.await` inside a hybrid.rs pagination loop, this
+/// test will fail and force a deliberate decision about adding a cancel check.
+#[test]
+fn hybrid_index_loops_are_synchronous_and_exempt_from_cancel_policy() {
+    let source = include_str!("../../engram_index/src/hybrid.rs");
+
+    const WINDOW: usize = 2_000;
+    let mut search_from = 0usize;
+    let mut async_loops_found = 0u32;
+
+    while let Some(rel) = source[search_from..].find("loop {") {
+        let loop_start = search_from + rel;
+        let window_end = (loop_start + WINDOW).min(source.len());
+        let window = &source[loop_start..window_end];
+
+        if window.contains(".await") {
+            async_loops_found += 1;
+        }
+        search_from = loop_start + 1;
+    }
+
+    assert_eq!(
+        async_loops_found, 0,
+        "CANCEL-POLICY-INDEX: hybrid.rs must have 0 async `loop {{` blocks \
+         (found {async_loops_found} loops with `.await`). \
+         All current loops are synchronous Tantivy pagination loops. \
+         If you added an async loop, add a cancellation check and update this test."
     );
 }
