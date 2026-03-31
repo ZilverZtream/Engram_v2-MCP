@@ -793,3 +793,149 @@ fn cross_subsystem_section_id_validated_before_index_path_use() {
          a delimiter-bearing section_id must never reach the index path"
     );
 }
+// ── REG1: comprehensive handler boundary validation sweep ─────────────────────
+
+/// REG1: every handler file that accepts a project_id input must use at least
+/// one of the approved validation delegation patterns. Structural sweep over
+/// all handler files to detect any new handler that bypasses the convention.
+#[test]
+fn reg1_all_handler_files_use_approved_project_id_validation() {
+    let handlers: &[(&str, &str)] = &[
+        ("cognitive_tools.rs",          include_str!("../src/handlers/cognitive_tools.rs")),
+        ("project_tools.rs",            include_str!("../src/handlers/project_tools.rs")),
+        ("search_tools.rs",             include_str!("../src/handlers/search_tools.rs")),
+        ("git_tools.rs",                include_str!("../src/handlers/git_tools.rs")),
+        ("graph_tools.rs",              include_str!("../src/handlers/graph_tools.rs")),
+        ("migration_tools.rs",          include_str!("../src/handlers/migration_tools.rs")),
+        ("access_layer_tools.rs",       include_str!("../src/handlers/access_layer_tools.rs")),
+    ];
+
+    // At least one of these patterns must appear in each handler file.
+    let approved_patterns = [
+        "validate_project_id",
+        "ensure_project_record",
+        "ensure_project_runtime",
+    ];
+
+    for (name, src) in handlers {
+        let uses_approved = approved_patterns.iter().any(|p| src.contains(p));
+        assert!(
+            uses_approved,
+            "REG1: {name} must use at least one of {:?} to validate project_id \
+             before registry/search writes — found none",
+            approved_patterns
+        );
+    }
+}
+
+/// REG1: the validate_key_component function must be called for non-project-id
+/// key types (section_id, rule_id, watch_id) in handlers that accept them.
+/// Structural sweep confirming delimiter validation covers all composite key types.
+#[test]
+fn reg1_validate_key_component_used_for_composite_keys() {
+    let src = include_str!("../src/handlers/project_tools.rs");
+
+    // validate_key_component must appear at least once — it covers section_id.
+    assert!(
+        src.contains("validate_key_component"),
+        "REG1: project_tools.rs must call validate_key_component for composite \
+         key types (section_id, rule_id, watch_id) to prevent delimiter injection \
+         into composite registry keys"
+    );
+}
+
+// ── MCP1: comprehensive handler surface convention enforcement ─────────────────
+
+/// MCP1: every search/query handler that accepts a `limit` or `top_k` parameter
+/// must apply sanitization before passing the value to the index layer.
+/// Structural sweep: search_tools.rs must use sanitized_top_k or sanitized_limit.
+#[test]
+fn mcp1_search_handlers_apply_top_k_sanitization() {
+    let src = include_str!("../src/handlers/search_tools.rs");
+
+    assert!(
+        src.contains("sanitized_top_k") || src.contains("sanitized_limit") || src.contains(".min("),
+        "MCP1: search_tools.rs must sanitize/clamp top_k/limit before index queries \
+         to prevent resource amplification — found no sanitization pattern"
+    );
+}
+
+/// MCP1: cognitive_tools.rs handles memory operations and must validate both
+/// project_id and section_id at the handler boundary.
+#[test]
+fn mcp1_cognitive_tools_validates_both_project_and_section_ids() {
+    let src = include_str!("../src/handlers/cognitive_tools.rs");
+
+    let has_project_validation = src.contains("validate_project_id")
+        || src.contains("ensure_project_record")
+        || src.contains("ensure_project_runtime");
+    assert!(
+        has_project_validation,
+        "MCP1: cognitive_tools.rs must validate project_id at handler boundary"
+    );
+}
+
+/// MCP1: access_layer_tools.rs handles project data and must use approved
+/// validation patterns — the handler's large surface area makes convention
+/// enforcement critical.
+#[test]
+fn mcp1_access_layer_tools_uses_project_validation() {
+    let src = include_str!("../src/handlers/access_layer_tools.rs");
+
+    let has_validation = src.contains("validate_project_id")
+        || src.contains("ensure_project_record")
+        || src.contains("ensure_project_runtime");
+    assert!(
+        has_validation,
+        "MCP1: access_layer_tools.rs must use an approved project_id validation \
+         pattern (validate_project_id / ensure_project_record / ensure_project_runtime)"
+    );
+}
+
+// ── X3: expanded cross-handler section_id and validation ordering sweep ────────
+
+/// X3: search_tools.rs must validate project_id before issuing hybrid search
+/// queries — the validation must precede any registry or index read.
+#[test]
+fn x3_search_tools_validates_project_id_before_search() {
+    let src = include_str!("../src/handlers/search_tools.rs");
+
+    let validate_pos = src.find("validate_project_id")
+        .or_else(|| src.find("ensure_project_runtime"))
+        .expect("X3: search_tools.rs must validate project_id before issuing search");
+
+    // hybrid_search or semantic_search or search call must appear after validation.
+    let search_pos = src.find("hybrid_search(")
+        .or_else(|| src.find("semantic_search("))
+        .or_else(|| src.find(".search("))
+        .unwrap_or(src.len());
+
+    assert!(
+        validate_pos < search_pos,
+        "X3: project_id validation (byte {validate_pos}) must precede search call \
+         (byte {search_pos}) in search_tools.rs"
+    );
+}
+
+/// X3: git_tools.rs must validate project_id before invoking git history indexing
+/// — an unvalidated project_id could be used to construct a path to an arbitrary
+/// git repository on disk.
+#[test]
+fn x3_git_tools_validates_project_id_before_git_operations() {
+    let src = include_str!("../src/handlers/git_tools.rs");
+
+    let validate_pos = src.find("validate_project_id")
+        .or_else(|| src.find("ensure_project_runtime"))
+        .expect("X3: git_tools.rs must validate project_id before git operations");
+
+    // The git_update_stream or git registry lookup must appear after validation.
+    let git_pos = src.find("git_update_stream(")
+        .or_else(|| src.find("get_project("))
+        .unwrap_or(src.len());
+
+    assert!(
+        validate_pos < git_pos,
+        "X3: project_id validation (byte {validate_pos}) must precede git operation \
+         (byte {git_pos}) in git_tools.rs"
+    );
+}

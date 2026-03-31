@@ -607,7 +607,21 @@ impl Engram {
             m.insert(job_id.clone(), token.clone());
         }
 
+        // X5: increment active_indexing_count so GC skips purge ticks while
+        // git history indexing is in flight — mirrors the project_tools pattern.
+        state.active_indexing_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let state_for_decrement = state.clone();
+
         let handle = tokio::spawn(async move {
+            // RAII decrement: runs on task exit for any reason (success/fail/cancel).
+            struct ActiveGuard(crate::state::AppState);
+            impl Drop for ActiveGuard {
+                fn drop(&mut self) {
+                    self.0.active_indexing_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+            let _active_guard = ActiveGuard(state_for_decrement);
+
             let mut status = "done";
             let mut msg = "completed".to_string();
             let mut progress = 100;

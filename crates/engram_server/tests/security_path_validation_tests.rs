@@ -695,3 +695,118 @@ fn sec1_safe_join_source_handles_windows_prefixes() {
          (starts with '\\') to block UNC and device-path traversal on Windows"
     );
 }
+
+// ── SEC1: Windows reserved device name corpus ─────────────────────────────────
+
+/// SEC1: safe_join must reject Windows reserved device names as path components.
+/// On Windows, opening a path like "C:\projects\src\CON" resolves to the
+/// console device, bypassing all file content. Even on non-Windows, the server
+/// may later transfer files to a Windows host.
+#[test]
+fn safe_join_rejects_windows_reserved_device_names() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("/projects/safe");
+
+    // Windows reserved device names — must not be reachable as path components.
+    let reserved = ["CON", "PRN", "AUX", "NUL",
+                    "COM1", "COM2", "COM9",
+                    "LPT1", "LPT2", "LPT9"];
+
+    for name in &reserved {
+        // As a filename component.
+        let result = safe_join(base, name);
+        // Either rejected outright or must be treated as a regular filename.
+        // We assert it does NOT silently succeed with the raw device name as output.
+        // (safe_join may Ok-accept these on Linux where they're regular filenames;
+        // the key assertion is no panic + no traversal past base.)
+        if let Ok(ref p) = result {
+            assert!(
+                p.starts_with(base),
+                "SEC1: safe_join with reserved name {name:?} must stay within base; got {p:?}"
+            );
+        }
+
+        // As an absolute path component — must always be rejected.
+        let abs_result = safe_join(base, &format!("/dev/{name}"));
+        // Absolute paths must always be rejected.
+        assert!(
+            abs_result.is_err(),
+            "SEC1: safe_join must reject absolute device path /dev/{name:?}; got Ok"
+        );
+    }
+}
+
+/// SEC1: safe_join must keep the joined path within the base directory for
+/// adversarial combinations of dots, slashes, and spaces.
+#[test]
+fn safe_join_rejects_dot_slash_space_traversal_variants() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("/safe/base");
+
+    let adversarial: &[&str] = &[
+        "..%2F..%2Fetc%2Fpasswd",       // URL-encoded traversal (must stay inside)
+        r"..\..\windows\system32",      // mixed separators
+        "foo/../../etc/shadow",         // multi-hop traversal
+        "./../../etc/passwd",           // dot-relative traversal
+        "valid/../../../etc/hosts",     // valid prefix then escape
+    ];
+
+    for path in adversarial {
+        let result = safe_join(base, path);
+        if let Ok(ref p) = result {
+            assert!(
+                p.starts_with(base),
+                "SEC1: safe_join({path:?}) must stay within base {base:?}; escaped to {p:?}"
+            );
+        }
+        // Err is also acceptable — the key invariant is no escape.
+    }
+}
+
+/// SEC1 / Section 9: Windows-native path corpus — raw device namespace and
+/// long-path prefix forms. Exercises the Windows-specific parser edge cases
+/// that are hard to prove from static analysis alone.
+///
+/// These assertions hold on all platforms: safe_join must reject any path that
+/// starts with `\` (UNC or device namespace) or contains a drive letter prefix.
+#[test]
+fn sec1_windows_path_corpus_comprehensive() {
+    use engram_core::safe_join;
+    let base = std::path::Path::new("/safe/root");
+
+    // Windows device namespace — all must be rejected.
+    let windows_device_paths: &[&str] = &[
+        r"\.\PhysicalDrive0",
+        r"\.\C:\Windows",
+        r"\.\pipe\mypipe",
+        r"\?\Volume{guid}",
+        r"\?\C:\Windows\System32\cmd.exe",
+        r"\server\share",
+        r"\192.168.0.1\c$\Windows",
+        r"\.\ ",              // device with trailing space
+        r"\?\GLOBALROOT\Device\HarddiskVolume1",
+    ];
+
+    for path in windows_device_paths {
+        let result = safe_join(base, path);
+        assert!(
+            result.is_err(),
+            "SEC1: safe_join must reject Windows device/UNC path {path:?}; got Ok"
+        );
+    }
+
+    // Drive-letter absolute paths — must be rejected (they are absolute).
+    let drive_paths: &[&str] = &[
+        r"C:\Windows\System32",
+        r"D:\users\admin\secret.txt",
+        r"Z:\network\share\file",
+    ];
+
+    for path in drive_paths {
+        let result = safe_join(base, path);
+        assert!(
+            result.is_err(),
+            "SEC1: safe_join must reject Windows drive-letter path {path:?}; got Ok"
+        );
+    }
+}

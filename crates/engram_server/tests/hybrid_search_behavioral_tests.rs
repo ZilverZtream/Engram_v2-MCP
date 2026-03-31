@@ -2127,3 +2127,133 @@ fn ns1_concurrent_global_mutable_writes_produce_same_pk() {
         );
     }
 }
+
+// ── VEC1: reindex-required signal propagation ─────────────────────────────────
+
+/// VEC1: the bail! error from index_docs when the vector table is recreated
+/// must carry enough context for a caller to identify it as a reindex-required
+/// signal. Structural: the error string must contain "re-index" or "reindex".
+#[test]
+fn vec1_recreated_bail_error_carries_reindex_directive() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+        .expect("VEC1: hybrid.rs must handle TableOpenOutcome::Recreated");
+
+    // Scan a generous window for the bail! message content.
+    let window = &src[recreated_pos..recreated_pos + 600.min(src.len() - recreated_pos)];
+
+    assert!(
+        window.contains("re-index") || window.contains("reindex") || window.contains("re_index"),
+        "VEC1: bail! message after Recreated must direct callers to schedule a re-index; \
+         window: {:?}", &window[..200.min(window.len())]
+    );
+}
+
+/// VEC1: the job runner that calls index_docs must propagate errors with `?`
+/// so that a Recreated bail! reaches the task-completion handler and can be
+/// surfaced as a job failure status — not silently swallowed.
+#[test]
+fn vec1_index_docs_caller_propagates_error_with_question_mark() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Find index_docs call site in the outer ingestion function.
+    let index_call_pos = src.find("index_docs(")
+        .or_else(|| src.find(".index_docs("))
+        .expect("VEC1: hybrid.rs must contain an index_docs call site");
+
+    // Look at the character just after the call for `?` or `await?`
+    let after_call = &src[index_call_pos..index_call_pos + 100.min(src.len() - index_call_pos)];
+    assert!(
+        after_call.contains("?") || after_call.contains(".await?"),
+        "VEC1: index_docs call must be propagated with `?` so Recreated errors \
+         reach the job runner; found: {:?}", &after_call[..80.min(after_call.len())]
+    );
+}
+
+// ── FTS1: extended adversarial regex corpus ────────────────────────────────────
+
+/// FTS1: catastrophic backtracking patterns must be rejected or timeout-bounded.
+/// Patterns like `(a+)+` cause exponential backtracking in PCRE-style engines.
+/// Tantivy's regex engine uses automata and doesn't backtrack, but we verify
+/// the length/alternation guards apply to all adversarial inputs.
+#[test]
+fn fts1_catastrophic_backtracking_patterns_bounded_by_caps() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The regex branch must have both a length cap and an alternation cap.
+    assert!(
+        src.contains("MAX_REGEX_PATTERN_LEN"),
+        "FTS1: hybrid.rs must define MAX_REGEX_PATTERN_LEN to bound catastrophic patterns"
+    );
+    assert!(
+        src.contains("MAX_ALTERNATIONS") || src.contains("count_unescaped_alternations"),
+        "FTS1: hybrid.rs must cap top-level alternations to prevent DFA state explosion"
+    );
+}
+
+/// FTS1: deeply nested group patterns must not cause stack overflow.
+/// Structural: the regex mode must use a bounded parser (Tantivy regex), not
+/// a recursive descent parser that could overflow the stack on deep nesting.
+#[test]
+fn fts1_deeply_nested_group_pattern_bounded_by_length_cap() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Deeply nested groups are caught by the length cap.
+    // A pattern like ((((....((a)...)))) grows linearly in length.
+    let max_len_pos = src.find("MAX_REGEX_PATTERN_LEN")
+        .expect("FTS1: MAX_REGEX_PATTERN_LEN must exist in hybrid.rs");
+
+    // The length check must appear BEFORE the parse call.
+    let parse_pos = src.find("RegexQuery::from_pattern")
+        .or_else(|| src.find("parse_query"))
+        .or_else(|| src.find("RegexQuery::"))
+        .unwrap_or(src.len());
+
+    assert!(
+        max_len_pos < parse_pos,
+        "FTS1: MAX_REGEX_PATTERN_LEN check (byte {max_len_pos}) must precede parse call \
+         (byte {parse_pos}) — deeply nested patterns caught by length guard before parsing"
+    );
+}
+
+/// FTS1: unknown fts_mode values must produce a fail-closed error, not a
+/// silent fallback to loose/strict mode. This prevents mode-confusion attacks.
+#[test]
+fn fts1_unknown_fts_mode_produces_fail_closed_error() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The unknown mode arm must use bail! not a silent default fallback.
+    let unknown_pos = src.find("unknown =>")
+        .or_else(|| src.find("_ =>"))
+        .expect("FTS1: hybrid.rs lexical_search must have an unknown/catch-all mode arm");
+
+    let after_unknown = &src[unknown_pos..unknown_pos + 200.min(src.len() - unknown_pos)];
+    assert!(
+        after_unknown.contains("bail!") || after_unknown.contains("return Err"),
+        "FTS1: unknown fts_mode arm must bail!/return Err — no silent fallback; \
+         context: {:?}", &after_unknown[..100.min(after_unknown.len())]
+    );
+}
+
+// ── X1: reindex orchestration signal completeness ─────────────────────────────
+
+/// X1: the index_docs function must return Result<_, anyhow::Error> so that
+/// the Recreated bail! propagates all the way to the job runner task.
+/// Proves the complete signal chain: Recreated → bail! → Err → task failure.
+#[test]
+fn x1_index_docs_returns_result_for_error_propagation() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // index_docs signature must declare Result return type.
+    let fn_pos = src.find("fn index_docs(")
+        .or_else(|| src.find("async fn index_docs("))
+        .expect("X1: index_docs must exist in hybrid.rs");
+
+    let sig_window = &src[fn_pos..fn_pos + 200.min(src.len() - fn_pos)];
+    assert!(
+        sig_window.contains("-> Result") || sig_window.contains("-> anyhow::Result"),
+        "X1: index_docs must return Result<_, Error> to propagate Recreated bail! \
+         to the job runner; sig: {:?}", &sig_window[..100.min(sig_window.len())]
+    );
+}

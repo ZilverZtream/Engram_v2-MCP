@@ -1134,6 +1134,12 @@ pub struct ConfigSnapshot {
     /// and gate_code_version strings are identical — a new release may change
     /// gate logic without changing the manually-maintained gate_code_version tag.
     pub crate_version: String,
+    /// ADP1: OS and CPU architecture triple at decision time (e.g. "linux/x86_64").
+    /// Allows forensic replay to detect cross-platform gate-logic differences
+    /// when the same binary version is deployed across heterogeneous environments.
+    /// Format: `{std::env::consts::OS}/{std::env::consts::ARCH}`.
+    #[serde(default)]
+    pub runtime_triple: String,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1178,6 +1184,8 @@ pub fn build_decision_report(
         // ADP1-s2x6: always stamp with the compile-time binary version so that
         // replays can detect gate-logic drift even when gate_code_version is unchanged.
         crate_version: env!("CARGO_PKG_VERSION").into(),
+        // ADP1: stamp runtime OS/arch so cross-platform replay divergence is detectable.
+        runtime_triple: format!("{}/{}", std::env::consts::OS, std::env::consts::ARCH),
         ..config_snapshot
     };
 
@@ -2080,6 +2088,7 @@ mod tests {
                 evidence_schema_version: "1.0.0".to_string(),
                 evidence_hash: String::new(), // populated by build_decision_report
                 crate_version: String::new(), // overridden by build_decision_report
+                runtime_triple: String::new(), // overridden by build_decision_report
             },
             "test-build-001",
         );
@@ -2473,6 +2482,7 @@ mod tests {
             evidence_schema_version: "1.0.0".to_string(),
             evidence_hash: String::new(),
             crate_version: String::new(),
+            runtime_triple: String::new(),
         }
     }
 
