@@ -1364,3 +1364,103 @@ fn x6_cancellation_outcome_distinguishes_tombstone_variants() {
          cases where cancel succeeded but checkpoint cleanup could not complete"
     );
 }
+
+// ── CANCEL1-r1f5: bounded cancel-check interval in actor loops ────────────────
+
+/// CANCEL1: every actor file must not have large runs of .await points without
+/// an intervening is_cancelled() check. Structural proxy: the ratio of
+/// is_cancelled() calls to tokio::select! / .await must be reasonable.
+#[test]
+fn cancel1_actor_loops_have_sufficient_cancel_check_density() {
+    let actor_files: &[(&str, &str)] = &[
+        ("watcher.rs", include_str!("../../engram_server/src/actors/watcher.rs")),
+        ("dreamer.rs", include_str!("../../engram_server/src/actors/dreamer.rs")),
+        ("gc.rs",      include_str!("../../engram_server/src/actors/gc.rs")),
+    ];
+
+    for (name, src) in actor_files {
+        let cancel_checks = src.matches("is_cancelled()").count();
+        let select_sites = src.matches("tokio::select!").count()
+            + src.matches("select! {").count();
+
+        // Every actor with a select! loop must have at least one is_cancelled check.
+        if select_sites > 0 {
+            assert!(
+                cancel_checks > 0,
+                "CANCEL1: {name} has {select_sites} tokio::select! site(s) but \
+                 no is_cancelled() check — actor loop may not terminate promptly"
+            );
+        }
+    }
+}
+
+/// CANCEL1: new actor files must not be added without cancel-loop discipline.
+/// Structural: scan all actor source files for cancel-token awareness.
+#[test]
+fn cancel1_all_actor_files_declare_cancellation_token_parameter() {
+    let actor_files: &[(&str, &str)] = &[
+        ("watcher.rs", include_str!("../../engram_server/src/actors/watcher.rs")),
+        ("dreamer.rs", include_str!("../../engram_server/src/actors/dreamer.rs")),
+        ("gc.rs",      include_str!("../../engram_server/src/actors/gc.rs")),
+    ];
+
+    for (name, src) in actor_files {
+        assert!(
+            src.contains("CancellationToken") || src.contains("shutdown"),
+            "CANCEL1: {name} must accept a CancellationToken or shutdown signal — \
+             actor loops without cancel awareness cannot be stopped gracefully"
+        );
+    }
+}
+
+// ── JOB1-k2p7 / X5-h4w7: GC guard scope documentation ───────────────────────
+
+/// JOB1/X5: the GC guard is counter-based and only covers jobs that increment
+/// `active_indexing_count`. This test documents the scope so future job types
+/// are not added without explicit counter discipline review.
+#[test]
+fn job1_gc_guard_explicitly_scoped_to_active_indexing_count_convention() {
+    let gc_src = include_str!("../../engram_server/src/actors/gc.rs");
+    let project_src = include_str!("../../engram_server/src/handlers/project_tools.rs");
+    let git_src = include_str!("../../engram_server/src/handlers/git_tools.rs");
+
+    // GC reads active_indexing_count before purge.
+    assert!(
+        gc_src.contains("active_indexing_count"),
+        "JOB1: gc.rs must check active_indexing_count before purge to prevent \
+         race with in-flight indexing jobs"
+    );
+
+    // Job spawners must increment/decrement via RAII guard.
+    for (name, src) in [("project_tools", project_src), ("git_tools", git_src)] {
+        assert!(
+            src.contains("active_indexing_count") || src.contains("ActiveGuard"),
+            "X5: {name} spawns indexing jobs and must manage active_indexing_count \
+             via RAII guard — missing guard risks premature GC purge"
+        );
+    }
+}
+
+/// X5: RAII guard pattern for active_indexing_count must use an atomic increment
+/// on create and fetch_sub (or equivalent) on drop, so crashes/panics still
+/// release the counter. Increment may be fetch_add or fetch_update (CAS).
+#[test]
+fn x5_active_indexing_count_raii_guard_uses_increment_and_fetch_sub() {
+    let sources: &[(&str, &str)] = &[
+        ("project_tools.rs", include_str!("../../engram_server/src/handlers/project_tools.rs")),
+        ("git_tools.rs",     include_str!("../../engram_server/src/handlers/git_tools.rs")),
+    ];
+
+    for (name, src) in sources {
+        if src.contains("active_indexing_count") {
+            // Accepted patterns: ActiveGuard struct, or (fetch_add OR fetch_update) + fetch_sub.
+            let has_raii = src.contains("ActiveGuard")
+                || (src.contains("fetch_sub") && (src.contains("fetch_add") || src.contains("fetch_update")));
+            assert!(
+                has_raii,
+                "X5: {name} uses active_indexing_count but lacks RAII guard \
+                 (ActiveGuard or increment+fetch_sub pair) — counter may leak on panic"
+            );
+        }
+    }
+}

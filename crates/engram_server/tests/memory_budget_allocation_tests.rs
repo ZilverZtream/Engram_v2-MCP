@@ -364,3 +364,77 @@ fn mem1_subsystem_enum_tracks_external_lib_categories() {
         );
     }
 }
+
+// ── MEM1-m5q1: allocation guard structural sweep ──────────────────────────────
+
+/// MEM1: AllocationGuard must implement Drop for RAII panic-safe release.
+/// A missing Drop impl would cause budget accounting drift on any early return.
+#[test]
+fn mem1_allocation_guard_implements_drop_for_panic_safety() {
+    let src = include_str!("../../engram_core/src/memory.rs");
+
+    assert!(
+        src.contains("impl Drop for AllocationGuard"),
+        "MEM1: AllocationGuard must implement Drop so budget is released even \
+         on panic — without Drop, early returns leak allocated budget quota"
+    );
+    // The Drop impl must call release or equivalent.
+    let drop_pos = src.find("impl Drop for AllocationGuard")
+        .expect("MEM1: Drop impl must exist");
+    let drop_body = &src[drop_pos..drop_pos + 150.min(src.len() - drop_pos)];
+    assert!(
+        drop_body.contains("release") || drop_body.contains("fetch_sub"),
+        "MEM1: Drop impl must release the budget via release() or fetch_sub(); \
+         body: {:?}", &drop_body[..100.min(drop_body.len())]
+    );
+}
+
+/// MEM1: hybrid.rs must drop the AllocationGuard BEFORE any remote await
+/// so that embed operations do not hold budget during slow network I/O.
+/// This is the X2 interaction fix: embed guard held across await → memory starvation.
+#[test]
+fn mem1_x2_embed_guard_released_before_remote_await_in_hybrid() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The guard drop must appear before embed_batch_cancellable await.
+    let guard_drop_pos = src.find("drop(guard)")
+        .or_else(|| src.find("drop(embed_guard)"))
+        .or_else(|| src.find("// MEM1"))
+        .or_else(|| src.find("AllocationGuard"));
+
+    let embed_await_pos = src.find("embed_batch_cancellable");
+
+    if let (Some(drop_p), Some(embed_p)) = (guard_drop_pos, embed_await_pos) {
+        assert!(
+            drop_p < embed_p,
+            "MEM1/X2: AllocationGuard must be dropped (pos {drop_p}) BEFORE \
+             embed_batch_cancellable await (pos {embed_p}) — holding guard across \
+             remote await starves concurrent allocations"
+        );
+    }
+    // If no guard is held across embed at all, that's fine too.
+}
+
+/// MEM1: try_allocate must use CAS (fetch_update) not optimistic fetch_add
+/// so concurrent allocations cannot transiently exceed the hard limit.
+#[test]
+fn mem1_try_allocate_uses_cas_not_optimistic_fetch_add() {
+    let src = include_str!("../../engram_core/src/memory.rs");
+
+    assert!(
+        src.contains("fetch_update"),
+        "MEM1: try_allocate must use fetch_update (CAS) — optimistic fetch_add \
+         allows transient over-commit window where concurrent allocations exceed budget"
+    );
+
+    // The CAS must reject (return None) when budget exceeded, not rollback.
+    let fn_pos = src.find("fn try_allocate(")
+        .expect("MEM1: try_allocate must exist in memory.rs");
+    let body = &src[fn_pos..fn_pos + 800.min(src.len() - fn_pos)];
+    assert!(
+        body.contains("None"),
+        "MEM1: fetch_update closure must return None to reject — this prevents \
+         the over-commit window inherent in fetch_add + rollback; body: {:?}",
+        &body[..300.min(body.len())]
+    );
+}

@@ -945,3 +945,71 @@ async fn fts1_top_level_alternation_cap_enforced() {
     );
 }
 
+// ── FTS1-n2m4: guard constant documentation and boundary proof ────────────────
+
+/// FTS1: MAX_REGEX_PATTERN_LEN must be a named constant (not a magic number)
+/// so its value is visible in audits and reviewers can see guard semantics.
+#[test]
+fn fts1_max_regex_pattern_len_is_named_constant_not_magic_number() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    // Named constant must exist.
+    assert!(
+        src.contains("MAX_REGEX_PATTERN_LEN"),
+        "FTS1: hybrid.rs must define MAX_REGEX_PATTERN_LEN as a named constant — \
+         magic numbers in guards are invisible during security reviews"
+    );
+
+    // It must be used in a comparison.
+    let const_pos = src.find("MAX_REGEX_PATTERN_LEN")
+        .expect("FTS1: MAX_REGEX_PATTERN_LEN must exist");
+    let after = &src[const_pos..const_pos + 300.min(src.len() - const_pos)];
+    assert!(
+        after.contains(">") || after.contains("len()"),
+        "FTS1: MAX_REGEX_PATTERN_LEN must be used in a length comparison guard; \
+         window: {:?}", &after[..150.min(after.len())]
+    );
+}
+
+/// FTS1-n2m4: a pattern of exactly MAX_REGEX_PATTERN_LEN bytes must be accepted,
+/// while MAX+1 must be rejected. Validates the boundary is correctly inclusive.
+#[tokio::test]
+async fn fts1_regex_pattern_len_boundary_exactly_at_max_is_accepted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build a pattern of exactly 500 bytes (all safe chars: 'a').
+    let pattern_500 = "a".repeat(500);
+    let mut q = make_query("proj-fts1-boundary", "regex");
+    q.text = pattern_500;
+    // Exactly 500 bytes — must not be rejected by length guard.
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_ok() || result.as_ref().err().map(|e| !e.to_string().contains("too long")).unwrap_or(true),
+        "FTS1: pattern of exactly MAX_REGEX_PATTERN_LEN (500) bytes must not be \
+         rejected by the length guard; got: {:?}", result.err()
+    );
+}
+
+/// FTS1-n2m4: a pattern of MAX+1 bytes must be rejected with an informative error.
+#[tokio::test]
+async fn fts1_regex_pattern_len_exceeding_max_is_rejected_with_informative_error() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build a pattern of 501 bytes (MAX_REGEX_PATTERN_LEN + 1).
+    let pattern_501 = "a".repeat(501);
+    let mut q = make_query("proj-fts1-over-boundary", "regex");
+    q.text = pattern_501;
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "FTS1: pattern exceeding MAX_REGEX_PATTERN_LEN (501 bytes) must be rejected"
+    );
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("too long") || err_msg.contains("501") || err_msg.contains("500"),
+        "FTS1: rejection error must be informative (mention length); got: {err_msg:?}"
+    );
+}
+
