@@ -1932,6 +1932,11 @@ impl HybridSearchEngine {
             }
             let score = 1.0 / (k + (rank + 1) as f32);
             // Use pk as the merge key; move pk out of hit to avoid clone when pk is populated.
+            // NS1: the fallback key for hits with empty pk uses a canonical separator ':' and
+            // the three fields that together uniquely identify a chunk within the project.
+            // build_pk() is not used here because it requires project_id + generation which
+            // are not available in the merge context — this fallback key is only used for
+            // RRF deduplication within a single query response, not stored to any index.
             let key = if hit.pk.is_empty() {
                 format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
             } else {
@@ -1951,6 +1956,7 @@ impl HybridSearchEngine {
                 hit.centrality = *boosts.get(file_node_buf.as_str()).unwrap_or(&0.0);
             }
             let score = 1.0 / (k + (rank + 1) as f32);
+            // NS1: same canonical fallback as the lexical path above.
             let key = if hit.pk.is_empty() {
                 format!("{}:{}:{}", hit.path.as_str(), hit.chunk_id, hit.doc_id)
             } else {

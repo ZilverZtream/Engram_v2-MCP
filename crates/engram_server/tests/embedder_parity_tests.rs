@@ -758,3 +758,70 @@ async fn emb2_projection_embedder_raw_construction_edge_cases() {
             "EMB2: dimension contract must hold for all inputs; got {}", v.len());
     }
 }
+
+// ── EMB1: embed_cancellable trait default ────────────────────────────────────
+
+/// EMB1: the Embedder trait must expose embed_cancellable so callers can avoid
+/// starting remote HTTP when already cancelled.
+#[test]
+fn emb1_embed_cancellable_method_exists_in_trait_source() {
+    let src = include_str!("../../engram_ml/src/embed.rs");
+    assert!(
+        src.contains("embed_cancellable"),
+        "EMB1: Embedder trait must define embed_cancellable to give callers a \
+         cancellation-aware single-item embed path"
+    );
+    assert!(
+        src.contains("cancel.is_cancelled()"),
+        "EMB1: embed_cancellable must check cancel token before issuing embed request"
+    );
+}
+
+/// EMB1: embed_cancellable must return an error immediately when the token is
+/// already cancelled — no HTTP request should start.
+#[tokio::test]
+async fn emb1_embed_cancellable_short_circuits_on_cancelled_token() {
+    use engram_ml::ProjectionEmbedder;
+    use tokio_util::sync::CancellationToken;
+
+    let embedder = ProjectionEmbedder::new(128);
+    let token = CancellationToken::new();
+    token.cancel(); // already cancelled
+
+    let result = embedder.embed_cancellable("test text", &token).await;
+    assert!(
+        result.is_err(),
+        "EMB1: embed_cancellable must return Err when token is already cancelled"
+    );
+}
+
+/// EMB1: embed_cancellable with a live token must behave identically to embed().
+#[tokio::test]
+async fn emb1_embed_cancellable_with_live_token_produces_same_output_as_embed() {
+    use engram_ml::ProjectionEmbedder;
+    use tokio_util::sync::CancellationToken;
+
+    let embedder = ProjectionEmbedder::new(128);
+    let token = CancellationToken::new(); // not cancelled
+
+    let v_embed = embedder.embed("hello world").await.expect("embed");
+    let v_cancellable = embedder.embed_cancellable("hello world", &token).await
+        .expect("embed_cancellable with live token must succeed");
+
+    assert_eq!(v_embed, v_cancellable,
+        "EMB1: embed_cancellable with live token must produce identical output to embed()");
+}
+
+// ── EMB2: LocalEmbedder dimension hardcoding is documented design ─────────────
+
+/// EMB2: LocalEmbedder hardcodes 384 by design (projection embedder with fixed
+/// random matrix). This test documents the invariant so future changes that
+/// accidentally alter the dimension are caught.
+#[test]
+fn emb2_local_embedder_dimension_is_384_by_design() {
+    use engram_ml::LocalEmbedder;
+    let e = LocalEmbedder;
+    assert_eq!(e.dimension(), 384,
+        "EMB2: LocalEmbedder dimension must be 384 (fixed by design for local projection); \
+         if this changes, update all callers that expect 384-dim vectors");
+}

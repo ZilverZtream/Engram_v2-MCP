@@ -912,27 +912,33 @@ fn js_extractor_mandatory_group_patterns_contain_named_captures() {
 fn js_extractor_mandatory_expect_sites_are_covered_by_named_groups() {
     let src = include_str!("../../engram_index/src/js_extractor.rs");
 
-    // Count the `.expect("mandatory '` call sites.
-    let expect_count = src.matches(".expect(\"mandatory '").count();
+    // PARSE1 fix: mandatory named groups must use .map_or("", |m| m.as_str())
+    // (not .expect()) so missing groups produce empty string instead of a panic.
+    let panicky_expect_count = src.matches(".expect(\"mandatory '").count();
+    assert!(
+        panicky_expect_count == 0,
+        "PARSE1: js_extractor.rs still has {panicky_expect_count} panicky mandatory-group \
+         .expect() calls — all must be replaced with .map_or(\"\", |m| m.as_str())"
+    );
 
     // Count the `(?P<` named capture group definitions.
     let group_count = src.matches("(?P<").count();
 
-    // Every expect site needs exactly one named group. The groups may be more
-    // numerous than the expect sites (some groups are optional), but every
-    // mandatory expect must have a covering group somewhere in the file.
+    // Count safe named-group accesses: .map_or("", |m| m.as_str()) after cap.name(...)
+    let safe_access_count = src.matches(".map_or(\"\", |m| m.as_str())").count();
+
+    // Sanity: there must be at least 9 safe access sites (cls×3 + key + val + lat + lng + full_id + ctrl_id).
     assert!(
-        group_count >= expect_count,
-        "PARSE1: js_extractor.rs has {expect_count} mandatory-group expect calls \
-         but only {group_count} named capture groups (?P<...>) — \
-         at least one expect call has no corresponding capture group and will panic at runtime"
+        safe_access_count >= 9,
+        "PARSE1: expected at least 9 safe named-group accesses in js_extractor.rs \
+         (cls×3, key, val, lat, lng, full_id, ctrl_id); found {safe_access_count} — \
+         a call site may have been inadvertently removed or reverted to .expect()"
     );
 
-    // Sanity: there must be at least 9 mandatory expect call sites (cls×3 + key + val + lat + lng + full_id + ctrl_id).
+    // Named group count must cover all safe accesses.
     assert!(
-        expect_count >= 9,
-        "PARSE1: expected at least 9 mandatory-group expect calls in js_extractor.rs \
-         (cls×3, key, val, lat, lng, full_id, ctrl_id); found {expect_count} — \
-         a call site may have been inadvertently removed"
+        group_count >= safe_access_count,
+        "PARSE1: js_extractor.rs has {safe_access_count} safe named-group accesses \
+         but only {group_count} named capture groups (?P<...>)"
     );
 }
