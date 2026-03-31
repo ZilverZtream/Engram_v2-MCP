@@ -68,6 +68,13 @@ pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
         };
 
         for pid in project_ids {
+            // CANCEL1-b2h7: check shutdown token at each project iteration so a
+            // large project list can be preempted cooperatively during process
+            // shutdown rather than running to completion (mirrors dreamer actor).
+            if shutdown.is_cancelled() {
+                tracing::info!("immune actor: shutdown cancelled during project scan loop — exiting");
+                return;
+            }
             if let Err(e) = scan_project_reverts(&state, &pid).await {
                 tracing::debug!(project = %pid, "immune scan error: {e:#}");
             }

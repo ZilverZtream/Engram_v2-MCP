@@ -465,9 +465,19 @@ impl DocStore {
         let prefix = format!("{}\0{}\0", project_id, namespace);
         let wtx = self.db.begin_write()?;
         let removed = {
-            let mut t = wtx.open_table(DOC_BY_ID)?;
+            let mut doc_table = wtx.open_table(DOC_BY_ID)?;
+            let mut file_table = wtx.open_table(DOCS_BY_FILE)?;
+
+            // Collect stale doc keys and, for DS1-w3f8, the (rel_path → doc_ids) pairs
+            // needed to reconcile DOCS_BY_FILE.  Both tables are updated atomically in
+            // the same write transaction so there is no window where DOC_BY_ID has been
+            // pruned but DOCS_BY_FILE still holds references to the removed doc_ids.
             let mut stale_keys: Vec<String> = Vec::new();
-            for r in t.range(prefix.as_str()..)? {
+            // Map from rel_path → list of stale doc_ids for that path.
+            let mut stale_by_path: std::collections::HashMap<String, Vec<String>> =
+                std::collections::HashMap::new();
+
+            for r in doc_table.range(prefix.as_str()..)? {
                 let (k, v) = r?;
                 if !k.value().starts_with(&prefix) {
                     break;
@@ -475,12 +485,50 @@ impl DocStore {
                 let rec: DocRecord = de_bincode_or_json(v.value())?;
                 if rec.generation < min_generation {
                     stale_keys.push(k.value().to_string());
+                    stale_by_path
+                        .entry(rec.path.clone())
+                        .or_default()
+                        .push(rec.doc_id.clone());
                 }
             }
+
             let count = stale_keys.len();
-            for k in stale_keys {
-                t.remove(k.as_str())?;
+
+            // Remove stale docs from DOC_BY_ID.
+            for k in &stale_keys {
+                doc_table.remove(k.as_str())?;
             }
+
+            // DS1-w3f8: reconcile DOCS_BY_FILE — for each affected rel_path, remove
+            // the stale doc_ids from the newline-separated mapping.  Delete the entry
+            // entirely when no live doc_ids remain, preventing orphaned file→doc links
+            // from accumulating and skewing copy-forward / readback behaviors.
+            for (rel_path, stale_ids) in &stale_by_path {
+                let file_key = format!("{}\0{}\0{}", project_id, namespace, rel_path);
+                // Copy the current value out of the AccessGuard before mutating the table —
+                // redb's borrow rules forbid holding a read guard while also taking a mutable
+                // reference to the same table handle.
+                let current_bytes: Option<Vec<u8>> = file_table
+                    .get(file_key.as_str())?
+                    .map(|g| g.value().to_vec());
+                if let Some(bytes) = current_bytes {
+                    let live_ids: Vec<&str> = std::str::from_utf8(&bytes)
+                        .unwrap_or("")
+                        .lines()
+                        .filter(|id| {
+                            !id.is_empty()
+                                && !stale_ids.iter().any(|s| s.as_str() == *id)
+                        })
+                        .collect();
+                    if live_ids.is_empty() {
+                        file_table.remove(file_key.as_str())?;
+                    } else {
+                        let updated = live_ids.join("\n");
+                        file_table.insert(file_key.as_str(), updated.as_bytes())?;
+                    }
+                }
+            }
+
             count
         };
         wtx.commit()?;

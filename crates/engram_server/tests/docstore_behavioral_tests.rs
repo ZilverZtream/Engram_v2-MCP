@@ -776,3 +776,165 @@ fn ds3_delete_namespace_preserves_other_namespace_fingerprints() {
     );
 }
 
+// ── DS1-w3f8: generation purge must reconcile DOCS_BY_FILE ────────────────────
+
+/// DS1-w3f8: purging stale generation docs must also remove the corresponding
+/// entries from the DOCS_BY_FILE mapping, not leave orphaned file→doc references.
+///
+/// Setup:
+///   - gen 1: file "src/a.rs" → [doc-a1]
+///   - gen 2: file "src/a.rs" → [doc-a2]
+///   - purge gen < 2 → doc-a1 removed from DOC_BY_ID + removed from DOCS_BY_FILE
+///   - assert DOCS_BY_FILE for "src/a.rs" contains only [doc-a2]
+#[test]
+fn purge_old_generation_reconciles_docs_by_file_mapping() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Gen 1: index doc-a1 for src/a.rs.
+    let mut doc_a1 = make_doc("doc-a1", "src/a.rs", "code");
+    doc_a1.generation = 1;
+    store.put_doc("proj-purge-map", &doc_a1).expect("put doc-a1");
+    store
+        .set_docs_for_file("proj-purge-map", "code", "src/a.rs", &["doc-a1".to_string()])
+        .expect("set file mapping gen1");
+
+    // Gen 2: index doc-a2 for src/a.rs (new generation doc for same file).
+    let mut doc_a2 = make_doc("doc-a2", "src/a.rs", "code");
+    doc_a2.generation = 2;
+    store.put_doc("proj-purge-map", &doc_a2).expect("put doc-a2");
+    store
+        .set_docs_for_file(
+            "proj-purge-map",
+            "code",
+            "src/a.rs",
+            &["doc-a1".to_string(), "doc-a2".to_string()],
+        )
+        .expect("set file mapping gen2 (both ids)");
+
+    // Precondition: both doc_ids present in DOCS_BY_FILE.
+    let before = store
+        .get_docs_for_file("proj-purge-map", "code", "src/a.rs")
+        .expect("get_docs_for_file");
+    assert!(
+        before.contains(&"doc-a1".to_string()),
+        "precondition: doc-a1 must be in DOCS_BY_FILE before purge"
+    );
+    assert!(
+        before.contains(&"doc-a2".to_string()),
+        "precondition: doc-a2 must be in DOCS_BY_FILE before purge"
+    );
+
+    // Purge generation < 2 — removes doc-a1 from DOC_BY_ID.
+    let removed = store
+        .purge_old_generation_docs("proj-purge-map", "code", 2)
+        .expect("purge_old_generation_docs must succeed");
+    assert_eq!(removed, 1, "purge must remove exactly 1 stale doc (doc-a1)");
+
+    // DOC_BY_ID: doc-a1 must be gone, doc-a2 must survive.
+    assert!(
+        store
+            .get_doc("proj-purge-map", "code", "doc-a1")
+            .expect("get must not error")
+            .is_none(),
+        "DS1-w3f8: doc-a1 must be removed from DOC_BY_ID after purge"
+    );
+    assert!(
+        store
+            .get_doc("proj-purge-map", "code", "doc-a2")
+            .expect("get must not error")
+            .is_some(),
+        "DS1-w3f8: doc-a2 (live generation) must remain in DOC_BY_ID after purge"
+    );
+
+    // DOCS_BY_FILE: must contain only doc-a2 — orphaned doc-a1 must be removed.
+    let after = store
+        .get_docs_for_file("proj-purge-map", "code", "src/a.rs")
+        .expect("get_docs_for_file after purge");
+    assert!(
+        !after.contains(&"doc-a1".to_string()),
+        "DS1-w3f8: doc-a1 must be removed from DOCS_BY_FILE after purge — \
+         leaving orphaned file→doc references causes stale readback and copy-forward errors"
+    );
+    assert!(
+        after.contains(&"doc-a2".to_string()),
+        "DS1-w3f8: doc-a2 must remain in DOCS_BY_FILE after purge of gen1 docs"
+    );
+}
+
+/// DS1-w3f8: when ALL docs for a file are purged (entire file was deleted and
+/// all generations removed), the DOCS_BY_FILE entry must be deleted entirely —
+/// not left as an empty mapping which would confuse copy-forward logic.
+#[test]
+fn purge_old_generation_deletes_docs_by_file_when_all_docs_for_path_are_stale() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // Only gen 1 docs for deleted-file.rs — no gen 2 docs (file was deleted).
+    let mut doc = make_doc("doc-del1", "deleted-file.rs", "code");
+    doc.generation = 1;
+    store.put_doc("proj-purge-del", &doc).expect("put doc-del1");
+    store
+        .set_docs_for_file(
+            "proj-purge-del",
+            "code",
+            "deleted-file.rs",
+            &["doc-del1".to_string()],
+        )
+        .expect("set file mapping");
+
+    // Purge gen < 2 — all docs for deleted-file.rs are stale.
+    store
+        .purge_old_generation_docs("proj-purge-del", "code", 2)
+        .expect("purge must succeed");
+
+    // DOCS_BY_FILE entry must be gone entirely (not empty/corrupt).
+    let after = store
+        .get_docs_for_file("proj-purge-del", "code", "deleted-file.rs")
+        .expect("get_docs_for_file after full purge");
+    assert!(
+        after.is_empty(),
+        "DS1-w3f8: DOCS_BY_FILE entry for a fully-purged file must be absent/empty — \
+         stale entries with no live doc_ids would produce ghost file references in \
+         list_tracked_paths and copy-forward scans; got: {after:?}"
+    );
+}
+
+/// DS1-w3f8: docs from a different file in the same namespace must not be
+/// affected when purging a specific file's stale generations.
+#[test]
+fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    // File A: gen 1 (will be purged).
+    let mut doc_a = make_doc("doc-sibling-a1", "a.rs", "code");
+    doc_a.generation = 1;
+    store.put_doc("proj-sibling", &doc_a).expect("put doc_a");
+    store
+        .set_docs_for_file("proj-sibling", "code", "a.rs", &["doc-sibling-a1".to_string()])
+        .expect("set a.rs mapping");
+
+    // File B: gen 2 (live, must survive).
+    let mut doc_b = make_doc("doc-sibling-b2", "b.rs", "code");
+    doc_b.generation = 2;
+    store.put_doc("proj-sibling", &doc_b).expect("put doc_b");
+    store
+        .set_docs_for_file("proj-sibling", "code", "b.rs", &["doc-sibling-b2".to_string()])
+        .expect("set b.rs mapping");
+
+    // Purge gen < 2 — only doc_a is stale.
+    store
+        .purge_old_generation_docs("proj-sibling", "code", 2)
+        .expect("purge must succeed");
+
+    // b.rs mapping must be completely unchanged.
+    let b_after = store
+        .get_docs_for_file("proj-sibling", "code", "b.rs")
+        .expect("get_docs_for_file b.rs");
+    assert!(
+        b_after.contains(&"doc-sibling-b2".to_string()),
+        "DS1-w3f8: sibling file b.rs mapping must survive purge of a.rs gen1 docs"
+    );
+}
+
