@@ -19,8 +19,14 @@ pub enum TableOpenOutcome {
     /// Table was newly created (no prior data existed).
     Created,
     /// Table had incompatible schema and was dropped+recreated — ALL vector data was lost.
+    ///
+    /// `reason` describes why the schema was incompatible (missing pk / dimension mismatch).
+    /// `prior_row_count` is the row count captured immediately before the drop, giving
+    /// operators an observable data-loss metric: zero means no vectors existed, non-zero
+    /// means a full re-index is required to recover that many rows.
+    ///
     /// The caller MUST trigger a full re-index to restore search quality.
-    Recreated { reason: String },
+    Recreated { reason: String, prior_row_count: u64 },
 }
 
 /// Connect to a local LanceDB database.
@@ -102,11 +108,15 @@ pub async fn open_or_create_table(
             } else {
                 "vector dimension mismatch".to_string()
             };
+            // Capture row count before drop so operators can observe exactly how many
+            // vectors will be lost.  Zero means the table was empty (no-op loss);
+            // non-zero is the target for the subsequent full re-index job.
+            let prior_row_count = table.count_rows(None).await.unwrap_or(0) as u64;
             conn.drop_table(name, &[]).await?;
             let batch = RecordBatch::new_empty(schema.clone());
             let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
             let new_table = conn.create_table(name, reader).execute().await?;
-            Ok((new_table, TableOpenOutcome::Recreated { reason }))
+            Ok((new_table, TableOpenOutcome::Recreated { reason, prior_row_count }))
         } else {
             Ok((table, TableOpenOutcome::Opened))
         }

@@ -2459,4 +2459,197 @@ mod tests {
         assert!(text.contains("Verdict:"));
         assert!(text.contains("Per-Item Results"));
     }
+
+    // ── ADP provenance / deterministic replay tests ──────────────────────────
+
+    fn make_config_snapshot() -> ConfigSnapshot {
+        ConfigSnapshot {
+            adp_min_extraction_confidence: 0.5,
+            safety_min_confidence: 0.7,
+            safety_min_coverage: 0.6,
+            adp_max_blast_radius: 6,
+            safety_policy_enabled: true,
+            gate_code_version: "1.0.0".to_string(),
+            evidence_schema_version: "1.0.0".to_string(),
+            evidence_hash: String::new(),
+            crate_version: String::new(),
+        }
+    }
+
+    /// ADP provenance: every mandatory versioning field in ConfigSnapshot must be
+    /// non-empty after `build_decision_report` fills in the computed fields.
+    ///
+    /// An empty `evidence_hash` or `crate_version` means the replay envelope
+    /// cannot detect drift — the audit finding ADP1 is not closed until all fields
+    /// are populated with meaningful values.
+    #[test]
+    fn decision_report_all_provenance_fields_are_populated() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        let report = build_decision_report(
+            &decision,
+            "proj-1",
+            "add helper fn",
+            &["src/lib.rs".into()],
+            "low",
+            serde_json::json!({}),
+            make_config_snapshot(),
+            "ci-build-42",
+        );
+
+        // gate_code_version: caller-supplied and must propagate unchanged.
+        assert!(
+            !report.config_snapshot.gate_code_version.is_empty(),
+            "ADP1: gate_code_version must be non-empty — used to detect gate-logic \
+             drift between the original decision and a future replay"
+        );
+
+        // evidence_schema_version: format version for replay compatibility.
+        assert!(
+            !report.config_snapshot.evidence_schema_version.is_empty(),
+            "ADP1: evidence_schema_version must be non-empty — bumped when the \
+             evidence structure changes to invalidate stale replays"
+        );
+
+        // evidence_hash: BLAKE3 of serialized gate_evidence, computed by build_decision_report.
+        assert!(
+            !report.config_snapshot.evidence_hash.is_empty(),
+            "ADP1: evidence_hash must be non-empty after build_decision_report — \
+             empty hash means evidence tampering or serialization drift is undetectable"
+        );
+        // BLAKE3 hex is 64 chars.
+        assert_eq!(
+            report.config_snapshot.evidence_hash.len(), 64,
+            "ADP1: evidence_hash must be a 64-char BLAKE3 hex digest; \
+             got length {}", report.config_snapshot.evidence_hash.len()
+        );
+
+        // crate_version: compile-time CARGO_PKG_VERSION, overridden by build_decision_report.
+        assert!(
+            !report.config_snapshot.crate_version.is_empty(),
+            "ADP1: crate_version must be non-empty — it reflects the Cargo package \
+             version at compile time to detect binary-level drift across releases"
+        );
+        assert_eq!(
+            report.config_snapshot.crate_version,
+            env!("CARGO_PKG_VERSION"),
+            "ADP1: crate_version must equal env!(CARGO_PKG_VERSION) at decision time; \
+             any other value means the provenance stamp is wrong"
+        );
+    }
+
+    /// ADP deterministic replay: two calls to `build_decision_report` with identical
+    /// gate results must produce identical `evidence_hash` values.
+    ///
+    /// This is the core replay guarantee: same inputs → same provenance hash, so a
+    /// forensic replay can detect gate-result divergence by comparing hashes.
+    #[test]
+    fn decision_report_evidence_hash_is_deterministic_for_same_gate_results() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+
+        let report1 = build_decision_report(
+            &decision,
+            "proj-2",
+            "rename field",
+            &["src/models.rs".into()],
+            "low",
+            serde_json::json!({"run": 1}),
+            make_config_snapshot(),
+            "build-1",
+        );
+        let report2 = build_decision_report(
+            &decision,
+            "proj-2",
+            "rename field",
+            &["src/models.rs".into()],
+            "low",
+            serde_json::json!({"run": 2}), // input_snapshot differs — hash must NOT
+            make_config_snapshot(),
+            "build-2",
+        );
+
+        // evidence_hash is derived from gate_evidence, not from input_snapshot or build_id.
+        // Two calls with the same gate results must produce the same hash.
+        assert_eq!(
+            report1.config_snapshot.evidence_hash,
+            report2.config_snapshot.evidence_hash,
+            "ADP1: evidence_hash must be identical for equal gate results regardless \
+             of input_snapshot or build_id — the hash binds only the gate evidence array"
+        );
+    }
+
+    /// ADP replay drift detection: two decisions with different verdicts (allow vs deny)
+    /// must produce different `evidence_hash` values, proving the hash actually binds
+    /// the gate outcome.
+    #[test]
+    fn decision_report_evidence_hash_differs_for_different_gate_results() {
+        let allow_input = make_default_input();
+        let allow_decision = evaluate_gates(&allow_input);
+
+        let mut deny_input = make_default_input();
+        deny_input.safety_decision = Some(crate::services::safety_service::PolicyDecision {
+            allowed: false,
+            risk_level: crate::services::safety_service::RiskLevel::High,
+            checks: vec![],
+            confidence: 0.95,
+            summary: "blocked".into(),
+            mitigations: vec![],
+        });
+        let deny_decision = evaluate_gates(&deny_input);
+
+        let allow_report = build_decision_report(
+            &allow_decision,
+            "proj-3", "change A", &[], "low",
+            serde_json::json!({}), make_config_snapshot(), "b1",
+        );
+        let deny_report = build_decision_report(
+            &deny_decision,
+            "proj-3", "change A", &[], "low",
+            serde_json::json!({}), make_config_snapshot(), "b1",
+        );
+
+        assert_ne!(
+            allow_report.config_snapshot.evidence_hash,
+            deny_report.config_snapshot.evidence_hash,
+            "ADP1: evidence_hash must differ when gate results differ (allow vs deny) — \
+             a hash that is identical for different outcomes cannot detect gate drift"
+        );
+    }
+
+    /// ADP replay: `build_decision_report` serializes to JSON and can be fully
+    /// round-tripped, preserving all provenance fields through the
+    /// serialize → deserialize cycle.
+    #[test]
+    fn decision_report_provenance_survives_json_roundtrip() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        let report = build_decision_report(
+            &decision,
+            "proj-rt", "roundtrip test", &["a.rs".into()], "medium",
+            serde_json::json!({"x": 1}),
+            make_config_snapshot(),
+            "rt-build-1",
+        );
+        let hash_before = report.config_snapshot.evidence_hash.clone();
+        let version_before = report.config_snapshot.crate_version.clone();
+
+        let json = serde_json::to_string(&report).expect("report must serialize");
+        let decoded: AdpDecisionReport =
+            serde_json::from_str(&json).expect("report must deserialize");
+
+        assert_eq!(
+            decoded.config_snapshot.evidence_hash, hash_before,
+            "ADP1: evidence_hash must survive JSON roundtrip unchanged"
+        );
+        assert_eq!(
+            decoded.config_snapshot.crate_version, version_before,
+            "ADP1: crate_version must survive JSON roundtrip unchanged"
+        );
+        assert_eq!(
+            decoded.config_snapshot.gate_code_version,
+            report.config_snapshot.gate_code_version,
+            "ADP1: gate_code_version must survive JSON roundtrip unchanged"
+        );
+    }
 }

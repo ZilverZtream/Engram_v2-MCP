@@ -553,6 +553,113 @@ fn mig1_handler_sources_completeness_header_in_markdown_output() {
     );
 }
 
+/// Migration report completeness: the `FullProjectMigrationReport` struct must
+/// carry `report_is_complete` and `degraded_sections` as public fields, and they
+/// must be included in the JSON serialization so clients receive them alongside
+/// the full report content.
+///
+/// Clients that only check for an HTTP 200 / non-error response will silently
+/// accept a partial report unless they explicitly check `report_is_complete`.
+/// Having these fields in the serialized JSON makes them impossible to miss.
+#[test]
+fn migration_report_struct_exposes_completeness_fields_for_clients() {
+    let service_src = include_str!("../src/services/full_project_migration_service.rs");
+
+    // The struct definition must declare both fields.
+    assert!(
+        service_src.contains("pub report_is_complete: bool"),
+        "FullProjectMigrationReport must have pub report_is_complete: bool so clients \
+         can inspect completeness without parsing the markdown body"
+    );
+    assert!(
+        service_src.contains("pub degraded_sections: Vec<String>"),
+        "FullProjectMigrationReport must have pub degraded_sections: Vec<String> so \
+         clients can identify which graph sections produced incomplete data"
+    );
+
+    // The struct must derive Serialize so these fields appear in JSON responses.
+    // Find the derive line above the struct.
+    let struct_pos = service_src
+        .find("pub struct FullProjectMigrationReport")
+        .expect("FullProjectMigrationReport must exist in migration service");
+    // Look for #[derive(...Serialize...)] in the 400 chars before the struct.
+    let before_struct = &service_src[struct_pos.saturating_sub(400)..struct_pos];
+    assert!(
+        before_struct.contains("Serialize"),
+        "FullProjectMigrationReport must derive Serialize so report_is_complete and \
+         degraded_sections appear in JSON MCP responses — clients cannot enforce \
+         completeness checking if these fields are absent from the wire format"
+    );
+}
+
+/// Migration handler: the JSON response path for the full-project analysis must
+/// serialize the whole report (including `report_is_complete` and
+/// `degraded_sections`) when `output_json = true`, not a stripped summary.
+///
+/// A client that sets `output_json=true` is explicitly requesting machine-readable
+/// output; stripping completeness fields would silently hide degraded state.
+#[test]
+fn migration_handler_json_path_serializes_full_report_including_completeness() {
+    let handler_src = include_str!("../src/handlers/migration_tools.rs");
+
+    // Find the full-project analysis JSON path by locating the block that checks
+    // output_json AND is near a `to_string_pretty(&report)` call.
+    // We scan all occurrences of "to_string_pretty" and check which one
+    // serializes `&report` (the FullProjectMigrationReport).
+    let has_full_report_json = handler_src
+        .lines()
+        .any(|l| l.contains("to_string_pretty(&report)") || l.contains("to_string(&report)"));
+
+    assert!(
+        has_full_report_json,
+        "migration handler JSON path must serialize the complete report with \
+         serde_json::to_string_pretty(&report) so report_is_complete and \
+         degraded_sections are included in the JSON response — a stripped \
+         serialization would hide completeness state from JSON clients"
+    );
+
+    // The output_json flag must also be checked in the same handler (not removed).
+    assert!(
+        handler_src.contains("if req.output_json") || handler_src.contains("if output_json"),
+        "migration handler must check the output_json flag — without it, JSON clients \
+         cannot request machine-readable report output with completeness fields"
+    );
+}
+
+/// Migration completeness: the service's internal `report_is_complete` derivation
+/// must be logically tied to `degraded_sections` — complete iff no sections degraded.
+///
+/// This is the core invariant: if `degraded_sections` is non-empty, `report_is_complete`
+/// must be false.  Any disconnect between the two fields would allow partial reports
+/// to claim completeness.
+#[test]
+fn migration_service_report_is_complete_derived_from_degraded_sections() {
+    let service_src = include_str!("../src/services/full_project_migration_service.rs");
+
+    // The assignment of report_is_complete must reference degraded_sections.
+    // Expected pattern: `let report_is_complete = degraded_sections.is_empty();`
+    let rc_pos = service_src
+        .find("report_is_complete")
+        .expect("migration service must set report_is_complete");
+    // Find the first assignment (let report_is_complete = ...)
+    let assign_pos = service_src
+        .find("let report_is_complete")
+        .or_else(|| service_src.find("report_is_complete ="))
+        .expect("report_is_complete must be assigned in migration service");
+    let after_assign = &service_src[assign_pos..assign_pos + 200.min(service_src.len() - assign_pos)];
+
+    assert!(
+        after_assign.contains("degraded_sections"),
+        "migration service must derive report_is_complete from degraded_sections \
+         (e.g. `let report_is_complete = degraded_sections.is_empty()`) — \
+         any other derivation risks the two fields becoming inconsistent. \
+         Found near assignment: {:?}",
+        &after_assign[..100.min(after_assign.len())]
+    );
+
+    let _ = rc_pos; // silence unused warning
+}
+
 /// CANCEL1-b2h7: the immune actor project scan loop must check the shutdown token
 /// at each project iteration so a large project list can be preempted cooperatively
 /// during process shutdown, not forced to run all projects to completion.

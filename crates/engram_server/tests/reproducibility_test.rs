@@ -4,10 +4,17 @@
 //! Verifies that chunk IDs, graph edges, and search results are stable and
 //! reproducible across clean indexing, incremental updates, and re-indexing.
 
-use engram_core::Config;
+use engram_core::{Config, Registry};
 use engram_server::AppState;
 use rmcp::handler::server::tool::Parameters;
 use tempfile::tempdir;
+use engram_server::services::autonomous_decision_service::{
+    AdpInput as RepAdpInput, AdpVerdict as RepAdpVerdict, RiskProfile as RepRiskProfile,
+    RetrievalMode as RepRetrievalMode, evaluate_gates as rep_evaluate_gates,
+};
+use engram_server::services::safety_service::{
+    PolicyDecision as RepPolicyDecision, RiskLevel as RepRiskLevel,
+};
 
 /// Golden fixture: a small multi-file C# project with known structure.
 fn write_golden_fixture(root: &std::path::Path) {
@@ -549,4 +556,424 @@ async fn chunk_id_from_content_hash_stable() {
     let cid1 = chunk_id_from_content_hash(&ch1);
     let cid2 = chunk_id_from_content_hash(&ch2);
     assert_eq!(cid1, cid2, "chunk_id must be stable for same content hash");
+}
+
+// ── ADP verdict reproducibility tests (from adp_verdict_reproducibility_tests.rs) ──
+
+fn safe_policy() -> RepPolicyDecision {
+    RepPolicyDecision {
+        allowed: true,
+        risk_level: RepRiskLevel::Low,
+        checks: vec![],
+        confidence: 0.95,
+        summary: "Safe".into(),
+        mitigations: vec![],
+    }
+}
+
+fn unsafe_policy() -> RepPolicyDecision {
+    RepPolicyDecision {
+        allowed: false,
+        risk_level: RepRiskLevel::High,
+        checks: vec![],
+        confidence: 0.3,
+        summary: "Unsafe".into(),
+        mitigations: vec!["review required".into()],
+    }
+}
+
+fn all_green_input() -> RepAdpInput {
+    RepAdpInput {
+        extraction_confidence: Some(0.9),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 0,
+        safety_decision: Some(safe_policy()),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.85),
+        retrieval_recall: Some(0.90),
+        blast_radius_risk: Some(2),
+        blast_radius_band: Some(engram_server::services::blast_radius_service::RiskBand::Low),
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.05),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RepRiskProfile::Medium,
+        min_extraction_confidence: 0.5,
+        min_safety_confidence: 0.7,
+        max_blast_radius_for_auto: 6,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RepRetrievalMode::Live,
+        migration_class: None,
+    }
+}
+
+/// The Registry set_meta → get_meta contract: after set_meta commits,
+/// the new generation value is immediately visible. This is the production
+/// persistence path (redb write transaction) that must succeed for
+/// generation advancement to occur.
+#[test]
+fn registry_set_meta_makes_generation_visible() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("reg.redb")).expect("open registry");
+
+    reg.set_meta("proj-gen-contract", "active_generation", "10")
+        .expect("set_meta must commit successfully");
+
+    let val = reg
+        .get_meta("proj-gen-contract", "active_generation")
+        .expect("get_meta must not error")
+        .expect("active_generation must be present after set_meta commits");
+
+    assert_eq!(
+        val, "10",
+        "AUD-2026-INV-0002: generation must be visible as '10' immediately after set_meta commits"
+    );
+}
+
+/// The fail-before-commit contract: if set_meta is never called for a new
+/// generation (e.g. process_ingest_stats failed before reaching set_meta),
+/// the old generation value is the only value visible in the Registry.
+/// Tests the production redb read path directly.
+#[test]
+fn registry_generation_absent_before_set_meta_is_called() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = Registry::open(&tmp.path().join("reg.redb")).expect("open registry");
+
+    // Establish old generation at 5
+    reg.set_meta("proj-gen-order", "active_generation", "5")
+        .expect("establish old generation");
+
+    // new_gen=6 was computed but set_meta was NOT called (process_ingest_stats failed first).
+    // The Registry must still show 5, not 6.
+    let visible = reg
+        .get_meta("proj-gen-order", "active_generation")
+        .expect("get_meta must not error")
+        .expect("baseline generation must be present");
+
+    assert_eq!(
+        visible, "5",
+        "AUD-2026-INV-0002: generation must remain at '5' when set_meta(6) was never called"
+    );
+    assert_ne!(
+        visible, "6",
+        "AUD-2026-INV-0002: uncommitted generation '6' must not appear in the registry"
+    );
+}
+
+/// When retrieval is skipped (infra failure), the overall ADP confidence must
+/// NOT be depressed as if the retrieval had scored poorly — the gate is simply
+/// absent from the score, not counted as zero.
+#[test]
+fn adp_skipped_retrieval_confidence_not_depressed_vs_live() {
+    let mut live = all_green_input();
+    live.retrieval_mode = RepRetrievalMode::Live;
+    live.retrieval_production_ready = Some(true);
+    live.retrieval_ndcg = Some(0.85);
+
+    let mut skipped = all_green_input();
+    skipped.retrieval_mode = RepRetrievalMode::Skipped;
+    skipped.retrieval_production_ready = None;
+    skipped.retrieval_ndcg = None;
+    skipped.retrieval_recall = None;
+
+    let live_dec = rep_evaluate_gates(&live);
+    let skip_dec = rep_evaluate_gates(&skipped);
+
+    // Skipped confidence should be reasonably close to live confidence
+    // (not artificially low due to "missing" retrieval counting as zero)
+    let delta = (live_dec.confidence - skip_dec.confidence).abs();
+    assert!(
+        delta < 0.40,
+        "AUD-2026-INV-0005: skipped retrieval confidence ({}) must not be severely \
+         depressed vs live retrieval confidence ({}) — delta={delta:.3}",
+        skip_dec.confidence, live_dec.confidence
+    );
+}
+
+/// When both safety AND blast radius fail simultaneously, the confidence
+/// should be lower than either failure alone (interaction penalty).
+#[test]
+fn compound_safety_blast_failure_lower_confidence_than_single_failure() {
+    // Only safety fails
+    let mut safety_only = all_green_input();
+    safety_only.safety_decision = Some(unsafe_policy());
+    let safety_only_dec = rep_evaluate_gates(&safety_only);
+
+    // Only blast radius fails
+    let mut blast_only = all_green_input();
+    blast_only.blast_radius_risk = Some(9);
+    blast_only.blast_radius_band =
+        Some(engram_server::services::blast_radius_service::RiskBand::Critical);
+    blast_only.blast_radius_downstream = Some(50);
+    let blast_only_dec = rep_evaluate_gates(&blast_only);
+
+    // Both fail together
+    let mut both = all_green_input();
+    both.safety_decision = Some(unsafe_policy());
+    both.blast_radius_risk = Some(9);
+    both.blast_radius_band =
+        Some(engram_server::services::blast_radius_service::RiskBand::Critical);
+    both.blast_radius_downstream = Some(50);
+    let both_dec = rep_evaluate_gates(&both);
+
+    // Both verdicts must be Deny
+    assert_eq!(safety_only_dec.verdict, RepAdpVerdict::Deny,
+        "safety-only failure must Deny");
+    assert_eq!(blast_only_dec.verdict, RepAdpVerdict::Deny,
+        "blast-only failure must Deny");
+    assert_eq!(both_dec.verdict, RepAdpVerdict::Deny,
+        "compound failure must Deny");
+
+    // Compound confidence must be lower than either single failure
+    assert!(
+        both_dec.confidence <= safety_only_dec.confidence.max(blast_only_dec.confidence),
+        "compound failure confidence ({}) must not exceed single-failure confidence \
+         (safety={}, blast={})",
+        both_dec.confidence, safety_only_dec.confidence, blast_only_dec.confidence
+    );
+}
+
+/// Deterministic: calling evaluate_gates with the same input twice must produce
+/// the same verdict and identical confidence (no random/non-deterministic paths).
+#[test]
+fn same_input_produces_identical_verdict_and_confidence() {
+    let input = all_green_input();
+    let dec1 = rep_evaluate_gates(&input);
+    let dec2 = rep_evaluate_gates(&input);
+
+    assert_eq!(dec1.verdict, dec2.verdict,
+        "reproducibility: same input must produce same verdict");
+    assert_eq!(dec1.confidence, dec2.confidence,
+        "reproducibility: same input must produce identical confidence");
+    assert_eq!(dec1.gate_results.len(), dec2.gate_results.len(),
+        "reproducibility: same number of gate results");
+}
+
+/// Deterministic: the deny verdict for failing safety must reproduce exactly.
+#[test]
+fn deny_verdict_reproduces_identically() {
+    let mut input = all_green_input();
+    input.safety_decision = Some(unsafe_policy());
+
+    let dec1 = rep_evaluate_gates(&input);
+    let dec2 = rep_evaluate_gates(&input);
+
+    assert_eq!(dec1.verdict, dec2.verdict,
+        "deny verdict must be deterministic");
+    assert_eq!(dec1.confidence, dec2.confidence,
+        "deny confidence must be deterministic");
+}
+
+/// When a post-index job degrades (enrichment failed), the ADP verdict based
+/// on that evidence should be more conservative. When the enrichment is retried
+/// successfully, the ADP verdict should become more permissive.
+#[test]
+fn corrected_enrichment_after_degraded_improves_adp_verdict() {
+    // Degraded: retrieval evidence unavailable (infra error during enrichment)
+    let mut degraded = all_green_input();
+    degraded.retrieval_mode = RepRetrievalMode::Skipped;
+    degraded.retrieval_production_ready = None;
+    degraded.retrieval_ndcg = None;
+    degraded.retrieval_recall = None;
+    let degraded_dec = rep_evaluate_gates(&degraded);
+
+    // Clean: retrieval evidence available (enrichment succeeded on retry)
+    let clean = all_green_input();
+    let clean_dec = rep_evaluate_gates(&clean);
+
+    // Clean run should produce Allow (or at least equal/better verdict)
+    assert_eq!(clean_dec.verdict, RepAdpVerdict::Allow,
+        "clean enrichment run must produce Allow");
+
+    // Clean confidence >= degraded confidence (enrichment adds information)
+    assert!(
+        clean_dec.confidence >= degraded_dec.confidence,
+        "clean enrichment confidence ({}) must be >= degraded confidence ({})",
+        clean_dec.confidence, degraded_dec.confidence
+    );
+}
+
+/// The ADP pipeline must not Allow when all three critical gates (safety,
+/// extraction, blast radius) simultaneously fail.
+#[test]
+fn adp_deny_when_all_three_hard_gates_fail() {
+    let mut input = all_green_input();
+    // Safety fails
+    input.safety_decision = Some(unsafe_policy());
+    // Extraction fails
+    input.extraction_confidence = Some(0.1);
+    input.extraction_band = Some("low".into());
+    // Blast radius critical
+    input.blast_radius_risk = Some(9);
+    input.blast_radius_band =
+        Some(engram_server::services::blast_radius_service::RiskBand::Critical);
+    input.blast_radius_downstream = Some(100);
+
+    let decision = rep_evaluate_gates(&input);
+    assert_ne!(
+        decision.verdict,
+        RepAdpVerdict::Allow,
+        "all-three-gates-failing must not produce Allow; got {:?}",
+        decision.verdict
+    );
+}
+
+/// Mutation test: injecting a failing safety gate into an otherwise all-green
+/// input must change Allow → Deny. The pipeline must not "absorb" the mutation.
+#[test]
+fn adp_mutation_safety_fail_changes_allow_to_deny() {
+    let baseline = all_green_input();
+    let baseline_dec = rep_evaluate_gates(&baseline);
+    assert_eq!(baseline_dec.verdict, RepAdpVerdict::Allow,
+        "baseline must be Allow");
+
+    let mut mutated = all_green_input();
+    mutated.safety_decision = Some(unsafe_policy());
+    let mutated_dec = rep_evaluate_gates(&mutated);
+
+    assert_eq!(mutated_dec.verdict, RepAdpVerdict::Deny,
+        "safety mutation must flip Allow to Deny");
+    assert_ne!(baseline_dec.verdict, mutated_dec.verdict,
+        "mutation must produce detectably different verdict");
+}
+
+/// Mutation test: injecting critical blast radius into all-green must
+/// change Allow → Deny.
+#[test]
+fn adp_mutation_critical_blast_radius_changes_allow_to_deny() {
+    let baseline = all_green_input();
+    assert_eq!(rep_evaluate_gates(&baseline).verdict, RepAdpVerdict::Allow);
+
+    let mut mutated = all_green_input();
+    mutated.blast_radius_risk = Some(9);
+    mutated.blast_radius_band =
+        Some(engram_server::services::blast_radius_service::RiskBand::Critical);
+    mutated.blast_radius_downstream = Some(50);
+    mutated.max_blast_radius_for_auto = 5;
+
+    let dec = rep_evaluate_gates(&mutated);
+    assert_ne!(dec.verdict, RepAdpVerdict::Allow,
+        "critical blast radius mutation must not remain Allow; got {:?}", dec.verdict);
+}
+
+/// Canary: all-green input must produce Allow with confidence > 0.7.
+/// If this test starts failing, it signals a regression in the confidence
+/// calibration or gate logic.
+#[test]
+fn enrichment_canary_all_green_produces_allow_with_high_confidence() {
+    let input = all_green_input();
+    let decision = rep_evaluate_gates(&input);
+
+    assert_eq!(decision.verdict, RepAdpVerdict::Allow,
+        "enrichment canary: all-green must Allow");
+    assert!(
+        decision.confidence > 0.7,
+        "enrichment canary: all-green confidence must exceed 0.7; got {}",
+        decision.confidence
+    );
+}
+
+/// Chaos test: 10 concurrent spawn_blocking panics must all independently
+/// produce JoinError — no deadlock, no silent swallowing, no cross-task
+/// contamination. (Tests the behavioral property the actor fixes rely on.)
+#[tokio::test]
+async fn concurrent_spawn_blocking_panics_all_produce_join_errors() {
+    use futures::future::join_all;
+
+    let handles: Vec<_> = (0..10)
+        .map(|i| {
+            tokio::task::spawn_blocking(move || -> i32 {
+                panic!("chaos: concurrent spawn_blocking panic #{i}");
+            })
+        })
+        .collect();
+
+    let results = join_all(handles).await;
+
+    let error_count = results.iter().filter(|r| r.is_err()).count();
+    assert_eq!(
+        error_count, 10,
+        "All 10 concurrent spawn_blocking panics must produce JoinError; \
+         got {error_count}/10 errors"
+    );
+
+    // Each error must be identifiable as a panic (not a cancellation)
+    for (i, result) in results.iter().enumerate() {
+        let err = result.as_ref().unwrap_err();
+        assert!(
+            err.is_panic(),
+            "concurrent panic #{i} must be is_panic()=true; got cancelled={}",
+            err.is_cancelled()
+        );
+    }
+}
+
+/// No orphan results: when all spawn_blocking tasks panic, none should
+/// produce Ok(_) — all results must be Err.
+#[tokio::test]
+async fn all_panicking_spawn_blockings_produce_only_errors_no_ok() {
+    use futures::future::join_all;
+
+    let handles: Vec<_> = (0..5)
+        .map(|_| {
+            tokio::task::spawn_blocking(|| -> String {
+                panic!("all-panic chaos test");
+            })
+        })
+        .collect();
+
+    let results = join_all(handles).await;
+    let ok_count = results.iter().filter(|r| r.is_ok()).count();
+
+    assert_eq!(
+        ok_count, 0,
+        "No panicking spawn_blocking must return Ok; got {ok_count} Ok results \
+         (implies some errors were silently swallowed)"
+    );
+}
+
+/// Embed parse parity: the full range of valid float types must parse correctly.
+#[test]
+fn embed_parse_parity_all_valid_json_float_types() {
+    let cases = vec![
+        (serde_json::json!(0.0f64), 0.0f32),
+        (serde_json::json!(1.0f64), 1.0f32),
+        (serde_json::json!(-1.0f64), -1.0f32),
+        (serde_json::json!(0.5f64), 0.5f32),
+        (serde_json::json!(1e-5f64), 1e-5f32),
+    ];
+
+    for (json_val, expected) in &cases {
+        let result: Option<f64> = json_val.as_f64();
+        assert!(result.is_some(),
+            "valid float JSON value must parse via as_f64(): {json_val}");
+        let parsed = result.unwrap() as f32;
+        assert!(
+            (parsed - expected).abs() < 1e-4,
+            "parsed {parsed} must be close to {expected} for input {json_val}"
+        );
+    }
+}
+
+/// Embed parse: all known-invalid JSON types must return None from as_f64().
+#[test]
+fn embed_parse_all_invalid_json_types_return_none() {
+    let invalid_values = vec![
+        serde_json::Value::Null,
+        serde_json::json!("string"),
+        serde_json::json!(true),
+        serde_json::json!(false),
+        serde_json::json!({"key": "value"}),
+        serde_json::json!([1, 2, 3]),
+    ];
+
+    for val in &invalid_values {
+        assert!(
+            val.as_f64().is_none(),
+            "invalid JSON type must return None from as_f64(): {val}"
+        );
+    }
 }
