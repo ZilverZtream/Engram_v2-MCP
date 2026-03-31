@@ -14,7 +14,7 @@
 
 use engram_server::services::autonomous_decision_service::{
     AdpInput, AdpVerdict, RiskProfile, RolloutPhase,
-    apply_rollout_policy, evaluate_gates,
+    apply_rollout_policy, evaluate_gates, build_decision_report, ConfigSnapshot,
 };
 use engram_server::services::safety_service::PolicyDecision;
 
@@ -748,5 +748,162 @@ fn adp2_appstate_init_reads_kill_switch_from_registry() {
         state_src.contains("effective_kill_switch"),
         "ADP2: AppState::new must compute effective_kill_switch = \
          config || registry and store it in adp_kill_switch AtomicBool"
+    );
+}
+
+// ── ADP1: provenance completeness and replay integrity ────────────────────────
+
+/// ADP1 / Section 9: ConfigSnapshot must carry a runtime_triple field so that
+/// cross-platform replay divergence is detectable — OS/arch attestation for forensics.
+#[test]
+fn adp1_config_snapshot_has_runtime_triple_field() {
+    let src = include_str!("../src/services/autonomous_decision_service.rs");
+    assert!(
+        src.contains("runtime_triple"),
+        "ADP1/Section9: ConfigSnapshot must include runtime_triple field \
+         (OS/arch attestation) for cross-platform forensic replay"
+    );
+}
+
+/// ADP1 / Section 9: build_decision_report must populate runtime_triple with OS+ARCH.
+#[test]
+fn adp1_build_decision_report_populates_runtime_triple() {
+    let src = include_str!("../src/services/autonomous_decision_service.rs");
+    assert!(
+        src.contains("env::consts::OS") || src.contains("consts::OS"),
+        "ADP1/Section9: build_decision_report must set runtime_triple with OS"
+    );
+    assert!(
+        src.contains("env::consts::ARCH") || src.contains("consts::ARCH"),
+        "ADP1/Section9: build_decision_report must include ARCH in runtime_triple"
+    );
+}
+
+fn make_config_snapshot() -> ConfigSnapshot {
+    ConfigSnapshot {
+        adp_min_extraction_confidence: 0.7,
+        safety_min_confidence: 0.6,
+        safety_min_coverage: 0.5,
+        adp_max_blast_radius: 5,
+        safety_policy_enabled: false,
+        gate_code_version: "replay-test-1.0.0".into(),
+        evidence_schema_version: "1.0.0".into(),
+        evidence_hash: String::new(),
+        crate_version: String::new(),
+        runtime_triple: String::new(),
+    }
+}
+
+fn make_passing_adp_input() -> AdpInput {
+    AdpInput {
+        extraction_confidence: Some(0.92),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 3,
+        safety_decision: None,
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.88),
+        retrieval_recall: Some(0.91),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(4),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.95),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        migration_class: None,
+    }
+}
+
+/// ADP1 / Section 9: replay determinism — identical inputs must produce identical
+/// evidence_hash across multiple evaluate_gates() + build_decision_report() calls.
+#[test]
+fn adp1_replay_determinism_identical_inputs_produce_identical_evidence_hash() {
+    let input = make_passing_adp_input();
+    let config = make_config_snapshot();
+
+    let d1 = evaluate_gates(&input);
+    let r1 = build_decision_report(
+        &d1, "proj-a", "change-a", &[], "low",
+        serde_json::Value::Null, config.clone(), "build-1",
+    );
+
+    let d2 = evaluate_gates(&input);
+    let r2 = build_decision_report(
+        &d2, "proj-a", "change-a", &[], "low",
+        serde_json::Value::Null, config, "build-1",
+    );
+
+    assert_eq!(
+        r1.config_snapshot.evidence_hash,
+        r2.config_snapshot.evidence_hash,
+        "ADP1/Section9: identical inputs must produce identical evidence_hash — \
+         non-determinism breaks replay integrity"
+    );
+    assert_eq!(r1.verdict, r2.verdict,
+        "ADP1/Section9: identical inputs must produce identical verdict on replay");
+}
+
+/// ADP1 / Section 9: runtime_triple must be non-empty after build_decision_report
+/// and must be in OS/ARCH format.
+#[test]
+fn adp1_build_decision_report_runtime_triple_is_non_empty_and_formatted() {
+    let input = make_passing_adp_input();
+    let config = make_config_snapshot();
+
+    let decision = evaluate_gates(&input);
+    let report = build_decision_report(
+        &decision, "proj-rt", "change-rt", &[], "low",
+        serde_json::Value::Null, config, "build-rt",
+    );
+
+    assert!(
+        !report.config_snapshot.runtime_triple.is_empty(),
+        "ADP1/Section9: runtime_triple must be populated by build_decision_report"
+    );
+    assert!(
+        report.config_snapshot.runtime_triple.contains('/'),
+        "ADP1/Section9: runtime_triple must be OS/ARCH format; got {:?}",
+        report.config_snapshot.runtime_triple
+    );
+}
+
+// ── X4: ADP gate wiring completeness ──────────────────────────────────────────
+
+/// X4: autonomous_decision_gate must be registered in CAPABILITY_FLAGS.
+#[test]
+fn x4_autonomous_decision_gate_registered_in_capability_flags() {
+    let caps_src = include_str!("../src/capabilities.rs");
+    assert!(
+        caps_src.contains("autonomous_decision_gate"),
+        "X4: capabilities.rs must register autonomous_decision_gate as the \
+         enforcement anchor for all enqueue-capable tools — missing registration \
+         means the gate can be bypassed by callers who skip the flag check"
+    );
+}
+
+/// X4: write-class handlers must integrate ADP verdict checking before spawning jobs.
+#[test]
+fn x4_write_class_handlers_integrate_adp_verdicts() {
+    let cognitive_src = include_str!("../src/handlers/cognitive_tools.rs");
+    let project_src   = include_str!("../src/handlers/project_tools.rs");
+
+    let adp_integrated = cognitive_src.contains("autonomous_decision")
+        || cognitive_src.contains("AdpVerdict")
+        || project_src.contains("autonomous_decision")
+        || project_src.contains("AdpVerdict");
+
+    assert!(
+        adp_integrated,
+        "X4: at least one write-class handler must integrate ADP gate \
+         (autonomous_decision / AdpVerdict) before spawning jobs — \
+         absence allows autonomous changes without policy review"
     );
 }

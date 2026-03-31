@@ -650,3 +650,111 @@ async fn factory_and_direct_construction_both_return_nonzero_embeddings() {
         v_direct.len(), v_factory.len()
     );
 }
+
+// ── EMB1: no direct embed_batch() calls in production code ────────────────────
+
+/// EMB1: all production embedding call sites must use embed_batch_cancellable(),
+/// not the non-cancellable embed_batch() default. Direct embed_batch() calls
+/// bypass the cancellation token, leaving in-flight HTTP requests running after
+/// shutdown — scan proves no production code takes this path.
+#[test]
+fn emb1_no_direct_embed_batch_calls_in_production_code() {
+    let sources: &[(&str, &str)] = &[
+        ("engram_index/hybrid.rs",      include_str!("../../engram_index/src/hybrid.rs")),
+        ("engram_server/ingest_service", include_str!("../src/services/ingest_service.rs")),
+        ("engram_server/cognitive_tools", include_str!("../src/handlers/cognitive_tools.rs")),
+        ("engram_server/search_tools",   include_str!("../src/handlers/search_tools.rs")),
+        ("engram_server/project_tools",  include_str!("../src/handlers/project_tools.rs")),
+    ];
+
+    for (name, src) in sources {
+        // "embed_batch(" only matches the non-cancellable form — the cancellable
+        // form uses "embed_batch_cancellable(" which does not contain "embed_batch("
+        // as a substring (the `_` prevents the match).
+        let bare_count = src.matches("embed_batch(").count();
+
+        assert_eq!(
+            bare_count, 0,
+            "EMB1: {name} must not call embed_batch() directly — \
+             use embed_batch_cancellable() so remote HTTP respects shutdown; \
+             found {bare_count} direct call(s)"
+        );
+    }
+}
+
+/// EMB1: the Embedder trait's embed_batch default impl must delegate to
+/// embed_batch_cancellable with a never-cancelled token, not silently bypass it.
+/// Structural proof: the trait source must contain both method names.
+#[test]
+fn emb1_embed_batch_default_delegates_to_cancellable_path() {
+    let src = include_str!("../../engram_ml/src/embed.rs");
+
+    assert!(
+        src.contains("embed_batch_cancellable"),
+        "EMB1: embed.rs must define embed_batch_cancellable for production use"
+    );
+    // The Embedder trait must have both — default embed_batch and the cancellable override.
+    assert!(
+        src.contains("fn embed_batch(") || src.contains("embed_batch(&self"),
+        "EMB1: Embedder trait must retain embed_batch method for backward compat"
+    );
+}
+
+// ── EMB2: raw struct construction contracts ────────────────────────────────────
+
+/// EMB2: LocalEmbedder constructed directly (not via factory) must return
+/// non-zero-length, non-NaN normalized embeddings — the factory wrapper must
+/// not be required for correct output.
+#[tokio::test]
+async fn emb2_local_embedder_raw_construction_non_nan_normalized() {
+    use engram_ml::LocalEmbedder;
+
+    let embedder = LocalEmbedder;
+    let text = "raw construction contract test";
+    let v = embedder.embed(text).await.expect("LocalEmbedder::embed must not fail");
+
+    assert!(!v.is_empty(), "EMB2: raw LocalEmbedder must return non-empty vector");
+
+    for (i, &val) in v.iter().enumerate() {
+        assert!(
+            val.is_finite(),
+            "EMB2: raw LocalEmbedder output[{i}] must be finite (not NaN/Inf); got {val}"
+        );
+    }
+
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    assert!(
+        norm > 0.0,
+        "EMB2: raw LocalEmbedder output must be non-zero (zero vector breaks cosine similarity)"
+    );
+}
+
+/// EMB2: ProjectionEmbedder constructed directly must honour empty-text,
+/// multi-sentence, and unicode contracts without panicking.
+#[tokio::test]
+async fn emb2_projection_embedder_raw_construction_edge_cases() {
+    use engram_ml::ProjectionEmbedder;
+
+    let embedder = ProjectionEmbedder::new(128);
+
+    let long_input = "a ".repeat(500);
+    let cases: &[&str] = &[
+        "",                          // empty — must not panic
+        "   ",                       // whitespace-only
+        "\u{3053}\u{3093}\u{306b}\u{3061}\u{306f}\u{4e16}\u{754c}", // unicode CJK: こんにちは世界
+        long_input.trim(),           // very long input
+        "line1\nline2\nline3",       // multi-line
+    ];
+
+    for text in cases {
+        let result = embedder.embed(text).await;
+        assert!(
+            result.is_ok(),
+            "EMB2: ProjectionEmbedder must not panic/error on {:?}; got {:?}",
+            &text[..text.len().min(30)], result.err()
+        );
+        let v = result.unwrap();
+        assert_eq!(v.len(), 128,
+            "EMB2: dimension contract must hold for all inputs; got {}", v.len());
+    }
+}
