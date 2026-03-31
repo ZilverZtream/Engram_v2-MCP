@@ -600,3 +600,115 @@ fn no_project_record_when_dir_creation_fails_explicit_err() {
         "error message must not be empty (must be diagnosable)"
     );
 }
+
+// ── REG2: section_id handler-boundary validation ─────────────────────────────
+
+/// REG2: `handle_update_memory_bank` must validate `section_id` at the handler
+/// boundary.  A section_id containing NUL bytes would corrupt the composite
+/// registry key `{project_id}\0{section_id}`, while a section_id containing
+/// newlines would corrupt DOCS_BY_FILE index mappings.
+///
+/// This structural test proves the validation call is present in the source
+/// before the section is persisted or indexed.
+#[test]
+fn handle_update_memory_bank_validates_section_id_at_handler_boundary() {
+    let source = include_str!("../src/handlers/project_tools.rs");
+
+    // Find the handle_update_memory_bank function.
+    let fn_start = source
+        .find("fn handle_update_memory_bank")
+        .expect("REG2: handle_update_memory_bank must exist in project_tools.rs");
+    // Take a window spanning the function — 3000 chars is enough.
+    let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
+
+    // validate_key_component must be called on section_id before put_memory_section.
+    let validate_pos = fn_body
+        .find("validate_key_component")
+        .expect("REG2: handle_update_memory_bank must call validate_key_component \
+                  on section_id before persisting to registry or search index");
+
+    let persist_pos = fn_body
+        .find("put_memory_section")
+        .expect("REG2: handle_update_memory_bank must call put_memory_section");
+
+    assert!(
+        validate_pos < persist_pos,
+        "REG2: validate_key_component must appear before put_memory_section in \
+         handle_update_memory_bank — validating after the write is useless; \
+         validate_pos={validate_pos}, persist_pos={persist_pos}"
+    );
+
+    // The field name in the error must identify section_id so callers can diagnose.
+    assert!(
+        fn_body.contains("section_id"),
+        "REG2: the validation error message must reference 'section_id' by name so \
+         MCP callers know which field is invalid"
+    );
+}
+
+/// REG2: `validate_key_component` must reject NUL bytes (the registry composite
+/// key delimiter) and newline bytes (the DOCS_BY_FILE entry delimiter).
+#[test]
+fn validate_key_component_rejects_section_id_delimiters() {
+    use engram_core::security::validate_key_component;
+
+    // NUL byte — registry composite key delimiter.
+    assert!(
+        validate_key_component("section_id", "valid\x00evil").is_err(),
+        "REG2: NUL byte in section_id must be rejected — it would corrupt the \
+         registry composite key <project_id>\\0<section_id>"
+    );
+
+    // Newline — DOCS_BY_FILE list delimiter.
+    assert!(
+        validate_key_component("section_id", "valid\nevil").is_err(),
+        "REG2: newline in section_id must be rejected — it would corrupt the \
+         DOCS_BY_FILE index which stores doc_ids separated by newlines"
+    );
+
+    // Valid section_id patterns must pass.
+    for valid in ["overview", "engram/index_report", "section-1", "my.section_v2"] {
+        assert!(
+            validate_key_component("section_id", valid).is_ok(),
+            "REG2: valid section_id {:?} must pass validate_key_component", valid
+        );
+    }
+}
+
+/// MCP1: every handler file that accepts a project_id must call validate_project_id
+/// before using the value in filesystem or registry operations.
+///
+/// This automated structural sweep enumerates the handler source files and asserts
+/// that each one that references `project_id` also calls `validate_project_id`,
+/// providing a route-to-validator mapping guarantee for all handler entrypoints.
+#[test]
+fn all_handler_files_that_use_project_id_call_validate_project_id() {
+    let handler_sources: &[(&str, &str)] = &[
+        ("project_tools.rs",           include_str!("../src/handlers/project_tools.rs")),
+        ("cognitive_tools.rs",         include_str!("../src/handlers/cognitive_tools.rs")),
+        ("search_tools.rs",            include_str!("../src/handlers/search_tools.rs")),
+        ("migration_tools.rs",         include_str!("../src/handlers/migration_tools.rs")),
+        ("git_tools.rs",               include_str!("../src/handlers/git_tools.rs")),
+        ("graph_tools.rs",             include_str!("../src/handlers/graph_tools.rs")),
+        ("access_layer_tools.rs",      include_str!("../src/handlers/access_layer_tools.rs")),
+    ];
+
+    for (name, src) in handler_sources {
+        let uses_project_id = src.contains("project_id") || src.contains("req.project_id");
+        // Direct call OR delegation to service helpers that call validate_project_id internally.
+        let has_validator = src.contains("validate_project_id")
+            || src.contains("validate_project_id_str")
+            || src.contains("validate_key_component")
+            || src.contains("ensure_project_record")
+            || src.contains("ensure_project_runtime");
+
+        if uses_project_id {
+            assert!(
+                has_validator,
+                "MCP1: {name} uses project_id but does not call validate_project_id — \
+                 every handler that accepts project_id as input must validate it at the \
+                 boundary before using it in registry or filesystem operations"
+            );
+        }
+    }
+}

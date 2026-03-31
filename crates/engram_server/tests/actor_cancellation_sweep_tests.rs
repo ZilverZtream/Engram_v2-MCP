@@ -896,6 +896,117 @@ fn cancellation_policy_every_async_loop_body_has_cancel_check() {
     }
 }
 
+// ── MIG1-t7e5: migration service cancellation failpoint behavioral tests ─────
+
+/// MIG1: structural test — all 5 cancellation boundary messages must exist in the
+/// migration service source, one per major phase.  If a boundary is removed or
+/// renamed without updating the test, this fails immediately.
+#[test]
+fn migration_service_has_all_five_cancellation_boundary_messages() {
+    let src = include_str!("../src/services/full_project_migration_service.rs");
+
+    let expected_messages = [
+        "MIG1: migration cancelled before start",
+        "MIG1: migration cancelled after project-wide graph analyses",
+        "MIG1: migration cancelled during per-file dossier phase",
+        "MIG1: migration cancelled before Phase 32 analyses",
+        "MIG1: migration cancelled before report assembly",
+    ];
+
+    for msg in &expected_messages {
+        assert!(
+            src.contains(msg),
+            "MIG1: migration service must contain cancellation boundary message {msg:?} — \
+             each major phase boundary must have a cooperative cancel check"
+        );
+    }
+
+    // The is_cancelled() call count must be >= 5 (one per boundary).
+    let count = src.matches("is_cancelled()").count();
+    assert!(
+        count >= 5,
+        "MIG1: migration service must have at least 5 is_cancelled() calls (one per \
+         phase boundary); found {count} — a boundary check may have been deleted"
+    );
+}
+
+/// MIG1: behavioral test — a pre-cancelled token causes analyze_full_project to
+/// return Err before any work is done (the "before start" checkpoint fires first).
+#[test]
+fn migration_analyse_returns_err_when_cancelled_before_start() {
+    use engram_server::services::full_project_migration_service::{
+        analyze_full_project, ProjectFileBundle,
+    };
+    use engram_graph::GraphStore;
+    use std::sync::Arc;
+    use tokio_util::sync::CancellationToken;
+
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let graph = Arc::new(GraphStore::open(tmp.path().join("graph.redb").as_path())
+        .expect("GraphStore::open"));
+    let bundle = ProjectFileBundle {
+        markup_files: vec![],
+        js_files: vec![],
+        classic_asp_files: vec![],
+        report_files: vec![],
+        global_asax: None,
+        web_config_content: None,
+        code_files: vec![],
+        project_references: vec![],
+        sql_files: vec![],
+        packages_config_files: vec![],
+        config_transform_files: vec![],
+        resx_files: vec![],
+        master_files: vec![],
+    };
+
+    let cancel = CancellationToken::new();
+    cancel.cancel(); // pre-cancel before calling analyze_full_project
+
+    let result = analyze_full_project(&graph, "test-proj", "dotnet9", &bundle, 0, &cancel);
+
+    assert!(
+        result.is_err(),
+        "MIG1: analyze_full_project must return Err when token is pre-cancelled; \
+         got Ok — the before-start cancel check is missing or not firing"
+    );
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("cancelled"),
+        "MIG1: cancellation error must mention 'cancelled'; got: {err:?}"
+    );
+}
+
+/// MIG1: structural ordering test — the 5 cancel checks must appear in source order
+/// matching the phases: before-start < after-graph-analyses < per-file < phase32 < report-assembly.
+/// This proves no phase was accidentally reordered, which would leave an unguarded gap.
+#[test]
+fn migration_cancellation_boundary_checks_are_in_phase_order() {
+    let src = include_str!("../src/services/full_project_migration_service.rs");
+
+    let boundaries = [
+        "MIG1: migration cancelled before start",
+        "MIG1: migration cancelled after project-wide graph analyses",
+        "MIG1: migration cancelled during per-file dossier phase",
+        "MIG1: migration cancelled before Phase 32 analyses",
+        "MIG1: migration cancelled before report assembly",
+    ];
+
+    let mut last_pos = 0usize;
+    for (i, msg) in boundaries.iter().enumerate() {
+        let pos = src.find(msg).unwrap_or_else(|| {
+            panic!("MIG1: cancellation boundary message not found: {msg:?}")
+        });
+        assert!(
+            pos > last_pos,
+            "MIG1: cancellation boundary [{i}] {msg:?} appears at byte {pos} which is \
+             before the previous boundary at byte {last_pos} — cancel checks are out of \
+             phase order; a phase boundary may have been moved"
+        );
+        last_pos = pos;
+    }
+}
+
 /// CANCEL-POLICY-INDEX: hybrid.rs loops in the index crate are synchronous
 /// pagination loops (no `.await`) — they are explicitly exempt from the
 /// cancellation policy.  This test documents and enforces that exemption:
