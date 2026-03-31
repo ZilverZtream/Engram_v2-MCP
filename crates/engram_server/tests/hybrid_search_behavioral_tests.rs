@@ -1821,3 +1821,81 @@ async fn vec1_lifecycle_index_reindex_required_flag_clear_search_restored() {
          search quality was not restored"
     );
 }
+
+/// VEC1/ATOMIC: structural proof that `upsert_vectors` in vector.rs calls
+/// `merge_insert` exactly once per invocation — not in a retry loop, not
+/// split into multiple partial upserts.
+///
+/// A single `merge_insert` call is the atomicity guarantee: LanceDB executes
+/// it as one atomic operation, so there is no window where old rows are absent
+/// and new rows have not yet arrived.
+#[test]
+fn upsert_vectors_calls_merge_insert_exactly_once() {
+    let source = include_str!("../../engram_index/src/vector.rs");
+
+    // Find the upsert_vectors function signature then skip to the opening brace.
+    let sig_start = source
+        .find("pub async fn upsert_vectors")
+        .expect("VEC1/ATOMIC: upsert_vectors must exist in vector.rs");
+    // The opening `{` starts the actual function body (skip the signature line).
+    let brace_offset = source[sig_start..]
+        .find('{')
+        .expect("VEC1/ATOMIC: upsert_vectors must have a body `{`");
+    let fn_start = sig_start + brace_offset;
+    // Take a generous window — the function body is short (~20 lines).
+    let fn_body = &source[fn_start..fn_start + 600.min(source.len() - fn_start)];
+
+    // Count `table.merge_insert(` call-site lines specifically.
+    // Using `.merge_insert(` pattern — distinct from the error message string
+    // which uses `merge_insert f` (no dot prefix).
+    let call_count = fn_body
+        .lines()
+        .filter(|l| l.contains(".merge_insert("))
+        .count();
+    assert_eq!(
+        call_count, 1,
+        "VEC1/ATOMIC: upsert_vectors must call merge_insert exactly once (got {call_count}). \
+         Multiple calls would create a partial-write window between calls, breaking atomicity."
+    );
+}
+
+/// VEC1/PROPAGATE: structural proof that the `execute()` result in `upsert_vectors`
+/// is propagated via `map_err`+`?` — NOT swallowed with `.ok()`.
+///
+/// Swallowing the error with `.ok()` would cause the caller to believe the upsert
+/// succeeded even when LanceDB rejected the write, silently corrupting the vector index.
+#[test]
+fn upsert_vectors_propagates_execute_error_not_swallowed() {
+    let source = include_str!("../../engram_index/src/vector.rs");
+
+    let sig_start2 = source
+        .find("pub async fn upsert_vectors")
+        .expect("VEC1/PROPAGATE: upsert_vectors must exist in vector.rs");
+    let brace_offset2 = source[sig_start2..].find('{').expect("upsert_vectors must have body");
+    let fn_start2 = sig_start2 + brace_offset2;
+    let fn_body = &source[fn_start2..fn_start2 + 600.min(source.len() - fn_start2)];
+
+    // .ok() must NOT appear on or after the execute() call.
+    // The only acceptable patterns are map_err(...)?  or  ?  directly.
+    let execute_pos = fn_body
+        .find(".execute(")
+        .expect("VEC1/PROPAGATE: execute() must be called in upsert_vectors");
+    let after_execute = &fn_body[execute_pos..];
+
+    // No .ok() within 200 chars after execute — that would swallow the error.
+    let ok_pos = after_execute[..200.min(after_execute.len())].find(".ok()");
+    assert!(
+        ok_pos.is_none(),
+        "VEC1/PROPAGATE: execute() result must not be swallowed with .ok() in \
+         upsert_vectors — found .ok() within 200 chars after execute(); \
+         the caller must receive the error so it can emit FullReindexRequired"
+    );
+
+    // map_err must appear after execute — proving the error is wrapped, not dropped.
+    assert!(
+        after_execute.contains("map_err"),
+        "VEC1/PROPAGATE: execute() in upsert_vectors must be followed by map_err \
+         to propagate LanceDB errors to the caller; missing map_err means errors \
+         are silently dropped"
+    );
+}
