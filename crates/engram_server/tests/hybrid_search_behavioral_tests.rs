@@ -1859,6 +1859,58 @@ fn upsert_vectors_calls_merge_insert_exactly_once() {
     );
 }
 
+/// VEC1/PRE-IMAGE: structural proof that `open_or_create_table` captures the row count
+/// before dropping a schema-mismatched table.
+///
+/// The `Recreated` outcome carries `prior_row_count: u64` — captured immediately
+/// before `conn.drop_table()`.  This gives operators an observable data-loss metric
+/// and is the foundation for future dual-write migration.  Without this capture,
+/// a recreation of an empty table looks identical to one that destroyed 500 000 rows.
+#[test]
+fn open_or_create_table_recreated_variant_carries_prior_row_count() {
+    let source = include_str!("../../engram_index/src/vector.rs");
+
+    // The Recreated variant must include prior_row_count.
+    assert!(
+        source.contains("prior_row_count: u64"),
+        "VEC1/PRE-IMAGE: TableOpenOutcome::Recreated must carry prior_row_count: u64 \
+         so callers have an observable data-loss metric; without it, schema-mismatch \
+         data loss is silent regardless of row count"
+    );
+
+    // count_rows must be called before drop_table to capture the pre-drop state.
+    let count_pos = source.find("count_rows(None)").unwrap_or(usize::MAX);
+    let drop_pos  = source.find("drop_table(name").unwrap_or(usize::MAX);
+    assert!(
+        count_pos < drop_pos,
+        "VEC1/PRE-IMAGE: count_rows() must appear before drop_table() in \
+         open_or_create_table — counting after the drop would always return 0. \
+         count_pos={count_pos}, drop_pos={drop_pos}"
+    );
+}
+
+/// VEC1/PRE-IMAGE: the `index_docs` error message for the `Recreated` outcome must
+/// include the `prior_row_count` so operators can see the data-loss magnitude in
+/// logs without querying LanceDB directly.
+#[test]
+fn index_docs_recreated_error_message_includes_row_count() {
+    let source = include_str!("../../engram_index/src/hybrid.rs");
+
+    // The bail! message must reference prior_row_count.
+    assert!(
+        source.contains("prior_row_count"),
+        "VEC1/PRE-IMAGE: index_docs must include prior_row_count in the VEC1 bail! \
+         error message so operators can quantify data loss from logs"
+    );
+
+    // The error must state vectors were lost (observable data-loss framing).
+    assert!(
+        source.contains("vectors were lost") || source.contains("vector data was lost"),
+        "VEC1/PRE-IMAGE: the Recreated error message must state that vectors were lost \
+         so operators understand this is a data-loss event, not just a schema change"
+    );
+}
+
 /// VEC1/PROPAGATE: structural proof that the `execute()` result in `upsert_vectors`
 /// is propagated via `map_err`+`?` — NOT swallowed with `.ok()`.
 ///

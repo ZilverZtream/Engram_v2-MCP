@@ -297,17 +297,19 @@ impl HybridSearchEngine {
                 self.embedder.dimension(),
             )
             .await?;
-            if let crate::vector::TableOpenOutcome::Recreated { ref reason } = open_outcome {
+            if let crate::vector::TableOpenOutcome::Recreated { ref reason, prior_row_count } = open_outcome {
                 // VEC1/X1: fail-closed so the caller knows a full re-index is required.
+                // `prior_row_count` gives operators the exact data-loss metric: the number
+                // of vectors that existed before the schema mismatch forced a drop.
                 // Returning Err here propagates up to the job runner, which must
                 // schedule a full project reindex to repopulate the vector store.
                 // The Tantivy write committed above is idempotent — retrying the
                 // full batch is safe and will repair both stores.
                 anyhow::bail!(
                     "VEC1: vector table '{table_name}' was recreated due to schema mismatch \
-                     ({reason}) — all historical vector data was lost. A full re-index is \
-                     required to restore semantic search quality. Schedule a reindex job for \
-                     project '{project_id}' and retry."
+                     ({reason}) — {prior_row_count} historical vectors were lost. A full \
+                     re-index is required to restore semantic search quality. Schedule a \
+                     reindex job for project '{project_id}' and retry."
                 );
             }
 

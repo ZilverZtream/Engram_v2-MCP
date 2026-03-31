@@ -5302,3 +5302,1096 @@ fn method_body_extraction_helpers_log_compile_failures_via_inspect_err() {
          compile failure so operators can identify the failing method name"
     );
 }
+
+// ── ADP enqueue enforcement, retrieval watcher, and vNext tests ───────────────
+
+use engram_server::services::autonomous_decision_service::{
+    AdpInput, AdpVerdict, RiskProfile, RolloutPhase,
+    apply_rollout_policy, evaluate_gates, evaluate_wave,
+    WaveAdpInput, ReconciliationScores, GraphImpactMetrics, RetrievalMode,
+    format_wave_decision,
+};
+use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
+
+/// Build a minimal AdpInput whose gates will all abstain (no evidence supplied).
+fn abstain_input() -> AdpInput {
+    AdpInput {
+        extraction_confidence: None,
+        extraction_band: None,
+        trace_used_fallback: false,
+        trace_candidate_count: 0,
+        safety_decision: None,
+        retrieval_production_ready: None,
+        retrieval_ndcg: None,
+        retrieval_recall: None,
+        blast_radius_risk: None,
+        blast_radius_band: None,
+        blast_radius_downstream: None,
+        immune_verdict: None,
+        immune_confidence: None,
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    }
+}
+
+/// Build a deny-triggering AdpInput: safety policy explicitly fails.
+fn deny_input() -> AdpInput {
+    AdpInput {
+        extraction_confidence: Some(0.9),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(PolicyDecision {
+            allowed: false,
+            risk_level: RiskLevel::Critical,
+            checks: vec![],
+            confidence: 0.95,
+            summary: "Policy BLOCK: destructive schema change".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.85),
+        retrieval_recall: Some(0.90),
+        blast_radius_risk: Some(3),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(5),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.92),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    }
+}
+
+/// Build an allow-producing AdpInput: all evidence present and passing.
+fn allow_input() -> AdpInput {
+    AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(PolicyDecision {
+            allowed: true,
+            risk_level: RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "Policy ALLOW: low-risk isolated change".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.92),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.97),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    }
+}
+
+fn safe_policy_adp() -> PolicyDecision {
+    PolicyDecision {
+        allowed: true,
+        risk_level: RiskLevel::Low,
+        checks: vec![],
+        confidence: 0.95,
+        summary: "Safe".into(),
+        mitigations: vec![],
+    }
+}
+
+fn unsafe_policy_adp() -> PolicyDecision {
+    PolicyDecision {
+        allowed: false,
+        risk_level: RiskLevel::High,
+        checks: vec![],
+        confidence: 0.3,
+        summary: "Unsafe".into(),
+        mitigations: vec!["review required".into()],
+    }
+}
+
+fn all_green_adp_input() -> AdpInput {
+    AdpInput {
+        extraction_confidence: Some(0.9),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 0,
+        safety_decision: Some(safe_policy_adp()),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.85),
+        retrieval_recall: Some(0.90),
+        blast_radius_risk: Some(2),
+        blast_radius_band: Some(engram_server::services::blast_radius_service::RiskBand::Low),
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.05),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Medium,
+        min_extraction_confidence: 0.5,
+        min_safety_confidence: 0.7,
+        max_blast_radius_for_auto: 6,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Live,
+        migration_class: None,
+    }
+}
+
+// ── adp_enqueue_enforcement_tests (from adp_enqueue_enforcement_tests.rs) ─────
+
+/// JOB1/ADP1: A safety-BLOCK verdict must propagate as AdpVerdict::Deny through
+/// the full evaluate_gates → apply_rollout_policy pipeline in Guarded mode.
+/// No job creation path can reach an autonomous "allow" from these inputs.
+#[test]
+fn adp_safety_deny_propagates_through_full_pipeline_guarded() {
+    let input = deny_input();
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "JOB1: safety BLOCK must produce Deny from evaluate_gates"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "JOB1: Deny must survive apply_rollout_policy in Guarded phase"
+    );
+    assert!(
+        !enforced.reasons.is_empty(),
+        "JOB1: Deny verdict must carry at least one reason"
+    );
+}
+
+/// JOB1/ADP1: Same deny pipeline in Autonomous mode also produces Deny.
+#[test]
+fn adp_safety_deny_propagates_in_autonomous_mode() {
+    let input = deny_input();
+    let raw = evaluate_gates(&input);
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Autonomous, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "JOB1: Deny must survive apply_rollout_policy in Autonomous phase"
+    );
+}
+
+/// JOB1/ADP1: Kill-switch ON must override an Allow verdict to Deny.
+/// This proves no autonomous job can be created while kill-switch is active.
+#[test]
+fn adp_kill_switch_overrides_allow_to_deny() {
+    let input = allow_input();
+    let raw = evaluate_gates(&input);
+    // Without kill-switch, this input should allow.
+    let normal = apply_rollout_policy(&raw, RolloutPhase::Autonomous, false);
+    assert_eq!(
+        normal.verdict,
+        AdpVerdict::Allow,
+        "JOB1: precondition — allow-input must produce Allow without kill-switch"
+    );
+
+    // With kill-switch, must be Deny.
+    let blocked = apply_rollout_policy(&raw, RolloutPhase::Autonomous, true);
+    assert_eq!(
+        blocked.verdict,
+        AdpVerdict::Deny,
+        "JOB1: kill-switch must override Allow → Deny"
+    );
+    assert!(
+        blocked.reasons.iter().any(|r| r.contains("kill-switch")),
+        "JOB1: kill-switch Deny reason must mention kill-switch"
+    );
+}
+
+/// JOB1/ADP1: Kill-switch ON must override a Deny verdict too (already Deny,
+/// but the reason should be kill-switch, not the original gate failure).
+#[test]
+fn adp_kill_switch_overrides_deny_reason() {
+    let input = deny_input();
+    let raw = evaluate_gates(&input);
+    let blocked = apply_rollout_policy(&raw, RolloutPhase::Guarded, true);
+    assert_eq!(blocked.verdict, AdpVerdict::Deny);
+    assert!(
+        blocked.reasons.iter().any(|r| r.contains("kill-switch")),
+        "JOB1: kill-switch must be cited in Deny reasons"
+    );
+}
+
+/// JOB1/ADP1: In Advisory phase, Deny is overridden to Allow with a warning tag.
+/// This is the expected behavior for non-blocking rollout stages.
+#[test]
+fn adp_advisory_phase_overrides_deny_to_allow() {
+    let input = deny_input();
+    let raw = evaluate_gates(&input);
+    assert_eq!(raw.verdict, AdpVerdict::Deny, "precondition");
+
+    let advisory = apply_rollout_policy(&raw, RolloutPhase::Advisory, false);
+    assert_eq!(
+        advisory.verdict,
+        AdpVerdict::Allow,
+        "JOB1: Advisory phase must override Deny → Allow"
+    );
+    assert!(
+        advisory.reasons.iter().any(|r| r.contains("[ADVISORY]")),
+        "JOB1: Advisory override must be tagged in reasons"
+    );
+}
+
+/// JOB1/ADP1: In Shadow phase, Deny is overridden to Allow with a shadow tag.
+#[test]
+fn adp_shadow_phase_overrides_deny_to_allow() {
+    let input = deny_input();
+    let raw = evaluate_gates(&input);
+    let shadow = apply_rollout_policy(&raw, RolloutPhase::Shadow, false);
+    assert_eq!(
+        shadow.verdict,
+        AdpVerdict::Allow,
+        "JOB1: Shadow phase must override Deny → Allow"
+    );
+    assert!(
+        shadow.reasons.iter().any(|r| r.contains("[SHADOW]")),
+        "JOB1: Shadow override must be tagged in reasons"
+    );
+}
+
+/// JOB1/ADP1: An Allow verdict in Guarded mode passes through unchanged.
+/// Proves the guard does not block valid autonomous actions.
+#[test]
+fn adp_allow_passes_through_guarded_mode() {
+    let input = allow_input();
+    let raw = evaluate_gates(&input);
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Allow,
+        "JOB1: Allow verdict must pass through Guarded phase unmodified"
+    );
+}
+
+/// JOB1/ADP1: When no evidence is supplied, the verdict is Abstain or Deny,
+/// never Allow — proving incomplete evidence cannot trigger autonomous execution.
+#[test]
+fn adp_abstain_inputs_never_produce_allow_in_guarded_mode() {
+    let input = abstain_input();
+    let raw = evaluate_gates(&input);
+    // Abstain or Deny — either is fine, just not Allow.
+    assert_ne!(
+        raw.verdict,
+        AdpVerdict::Allow,
+        "JOB1: zero-evidence input must not produce Allow"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_ne!(
+        enforced.verdict,
+        AdpVerdict::Allow,
+        "JOB1: zero-evidence input must not produce Allow after policy application in Guarded mode"
+    );
+}
+
+/// JOB1/ADP1: The Deny verdict renders to a distinct string from Allow.
+/// Any caller that text-matches or enum-matches the verdict cannot confuse them.
+#[test]
+fn adp_deny_verdict_is_unambiguous() {
+    let deny = AdpVerdict::Deny;
+    let allow = AdpVerdict::Allow;
+    assert_ne!(
+        format!("{deny}"),
+        format!("{allow}"),
+        "JOB1: Deny and Allow must render as distinct strings"
+    );
+    assert_ne!(deny, allow, "JOB1: Deny and Allow must be distinct enum variants");
+}
+
+/// Blast radius exceeding max_blast_radius_for_auto must produce Deny in Guarded mode.
+/// Gate 5 is a hard-deny path: any change with blast_radius_risk > threshold is
+/// blocked unconditionally. Proves this gate cannot be bypassed by other passing gates.
+#[test]
+fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        // blast_radius_risk=9 exceeds max_blast_radius_for_auto=5 → gate 5 hard-deny
+        blast_radius_risk: Some(9),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(20),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.95),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "Gate 5: blast_radius_risk=9 > max=5 must produce Deny; \
+         an over-blast-radius change cannot auto-proceed regardless of other gates"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "Gate 5 Deny must survive apply_rollout_policy in Guarded mode"
+    );
+    assert!(
+        enforced.failed_gates.iter().any(|g| g.contains("blast")),
+        "blast_radius gate must appear in failed_gates; got: {:?}",
+        enforced.failed_gates
+    );
+}
+
+/// Extraction confidence below threshold must produce Deny in Guarded mode.
+/// Gate 1 is a hard-deny path when confidence evidence is present but insufficient.
+/// Proves that a change cannot proceed when evidence quality is below threshold.
+#[test]
+fn low_extraction_confidence_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        // confidence=0.4 < min_extraction_confidence=0.7 → gate 1 hard-deny
+        extraction_confidence: Some(0.4),
+        extraction_band: Some("low".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        immune_verdict: Some("PASS".into()),
+        immune_confidence: Some(0.95),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_ne!(
+        raw.verdict,
+        AdpVerdict::Allow,
+        "Gate 1: extraction_confidence=0.4 < threshold=0.7 must not produce Allow"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_ne!(
+        enforced.verdict,
+        AdpVerdict::Allow,
+        "Low extraction confidence must not be allow-able in Guarded mode"
+    );
+}
+
+/// BLOCK immune verdict must produce Deny in Guarded mode.
+/// Gate 6 is a hard-deny path when the anti-pattern check returns BLOCK.
+/// Proves that immune-blocked changes cannot auto-proceed regardless of other gates.
+#[test]
+fn immune_block_verdict_produces_deny_in_guarded_mode() {
+    let input = AdpInput {
+        extraction_confidence: Some(0.95),
+        extraction_band: Some("high".into()),
+        trace_used_fallback: false,
+        trace_candidate_count: 1,
+        safety_decision: Some(engram_server::services::safety_service::PolicyDecision {
+            allowed: true,
+            risk_level: engram_server::services::safety_service::RiskLevel::Low,
+            checks: vec![],
+            confidence: 0.98,
+            summary: "ALLOW".into(),
+            mitigations: vec![],
+        }),
+        retrieval_production_ready: Some(true),
+        retrieval_ndcg: Some(0.9),
+        retrieval_recall: Some(0.9),
+        blast_radius_risk: Some(2),
+        blast_radius_band: None,
+        blast_radius_downstream: Some(3),
+        // BLOCK verdict → gate 6 hard-deny
+        immune_verdict: Some("BLOCK".into()),
+        immune_confidence: Some(0.90),
+        require_runtime_evidence: false,
+        has_runtime_evidence: false,
+        risk_profile: RiskProfile::Low,
+        min_extraction_confidence: 0.7,
+        min_safety_confidence: 0.6,
+        max_blast_radius_for_auto: 5,
+        reconciliation: None,
+        graph_impact: None,
+        retrieval_mode: RetrievalMode::Skipped,
+        migration_class: None,
+    };
+
+    let raw = evaluate_gates(&input);
+    assert_eq!(
+        raw.verdict,
+        AdpVerdict::Deny,
+        "Gate 6: immune_verdict=BLOCK must produce Deny; \
+         an anti-pattern blocked change must not auto-proceed"
+    );
+
+    let enforced = apply_rollout_policy(&raw, RolloutPhase::Guarded, false);
+    assert_eq!(
+        enforced.verdict,
+        AdpVerdict::Deny,
+        "BLOCK immune verdict Deny must survive Guarded mode policy application"
+    );
+    assert!(
+        enforced.failed_gates.iter().any(|g| g.contains("anti_pattern") || g.contains("immune")),
+        "anti_pattern gate must appear in failed_gates; got: {:?}",
+        enforced.failed_gates
+    );
+}
+
+/// A wave containing one deny-producing item must produce a wave-level Deny.
+/// Proves that evaluate_wave propagates any item Deny to the overall wave verdict —
+/// there is no way for a single deny-blocked file to be "outvoted" by other Allow items.
+#[test]
+fn wave_with_one_deny_item_produces_wave_deny() {
+    let wave_input = WaveAdpInput {
+        wave_number: 1,
+        wave_name: "wave-1-mixed".into(),
+        items: vec![
+            ("file_a.cs".into(), allow_input()),
+            ("file_b.cs".into(), deny_input()), // safety BLOCK → Deny
+            ("file_c.cs".into(), allow_input()),
+        ],
+        cross_item_deps: 0,
+    };
+
+    let wave_decision = evaluate_wave(&wave_input);
+
+    assert_eq!(
+        wave_decision.verdict,
+        AdpVerdict::Deny,
+        "evaluate_wave: one deny-producing item must block the entire wave; \
+         a single unsafe file must not be auto-applied even if all others are safe"
+    );
+    assert!(
+        wave_decision.blocking_items.contains(&"file_b.cs".to_string()),
+        "blocking_items must identify the deny-producing file; \
+         got: {:?}",
+        wave_decision.blocking_items
+    );
+}
+
+// ── adp_retrieval_watcher_tests (from adp_retrieval_watcher_tests.rs) ─────────
+
+/// Gate 2.5 Test 9 (AUD-2026-INV-0005): When retrieval_mode=Skipped (benchmark
+/// was not run due to infra failure), the retrieval_quality gate must be marked
+/// `skipped=true` and must NOT contribute a Deny verdict.
+///
+/// Old behavior (before fix): infra failures were misclassified as zero-relevance,
+/// depressing NDCG scores and potentially producing false Deny verdicts.
+#[test]
+fn benchmark_infra_failure_skipped_mode_does_not_deny() {
+    let mut input = all_green_adp_input();
+    input.retrieval_mode = RetrievalMode::Skipped;
+    input.retrieval_production_ready = None;
+    input.retrieval_ndcg = None;
+    input.retrieval_recall = None;
+
+    let decision = evaluate_gates(&input);
+
+    // Gate must be skipped (not failed) when retrieval was not run
+    let ret_gate = decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .expect("retrieval_quality gate must exist");
+
+    assert!(
+        ret_gate.skipped,
+        "AUD-2026-INV-0005: retrieval_quality gate must be skipped when mode=Skipped; \
+         got skipped={}, passed={}",
+        ret_gate.skipped, ret_gate.passed
+    );
+
+    // Skipped gate must NOT veto the verdict with Deny
+    assert_ne!(
+        decision.verdict,
+        AdpVerdict::Deny,
+        "AUD-2026-INV-0005: Skipped retrieval (infra failure) must not produce Deny; \
+         got {:?}",
+        decision.verdict
+    );
+}
+
+/// Gate 2.5 Test 10 (AUD-2026-INV-0005): A skipped retrieval gate (infra failure)
+/// must be distinguishable from a failed retrieval gate (genuinely low NDCG/recall).
+///
+/// - Skipped: gate.skipped=true, does not contribute to Deny
+/// - Low-score: gate.skipped=false, gate.passed=false, contributes Deny
+#[test]
+fn adp_skipped_retrieval_differs_from_low_score_retrieval() {
+    // Case A: Skipped mode (infra failure — benchmark not run)
+    let mut skipped = all_green_adp_input();
+    skipped.retrieval_mode = RetrievalMode::Skipped;
+    skipped.retrieval_production_ready = None;
+    skipped.retrieval_ndcg = None;
+    skipped.retrieval_recall = None;
+    let skip_dec = evaluate_gates(&skipped);
+    let skip_gate = skip_dec
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .unwrap();
+
+    // Case B: Live mode with genuinely low NDCG (retrieval quality problem)
+    let mut low = all_green_adp_input();
+    low.retrieval_mode = RetrievalMode::Live;
+    low.retrieval_production_ready = Some(false);
+    low.retrieval_ndcg = Some(0.05);
+    low.retrieval_recall = Some(0.05);
+    let low_dec = evaluate_gates(&low);
+    let low_gate = low_dec
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .unwrap();
+
+    // Structural: the two gate states must be different
+    assert!(
+        skip_gate.skipped,
+        "AUD-2026-INV-0005: infra-failure gate must be skipped=true"
+    );
+    assert!(
+        !low_gate.skipped,
+        "AUD-2026-INV-0005: low-quality gate must be skipped=false (it has data)"
+    );
+    assert!(
+        !low_gate.passed,
+        "AUD-2026-INV-0005: low-quality gate must be passed=false"
+    );
+
+    // Behavioral: verdicts must differ — low NDCG denies, skipped does not
+    assert_ne!(
+        skip_dec.verdict, low_dec.verdict,
+        "AUD-2026-INV-0005: Skipped verdict ({:?}) must differ from low-score verdict ({:?})",
+        skip_dec.verdict, low_dec.verdict
+    );
+    assert_ne!(
+        skip_dec.verdict,
+        AdpVerdict::Deny,
+        "AUD-2026-INV-0005: Skipped retrieval must never produce Deny"
+    );
+}
+
+/// Gate 2.5 Test 11 (AUD-2026-INV-0006): `try_send` on a saturated channel must
+/// return `TrySendError::Full` immediately, never blocking the caller.
+///
+/// This is the behavioral contract that replacing `blocking_send` relies on.
+/// `blocking_send` would have stalled the OS filesystem-event thread under
+/// sustained event bursts; `try_send` returns immediately with an error instead.
+#[tokio::test]
+async fn watcher_try_send_on_full_channel_returns_immediately_not_blocking() {
+    use tokio::sync::mpsc;
+    use tokio::sync::mpsc::error::TrySendError;
+
+    let (tx, _rx) = mpsc::channel::<String>(1);
+    // Fill the single slot
+    tx.try_send("fill".to_string()).expect("first send to empty channel must succeed");
+
+    // Now saturated — must return Full immediately, never block
+    let result = tx.try_send("overflow".to_string());
+    assert!(
+        matches!(result, Err(TrySendError::Full(_))),
+        "AUD-2026-INV-0006: try_send on full channel must return TrySendError::Full immediately; \
+         blocking_send would have blocked the notify callback thread under event bursts"
+    );
+}
+
+/// Gate 2.5 Test 12 (AUD-2026-INV-0006): Overflow events are individually
+/// countable — each overflow produces exactly one `TrySendError::Full`, making
+/// overflow telemetry observable and deterministic.
+#[tokio::test]
+async fn watcher_overflow_events_are_individually_countable() {
+    use tokio::sync::mpsc;
+    use tokio::sync::mpsc::error::TrySendError;
+
+    let capacity = 3usize;
+    let extra_sends = 7usize;
+    let (tx, _rx) = mpsc::channel::<u32>(capacity);
+
+    let mut success_count = 0usize;
+    let mut overflow_count = 0usize;
+
+    for i in 0..(capacity + extra_sends) as u32 {
+        match tx.try_send(i) {
+            Ok(_) => success_count += 1,
+            Err(TrySendError::Full(_)) => overflow_count += 1,
+            Err(TrySendError::Closed(_)) => panic!("unexpected closed"),
+        }
+    }
+
+    assert_eq!(
+        success_count, capacity,
+        "AUD-2026-INV-0006: exactly {capacity} sends must succeed (channel capacity)"
+    );
+    assert_eq!(
+        overflow_count, extra_sends,
+        "AUD-2026-INV-0006: exactly {extra_sends} overflow events must be countable — \
+         each maps to one warn!() telemetry call in the watcher notify callback"
+    );
+}
+
+/// Non-numeric elements in JSON embedding arrays must cause
+/// explicit Err results, not be silently defaulted to 0.0.
+///
+/// Behavioral test against the serde_json API that parse_embedding_array relies on:
+/// `Value::as_f64()` returns None for null/string/bool, and that None must map to
+/// Err — not to 0.0f32 via unwrap_or.
+#[test]
+fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
+    // These are the three cases the fix guards against: null, string, bool
+    let null_val = serde_json::Value::Null;
+    let str_val = serde_json::json!("not_a_number");
+    let bool_val = serde_json::json!(true);
+    let number_val = serde_json::json!(0.5f64);
+
+    // Behavioral contract: non-numeric values must return None from as_f64()
+    assert!(null_val.as_f64().is_none(),
+        "Gate 2.5: JSON null must return None from as_f64()");
+    assert!(str_val.as_f64().is_none(),
+        "Gate 2.5: JSON string must return None from as_f64()");
+    assert!(bool_val.as_f64().is_none(),
+        "Gate 2.5: JSON bool must return None from as_f64()");
+
+    // Behavioral contract: numeric values must return Some
+    assert!(number_val.as_f64().is_some(),
+        "Gate 2.5: JSON number must return Some from as_f64()");
+
+    // Demonstrate why None → 0.0 via unwrap_or(0.0) is WRONG:
+    // It silently produces a zero-filled embedding that looks valid to the ADP gate.
+    let silent_bad = null_val.as_f64().unwrap_or(0.0);
+    assert_eq!(silent_bad, 0.0f64,
+        "Gate 2.5: unwrap_or(0.0) on null gives 0.0 — this is the silent false-success \
+         that parse_embedding_array was fixed to reject with Err");
+
+    // The fix: None must map to Err, not to 0.0
+    let correct: anyhow::Result<f32> = null_val.as_f64()
+        .ok_or_else(|| anyhow::anyhow!("non-numeric element"))
+        .map(|f| f as f32);
+    assert!(correct.is_err(),
+        "Gate 2.5: None.ok_or_else(Err) must produce Err, not Ok(0.0)");
+}
+
+/// Gate 2.5 Test 14 (AUD-2026-INV-0002): When enrichment degrades during indexing,
+/// the job message must describe ALL failed components, not just report a clean
+/// "completed" success banner.
+///
+/// Mirrors the production `determine_job_status` / `determine_job_message` pure
+/// functions directly — no AppState, fully deterministic.
+#[test]
+fn post_index_enrichment_degraded_message_describes_all_failures() {
+    let warnings = [
+        "link_sql_to_schema failed: no schema available".to_string(),
+        "resolve_symbol_edges failed: graph write lock timeout".to_string(),
+    ];
+
+    // Mirror of production determine_job_status logic
+    let cancelled = false;
+    let res_failed = false;
+    let status = if cancelled {
+        "cancelled"
+    } else if res_failed {
+        "failed"
+    } else if !warnings.is_empty() {
+        "degraded"
+    } else {
+        "done"
+    };
+
+    // Mirror of production determine_job_message logic
+    let msg = if cancelled {
+        "cancelled by user".to_string()
+    } else if res_failed {
+        "hard failure".to_string()
+    } else if !warnings.is_empty() {
+        format!("completed with enrichment warnings: {}", warnings.join("; "))
+    } else {
+        "completed".to_string()
+    };
+
+    assert_eq!(status, "degraded",
+        "Gate 2.5: multi-warning enrichment must produce 'degraded' status");
+    assert!(msg.contains("link_sql_to_schema"),
+        "Gate 2.5: message must mention link_sql_to_schema failure; got: '{msg}'");
+    assert!(msg.contains("resolve_symbol_edges"),
+        "Gate 2.5: message must mention resolve_symbol_edges failure; got: '{msg}'");
+    assert!(msg.contains("enrichment warnings"),
+        "Gate 2.5: message must use 'enrichment warnings' framing; got: '{msg}'");
+    assert_ne!(msg, "completed",
+        "Gate 2.5: degraded message must not be the clean success banner 'completed'");
+}
+
+// ── adp_vnext_test (from adp_vnext_test.rs) ───────────────────────────────────
+
+/// A v1-style input (no reconciliation, no graph_impact, no migration_class)
+/// should still produce an Allow verdict when all gates pass.
+#[test]
+fn backward_compat_v1_input_produces_allow() {
+    let input = all_green_adp_input();
+    let decision = evaluate_gates(&input);
+    assert_eq!(
+        decision.verdict,
+        AdpVerdict::Allow,
+        "v1-style input with all-green gates should Allow"
+    );
+    assert!(decision.confidence > 0.5, "confidence should be meaningful");
+}
+
+/// When reconciliation scores are provided, they should be used instead
+/// of the boolean `has_runtime_evidence`.
+#[test]
+fn reconciliation_scores_upgrade_runtime_gate() {
+    let mut input = all_green_adp_input();
+    input.require_runtime_evidence = true;
+    input.has_runtime_evidence = false; // boolean says no
+    input.reconciliation = Some(ReconciliationScores {
+        confirmed_ratio: 0.90,
+        contradicted_ratio: 0.02,
+        confidence_delta: 0.15,
+        static_paths_count: 50,
+    });
+    let decision = evaluate_gates(&input);
+    // Reconciliation has high confirmed → runtime gate should pass
+    let runtime_gate = decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "runtime_evidence")
+        .expect("runtime_evidence gate should exist");
+    assert!(
+        runtime_gate.passed,
+        "reconciliation with high confirmed ratio should pass runtime gate"
+    );
+    // Reconciliation confidence: 0.90*0.7 - 0.02*0.5 + 0.15*0.3 = 0.665
+    assert!(
+        runtime_gate.confidence > 0.6,
+        "reconciliation-derived confidence ({}) should exceed threshold 0.6",
+        runtime_gate.confidence
+    );
+}
+
+/// When reconciliation shows high contradictions, runtime gate should fail.
+#[test]
+fn high_contradictions_fail_runtime_gate() {
+    let mut input = all_green_adp_input();
+    input.require_runtime_evidence = true;
+    input.has_runtime_evidence = true; // boolean says yes, but reconciliation overrides
+    input.reconciliation = Some(ReconciliationScores {
+        confirmed_ratio: 0.15,
+        contradicted_ratio: 0.45,
+        confidence_delta: -0.10,
+        static_paths_count: 40,
+    });
+    let decision = evaluate_gates(&input);
+    let runtime_gate = decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "runtime_evidence")
+        .expect("runtime_evidence gate should exist");
+    assert!(
+        !runtime_gate.passed,
+        "high contradictions should fail runtime gate even with has_runtime_evidence=true"
+    );
+}
+
+/// Cached retrieval results should receive a staleness discount.
+#[test]
+fn cached_retrieval_gets_staleness_discount() {
+    let mut live_input = all_green_adp_input();
+    live_input.retrieval_mode = RetrievalMode::Live;
+
+    let mut cached_input = all_green_adp_input();
+    cached_input.retrieval_mode = RetrievalMode::Cached;
+
+    let live_decision = evaluate_gates(&live_input);
+    let cached_decision = evaluate_gates(&cached_input);
+
+    let live_ret = live_decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .unwrap();
+    let cached_ret = cached_decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .unwrap();
+
+    assert!(
+        cached_ret.confidence < live_ret.confidence,
+        "cached retrieval confidence ({}) should be less than live ({})",
+        cached_ret.confidence,
+        live_ret.confidence
+    );
+}
+
+/// Skipped retrieval mode should mark the gate as skipped.
+#[test]
+fn skipped_retrieval_marks_gate_skipped() {
+    let mut input = all_green_adp_input();
+    input.retrieval_production_ready = None;
+    input.retrieval_ndcg = None;
+    input.retrieval_recall = None;
+    input.retrieval_mode = RetrievalMode::Skipped;
+
+    let decision = evaluate_gates(&input);
+    let ret_gate = decision
+        .gate_results
+        .iter()
+        .find(|g| g.gate_id == "retrieval_quality")
+        .unwrap();
+    assert!(
+        ret_gate.skipped,
+        "Skipped retrieval mode → gate should be skipped"
+    );
+}
+
+/// A `data_access` migration class should yield lower confidence than the
+/// same gates with no class (due to -0.05 class adjustment).
+#[test]
+fn data_access_class_yields_lower_confidence() {
+    let base = all_green_adp_input();
+    let mut data_access = all_green_adp_input();
+    data_access.migration_class = Some("data_access".into());
+
+    let base_decision = evaluate_gates(&base);
+    let da_decision = evaluate_gates(&data_access);
+
+    assert!(
+        da_decision.confidence < base_decision.confidence,
+        "data_access class ({}) should have lower confidence than default ({})",
+        da_decision.confidence,
+        base_decision.confidence
+    );
+}
+
+/// A `static_asset` migration class should yield higher confidence.
+#[test]
+fn static_asset_class_yields_higher_confidence() {
+    let base = all_green_adp_input();
+    let mut static_input = all_green_adp_input();
+    static_input.migration_class = Some("static_asset".into());
+
+    let base_decision = evaluate_gates(&base);
+    let static_decision = evaluate_gates(&static_input);
+
+    assert!(
+        static_decision.confidence > base_decision.confidence,
+        "static_asset class ({}) should have higher confidence than default ({})",
+        static_decision.confidence,
+        base_decision.confidence
+    );
+}
+
+/// When both safety AND blast radius gates fail, the interaction penalty
+/// should reduce overall confidence further.
+#[test]
+fn safety_blast_interaction_penalty_reduces_confidence() {
+    // Build input where safety fails
+    let mut input = all_green_adp_input();
+    input.safety_decision = Some(unsafe_policy_adp());
+    // And blast radius is high
+    input.blast_radius_risk = Some(9);
+    input.blast_radius_band =
+        Some(engram_server::services::blast_radius_service::RiskBand::Critical);
+    input.blast_radius_downstream = Some(50);
+
+    let decision = evaluate_gates(&input);
+    // Should be Deny (both hard gates failed)
+    assert_eq!(decision.verdict, AdpVerdict::Deny);
+    // Confidence should be low due to multiple failures + interaction penalty
+    assert!(
+        decision.confidence < 0.6,
+        "interaction penalty should keep confidence below 0.6, got {}",
+        decision.confidence
+    );
+}
+
+/// A wave where all items pass should produce Allow.
+#[test]
+fn wave_all_allow_produces_allow() {
+    let items: Vec<(String, AdpInput)> = (0..3)
+        .map(|i| (format!("file_{i}.cs"), all_green_adp_input()))
+        .collect();
+    let wave = WaveAdpInput {
+        wave_number: 1,
+        wave_name: "Wave 1".into(),
+        items,
+        cross_item_deps: 0,
+    };
+    let decision = evaluate_wave(&wave);
+    assert_eq!(decision.verdict, AdpVerdict::Allow);
+    assert_eq!(decision.item_decisions.len(), 3);
+    assert!(decision.blocking_items.is_empty());
+}
+
+/// A single deny in a wave should veto the entire wave.
+#[test]
+fn wave_single_deny_vetoes_wave() {
+    let mut items: Vec<(String, AdpInput)> = (0..3)
+        .map(|i| (format!("file_{i}.cs"), all_green_adp_input()))
+        .collect();
+    // Make the second item fail safety
+    items[1].1.safety_decision = Some(unsafe_policy_adp());
+    let wave = WaveAdpInput {
+        wave_number: 1,
+        wave_name: "Wave 1".into(),
+        items,
+        cross_item_deps: 0,
+    };
+    let decision = evaluate_wave(&wave);
+    assert_eq!(
+        decision.verdict,
+        AdpVerdict::Deny,
+        "single deny should veto wave"
+    );
+    assert!(!decision.blocking_items.is_empty());
+}
+
+/// More than 3 items with high blast radius should trigger wave Abstain.
+#[test]
+fn wave_high_blast_count_shifts_to_abstain() {
+    let mut items: Vec<(String, AdpInput)> = (0..5)
+        .map(|i| (format!("file_{i}.cs"), all_green_adp_input()))
+        .collect();
+    // Give 4 items high blast radius (> 5)
+    for item in items.iter_mut().take(4) {
+        item.1.blast_radius_risk = Some(6);
+        item.1.blast_radius_band =
+            Some(engram_server::services::blast_radius_service::RiskBand::High);
+        item.1.blast_radius_downstream = Some(20);
+    }
+    let wave = WaveAdpInput {
+        wave_number: 1,
+        wave_name: "Wave 1".into(),
+        items,
+        cross_item_deps: 0,
+    };
+    let decision = evaluate_wave(&wave);
+    assert_eq!(
+        decision.verdict,
+        AdpVerdict::Abstain,
+        "4+ items with high blast should abstain, got {:?}",
+        decision.verdict
+    );
+}
+
+/// Wave format output should include wave number and verdict.
+#[test]
+fn wave_format_includes_key_info() {
+    let items: Vec<(String, AdpInput)> = (0..2)
+        .map(|i| (format!("file_{i}.cs"), all_green_adp_input()))
+        .collect();
+    let wave = WaveAdpInput {
+        wave_number: 3,
+        wave_name: "Wave 3 - Data Layer".into(),
+        items,
+        cross_item_deps: 1,
+    };
+    let decision = evaluate_wave(&wave);
+    let formatted = format_wave_decision(&decision);
+    assert!(formatted.contains("Wave 3"), "should mention wave number");
+    assert!(
+        formatted.to_lowercase().contains("allow")
+            || formatted.to_lowercase().contains("deny")
+            || formatted.to_lowercase().contains("abstain"),
+        "should contain verdict"
+    );
+}
+
+/// Providing GraphImpactMetrics should not break gate evaluation.
+#[test]
+fn graph_impact_metrics_are_accepted() {
+    let mut input = all_green_adp_input();
+    input.graph_impact = Some(GraphImpactMetrics {
+        downstream_dependency_count: 10,
+        reads_state_count: 2,
+        writes_state_count: 1,
+        sql_calls_count: 5,
+        queries_table_count: 3,
+        injects_script_count: 0,
+        join_failed: false,
+    });
+    let decision = evaluate_gates(&input);
+    // Should still Allow — graph_impact is informational for the EOE layer,
+    // the pure gate pipeline uses the derived fields.
+    assert_eq!(decision.verdict, AdpVerdict::Allow);
+}
+
+#[test]
+fn evidence_depth_from_str_parses_correctly() {
+    use engram_server::services::evidence_orchestration::EvidenceDepth;
+
+    assert_eq!(EvidenceDepth::from_str("fast"), Ok(EvidenceDepth::Fast));
+    assert_eq!(EvidenceDepth::from_str("DEEP"), Ok(EvidenceDepth::Deep));
+    assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+    assert!(
+        EvidenceDepth::from_str("unknown").is_err(),
+        "unknown string should return an error"
+    );
+}
