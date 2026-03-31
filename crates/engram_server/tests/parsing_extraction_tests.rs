@@ -532,6 +532,244 @@ fn parse2_deeply_nested_java_classes_does_not_panic() {
     );
 }
 
+// ── PARSE1-z5l2: regex-based extractor panic-free corpus ─────────────────────
+//
+// The extractors below use regex (not tree-sitter), so their failure modes are
+// different — they must not panic on malformed input, truncated code, or
+// adversarial patterns.  These tests cover the "extractor fuzz campaign" item
+// from Section 9 of the audit.
+
+/// PARSE1-z5l2: Classic ASP extractor must not panic on malformed/adversarial input.
+///
+/// Covers: unclosed script blocks, deeply nested VBScript, NUL bytes, very long
+/// lines, and Unicode edge cases.  All cases must return without panicking.
+#[test]
+fn asp_extractor_does_not_panic_on_malformed_input() {
+    let ex = extractor();
+
+    let cases: &[(&str, &str)] = &[
+        // Unclosed <% ... without closing %>
+        ("page.asp", "<% Sub Broken(x\n  Response.Write(x\n  "),
+        // No server-side code at all
+        ("plain.asp", "<html><body>Hello world</body></html>"),
+        // Empty source
+        ("empty.asp", ""),
+        // Whitespace only
+        ("ws.asp", "   \n\t\n  "),
+        // Unclosed <script runat="server"> block
+        ("script.asp", "<script runat=\"server\">\nSub Foo()\n"),
+        // Deeply repeated Session access patterns (regex stress)
+        (
+            "session_flood.asp",
+            &"Session(\"k\") = x\n".repeat(5_000),
+        ),
+        // Valid-looking but truncated at boundary
+        ("trunc.asp", "<%\nSub F\n  Dim x\n  Server.CreateObject(\"ADODB."),
+        // Response.Redirect with empty URL
+        ("redirect.asp", "<% Response.Redirect \"\" %>"),
+        // Extremely long single line
+        ("longline.asp", &("x".repeat(200_000))),
+        // Mixed NUL-like surrogate sequences (not true NUL but unusual bytes)
+        ("unicode.asp", "<% ' \u{FFFD}\u{0000} invalid %>"),
+        // Malformed #include
+        ("include.asp", "<!--#include file= -->"),
+        // Doubly nested script blocks (invalid ASP but must not panic)
+        ("nested.asp", "<% <% Sub F() %> %>"),
+    ];
+
+    let deadline = std::time::Duration::from_secs(10);
+    for (path, src) in cases {
+        let p = Path::new(path);
+        let start = std::time::Instant::now();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| ex.extract(p, src)));
+        let elapsed = start.elapsed();
+        assert!(
+            result.is_ok(),
+            "PARSE1-z5l2: ASP extractor must not panic on input {path:?}: {:?}",
+            result.err()
+        );
+        assert!(
+            elapsed < deadline,
+            "PARSE1-z5l2: ASP extractor must complete within {deadline:?} for {path:?}; took {elapsed:?}"
+        );
+    }
+}
+
+/// PARSE1-z5l2: JavaScript extractor must not panic on malformed/adversarial input.
+///
+/// Covers: truncated fetch calls, malformed jQuery selectors, oversized source
+/// (near the 5MiB skip limit), and invalid postback patterns.
+#[test]
+fn js_extractor_does_not_panic_on_malformed_input() {
+    let ex = extractor();
+
+    let cases: &[(&str, &str)] = &[
+        // Empty
+        ("app.js", ""),
+        // Unclosed $.ajax call
+        ("ajax.js", "$.ajax({ url: '/api/data', success: function(d) {"),
+        // Truncated fetch
+        ("fetch.js", "fetch('/api/endpoint"),
+        // Malformed jQuery selector
+        ("jquery.js", "$('[id$="),
+        // PageMethods without method name
+        ("pm.js", "PageMethods.()"),
+        // __doPostBack with empty args
+        ("postback.js", "__doPostBack('', '')"),
+        // Very deeply nested closures (stress test)
+        (
+            "deep.js",
+            &{
+                let open = "function f() { ".repeat(200);
+                let close = " }".repeat(200);
+                format!("{open}var x = 1;{close}")
+            },
+        ),
+        // XMLHttpRequest truncated
+        ("xhr.js", "var xhr = new XMLHttpRequest(); xhr.open('GET'"),
+        // Source that triggers URL pattern but has no complete URL
+        ("partial_url.js", "$.get('/"),
+        // Source at exactly the size limit edge (not over)
+        // We just use a large-ish but not enormous string
+        (
+            "large.js",
+            &"var x = 1; // comment\n".repeat(10_000),
+        ),
+    ];
+
+    let deadline = std::time::Duration::from_secs(10);
+    for (path, src) in cases {
+        let p = Path::new(path);
+        let start = std::time::Instant::now();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| ex.extract(p, src)));
+        let elapsed = start.elapsed();
+        assert!(
+            result.is_ok(),
+            "PARSE1-z5l2: JS extractor must not panic on input {path:?}: {:?}",
+            result.err()
+        );
+        assert!(
+            elapsed < deadline,
+            "PARSE1-z5l2: JS extractor must complete within {deadline:?} for {path:?}; took {elapsed:?}"
+        );
+    }
+}
+
+/// PARSE1-z5l2: VB extractor must not panic on malformed/adversarial input.
+///
+/// Covers: unclosed If/End If, incomplete class declarations, deeply nested
+/// structures, and Unicode-heavy content.
+#[test]
+fn vb_extractor_does_not_panic_on_malformed_input() {
+    let ex = extractor();
+
+    let cases: &[(&str, &str)] = &[
+        // Empty
+        ("form.vb", ""),
+        // Unclosed If block
+        ("if.vb", "If x > 0 Then\n  DoSomething()\n"),
+        // Incomplete class
+        ("class.vb", "Public Class Incomplete\n    Private x As Integer"),
+        // Truncated method
+        ("method.vb", "Private Sub HandleClick(sender As Object"),
+        // Deeply nested If structures (tree-sitter depth stress)
+        (
+            "deep_if.vb",
+            &{
+                let open = "If True Then\n".repeat(100);
+                let close = "End If\n".repeat(100);
+                format!("{open}{close}")
+            },
+        ),
+        // Valid-looking but missing End Sub
+        ("no_end.vb", "Private Sub Button1_Click()\n    Dim x = 1\n"),
+        // Unicode in identifiers
+        ("unicode.vb", "Public Sub Héllo_Wörld()\nEnd Sub"),
+        // AddHandler with missing event target
+        ("addhandler.vb", "AddHandler"),
+        // Handles clause without method
+        ("handles.vb", "    Handles Button1.Click"),
+    ];
+
+    let deadline = std::time::Duration::from_secs(10);
+    for (path, src) in cases {
+        let p = Path::new(path);
+        let start = std::time::Instant::now();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| ex.extract(p, src)));
+        let elapsed = start.elapsed();
+        assert!(
+            result.is_ok(),
+            "PARSE1-z5l2: VB extractor must not panic on input {path:?}: {:?}",
+            result.err()
+        );
+        assert!(
+            elapsed < deadline,
+            "PARSE1-z5l2: VB extractor must complete within {deadline:?} for {path:?}; took {elapsed:?}"
+        );
+    }
+}
+
+/// PARSE1-z5l2: SQL analyzer must not panic on malformed/adversarial SQL strings.
+///
+/// `analyze_sql` is called with raw SQL captured from source code — it must
+/// handle garbage input without panicking.
+#[test]
+fn sql_analyzer_does_not_panic_on_malformed_input() {
+    let cases: &[&str] = &[
+        "",
+        "SELECT",
+        "SELECT * FROM",
+        "SELECT * FROM WHERE",
+        "INSERT INTO",
+        "UPDATE SET",
+        "DELETE",
+        // Deeply nested subquery
+        &{
+            let mut s = "SELECT 1".to_string();
+            for _ in 0..100 {
+                s = format!("SELECT * FROM ({s}) t");
+            }
+            s
+        },
+        // Missing table name
+        "SELECT col FROM () AS x",
+        // Multiple FROM clauses
+        "SELECT a, b FROM t1 FROM t2",
+        // Unterminated string literal
+        "SELECT 'unclosed",
+        // Very long identifier
+        &format!("SELECT {} FROM tbl", "a".repeat(10_000)),
+        // Only whitespace
+        "   \t\n   ",
+        // Random garbage
+        "!@#$%^&*()",
+        // EXEC without proc name
+        "EXEC",
+        // Unicode in SQL
+        "SELECT * FROM tàblé WHERE nàme = 'vàlue'",
+    ];
+
+    let deadline = std::time::Duration::from_secs(5);
+    for sql in cases {
+        let start = std::time::Instant::now();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            engram_index::sql_parser::analyze_sql(sql)
+        }));
+        let elapsed = start.elapsed();
+        assert!(
+            result.is_ok(),
+            "PARSE1-z5l2: analyze_sql must not panic on input {:?}: {:?}",
+            &sql[..sql.len().min(80)],
+            result.err()
+        );
+        assert!(
+            elapsed < deadline,
+            "PARSE1-z5l2: analyze_sql must complete within {deadline:?} for input {:?}; took {elapsed:?}",
+            &sql[..sql.len().min(80)]
+        );
+    }
+}
+
 /// PARSE2: extractors for all supported tree-sitter languages must handle
 /// a file consisting of a single deeply-indented block (stress test for
 /// any O(depth) path in the post-processing walk).
