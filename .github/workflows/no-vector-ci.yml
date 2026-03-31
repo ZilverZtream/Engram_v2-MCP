@@ -1,0 +1,52 @@
+name: no-vector-ci
+
+# Continuously validates that the FTS-only code path compiles and all tests
+# pass when the `vector` feature is disabled.  Prevents silent parity drift
+# where vector-gated paths regress without anyone noticing.
+
+on:
+  push:
+    branches: [main, Company-adapted]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  no-vector-lane:
+    name: FTS-only build and test (--no-default-features)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-no-vector-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-no-vector-
+
+      - name: Build engram_index without vector feature
+        run: cargo build -p engram_index --no-default-features
+
+      - name: Build engram_server without vector feature
+        run: cargo build -p engram_server --no-default-features
+
+      - name: Run engram_index tests without vector feature
+        run: cargo test -p engram_index --no-default-features -- --test-threads=4
+
+      - name: Run engram_server tests without vector feature
+        run: cargo test -p engram_server --no-default-features -- --test-threads=4
+
+      - name: Build entire workspace without vector feature (compilation regression gate)
+        run: cargo build --workspace --no-default-features
