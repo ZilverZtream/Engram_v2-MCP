@@ -517,7 +517,7 @@ fn minimal_cfg(tmp: &tempfile::TempDir) -> engram_core::Config {
 /// Uses `tokio::time::pause()` to advance the GC's 1-hour interval without
 /// wall-clock delay, making the test fully deterministic.
 #[tokio::test]
-async fn gc_skips_purge_when_active_indexing_count_nonzero() {
+async fn purge_is_skipped_when_active_indexing_count_is_nonzero() {
     let tmp = tempfile::TempDir::new().unwrap();
     let cfg = minimal_cfg(&tmp);
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -579,7 +579,7 @@ async fn gc_skips_purge_when_active_indexing_count_nonzero() {
 /// metadata read/parse failure, potentially deleting live generation data.
 /// The fix returns `Ok(())` early with a `tracing::warn!` instead.
 #[tokio::test]
-async fn gc_skips_project_with_corrupt_active_gen_metadata() {
+async fn corrupt_active_gen_metadata_causes_project_to_be_skipped_not_purged() {
     let tmp = tempfile::TempDir::new().unwrap();
     let cfg = minimal_cfg(&tmp);
     let (state, _rx) = AppState::new(cfg).unwrap();
@@ -634,7 +634,7 @@ async fn gc_skips_project_with_corrupt_active_gen_metadata() {
 /// checkpoint), fires a GC tick with `active_indexing_count = 1`, and verifies
 /// the registry record is untouched.
 #[tokio::test]
-async fn gc_does_not_delete_active_job_checkpoint() {
+async fn active_job_checkpoint_is_not_deleted_during_gc_tick() {
     use engram_core::ProjectRecord;
 
     let tmp = tempfile::TempDir::new().unwrap();
