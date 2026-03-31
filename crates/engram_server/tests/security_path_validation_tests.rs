@@ -209,3 +209,239 @@ fn safe_open_read_returns_err_for_missing_file() {
         "safe_open_read must return Err for a file that does not exist, not panic"
     );
 }
+
+/// SEC1-TOCTOU: resolve_path on a non-existent file inside an existing root
+/// must succeed (ancestor walk finds the root and appends the suffix lexically).
+/// This exercises the fixed ancestor-walk code path without a `exists()` gate.
+#[test]
+fn sec1_resolve_path_nonexistent_file_in_existing_root_succeeds() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
+        .expect("PathContext::new must succeed for existing root");
+
+    // The file does not exist, but the directory does — ancestor walk must
+    // canonicalize the existing parent and re-append the file name.
+    let target = tmp.path().join("newfile.txt");
+    let result = ctx.resolve_path(&target);
+    assert!(
+        result.is_ok(),
+        "SEC1-TOCTOU: resolve_path must succeed for a non-existent file inside an \
+         allowed root; got: {:?}",
+        result.err()
+    );
+}
+
+/// SEC1-TOCTOU: structural check — `resolve_path` in security.rs must NOT contain
+/// an `ancestor.exists()` call followed by `canonicalize`. After the TOCTOU fix,
+/// only a single `canonicalize` call is made (no preceding `exists()` gate).
+#[test]
+fn sec1_source_does_not_contain_exists_plus_canonicalize_toctou_pattern() {
+    let source = include_str!("../../engram_core/src/security.rs");
+
+    // The old TOCTOU pattern: `ancestor.exists()` as a gate before `canonicalize`.
+    // After the fix this must not appear — `canonicalize` is called directly.
+    let toctou_pattern = source.contains("ancestor.exists()");
+    assert!(
+        !toctou_pattern,
+        "SEC1-TOCTOU: security.rs must not contain `ancestor.exists()` as a gate \
+         before `canonicalize`. This is a TOCTOU race: between exists() returning \
+         true and canonicalize() executing, a symlink swap can bypass root checks. \
+         Fix: call canonicalize() directly and handle Err as 'not found'."
+    );
+
+    // The fixed pattern: `match std::fs::canonicalize(ancestor)` is used directly.
+    assert!(
+        source.contains("canonicalize(ancestor)"),
+        "SEC1-TOCTOU: security.rs must call canonicalize(ancestor) directly \
+         (single-syscall pattern) to eliminate the TOCTOU window"
+    );
+}
+
+/// SEC1-TOCTOU: structural check — `partial.exists()` as a gate before
+/// `symlink_metadata` must not appear in the fixed source.
+#[test]
+fn sec1_source_does_not_contain_partial_exists_toctou_pattern() {
+    let source = include_str!("../../engram_core/src/security.rs");
+
+    // Check specifically for the guarded form `if partial.exists() {` — the
+    // bare string `partial.exists()` may appear in comments explaining the fix.
+    let toctou_pattern = source.contains("if partial.exists()");
+    assert!(
+        !toctou_pattern,
+        "SEC1-TOCTOU: security.rs must not contain `if partial.exists()` as a gate \
+         before `symlink_metadata`. This is a TOCTOU race: a symlink could be \
+         injected between the exists() check and the metadata read. Fix: call \
+         symlink_metadata() directly and treat Err(NotFound) as 'no symlink'."
+    );
+
+    // The fixed pattern: symlink_metadata is called unconditionally.
+    assert!(
+        source.contains("symlink_metadata(&partial)"),
+        "SEC1-TOCTOU: security.rs must call symlink_metadata(&partial) directly \
+         (single-syscall pattern) without a preceding exists() gate"
+    );
+}
+
+// ── SEC1: ancestor depth limit integration tests ──────────────────────────────
+
+/// SEC1: resolve_path must reject a deeply-nested non-existent path that exceeds
+/// the MAX_ANCESTOR_DEPTH (128) guard.
+///
+/// This is an integration-level behavioral test: it calls the public
+/// `PathContext::resolve_path` API rather than internal helpers, proving the
+/// depth guard is reachable from the external API boundary. An adversary who
+/// can supply arbitrary path strings to an MCP handler cannot trigger an
+/// unbounded ancestor-walk loop.
+#[test]
+fn resolve_path_rejects_path_deeper_than_max_ancestor_depth() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
+        .expect("PathContext::new must succeed for existing root");
+
+    // Build a path with 129 non-existent nested components (one more than the
+    // 128-level cap in security.rs). The components do not exist on disk.
+    let mut deep = tmp.path().to_path_buf();
+    for i in 0..129usize {
+        deep.push(format!("nonexistent_dir_{i:03}"));
+    }
+
+    let result = ctx.resolve_path(&deep);
+    assert!(
+        result.is_err(),
+        "SEC1: resolve_path must return Err for a 129-level deep non-existent path; \
+         an unbounded ancestor walk would be a DoS vector for attacker-supplied paths. \
+         Got Ok({:?})",
+        result.ok()
+    );
+    let err_msg = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        err_msg.contains("ancestor") || err_msg.contains("exceeded") || err_msg.contains("128"),
+        "SEC1: error message must reference the depth limit or ancestor walk; got: {err_msg}"
+    );
+}
+
+/// SEC1: resolve_path must succeed (not reject due to depth guard) for paths that
+/// are within the 128-level limit, proving the guard does not produce false denials
+/// on legitimate deep-but-valid project structures.
+///
+/// Uses 64 non-existent levels — previously rejected when MAX_ANCESTOR_DEPTH was
+/// 64, now within the raised 128-level budget.
+#[test]
+fn resolve_path_accepts_path_within_ancestor_depth_limit() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
+        .expect("PathContext::new must succeed for existing root");
+
+    // 64 non-existent components — within the 128-level guard.
+    let mut deep = tmp.path().to_path_buf();
+    for i in 0..64usize {
+        deep.push(format!("deep_level_{i:03}"));
+    }
+
+    // Must not panic and must not fail due to the depth guard.
+    // The path does not exist, so it may return Ok (with base appended) or
+    // Err (path not found within root) — but if Err, it must not be a depth error.
+    match ctx.resolve_path(&deep) {
+        Ok(p) => {
+            assert!(
+                p.starts_with(tmp.path()),
+                "SEC1: resolved path must stay within the allowed root; got {p:?}"
+            );
+        }
+        Err(e) => {
+            let msg = e.to_string().to_lowercase();
+            assert!(
+                !msg.contains("exceeded") && !msg.contains("ancestor walk exceeded"),
+                "SEC1: a 64-level path must not be rejected by the depth guard (MAX=128); \
+                 got depth-guard error: {msg}"
+            );
+        }
+    }
+}
+
+/// SEC1: safe_join must reject paths crafted to escape the base through
+/// an unusually deep traversal sequence (`a/../../../etc`).
+///
+/// This is an adversarial traversal attempt that combines legitimate-looking
+/// directory names with `..` escapes to reach outside the base. Production
+/// code in MCP handlers calls safe_join before opening files.
+#[test]
+fn safe_join_rejects_deep_traversal_escape_attempt() {
+    let base = PathBuf::from("/project/sandbox");
+
+    // Pattern: legit-looking prefix + enough `..` to climb out of base.
+    let result = safe_join(&base, "src/utils/../../../etc/shadow");
+    assert!(
+        result.is_err(),
+        "SEC1: safe_join must reject 'src/utils/../../../etc/shadow' — \
+         3 `..` levels escapes the 2-component base; got Ok"
+    );
+}
+
+/// SEC1-TOCTOU: behavioral test — the ancestor-walk branch of resolve_path
+/// (triggered when the leaf doesn't exist but its parent does) exercises the
+/// single-syscall `symlink_metadata` pattern directly.
+///
+/// Specifically proves: creating a path whose PARENT exists but whose LEAF does
+/// NOT triggers the ancestor-walk code path in `resolve_path`, and that code
+/// path completes without a TOCTOU race window (no `exists()` precheck before
+/// `symlink_metadata`). The path is accepted because no component is a symlink.
+///
+/// This is a runtime proof of the race-safe code path, complementing the
+/// structural test `sec1_source_does_not_contain_partial_exists_toctou_pattern`.
+#[test]
+fn resolve_path_ancestor_walk_branch_is_race_safe_for_nonexistent_leaf() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    // Make a subdirectory that DOES exist — this becomes the last canonicalizable ancestor.
+    let existing_subdir = tmp.path().join("existing_parent");
+    std::fs::create_dir(&existing_subdir).expect("create_dir");
+
+    // The leaf does NOT exist — triggers the ancestor-walk branch.
+    let nonexistent_leaf = existing_subdir.join("new_file_not_yet_created.rs");
+
+    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
+        .expect("PathContext::new must succeed");
+
+    // resolve_path must accept the path (parent exists, no symlink in suffix).
+    // The ancestor walk finds `existing_subdir`, checks its suffix component
+    // `new_file_not_yet_created.rs` via symlink_metadata (single syscall),
+    // and returns Ok — proving the race-safe path runs end-to-end.
+    let result = ctx.resolve_path(&nonexistent_leaf);
+    assert!(
+        result.is_ok(),
+        "SEC1-TOCTOU: resolve_path must accept a path whose parent exists but leaf \
+         does not — ancestor walk should find the parent and pass the suffix through \
+         the single-syscall symlink_metadata check; got: {:?}",
+        result.err()
+    );
+}
+
+/// SEC1: a symlink that would point outside the allowed root must be rejected
+/// by PathContext::resolve_path when canonicalization resolves it.
+///
+/// Only runs on Unix where symlink creation is unprivileged.
+#[cfg(unix)]
+#[test]
+fn resolve_path_rejects_symlink_escaping_allowed_root() {
+    let root_dir = tempfile::TempDir::new().expect("root tmpdir");
+    let outside_dir = tempfile::TempDir::new().expect("outside tmpdir");
+    std::fs::write(outside_dir.path().join("secret.txt"), b"outside data").expect("write");
+
+    // Create a symlink inside root → outside_dir/secret.txt.
+    let link_path = root_dir.path().join("escape_link.txt");
+    std::os::unix::fs::symlink(outside_dir.path().join("secret.txt"), &link_path)
+        .expect("symlink creation must succeed");
+
+    let ctx = PathContext::new(vec![root_dir.path().to_path_buf()])
+        .expect("PathContext::new must succeed for existing root");
+
+    // Resolving the symlink must reject it because canonicalization resolves
+    // it to outside_dir, which is not an allowed root.
+    let result = ctx.resolve_path(&link_path);
+    assert!(
+        result.is_err(),
+        "SEC1: resolve_path must reject a symlink that escapes the allowed root \
+         via canonicalization; got Ok({:?})",
+        result.ok()
+    );
+}

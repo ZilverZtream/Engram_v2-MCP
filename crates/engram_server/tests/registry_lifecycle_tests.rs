@@ -718,3 +718,57 @@ fn composite_key_validation_accepts_normal_ids() {
     reg.set_meta("proj-normal", "active_generation", "5")
         .expect("set_meta must accept key with underscores");
 }
+
+/// REG1-h3u7: NUL byte in project_id must be rejected at the write boundary.
+///
+/// Registry composite keys use NUL as a separator (e.g. "{project_id}\0{section_id}").
+/// A NUL byte embedded in project_id would corrupt the composite key, allowing a
+/// project to masquerade as a different project or corrupt memory_bank/repo_rule entries.
+#[test]
+fn put_project_rejects_nul_byte_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let bad = make_project("proj\0evil", "NUL injection attempt");
+    let result = reg.put_project(&bad);
+    assert!(
+        result.is_err(),
+        "REG1-h3u7: put_project must reject project_id containing NUL byte; \
+         NUL is the registry composite-key separator and would corrupt key lookups"
+    );
+}
+
+/// REG1-h3u7: Newline byte in project_id must be rejected at the write boundary.
+///
+/// Several storage backends use newline as a record separator. A newline in
+/// project_id would allow an attacker to inject extra records or pollute composite
+/// key ranges used by memory_bank and repo_rule lookups.
+#[test]
+fn put_project_rejects_newline_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let bad = make_project("proj\nevil", "newline injection attempt");
+    let result = reg.put_project(&bad);
+    assert!(
+        result.is_err(),
+        "REG1-h3u7: put_project must reject project_id containing newline byte; \
+         newline is a record separator in several backends and would corrupt key ranges"
+    );
+}
+
+/// REG1-h3u7: get_project with NUL in project_id must also be rejected.
+///
+/// Ensures that read operations cannot bypass the validation gate by probing
+/// composite keys that contain the separator character.
+#[test]
+fn get_project_rejects_nul_byte_in_project_id() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let reg = open_registry(&tmp);
+
+    let result = reg.get_project("proj\0evil");
+    assert!(
+        result.is_err(),
+        "REG1-h3u7: get_project must reject project_id containing NUL byte"
+    );
+}

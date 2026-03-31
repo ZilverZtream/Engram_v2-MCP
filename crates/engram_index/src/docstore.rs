@@ -392,6 +392,10 @@ impl DocStore {
     }
 
     /// Remove all DocStore data for a project+namespace (used when wiping old data).
+    ///
+    /// DS3: also clears FILE_FINGERPRINT entries for files that belonged to
+    /// this namespace, preventing orphaned fingerprint rows from biasing future
+    /// change-detection/copy-forward decisions.
     pub fn delete_namespace(&self, project_id: &str, namespace: &str) -> anyhow::Result<()> {
         let prefix_doc = format!("{}\0{}\0", project_id, namespace);
         let wtx = self.db.begin_write()?;
@@ -409,6 +413,9 @@ impl DocStore {
                 t.remove(k.as_str())?;
             }
         }
+        // DS3: collect rel_paths while deleting DOCS_BY_FILE so we can clear
+        // the corresponding FILE_FINGERPRINT rows in the same transaction.
+        let mut rel_paths: Vec<String> = Vec::new();
         {
             let mut t = wtx.open_table(DOCS_BY_FILE)?;
             let mut keys: Vec<String> = Vec::new();
@@ -417,14 +424,67 @@ impl DocStore {
                 if !k.value().starts_with(&prefix_doc) {
                     break;
                 }
+                // Extract the rel_path portion after "project_id\0namespace\0"
+                let rel = k.value()[prefix_doc.len()..].to_string();
+                rel_paths.push(rel);
                 keys.push(k.value().to_string());
             }
             for k in keys {
                 t.remove(k.as_str())?;
             }
         }
+        // DS3: purge orphaned FILE_FINGERPRINT rows for every path that was in
+        // this namespace.  A file shared across multiple namespaces will have
+        // its fingerprint re-computed on the next index run — this is safe
+        // (conservative) and prevents unbounded fingerprint accumulation.
+        {
+            let mut t = wtx.open_table(FILE_FINGERPRINT)?;
+            for rel in &rel_paths {
+                let fp_key = format!("{}\0{}", project_id, rel);
+                t.remove(fp_key.as_str())?;
+            }
+        }
         wtx.commit()?;
         Ok(())
+    }
+
+    /// DS1: remove all DocRecords for a project+namespace whose `generation` is
+    /// strictly less than `min_generation`, returning the count of deleted records.
+    ///
+    /// Old records accumulate as orphans when incremental indexing emits
+    /// newer-generation docs without cleaning up stale ones.  Call this after
+    /// advancing the active generation to keep storage bounded.
+    pub fn purge_old_generation_docs(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        min_generation: u64,
+    ) -> anyhow::Result<usize> {
+        validate_key_component(project_id, "project_id")?;
+        validate_key_component(namespace, "namespace")?;
+        let prefix = format!("{}\0{}\0", project_id, namespace);
+        let wtx = self.db.begin_write()?;
+        let removed = {
+            let mut t = wtx.open_table(DOC_BY_ID)?;
+            let mut stale_keys: Vec<String> = Vec::new();
+            for r in t.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let rec: DocRecord = de_bincode_or_json(v.value())?;
+                if rec.generation < min_generation {
+                    stale_keys.push(k.value().to_string());
+                }
+            }
+            let count = stale_keys.len();
+            for k in stale_keys {
+                t.remove(k.as_str())?;
+            }
+            count
+        };
+        wtx.commit()?;
+        Ok(removed)
     }
 }
 

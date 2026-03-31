@@ -1,3 +1,4 @@
+use crate::handlers::validate_project_id;
 use crate::models::{
     AnalyzeRevertsRequest, AnalyzeTemporalCouplingsRequest, IndexGitHistoryRequest,
     IngestZipHistoryRequest, SearchHistoryRequest,
@@ -714,6 +715,7 @@ impl Engram {
         &self,
         req: IndexGitHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
 
         if req.wait {
@@ -751,6 +753,7 @@ impl Engram {
         &self,
         req: IngestZipHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
@@ -863,6 +866,7 @@ impl Engram {
         &self,
         req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let content_limit = req.max_content_chars;
@@ -995,6 +999,7 @@ impl Engram {
         &self,
         req: AnalyzeTemporalCouplingsRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let couplings = if let Some(ref file_path) = req.file_path {
             // Focused search
             let node_id = if file_path.starts_with("file:") {
@@ -1045,6 +1050,7 @@ impl Engram {
         &self,
         req: AnalyzeRevertsRequest,
     ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 

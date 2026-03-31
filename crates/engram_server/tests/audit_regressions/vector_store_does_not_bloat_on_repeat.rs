@@ -37,7 +37,7 @@ async fn test_vector_store_does_not_bloat_on_repeat() {
         allowed_roots: vec![project_dir.clone()],
         max_project_files: None,
         max_project_bytes: None,
-        embedding_backend: "projection".into(), // Use real-ish vector storage
+        embedding_backend: "local".into(), // Use LocalEmbedder (ProjectionEmbedder-based, no network)
         embedding_model: None,
         ollama_url: None,
         openai_api_key: None,

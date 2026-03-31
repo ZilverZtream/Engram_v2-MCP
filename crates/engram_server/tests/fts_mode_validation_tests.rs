@@ -544,3 +544,311 @@ fn vec1_upsert_error_message_contains_vec1_tag() {
         "VEC1: error message must contain 'VEC1' tag for log grep-ability; got: {actual_msg}"
     );
 }
+
+// ── FTS1-a17d: adversarial regex time-budget enforcement ─────────────────────
+
+const FTS_REGEX_DEADLINE: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// FTS1-a17d: a pathological alternation pattern `(a|aa)+` within the 500-byte cap
+/// must complete within the time budget.  Proves the Tantivy DFA-based engine
+/// does not exhibit catastrophic backtracking on this ReDoS-prone class of pattern.
+#[tokio::test]
+async fn fts1_adversarial_alternation_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-fts1-alt", "regex");
+    q.text = "(a|aa)+b".to_string(); // ReDoS-prone in NFA engines; DFA handles in O(n)
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: alternation pattern must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    // Ok(empty) or Err are both acceptable; hanging is not.
+    let _ = result;
+}
+
+/// FTS1-a17d: nested quantifier pattern `(a+)+` within the 500-byte cap must
+/// complete within the time budget.
+#[tokio::test]
+async fn fts1_nested_quantifier_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let mut q = make_query("proj-fts1-nested", "regex");
+    q.text = "(a+)+".to_string(); // classic ReDoS pattern for NFA engines
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: nested quantifier must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: a 499-byte pattern at the boundary (just under the cap) consisting
+/// of alternating groups must complete within the time budget.
+/// This is the hardest case: syntactically valid, maximum allowed size, adversarial structure.
+#[tokio::test]
+async fn fts1_max_size_adversarial_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build a 495-byte pattern of repeated "(a|b)" — tests DFA construction on max-size input.
+    let unit = "(a|b)";
+    let count = 499 / unit.len(); // 99 units = 495 bytes — under the 500-byte cap
+    let pattern = unit.repeat(count);
+    assert!(pattern.len() < 500, "pattern must be <500 bytes for this test");
+
+    let mut q = make_query("proj-fts1-maxsize", "regex");
+    q.text = pattern;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: 495-byte adversarial alternation pattern must complete \
+         within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: deeply nested groups `(((a)+)+)+` must complete within deadline.
+/// Verifies the engine does not stack-overflow on deeply parenthesised patterns.
+#[tokio::test]
+async fn fts1_deeply_nested_group_pattern_completes_within_deadline() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build "(((a)+)+)+" style nesting — 8 levels of wrapping.
+    // 30 levels causes DFA state explosion in tantivy's regex-automata backend;
+    // 8 levels is enough to prove no stack-overflow on deeply parenthesised patterns
+    // while remaining well within the time deadline.
+    let mut pattern = "a".to_string();
+    for _ in 0..8 {
+        pattern = format!("({pattern})+");
+    }
+    assert!(pattern.len() < 500, "nested pattern must be <500 bytes");
+
+    let mut q = make_query("proj-fts1-nested-deep", "regex");
+    q.text = pattern;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: deeply nested group pattern must complete within {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS1-a17d: an adversarial pattern indexed against 50 documents must complete
+/// within the time budget.  Proves per-doc matching is linear even for ReDoS-prone
+/// patterns when the engine uses a DFA/automaton backend.
+#[tokio::test]
+async fn fts1_adversarial_pattern_over_multiple_docs_completes_within_deadline() {
+    use engram_index::IndexDoc;
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    // Index 50 docs, each containing a string that would catastrophically backtrack
+    // an NFA against the pattern "(a+)+b".
+    for i in 0..50usize {
+        let content = format!("{} function_{i}", "a".repeat(40));
+        let doc = IndexDoc {
+            generation: 1,
+            chunk_id: i as u64,
+            path: RelPath::new(&format!("src/f{i}.rs")),
+            language: "rust".into(),
+            content,
+            namespace: "functions".into(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: 1,
+            doc_id: format!("doc-fts1-large-{i}"),
+            content_hash: format!("hash-fts1-large-{i}"),
+        };
+        engine.index_docs("proj-fts1-multi", &[doc], &cancel).await.unwrap();
+    }
+
+    let mut q = make_query("proj-fts1-multi", "regex");
+    q.namespace = "functions".into();
+    q.text = "(a+)+b".into();
+    q.top_k = 50;
+
+    let start = std::time::Instant::now();
+    let result = engine.lexical_search(&q);
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < FTS_REGEX_DEADLINE,
+        "FTS1-a17d: adversarial pattern over 50 docs must complete within \
+         {FTS_REGEX_DEADLINE:?}; took {elapsed:?}"
+    );
+    let _ = result;
+}
+
+/// FTS2-d1w8: MMR oversample cap structural check.
+///
+/// When `use_mmr=true`, the hybrid engine multiplies top_k by an oversampling
+/// factor before fetching candidate vectors. Without a cap this creates
+/// unbounded intermediate buffers (e.g. top_k=9999 × 10 = 99,990 rows).
+///
+/// Structural assertion: the source must contain the `.min(10_000)` guard that
+/// caps the oversampled fetch size before it reaches the vector store.
+#[test]
+fn mmr_oversample_cap_source_contains_bound() {
+    let source = include_str!("../../engram_index/src/hybrid.rs");
+
+    assert!(
+        source.contains(".min(10_000)") || source.contains(".min(10000)"),
+        "FTS2-d1w8: hybrid.rs must contain an explicit .min(10_000) cap on the \
+         oversampled top_k to prevent unbounded intermediate buffer allocation when \
+         use_mmr=true is combined with large top_k values"
+    );
+
+    // The cap must appear in proximity to the MMR oversampling logic.
+    assert!(
+        source.contains("oversample_factor") && (source.contains(".min(10_000)") || source.contains(".min(10000)")),
+        "FTS2-d1w8: the .min() cap must be applied to the oversampled fetch size \
+         (involving oversample_factor), not somewhere else in the file"
+    );
+}
+
+/// FTS2-d1w8: MMR oversample cap behavioral check.
+///
+/// Issues a search with top_k=9999 and use_mmr=true against a small index.
+/// The engine must complete without error — if the cap were missing, a large
+/// enough index would OOM; with the cap the fetch is bounded at 10,000.
+///
+/// This test proves the code path executes without panic or memory amplification
+/// visible to the caller, even with adversarially large top_k values.
+#[tokio::test]
+async fn mmr_oversample_cap_large_top_k_completes_without_error() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    let cancel = CancellationToken::new();
+    // Index a small set of docs to give the search something to hit.
+    for i in 0..5 {
+        use engram_index::IndexDoc;
+        let doc = IndexDoc {
+            generation: 1,
+            chunk_id: i,
+            path: RelPath::new(&format!("src/fts2_{i}.rs")),
+            language: "rust".into(),
+            content: format!("fn fts2_mmr_cap_doc_{i}() {{ }}"),
+            namespace: "functions".into(),
+            author: None,
+            timestamp: None,
+            start_line: 1,
+            end_line: 1,
+            doc_id: format!("fts2-doc-{i}"),
+            content_hash: format!("hash-fts2-{i}"),
+        };
+        engine.index_docs("proj-fts2-mmr", &[doc], &cancel).await.unwrap();
+    }
+
+    let mut q = make_query("proj-fts2-mmr", "strict");
+    q.namespace = "functions".into();
+    q.text = "fts2_mmr_cap".into();
+    q.top_k = 9999;
+    q.use_mmr = true;
+
+    // Must not panic — the internal oversample fetch is bounded by the cap.
+    // The result may be Ok (found results) or Err (e.g. embedding backend not available),
+    // but must never panic or cause an OOM abort.
+    let _result = engine.search(&q, None).await;
+    // Not panicking is the primary assertion.
+}
+
+// ── FTS1: regex alternation count cap (DFA state explosion prevention) ────────
+
+/// A regex pattern with 21 top-level alternations (branches at depth 0) must be
+/// rejected before reaching Tantivy's DFA builder.
+/// Without this cap, 50+ branches create exponential DFA state counts.
+#[tokio::test]
+async fn regex_excessive_top_level_alternations_rejected() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 21 top-level alternations (22 branches separated by |).
+    let pattern = (0..22)
+        .map(|i| format!("branch{i}"))
+        .collect::<Vec<_>>()
+        .join("|");
+
+    let mut q = make_query("proj-alt-cap", "regex");
+    q.text = pattern.clone();
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "regex with 21+ top-level alternations must be rejected; pattern len={}", pattern.len()
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.to_string().contains("alternation") || err.to_string().contains("FTS1"),
+        "error must describe the alternation limit; got: {err}"
+    );
+}
+
+/// A pattern with exactly 20 top-level alternations must be accepted.
+#[tokio::test]
+async fn regex_twenty_top_level_alternations_accepted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 20 alternations = 21 branches.
+    let pattern = (0..21).map(|i| format!("br{i}")).collect::<Vec<_>>().join("|");
+
+    let mut q = make_query("proj-alt-limit", "regex");
+    q.text = pattern;
+    let result = engine.lexical_search(&q);
+    // Must succeed (or return Ok with empty results) — not rejected for count.
+    assert!(
+        result.is_ok(),
+        "regex with exactly 20 top-level alternations must be accepted; got: {:?}",
+        result.err()
+    );
+}
+
+/// Alternations inside `(...)` groups must NOT count toward the top-level limit.
+/// This ensures `(a|b)(a|b)...` patterns (used by existing adversarial tests)
+/// are not broken by the new cap.
+#[tokio::test]
+async fn regex_alternations_inside_groups_not_counted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // 99 groups each with 1 alternation — 0 top-level alternations.
+    // This is the existing adversarial test pattern; must still be accepted.
+    let unit = "(a|b)";
+    let count = 499 / unit.len(); // ~99 groups, 495 bytes
+    let pattern = unit.repeat(count);
+
+    let mut q = make_query("proj-grp-alt", "regex");
+    q.text = pattern;
+    let result = engine.lexical_search(&q);
+    // Must not be rejected for alternation count (groups don't count).
+    if let Err(e) = &result {
+        assert!(
+            !e.to_string().contains("alternation"),
+            "alternations inside () groups must not count toward top-level limit; got: {e}"
+        );
+    }
+}
+

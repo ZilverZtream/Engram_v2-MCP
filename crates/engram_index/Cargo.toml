@@ -53,4 +53,6 @@ quick-xml = "0.37"
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tempfile = "3"
+arrow-array = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
