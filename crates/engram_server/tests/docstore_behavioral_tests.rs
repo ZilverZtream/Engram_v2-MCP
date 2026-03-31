@@ -952,6 +952,8 @@ fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
 
 const DOC_BY_ID_TABLE: TableDefinition<&str, &[u8]> =
     TableDefinition::new("doc_by_id");
+const FILE_FINGERPRINT_TABLE: TableDefinition<&str, &[u8]> =
+    TableDefinition::new("file_fingerprint");
 
 fn inject_corrupted_doc(db_path: &std::path::Path, key: &str) {
     let db = Database::open(db_path).expect("open for corruption injection");
@@ -1123,5 +1125,115 @@ fn ds1_all_corrupt_list_entries_returns_empty_not_error() {
          are corrupt — skip-not-abort must not become an error; got: {:?}", result.err());
     assert_eq!(result.unwrap().len(), 0,
         "DS1: all-corrupt project must return empty list");
+}
+
+// ── DS1 D5: copy-forward fingerprint corruption semantics ─────────────────────
+//
+// D5 from COMPANY_ADAPTED_DEMAN: the copy-forward indexing path must have explicit
+// behavior when fingerprint computation/lookup fails mid-file.
+//
+// Design decision: `get_fingerprint` uses `?` (fail-closed). A corrupt fingerprint
+// causes an error to propagate to the caller, which must then treat the file as
+// changed and re-index it from source (fail-open at the orchestration layer) or
+// abort the job (fail-closed). Either way, no silent data loss occurs.
+//
+// These tests document and prove the fail-closed behavior of `get_fingerprint`.
+
+fn inject_corrupted_fingerprint(db_path: &std::path::Path, key: &str) {
+    let db = Database::open(db_path).expect("open for fingerprint corruption injection");
+    let wtx = db.begin_write().expect("begin_write");
+    {
+        let mut t = wtx.open_table(FILE_FINGERPRINT_TABLE).expect("open file_fingerprint table");
+        // Bytes that are neither valid bincode nor valid JSON for a FileFingerprint.
+        t.insert(key, b"\xff\xfe\xfd\x00corrupted-fingerprint-garbage".as_slice())
+            .expect("inject fingerprint corruption");
+    }
+    wtx.commit().expect("commit corruption");
+}
+
+/// DS1-D5: get_fingerprint on a corrupt record must return Err (fail-closed),
+/// not Ok(garbage_fingerprint). The caller must treat a fingerprint error as
+/// "file changed" and re-index from source — this prevents silent copy-forward
+/// of stale or incorrect content.
+#[test]
+fn ds1_corrupted_fingerprint_causes_get_fingerprint_to_fail_closed() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        store.set_fingerprint("proj-fp-corrupt", &make_fingerprint("src/main.rs"))
+            .expect("set_fingerprint");
+    }
+
+    // Corrupt the fingerprint record we just wrote.
+    inject_corrupted_fingerprint(&db_path, "proj-fp-corrupt\x00src/main.rs");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.get_fingerprint("proj-fp-corrupt", "src/main.rs");
+    assert!(
+        result.is_err(),
+        "DS1-D5: get_fingerprint must return Err for a corrupted record — \
+         caller must treat fingerprint error as 'file changed' and re-index; \
+         got: {:?}", result.ok()
+    );
+}
+
+/// DS1-D5: a corrupt fingerprint record does not prevent reading a healthy
+/// fingerprint for a different file in the same project.
+/// This verifies that corruption is per-record, not per-project.
+#[test]
+fn ds1_corrupt_fingerprint_does_not_affect_healthy_sibling() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        store.set_fingerprint("proj-fp-sibling", &make_fingerprint("src/corrupt.rs"))
+            .expect("set corrupt fingerprint");
+        store.set_fingerprint("proj-fp-sibling", &make_fingerprint("src/healthy.rs"))
+            .expect("set healthy fingerprint");
+    }
+
+    inject_corrupted_fingerprint(&db_path, "proj-fp-sibling\x00src/corrupt.rs");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+
+    // Corrupt record fails closed.
+    let corrupt_result = store.get_fingerprint("proj-fp-sibling", "src/corrupt.rs");
+    assert!(
+        corrupt_result.is_err(),
+        "DS1-D5: corrupt fingerprint must return Err; got: {:?}", corrupt_result.ok()
+    );
+
+    // Healthy sibling is unaffected.
+    let healthy_result = store.get_fingerprint("proj-fp-sibling", "src/healthy.rs");
+    assert!(
+        healthy_result.is_ok(),
+        "DS1-D5: healthy fingerprint must be readable even when sibling is corrupt; \
+         got: {:?}", healthy_result.err()
+    );
+    let fp = healthy_result.unwrap().expect("fingerprint must be Some");
+    assert_eq!(
+        fp.rel_path, "src/healthy.rs",
+        "DS1-D5: healthy fingerprint rel_path must match; got: {:?}", fp.rel_path
+    );
+}
+
+/// DS1-D5: when get_fingerprint returns a missing record (None), the docstore
+/// source documents this as "file not seen before — must index". This tests
+/// the normal copy-forward decision path: missing fingerprint = treat as new file.
+#[test]
+fn ds1_missing_fingerprint_returns_none_indicating_file_is_new() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let store = open_store(&tmp);
+
+    let result = store.get_fingerprint("proj-new", "src/never_indexed.rs")
+        .expect("get_fingerprint must not error for missing key");
+    assert!(
+        result.is_none(),
+        "DS1-D5: missing fingerprint must return Ok(None) — file must be treated as new; \
+         got: {:?}", result
+    );
 }
 

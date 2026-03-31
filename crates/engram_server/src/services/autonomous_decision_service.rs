@@ -1140,6 +1140,13 @@ pub struct ConfigSnapshot {
     /// Format: `{std::env::consts::OS}/{std::env::consts::ARCH}`.
     #[serde(default)]
     pub runtime_triple: String,
+    /// ADP1-z2t4: BLAKE3 hex-digest of the autonomous_decision_service.rs source
+    /// bytes at compile time. Computed by build.rs using the actual file content,
+    /// so any edit to gate logic — even without bumping gate_code_version — produces
+    /// a different hash. Replay tooling can compare this field against a freshly-
+    /// built binary's value to detect silent gate-logic drift.
+    #[serde(default)]
+    pub gate_source_hash: String,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1186,6 +1193,9 @@ pub fn build_decision_report(
         crate_version: env!("CARGO_PKG_VERSION").into(),
         // ADP1: stamp runtime OS/arch so cross-platform replay divergence is detectable.
         runtime_triple: format!("{}/{}", std::env::consts::OS, std::env::consts::ARCH),
+        // ADP1-z2t4: BLAKE3 of the gate-logic source file, computed by build.rs and
+        // embedded at compile time. Changes whenever autonomous_decision_service.rs changes.
+        gate_source_hash: include_str!(concat!(env!("OUT_DIR"), "/gate_source_hash.txt")).into(),
         ..config_snapshot
     };
 
@@ -2089,6 +2099,7 @@ mod tests {
                 evidence_hash: String::new(), // populated by build_decision_report
                 crate_version: String::new(), // overridden by build_decision_report
                 runtime_triple: String::new(), // overridden by build_decision_report
+                gate_source_hash: String::new(), // overridden by build_decision_report
             },
             "test-build-001",
         );
@@ -2483,6 +2494,7 @@ mod tests {
             evidence_hash: String::new(),
             crate_version: String::new(),
             runtime_triple: String::new(),
+            gate_source_hash: String::new(),
         }
     }
 
@@ -2545,6 +2557,18 @@ mod tests {
             env!("CARGO_PKG_VERSION"),
             "ADP1: crate_version must equal env!(CARGO_PKG_VERSION) at decision time; \
              any other value means the provenance stamp is wrong"
+        );
+
+        // gate_source_hash: BLAKE3 of autonomous_decision_service.rs, embedded by build.rs.
+        assert!(
+            !report.config_snapshot.gate_source_hash.is_empty(),
+            "ADP1-z2t4: gate_source_hash must be non-empty — it is the compile-time \
+             BLAKE3 fingerprint of gate logic source; empty means build.rs did not run"
+        );
+        assert_eq!(
+            report.config_snapshot.gate_source_hash.len(), 64,
+            "ADP1-z2t4: gate_source_hash must be a 64-char BLAKE3 hex digest; \
+             got length {}", report.config_snapshot.gate_source_hash.len()
         );
     }
 

@@ -1516,11 +1516,9 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
 
-        let abs_path = if std::path::Path::new(&req.file_path).is_absolute() {
-            std::path::PathBuf::from(&req.file_path)
-        } else {
-            std::path::Path::new(&ps.info.directory).join(&req.file_path)
-        };
+        // MCP1: use safe_join to prevent path traversal; absolute paths and ".." rejected.
+        let abs_path = safe_join(std::path::Path::new(&ps.info.directory), &req.file_path)
+            .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
 
         let resolved = self
             .state
