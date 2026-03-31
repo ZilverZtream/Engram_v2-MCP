@@ -1503,7 +1503,13 @@ impl Engram {
             }
         }
 
-        let stats = self
+        // VEC1/X1: parity with spawn_job_index_directory — if the update path hits a
+        // vector table recreation error, emit FullReindexRequired and retry once with a
+        // fresh engine, exactly mirroring the index-job recovery path.  Without this
+        // branch, schema-mismatch errors during incremental updates do not set the
+        // durable degraded-state flag, leaving operators unaware of quality degradation.
+        let changed_for_retry = changed.clone();
+        let mut index_result = self
             .index_files_with_parse_guard(
                 &ps.search,
                 &pid,
@@ -1515,7 +1521,52 @@ impl Engram {
                 cancel,
                 |_, _| {},
             )
-            .await?;
+            .await;
+
+        if let Err(ref e) = index_result {
+            if format!("{e:#}").contains("VEC1") {
+                tracing::warn!(
+                    project_id = %pid,
+                    "VEC1/X1: update path hit vector table recreation — emitting FullReindexRequired and retrying"
+                );
+                let _ = self.state.events_tx.send(AppEvent::FullReindexRequired {
+                    project_id: pid.clone(),
+                });
+                let project_root = self.state.cfg.data_dir.join("projects").join(&pid);
+                match engram_index::HybridSearchEngine::new_with_budget(
+                    project_root.join("tantivy"),
+                    project_root.join("lancedb"),
+                    &self.state.cfg,
+                    Some(self.state.memory_budget.clone()),
+                )
+                .await
+                {
+                    Ok(fresh_search) => {
+                        index_result = self
+                            .index_files_with_parse_guard(
+                                &fresh_search,
+                                &pid,
+                                "memory",
+                                new_gen,
+                                &dir,
+                                changed_for_retry,
+                                self.state.cfg.max_chunks_per_file,
+                                cancel,
+                                |_, _| {},
+                            )
+                            .await;
+                    }
+                    Err(e2) => {
+                        tracing::error!(
+                            project_id = %pid,
+                            "VEC1/X1: update retry engine creation failed: {e2:#}"
+                        );
+                    }
+                }
+            }
+        }
+
+        let stats = index_result?;
 
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
