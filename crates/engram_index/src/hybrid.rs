@@ -1556,7 +1556,7 @@ impl HybridSearchEngine {
         Ok(())
     }
 
-    pub async fn vector_search(&self, q: &HybridQuery) -> anyhow::Result<Vec<HybridHit>> {
+    pub async fn vector_search(&self, q: &HybridQuery, cancel: &CancellationToken) -> anyhow::Result<Vec<HybridHit>> {
         if self.embedding_backend == "fts_only" {
             return Ok(Vec::new());
         }
@@ -1574,7 +1574,9 @@ impl HybridSearchEngine {
             }
             let table = self.lance_conn.open_table(&table_name).execute().await?;
 
-            let query_vec = self.embedder.embed(&q.text).await?;
+            // EMB1-x8q2: use embed_cancellable so in-flight embed can be cooperatively
+            // interrupted if the job or request is cancelled before the remote returns.
+            let query_vec = self.embedder.embed_cancellable(&q.text, cancel).await?;
 
             // Build the WHERE clause into a single pre-allocated String instead
             // of N separate format!() + Vec<String> + join(). Saves ~10 intermediate
@@ -1713,6 +1715,7 @@ impl HybridSearchEngine {
         &self,
         q: &HybridQuery,
         timeout_ms: u64,
+        cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
         let oversample_factor = if q.use_mmr {
             self.mmr_oversampling.max(3)
@@ -1726,7 +1729,7 @@ impl HybridSearchEngine {
 
         let timeout_dur = std::time::Duration::from_millis(timeout_ms);
         let mut hits =
-            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled)).await {
+            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled, cancel)).await {
                 Ok(result) => result?,
                 Err(_) => {
                     // ENG-AUD-2026-S05-0002: return a typed Err rather than
@@ -1901,6 +1904,7 @@ impl HybridSearchEngine {
         &self,
         q: &HybridQuery,
         centrality_boost: Option<&std::collections::HashMap<String, f32>>,
+        cancel: &CancellationToken,
     ) -> anyhow::Result<Vec<HybridHit>> {
         let fetch_k = if q.use_mmr {
             // FTS2: saturating_mul + cap prevents OOM on large top_k × multiplier combos.
@@ -1913,7 +1917,7 @@ impl HybridSearchEngine {
         q_modified.top_k = fetch_k;
 
         let lexical = self.lexical_search(&q_modified)?;
-        let vector = self.vector_search(&q_modified).await?;
+        let vector = self.vector_search(&q_modified, cancel).await?;
 
         use std::collections::HashMap;
         let capacity = lexical.len() + vector.len();

@@ -464,6 +464,7 @@ async fn run_live_retrieval_benchmark(
                         use_mmr: false,
                     },
                     None,
+                    &tokio_util::sync::CancellationToken::new(),
                 )
                 .await;
 

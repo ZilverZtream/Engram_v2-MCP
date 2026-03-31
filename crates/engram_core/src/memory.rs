@@ -453,4 +453,66 @@ mod tests {
             "MEM1: accepted + rejected must equal num_threads"
         );
     }
+
+    // ── MEM1-h9f3: estimate-based accounting documentation ────────────────────
+
+    /// MEM1-h9f3: `try_allocate` tracks the CALLER-REPORTED byte estimate, not
+    /// actual RSS.  This is by design: the budget cannot read process RSS without
+    /// blocking, so it relies on callers passing accurate estimates.
+    ///
+    /// This test documents the estimate-based property: the budget records exactly
+    /// what the caller claims, and `used()` reflects those estimates, not real
+    /// process memory.  If a caller passes 0 bytes, no budget is consumed.
+    #[test]
+    fn mem1_budget_tracks_caller_estimate_not_rss() {
+        let mb = MemoryBudget::new(1_000_000);
+
+        // Allocate an obviously impossible estimate (1 byte) — budget accepts it.
+        // This documents that the check is against the tracked counter, not RSS.
+        let decision = mb.try_allocate(1, Subsystem::Misc);
+        assert_eq!(decision, MemoryDecision::Allowed);
+        assert_eq!(mb.used(), 1, "MEM1-h9f3: budget tracks the 1-byte estimate exactly");
+
+        // Allocating 0 bytes is a no-op — budget unaffected.
+        let zero_decision = mb.try_allocate(0, Subsystem::Misc);
+        assert_eq!(zero_decision, MemoryDecision::Allowed);
+        assert_eq!(mb.used(), 1, "MEM1-h9f3: 0-byte allocation must not change tracked usage");
+    }
+
+    /// MEM1-h9f3: CAS prevents overcommit — two concurrent allocations that together
+    /// exceed the budget have exactly one succeed.  The CAS loop ensures the
+    /// losing thread sees the already-committed first allocation and rejects.
+    #[test]
+    fn mem1_cas_prevents_overcommit_at_exact_budget_boundary() {
+        use std::sync::{Arc, Barrier};
+
+        // Budget: 100 bytes.  Each thread wants 60 bytes.  Together = 120 > 100.
+        // CAS guarantees exactly 1 succeeds (the second sees used=60, 60+60=120 > 100).
+        let budget: u64 = 100;
+        let alloc: u64 = 60;
+        let mb = Arc::new(MemoryBudget::new(budget));
+        let barrier = Arc::new(Barrier::new(2));
+
+        let handles: Vec<_> = (0..2).map(|_| {
+            let mb_c = mb.clone();
+            let bar = barrier.clone();
+            std::thread::spawn(move || {
+                bar.wait(); // synchronize start to maximize contention
+                mb_c.try_allocate(alloc, Subsystem::Tantivy)
+            })
+        }).collect();
+
+        let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        let accepted = results.iter().filter(|d| **d != MemoryDecision::Rejected).count();
+        let final_used = mb.used();
+
+        assert_eq!(
+            accepted, 1,
+            "MEM1-h9f3: CAS must ensure exactly 1 of 2 concurrent over-budget allocations succeeds"
+        );
+        assert_eq!(
+            final_used, alloc,
+            "MEM1-h9f3: used must equal the one accepted allocation ({alloc} bytes), not both"
+        );
+    }
 }

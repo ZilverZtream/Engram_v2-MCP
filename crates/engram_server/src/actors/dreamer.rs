@@ -384,6 +384,7 @@ pub async fn dream_once(
                         use_mmr: false,
                     },
                     None,
+                    &CancellationToken::new(),
                 )
                 .await
                 && let Some(best) = hits.first()

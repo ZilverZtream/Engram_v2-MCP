@@ -168,6 +168,7 @@ impl Engram {
                     use_mmr: req.use_mmr,
                 },
                 None,
+                &tokio_util::sync::CancellationToken::new(),
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
