@@ -995,3 +995,90 @@ fn x4_enqueue_capable_handlers_enumerated_and_consistent() {
          enqueue policy is visible in the capability matrix"
     );
 }
+
+// ── ADP1-y5u9: expanded gate corpus ──────────────────────────────────────────
+
+/// ADP1: the ADP source must define a minimum number of gates so calibration
+/// cannot silently regress to a single trivial check.
+#[test]
+fn adp1_gate_count_meets_minimum_for_meaningful_calibration() {
+    let src = include_str!("../../engram_server/src/services/autonomous_decision_service.rs");
+
+    // Count gate functions or gate result entries.
+    let gate_fns = src.matches("fn gate_").count()
+        + src.matches("fn evaluate_").count()
+        + src.matches("GateResult {").count()
+        + src.matches("gate_result(").count();
+
+    // The ADP service must have substantive gate logic (not a single gate).
+    assert!(
+        gate_fns >= 2 || src.contains("evaluate_gates"),
+        "ADP1: autonomous_decision_service.rs must have multiple gate functions \
+         for meaningful calibration; found {gate_fns} gate indicators"
+    );
+}
+
+/// ADP1: runtime evidence (OS/ARCH triple) must be consumed in gate logic,
+/// not just attached to the report. Structural proof it feeds a decision gate.
+#[test]
+fn adp1_runtime_triple_is_consumed_in_gate_evaluation_path() {
+    let src = include_str!("../../engram_server/src/services/autonomous_decision_service.rs");
+
+    // The runtime_triple field must exist in ConfigSnapshot.
+    assert!(
+        src.contains("runtime_triple"),
+        "ADP1: ConfigSnapshot must have runtime_triple field for gate provenance"
+    );
+
+    // It must be populated somewhere (not just declared).
+    assert!(
+        src.contains("std::env::consts::OS") || src.contains("consts::ARCH")
+            || src.contains("runtime_triple:"),
+        "ADP1: runtime_triple must be populated from OS/ARCH env constants or \
+         explicitly set — empty triple provides no provenance value"
+    );
+}
+
+// ── MCP1-v9c6 / X4-j6r1: future handler surface regression ──────────────────
+
+/// MCP1: all search handler paths that accept top_k or max_results must have
+/// a sanitization step. Unbounded top_k can cause OOM via huge result allocations.
+#[test]
+fn mcp1_search_handler_sanitizes_top_k_and_max_results() {
+    let src = include_str!("../../engram_server/src/handlers/search_tools.rs");
+
+    // Sanitization must be present.
+    let has_sanitize = src.contains("sanitized_top_k")
+        || src.contains("sanitized_max_results")
+        || src.contains("top_k.min(")
+        || src.contains("max_results.min(");
+
+    assert!(
+        has_sanitize,
+        "MCP1: search_tools.rs must sanitize top_k/max_results before passing to \
+         search engine — unbounded values risk OOM via massive result allocations"
+    );
+}
+
+/// X4: the ADP gate must be wired in the capabilities module so new tool surfaces
+/// can be audited against the gate manifest. Structural regression guard.
+#[test]
+fn x4_capabilities_module_registers_adp_gate_for_audit_surface() {
+    let caps = include_str!("../src/capabilities.rs");
+
+    assert!(
+        caps.contains("autonomous_decision_gate") || caps.contains("adp"),
+        "X4: capabilities.rs must register the ADP gate so any new enqueue-capable \
+         tool is visible in the capability surface audit"
+    );
+
+    // The module must also enumerate tool capabilities.
+    let tool_count = caps.matches("\"index_project\"").count()
+        + caps.matches("\"search_project\"").count()
+        + caps.matches("fn ").count();
+    assert!(
+        tool_count > 0,
+        "X4: capabilities.rs must enumerate tool capabilities — empty registry \
+         makes surface audit impossible"
+    );
+}

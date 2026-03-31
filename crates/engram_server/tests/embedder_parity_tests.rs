@@ -825,3 +825,58 @@ fn emb2_local_embedder_dimension_is_384_by_design() {
         "EMB2: LocalEmbedder dimension must be 384 (fixed by design for local projection); \
          if this changes, update all callers that expect 384-dim vectors");
 }
+
+// ── EMB1-q9v2: call-site cancellation discipline ──────────────────────────────
+
+/// EMB1: the hot-path indexing code in hybrid.rs must only call
+/// `embed_batch_cancellable`, never the bare `embed_batch()`, so long embedding
+/// operations remain preemptible by the shutdown/cancel token.
+#[test]
+fn emb1_hybrid_indexing_path_uses_cancellable_embed_variant() {
+    let src = include_str!("../../engram_index/src/hybrid.rs");
+
+    assert!(
+        src.contains("embed_batch_cancellable"),
+        "EMB1: hybrid.rs must use embed_batch_cancellable — bare embed_batch() \
+         has no cancel-token path"
+    );
+
+    // Count bare embed_batch( calls that are NOT embed_batch_cancellable.
+    // embed_batch_cancellable( contains embed_batch( as substring, subtract those.
+    let total = src.matches("embed_batch(").count();
+    let cancellable = src.matches("embed_batch_cancellable(").count();
+    let bare = total.saturating_sub(cancellable);
+
+    assert!(
+        bare == 0,
+        "EMB1: hybrid.rs has {bare} bare embed_batch() call(s) — all indexing-path \
+         embed calls must go through embed_batch_cancellable so they are preemptible"
+    );
+}
+
+/// EMB1: embed.rs default impl of embed_batch_cancellable must check the cancel
+/// token BEFORE delegating to embed_batch, so the default impl is not a bypass.
+#[test]
+fn emb1_default_embed_batch_cancellable_checks_token_before_dispatch() {
+    let src = include_str!("../../engram_ml/src/embed.rs");
+
+    let fn_pos = src.find("async fn embed_batch_cancellable(")
+        .expect("EMB1: embed.rs must define embed_batch_cancellable");
+
+    // Within the first 300 bytes of the function body, is_cancelled() must appear
+    // before the delegation to embed_batch.
+    let window = &src[fn_pos..fn_pos + 300.min(src.len() - fn_pos)];
+    let cancel_pos = window.find("is_cancelled()");
+    let batch_pos = window.find("embed_batch(");
+
+    assert!(
+        cancel_pos.is_some(),
+        "EMB1: default embed_batch_cancellable must call is_cancelled() — \
+         found window: {:?}", &window[..150.min(window.len())]
+    );
+    assert!(
+        cancel_pos < batch_pos || batch_pos.is_none(),
+        "EMB1: is_cancelled() check must precede embed_batch() call in default impl — \
+         cancel check at {:?}, batch call at {:?}", cancel_pos, batch_pos
+    );
+}

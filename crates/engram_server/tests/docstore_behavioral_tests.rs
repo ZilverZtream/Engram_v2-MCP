@@ -1068,3 +1068,60 @@ fn purge_with_corrupted_record_fails_closed_rather_than_skipping() {
     );
 }
 
+// ── DS1-p7d1: list_doc_summaries skip-and-continue keeps siblings visible ────
+
+/// DS1: `list_doc_summaries_for_project` must skip corrupt records and still
+/// return healthy siblings. One corrupt row must not hide all healthy entries.
+#[test]
+fn ds1_corrupt_list_entry_leaves_healthy_siblings_visible() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        for id in ["doc-a", "doc-b", "doc-c"] {
+            store.put_doc("proj-ds1-list", &make_doc(id, &format!("src/{id}.rs"), "code"))
+                .expect("put_doc must succeed");
+        }
+    }
+
+    // Corrupt doc-a's entry in the doc_by_id table.
+    inject_corrupted_doc(&db_path, "proj-ds1-list\x00code\x00doc-a");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+    let summaries = store.list_doc_summaries_for_project("proj-ds1-list")
+        .expect("list_doc_summaries_for_project must not error on corrupt record");
+
+    let ids: Vec<&str> = summaries.iter().map(|s| s.doc_id.as_str()).collect();
+    assert!(ids.contains(&"doc-b"),
+        "DS1: doc-b must be visible even though doc-a is corrupt; got: {:?}", ids);
+    assert!(ids.contains(&"doc-c"),
+        "DS1: doc-c must be visible even though doc-a is corrupt; got: {:?}", ids);
+    assert!(!ids.contains(&"doc-a"),
+        "DS1: corrupt doc-a must be skipped in list_doc_summaries; got: {:?}", ids);
+}
+
+/// DS1: list_doc_summaries_for_project on a project with ALL corrupt records
+/// must return empty vec (not error) — skip-not-abort guarantee.
+#[test]
+fn ds1_all_corrupt_list_entries_returns_empty_not_error() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let db_path = tmp.path().join("docs.redb");
+
+    {
+        let store = DocStore::open(&db_path).expect("open");
+        store.put_doc("proj-ds1-allcorrupt", &make_doc("doc-only", "src/x.rs", "code"))
+            .expect("put_doc");
+    }
+
+    inject_corrupted_doc(&db_path, "proj-ds1-allcorrupt\x00code\x00doc-only");
+
+    let store = DocStore::open(&db_path).expect("reopen");
+    let result = store.list_doc_summaries_for_project("proj-ds1-allcorrupt");
+    assert!(result.is_ok(),
+        "DS1: list_doc_summaries_for_project must return Ok([]) when all records \
+         are corrupt — skip-not-abort must not become an error; got: {:?}", result.err());
+    assert_eq!(result.unwrap().len(), 0,
+        "DS1: all-corrupt project must return empty list");
+}
+

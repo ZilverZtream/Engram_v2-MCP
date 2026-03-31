@@ -1079,3 +1079,82 @@ fn job1_failed_phase_checkpoint_is_not_resumable_after_reopen() {
         resumable
     );
 }
+
+// ── X6-f9b4: CancellationOutcome graceful tombstone failure ───────────────────
+
+/// X6: tombstone() on a missing job must return CancelledWithoutTombstone, not panic.
+/// This is the "NotFound" path — cancel arrived after job already completed/removed.
+#[test]
+fn x6_tombstone_on_missing_job_returns_cancelled_without_tombstone() {
+    use engram_core::checkpoint::{CancellationOutcome, CheckpointStore};
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let store = CheckpointStore::open(&tmp.path().join("cp.redb"))
+        .expect("CheckpointStore::open must succeed");
+
+    // No checkpoint was ever written for "phantom-job".
+    let outcome = store.tombstone("phantom-job");
+    assert_eq!(
+        outcome,
+        CancellationOutcome::CancelledWithoutTombstone,
+        "X6: tombstone() on a missing job must return CancelledWithoutTombstone — \
+         cancel of an already-completed job must not panic or return Tombstoned"
+    );
+}
+
+/// X6: tombstone() on a live job must return CancelledWithTombstone and make the
+/// checkpoint non-resumable.
+#[test]
+fn x6_tombstone_on_live_job_returns_cancelled_with_tombstone_and_blocks_resume() {
+    use engram_core::checkpoint::{CancellationOutcome, CheckpointStore, JobPhase};
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let store = CheckpointStore::open(&tmp.path().join("cp.redb"))
+        .expect("CheckpointStore::open must succeed");
+
+    let cp = make_checkpoint("job-live", "proj-tombstone", JobPhase::Parsing);
+    store.put(&cp).expect("put must succeed");
+
+    let outcome = store.tombstone("job-live");
+    assert_eq!(
+        outcome,
+        CancellationOutcome::CancelledWithTombstone,
+        "X6: tombstone() on an existing job must succeed and return CancelledWithTombstone"
+    );
+
+    // After tombstone the job must not be resumable.
+    let resumable = store.find_resumable("proj-tombstone")
+        .expect("find_resumable must not error");
+    assert!(
+        resumable.is_none(),
+        "X6: tombstoned job must not appear as resumable — \
+         Cancelled phase must be excluded from resume candidates; got: {:?}", resumable
+    );
+}
+
+/// X6: Cancelled phase must be listed as non-resumable alongside Failed/Completed.
+/// Structural proof that cleanup_old treats Cancelled as terminal.
+#[test]
+fn x6_cancelled_phase_is_terminal_and_cleaned_up_by_age() {
+    use engram_core::checkpoint::{CheckpointStore, JobPhase};
+
+    let tmp = tempfile::TempDir::new().unwrap();
+    let store = CheckpointStore::open(&tmp.path().join("cp.redb"))
+        .expect("CheckpointStore::open must succeed");
+
+    let mut cp = make_checkpoint("job-cancelled-old", "proj-cancel-gc", JobPhase::Scanning);
+    // Set updated_at to ancient time so cleanup_old will pick it up.
+    cp.updated_at_ms = 1_000; // 1970 epoch — definitely old
+    store.put(&cp).expect("put must succeed");
+
+    // Tombstone it.
+    store.tombstone("job-cancelled-old");
+
+    // cleanup_old with max_age = 1 ms should remove it.
+    let removed = store.cleanup_old(1).expect("cleanup_old must not error");
+    assert!(
+        removed >= 1,
+        "X6: cleanup_old must remove Cancelled-phase checkpoints older than max_age; \
+         removed {removed}"
+    );
+}

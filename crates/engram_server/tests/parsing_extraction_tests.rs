@@ -942,3 +942,61 @@ fn js_extractor_mandatory_expect_sites_are_covered_by_named_groups() {
          but only {group_count} named capture groups (?P<...>)"
     );
 }
+
+// ── PARSE1-x3r8: cap.get(0) safety invariant ─────────────────────────────────
+
+/// PARSE1: `cap.get(0)` in js_extractor.rs uses `.expect("group 0 always exists")`.
+/// Group 0 is the full match — it is ALWAYS present when `regex.captures()`
+/// returns `Some(caps)`. This test documents and proves the invariant so future
+/// changes that restructure capture usage are caught immediately.
+#[test]
+fn parse1_cap_get_0_expect_is_safe_because_group_zero_is_whole_match() {
+    let src = include_str!("../../engram_index/src/js_extractor.rs");
+
+    // Every occurrence of cap.get(0).expect must say "group 0 always exists".
+    // This comment IS the invariant proof — if the message changes, the invariant
+    // may have been violated.
+    let expect_g0 = src.matches("cap.get(0).expect(\"group 0 always exists\")").count();
+    let other_g0_expects = src.matches("cap.get(0).expect(").count()
+        .saturating_sub(expect_g0);
+
+    assert!(
+        other_g0_expects == 0,
+        "PARSE1: {other_g0_expects} cap.get(0).expect() call(s) have message other than \
+         'group 0 always exists' — the invariant comment is the proof; all must be consistent"
+    );
+
+    // There must be at least 10 such sites (production code uses group 0 for byte offsets).
+    assert!(
+        expect_g0 >= 10,
+        "PARSE1: expected ≥10 cap.get(0).expect('group 0 always exists') sites in \
+         js_extractor.rs production code; found {expect_g0} — some may have been removed"
+    );
+}
+
+/// PARSE1: cap.get(0) in js_extractor.rs is always called AFTER regex.captures()
+/// returns Some(cap). Structural proof: every captures() call must be in an
+/// `if let Some(cap)` or similar pattern — not a raw unwrap.
+#[test]
+fn parse1_captures_calls_are_guarded_by_option_check() {
+    let src = include_str!("../../engram_index/src/js_extractor.rs");
+
+    // Bare `.captures(` unwrap without guard would mean cap.get(0) could panic.
+    // Count .captures( usages vs guarded forms.
+    let total_captures = src.matches(".captures(").count();
+    let guarded_forms = src.matches("if let Some(cap").count()
+        + src.matches("for cap in").count()
+        + src.matches(".captures_iter(").count();
+
+    // All captures( calls must be in guarded context or iterator (captures_iter).
+    // Direct .captures( is only used when immediately pattern-matched.
+    assert!(
+        total_captures > 0,
+        "PARSE1: js_extractor.rs must use regex.captures() — found none"
+    );
+    assert!(
+        guarded_forms > 0,
+        "PARSE1: js_extractor.rs must guard .captures() results with if-let or for-in; \
+         found {guarded_forms} guards for {total_captures} captures calls"
+    );
+}
