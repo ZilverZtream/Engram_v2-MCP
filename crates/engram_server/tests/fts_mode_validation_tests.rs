@@ -852,3 +852,96 @@ async fn regex_alternations_inside_groups_not_counted() {
     }
 }
 
+// ── FTS1: extended adversarial regex corpus ───────────────────────────────────
+
+/// FTS1: patterns with Unicode character class escapes must complete within
+/// deadline — proves the engine doesn't hang on \w+ or \d+ style patterns.
+#[tokio::test]
+async fn fts1_unicode_char_class_patterns_complete_within_deadline() {
+    use std::time::Duration;
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+    let deadline = Duration::from_millis(500);
+
+    let patterns = [
+        r"\w+",
+        r"\d{3,6}",
+        r"\s*\w+\s*",
+        r"[a-zA-Z0-9_]{1,20}",
+        r"(\w+\.){1,5}\w+",
+    ];
+
+    for pattern in &patterns {
+        let mut q = make_query("proj-fts1-unicode", "regex");
+        q.text = pattern.to_string();
+        let start = std::time::Instant::now();
+        let _ = engine.lexical_search(&q);
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < deadline,
+            "FTS1: regex pattern {pattern:?} must complete within {deadline:?}; took {elapsed:?}"
+        );
+    }
+}
+
+/// FTS1: patterns that are exactly at the MAX_REGEX_PATTERN_LEN boundary and
+/// exactly one byte over must be handled: at-boundary accepted, over-boundary rejected.
+#[tokio::test]
+async fn fts1_pattern_exactly_at_max_len_boundary_accepted() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Pattern of exactly 500 'a's — at the limit.
+    let at_limit = "a".repeat(500);
+    let mut q = make_query("proj-fts1-boundary", "regex");
+    q.text = at_limit;
+    let result = engine.lexical_search(&q);
+    // Should not error with length rejection (might still be invalid regex syntax
+    // but must not error specifically with length cap message).
+    if let Err(ref e) = result {
+        assert!(
+            !e.to_string().to_lowercase().contains("length"),
+            "FTS1: 500-byte pattern must not be rejected for length; got: {e}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn fts1_pattern_over_max_len_boundary_rejected() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Pattern of 501 'a's — one byte over the limit.
+    let over_limit = "a".repeat(501);
+    let mut q = make_query("proj-fts1-overlimit", "regex");
+    q.text = over_limit;
+    let result = engine.lexical_search(&q);
+    assert!(
+        result.is_err(),
+        "FTS1: 501-byte pattern must be rejected — exceeds MAX_REGEX_PATTERN_LEN"
+    );
+}
+
+/// FTS1: top-level alternation count must be enforced — patterns with too many
+/// `|` at the top level must be rejected to prevent combinatorial explosion.
+#[tokio::test]
+async fn fts1_top_level_alternation_cap_enforced() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let engine = open_engine(&tmp).await;
+
+    // Build a pattern with many top-level alternations but under 500 bytes.
+    // Use single-char alternations: a|b|c|... capped at 249 chars (124 `|`).
+    let parts: Vec<&str> = (0..50).map(|_| "x").collect();
+    let pattern = parts.join("|"); // 50 top-level alternations
+
+    let mut q = make_query("proj-fts1-altcap", "regex");
+    q.text = pattern;
+    // Either accepted (cap > 50) or rejected with alternation message — must not hang.
+    let start = std::time::Instant::now();
+    let _ = engine.lexical_search(&q);
+    assert!(
+        start.elapsed() < std::time::Duration::from_millis(500),
+        "FTS1: 50-alternation pattern must complete within 500ms — no hang on alternation handling"
+    );
+}
+

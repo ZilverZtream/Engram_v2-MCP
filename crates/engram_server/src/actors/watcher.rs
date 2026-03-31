@@ -132,6 +132,13 @@ pub async fn run_watcher(
                     }
                 }
                 for pid in to_trigger {
+                    // CANCEL1: cooperative shutdown check inside the project-trigger loop.
+                    // The outer select! only preempts between ticks; this check allows
+                    // early exit mid-scan when many projects are pending.
+                    if shutdown.is_cancelled() {
+                        tracing::info!("watcher: shutdown detected mid-scan — exiting");
+                        return;
+                    }
                     update_cancels.remove(&pid);
                     // Atomically check-and-claim the in-flight slot.  Both the
                     // check and the insert happen inside the same lock guard, so

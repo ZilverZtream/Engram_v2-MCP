@@ -712,3 +712,84 @@ fn all_handler_files_that_use_project_id_call_validate_project_id() {
         }
     }
 }
+
+// ── REG1: delimiter fuzzing for all key-component types ──────────────────────
+
+/// REG1: validate_key_component must reject delimiter bytes in ALL registry key
+/// component types — not just project_id and section_id.
+/// Tests rule_id, watch_id, doc_id, and namespace to ensure no component type
+/// can introduce composite-key corruption via delimiter injection.
+#[test]
+fn validate_key_component_rejects_delimiters_for_all_key_types() {
+    use engram_core::security::validate_key_component;
+
+    let delimiter_inputs = ["\x00evil", "valid\x00suffix", "val\nevil", "\nprefix"];
+    let key_types = ["rule_id", "watch_id", "doc_id", "namespace", "section_id"];
+
+    for key_type in &key_types {
+        for input in &delimiter_inputs {
+            assert!(
+                validate_key_component(key_type, input).is_err(),
+                "REG1: validate_key_component({key_type:?}, {input:?}) must reject \
+                 delimiter-bearing input — allows composite key corruption if accepted"
+            );
+        }
+    }
+}
+
+/// REG1: validate_key_component must accept normal valid values for all key types.
+/// Ensures the validation is not so strict that legitimate values are rejected.
+#[test]
+fn validate_key_component_accepts_valid_values_for_all_key_types() {
+    use engram_core::security::validate_key_component;
+
+    let valid_inputs = [
+        ("rule_id", "no-unsafe-methods"),
+        ("watch_id", "watch_2024_alpha"),
+        ("doc_id", "src/main.rs:42"),
+        ("namespace", "engram.index"),
+        ("section_id", "overview/architecture"),
+    ];
+
+    for (key_type, input) in &valid_inputs {
+        assert!(
+            validate_key_component(key_type, input).is_ok(),
+            "REG1: validate_key_component({key_type:?}, {input:?}) must accept \
+             valid input; got Err"
+        );
+    }
+}
+
+// ── X3: cross-subsystem section_id → path validation ─────────────────────────
+
+/// X3: the project_tools.rs source must show validate_key_component applied to
+/// section_id BEFORE the section_id value is used in path or index operations.
+/// This proves the cross-subsystem validation chain: MCP input → handler boundary
+/// → registry/index, with no gap where a delimiter-bearing section_id could escape.
+#[test]
+fn cross_subsystem_section_id_validated_before_index_path_use() {
+    let src = include_str!("../src/handlers/project_tools.rs");
+
+    // Find the handle_update_memory_bank function body.
+    let fn_start = src.find("fn handle_update_memory_bank")
+        .expect("X3: handle_update_memory_bank must exist in project_tools.rs");
+
+    let fn_body = &src[fn_start..];
+
+    // validate_key_component must appear before any path join or index write.
+    let validate_pos = fn_body.find("validate_key_component")
+        .expect("X3: validate_key_component must be called in handle_update_memory_bank");
+
+    // The index write / path construction must appear AFTER validation.
+    let index_write_pos = fn_body.find("put_memory_section")
+        .or_else(|| fn_body.find("index_doc"))
+        .or_else(|| fn_body.find("safe_join"))
+        .expect("X3: handle_update_memory_bank must contain an index write after validation");
+
+    assert!(
+        validate_pos < index_write_pos,
+        "X3: validate_key_component (byte {validate_pos}) must appear before index \
+         write (byte {index_write_pos}) in handle_update_memory_bank — \
+         a delimiter-bearing section_id must never reach the index path"
+    );
+}
