@@ -2431,7 +2431,7 @@ fn ns1_build_pk_clamps_global_mutable_generation_to_zero() {
     let fn_pos = src.find("fn build_pk(")
         .expect("NS1: ids.rs must define build_pk");
 
-    let body = &src[fn_pos..fn_pos + 400.min(src.len() - fn_pos)];
+    let body = &src[fn_pos..fn_pos + 800.min(src.len() - fn_pos)];
 
     // GlobalMutable must be special-cased.
     assert!(

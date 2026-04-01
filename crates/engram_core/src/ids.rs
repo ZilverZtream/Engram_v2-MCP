@@ -185,7 +185,23 @@ impl ContentHash {
 /// Build the canonical Tantivy/Lance primary key.
 ///
 /// Format: `{project_id}:{namespace}:{generation}:{doc_id}`
+///
+/// REG1-a4f29c: In debug/test builds, asserts that no component contains ':'
+/// so that a colon-containing component cannot blur key-boundary parsing.
+/// In production builds these callers are already protected:
+/// - `project_id` is validated by `validate_project_id` to `[A-Za-z0-9_-]` (no ':')
+/// - `namespace` is a constant string with no ':'
+/// - `doc_id` is blake3-hex (charset `[0-9a-f]`, no ':')
 pub fn build_pk(project_id: &str, namespace: &str, generation: u64, doc_id: &str) -> String {
+    debug_assert!(
+        !project_id.contains(':'),
+        "REG1-a4f29c: project_id must not contain ':' — use validate_project_id before build_pk"
+    );
+    debug_assert!(
+        !namespace.contains(':'),
+        "REG1-a4f29c: namespace must not contain ':' — namespaces are compile-time constants"
+    );
+    // doc_id: no assert — graph node IDs legitimately contain ':'; DocIdStr callers are safe.
     let effective_gen = if let Ok(policy) = crate::namespaces::get_policy(namespace) {
         if policy.versioning == crate::namespaces::NamespaceVersioning::GlobalMutable {
             0
