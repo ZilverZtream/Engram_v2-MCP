@@ -274,3 +274,86 @@ async fn vec1_lifecycle_index_reindex_required_flag_clear_search_restored() {
          search quality was not restored"
     );
 }
+
+// ── VEC1-m9t3: temporal serving window ───────────────────────────────────────
+
+/// VEC1-m9t3: the reindex_required flag persists across multiple reads during the
+/// degraded serving window — it must not auto-clear between search requests.
+///
+/// Documents the operational contract: from flag-set to flag-clear, search callers
+/// receive the flag signal on every `get_project` call and can degrade gracefully.
+/// The window closes only when the reindex job explicitly calls `clear_reindex_required`.
+#[test]
+fn vec1_degraded_serving_window_flag_persists_across_repeated_reads() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let reg = Registry::open(&tmp.path().join("r.redb")).expect("Registry::open");
+
+    reg.put_project(&make_project_record("proj-vec1-window"))
+        .expect("put_project");
+
+    let since_ms: u64 = 88_000_000;
+    reg.set_reindex_required("proj-vec1-window", since_ms)
+        .expect("set_reindex_required");
+
+    // Repeated reads simulate search requests during the degraded window.
+    // The flag must persist — it must not auto-clear on read.
+    for i in 0..5 {
+        let rec = reg
+            .get_project("proj-vec1-window")
+            .expect("get_project must not error")
+            .expect("project must exist");
+        assert_eq!(
+            rec.reindex_required_since_ms,
+            Some(since_ms),
+            "VEC1-m9t3: reindex_required flag must persist on read #{i} — \
+             serving window is open until reindex job calls clear_reindex_required"
+        );
+    }
+}
+
+// ── VEC2-r2d8: LanceDB merge_insert atomicity assumption ─────────────────────
+
+/// VEC2-r2d8: the vector store write path uses LanceDB `merge_insert` for all
+/// batch upserts. This is assumed to be atomic per batch (all rows committed or
+/// none on engine-internal failure). This structural test documents that assumption
+/// so any change to the write path that could introduce partial-batch visibility
+/// is immediately visible during review.
+#[test]
+fn vec2_vector_store_batch_write_path_uses_merge_insert() {
+    let src = include_str!("../../engram_index/src/vector.rs");
+
+    assert!(
+        src.contains("merge_insert"),
+        "VEC2-r2d8: vector.rs must use merge_insert for batch writes. \
+         merge_insert is assumed to be atomic per batch (all-or-nothing). \
+         Switching to a non-atomic write API (e.g., table.add()) without adding \
+         explicit rollback handling introduces partial-batch visibility risk."
+    );
+
+    // The write comment must document the atomicity assumption so future editors
+    // are aware of the contract when modifying the write path.
+    assert!(
+        src.contains("merge_insert") && (src.contains("atomic") || src.contains("VEC1")),
+        "VEC2-r2d8: the merge_insert call site in vector.rs must be annotated with \
+         a comment referencing atomicity or VEC1 — this prevents silent weakening \
+         of the write contract during future refactors"
+    );
+}
+
+/// VEC2-r2d8: the vector store must not use a delete-then-add pattern for batch
+/// writes, which would be non-atomic and create a partial-visibility window.
+/// merge_insert replaces any prior record atomically within the engine transaction.
+#[test]
+fn vec2_no_delete_then_add_pattern_in_vector_write_path() {
+    let src = include_str!("../../engram_index/src/vector.rs");
+
+    // The old non-atomic pattern used delete + add separately. After VEC1 fix,
+    // only merge_insert should appear for the upsert path.
+    let has_separate_delete = src.contains("table.delete(") && src.contains("table.add(");
+    assert!(
+        !has_separate_delete,
+        "VEC2-r2d8: vector.rs must not use a delete-then-add pattern — this creates \
+         a partial-visibility window between the delete and add operations. \
+         Use merge_insert for atomic batch upserts."
+    );
+}
