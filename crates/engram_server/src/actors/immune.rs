@@ -75,7 +75,7 @@ pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
                 tracing::info!("immune actor: shutdown cancelled during project scan loop — exiting");
                 return;
             }
-            if let Err(e) = scan_project_reverts(&state, &pid).await {
+            if let Err(e) = scan_project_reverts(&state, &pid, &shutdown).await {
                 tracing::debug!(project = %pid, "immune scan error: {e:#}");
             }
         }
@@ -83,7 +83,11 @@ pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
 }
 
 /// Scan a single project for new revert commits and index anti-patterns.
-async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Result<()> {
+async fn scan_project_reverts(
+    state: &AppState,
+    project_id: &str,
+    shutdown: &CancellationToken,
+) -> anyhow::Result<()> {
     // Resolve the project directory from the registry.
     let pid = project_id.to_string();
     let reg = state.registry.clone();
@@ -167,16 +171,32 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
     };
 
     // Everything from here is CPU-bound git I/O — run in spawn_blocking.
+    //
+    // CANCEL2-f7a31e: create a CancellationToken for the inner blocking scan and
+    // mirror the outer shutdown token onto it via a separate watcher task.
+    // walk_new_commits checks `cancel.is_cancelled()` (non-async, safe in blocking
+    // context) at each commit iteration, so the scan exits cooperatively on shutdown.
+    let scan_cancel = CancellationToken::new();
+    let scan_cancel_for_watcher = scan_cancel.clone();
+    let shutdown_clone = shutdown.clone();
+    let cancel_watcher = tokio::spawn(async move {
+        shutdown_clone.cancelled().await;
+        scan_cancel_for_watcher.cancel();
+    });
+
     let pid3 = project_id.to_string();
     let pid3_err = pid3.clone();
     let (anti_patterns, terminal_oid) = tokio::task::spawn_blocking(move || {
-        scan_reverts_blocking(&directory, stop_oid, MAX_COMMITS_PER_SCAN, MAX_DIFF_BYTES)
+        scan_reverts_blocking(&directory, stop_oid, MAX_COMMITS_PER_SCAN, MAX_DIFF_BYTES, scan_cancel)
     })
     .await
     .unwrap_or_else(|e| {
         tracing::error!(project = %pid3_err, "ENG-AUD-S1-0003: immune scan spawn_blocking panicked: {e}");
         Ok((Vec::new(), None))
     })?;
+
+    // Cancel watcher is no longer needed once the blocking scan completes.
+    cancel_watcher.abort();
 
     // If no commits were scanned at all (e.g., empty repo or already at tip), nothing to do.
     if terminal_oid.is_none() {
@@ -280,15 +300,19 @@ async fn scan_project_reverts(state: &AppState, project_id: &str) -> anyhow::Res
 }
 
 /// CPU-bound: open repo, walk commits, find reverts, extract anti-patterns.
+///
+/// `cancel` is mirrored from the process shutdown token by the async caller so
+/// that a long commit walk is preempted cooperatively when the service stops.
 fn scan_reverts_blocking(
     directory: &std::path::Path,
     stop_oid: Option<git2::Oid>,
     max_commits: usize,
     max_diff_bytes: usize,
+    cancel: CancellationToken,
 ) -> anyhow::Result<(Vec<AntiPatternDoc>, Option<git2::Oid>)> {
     let repo = GitWalker::open_repo(directory)?;
-    let cancel = CancellationToken::new(); // never cancelled inside blocking scope
-
+    // CANCEL2-f7a31e: use the propagated token (not a fresh dead one) so
+    // walk_new_commits exits early when the outer shutdown fires.
     let oids = GitWalker::walk_new_commits(
         &repo,
         stop_oid,

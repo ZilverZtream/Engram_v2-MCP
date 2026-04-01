@@ -168,6 +168,27 @@ impl PathContext {
     }
 }
 
+/// SEC2-c91d0b: Returns true if `name` is a Windows reserved device name.
+///
+/// On Windows, paths such as "NUL", "CON", "COM1.txt", and "LPT1" open hardware
+/// devices regardless of the directory component.  Rejecting them in `safe_join`
+/// prevents callers from accidentally (or maliciously) opening device handles
+/// when they intend to open regular files.
+///
+/// The check is case-insensitive and strips extensions so that "NUL.txt" is also
+/// rejected (Windows ignores the extension for reserved names).
+fn is_windows_reserved_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or(name);
+    matches!(
+        stem.to_ascii_uppercase().as_str(),
+        "CON" | "PRN" | "AUX" | "NUL"
+            | "COM0" | "COM1" | "COM2" | "COM3" | "COM4"
+            | "COM5" | "COM6" | "COM7" | "COM8" | "COM9"
+            | "LPT0" | "LPT1" | "LPT2" | "LPT3" | "LPT4"
+            | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+    )
+}
+
 /// Join a relative `sub_path` to `base_dir`, rejecting any traversal attempt.
 ///
 /// This is a lightweight, synchronous guard for use inside `spawn_blocking` closures
@@ -203,6 +224,10 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
     // may miss on Windows when the path is relative-looking but contains a
     // drive letter (e.g. "C:foo" is relative but has a Prefix component and
     // resolves outside any reasonable base_dir).
+    //
+    // SEC2-c91d0b: also reject Windows reserved device names (CON, NUL, COM1,
+    // LPT1, etc.) in any path component.  On Windows these names open hardware
+    // devices regardless of directory context and cannot be used as regular files.
     for component in rel.components() {
         match component {
             std::path::Component::ParentDir => {
@@ -214,6 +239,15 @@ pub fn safe_join(base_dir: &Path, sub_path: &str) -> Result<PathBuf> {
                 return Err(EngramError::PathNotAllowed(format!(
                     "Windows drive-prefix component not allowed: {sub_path:?}"
                 )));
+            }
+            std::path::Component::Normal(c) => {
+                if let Some(name) = c.to_str() {
+                    if is_windows_reserved_name(name) {
+                        return Err(EngramError::PathNotAllowed(format!(
+                            "Windows reserved device name not allowed: {sub_path:?}"
+                        )));
+                    }
+                }
             }
             _ => {}
         }
@@ -375,19 +409,22 @@ pub fn validate_key_component(name: &str, value: &str) -> std::result::Result<()
             "ENG-AUD-2026-S09-001: key component '{name}' must not be empty"
         ));
     }
-    if value.contains('\0') {
-        return Err(format!(
-            "ENG-AUD-2026-S09-001: key component '{name}' contains NUL byte — this would corrupt composite keys. \
-             Value (truncated): {:?}",
-            &value[..value.len().min(80)]
-        ));
-    }
-    if value.contains('\n') {
-        return Err(format!(
-            "ENG-AUD-2026-S09-001: key component '{name}' contains newline — this would corrupt composite keys. \
-             Value (truncated): {:?}",
-            &value[..value.len().min(80)]
-        ));
+    // REG1-a4f29c: reject control characters and separators that corrupt key formats.
+    //
+    // NOTE on ':' — `validate_key_component` intentionally does NOT reject ':' here
+    // because graph-store node IDs legitimately use ':' as a type prefix
+    // (e.g. "fn:Module.aspx:method", "sql:table:col").  Graph keys are NUL-delimited,
+    // so ':' is safe there.  The build_pk composite key (colon-delimited) is
+    // protected separately: project_id is validated via `validate_project_id` to
+    // [A-Za-z0-9_-] (no ':'), and doc_id is blake3-hex (no ':').
+    for (ch, label) in [('\0', "NUL byte"), ('\n', "newline"), ('\r', "carriage-return")] {
+        if value.contains(ch) {
+            return Err(format!(
+                "ENG-AUD-2026-S09-001: key component '{name}' contains {label} — this would corrupt composite keys. \
+                 Value (truncated): {:?}",
+                &value[..value.len().min(80)]
+            ));
+        }
     }
     Ok(())
 }
@@ -467,6 +504,101 @@ mod tests {
     fn key_component_allows_normal_values() {
         assert!(validate_key_component("test", "good_value").is_ok());
         assert!(validate_key_component("test", "path/to/file.rs").is_ok());
+    }
+
+    // ── REG1-a4f29c: carriage-return rejection + colon design note ────────
+
+    /// REG1-a4f29c: carriage-return must be rejected — it is a control
+    /// character that can corrupt line-delimited registry key formats.
+    #[test]
+    fn key_component_rejects_carriage_return() {
+        assert!(
+            validate_key_component("test", "bad\rvalue").is_err(),
+            "REG1-a4f29c: carriage-return in a key component must be rejected"
+        );
+    }
+
+    /// REG1-a4f29c: error messages for all rejected control bytes must name the
+    /// forbidden byte, making debugging straightforward.
+    #[test]
+    fn key_component_rejection_errors_name_forbidden_byte() {
+        for (value, label) in [
+            ("bad\0value", "NUL byte"),
+            ("bad\nvalue", "newline"),
+            ("bad\rvalue", "carriage-return"),
+        ] {
+            let err = validate_key_component("field", value)
+                .expect_err(&format!("must reject value containing {label}"));
+            assert!(
+                err.contains(label),
+                "REG1-a4f29c: error message must name the forbidden byte '{label}'; got: {err:?}"
+            );
+        }
+    }
+
+    /// REG1-a4f29c: ':' is intentionally allowed in validate_key_component because
+    /// graph-store node IDs legitimately use ':' as a type prefix (e.g.
+    /// "fn:Module.aspx:method", "sql:table:col").  The graph store uses NUL as its
+    /// key delimiter.  The build_pk colon-delimited format is protected separately
+    /// via validate_project_id ([A-Za-z0-9_-] charset, no ':') and blake3-hex doc_id.
+    #[test]
+    fn key_component_allows_colon_for_graph_node_ids() {
+        // Graph node IDs with ':' type prefixes must be accepted.
+        assert!(validate_key_component("source_id", "fn:Module.aspx:method").is_ok());
+        assert!(validate_key_component("node_id", "sql:table:column").is_ok());
+        assert!(validate_key_component("target_id", "file:src/main.rs").is_ok());
+    }
+
+    // ── SEC2-c91d0b: Windows reserved device name rejection ────────────────
+
+    /// SEC2-c91d0b: safe_join must reject Windows reserved device names in any
+    /// path segment.  On Windows, these names open hardware devices regardless of
+    /// the directory component, so they must never appear in user-supplied paths.
+    #[test]
+    fn safe_join_rejects_windows_reserved_device_names() {
+        let base = Path::new("/project");
+
+        // Standalone reserved names must be rejected.
+        for name in ["NUL", "CON", "PRN", "AUX", "COM1", "LPT1"] {
+            assert!(
+                safe_join(base, name).is_err(),
+                "SEC2-c91d0b: safe_join must reject reserved device name '{name}'"
+            );
+        }
+
+        // Reserved names with extensions must also be rejected ("NUL.txt" is
+        // still a device on Windows — the OS ignores the extension).
+        for name in ["NUL.txt", "CON.log", "COM1.dat", "LPT9.ini"] {
+            assert!(
+                safe_join(base, name).is_err(),
+                "SEC2-c91d0b: safe_join must reject reserved device name with extension '{name}'"
+            );
+        }
+
+        // Reserved names in subdirectories must be rejected.
+        assert!(
+            safe_join(base, "src/COM1").is_err(),
+            "SEC2-c91d0b: safe_join must reject reserved device name in subdirectory"
+        );
+
+        // Ordinary names that look like device prefixes must pass.
+        for name in ["console.log", "printer.txt", "nullify.rs", "communication.md"] {
+            assert!(
+                safe_join(base, name).is_ok(),
+                "SEC2-c91d0b: safe_join must allow ordinary name '{name}' that starts like a device name"
+            );
+        }
+    }
+
+    /// SEC2-c91d0b: is_windows_reserved_name must be case-insensitive.
+    #[test]
+    fn windows_reserved_name_check_is_case_insensitive() {
+        for name in ["nul", "NUL", "Nul", "con", "CON", "com1", "COM1", "lpt1", "LPT1"] {
+            assert!(
+                is_windows_reserved_name(name),
+                "SEC2-c91d0b: '{name}' must be detected as a Windows reserved name"
+            );
+        }
     }
 
     // ── safe_open_read and safe_read_to_string (ENG-AUD-P1-0008) ──────────
