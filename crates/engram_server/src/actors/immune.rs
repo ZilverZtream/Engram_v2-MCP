@@ -235,7 +235,10 @@ async fn scan_project_reverts(
         active_gen
     };
 
-    let cancel = CancellationToken::new();
+    // CANCEL2: use the outer shutdown token so index_docs is preemptible on process shutdown.
+    // A fresh CancellationToken::new() would never be cancelled, leaving this await
+    // unresponsive during shutdown (same bug pattern fixed in scan_reverts_blocking).
+    let cancel = shutdown.clone();
     let mut docs: Vec<IndexDoc> = Vec::new();
 
     for ap in &anti_patterns {

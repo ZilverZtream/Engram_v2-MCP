@@ -140,6 +140,12 @@ pub async fn run_watcher(
                         return;
                     }
                     update_cancels.remove(&pid);
+                    // CANCEL2: second cancel check immediately before the mutex await so
+                    // the shutdown-to-yield distance stays within the ±5-line policy.
+                    if shutdown.is_cancelled() {
+                        tracing::info!("watcher: shutdown detected before in-flight lock — exiting");
+                        return;
+                    }
                     // Atomically check-and-claim the in-flight slot.  Both the
                     // check and the insert happen inside the same lock guard, so
                     // no concurrent ticker tick can sneak between them (C-1 fix).
