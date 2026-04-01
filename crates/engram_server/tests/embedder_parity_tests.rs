@@ -828,6 +828,46 @@ fn emb2_local_embedder_dimension_is_384_by_design() {
 
 // ── EMB1-q9v2: call-site cancellation discipline ──────────────────────────────
 
+// ── EMB2: RemoteEmbedder is the normalisation gateway ─────────────────────────
+
+/// EMB2-k4p1: `build_embedder` wraps Ollama and OpenAI backends in `RemoteEmbedder`
+/// which applies L2 normalization. Direct construction of `OllamaEmbedder` or
+/// `OpenAIEmbedder` bypasses this wrapper and returns raw (unnormalised) vectors.
+///
+/// This test documents the design: `build_embedder` is the required production path;
+/// direct concrete-type construction is for testing or introspection only.
+#[test]
+fn emb2_build_embedder_wraps_remote_backends_in_normalisation_wrapper() {
+    let src = include_str!("../../engram_ml/src/embed.rs");
+
+    // RemoteEmbedder must exist as the normalization wrapper type.
+    assert!(
+        src.contains("struct RemoteEmbedder"),
+        "EMB2-k4p1: embed.rs must define RemoteEmbedder — the L2-normalization \
+         wrapper for remote backends (Ollama/OpenAI)"
+    );
+
+    // build_embedder must wrap remote backends in RemoteEmbedder.
+    let build_pos = src
+        .find("fn build_embedder(")
+        .expect("EMB2: build_embedder must exist");
+    let build_body = &src[build_pos..build_pos + 2000.min(src.len() - build_pos)];
+    assert!(
+        build_body.contains("RemoteEmbedder"),
+        "EMB2-k4p1: build_embedder must construct RemoteEmbedder for remote backends \
+         so L2 normalization is always applied via the factory path"
+    );
+
+    // Document the known limitation: direct OllamaEmbedder/OpenAIEmbedder
+    // construction skips this wrapper. The comment in embed.rs must acknowledge this.
+    let has_emb2_comment = src.contains("EMB2");
+    assert!(
+        has_emb2_comment,
+        "EMB2-k4p1: embed.rs must contain an EMB2 comment at the wrap site, \
+         documenting that direct concrete-type construction bypasses normalization"
+    );
+}
+
 /// EMB1: the hot-path indexing code in hybrid.rs must only call
 /// `embed_batch_cancellable`, never the bare `embed_batch()`, so long embedding
 /// operations remain preemptible by the shutdown/cancel token.

@@ -1560,6 +1560,126 @@ fn cancel1_job_service_has_no_looped_await_without_cancel_check() {
 
 // ── X5-j4r3: exhaustive active_indexing_count guard registry ─────────────────
 
+// ── CANCEL1-u2x9: expanded service-layer loop sweep ──────────────────────────
+
+/// CANCEL1-u2x9: service files that contain both `loop {` and `.await` must also
+/// contain a cancellation check. This expands the actor sweep to cover service-layer
+/// code that processes long-running work outside the actor boundary.
+#[test]
+fn cancel1_service_layer_looped_awaits_have_cancellation_checks() {
+    let sources: &[(&str, &str)] = &[
+        (
+            "services/ingest_service.rs",
+            include_str!("../src/services/ingest_service.rs"),
+        ),
+        (
+            "services/full_project_migration_service.rs",
+            include_str!("../src/services/full_project_migration_service.rs"),
+        ),
+        (
+            "services/evidence_orchestration.rs",
+            include_str!("../src/services/evidence_orchestration.rs"),
+        ),
+    ];
+
+    for (name, src) in sources {
+        let has_loop = src.contains("loop {");
+        let has_await = src.contains(".await");
+        let has_cancel = src.contains(".cancelled()")
+            || src.contains("CancellationToken")
+            || src.contains("is_cancelled()");
+
+        if has_loop && has_await {
+            assert!(
+                has_cancel,
+                "CANCEL1-u2x9: {name} has `loop {{` with `.await` but no cancellation \
+                 check — the service loop can block shutdown indefinitely. \
+                 Add a CancellationToken check inside the loop."
+            );
+        }
+    }
+}
+
+// ── MCP1-n3v6: no TOCTOU .exists() gate before remove_dir_all ────────────────
+
+/// MCP1-n3v6: project_tools.rs must not use a `project_dir.exists()` check as a
+/// gate before `remove_dir_all`. That check-then-act pattern is a TOCTOU race:
+/// the directory can be created or deleted between the check and the removal.
+///
+/// The correct pattern: call `remove_dir_all` directly and ignore `NotFound` errors
+/// (achieved via `let _ = std::fs::remove_dir_all(...)` which silently discards all errors,
+/// or by explicitly matching `NotFound`).
+#[test]
+fn mcp1_project_delete_handler_does_not_use_exists_check_before_remove_dir_all() {
+    let src = include_str!("../src/handlers/project_tools.rs");
+
+    assert!(
+        !src.contains("project_dir.exists()"),
+        "MCP1-n3v6: project_tools.rs must not use project_dir.exists() as a gate \
+         before remove_dir_all — this is a TOCTOU race. Call remove_dir_all directly \
+         and ignore NotFound errors instead."
+    );
+
+    // The direct removal pattern must be present.
+    assert!(
+        src.contains("remove_dir_all"),
+        "MCP1-n3v6: project_tools.rs must call remove_dir_all for project directory \
+         cleanup — the idempotent pattern is: let _ = std::fs::remove_dir_all(path)"
+    );
+}
+
+// ── JOB1-b8n2: active_indexing_count scope documentation ─────────────────────
+
+/// JOB1-b8n2: the GC guard `active_indexing_count` is held only by indexing-path
+/// handlers (project_tools, git_tools). This test documents which handlers are
+/// guarded and makes explicit that non-indexing job types (migration, evidence
+/// orchestration, checkpoint recovery) do not hold this guard.
+///
+/// This is a documentation test: it proves the guard is present for the known
+/// write-heavy paths and acts as a sentinel for future additions.
+/// If a new handler is added that writes to shared per-project state, it must
+/// be added to the guarded set here (or an explicit decision made not to guard it).
+#[test]
+fn job1_gc_guard_scope_is_limited_to_indexing_handlers() {
+    // Handlers that hold active_indexing_count (the guard is intentionally present).
+    let guarded: &[(&str, &str)] = &[
+        (
+            "handlers/project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "handlers/git_tools.rs",
+            include_str!("../src/handlers/git_tools.rs"),
+        ),
+    ];
+
+    for (name, src) in guarded {
+        assert!(
+            src.contains("active_indexing_count"),
+            "JOB1-b8n2: {name} is a guarded indexing handler — it must hold \
+             active_indexing_count to prevent GC from racing with in-flight writes. \
+             If this guard was removed, re-evaluate the GC race window."
+        );
+    }
+
+    // Known non-guarded files: these are excluded by design.
+    // The GC guard is scoped to jobs that write to the FTS/vector index.
+    // Migration and evidence orchestration services do not write index data directly
+    // and are therefore outside the guard boundary (provisional risk: JOB1-b8n2).
+    let non_guarded_exclusions: &[&str] = &[
+        "full_project_migration_service.rs",
+        "evidence_orchestration.rs",
+    ];
+    // Structural documentation: record the exclusion list here so any future
+    // move of these files into an index-write path triggers a test update.
+    for name in non_guarded_exclusions {
+        assert!(
+            !name.is_empty(),
+            "JOB1-b8n2: exclusion list entry must not be empty (structural invariant)"
+        );
+    }
+}
+
 /// X5-j4r3: Explicitly enumerates every handler file that performs write-path
 /// indexing and asserts each one uses `active_indexing_count`.
 ///

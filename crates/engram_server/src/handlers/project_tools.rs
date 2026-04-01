@@ -1852,9 +1852,10 @@ impl Engram {
             .delete_project_data(&pid)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        if project_dir.exists() {
-            let _ = std::fs::remove_dir_all(project_dir);
-        }
+        // MCP1-n3v6: call remove_dir_all directly — skipping the .exists() pre-check
+        // removes the TOCTOU window between the check and the removal.
+        // remove_dir_all is idempotent: NotFound is silently discarded via let _ =.
+        let _ = std::fs::remove_dir_all(&project_dir);
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "✅ Deleted project_id: {pid}"
