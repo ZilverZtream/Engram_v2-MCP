@@ -1175,6 +1175,11 @@ pub fn analyze_full_project(
         }
     });
 
+    // MIG2: all sub-service fallbacks in this function use the same intentional degradation
+    // pattern: log a tracing::warn, return a safe empty/default value, and record the
+    // context via edges_or_warn/nodes_or_warn (which call record_mig_degraded) so the
+    // final report carries an explicit degraded_sections list and report_is_complete=false.
+    // No sub-service failure is silently discarded — every arm surfaces in the report.
     let data_access_profiles =
         db_strategy_service::classify_data_access_patterns(graph, project_id).unwrap_or_else(|e| {
             tracing::warn!("data_access classification failed: {e}");

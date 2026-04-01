@@ -148,6 +148,14 @@ pub async fn open_or_create_table(
 /// operation: existing rows with matching `pk` are updated in place, new rows are
 /// inserted, and no window exists where rows are temporarily absent between the
 /// delete and the add.
+///
+/// VEC2 atomicity: LanceDB's Lance format uses an MVCC append-only manifest model.
+/// Each write operation (including merge_insert) creates a single new manifest
+/// version in one atomic file-system append; readers and concurrent writers see
+/// only the prior or the completed new version — never an intermediate state.
+/// A failed write leaves the manifest unchanged (the partial data file is orphaned
+/// and eventually cleaned up by vacuum). The empirical test in
+/// `tests/vec2_merge_insert_atomicity_tests.rs` validates this observable behavior.
 pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow::Result<()> {
     if batches.is_empty() {
         return Ok(());
