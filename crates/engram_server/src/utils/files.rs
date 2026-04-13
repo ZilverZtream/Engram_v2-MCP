@@ -41,6 +41,19 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
     {
         dotnet_webforms_vb_exts()
     } else {
+        // ENG-AUD-2026-S17-001: unrecognized project_type falls through to the
+        // broad default extension set.  This is intentional for backward compat
+        // with persisted records that pre-date the ProjectType enum, but widens
+        // the ingest surface beyond what was intended for type-specific projects.
+        // Log so operators can identify stale or malformed type strings.
+        if !project_type.is_empty() {
+            tracing::warn!(
+                project_type = %project_type,
+                "ENG-AUD-2026-S17-001: unrecognized project_type {:?} — falling back to \
+                 default extension set; update persisted record to a known type",
+                project_type
+            );
+        }
         default_exts()
     }
 }
