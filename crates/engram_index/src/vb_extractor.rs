@@ -508,62 +508,119 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         return regex_extract(path, source);
     }
 
-    // Normalize source to work around known arborium_vb grammar limitations.
+// Normalize source to work around known arborium_vb grammar limitations.
     // This rewrites attribute-without-parens and partial-class-without-access-modifier
     // patterns that otherwise produce error trees.
     let normalized = normalize_vb_for_tree_sitter(source);
-    let parse_source: &str = if normalized != source {
+    let normalization_applied = normalized != source;
+    if normalization_applied {
         tracing::debug!(
             "applied VB tree-sitter normalization rewrites for {}",
             path.display()
         );
-        &normalized
+    }
+
+    // `parse_source` owns the buffer we'll parse and use for all byte-offset
+    // operations downstream. It starts as the normalized form; if that produces
+    // an error tree and the original does not, we swap both the buffer and the
+    // tree together so offsets stay consistent.
+    let mut parse_source: String = if normalization_applied {
+        normalized
     } else {
-        source
+        // Avoid cloning when no normalization happened — reuse source as owned.
+        source.to_string()
     };
 
-    let tree = match parser.parse(parse_source, None) {
+    let mut tree_has_error = false;
+    let tree = match parser.parse(&parse_source, None) {
         Some(t) => {
             if t.root_node().has_error() {
-                // If normalization didn't help, try the original source — perhaps the
-                // normalization regex itself broke something the grammar handles.
-                if parse_source != source {
+                // Normalized parse has errors. If we actually applied normalization,
+                // try the original source — normalization may have broken something
+                // the grammar otherwise tolerates. If the original parses clean,
+                // swap both buffer and tree together to keep offsets consistent.
+                if normalization_applied {
                     tracing::debug!(
-                        "normalized VB source for {} still has error nodes, retrying with original",
+                        "normalized VB source for {} has error nodes, retrying with original",
                         path.display()
                     );
-                    if let Some(orig_tree) = parser.parse(source, None)
-                        && !orig_tree.root_node().has_error()
-                    {
-                        orig_tree
-                    } else {
-                        if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-                            tracing::error!(
-                                "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                    match parser.parse(source, None) {
+                        Some(orig_tree) if !orig_tree.root_node().has_error() => {
+                            // Original parses clean — swap buffer and tree together.
+                            parse_source = source.to_string();
+                            orig_tree
+                        }
+                        Some(orig_tree) => {
+                            // Both parses have errors. Prefer the normalized tree
+                            // because normalization targets specific grammar bugs
+                            // and is at least as parseable as the original.
+                            let _ = orig_tree;
+                            tree_has_error = true;
+                            if cfg!(test)
+                                && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok()
+                            {
+                                tracing::error!(
+                                    "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                                    path.display()
+                                );
+                                return regex_extract(path, source);
+                            }
+                            tracing::warn!(
+                                "tree-sitter VB tree contains error nodes in {} (after normalization), continuing with partial tree",
                                 path.display()
                             );
+                            t
                         }
-                        tracing::warn!(
-                            "tree-sitter VB tree contains error nodes in {} (after normalization), falling back to regex",
-                            path.display()
-                        );
-                        return regex_extract(path, source);
+                        None => {
+                            // Original parse failed outright; fall through with
+                            // the partial normalized tree.
+                            tree_has_error = true;
+                            if cfg!(test)
+                                && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok()
+                            {
+                                tracing::error!(
+                                    "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                                    path.display()
+                                );
+                                return regex_extract(path, source);
+                            }
+                            tracing::warn!(
+                                "tree-sitter VB tree contains error nodes in {} (original parse also failed), continuing with partial tree",
+                                path.display()
+                            );
+                            t
+                        }
                     }
                 } else {
+                    // No normalization was applied; this is the baseline error tree.
+                    tree_has_error = true;
                     if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
                         tracing::error!(
                             "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
                             path.display()
                         );
+                        return regex_extract(path, source);
                     }
                     tracing::warn!(
-                        "tree-sitter VB tree contains error nodes in {}, falling back to regex",
+                        "tree-sitter VB tree contains error nodes in {}, continuing with partial tree",
                         path.display()
                     );
-                    return regex_extract(path, source);
+                    t
                 }
             } else {
                 t
+            }
+        }
+        None => {
+            if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
+                tracing::error!(
+                    "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB parse returned None"
+                );
+            }
+            tracing::warn!("tree-sitter VB parse returned None, using regex fallback");
+            return regex_extract(path, source);
+        }
+    };
             }
         }
         None => {
@@ -1052,6 +1109,14 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     // ReDim / ReDim Preserve detection
     if has_redim_keyword(source) {
         edges.extend(extract_redim_usage(source, &all_scopes));
+    }
+
+    if tree_has_error && !symbols.iter().any(|s| s.kind == "function") {
+        tracing::warn!(
+            "tree-sitter VB tree in {} had error nodes and yielded no function symbols; using regex fallback",
+            path.display()
+        );
+        return regex_extract(path, source);
     }
 
     (symbols, edges)

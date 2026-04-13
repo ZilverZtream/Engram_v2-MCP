@@ -59,7 +59,7 @@ rustworkx-core = "0.16"
 
 # AST
 # tree-sitter 0.25 accepts ABI 14 (all 0.23.x grammar crates) and ABI 15
-# (arborium-vb 2.13.0, built with tree-sitter CLI 0.25).
+# (arborium-vb 2.16.0, built with tree-sitter CLI 0.25).
 tree-sitter = "0.25"
 tree-sitter-rust = "0.23"
 tree-sitter-python = "0.23"
@@ -69,7 +69,7 @@ tree-sitter-typescript = "0.23"
 tree-sitter-c-sharp = "0.23"
 tree-sitter-c = "0.23"
 tree-sitter-cpp = "0.23"
-arborium-vb = "2.13.0"
+arborium-vb = "2.16"
 
 # HTTP client (for Ollama / OpenAI remote backends)
 reqwest = { version = "0.13", features = ["json"] }
