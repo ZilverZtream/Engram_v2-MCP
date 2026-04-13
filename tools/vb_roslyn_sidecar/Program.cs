@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 while (Console.In.ReadLine() is { } line)
 {
@@ -60,15 +61,27 @@ while (Console.In.ReadLine() is { } line)
 
 internal sealed class SidecarRequest
 {
+    [JsonPropertyName("cmd")]
     public string? Cmd { get; set; }
+
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+
+    [JsonPropertyName("source")]
     public string? Source { get; set; }
 }
 
 internal sealed class SidecarResponse
 {
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+
+    [JsonPropertyName("symbols")]
     public List<SymbolDto> Symbols { get; set; } = new();
+
+    [JsonPropertyName("edges")]
     public List<EdgeDto> Edges { get; set; } = new();
+
+    [JsonPropertyName("error")]
     public string? Error { get; set; }
 }
