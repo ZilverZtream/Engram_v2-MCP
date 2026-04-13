@@ -2291,7 +2291,7 @@ fn emit_script_injection_edges(
             meta.insert("target_function".into(), func_name.into());
 
             push_edge(
-                &mut edges,
+                edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -2315,7 +2315,7 @@ fn emit_script_injection_edges(
         meta.insert("script_snippet".into(), snippet.clone());
 
         push_edge(
-            &mut edges,
+            edges,
             ExtractedEdge {
                 source_name: src_name.to_string(),
                 source_kind: src_kind,
