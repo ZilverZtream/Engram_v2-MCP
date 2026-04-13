@@ -30,17 +30,32 @@ async fn main() -> anyhow::Result<()> {
     let shutdown = CancellationToken::new();
 
     // Background cognitive features.
-    tokio::spawn(actors::dreamer::run_dreamer(state.clone(), events_rx, shutdown.clone()));
+    tokio::spawn(actors::dreamer::run_dreamer(
+        state.clone(),
+        events_rx,
+        shutdown.clone(),
+    ));
     tokio::spawn(actors::watcher::run_watcher(
         state.clone(),
         state.events_tx.subscribe(),
         shutdown.clone(),
     ));
-    tokio::spawn(actors::gc::run_gc_scheduler(state.clone(), shutdown.clone()));
-    tokio::spawn(actors::immune::run_immune_actor(state.clone(), shutdown.clone()));
+    tokio::spawn(actors::gc::run_gc_scheduler(
+        state.clone(),
+        shutdown.clone(),
+    ));
+    tokio::spawn(actors::immune::run_immune_actor(
+        state.clone(),
+        shutdown.clone(),
+    ));
 
     // Data integrity sentinel (periodic cross-store consistency checks).
-    tokio::spawn(engram_server::services::integrity_service::run_integrity_checker(state.clone(), shutdown.clone()));
+    tokio::spawn(
+        engram_server::services::integrity_service::run_integrity_checker(
+            state.clone(),
+            shutdown.clone(),
+        ),
+    );
 
     tools::run_stdio(state).await?;
     Ok(())

@@ -78,7 +78,10 @@ fn graph_store_upsert_and_get_node_round_trips() {
         .get_node("proj-test", "node-001")
         .expect("get_node must not error");
 
-    assert!(retrieved.is_some(), "get_node must return the upserted node");
+    assert!(
+        retrieved.is_some(),
+        "get_node must return the upserted node"
+    );
     let n = retrieved.unwrap();
     assert_eq!(n.node_id, "node-001");
     assert_eq!(n.node_type, "function");
@@ -114,7 +117,10 @@ fn graph_store_upsert_node_is_idempotent() {
     store.upsert_nodes("proj", &[n2]).expect("second upsert");
 
     let count = store.count_nodes("proj").expect("count");
-    assert_eq!(count, 1, "idempotent upsert must not create duplicate nodes");
+    assert_eq!(
+        count, 1,
+        "idempotent upsert must not create duplicate nodes"
+    );
 }
 
 // ── count_nodes / count_nodes_by_type ────────────────────────────────────────
@@ -133,7 +139,10 @@ fn graph_store_count_nodes_matches_upserted_count() {
     store.upsert_nodes("proj-count", &nodes).expect("upsert");
 
     let count = store.count_nodes("proj-count").expect("count_nodes");
-    assert_eq!(count, 3, "count_nodes must return 3 after upserting 3 nodes");
+    assert_eq!(
+        count, 3,
+        "count_nodes must return 3 after upserting 3 nodes"
+    );
 }
 
 /// count_nodes_by_type must report the correct breakdown.
@@ -171,7 +180,10 @@ fn graph_store_count_nodes_zero_for_empty_project() {
     let store = open_store(&tmp);
 
     let count = store.count_nodes("proj-empty").expect("count_nodes");
-    assert_eq!(count, 0, "count_nodes must return 0 for a project with no nodes");
+    assert_eq!(
+        count, 0,
+        "count_nodes must return 0 for a project with no nodes"
+    );
 }
 
 // ── upsert_edges / neighbors / count_edges ───────────────────────────────────
@@ -187,7 +199,9 @@ fn graph_store_upsert_edge_and_neighbors_round_trips() {
         make_node("src-node", "function", "caller"),
         make_node("tgt-node", "function", "callee"),
     ];
-    store.upsert_nodes("proj-edges", &nodes).expect("upsert nodes");
+    store
+        .upsert_nodes("proj-edges", &nodes)
+        .expect("upsert nodes");
 
     let edge = make_edge("src-node", "tgt-node", EdgeKind::Dependency, 1);
     store
@@ -220,7 +234,9 @@ fn graph_store_count_edges_matches_upserted_count() {
         make_node("b", "function", "b"),
         make_node("c", "class", "c"),
     ];
-    store.upsert_nodes("proj-edge-count", &nodes).expect("upsert");
+    store
+        .upsert_nodes("proj-edge-count", &nodes)
+        .expect("upsert");
 
     let edges = vec![
         make_edge("a", "b", EdgeKind::Dependency, 1),
@@ -230,10 +246,11 @@ fn graph_store_count_edges_matches_upserted_count() {
         .upsert_edges("proj-edge-count", &edges)
         .expect("upsert edges");
 
-    let count = store
-        .count_edges("proj-edge-count")
-        .expect("count_edges");
-    assert_eq!(count, 2, "count_edges must return 2 after upserting 2 edges");
+    let count = store.count_edges("proj-edge-count").expect("count_edges");
+    assert_eq!(
+        count, 2,
+        "count_edges must return 2 after upserting 2 edges"
+    );
 }
 
 /// count_edges_by_kind must report the correct edge-type breakdown.

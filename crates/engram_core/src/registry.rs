@@ -602,7 +602,10 @@ mod tests {
         // First "run": set the kill-switch.
         {
             let reg = Registry::open(&path).unwrap();
-            assert!(!reg.get_adp_kill_switch().unwrap(), "must be false before any set");
+            assert!(
+                !reg.get_adp_kill_switch().unwrap(),
+                "must be false before any set"
+            );
             reg.set_adp_kill_switch(true).unwrap();
             assert!(reg.get_adp_kill_switch().unwrap(), "must be true after set");
         }
@@ -620,7 +623,10 @@ mod tests {
         {
             let reg = Registry::open(&path).unwrap();
             reg.set_adp_kill_switch(false).unwrap();
-            assert!(!reg.get_adp_kill_switch().unwrap(), "must be false after clear");
+            assert!(
+                !reg.get_adp_kill_switch().unwrap(),
+                "must be false after clear"
+            );
         }
     }
 
@@ -654,7 +660,8 @@ mod tests {
             reindex_required_since_ms: None,
         };
         reg.put_project(&proj).unwrap();
-        reg.set_meta("proj-abc", "adp_kill_switch", "false").unwrap();
+        reg.set_meta("proj-abc", "adp_kill_switch", "false")
+            .unwrap();
 
         // Global flag must still be true.
         assert!(
@@ -662,5 +669,4 @@ mod tests {
             "ADP1: project-scoped meta must not shadow global flag"
         );
     }
-
 }

@@ -22,11 +22,15 @@ pub enum TableOpenOutcome {
     ///
     /// `reason` describes why the schema was incompatible (missing pk / dimension mismatch).
     /// `prior_row_count` is the row count captured immediately before the drop, giving
-    /// operators an observable data-loss metric: zero means no vectors existed, non-zero
-    /// means a full re-index is required to recover that many rows.
+    /// operators an observable data-loss metric: `Some(0)` means no vectors existed,
+    /// `Some(n)` means n vectors were lost and a full re-index is required, `None`
+    /// means count_rows failed so actual loss magnitude is unknown (assume non-zero).
     ///
     /// The caller MUST trigger a full re-index to restore search quality.
-    Recreated { reason: String, prior_row_count: u64 },
+    Recreated {
+        reason: String,
+        prior_row_count: Option<u64>,
+    },
 }
 
 /// Connect to a local LanceDB database.
@@ -113,23 +117,31 @@ pub async fn open_or_create_table(
             // non-zero is the target for the subsequent full re-index job.
             // VEC1-v9q5: if count_rows itself fails, warn rather than silently
             // returning 0 which would make the drop look like a no-op data-loss event.
-            let prior_row_count = match table.count_rows(None).await {
-                Ok(n) => n as u64,
+            // VEC1-f41aa9: preserve unknown count as None so callers can distinguish
+            // "zero vectors lost" from "count failed, loss magnitude unknown".
+            let prior_row_count: Option<u64> = match table.count_rows(None).await {
+                Ok(n) => Some(n as u64),
                 Err(e) => {
                     tracing::warn!(
                         table = name,
                         reason = %reason,
-                        "VEC1: count_rows failed before drop — row-count will be \
-                         reported as 0 but actual loss may be non-zero: {e:#}"
+                        "VEC1: count_rows failed before drop — actual loss magnitude is \
+                         unknown (reported as None); assume non-zero and schedule reindex: {e:#}"
                     );
-                    0
+                    None
                 }
             };
             conn.drop_table(name, &[]).await?;
             let batch = RecordBatch::new_empty(schema.clone());
             let reader = RecordBatchIterator::new(vec![Ok(batch)], schema);
             let new_table = conn.create_table(name, reader).execute().await?;
-            Ok((new_table, TableOpenOutcome::Recreated { reason, prior_row_count }))
+            Ok((
+                new_table,
+                TableOpenOutcome::Recreated {
+                    reason,
+                    prior_row_count,
+                },
+            ))
         } else {
             Ok((table, TableOpenOutcome::Opened))
         }
@@ -258,15 +270,51 @@ pub fn create_record_batch_with_gens(
     // Upfront shape consistency — all parallel slices must have the same length.
     // Arrow's try_new() catches mismatches but only at RecordBatch construction;
     // failing here gives a clear error that names the offending field.
-    anyhow::ensure!(doc_ids.len() == n, "doc_ids.len() ({}) != pks.len() ({n})", doc_ids.len());
-    anyhow::ensure!(content_hashes.len() == n, "content_hashes.len() ({}) != pks.len() ({n})", content_hashes.len());
-    anyhow::ensure!(chunk_ids.len() == n, "chunk_ids.len() ({}) != pks.len() ({n})", chunk_ids.len());
-    anyhow::ensure!(paths.len() == n, "paths.len() ({}) != pks.len() ({n})", paths.len());
-    anyhow::ensure!(languages.len() == n, "languages.len() ({}) != pks.len() ({n})", languages.len());
-    anyhow::ensure!(authors.len() == n, "authors.len() ({}) != pks.len() ({n})", authors.len());
-    anyhow::ensure!(timestamps.len() == n, "timestamps.len() ({}) != pks.len() ({n})", timestamps.len());
-    anyhow::ensure!(vectors.len() == n, "vectors.len() ({}) != pks.len() ({n})", vectors.len());
-    anyhow::ensure!(generations.len() == n, "generations.len() ({}) != pks.len() ({n})", generations.len());
+    anyhow::ensure!(
+        doc_ids.len() == n,
+        "doc_ids.len() ({}) != pks.len() ({n})",
+        doc_ids.len()
+    );
+    anyhow::ensure!(
+        content_hashes.len() == n,
+        "content_hashes.len() ({}) != pks.len() ({n})",
+        content_hashes.len()
+    );
+    anyhow::ensure!(
+        chunk_ids.len() == n,
+        "chunk_ids.len() ({}) != pks.len() ({n})",
+        chunk_ids.len()
+    );
+    anyhow::ensure!(
+        paths.len() == n,
+        "paths.len() ({}) != pks.len() ({n})",
+        paths.len()
+    );
+    anyhow::ensure!(
+        languages.len() == n,
+        "languages.len() ({}) != pks.len() ({n})",
+        languages.len()
+    );
+    anyhow::ensure!(
+        authors.len() == n,
+        "authors.len() ({}) != pks.len() ({n})",
+        authors.len()
+    );
+    anyhow::ensure!(
+        timestamps.len() == n,
+        "timestamps.len() ({}) != pks.len() ({n})",
+        timestamps.len()
+    );
+    anyhow::ensure!(
+        vectors.len() == n,
+        "vectors.len() ({}) != pks.len() ({n})",
+        vectors.len()
+    );
+    anyhow::ensure!(
+        generations.len() == n,
+        "generations.len() ({}) != pks.len() ({n})",
+        generations.len()
+    );
 
     // Build Arrow arrays from borrowed slices — avoid .to_vec() on already-owned Vecs.
     // StringArray::from accepts &[&str] which avoids cloning String→String.
@@ -461,14 +509,22 @@ mod tests {
     #[test]
     fn batch_with_gens_accepts_consistent_lengths() {
         let result = make_batch_with_gens(3, 3, 3);
-        assert!(result.is_ok(), "consistent slice lengths must succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "consistent slice lengths must succeed: {:?}",
+            result.err()
+        );
     }
 
     /// Empty batch (n=0) must succeed.
     #[test]
     fn batch_with_gens_accepts_empty_batch() {
         let result = make_batch_with_gens(0, 0, 0);
-        assert!(result.is_ok(), "empty batch must succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "empty batch must succeed: {:?}",
+            result.err()
+        );
     }
 
     // ── ENG-AUD-2026-0005: fail-closed on dimension mismatch ──────────────
@@ -510,10 +566,7 @@ mod tests {
         let generations: Vec<u64> = (0..n).map(|_| 1u64).collect();
         let dim = 4usize;
         // One vector has dim=3 (wrong), one has dim=4 (correct)
-        let vectors: Vec<Vec<f32>> = vec![
-            vec![0.1, 0.2, 0.3],
-            vec![0.1, 0.2, 0.3, 0.4],
-        ];
+        let vectors: Vec<Vec<f32>> = vec![vec![0.1, 0.2, 0.3], vec![0.1, 0.2, 0.3, 0.4]];
         let result = super::create_record_batch_with_gens(
             "proj",
             "code",

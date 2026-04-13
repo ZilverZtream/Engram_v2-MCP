@@ -223,7 +223,9 @@ async fn phase_transition_crash_replays_correctly_from_prior_checkpoint() {
 
     for (prior_phase, crashed_phase) in phase_sequence {
         let tmp = tempfile::TempDir::new().unwrap();
-        let data_dir = tmp.path().join(format!("data-{prior_phase:?}-{crashed_phase:?}"));
+        let data_dir = tmp
+            .path()
+            .join(format!("data-{prior_phase:?}-{crashed_phase:?}"));
         std::fs::create_dir_all(&data_dir).unwrap();
 
         let (state, _rx) = AppState::new(make_cfg(&data_dir)).unwrap();
@@ -449,7 +451,11 @@ async fn failed_checkpoint_is_not_resumable() {
          recovery path must not retry a job that crashed with a Fatal error"
     );
     assert!(
-        recovered.error.as_deref().map(|e| e.contains("disk failure")).unwrap_or(false),
+        recovered
+            .error
+            .as_deref()
+            .map(|e| e.contains("disk failure"))
+            .unwrap_or(false),
         "error message must be preserved in Failed checkpoint"
     );
 }
@@ -495,7 +501,11 @@ async fn find_resumable_returns_latest_resumable_checkpoint() {
     let resumable = tokio::task::spawn_blocking({
         let store = state.checkpoints.clone();
         let pid = project_id.to_string();
-        move || store.find_resumable(&pid).expect("find_resumable must not error")
+        move || {
+            store
+                .find_resumable(&pid)
+                .expect("find_resumable must not error")
+        }
     })
     .await
     .unwrap();
@@ -573,7 +583,11 @@ async fn phase_boundary_crash_idempotent_on_retry() {
     tokio::task::spawn_blocking({
         let store = state.checkpoints.clone();
         let cp = tantivy_cp.clone();
-        move || store.put(&cp).expect("put tantivy checkpoint must succeed after retry")
+        move || {
+            store
+                .put(&cp)
+                .expect("put tantivy checkpoint must succeed after retry")
+        }
     })
     .await
     .unwrap();
@@ -643,7 +657,11 @@ async fn cancellation_during_phase_write_tombstones_checkpoint() {
     let resumable = tokio::task::spawn_blocking({
         let store = state.checkpoints.clone();
         let pid = project_id.to_string();
-        move || store.find_resumable(&pid).expect("find_resumable must not error")
+        move || {
+            store
+                .find_resumable(&pid)
+                .expect("find_resumable must not error")
+        }
     })
     .await
     .unwrap();
@@ -669,7 +687,10 @@ async fn cancellation_during_phase_write_tombstones_checkpoint() {
         "X6-cancelcp-5t9h: tombstoned checkpoint must have Failed phase"
     );
     assert!(
-        cp.error.as_deref().map(|e| e.contains("cancelled")).unwrap_or(false),
+        cp.error
+            .as_deref()
+            .map(|e| e.contains("cancelled"))
+            .unwrap_or(false),
         "X6-cancelcp-5t9h: tombstoned checkpoint must carry cancellation error message"
     );
     assert!(

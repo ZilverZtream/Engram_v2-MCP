@@ -252,12 +252,27 @@ fn mcp_neg_max_graph_hops_bounded() {
 #[test]
 fn mcp_neg_all_handler_files_with_project_id_field_have_validation_gate() {
     let handlers = [
-        ("search_tools.rs",    include_str!("../src/handlers/search_tools.rs")),
-        ("project_tools.rs",   include_str!("../src/handlers/project_tools.rs")),
-        ("cognitive_tools.rs", include_str!("../src/handlers/cognitive_tools.rs")),
-        ("graph_tools.rs",     include_str!("../src/handlers/graph_tools.rs")),
-        ("git_tools.rs",       include_str!("../src/handlers/git_tools.rs")),
-        ("migration_tools.rs", include_str!("../src/handlers/migration_tools.rs")),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
     ];
 
     for (name, src) in handlers {
@@ -282,7 +297,7 @@ fn mcp_neg_all_handler_files_with_project_id_field_have_validation_gate() {
 /// Tests the actual method on the real struct, not just the constant.
 #[test]
 fn mcp_neg_vector_search_sanitized_top_k_clamps_correctly() {
-    use engram_server::models::requests::{VectorSearchRequest, MAX_SEARCH_RESULTS};
+    use engram_server::models::requests::{MAX_SEARCH_RESULTS, VectorSearchRequest};
 
     let make_req = |top_k: usize| VectorSearchRequest {
         project_id: "proj".into(),
@@ -384,10 +399,19 @@ fn migration_handler_registers_cancel_token_for_external_abort() {
 #[test]
 fn mcp_neg_all_path_constructing_handlers_use_safe_join() {
     let handlers = [
-        ("project_tools.rs",   include_str!("../src/handlers/project_tools.rs")),
-        ("git_tools.rs",       include_str!("../src/handlers/git_tools.rs")),
-        ("cognitive_tools.rs", include_str!("../src/handlers/cognitive_tools.rs")),
-        ("migration_tools.rs", include_str!("../src/handlers/migration_tools.rs")),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
     ];
 
     for (name, src) in handlers {

@@ -384,7 +384,10 @@ impl DocStore {
     }
 
     /// Count docs per namespace for a project.
-    pub fn count_docs_by_namespace(&self, project_id: &str) -> anyhow::Result<std::collections::HashMap<String, usize>> {
+    pub fn count_docs_by_namespace(
+        &self,
+        project_id: &str,
+    ) -> anyhow::Result<std::collections::HashMap<String, usize>> {
         let prefix = format!("{}\0", project_id);
         let rtx = self.db.begin_read()?;
         let t = rtx.open_table(DOC_BY_ID)?;
@@ -526,10 +529,7 @@ impl DocStore {
                     let live_ids: Vec<&str> = std::str::from_utf8(&bytes)
                         .unwrap_or("")
                         .lines()
-                        .filter(|id| {
-                            !id.is_empty()
-                                && !stale_ids.iter().any(|s| s.as_str() == *id)
-                        })
+                        .filter(|id| !id.is_empty() && !stale_ids.iter().any(|s| s.as_str() == *id))
                         .collect();
                     if live_ids.is_empty() {
                         file_table.remove(file_key.as_str())?;
@@ -610,7 +610,9 @@ mod tests {
         let rec = make_doc("doc_idem", "src/lib.rs", "code");
         store.put_doc("proj1", &rec).expect("first put");
         // Second put with same id must not fail
-        store.put_doc("proj1", &rec).expect("second put (idempotent)");
+        store
+            .put_doc("proj1", &rec)
+            .expect("second put (idempotent)");
 
         let got = store.get_doc("proj1", "code", "doc_idem").unwrap().unwrap();
         assert_eq!(got.doc_id, "doc_idem");
@@ -635,8 +637,13 @@ mod tests {
             .set_docs_for_file("proj1", "code", "src/foo.rs", &doc_ids)
             .expect("set_docs_for_file");
 
-        let result = store.get_docs_for_file("proj1", "code", "src/foo.rs").unwrap();
-        assert_eq!(result, doc_ids, "get_docs_for_file must return all stored ids in order");
+        let result = store
+            .get_docs_for_file("proj1", "code", "src/foo.rs")
+            .unwrap();
+        assert_eq!(
+            result, doc_ids,
+            "get_docs_for_file must return all stored ids in order"
+        );
     }
 
     // ── 6. get_docs_for_file_empty_when_none ─────────────────────────────────
@@ -661,7 +668,9 @@ mod tests {
             mtime_ms: 1_700_000_000_000,
             file_hash: "abc123def456".to_string(),
         };
-        store.set_fingerprint("proj1", &fp).expect("set_fingerprint");
+        store
+            .set_fingerprint("proj1", &fp)
+            .expect("set_fingerprint");
 
         let got = store
             .get_fingerprint("proj1", "src/main.rs")
@@ -689,7 +698,11 @@ mod tests {
         let (_dir, store) = open_temp_store();
         // 3 docs in "code", 2 in "memory"
         for i in 0..3 {
-            let rec = make_doc(&format!("code_doc_{}", i), &format!("src/f{}.rs", i), "code");
+            let rec = make_doc(
+                &format!("code_doc_{}", i),
+                &format!("src/f{}.rs", i),
+                "code",
+            );
             store.put_doc("proj_ns", &rec).unwrap();
         }
         for i in 0..2 {
@@ -736,13 +749,20 @@ mod tests {
         store.put_docs("proj_sum", &recs).unwrap();
 
         let summaries = store.list_doc_summaries_for_project("proj_sum").unwrap();
-        assert_eq!(summaries.len(), 3, "must return summary for each stored doc");
+        assert_eq!(
+            summaries.len(),
+            3,
+            "must return summary for each stored doc"
+        );
 
         // Every summary must have non-empty doc_id and path
         for s in &summaries {
             assert!(!s.doc_id.is_empty(), "summary doc_id must not be empty");
             assert!(!s.path.is_empty(), "summary path must not be empty");
-            assert!(!s.namespace.is_empty(), "summary namespace must not be empty");
+            assert!(
+                !s.namespace.is_empty(),
+                "summary namespace must not be empty"
+            );
         }
 
         // All 3 doc_ids must be present
@@ -812,14 +832,23 @@ mod tests {
             .get_docs_for_file("proj_ns_iso", "memory", "src/shared.rs")
             .unwrap();
 
-        assert_eq!(result_code, doc_ids_code, "code namespace must return only code docs");
-        assert_eq!(result_mem, doc_ids_mem, "memory namespace must return only memory docs");
+        assert_eq!(
+            result_code, doc_ids_code,
+            "code namespace must return only code docs"
+        );
+        assert_eq!(
+            result_mem, doc_ids_mem,
+            "memory namespace must return only memory docs"
+        );
 
         // Wrong namespace → empty
         let result_wrong = store
             .get_docs_for_file("proj_ns_iso", "other", "src/shared.rs")
             .unwrap();
-        assert!(result_wrong.is_empty(), "wrong namespace must return empty vec");
+        assert!(
+            result_wrong.is_empty(),
+            "wrong namespace must return empty vec"
+        );
     }
 
     // ── 15. doc_generation_stored_correctly ──────────────────────────────────
@@ -831,8 +860,14 @@ mod tests {
         rec.generation = 42;
         store.put_doc("proj_gen", &rec).unwrap();
 
-        let got = store.get_doc("proj_gen", "code", "gen_doc").unwrap().unwrap();
-        assert_eq!(got.generation, 42, "generation field must round-trip correctly");
+        let got = store
+            .get_doc("proj_gen", "code", "gen_doc")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            got.generation, 42,
+            "generation field must round-trip correctly"
+        );
     }
 
     // ── 16. null_byte_in_doc_id_rejected ─────────────────────────────────────
@@ -895,7 +930,13 @@ mod tests {
     fn multiple_files_for_project() {
         let (_dir, store) = open_temp_store();
         let recs: Vec<DocRecord> = (0..5)
-            .map(|i| make_doc(&format!("mf_doc_{}", i), &format!("src/file{}.rs", i), "code"))
+            .map(|i| {
+                make_doc(
+                    &format!("mf_doc_{}", i),
+                    &format!("src/file{}.rs", i),
+                    "code",
+                )
+            })
             .collect();
         store.put_docs("proj_mf", &recs).unwrap();
 

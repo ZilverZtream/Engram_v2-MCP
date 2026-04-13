@@ -66,7 +66,10 @@ async fn full_reindex_required_event_is_receivable_on_channel() {
     });
 
     // The receiver must get the event.
-    let event = rx.recv().await.expect("must receive FullReindexRequired event");
+    let event = rx
+        .recv()
+        .await
+        .expect("must receive FullReindexRequired event");
     match event {
         AppEvent::FullReindexRequired { project_id } => {
             assert_eq!(
@@ -74,9 +77,7 @@ async fn full_reindex_required_event_is_receivable_on_channel() {
                 "project_id must match what was sent"
             );
         }
-        other => panic!(
-            "expected FullReindexRequired, got {other:?}"
-        ),
+        other => panic!("expected FullReindexRequired, got {other:?}"),
     }
 }
 
@@ -133,10 +134,7 @@ fn clear_reindex_required_restores_healthy_state() {
     reg.set_reindex_required("proj-vec1-recovery", 5_000_000)
         .expect("set_reindex_required must succeed");
 
-    let degraded = reg
-        .get_project("proj-vec1-recovery")
-        .unwrap()
-        .unwrap();
+    let degraded = reg.get_project("proj-vec1-recovery").unwrap().unwrap();
     assert!(
         degraded.reindex_required_since_ms.is_some(),
         "precondition: reindex flag must be set"
@@ -146,10 +144,7 @@ fn clear_reindex_required_restores_healthy_state() {
     reg.clear_reindex_required("proj-vec1-recovery")
         .expect("clear_reindex_required must succeed");
 
-    let healthy = reg
-        .get_project("proj-vec1-recovery")
-        .unwrap()
-        .unwrap();
+    let healthy = reg.get_project("proj-vec1-recovery").unwrap().unwrap();
     assert!(
         healthy.reindex_required_since_ms.is_none(),
         "reindex_required_since_ms must be None after clear_reindex_required — \
@@ -227,7 +222,10 @@ async fn vec1_lifecycle_index_reindex_required_flag_clear_search_restored() {
         "VEC1: must index at least one file/chunk in generation 1"
     );
     let count_gen1 = engine.count_docs(PROJ).unwrap();
-    assert!(count_gen1 > 0, "VEC1: docs must be present after generation 1 index");
+    assert!(
+        count_gen1 > 0,
+        "VEC1: docs must be present after generation 1 index"
+    );
 
     // Step 2: Simulate schema mismatch — set the reindex_required flag.
     reg.set_reindex_required(PROJ, 9_000_000).unwrap();

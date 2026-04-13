@@ -1383,10 +1383,7 @@ Response.Write "<br/>"
 %>"#;
         let (syms, _) = extract_classic_asp(&rel("write.asp"), source);
         // Response.Write should annotate the file insight
-        let insight = syms
-            .iter()
-            .find(|s| s.name == "classic_asp_file")
-            .unwrap();
+        let insight = syms.iter().find(|s| s.name == "classic_asp_file").unwrap();
         let meta = insight.metadata.as_ref().unwrap();
         assert_eq!(
             meta.get("uses_response_write").map(|s| s.as_str()),
@@ -1423,7 +1420,11 @@ Session("Role") = "admin"
         let (_, edges) = extract_classic_asp(&rel("login.asp"), source);
         let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
         assert_eq!(writes.len(), 2);
-        assert!(writes.iter().any(|e| e.target_name == "state:Session:UserId"));
+        assert!(
+            writes
+                .iter()
+                .any(|e| e.target_name == "state:Session:UserId")
+        );
         assert!(writes.iter().any(|e| e.target_name == "state:Session:Role"));
     }
 
@@ -1440,7 +1441,12 @@ conn.Open "Provider=SQLOLEDB;Server=srv;Database=db"
             .collect();
         assert_eq!(com.len(), 1);
         assert_eq!(
-            com[0].metadata.as_ref().unwrap().get("prog_id").map(|s| s.as_str()),
+            com[0]
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("prog_id")
+                .map(|s| s.as_str()),
             Some("ADODB.Connection")
         );
     }
@@ -1454,7 +1460,12 @@ conn.Open "Provider=SQLOLEDB;Server=srv;Database=db"
         assert_eq!(includes.len(), 1);
         assert_eq!(includes[0].target_name, "inc/header.asp");
         assert_eq!(
-            includes[0].metadata.as_ref().unwrap().get("include_type").map(|s| s.as_str()),
+            includes[0]
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("include_type")
+                .map(|s| s.as_str()),
             Some("file")
         );
     }
@@ -1468,7 +1479,12 @@ conn.Open "Provider=SQLOLEDB;Server=srv;Database=db"
         assert_eq!(includes.len(), 1);
         assert_eq!(includes[0].target_name, "/includes/footer.asp");
         assert_eq!(
-            includes[0].metadata.as_ref().unwrap().get("include_type").map(|s| s.as_str()),
+            includes[0]
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("include_type")
+                .map(|s| s.as_str()),
             Some("virtual")
         );
     }
@@ -1495,9 +1511,16 @@ Set rs = conn.Execute("SELECT 1")
             .iter()
             .filter(|s| s.kind == "connection_string")
             .collect();
-        assert_eq!(conn_syms.len(), 1, "Should have one connection_string symbol");
+        assert_eq!(
+            conn_syms.len(),
+            1,
+            "Should have one connection_string symbol"
+        );
         // Password should be sanitized
-        assert!(!conn_syms[0].name.contains("secret"), "Password must be redacted");
+        assert!(
+            !conn_syms[0].name.contains("secret"),
+            "Password must be redacted"
+        );
     }
 
     #[test]
@@ -1534,7 +1557,12 @@ End Sub
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].target_name, "logout.asp");
         assert_eq!(
-            deps[0].metadata.as_ref().unwrap().get("navigation_type").map(|s| s.as_str()),
+            deps[0]
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("navigation_type")
+                .map(|s| s.as_str()),
             Some("redirect")
         );
     }
@@ -1683,7 +1711,12 @@ End If
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].target_name, "access_denied.asp");
         assert_eq!(
-            deps[0].metadata.as_ref().unwrap().get("navigation_type").map(|s| s.as_str()),
+            deps[0]
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("navigation_type")
+                .map(|s| s.as_str()),
             Some("server_transfer")
         );
     }

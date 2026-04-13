@@ -1244,7 +1244,11 @@ public class NormalPage : Page
         assert_eq!(conn.unwrap().name, "datasource:ProductDB");
 
         let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains").collect();
-        assert!(contains.iter().any(|e| e.target_name == "datasource:ProductDB"));
+        assert!(
+            contains
+                .iter()
+                .any(|e| e.target_name == "datasource:ProductDB")
+        );
     }
 
     #[test]
@@ -1281,7 +1285,11 @@ public class NormalPage : Page
         let rel = RelPath::new("Reports/Products.rdl");
         let (_, edges) = extract_ssrs_report(&rel, rdl);
         let col_edges: Vec<_> = edges.iter().filter(|e| e.kind == "reads_column").collect();
-        assert_eq!(col_edges.len(), 3, "3 DataField elements should emit 3 reads_column edges");
+        assert_eq!(
+            col_edges.len(),
+            3,
+            "3 DataField elements should emit 3 reads_column edges"
+        );
         let col_names: Vec<&str> = col_edges.iter().map(|e| e.target_name.as_str()).collect();
         assert!(col_names.contains(&"productname"));
         assert!(col_names.contains(&"unitprice"));
@@ -1375,8 +1383,14 @@ public class NormalPage : Page
         let (syms, edges) = extract_ssrs_report(&rel, rdl);
 
         // Should still emit the report and insight symbols
-        assert!(syms.iter().any(|s| s.kind == "report"), "report symbol required");
-        assert!(syms.iter().any(|s| s.kind == "insight"), "insight symbol required");
+        assert!(
+            syms.iter().any(|s| s.kind == "report"),
+            "report symbol required"
+        );
+        assert!(
+            syms.iter().any(|s| s.kind == "insight"),
+            "insight symbol required"
+        );
         // No datasets, params or queries
         let report_meta = syms
             .iter()
@@ -1385,8 +1399,14 @@ public class NormalPage : Page
             .metadata
             .as_ref()
             .unwrap();
-        assert_eq!(report_meta.get("dataset_count").map(|s| s.as_str()), Some("0"));
-        assert_eq!(report_meta.get("parameter_count").map(|s| s.as_str()), Some("0"));
+        assert_eq!(
+            report_meta.get("dataset_count").map(|s| s.as_str()),
+            Some("0")
+        );
+        assert_eq!(
+            report_meta.get("parameter_count").map(|s| s.as_str()),
+            Some("0")
+        );
         assert!(edges.iter().filter(|e| e.kind == "sql_calls").count() == 0);
     }
 
@@ -1426,10 +1446,7 @@ JOIN Products p ON o.ProductId = p.Id</CommandText>
 </Report>"#;
         let rel = RelPath::new("Reports/Main.rdl");
         let (syms, _) = extract_ssrs_report(&rel, rdl);
-        let conn = syms
-            .iter()
-            .find(|s| s.kind == "connection_string")
-            .unwrap();
+        let conn = syms.iter().find(|s| s.kind == "connection_string").unwrap();
         let meta = conn.metadata.as_ref().unwrap();
         assert_eq!(
             meta.get("connection_string_present").map(|s| s.as_str()),
@@ -1452,7 +1469,9 @@ JOIN Products p ON o.ProductId = p.Id</CommandText>
         let (syms, _) = extract_ssrs_report(&rel, rdl);
         let insight = syms.iter().find(|s| s.kind == "insight").unwrap();
         let meta = insight.metadata.as_ref().unwrap();
-        let modern = meta.get("modern_equivalent").expect("modern_equivalent key");
+        let modern = meta
+            .get("modern_equivalent")
+            .expect("modern_equivalent key");
         assert!(
             modern.contains("SSRS") || modern.contains("DevExpress") || modern.contains("Telerik"),
             "Insight should mention a modern equivalent, got: {}",
@@ -1463,7 +1482,8 @@ JOIN Products p ON o.ProductId = p.Id</CommandText>
     #[test]
     fn extract_crystal_reports_namespace_only() {
         // Just using the namespace import should trigger detection
-        let source = "using CrystalDecisions.CrystalReports.Engine;\nusing CrystalDecisions.Shared;";
+        let source =
+            "using CrystalDecisions.CrystalReports.Engine;\nusing CrystalDecisions.Shared;";
         let rel = RelPath::new("Pages/CrPage.aspx.cs");
         let (syms, edges) = extract_crystal_reports_usage(&rel, source, "csharp");
         assert!(
@@ -1542,10 +1562,7 @@ End Class
             .find(|e| e.kind == "anti_pattern")
             .expect("anti_pattern edge");
         let meta = ap.metadata.as_ref().unwrap();
-        assert_eq!(
-            meta.get("detected_in").map(|s| s.as_str()),
-            Some("markup")
-        );
+        assert_eq!(meta.get("detected_in").map(|s| s.as_str()), Some("markup"));
         assert_eq!(
             meta.get("blocker_type").map(|s| s.as_str()),
             Some("crystal_reports")

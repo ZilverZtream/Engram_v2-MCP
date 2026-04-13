@@ -47,7 +47,8 @@ async fn kill_switch_persists_across_restart_when_registry_set() {
     tokio::task::spawn_blocking({
         let reg = state1.registry.clone();
         move || {
-            reg.set_adp_kill_switch(true).expect("set_adp_kill_switch must succeed");
+            reg.set_adp_kill_switch(true)
+                .expect("set_adp_kill_switch must succeed");
         }
     })
     .await
@@ -147,15 +148,25 @@ fn registry_kill_switch_round_trips() {
 
     // Default: not set → get returns None/false.
     let initial = reg.get_adp_kill_switch().unwrap_or(false);
-    assert!(!initial, "kill_switch must default to false (no registry entry)");
+    assert!(
+        !initial,
+        "kill_switch must default to false (no registry entry)"
+    );
 
     // Set to true.
     reg.set_adp_kill_switch(true).expect("set must succeed");
     let after_set = reg.get_adp_kill_switch().unwrap_or(false);
-    assert!(after_set, "kill_switch must read back true after set_adp_kill_switch(true)");
+    assert!(
+        after_set,
+        "kill_switch must read back true after set_adp_kill_switch(true)"
+    );
 
     // Set to false again.
-    reg.set_adp_kill_switch(false).expect("set to false must succeed");
+    reg.set_adp_kill_switch(false)
+        .expect("set to false must succeed");
     let after_clear = reg.get_adp_kill_switch().unwrap_or(true);
-    assert!(!after_clear, "kill_switch must read back false after set_adp_kill_switch(false)");
+    assert!(
+        !after_clear,
+        "kill_switch must read back false after set_adp_kill_switch(false)"
+    );
 }

@@ -12,7 +12,7 @@
 //! out the whole test suite.  A stack overflow manifests as a process abort and
 //! will fail the test.
 
-use engram_index::{sql_parser::analyze_sql, SymbolExtractor};
+use engram_index::{SymbolExtractor, sql_parser::analyze_sql};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -89,7 +89,11 @@ fn parse1_large_flat_rust_file_completes_within_deadline() {
     let extractor = SymbolExtractor::new();
     let code = wide_rust_source(1_000);
 
-    assert!(code.len() >= 25_000, "test input must be ≥25 KB; got {} bytes", code.len());
+    assert!(
+        code.len() >= 25_000,
+        "test input must be ≥25 KB; got {} bytes",
+        code.len()
+    );
 
     let start = Instant::now();
     let (symbols, _edges) = extractor.extract(Path::new("large.rs"), &code);
@@ -136,7 +140,9 @@ fn parse1_deeply_nested_csharp_classes_does_not_hang() {
 #[test]
 fn parse1_empty_input_all_extensions_safe() {
     let extractor = SymbolExtractor::new();
-    let extensions = ["rs", "py", "go", "java", "ts", "tsx", "js", "jsx", "cs", "c", "h", "cpp", "hpp"];
+    let extensions = [
+        "rs", "py", "go", "java", "ts", "tsx", "js", "jsx", "cs", "c", "h", "cpp", "hpp",
+    ];
 
     for ext in &extensions {
         let path = Path::new("empty").with_extension(ext);
@@ -226,7 +232,11 @@ fn parse1_large_sql_completes_within_deadline() {
         sql.push_str(&format!(" JOIN t{0} ON t0.id = t{0}.fk_{i}", i + 1));
     }
 
-    assert!(sql.len() >= 20_000, "test SQL must be ≥20 KB; got {} bytes", sql.len());
+    assert!(
+        sql.len() >= 20_000,
+        "test SQL must be ≥20 KB; got {} bytes",
+        sql.len()
+    );
 
     let start = Instant::now();
     let analysis = analyze_sql(&sql);

@@ -14,7 +14,11 @@ fn extractor() -> SymbolExtractor {
     SymbolExtractor::new()
 }
 
-fn has_symbol<'a>(symbols: &'a [ExtractedSymbol], name: &str, kind: &str) -> Option<&'a ExtractedSymbol> {
+fn has_symbol<'a>(
+    symbols: &'a [ExtractedSymbol],
+    name: &str,
+    kind: &str,
+) -> Option<&'a ExtractedSymbol> {
     symbols.iter().find(|s| s.name == name && s.kind == kind)
 }
 
@@ -25,8 +29,14 @@ fn has_symbol<'a>(symbols: &'a [ExtractedSymbol], name: &str, kind: &str) -> Opt
 fn extract_unsupported_extension_returns_empty_no_panic() {
     let ex = extractor();
     let (syms, edges) = ex.extract(Path::new("file.unknown"), "anything here");
-    assert!(syms.is_empty(), "unsupported extension must yield no symbols");
-    assert!(edges.is_empty(), "unsupported extension must yield no edges");
+    assert!(
+        syms.is_empty(),
+        "unsupported extension must yield no symbols"
+    );
+    assert!(
+        edges.is_empty(),
+        "unsupported extension must yield no edges"
+    );
 }
 
 /// Plain text file must return empty vecs, never panic.
@@ -34,7 +44,10 @@ fn extract_unsupported_extension_returns_empty_no_panic() {
 fn extract_txt_extension_returns_empty_no_panic() {
     let ex = extractor();
     let (syms, _) = ex.extract(Path::new("notes.txt"), "fn foo() {}");
-    assert!(syms.is_empty(), ".txt must yield no symbols even with Rust-like content");
+    assert!(
+        syms.is_empty(),
+        ".txt must yield no symbols even with Rust-like content"
+    );
 }
 
 // ── empty / whitespace content ────────────────────────────────────────────────
@@ -53,7 +66,10 @@ fn extract_empty_content_rust_returns_empty_no_panic() {
 fn extract_whitespace_only_content_does_not_panic() {
     let ex = extractor();
     let (syms, _) = ex.extract(Path::new("lib.rs"), "   \n\t\n  ");
-    assert!(syms.is_empty(), "whitespace-only Rust source must yield no symbols");
+    assert!(
+        syms.is_empty(),
+        "whitespace-only Rust source must yield no symbols"
+    );
 }
 
 // ── Rust extraction ───────────────────────────────────────────────────────────
@@ -123,15 +139,9 @@ fn extract_rust_function_start_line_is_correct() {
     let sym = has_symbol(&syms, "target_fn", "function");
     assert!(sym.is_some(), "must extract 'target_fn'");
     let start = sym.unwrap().start_line;
-    assert!(
-        start >= 1,
-        "start_line must be >= 1 (1-based); got {start}"
-    );
+    assert!(start >= 1, "start_line must be >= 1 (1-based); got {start}");
     // tree-sitter is 0-based internally, production code adds 1 → we expect line 3
-    assert_eq!(
-        start, 3,
-        "target_fn is on line 3; got start_line={start}"
-    );
+    assert_eq!(start, 3, "target_fn is on line 3; got start_line={start}");
 }
 
 /// A Rust impl block must produce an "impl" symbol with the type name.
@@ -243,9 +253,18 @@ def format_output(val):
 "#;
     let (syms, _) = ex.extract(Path::new("model.py"), src);
     let names: Vec<&str> = syms.iter().map(|s| s.name.as_str()).collect();
-    assert!(names.contains(&"Validator"), "must find Validator class; got {names:?}");
-    assert!(names.contains(&"validate"), "must find validate fn; got {names:?}");
-    assert!(names.contains(&"format_output"), "must find format_output fn; got {names:?}");
+    assert!(
+        names.contains(&"Validator"),
+        "must find Validator class; got {names:?}"
+    );
+    assert!(
+        names.contains(&"validate"),
+        "must find validate fn; got {names:?}"
+    );
+    assert!(
+        names.contains(&"format_output"),
+        "must find format_output fn; got {names:?}"
+    );
 }
 
 /// Empty Python source must return empty vecs without panic.
@@ -298,10 +317,7 @@ public class MyPage : Page
     let (syms, _) = ex.extract(Path::new("MyPage.cs"), src);
     let names: Vec<(&str, &str)> = syms.iter().map(|s| (s.name.as_str(), s.kind)).collect();
     let has_page_load = syms.iter().any(|s| s.name == "Page_Load");
-    assert!(
-        has_page_load,
-        "must extract 'Page_Load'; got: {names:?}"
-    );
+    assert!(has_page_load, "must extract 'Page_Load'; got: {names:?}");
 }
 
 /// Malformed C# must not panic.
@@ -375,9 +391,7 @@ fn extract_deeply_nested_rust_blocks_does_not_panic() {
     let src = format!("fn outer() {{}}\n{open}fn inner() {{}}\n{close}");
 
     let start = std::time::Instant::now();
-    let result = std::panic::catch_unwind(|| {
-        ex.extract(std::path::Path::new("deep.rs"), &src)
-    });
+    let result = std::panic::catch_unwind(|| ex.extract(std::path::Path::new("deep.rs"), &src));
     let elapsed = start.elapsed();
 
     assert!(
@@ -405,9 +419,7 @@ fn extract_deeply_nested_csharp_classes_does_not_panic() {
     let src = format!("{open}public void Method() {{}}\n{close}");
 
     let start = std::time::Instant::now();
-    let result = std::panic::catch_unwind(|| {
-        ex.extract(std::path::Path::new("deep.cs"), &src)
-    });
+    let result = std::panic::catch_unwind(|| ex.extract(std::path::Path::new("deep.cs"), &src));
     let elapsed = start.elapsed();
 
     assert!(
@@ -433,9 +445,7 @@ fn extract_very_long_single_line_does_not_panic() {
     let src = format!("{long_comment}\nfn ok() {{}}");
 
     let start = std::time::Instant::now();
-    let result = std::panic::catch_unwind(|| {
-        ex.extract(std::path::Path::new("longline.rs"), &src)
-    });
+    let result = std::panic::catch_unwind(|| ex.extract(std::path::Path::new("longline.rs"), &src));
     let elapsed = start.elapsed();
 
     assert!(
@@ -474,7 +484,10 @@ fn parse2_deeply_nested_go_functions_does_not_panic() {
     let result = std::panic::catch_unwind(|| ex.extract(path, &full));
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "PARSE2: deeply nested Go functions must not panic; panicked");
+    assert!(
+        result.is_ok(),
+        "PARSE2: deeply nested Go functions must not panic; panicked"
+    );
     assert!(
         elapsed < deadline,
         "PARSE2: deeply nested Go functions must complete within {deadline:?}; took {elapsed:?}"
@@ -499,7 +512,10 @@ fn parse2_deeply_nested_python_classes_does_not_panic() {
     let result = std::panic::catch_unwind(|| ex.extract(path, &src));
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "PARSE2: deeply nested Python classes must not panic; panicked");
+    assert!(
+        result.is_ok(),
+        "PARSE2: deeply nested Python classes must not panic; panicked"
+    );
     assert!(
         elapsed < deadline,
         "PARSE2: deeply nested Python classes must complete within {deadline:?}; took {elapsed:?}"
@@ -525,7 +541,10 @@ fn parse2_deeply_nested_java_classes_does_not_panic() {
     let result = std::panic::catch_unwind(|| ex.extract(path, &full));
     let elapsed = start.elapsed();
 
-    assert!(result.is_ok(), "PARSE2: deeply nested Java classes must not panic; panicked");
+    assert!(
+        result.is_ok(),
+        "PARSE2: deeply nested Java classes must not panic; panicked"
+    );
     assert!(
         elapsed < deadline,
         "PARSE2: deeply nested Java classes must complete within {deadline:?}; took {elapsed:?}"
@@ -559,12 +578,12 @@ fn asp_extractor_does_not_panic_on_malformed_input() {
         // Unclosed <script runat="server"> block
         ("script.asp", "<script runat=\"server\">\nSub Foo()\n"),
         // Deeply repeated Session access patterns (regex stress)
-        (
-            "session_flood.asp",
-            &"Session(\"k\") = x\n".repeat(5_000),
-        ),
+        ("session_flood.asp", &"Session(\"k\") = x\n".repeat(5_000)),
         // Valid-looking but truncated at boundary
-        ("trunc.asp", "<%\nSub F\n  Dim x\n  Server.CreateObject(\"ADODB."),
+        (
+            "trunc.asp",
+            "<%\nSub F\n  Dim x\n  Server.CreateObject(\"ADODB.",
+        ),
         // Response.Redirect with empty URL
         ("redirect.asp", "<% Response.Redirect \"\" %>"),
         // Extremely long single line
@@ -607,7 +626,10 @@ fn js_extractor_does_not_panic_on_malformed_input() {
         // Empty
         ("app.js", ""),
         // Unclosed $.ajax call
-        ("ajax.js", "$.ajax({ url: '/api/data', success: function(d) {"),
+        (
+            "ajax.js",
+            "$.ajax({ url: '/api/data', success: function(d) {",
+        ),
         // Truncated fetch
         ("fetch.js", "fetch('/api/endpoint"),
         // Malformed jQuery selector
@@ -617,24 +639,18 @@ fn js_extractor_does_not_panic_on_malformed_input() {
         // __doPostBack with empty args
         ("postback.js", "__doPostBack('', '')"),
         // Very deeply nested closures (stress test)
-        (
-            "deep.js",
-            &{
-                let open = "function f() { ".repeat(200);
-                let close = " }".repeat(200);
-                format!("{open}var x = 1;{close}")
-            },
-        ),
+        ("deep.js", &{
+            let open = "function f() { ".repeat(200);
+            let close = " }".repeat(200);
+            format!("{open}var x = 1;{close}")
+        }),
         // XMLHttpRequest truncated
         ("xhr.js", "var xhr = new XMLHttpRequest(); xhr.open('GET'"),
         // Source that triggers URL pattern but has no complete URL
         ("partial_url.js", "$.get('/"),
         // Source at exactly the size limit edge (not over)
         // We just use a large-ish but not enormous string
-        (
-            "large.js",
-            &"var x = 1; // comment\n".repeat(10_000),
-        ),
+        ("large.js", &"var x = 1; // comment\n".repeat(10_000)),
     ];
 
     let deadline = std::time::Duration::from_secs(10);
@@ -669,18 +685,18 @@ fn vb_extractor_does_not_panic_on_malformed_input() {
         // Unclosed If block
         ("if.vb", "If x > 0 Then\n  DoSomething()\n"),
         // Incomplete class
-        ("class.vb", "Public Class Incomplete\n    Private x As Integer"),
+        (
+            "class.vb",
+            "Public Class Incomplete\n    Private x As Integer",
+        ),
         // Truncated method
         ("method.vb", "Private Sub HandleClick(sender As Object"),
         // Deeply nested If structures (tree-sitter depth stress)
-        (
-            "deep_if.vb",
-            &{
-                let open = "If True Then\n".repeat(100);
-                let close = "End If\n".repeat(100);
-                format!("{open}{close}")
-            },
-        ),
+        ("deep_if.vb", &{
+            let open = "If True Then\n".repeat(100);
+            let close = "End If\n".repeat(100);
+            format!("{open}{close}")
+        }),
         // Valid-looking but missing End Sub
         ("no_end.vb", "Private Sub Button1_Click()\n    Dim x = 1\n"),
         // Unicode in identifiers
@@ -780,22 +796,20 @@ fn parse2_all_languages_handle_deep_nesting_without_panic() {
 
     // (extension, source template) — each generates ~100-level nesting
     let cases = [
-        (
-            "deep.rs",
-            {
-                let mut s = "let x = 1;".to_string();
-                for i in 0..100 { s = format!("mod m{i} {{ {s} }}"); }
-                s
-            },
-        ),
-        (
-            "deep.ts",
-            {
-                let mut s = "const x = 1;".to_string();
-                for i in 0..100 { s = format!("namespace N{i} {{ {s} }}"); }
-                s
-            },
-        ),
+        ("deep.rs", {
+            let mut s = "let x = 1;".to_string();
+            for i in 0..100 {
+                s = format!("mod m{i} {{ {s} }}");
+            }
+            s
+        }),
+        ("deep.ts", {
+            let mut s = "const x = 1;".to_string();
+            for i in 0..100 {
+                s = format!("namespace N{i} {{ {s} }}");
+            }
+            s
+        }),
     ];
 
     for (name, src) in &cases {
@@ -956,8 +970,12 @@ fn parse1_cap_get_0_expect_is_safe_because_group_zero_is_whole_match() {
     // Every occurrence of cap.get(0).expect must say "group 0 always exists".
     // This comment IS the invariant proof — if the message changes, the invariant
     // may have been violated.
-    let expect_g0 = src.matches("cap.get(0).expect(\"group 0 always exists\")").count();
-    let other_g0_expects = src.matches("cap.get(0).expect(").count()
+    let expect_g0 = src
+        .matches("cap.get(0).expect(\"group 0 always exists\")")
+        .count();
+    let other_g0_expects = src
+        .matches("cap.get(0).expect(")
+        .count()
         .saturating_sub(expect_g0);
 
     assert!(
@@ -1013,8 +1031,13 @@ fn parse1_vb_extractor_cap_get_0_expect_all_have_canonical_message() {
     let src = include_str!("../../engram_index/src/vb_extractor.rs");
 
     // Every cap.get(0).expect must use the canonical safety message.
-    let canonical = src.matches("cap.get(0).expect(\"full match always exists\")").count();
-    let other_expects = src.matches("cap.get(0).expect(").count().saturating_sub(canonical);
+    let canonical = src
+        .matches("cap.get(0).expect(\"full match always exists\")")
+        .count();
+    let other_expects = src
+        .matches("cap.get(0).expect(")
+        .count()
+        .saturating_sub(canonical);
 
     assert!(
         other_expects == 0,
@@ -1044,7 +1067,9 @@ fn parse1_vb_extractor_captures_iter_guards_all_cap_get_0_sites() {
     // Every expect("full match always exists") must be reachable only through
     // captures_iter — if the count of captures_iter drops to 0 while expects remain,
     // the invariant is broken.
-    let expect_count = src.matches("cap.get(0).expect(\"full match always exists\")").count();
+    let expect_count = src
+        .matches("cap.get(0).expect(\"full match always exists\")")
+        .count();
 
     assert!(
         captures_iter_count > 0,
@@ -1059,7 +1084,9 @@ fn parse1_vb_extractor_captures_iter_guards_all_cap_get_0_sites() {
     // The invariant: captures_iter is the exclusive entry point for these sites.
     // If someone adds .captures() with a raw .expect() (no guard), the guard count
     // below would catch it via the bare_captures check.
-    let bare_captures = src.matches(".captures(source)").count()
+    let bare_captures = src
+        .matches(".captures(source)")
+        .count()
         .saturating_sub(src.matches("captures_iter(source)").count());
     assert!(
         bare_captures == 0,
@@ -1089,15 +1116,14 @@ Module MyModule
 End Module
 "#;
     // Call extract_vb directly — this exercises all the cap.get(0) regex sites.
-    let (syms, _edges) = engram_index::vb_extractor::extract_vb(
-        Path::new("module.vb"), vb_source
-    );
+    let (syms, _edges) = engram_index::vb_extractor::extract_vb(Path::new("module.vb"), vb_source);
     // The extractor must not panic. Symbol extraction may be empty if tree-sitter
     // VB query coverage is partial, but no panic is the critical invariant.
     // If symbols are extracted, they must include at least one of the declared names.
     if !syms.is_empty() {
         assert!(
-            syms.iter().any(|s| s.name.contains("InitApp") || s.name.contains("ComputeValue")
+            syms.iter().any(|s| s.name.contains("InitApp")
+                || s.name.contains("ComputeValue")
                 || s.name.contains("MyModule")),
             "PARSE1-j1n4: vb_extractor extracted symbols but missed expected names; \
              extracted: {:?}",

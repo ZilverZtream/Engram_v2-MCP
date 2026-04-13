@@ -99,7 +99,10 @@ impl Checkpoint {
 
     /// Check if this checkpoint is resumable (not completed, failed, or cancelled).
     pub fn is_resumable(&self) -> bool {
-        !matches!(self.phase, JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled)
+        !matches!(
+            self.phase,
+            JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled
+        )
     }
 }
 
@@ -238,8 +241,10 @@ impl CheckpointStore {
             for r in t.iter()? {
                 let (k, v) = r?;
                 let cp: Checkpoint = serde_json::from_slice(v.value())?;
-                if matches!(cp.phase, JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled)
-                    && cp.updated_at_ms < cutoff
+                if matches!(
+                    cp.phase,
+                    JobPhase::Completed | JobPhase::Failed | JobPhase::Cancelled
+                ) && cp.updated_at_ms < cutoff
                 {
                     to_remove.push(k.value().to_string());
                 }
@@ -397,7 +402,10 @@ mod tests {
             error: None,
         };
         // put() on a live store must succeed.
-        assert!(store.put(&cp).is_ok(), "put() should succeed on a live store");
+        assert!(
+            store.put(&cp).is_ok(),
+            "put() should succeed on a live store"
+        );
         drop(store);
 
         // Replace the db file with a directory of the same name.

@@ -387,7 +387,10 @@ cmd.CommandText = "EXEC sp_GetUserRoles @userId"
     #[test]
     fn available_slices_all_have_descriptions() {
         for (name, description) in available_slices() {
-            assert!(!description.is_empty(), "slice '{name}' has empty description");
+            assert!(
+                !description.is_empty(),
+                "slice '{name}' has empty description"
+            );
         }
     }
 
@@ -418,8 +421,14 @@ cmd.CommandText = "EXEC sp_GetUserRoles @userId"
 "#;
         let sliced = apply_logical_slice(content, "event_handlers", "cs");
         assert!(sliced.contains("Page_Load"), "should include Page_Load");
-        assert!(sliced.contains("btnSearch_Click"), "should include btnSearch_Click");
-        assert!(!sliced.contains("HelperMethod"), "should not include HelperMethod");
+        assert!(
+            sliced.contains("btnSearch_Click"),
+            "should include btnSearch_Click"
+        );
+        assert!(
+            !sliced.contains("HelperMethod"),
+            "should not include HelperMethod"
+        );
     }
 
     #[test]
@@ -438,8 +447,14 @@ Protected Sub NotAnEvent()
 End Sub
 "#;
         let sliced = apply_logical_slice(content, "event_handlers", "vb");
-        assert!(sliced.contains("RowDataBound"), "should include RowDataBound handler");
-        assert!(sliced.contains("SelectedIndexChanged"), "should include SelectedIndexChanged");
+        assert!(
+            sliced.contains("RowDataBound"),
+            "should include RowDataBound handler"
+        );
+        assert!(
+            sliced.contains("SelectedIndexChanged"),
+            "should include SelectedIndexChanged"
+        );
     }
 
     #[test]
@@ -462,7 +477,10 @@ Response.Write("<p>" & msg & "</p>")
 Dim x As Integer = 42
 "#;
         let sliced = apply_logical_slice(content, "ui_methods", "vb");
-        assert!(sliced.contains("Response.Write"), "should find Response.Write");
+        assert!(
+            sliced.contains("Response.Write"),
+            "should find Response.Write"
+        );
         // Context lines should be included too
         assert!(sliced.contains("msg"));
     }
@@ -486,14 +504,20 @@ myLabel.Text = "Status"
 unrelated = "nothing"
 "#;
         let sliced = apply_logical_slice(content, "ui_methods", "vb");
-        assert!(sliced.contains("Visible"), "should include Visible assignment");
+        assert!(
+            sliced.contains("Visible"),
+            "should include Visible assignment"
+        );
     }
 
     #[test]
     fn test_ui_methods_no_matches_returns_message() {
         let content = "x = 1\ny = 2\nz = x + y";
         let sliced = apply_logical_slice(content, "ui_methods", "vb");
-        assert!(sliced.contains("no matching lines"), "should return no-match message: {sliced}");
+        assert!(
+            sliced.contains("no matching lines"),
+            "should return no-match message: {sliced}"
+        );
     }
 
     // ── SQL queries slice ────────────────────────────────────────────────────
@@ -523,7 +547,10 @@ conn.Open()
 cmd.ExecuteNonQuery()
 "#;
         let sliced = apply_logical_slice(content, "sql_queries", "vb");
-        assert!(sliced.contains("CREATE TABLE"), "should include CREATE TABLE");
+        assert!(
+            sliced.contains("CREATE TABLE"),
+            "should include CREATE TABLE"
+        );
     }
 
     #[test]
@@ -531,11 +558,17 @@ cmd.ExecuteNonQuery()
         let content = "line1\nline2\nDim q = \"SELECT * FROM Users\"\nline4\nline5\nline6";
         let sliced = apply_logical_slice(content, "sql_queries", "vb");
         // 2 lines before: line1, line2
-        assert!(sliced.contains("line1"), "context before should be included");
+        assert!(
+            sliced.contains("line1"),
+            "context before should be included"
+        );
         assert!(sliced.contains("line4"), "context after should be included");
         // But line6 is 3 lines after → out of 2-line context window
         // (i=2 [0-indexed], context range = i-2..i+3 = 0..5)
-        assert!(sliced.contains("line5"), "2nd line after should be included");
+        assert!(
+            sliced.contains("line5"),
+            "2nd line after should be included"
+        );
     }
 
     // ── State access slice ───────────────────────────────────────────────────
@@ -546,7 +579,10 @@ cmd.ExecuteNonQuery()
 Label1.Text = "Welcome"
 "#;
         let sliced = apply_logical_slice(content, "state_access", "vb");
-        assert!(sliced.contains("Context.Items"), "should include Context.Items access");
+        assert!(
+            sliced.contains("Context.Items"),
+            "should include Context.Items access"
+        );
     }
 
     #[test]
@@ -556,7 +592,10 @@ var role = Session["Role"];
 var x = 5;
 "#;
         let sliced = apply_logical_slice(content, "state_access", "cs");
-        assert!(sliced.contains("Session["), "should find Session[] bracket syntax");
+        assert!(
+            sliced.contains("Session["),
+            "should find Session[] bracket syntax"
+        );
     }
 
     // ── Data methods slice ───────────────────────────────────────────────────
@@ -579,7 +618,10 @@ Dim count = CInt(cmd.ExecuteScalar())
 Label1.Text = count.ToString()
 "#;
         let sliced = apply_logical_slice(content, "data_methods", "vb");
-        assert!(sliced.contains("ExecuteScalar"), "should find ExecuteScalar");
+        assert!(
+            sliced.contains("ExecuteScalar"),
+            "should find ExecuteScalar"
+        );
     }
 
     // ── gap indicator between non-contiguous matches ─────────────────────────
@@ -600,7 +642,10 @@ Label1.Text = count.ToString()
             .collect();
         let content = lines.join("\n");
         let sliced = apply_logical_slice(&content, "state_access", "vb");
-        assert!(sliced.contains("..."), "non-contiguous matches should show gap indicator");
+        assert!(
+            sliced.contains("..."),
+            "non-contiguous matches should show gap indicator"
+        );
     }
 
     // ── language parameter is accepted (currently reserved) ──────────────────

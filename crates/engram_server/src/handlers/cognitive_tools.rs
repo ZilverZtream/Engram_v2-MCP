@@ -21,7 +21,10 @@ use std::path::PathBuf;
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
 impl Engram {
-    pub(crate) async fn cancel_job_internal(&self, job_id: &str) -> job_service::CancellationOutcome {
+    pub(crate) async fn cancel_job_internal(
+        &self,
+        job_id: &str,
+    ) -> job_service::CancellationOutcome {
         job_service::cancel_job_internal(&self.state, job_id).await
     }
 
@@ -1450,7 +1453,11 @@ impl Engram {
             use_mmr: false,
         };
 
-        let hits = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
+        let hits = ps
+            .search
+            .search(&query, None, &tokio_util::sync::CancellationToken::new())
+            .await
+            .unwrap_or_default();
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Hits: {}",
             hits.len()
@@ -2150,14 +2157,16 @@ impl Engram {
         };
         use crate::services::evidence_orchestration::{EvidenceDepth, EvidenceOverrides};
 
-        let depth = EvidenceDepth::from_str(evidence_depth).map_err(|e| McpError::invalid_params(e, None))?;
+        let depth = EvidenceDepth::from_str(evidence_depth)
+            .map_err(|e| McpError::invalid_params(e, None))?;
         let mut items = Vec::with_capacity(wave_items.len());
 
         for item in &wave_items {
             let overrides = EvidenceOverrides::default();
             let risk_profile = crate::services::autonomous_decision_service::RiskProfile::from_str(
                 &item.risk_profile,
-            ).map_err(|e| McpError::invalid_params(e, None))?;
+            )
+            .map_err(|e| McpError::invalid_params(e, None))?;
 
             match crate::services::evidence_orchestration::gather_evidence(
                 &self.state,
@@ -2254,7 +2263,8 @@ impl Engram {
             crate::services::autonomous_decision_service::RiskProfile::from_str(&req.risk_profile)
                 .map_err(|e| McpError::invalid_params(e, None))?;
         let depth =
-            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth).map_err(|e| McpError::invalid_params(e, None))?;
+            crate::services::evidence_orchestration::EvidenceDepth::from_str(&req.evidence_depth)
+                .map_err(|e| McpError::invalid_params(e, None))?;
 
         let adp_input = crate::services::evidence_orchestration::gather_evidence(
             &self.state,
@@ -2270,8 +2280,7 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let raw_decision =
-            crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
+        let raw_decision = crate::services::autonomous_decision_service::evaluate_gates(&adp_input);
 
         // ADP1/ADP kill-switch: apply the configured rollout policy so that the
         // deployment phase (shadow/advisory/guarded/autonomous) and the runtime

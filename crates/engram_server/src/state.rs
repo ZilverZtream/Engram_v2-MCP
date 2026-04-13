@@ -35,9 +35,7 @@ pub enum AppEvent {
     /// VEC1/X1: vector table was recreated due to schema mismatch; all historical
     /// vector data was lost. Consumers must schedule a full reindex. Emitted by
     /// the index job when `open_or_create_table` returns `Recreated`.
-    FullReindexRequired {
-        project_id: String,
-    },
+    FullReindexRequired { project_id: String },
 }
 
 #[derive(Debug, Clone)]
@@ -214,7 +212,9 @@ impl AppState {
                 migration_progress: Arc::new(migration_progress),
                 pagerank_cache: Arc::new(DashMap::new()),
                 pagerank_inflight: Arc::new(DashSet::new()),
-                adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(effective_kill_switch)),
+                adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
+                    effective_kill_switch,
+                )),
             },
             events_rx,
         ))

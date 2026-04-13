@@ -1,19 +1,19 @@
 // Validation tests derived from public API contracts only.
 // All assertions reference observable public types and functions.
 
-use engram_index::{
-    ConfidenceBand, score_control_binding, score_event_wiring, score_sql_trace,
-    escape_tantivy_literal, chunk_id_from_hash, SymbolExtractor,
-};
 use engram_index::chunking::{chunk_lines, semantic_chunk_lines};
-use engram_index::solution_parser::{
-    classify_project_type, parse_solution, parse_solution_configs, ProjectType,
-};
-use engram_index::sql_parser::{analyze_sql, generate_method_name, SqlOp};
-use engram_index::sync_hazard_detector::{detect_sync_hazards, HazardSeverity};
-use engram_index::ingest::is_binary;
-use engram_index::webforms::{is_webforms_markup, candidate_codebehind_paths};
 use engram_index::control_mapping::lookup;
+use engram_index::ingest::is_binary;
+use engram_index::solution_parser::{
+    ProjectType, classify_project_type, parse_solution, parse_solution_configs,
+};
+use engram_index::sql_parser::{SqlOp, analyze_sql, generate_method_name};
+use engram_index::sync_hazard_detector::{HazardSeverity, detect_sync_hazards};
+use engram_index::webforms::{candidate_codebehind_paths, is_webforms_markup};
+use engram_index::{
+    ConfidenceBand, SymbolExtractor, chunk_id_from_hash, escape_tantivy_literal,
+    score_control_binding, score_event_wiring, score_sql_trace,
+};
 use std::io::Write;
 use std::path::Path;
 
@@ -122,14 +122,25 @@ fn event_wiring_signals_have_non_empty_names_and_evidence() {
         assert!(!s.name.is_empty(), "signal name empty");
         assert!(!s.evidence.is_empty(), "signal evidence empty");
         assert!(s.weight > 0.0, "signal weight zero or negative");
-        assert!(s.score >= 0.0 && s.score <= 1.0, "signal score out of range");
+        assert!(
+            s.score >= 0.0 && s.score <= 1.0,
+            "signal score out of range"
+        );
     }
 }
 
 #[test]
 fn event_wiring_rationale_non_empty() {
-    assert!(!score_event_wiring(true, true, true, true, true).rationale.is_empty());
-    assert!(!score_event_wiring(false, false, false, false, false).rationale.is_empty());
+    assert!(
+        !score_event_wiring(true, true, true, true, true)
+            .rationale
+            .is_empty()
+    );
+    assert!(
+        !score_event_wiring(false, false, false, false, false)
+            .rationale
+            .is_empty()
+    );
 }
 
 // ── score_sql_trace ────────────────────────────────────────────────────────────
@@ -335,7 +346,11 @@ fn chunk_lines_large_text_splits_into_multiple_chunks() {
     let line = "x".repeat(19) + "\n";
     let text = line.repeat(200);
     let chunks = chunk_lines(&text, 500);
-    assert!(chunks.len() > 1, "expected multiple chunks, got {}", chunks.len());
+    assert!(
+        chunks.len() > 1,
+        "expected multiple chunks, got {}",
+        chunks.len()
+    );
 }
 
 #[test]
@@ -394,7 +409,9 @@ fn symbol_extractor_rust_finds_function() {
     let code = "pub fn greet(name: &str) -> String { format!(\"hi {}\", name) }\n";
     let (symbols, _) = SymbolExtractor::new().extract(Path::new("greet.rs"), code);
     assert!(
-        symbols.iter().any(|s| s.name == "greet" && s.kind == "function"),
+        symbols
+            .iter()
+            .any(|s| s.name == "greet" && s.kind == "function"),
         "expected 'greet' function; found: {:?}",
         symbols
     );
@@ -447,11 +464,15 @@ public:
 "#;
     let (symbols, _) = SymbolExtractor::new().extract(Path::new("calc.cpp"), code);
     assert!(
-        symbols.iter().any(|s| s.name == "Calc" && s.kind == "class"),
+        symbols
+            .iter()
+            .any(|s| s.name == "Calc" && s.kind == "class"),
         "expected Calc class"
     );
     assert!(
-        symbols.iter().any(|s| s.name == "add" && s.kind == "function"),
+        symbols
+            .iter()
+            .any(|s| s.name == "add" && s.kind == "function"),
         "expected add method"
     );
 }
@@ -461,7 +482,9 @@ fn symbol_extractor_python_finds_function() {
     let code = "def hello():\n    pass\n";
     let (symbols, _) = SymbolExtractor::new().extract(Path::new("hello.py"), code);
     assert!(
-        symbols.iter().any(|s| s.name == "hello" && s.kind == "function"),
+        symbols
+            .iter()
+            .any(|s| s.name == "hello" && s.kind == "function"),
         "expected 'hello' python function; found: {:?}",
         symbols
     );
@@ -675,7 +698,9 @@ fn detect_sync_hazards_severity_ordering() {
 #[test]
 fn is_binary_nonexistent_path_returns_true() {
     // Fail-closed contract: unreadable files treated as binary.
-    assert!(is_binary(std::path::Path::new("/nonexistent/path/file.bin")));
+    assert!(is_binary(std::path::Path::new(
+        "/nonexistent/path/file.bin"
+    )));
 }
 
 #[test]

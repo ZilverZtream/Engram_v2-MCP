@@ -13,8 +13,8 @@
 //!    user/agent-triggered.
 
 use engram_server::services::autonomous_decision_service::{
-    AdpInput, AdpVerdict, RiskProfile, RolloutPhase,
-    apply_rollout_policy, evaluate_gates, build_decision_report, ConfigSnapshot,
+    AdpInput, AdpVerdict, ConfigSnapshot, RiskProfile, RolloutPhase, apply_rollout_policy,
+    build_decision_report, evaluate_gates,
 };
 use engram_server::services::safety_service::PolicyDecision;
 
@@ -42,7 +42,8 @@ fn abstain_input() -> AdpInput {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     }
 }
@@ -78,7 +79,8 @@ fn deny_input() -> AdpInput {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     }
 }
@@ -114,7 +116,8 @@ fn allow_input() -> AdpInput {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     }
 }
@@ -293,7 +296,10 @@ fn adp_deny_verdict_is_unambiguous() {
         format!("{allow}"),
         "JOB1: Deny and Allow must render as distinct strings"
     );
-    assert_ne!(deny, allow, "JOB1: Deny and Allow must be distinct enum variants");
+    assert_ne!(
+        deny, allow,
+        "JOB1: Deny and Allow must be distinct enum variants"
+    );
 }
 
 // ── Test 7: Individual gate hard-deny paths ───────────────────────────────────
@@ -333,7 +339,8 @@ fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -393,7 +400,8 @@ fn low_extraction_confidence_produces_deny_in_guarded_mode() {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -447,7 +455,8 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -466,7 +475,10 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
         "BLOCK immune verdict Deny must survive Guarded mode policy application"
     );
     assert!(
-        enforced.failed_gates.iter().any(|g| g.contains("anti_pattern") || g.contains("immune")),
+        enforced
+            .failed_gates
+            .iter()
+            .any(|g| g.contains("anti_pattern") || g.contains("immune")),
         "anti_pattern gate must appear in failed_gates; got: {:?}",
         enforced.failed_gates
     );
@@ -489,9 +501,9 @@ fn all_enqueue_capable_tools_are_co_registered_with_autonomous_decision_gate() {
 
     // All tools that can spawn a background job (spawn_job_* call sites).
     let enqueue_capable_tools = [
-        "index_project",      // project_tools.rs: spawn_job_index_directory
-        "update_project",     // project_tools.rs: spawn_job_update_project
-        "index_git_history",  // git_tools.rs: spawn_job_git_history
+        "index_project",     // project_tools.rs: spawn_job_index_directory
+        "update_project",    // project_tools.rs: spawn_job_update_project
+        "index_git_history", // git_tools.rs: spawn_job_git_history
     ];
 
     let registered: Vec<&str> = CAPABILITY_FLAGS.iter().map(|f| f.key).collect();
@@ -500,7 +512,8 @@ fn all_enqueue_capable_tools_are_co_registered_with_autonomous_decision_gate() {
     assert!(
         registered.contains(&"autonomous_decision_gate"),
         "X4: autonomous_decision_gate must be registered in CAPABILITY_FLAGS — \
-         it is the required pre-enqueue decision gate; got: {:?}", registered
+         it is the required pre-enqueue decision gate; got: {:?}",
+        registered
     );
 
     // Every enqueue-capable tool must be registered alongside it.
@@ -509,7 +522,8 @@ fn all_enqueue_capable_tools_are_co_registered_with_autonomous_decision_gate() {
             registered.contains(tool),
             "X4: enqueue-capable tool {tool:?} must be registered in CAPABILITY_FLAGS \
              alongside autonomous_decision_gate so callers can invoke the gate before \
-             spawning a job; registered tools: {:?}", registered
+             spawning a job; registered tools: {:?}",
+            registered
         );
     }
 }
@@ -526,9 +540,9 @@ fn enqueue_handler_job_kinds_match_capability_flag_keys() {
     // Each (handler_src, job_kind) pair: the handler must contain the job_kind string
     // AND capabilities.rs must also contain it.
     let pairs: &[(&str, &str, &str)] = &[
-        (project_tools_src, "index_project",     "project_tools.rs"),
-        (project_tools_src, "update_project",    "project_tools.rs"),
-        (git_tools_src,     "index_git_history", "git_tools.rs"),
+        (project_tools_src, "index_project", "project_tools.rs"),
+        (project_tools_src, "update_project", "project_tools.rs"),
+        (git_tools_src, "index_git_history", "git_tools.rs"),
     ];
 
     for (src, job_kind, file) in pairs {
@@ -571,7 +585,9 @@ fn wave_with_one_deny_item_produces_wave_deny() {
          a single unsafe file must not be auto-applied even if all others are safe"
     );
     assert!(
-        wave_decision.blocking_items.contains(&"file_b.cs".to_string()),
+        wave_decision
+            .blocking_items
+            .contains(&"file_b.cs".to_string()),
         "blocking_items must identify the deny-producing file; \
          got: {:?}",
         wave_decision.blocking_items
@@ -600,7 +616,7 @@ fn adp_high_blast_radius_produces_deny_without_safety_failure() {
         retrieval_production_ready: Some(true),
         retrieval_ndcg: Some(0.9),
         retrieval_recall: Some(0.92),
-        blast_radius_risk: Some(20),         // exceeds max of 5
+        blast_radius_risk: Some(20), // exceeds max of 5
         blast_radius_band: None,
         blast_radius_downstream: Some(50),
         immune_verdict: Some("PASS".into()),
@@ -613,7 +629,8 @@ fn adp_high_blast_radius_produces_deny_without_safety_failure() {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -631,7 +648,7 @@ fn adp_high_blast_radius_produces_deny_without_safety_failure() {
 #[test]
 fn adp_low_extraction_confidence_produces_deny() {
     let input = AdpInput {
-        extraction_confidence: Some(0.4),   // below min 0.7
+        extraction_confidence: Some(0.4), // below min 0.7
         extraction_band: Some("low".into()),
         trace_used_fallback: false,
         trace_candidate_count: 1,
@@ -659,7 +676,8 @@ fn adp_low_extraction_confidence_produces_deny() {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -690,15 +708,16 @@ fn adp_missing_required_runtime_evidence_produces_deny() {
         blast_radius_downstream: Some(3),
         immune_verdict: Some("PASS".into()),
         immune_confidence: Some(0.97),
-        require_runtime_evidence: true,      // required
-        has_runtime_evidence: false,         // but not present
+        require_runtime_evidence: true, // required
+        has_runtime_evidence: false,    // but not present
         risk_profile: RiskProfile::Low,
         min_extraction_confidence: 0.7,
         min_safety_confidence: 0.6,
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     };
 
@@ -711,7 +730,8 @@ fn adp_missing_required_runtime_evidence_produces_deny() {
         raw.verdict != AdpVerdict::Allow,
         "ADP1: require_runtime_evidence=true with has_runtime_evidence=false must \
          NOT produce Allow — missing required evidence must suppress auto-apply; \
-         got {:?}", raw.verdict
+         got {:?}",
+        raw.verdict
     );
     assert!(
         raw.failed_gates.iter().any(|g| g.contains("runtime")),
@@ -792,6 +812,8 @@ fn make_config_snapshot() -> ConfigSnapshot {
         crate_version: String::new(),
         runtime_triple: String::new(),
         gate_source_hash: String::new(),
+        rollout_phase: "guarded".to_string(),
+        kill_switch: false,
     }
 }
 
@@ -818,7 +840,8 @@ fn make_passing_adp_input() -> AdpInput {
         max_blast_radius_for_auto: 5,
         reconciliation: None,
         graph_impact: None,
-        retrieval_mode: engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
+        retrieval_mode:
+            engram_server::services::autonomous_decision_service::RetrievalMode::Skipped,
         migration_class: None,
     }
 }
@@ -832,24 +855,37 @@ fn adp1_replay_determinism_identical_inputs_produce_identical_evidence_hash() {
 
     let d1 = evaluate_gates(&input);
     let r1 = build_decision_report(
-        &d1, "proj-a", "change-a", &[], "low",
-        serde_json::Value::Null, config.clone(), "build-1",
+        &d1,
+        "proj-a",
+        "change-a",
+        &[],
+        "low",
+        serde_json::Value::Null,
+        config.clone(),
+        "build-1",
     );
 
     let d2 = evaluate_gates(&input);
     let r2 = build_decision_report(
-        &d2, "proj-a", "change-a", &[], "low",
-        serde_json::Value::Null, config, "build-1",
+        &d2,
+        "proj-a",
+        "change-a",
+        &[],
+        "low",
+        serde_json::Value::Null,
+        config,
+        "build-1",
     );
 
     assert_eq!(
-        r1.config_snapshot.evidence_hash,
-        r2.config_snapshot.evidence_hash,
+        r1.config_snapshot.evidence_hash, r2.config_snapshot.evidence_hash,
         "ADP1/Section9: identical inputs must produce identical evidence_hash — \
          non-determinism breaks replay integrity"
     );
-    assert_eq!(r1.verdict, r2.verdict,
-        "ADP1/Section9: identical inputs must produce identical verdict on replay");
+    assert_eq!(
+        r1.verdict, r2.verdict,
+        "ADP1/Section9: identical inputs must produce identical verdict on replay"
+    );
 }
 
 /// ADP1 / Section 9: runtime_triple must be non-empty after build_decision_report
@@ -861,8 +897,14 @@ fn adp1_build_decision_report_runtime_triple_is_non_empty_and_formatted() {
 
     let decision = evaluate_gates(&input);
     let report = build_decision_report(
-        &decision, "proj-rt", "change-rt", &[], "low",
-        serde_json::Value::Null, config, "build-rt",
+        &decision,
+        "proj-rt",
+        "change-rt",
+        &[],
+        "low",
+        serde_json::Value::Null,
+        config,
+        "build-rt",
     );
 
     assert!(
@@ -894,7 +936,7 @@ fn x4_autonomous_decision_gate_registered_in_capability_flags() {
 #[test]
 fn x4_write_class_handlers_integrate_adp_verdicts() {
     let cognitive_src = include_str!("../src/handlers/cognitive_tools.rs");
-    let project_src   = include_str!("../src/handlers/project_tools.rs");
+    let project_src = include_str!("../src/handlers/project_tools.rs");
 
     let adp_integrated = cognitive_src.contains("autonomous_decision")
         || cognitive_src.contains("AdpVerdict")
@@ -922,19 +964,30 @@ fn adp1_evidence_hash_changes_when_gate_outputs_change() {
 
     let d_a = evaluate_gates(&input_a);
     let r_a = build_decision_report(
-        &d_a, "proj", "change", &[], "low",
-        serde_json::Value::Null, make_config_snapshot(), "build",
+        &d_a,
+        "proj",
+        "change",
+        &[],
+        "low",
+        serde_json::Value::Null,
+        make_config_snapshot(),
+        "build",
     );
 
     let d_b = evaluate_gates(&input_b);
     let r_b = build_decision_report(
-        &d_b, "proj", "change", &[], "low",
-        serde_json::Value::Null, make_config_snapshot(), "build",
+        &d_b,
+        "proj",
+        "change",
+        &[],
+        "low",
+        serde_json::Value::Null,
+        make_config_snapshot(),
+        "build",
     );
 
     assert_ne!(
-        r_a.config_snapshot.evidence_hash,
-        r_b.config_snapshot.evidence_hash,
+        r_a.config_snapshot.evidence_hash, r_b.config_snapshot.evidence_hash,
         "ADP1: different gate inputs must produce different evidence_hash — \
          hash must reflect actual gate output differences, not just metadata"
     );
@@ -970,16 +1023,13 @@ fn adp1_evidence_hash_supplements_gate_code_version_for_replay_identity() {
 /// Any addition to this list without ADP gate wiring is a governance violation.
 #[test]
 fn x4_enqueue_capable_handlers_enumerated_and_consistent() {
-    let project_src   = include_str!("../src/handlers/project_tools.rs");
+    let project_src = include_str!("../src/handlers/project_tools.rs");
     let cognitive_src = include_str!("../src/handlers/cognitive_tools.rs");
-    let git_src       = include_str!("../src/handlers/git_tools.rs");
+    let git_src = include_str!("../src/handlers/git_tools.rs");
 
     // project_tools and git_tools are enqueue-capable (they call tokio::spawn for indexing).
     // cognitive_tools does not spawn jobs — it delegates to services synchronously.
-    for (name, src) in [
-        ("project_tools", project_src),
-        ("git_tools", git_src),
-    ] {
+    for (name, src) in [("project_tools", project_src), ("git_tools", git_src)] {
         assert!(
             src.contains("tokio::spawn"),
             "X4: {name} is an enqueue-capable handler and must have job spawn logic"
@@ -1033,7 +1083,8 @@ fn adp1_runtime_triple_is_consumed_in_gate_evaluation_path() {
 
     // It must be populated somewhere (not just declared).
     assert!(
-        src.contains("std::env::consts::OS") || src.contains("consts::ARCH")
+        src.contains("std::env::consts::OS")
+            || src.contains("consts::ARCH")
             || src.contains("runtime_triple:"),
         "ADP1: runtime_triple must be populated from OS/ARCH env constants or \
          explicitly set — empty triple provides no provenance value"
@@ -1087,7 +1138,8 @@ fn adp1_gate_source_hash_is_populated_and_is_valid_blake3_hex() {
          empty means build.rs did not run or the field is not being populated"
     );
     assert_eq!(
-        hash.len(), 64,
+        hash.len(),
+        64,
         "ADP1-z2t4: gate_source_hash must be a 64-char BLAKE3 hex digest; got {len} chars: {hash}",
         len = hash.len()
     );
@@ -1106,14 +1158,29 @@ fn adp1_gate_source_hash_is_stable_across_decisions() {
     let d1 = evaluate_gates(&input1);
     let d2 = evaluate_gates(&input2);
 
-    let r1 = build_decision_report(&d1, "proj-a", "change a", &[], "low", serde_json::json!({}),
-        make_config_snapshot(), "build-a");
-    let r2 = build_decision_report(&d2, "proj-b", "change b", &[], "high", serde_json::json!({}),
-        make_config_snapshot(), "build-b");
+    let r1 = build_decision_report(
+        &d1,
+        "proj-a",
+        "change a",
+        &[],
+        "low",
+        serde_json::json!({}),
+        make_config_snapshot(),
+        "build-a",
+    );
+    let r2 = build_decision_report(
+        &d2,
+        "proj-b",
+        "change b",
+        &[],
+        "high",
+        serde_json::json!({}),
+        make_config_snapshot(),
+        "build-b",
+    );
 
     assert_eq!(
-        r1.config_snapshot.gate_source_hash,
-        r2.config_snapshot.gate_source_hash,
+        r1.config_snapshot.gate_source_hash, r2.config_snapshot.gate_source_hash,
         "ADP1-z2t4: gate_source_hash must be identical for all decisions built from the \
          same binary — it is a compile-time constant; differing values means the field \
          is being computed dynamically (it must not be)"

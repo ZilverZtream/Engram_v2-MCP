@@ -761,7 +761,12 @@ mod tests {
 
     #[test]
     fn risk_band_display_matches_as_str() {
-        for band in [RiskBand::Low, RiskBand::Medium, RiskBand::High, RiskBand::Critical] {
+        for band in [
+            RiskBand::Low,
+            RiskBand::Medium,
+            RiskBand::High,
+            RiskBand::Critical,
+        ] {
             assert_eq!(band.to_string(), band.as_str());
         }
     }
@@ -898,13 +903,25 @@ mod tests {
         let text = format_report(&report);
         assert!(text.contains("5/10"), "should contain risk score");
         assert!(text.contains("Medium"), "should contain risk band");
-        assert!(text.contains("Complexity Breakdown"), "should have complexity section");
-        assert!(text.contains("Uncertainty Breakdown"), "should have uncertainty section");
-        assert!(text.contains("Seam Candidates"), "should list seam candidates");
+        assert!(
+            text.contains("Complexity Breakdown"),
+            "should have complexity section"
+        );
+        assert!(
+            text.contains("Uncertainty Breakdown"),
+            "should have uncertainty section"
+        );
+        assert!(
+            text.contains("Seam Candidates"),
+            "should list seam candidates"
+        );
         assert!(text.contains("Migration Guidance"), "should list guidance");
         assert!(text.contains("SQL Risk"), "should show concern");
         assert!(text.contains("Dapper"), "should show modern pattern");
-        assert!(text.contains("Total Downstream Nodes: 8"), "should show downstream count");
+        assert!(
+            text.contains("Total Downstream Nodes: 8"),
+            "should show downstream count"
+        );
     }
 
     #[test]
@@ -932,8 +949,14 @@ mod tests {
             total_downstream: 0,
         };
         let text = format_report(&report);
-        assert!(!text.contains("Seam Candidates"), "no seams so section absent");
-        assert!(!text.contains("Migration Guidance"), "no guidance so section absent");
+        assert!(
+            !text.contains("Seam Candidates"),
+            "no seams so section absent"
+        );
+        assert!(
+            !text.contains("Migration Guidance"),
+            "no guidance so section absent"
+        );
     }
 
     #[test]
@@ -970,8 +993,16 @@ mod tests {
 
     #[test]
     fn weights_sum_to_one() {
-        let sum = WEIGHT_HANDLES + WEIGHT_SQL + WEIGHT_PAGERANK + WEIGHT_STATE + WEIGHT_GIS + WEIGHT_SCRIPT;
-        assert!((sum - 1.0).abs() < 0.001, "weights must sum to 1.0, got {sum}");
+        let sum = WEIGHT_HANDLES
+            + WEIGHT_SQL
+            + WEIGHT_PAGERANK
+            + WEIGHT_STATE
+            + WEIGHT_GIS
+            + WEIGHT_SCRIPT;
+        assert!(
+            (sum - 1.0).abs() < 0.001,
+            "weights must sum to 1.0, got {sum}"
+        );
     }
 
     #[test]

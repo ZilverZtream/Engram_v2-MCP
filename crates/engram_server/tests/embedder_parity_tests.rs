@@ -7,7 +7,7 @@
 //! No network access required for local-path tests.
 
 use engram_ml::{
-    build_embedder, Embedder, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder,
+    Embedder, LocalEmbedder, OllamaEmbedder, OpenAIEmbedder, ProjectionEmbedder, build_embedder,
 };
 use tokio_util::sync::CancellationToken;
 
@@ -19,7 +19,10 @@ use tokio_util::sync::CancellationToken;
 async fn projection_embedder_output_length_matches_configured_dimension() {
     for dim in [64usize, 128, 256, 384, 768] {
         let embedder = ProjectionEmbedder::new(dim);
-        let embedding = embedder.embed("hello world").await.expect("embed must succeed");
+        let embedding = embedder
+            .embed("hello world")
+            .await
+            .expect("embed must succeed");
         assert_eq!(
             embedding.len(),
             dim,
@@ -34,7 +37,10 @@ async fn projection_embedder_output_length_matches_configured_dimension() {
 #[tokio::test]
 async fn projection_embedder_output_is_unit_normalized() {
     let embedder = ProjectionEmbedder::new(128);
-    let embedding = embedder.embed("test text for normalization").await.expect("embed");
+    let embedding = embedder
+        .embed("test text for normalization")
+        .await
+        .expect("embed");
     let norm: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
     assert!(
         (norm - 1.0).abs() < 1e-4,
@@ -95,7 +101,10 @@ async fn projection_embedder_dim_zero_returns_err_not_panic() {
 #[tokio::test]
 async fn projection_embedder_empty_text_returns_stable_unit_vector() {
     let embedder = ProjectionEmbedder::new(64);
-    let embedding = embedder.embed("").await.expect("empty text embed must not fail");
+    let embedding = embedder
+        .embed("")
+        .await
+        .expect("empty text embed must not fail");
 
     assert_eq!(
         embedding.len(),
@@ -175,9 +184,8 @@ async fn local_embedder_output_matches_projection_embedder_384_parity() {
 /// No network access: dimension() is a pure accessor on the configured value.
 #[test]
 fn ollama_embedder_dimension_method_returns_constructor_argument() {
-    let embedder =
-        OllamaEmbedder::new("nomic-embed-text", "http://localhost:11434", 768, 30)
-            .expect("OllamaEmbedder::new must succeed");
+    let embedder = OllamaEmbedder::new("nomic-embed-text", "http://localhost:11434", 768, 30)
+        .expect("OllamaEmbedder::new must succeed");
     assert_eq!(
         embedder.dimension(),
         768,
@@ -188,9 +196,14 @@ fn ollama_embedder_dimension_method_returns_constructor_argument() {
 /// OpenAIEmbedder must report the dimension it was constructed with.
 #[test]
 fn openai_embedder_dimension_method_returns_constructor_argument() {
-    let embedder =
-        OpenAIEmbedder::new("text-embedding-3-small", "test-key", "https://api.openai.com/v1", 1536, 30)
-            .expect("OpenAIEmbedder::new must succeed");
+    let embedder = OpenAIEmbedder::new(
+        "text-embedding-3-small",
+        "test-key",
+        "https://api.openai.com/v1",
+        1536,
+        30,
+    )
+    .expect("OpenAIEmbedder::new must succeed");
     assert_eq!(
         embedder.dimension(),
         1536,
@@ -202,8 +215,9 @@ fn openai_embedder_dimension_method_returns_constructor_argument() {
 /// This verifies the operator-configured dimension override path.
 #[test]
 fn remote_embedders_support_custom_dimension_overrides() {
-    let ollama_custom = OllamaEmbedder::new("mxbai-embed-large", "http://localhost:11434", 1024, 30)
-        .expect("OllamaEmbedder custom dim");
+    let ollama_custom =
+        OllamaEmbedder::new("mxbai-embed-large", "http://localhost:11434", 1024, 30)
+            .expect("OllamaEmbedder custom dim");
     assert_eq!(
         ollama_custom.dimension(),
         1024,
@@ -230,7 +244,10 @@ fn remote_embedders_support_custom_dimension_overrides() {
 /// Local backend must produce a working embedder with dimension 384.
 #[tokio::test]
 async fn build_embedder_local_backend_produces_dim384_working_embedder() {
-    let cfg = engram_core::Config { embedding_backend: "local".to_string(), ..Default::default() };
+    let cfg = engram_core::Config {
+        embedding_backend: "local".to_string(),
+        ..Default::default()
+    };
 
     let embedder = build_embedder(&cfg).expect("build_embedder(local) must succeed");
     assert_eq!(
@@ -239,7 +256,10 @@ async fn build_embedder_local_backend_produces_dim384_working_embedder() {
         "local backend embedder must report dimension 384"
     );
 
-    let v = embedder.embed("build_embedder smoke test").await.expect("embed");
+    let v = embedder
+        .embed("build_embedder smoke test")
+        .await
+        .expect("embed");
     assert_eq!(
         v.len(),
         384,
@@ -250,7 +270,10 @@ async fn build_embedder_local_backend_produces_dim384_working_embedder() {
 /// Unknown backend must return Err — not panic, not fall back silently.
 #[test]
 fn build_embedder_unknown_backend_returns_err_not_panic() {
-    let cfg = engram_core::Config { embedding_backend: "totally_unknown_backend_xyz".to_string(), ..Default::default() };
+    let cfg = engram_core::Config {
+        embedding_backend: "totally_unknown_backend_xyz".to_string(),
+        ..Default::default()
+    };
 
     let result = build_embedder(&cfg);
     assert!(
@@ -263,7 +286,11 @@ fn build_embedder_unknown_backend_returns_err_not_panic() {
 /// This gate prevents silent empty-key API requests.
 #[test]
 fn build_embedder_openai_without_api_key_returns_err() {
-    let cfg = engram_core::Config { embedding_backend: "openai".to_string(), openai_api_key: None, ..Default::default() };
+    let cfg = engram_core::Config {
+        embedding_backend: "openai".to_string(),
+        openai_api_key: None,
+        ..Default::default()
+    };
 
     let result = build_embedder(&cfg);
     assert!(
@@ -276,7 +303,10 @@ fn build_embedder_openai_without_api_key_returns_err() {
 /// a known synonym for local-mode operation.
 #[tokio::test]
 async fn build_embedder_candle_backend_alias_produces_valid_embedder() {
-    let cfg = engram_core::Config { embedding_backend: "candle".to_string(), ..Default::default() };
+    let cfg = engram_core::Config {
+        embedding_backend: "candle".to_string(),
+        ..Default::default()
+    };
 
     let embedder = build_embedder(&cfg).expect("build_embedder(candle) must succeed");
     let v = embedder.embed("candle alias test").await.expect("embed");
@@ -307,7 +337,8 @@ async fn build_embedder_ollama_produces_l2_normalised_output() {
                 let body = r#"{"embeddings":[[3.0,4.0]]}"#;
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                    body.len(), body
+                    body.len(),
+                    body
                 );
                 let _ = conn.write_all(response.as_bytes()).await;
             }
@@ -353,7 +384,8 @@ async fn build_embedder_openai_produces_l2_normalised_output() {
                 let body = r#"{"data":[{"embedding":[3.0,4.0],"index":0}],"model":"test","usage":{"prompt_tokens":1,"total_tokens":1}}"#;
                 let response = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
-                    body.len(), body
+                    body.len(),
+                    body
                 );
                 let _ = conn.write_all(response.as_bytes()).await;
             }
@@ -602,21 +634,30 @@ async fn projection_embedder_direct_construction_honours_dimension_contract() {
     for dim in [64usize, 128, 384] {
         let embedder = ProjectionEmbedder::new(dim);
         // Contract 1: embed() returns exactly `dim` elements.
-        let v = embedder.embed("direct construction test").await
+        let v = embedder
+            .embed("direct construction test")
+            .await
             .expect("ProjectionEmbedder::embed must succeed");
-        assert_eq!(v.len(), dim,
-            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return {dim} elements");
+        assert_eq!(
+            v.len(),
+            dim,
+            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return {dim} elements"
+        );
 
         // Contract 2: output is non-zero (a zero vector would break cosine similarity).
         let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(norm > 0.0,
-            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return a non-zero vector");
+        assert!(
+            norm > 0.0,
+            "EMB2: direct-constructed ProjectionEmbedder(dim={dim}) must return a non-zero vector"
+        );
 
         // Contract 3: empty-text input must not panic.
         let empty_result = embedder.embed("").await;
-        assert!(empty_result.is_ok(),
+        assert!(
+            empty_result.is_ok(),
             "EMB2: ProjectionEmbedder must not panic or error on empty-text input; got: {:?}",
-            empty_result.err());
+            empty_result.err()
+        );
     }
 }
 
@@ -630,24 +671,38 @@ async fn factory_and_direct_construction_both_return_nonzero_embeddings() {
 
     // Direct construction of LocalEmbedder (same underlying impl as factory "local").
     let direct = LocalEmbedder;
-    let v_direct = direct.embed("parity test").await.expect("LocalEmbedder::embed must succeed");
-    assert!(!v_direct.is_empty(), "EMB2: LocalEmbedder must return non-empty embedding");
+    let v_direct = direct
+        .embed("parity test")
+        .await
+        .expect("LocalEmbedder::embed must succeed");
+    assert!(
+        !v_direct.is_empty(),
+        "EMB2: LocalEmbedder must return non-empty embedding"
+    );
 
     // Factory construction via build_embedder with fts_only backend.
     let cfg = Config {
         embedding_backend: "fts_only".into(),
         ..Default::default()
     };
-    let factory_embedder = build_embedder(&cfg)
-        .expect("build_embedder must succeed for fts_only backend");
-    let v_factory = factory_embedder.embed("parity test").await.expect("factory embed");
+    let factory_embedder =
+        build_embedder(&cfg).expect("build_embedder must succeed for fts_only backend");
+    let v_factory = factory_embedder
+        .embed("parity test")
+        .await
+        .expect("factory embed");
 
-    assert!(!v_factory.is_empty(), "EMB2: factory fts_only embedder must return non-empty embedding");
+    assert!(
+        !v_factory.is_empty(),
+        "EMB2: factory fts_only embedder must return non-empty embedding"
+    );
     assert_eq!(
-        v_direct.len(), v_factory.len(),
+        v_direct.len(),
+        v_factory.len(),
         "EMB2: direct LocalEmbedder and factory fts_only must return same dimension; \
          direct={}, factory={}",
-        v_direct.len(), v_factory.len()
+        v_direct.len(),
+        v_factory.len()
     );
 }
 
@@ -660,11 +715,26 @@ async fn factory_and_direct_construction_both_return_nonzero_embeddings() {
 #[test]
 fn emb1_no_direct_embed_batch_calls_in_production_code() {
     let sources: &[(&str, &str)] = &[
-        ("engram_index/hybrid.rs",      include_str!("../../engram_index/src/hybrid.rs")),
-        ("engram_server/ingest_service", include_str!("../src/services/ingest_service.rs")),
-        ("engram_server/cognitive_tools", include_str!("../src/handlers/cognitive_tools.rs")),
-        ("engram_server/search_tools",   include_str!("../src/handlers/search_tools.rs")),
-        ("engram_server/project_tools",  include_str!("../src/handlers/project_tools.rs")),
+        (
+            "engram_index/hybrid.rs",
+            include_str!("../../engram_index/src/hybrid.rs"),
+        ),
+        (
+            "engram_server/ingest_service",
+            include_str!("../src/services/ingest_service.rs"),
+        ),
+        (
+            "engram_server/cognitive_tools",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "engram_server/search_tools",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        (
+            "engram_server/project_tools",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
     ];
 
     for (name, src) in sources {
@@ -711,9 +781,15 @@ async fn emb2_local_embedder_raw_construction_non_nan_normalized() {
 
     let embedder = LocalEmbedder;
     let text = "raw construction contract test";
-    let v = embedder.embed(text).await.expect("LocalEmbedder::embed must not fail");
+    let v = embedder
+        .embed(text)
+        .await
+        .expect("LocalEmbedder::embed must not fail");
 
-    assert!(!v.is_empty(), "EMB2: raw LocalEmbedder must return non-empty vector");
+    assert!(
+        !v.is_empty(),
+        "EMB2: raw LocalEmbedder must return non-empty vector"
+    );
 
     for (i, &val) in v.iter().enumerate() {
         assert!(
@@ -739,11 +815,11 @@ async fn emb2_projection_embedder_raw_construction_edge_cases() {
 
     let long_input = "a ".repeat(500);
     let cases: &[&str] = &[
-        "",                          // empty — must not panic
-        "   ",                       // whitespace-only
+        "",                                                         // empty — must not panic
+        "   ",                                                      // whitespace-only
         "\u{3053}\u{3093}\u{306b}\u{3061}\u{306f}\u{4e16}\u{754c}", // unicode CJK: こんにちは世界
-        long_input.trim(),           // very long input
-        "line1\nline2\nline3",       // multi-line
+        long_input.trim(),                                          // very long input
+        "line1\nline2\nline3",                                      // multi-line
     ];
 
     for text in cases {
@@ -751,11 +827,16 @@ async fn emb2_projection_embedder_raw_construction_edge_cases() {
         assert!(
             result.is_ok(),
             "EMB2: ProjectionEmbedder must not panic/error on {:?}; got {:?}",
-            &text[..text.len().min(30)], result.err()
+            &text[..text.len().min(30)],
+            result.err()
         );
         let v = result.unwrap();
-        assert_eq!(v.len(), 128,
-            "EMB2: dimension contract must hold for all inputs; got {}", v.len());
+        assert_eq!(
+            v.len(),
+            128,
+            "EMB2: dimension contract must hold for all inputs; got {}",
+            v.len()
+        );
     }
 }
 
@@ -805,11 +886,15 @@ async fn emb1_embed_cancellable_with_live_token_produces_same_output_as_embed() 
     let token = CancellationToken::new(); // not cancelled
 
     let v_embed = embedder.embed("hello world").await.expect("embed");
-    let v_cancellable = embedder.embed_cancellable("hello world", &token).await
+    let v_cancellable = embedder
+        .embed_cancellable("hello world", &token)
+        .await
         .expect("embed_cancellable with live token must succeed");
 
-    assert_eq!(v_embed, v_cancellable,
-        "EMB1: embed_cancellable with live token must produce identical output to embed()");
+    assert_eq!(
+        v_embed, v_cancellable,
+        "EMB1: embed_cancellable with live token must produce identical output to embed()"
+    );
 }
 
 // ── EMB2: LocalEmbedder dimension hardcoding is documented design ─────────────
@@ -821,9 +906,12 @@ async fn emb1_embed_cancellable_with_live_token_produces_same_output_as_embed() 
 fn emb2_local_embedder_dimension_is_384_by_design() {
     use engram_ml::LocalEmbedder;
     let e = LocalEmbedder;
-    assert_eq!(e.dimension(), 384,
+    assert_eq!(
+        e.dimension(),
+        384,
         "EMB2: LocalEmbedder dimension must be 384 (fixed by design for local projection); \
-         if this changes, update all callers that expect 384-dim vectors");
+         if this changes, update all callers that expect 384-dim vectors"
+    );
 }
 
 // ── EMB1-q9v2: call-site cancellation discipline ──────────────────────────────
@@ -900,7 +988,8 @@ fn emb1_hybrid_indexing_path_uses_cancellable_embed_variant() {
 fn emb1_default_embed_batch_cancellable_checks_token_before_dispatch() {
     let src = include_str!("../../engram_ml/src/embed.rs");
 
-    let fn_pos = src.find("async fn embed_batch_cancellable(")
+    let fn_pos = src
+        .find("async fn embed_batch_cancellable(")
         .expect("EMB1: embed.rs must define embed_batch_cancellable");
 
     // Within the first 300 bytes of the function body, is_cancelled() must appear
@@ -912,11 +1001,14 @@ fn emb1_default_embed_batch_cancellable_checks_token_before_dispatch() {
     assert!(
         cancel_pos.is_some(),
         "EMB1: default embed_batch_cancellable must call is_cancelled() — \
-         found window: {:?}", &window[..150.min(window.len())]
+         found window: {:?}",
+        &window[..150.min(window.len())]
     );
     assert!(
         cancel_pos < batch_pos || batch_pos.is_none(),
         "EMB1: is_cancelled() check must precede embed_batch() call in default impl — \
-         cancel check at {:?}, batch call at {:?}", cancel_pos, batch_pos
+         cancel check at {:?}, batch call at {:?}",
+        cancel_pos,
+        batch_pos
     );
 }

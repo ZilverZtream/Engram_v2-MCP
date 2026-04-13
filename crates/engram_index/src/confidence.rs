@@ -489,8 +489,18 @@ mod tests {
         let none = score_event_wiring(false, false, false, false, false);
         let partial = score_event_wiring(true, true, false, false, false);
         let full = score_event_wiring(true, true, true, true, true);
-        assert!(none.score < partial.score, "none({}) should be < partial({})", none.score, partial.score);
-        assert!(partial.score < full.score, "partial({}) should be < full({})", partial.score, full.score);
+        assert!(
+            none.score < partial.score,
+            "none({}) should be < partial({})",
+            none.score,
+            partial.score
+        );
+        assert!(
+            partial.score < full.score,
+            "partial({}) should be < full({})",
+            partial.score,
+            full.score
+        );
     }
 
     #[test]
@@ -506,7 +516,10 @@ mod tests {
         let c = score_event_wiring(true, false, true, false, true);
         for signal in &c.signals {
             assert!(!signal.name.is_empty(), "signal name should not be empty");
-            assert!(!signal.evidence.is_empty(), "signal evidence should not be empty");
+            assert!(
+                !signal.evidence.is_empty(),
+                "signal evidence should not be empty"
+            );
             assert!(signal.weight > 0.0, "signal weight should be positive");
         }
     }
@@ -518,7 +531,8 @@ mod tests {
             assert!(
                 signal.score >= 0.0 && signal.score <= 1.0,
                 "signal '{}' score {} out of range",
-                signal.name, signal.score
+                signal.name,
+                signal.score
             );
         }
     }
@@ -615,8 +629,18 @@ mod tests {
         let none = score_control_binding(false, false, false, false);
         let some = score_control_binding(true, true, false, false);
         let full = score_control_binding(true, true, true, true);
-        assert!(none.score < some.score, "none({}) should be < some({})", none.score, some.score);
-        assert!(some.score < full.score, "some({}) should be < full({})", some.score, full.score);
+        assert!(
+            none.score < some.score,
+            "none({}) should be < some({})",
+            none.score,
+            some.score
+        );
+        assert!(
+            some.score < full.score,
+            "some({}) should be < full({})",
+            some.score,
+            full.score
+        );
     }
 
     #[test]
@@ -635,12 +659,24 @@ mod tests {
     fn all_functions_have_same_number_of_signals_as_parameters() {
         // Each scoring function's signal count matches its parameter count
         let ew = score_event_wiring(true, true, true, true, true);
-        assert_eq!(ew.signals.len(), 5, "event_wiring has 5 parameters → 5 signals");
+        assert_eq!(
+            ew.signals.len(),
+            5,
+            "event_wiring has 5 parameters → 5 signals"
+        );
 
         let st = score_sql_trace(true, true, true, true, true);
-        assert_eq!(st.signals.len(), 5, "sql_trace has 5 parameters → 5 signals");
+        assert_eq!(
+            st.signals.len(),
+            5,
+            "sql_trace has 5 parameters → 5 signals"
+        );
 
         let cb = score_control_binding(true, true, true, true);
-        assert_eq!(cb.signals.len(), 4, "control_binding has 4 parameters → 4 signals");
+        assert_eq!(
+            cb.signals.len(),
+            4,
+            "control_binding has 4 parameters → 4 signals"
+        );
     }
 }

@@ -80,7 +80,10 @@ pub enum CancellationOutcome {
 impl CancellationOutcome {
     /// Returns `true` if the job was cancelled (regardless of tombstone status).
     pub fn was_cancelled(&self) -> bool {
-        matches!(self, Self::CancelledWithTombstone | Self::CancelledWithoutTombstone)
+        matches!(
+            self,
+            Self::CancelledWithTombstone | Self::CancelledWithoutTombstone
+        )
     }
 }
 
@@ -403,7 +406,10 @@ mod tests {
         store.put(&cp).expect("put checkpoint");
 
         let ok = mark_checkpoint_cancelled(&store, job_id).await;
-        assert!(ok, "mark_checkpoint_cancelled must return true for terminal checkpoints (nothing to do)");
+        assert!(
+            ok,
+            "mark_checkpoint_cancelled must return true for terminal checkpoints (nothing to do)"
+        );
 
         let stored = store.get(job_id).expect("get").expect("present");
         assert_eq!(

@@ -1389,7 +1389,11 @@ protected void Sort_Click(object sender, EventArgs e) {
 
         assert_eq!(syms.len(), 2);
         let writes: Vec<_> = edges.iter().filter(|e| e.kind == "writes_state").collect();
-        assert_eq!(writes.len(), 2, "Both ViewState assignments should be writes");
+        assert_eq!(
+            writes.len(),
+            2,
+            "Both ViewState assignments should be writes"
+        );
     }
 
     #[test]
@@ -1662,10 +1666,22 @@ protected void Page_Load(object sender, EventArgs e) {
 
         assert_eq!(syms.len(), 4, "Four unique state keys across four stores");
 
-        let session_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Session:")).collect();
-        let viewstate_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("ViewState:")).collect();
-        let app_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Application:")).collect();
-        let cache_syms: Vec<_> = syms.iter().filter(|s| s.name.starts_with("Cache:")).collect();
+        let session_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name.starts_with("Session:"))
+            .collect();
+        let viewstate_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name.starts_with("ViewState:"))
+            .collect();
+        let app_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name.starts_with("Application:"))
+            .collect();
+        let cache_syms: Vec<_> = syms
+            .iter()
+            .filter(|s| s.name.starts_with("Cache:"))
+            .collect();
 
         assert_eq!(session_syms.len(), 1);
         assert_eq!(viewstate_syms.len(), 1);
@@ -1724,7 +1740,10 @@ protected void Page_Load(object sender, EventArgs e) {
         // Only ONE unique symbol despite multiple accesses
         assert_eq!(syms.len(), 1, "Same key should produce only one symbol");
         // But multiple edges
-        assert!(edges.len() >= 2, "Multiple accesses should produce multiple edges");
+        assert!(
+            edges.len() >= 2,
+            "Multiple accesses should produce multiple edges"
+        );
     }
 
     // ── New tests: state affinity analysis ────────────────────────────────
@@ -1743,11 +1762,16 @@ public class UserPage : Page {
         let (_, edges) = extract_state_accesses(&rel, code, "csharp");
         let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
 
-        assert!(!affinity_edges.is_empty(), "Write+read pair should produce affinity edge");
+        assert!(
+            !affinity_edges.is_empty(),
+            "Write+read pair should produce affinity edge"
+        );
         let edge = &affinity_edges[0];
         let meta = edge.metadata.as_ref().unwrap();
-        assert_eq!(meta["access_pattern"], "read-write",
-            "One write and one read should produce read-write pattern");
+        assert_eq!(
+            meta["access_pattern"], "read-write",
+            "One write and one read should produce read-write pattern"
+        );
     }
 
     #[test]
@@ -1764,7 +1788,10 @@ public class Login : Page {
         let (_, edges) = extract_state_accesses(&rel, code, "csharp");
         let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
 
-        assert!(!affinity_edges.is_empty(), "Two writes should produce affinity edge");
+        assert!(
+            !affinity_edges.is_empty(),
+            "Two writes should produce affinity edge"
+        );
         let edge = &affinity_edges[0];
         let meta = edge.metadata.as_ref().unwrap();
         assert_eq!(meta["access_pattern"], "write-write");
@@ -1785,8 +1812,10 @@ public class Page1 : Page {
         let (_, affinity_edges) = analyze_state_affinity(&edges, &rel);
 
         for edge in &affinity_edges {
-            assert_eq!(edge.kind, "state_affinity",
-                "All affinity edges should have kind 'state_affinity'");
+            assert_eq!(
+                edge.kind, "state_affinity",
+                "All affinity edges should have kind 'state_affinity'"
+            );
         }
     }
 
@@ -1831,10 +1860,15 @@ Response.Cache.SetCacheability(HttpCacheability.Public);
 Response.Cache.SetExpires(DateTime.Now.AddMinutes(30));
 "#;
         let usages = extract_cache_api_usages("Page.aspx.cs", code, "csharp");
-        let response_cache: Vec<_> = usages.iter()
+        let response_cache: Vec<_> = usages
+            .iter()
             .filter(|u| u.api_type == CacheApiType::ResponseCache)
             .collect();
-        assert_eq!(response_cache.len(), 2, "Both Response.Cache calls should be detected");
+        assert_eq!(
+            response_cache.len(),
+            2,
+            "Both Response.Cache calls should be detected"
+        );
     }
 
     #[test]
@@ -1868,8 +1902,14 @@ Session["key"] = "value";
 "#;
         let rel = RelPath::new("Unknown.jsx");
         let (syms, edges) = extract_state_accesses(&rel, code, "javascript");
-        assert!(syms.is_empty(), "Unsupported language should produce no symbols");
-        assert!(edges.is_empty(), "Unsupported language should produce no edges");
+        assert!(
+            syms.is_empty(),
+            "Unsupported language should produce no symbols"
+        );
+        assert!(
+            edges.is_empty(),
+            "Unsupported language should produce no edges"
+        );
     }
 
     // ── New tests: enclosing method name captured ─────────────────────────
@@ -1887,8 +1927,10 @@ public class MyPage : Page {
         let (_, edges) = extract_state_accesses(&rel, code, "csharp");
 
         assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].source_name, "Page_Load",
-            "Edge source should be the enclosing method name");
+        assert_eq!(
+            edges[0].source_name, "Page_Load",
+            "Edge source should be the enclosing method name"
+        );
     }
 
     #[test]
@@ -1904,7 +1946,9 @@ End Class
         let (_, edges) = extract_state_accesses(&rel, code, "vbnet");
 
         assert_eq!(edges.len(), 1);
-        assert_eq!(edges[0].source_name, "SaveUser",
-            "Edge source should be the enclosing VB method name");
+        assert_eq!(
+            edges[0].source_name, "SaveUser",
+            "Edge source should be the enclosing VB method name"
+        );
     }
 }

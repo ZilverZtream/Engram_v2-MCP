@@ -495,9 +495,13 @@ End Class
     fn windows_service_modern_equivalent_is_ihosted_service() {
         let source = "Inherits ServiceBase";
         let results = detect_background_service_patterns(source, "Svc.vb", "vb");
-        let r = results.iter().find(|r| r.pattern == "windows_service").unwrap();
+        let r = results
+            .iter()
+            .find(|r| r.pattern == "windows_service")
+            .unwrap();
         assert!(
-            r.modern_equivalent.contains("BackgroundService") || r.modern_equivalent.contains("IHostedService"),
+            r.modern_equivalent.contains("BackgroundService")
+                || r.modern_equivalent.contains("IHostedService"),
             "modern equivalent should mention BackgroundService or IHostedService"
         );
     }
@@ -545,7 +549,8 @@ public class MyJob : IJob
 
     #[test]
     fn detects_hangfire_recurring_job() {
-        let source = r#"RecurringJob.AddOrUpdate("daily-report", () => GenerateReport(), Cron.Daily);"#;
+        let source =
+            r#"RecurringJob.AddOrUpdate("daily-report", () => GenerateReport(), Cron.Daily);"#;
         let results = detect_background_service_patterns(source, "Scheduler.cs", "cs");
         assert!(
             results.iter().any(|r| r.pattern == "hangfire_job"),
@@ -557,7 +562,10 @@ public class MyJob : IJob
     fn hangfire_modern_equivalent_mentions_hangfire() {
         let source = "BackgroundJob.Enqueue(() => Process());";
         let results = detect_background_service_patterns(source, "Job.cs", "cs");
-        let r = results.iter().find(|r| r.pattern == "hangfire_job").unwrap();
+        let r = results
+            .iter()
+            .find(|r| r.pattern == "hangfire_job")
+            .unwrap();
         assert!(r.modern_equivalent.to_lowercase().contains("hangfire"));
     }
 
@@ -602,7 +610,10 @@ public class OrderController : Controller
 }
 "#;
         let results = detect_background_service_patterns(source, "OrderController.cs", "cs");
-        assert!(results.is_empty(), "regular controller should have no background patterns");
+        assert!(
+            results.is_empty(),
+            "regular controller should have no background patterns"
+        );
     }
 
     // ── DesignAntiPattern struct fields ──────────────────────────────────────
@@ -674,7 +685,10 @@ public class OrderController : Controller
     fn detect_background_service_stores_file_path() {
         let source = "Inherits ServiceBase";
         let results = detect_background_service_patterns(source, "Services/MySvc.vb", "vb");
-        let r = results.iter().find(|r| r.pattern == "windows_service").unwrap();
+        let r = results
+            .iter()
+            .find(|r| r.pattern == "windows_service")
+            .unwrap();
         assert_eq!(r.file_path, "Services/MySvc.vb");
     }
 }

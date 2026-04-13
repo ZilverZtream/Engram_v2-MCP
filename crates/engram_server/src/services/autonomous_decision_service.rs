@@ -1147,6 +1147,17 @@ pub struct ConfigSnapshot {
     /// built binary's value to detect silent gate-logic drift.
     #[serde(default)]
     pub gate_source_hash: String,
+    /// ADP1-f41c: The rollout phase (shadow/advisory/guarded/autonomous) active when
+    /// `apply_rollout_policy` was called. Captures the post-evaluation input that can
+    /// flip a raw Deny→Allow (advisory/shadow) or Allow→Deny (kill-switch), making the
+    /// *applied* verdict reproducible from this snapshot alone.
+    #[serde(default)]
+    pub rollout_phase: String,
+    /// ADP1-f41c: Whether the ADP kill-switch was active at decision time. Together
+    /// with `rollout_phase`, fully captures the `apply_rollout_policy` inputs so that
+    /// replay tooling can reproduce the final applied verdict, not just the gate verdict.
+    #[serde(default)]
+    pub kill_switch: bool,
 }
 
 /// Build an immutable decision report from a decision and its context.
@@ -1929,28 +1940,166 @@ mod tests {
             name: "adp2-q8l4-corpus".into(),
             description: "20-scenario confusion matrix for ADP2 coverage".into(),
             scenarios: vec![
-                scenario("s001_allow_full_green", "All signals green", "low", s001, "allow", vec![]),
-                scenario("s002_allow_extraction_boundary", "Extraction at threshold", "low", s002, "allow", vec![]),
-                scenario("s003_allow_blast_at_max", "Blast radius at allowed max", "medium", s003, "allow", vec![]),
-                scenario("s004_allow_cached_retrieval", "Cached retrieval still passes", "low", s004, "allow", vec![]),
-                scenario("s005_allow_high_confidence", "Very high confidence all gates", "low", s005, "allow", vec![]),
-
-                scenario("s006_deny_safety_blocked", "Safety evaluation blocked", "high", s006, "deny", vec!["safety_policy".into()]),
-                scenario("s007_deny_blast_exceeds_max", "Blast radius > max allowed", "high", s007, "deny", vec!["blast_radius".into()]),
-                scenario("s008_deny_immune_block", "Immune BLOCK verdict", "high", s008, "deny", vec!["anti_pattern".into()]),
-                scenario("s009_deny_extraction_low", "Extraction below threshold", "medium", s009, "deny", vec!["extraction_confidence".into()]),
-                scenario("s010_deny_retrieval_not_ready", "Retrieval not production ready", "medium", s010, "deny", vec!["retrieval_quality".into()]),
-                scenario("s011_deny_blast_critical", "Blast radius at critical level", "high", s011, "deny", vec!["blast_radius".into()]),
-                scenario("s012_deny_safety_high_risk", "Safety blocked with high risk profile", "high", s012, "deny", vec!["safety_policy".into()]),
-                scenario("s013_deny_extraction_very_low", "Very low extraction confidence", "medium", s013, "deny", vec!["extraction_confidence".into()]),
-
-                scenario("s014_abstain_no_extraction", "No extraction data — evidence gate fails", "medium", s014, "abstain", vec!["evidence_sufficiency".into()]),
-                scenario("s015_abstain_trace_fallback", "Trace fallback used", "medium", s015, "abstain", vec!["trace_certainty".into()]),
-                scenario("s016_abstain_missing_all", "All evidence missing", "medium", s016, "abstain", vec!["evidence_sufficiency".into()]),
-                scenario("s017_abstain_runtime_required", "Runtime evidence required but absent", "medium", s017, "abstain", vec!["runtime_evidence".into()]),
-                scenario("s018_abstain_immune_warn_medium", "Immune WARN on medium risk", "medium", s018, "abstain", vec!["anti_pattern".into()]),
-                scenario("s019_abstain_immune_warn_high", "Immune WARN on high risk", "high", s019, "abstain", vec!["anti_pattern".into()]),
-                scenario("s020_abstain_retrieval_missing_live", "Retrieval missing in live mode", "medium", s020, "abstain", vec!["retrieval_quality".into()]),
+                scenario(
+                    "s001_allow_full_green",
+                    "All signals green",
+                    "low",
+                    s001,
+                    "allow",
+                    vec![],
+                ),
+                scenario(
+                    "s002_allow_extraction_boundary",
+                    "Extraction at threshold",
+                    "low",
+                    s002,
+                    "allow",
+                    vec![],
+                ),
+                scenario(
+                    "s003_allow_blast_at_max",
+                    "Blast radius at allowed max",
+                    "medium",
+                    s003,
+                    "allow",
+                    vec![],
+                ),
+                scenario(
+                    "s004_allow_cached_retrieval",
+                    "Cached retrieval still passes",
+                    "low",
+                    s004,
+                    "allow",
+                    vec![],
+                ),
+                scenario(
+                    "s005_allow_high_confidence",
+                    "Very high confidence all gates",
+                    "low",
+                    s005,
+                    "allow",
+                    vec![],
+                ),
+                scenario(
+                    "s006_deny_safety_blocked",
+                    "Safety evaluation blocked",
+                    "high",
+                    s006,
+                    "deny",
+                    vec!["safety_policy".into()],
+                ),
+                scenario(
+                    "s007_deny_blast_exceeds_max",
+                    "Blast radius > max allowed",
+                    "high",
+                    s007,
+                    "deny",
+                    vec!["blast_radius".into()],
+                ),
+                scenario(
+                    "s008_deny_immune_block",
+                    "Immune BLOCK verdict",
+                    "high",
+                    s008,
+                    "deny",
+                    vec!["anti_pattern".into()],
+                ),
+                scenario(
+                    "s009_deny_extraction_low",
+                    "Extraction below threshold",
+                    "medium",
+                    s009,
+                    "deny",
+                    vec!["extraction_confidence".into()],
+                ),
+                scenario(
+                    "s010_deny_retrieval_not_ready",
+                    "Retrieval not production ready",
+                    "medium",
+                    s010,
+                    "deny",
+                    vec!["retrieval_quality".into()],
+                ),
+                scenario(
+                    "s011_deny_blast_critical",
+                    "Blast radius at critical level",
+                    "high",
+                    s011,
+                    "deny",
+                    vec!["blast_radius".into()],
+                ),
+                scenario(
+                    "s012_deny_safety_high_risk",
+                    "Safety blocked with high risk profile",
+                    "high",
+                    s012,
+                    "deny",
+                    vec!["safety_policy".into()],
+                ),
+                scenario(
+                    "s013_deny_extraction_very_low",
+                    "Very low extraction confidence",
+                    "medium",
+                    s013,
+                    "deny",
+                    vec!["extraction_confidence".into()],
+                ),
+                scenario(
+                    "s014_abstain_no_extraction",
+                    "No extraction data — evidence gate fails",
+                    "medium",
+                    s014,
+                    "abstain",
+                    vec!["evidence_sufficiency".into()],
+                ),
+                scenario(
+                    "s015_abstain_trace_fallback",
+                    "Trace fallback used",
+                    "medium",
+                    s015,
+                    "abstain",
+                    vec!["trace_certainty".into()],
+                ),
+                scenario(
+                    "s016_abstain_missing_all",
+                    "All evidence missing",
+                    "medium",
+                    s016,
+                    "abstain",
+                    vec!["evidence_sufficiency".into()],
+                ),
+                scenario(
+                    "s017_abstain_runtime_required",
+                    "Runtime evidence required but absent",
+                    "medium",
+                    s017,
+                    "abstain",
+                    vec!["runtime_evidence".into()],
+                ),
+                scenario(
+                    "s018_abstain_immune_warn_medium",
+                    "Immune WARN on medium risk",
+                    "medium",
+                    s018,
+                    "abstain",
+                    vec!["anti_pattern".into()],
+                ),
+                scenario(
+                    "s019_abstain_immune_warn_high",
+                    "Immune WARN on high risk",
+                    "high",
+                    s019,
+                    "abstain",
+                    vec!["anti_pattern".into()],
+                ),
+                scenario(
+                    "s020_abstain_retrieval_missing_live",
+                    "Retrieval missing in live mode",
+                    "medium",
+                    s020,
+                    "abstain",
+                    vec!["retrieval_quality".into()],
+                ),
             ],
         };
 
@@ -2066,14 +2215,26 @@ mod tests {
 
     #[test]
     fn rollout_phase_parsing() {
-        assert_eq!(RolloutPhase::from_str("shadow").unwrap(), RolloutPhase::Shadow);
-        assert_eq!(RolloutPhase::from_str("advisory").unwrap(), RolloutPhase::Advisory);
-        assert_eq!(RolloutPhase::from_str("guarded").unwrap(), RolloutPhase::Guarded);
+        assert_eq!(
+            RolloutPhase::from_str("shadow").unwrap(),
+            RolloutPhase::Shadow
+        );
+        assert_eq!(
+            RolloutPhase::from_str("advisory").unwrap(),
+            RolloutPhase::Advisory
+        );
+        assert_eq!(
+            RolloutPhase::from_str("guarded").unwrap(),
+            RolloutPhase::Guarded
+        );
         assert_eq!(
             RolloutPhase::from_str("autonomous").unwrap(),
             RolloutPhase::Autonomous
         );
-        assert_eq!(RolloutPhase::from_str("SHADOW").unwrap(), RolloutPhase::Shadow); // case-insensitive
+        assert_eq!(
+            RolloutPhase::from_str("SHADOW").unwrap(),
+            RolloutPhase::Shadow
+        ); // case-insensitive
         assert!(RolloutPhase::from_str("unknown").is_err()); // fail-closed
     }
 
@@ -2100,6 +2261,8 @@ mod tests {
                 crate_version: String::new(), // overridden by build_decision_report
                 runtime_triple: String::new(), // overridden by build_decision_report
                 gate_source_hash: String::new(), // overridden by build_decision_report
+                rollout_phase: "guarded".to_string(),
+                kill_switch: false,
             },
             "test-build-001",
         );
@@ -2495,6 +2658,8 @@ mod tests {
             crate_version: String::new(),
             runtime_triple: String::new(),
             gate_source_hash: String::new(),
+            rollout_phase: "guarded".to_string(),
+            kill_switch: false,
         }
     }
 
@@ -2541,9 +2706,11 @@ mod tests {
         );
         // BLAKE3 hex is 64 chars.
         assert_eq!(
-            report.config_snapshot.evidence_hash.len(), 64,
+            report.config_snapshot.evidence_hash.len(),
+            64,
             "ADP1: evidence_hash must be a 64-char BLAKE3 hex digest; \
-             got length {}", report.config_snapshot.evidence_hash.len()
+             got length {}",
+            report.config_snapshot.evidence_hash.len()
         );
 
         // crate_version: compile-time CARGO_PKG_VERSION, overridden by build_decision_report.
@@ -2566,9 +2733,11 @@ mod tests {
              BLAKE3 fingerprint of gate logic source; empty means build.rs did not run"
         );
         assert_eq!(
-            report.config_snapshot.gate_source_hash.len(), 64,
+            report.config_snapshot.gate_source_hash.len(),
+            64,
             "ADP1-z2t4: gate_source_hash must be a 64-char BLAKE3 hex digest; \
-             got length {}", report.config_snapshot.gate_source_hash.len()
+             got length {}",
+            report.config_snapshot.gate_source_hash.len()
         );
     }
 
@@ -2606,8 +2775,7 @@ mod tests {
         // evidence_hash is derived from gate_evidence, not from input_snapshot or build_id.
         // Two calls with the same gate results must produce the same hash.
         assert_eq!(
-            report1.config_snapshot.evidence_hash,
-            report2.config_snapshot.evidence_hash,
+            report1.config_snapshot.evidence_hash, report2.config_snapshot.evidence_hash,
             "ADP1: evidence_hash must be identical for equal gate results regardless \
              of input_snapshot or build_id — the hash binds only the gate evidence array"
         );
@@ -2634,18 +2802,27 @@ mod tests {
 
         let allow_report = build_decision_report(
             &allow_decision,
-            "proj-3", "change A", &[], "low",
-            serde_json::json!({}), make_config_snapshot(), "b1",
+            "proj-3",
+            "change A",
+            &[],
+            "low",
+            serde_json::json!({}),
+            make_config_snapshot(),
+            "b1",
         );
         let deny_report = build_decision_report(
             &deny_decision,
-            "proj-3", "change A", &[], "low",
-            serde_json::json!({}), make_config_snapshot(), "b1",
+            "proj-3",
+            "change A",
+            &[],
+            "low",
+            serde_json::json!({}),
+            make_config_snapshot(),
+            "b1",
         );
 
         assert_ne!(
-            allow_report.config_snapshot.evidence_hash,
-            deny_report.config_snapshot.evidence_hash,
+            allow_report.config_snapshot.evidence_hash, deny_report.config_snapshot.evidence_hash,
             "ADP1: evidence_hash must differ when gate results differ (allow vs deny) — \
              a hash that is identical for different outcomes cannot detect gate drift"
         );
@@ -2660,7 +2837,10 @@ mod tests {
         let decision = evaluate_gates(&input);
         let report = build_decision_report(
             &decision,
-            "proj-rt", "roundtrip test", &["a.rs".into()], "medium",
+            "proj-rt",
+            "roundtrip test",
+            &["a.rs".into()],
+            "medium",
             serde_json::json!({"x": 1}),
             make_config_snapshot(),
             "rt-build-1",
@@ -2681,8 +2861,7 @@ mod tests {
             "ADP1: crate_version must survive JSON roundtrip unchanged"
         );
         assert_eq!(
-            decoded.config_snapshot.gate_code_version,
-            report.config_snapshot.gate_code_version,
+            decoded.config_snapshot.gate_code_version, report.config_snapshot.gate_code_version,
             "ADP1: gate_code_version must survive JSON roundtrip unchanged"
         );
     }

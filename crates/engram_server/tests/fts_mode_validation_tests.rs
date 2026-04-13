@@ -4,8 +4,8 @@
 //! index layer (lexical_search), not silently coerced to "strict".
 
 use engram_core::Config;
-use engram_index::{HybridQuery, HybridSearchEngine};
 use engram_core::RelPath;
+use engram_index::{HybridQuery, HybridSearchEngine};
 use tokio_util::sync::CancellationToken;
 
 // ── Index-layer fail-closed (EXH-0003) ───────────────────────────────────────
@@ -15,8 +15,13 @@ async fn open_engine(tmp: &tempfile::TempDir) -> HybridSearchEngine {
     let lance_dir = tmp.path().join("lance");
     std::fs::create_dir_all(&tantivy_dir).unwrap();
     std::fs::create_dir_all(&lance_dir).unwrap();
-    let cfg = Config { embedding_backend: "fts_only".into(), ..Default::default() };
-    HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap()
+    let cfg = Config {
+        embedding_backend: "fts_only".into(),
+        ..Default::default()
+    };
+    HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .unwrap()
 }
 
 fn make_query(project_id: &str, fts_mode: &str) -> HybridQuery {
@@ -167,7 +172,10 @@ async fn lexical_search_accepts_all_valid_fts_modes() {
         doc_id: "doc-fts-valid".into(),
         content_hash: "hash-fts-valid".into(),
     };
-    engine.index_docs("proj-valid-modes", &[doc], &cancel).await.unwrap();
+    engine
+        .index_docs("proj-valid-modes", &[doc], &cancel)
+        .await
+        .unwrap();
 
     for mode in ["strict", "loose", "regex"] {
         let mut q = make_query("proj-valid-modes", mode);
@@ -205,8 +213,13 @@ async fn index_docs_fails_closed_when_vector_table_recreated() {
         .unwrap();
 
     // Create engine with ProjectionEmbedder (dim=384) — schema mismatch guaranteed.
-    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
-    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+    let cfg = Config {
+        embedding_backend: String::new(),
+        ..Default::default()
+    };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .unwrap();
 
     let cancel = CancellationToken::new();
     let doc = engram_index::IndexDoc {
@@ -248,8 +261,13 @@ async fn index_docs_respects_cancellation_during_embedding() {
     std::fs::create_dir_all(&tantivy_dir).unwrap();
     std::fs::create_dir_all(&lance_dir).unwrap();
 
-    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
-    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+    let cfg = Config {
+        embedding_backend: String::new(),
+        ..Default::default()
+    };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .unwrap();
 
     // Pre-cancel the token so any call to embed_batch_cancellable returns Err immediately.
     let cancel = CancellationToken::new();
@@ -347,7 +365,9 @@ fn watcher_overflow_drain_schedules_each_project_once() {
     // Simulate what the ticker loop does: drain dirty → pending_updates
     if let Ok(mut set) = dirty.lock() {
         for pid in set.drain() {
-            pending.entry(pid).or_insert_with(|| Instant::now() + Duration::from_secs(5));
+            pending
+                .entry(pid)
+                .or_insert_with(|| Instant::now() + Duration::from_secs(5));
         }
     }
 
@@ -357,12 +377,21 @@ fn watcher_overflow_drain_schedules_each_project_once() {
         "EXH-0005: draining 2 unique dirty projects must schedule exactly 2 pending updates; got {}",
         pending.len()
     );
-    assert!(pending.contains_key("proj-alpha"), "proj-alpha must be scheduled");
-    assert!(pending.contains_key("proj-beta"), "proj-beta must be scheduled");
+    assert!(
+        pending.contains_key("proj-alpha"),
+        "proj-alpha must be scheduled"
+    );
+    assert!(
+        pending.contains_key("proj-beta"),
+        "proj-beta must be scheduled"
+    );
 
     // Dirty set must be empty after drain
     let remaining = dirty.lock().unwrap().len();
-    assert_eq!(remaining, 0, "EXH-0005: dirty set must be empty after drain");
+    assert_eq!(
+        remaining, 0,
+        "EXH-0005: dirty set must be empty after drain"
+    );
 }
 
 // ── AUD-2026-EXH-0008: poisoned mutex recovery in watcher overflow path ───────
@@ -402,7 +431,9 @@ fn watcher_overflow_drain_recovers_from_poisoned_mutex() {
             Err(poisoned) => poisoned.into_inner(),
         };
         for pid in set.drain() {
-            pending.entry(pid).or_insert_with(|| Instant::now() + Duration::from_secs(5));
+            pending
+                .entry(pid)
+                .or_insert_with(|| Instant::now() + Duration::from_secs(5));
         }
     }
 
@@ -479,8 +510,13 @@ async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
     std::fs::create_dir_all(&tantivy_dir).unwrap();
     std::fs::create_dir_all(&lance_dir).unwrap();
 
-    let cfg = Config { embedding_backend: String::new(), ..Default::default() };
-    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg).await.unwrap();
+    let cfg = Config {
+        embedding_backend: String::new(),
+        ..Default::default()
+    };
+    let engine = HybridSearchEngine::new(tantivy_dir, lance_dir, &cfg)
+        .await
+        .unwrap();
     let cancel = CancellationToken::new();
 
     let doc = engram_index::IndexDoc {
@@ -499,9 +535,13 @@ async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
     };
 
     // Index the same doc twice (upsert path — same doc_id/chunk_id/generation).
-    engine.index_docs("proj-vec2", &[doc.clone()], &cancel).await
+    engine
+        .index_docs("proj-vec2", &[doc.clone()], &cancel)
+        .await
         .expect("VEC2: first index_docs must succeed");
-    engine.index_docs("proj-vec2", &[doc.clone()], &cancel).await
+    engine
+        .index_docs("proj-vec2", &[doc.clone()], &cancel)
+        .await
         .expect("VEC2: second index_docs must succeed");
 
     // Lexical search must return exactly one hit, not two.
@@ -520,7 +560,9 @@ async fn vec2_repeated_index_does_not_duplicate_vector_rows() {
         date_before: None,
         use_mmr: false,
     };
-    let results = engine.lexical_search(&q).expect("VEC2: lexical_search must succeed");
+    let results = engine
+        .lexical_search(&q)
+        .expect("VEC2: lexical_search must succeed");
     let matches: Vec<_> = results
         .iter()
         .filter(|r| r.doc_id == "doc-vec2-upsert")
@@ -605,7 +647,10 @@ async fn fts1_max_size_adversarial_pattern_completes_within_deadline() {
     let unit = "(a|b)";
     let count = 499 / unit.len(); // 99 units = 495 bytes — under the 500-byte cap
     let pattern = unit.repeat(count);
-    assert!(pattern.len() < 500, "pattern must be <500 bytes for this test");
+    assert!(
+        pattern.len() < 500,
+        "pattern must be <500 bytes for this test"
+    );
 
     let mut q = make_query("proj-fts1-maxsize", "regex");
     q.text = pattern;
@@ -682,7 +727,10 @@ async fn fts1_adversarial_pattern_over_multiple_docs_completes_within_deadline()
             doc_id: format!("doc-fts1-large-{i}"),
             content_hash: format!("hash-fts1-large-{i}"),
         };
-        engine.index_docs("proj-fts1-multi", &[doc], &cancel).await.unwrap();
+        engine
+            .index_docs("proj-fts1-multi", &[doc], &cancel)
+            .await
+            .unwrap();
     }
 
     let mut q = make_query("proj-fts1-multi", "regex");
@@ -723,7 +771,8 @@ fn mmr_oversample_cap_source_contains_bound() {
 
     // The cap must appear in proximity to the MMR oversampling logic.
     assert!(
-        source.contains("oversample_factor") && (source.contains(".min(10_000)") || source.contains(".min(10000)")),
+        source.contains("oversample_factor")
+            && (source.contains(".min(10_000)") || source.contains(".min(10000)")),
         "FTS2-d1w8: the .min() cap must be applied to the oversampled fetch size \
          (involving oversample_factor), not somewhere else in the file"
     );
@@ -760,7 +809,10 @@ async fn mmr_oversample_cap_large_top_k_completes_without_error() {
             doc_id: format!("fts2-doc-{i}"),
             content_hash: format!("hash-fts2-{i}"),
         };
-        engine.index_docs("proj-fts2-mmr", &[doc], &cancel).await.unwrap();
+        engine
+            .index_docs("proj-fts2-mmr", &[doc], &cancel)
+            .await
+            .unwrap();
     }
 
     let mut q = make_query("proj-fts2-mmr", "strict");
@@ -772,7 +824,9 @@ async fn mmr_oversample_cap_large_top_k_completes_without_error() {
     // Must not panic — the internal oversample fetch is bounded by the cap.
     // The result may be Ok (found results) or Err (e.g. embedding backend not available),
     // but must never panic or cause an OOM abort.
-    let _result = engine.search(&q, None, &tokio_util::sync::CancellationToken::new()).await;
+    let _result = engine
+        .search(&q, None, &tokio_util::sync::CancellationToken::new())
+        .await;
     // Not panicking is the primary assertion.
 }
 
@@ -797,7 +851,8 @@ async fn regex_excessive_top_level_alternations_rejected() {
     let result = engine.lexical_search(&q);
     assert!(
         result.is_err(),
-        "regex with 21+ top-level alternations must be rejected; pattern len={}", pattern.len()
+        "regex with 21+ top-level alternations must be rejected; pattern len={}",
+        pattern.len()
     );
     let err = result.unwrap_err();
     assert!(
@@ -813,7 +868,10 @@ async fn regex_twenty_top_level_alternations_accepted() {
     let engine = open_engine(&tmp).await;
 
     // 20 alternations = 21 branches.
-    let pattern = (0..21).map(|i| format!("br{i}")).collect::<Vec<_>>().join("|");
+    let pattern = (0..21)
+        .map(|i| format!("br{i}"))
+        .collect::<Vec<_>>()
+        .join("|");
 
     let mut q = make_query("proj-alt-limit", "regex");
     q.text = pattern;
@@ -961,13 +1019,15 @@ fn fts1_max_regex_pattern_len_is_named_constant_not_magic_number() {
     );
 
     // It must be used in a comparison.
-    let const_pos = src.find("MAX_REGEX_PATTERN_LEN")
+    let const_pos = src
+        .find("MAX_REGEX_PATTERN_LEN")
         .expect("FTS1: MAX_REGEX_PATTERN_LEN must exist");
     let after = &src[const_pos..const_pos + 300.min(src.len() - const_pos)];
     assert!(
         after.contains(">") || after.contains("len()"),
         "FTS1: MAX_REGEX_PATTERN_LEN must be used in a length comparison guard; \
-         window: {:?}", &after[..150.min(after.len())]
+         window: {:?}",
+        &after[..150.min(after.len())]
     );
 }
 
@@ -985,9 +1045,15 @@ async fn fts1_regex_pattern_len_boundary_exactly_at_max_is_accepted() {
     // Exactly 500 bytes — must not be rejected by length guard.
     let result = engine.lexical_search(&q);
     assert!(
-        result.is_ok() || result.as_ref().err().map(|e| !e.to_string().contains("too long")).unwrap_or(true),
+        result.is_ok()
+            || result
+                .as_ref()
+                .err()
+                .map(|e| !e.to_string().contains("too long"))
+                .unwrap_or(true),
         "FTS1: pattern of exactly MAX_REGEX_PATTERN_LEN (500) bytes must not be \
-         rejected by the length guard; got: {:?}", result.err()
+         rejected by the length guard; got: {:?}",
+        result.err()
     );
 }
 
@@ -1012,4 +1078,3 @@ async fn fts1_regex_pattern_len_exceeding_max_is_rejected_with_informative_error
         "FTS1: rejection error must be informative (mention length); got: {err_msg:?}"
     );
 }
-

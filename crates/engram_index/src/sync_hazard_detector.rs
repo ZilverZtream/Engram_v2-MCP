@@ -659,8 +659,13 @@ public class MyPage {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "task_result"),
-            "Should flag .Result in property setter");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "task_result"),
+            "Should flag .Result in property setter"
+        );
     }
 
     #[test]
@@ -671,7 +676,11 @@ public void Load() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "task_result")
+            .unwrap();
         assert_eq!(h.migration_risk, MigrationRisk::Deadlock);
         assert_eq!(h.severity, HazardSeverity::Critical);
     }
@@ -685,8 +694,13 @@ public void Set() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "task_result"),
-            ".Result = value should not be flagged as task_result");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "task_result"),
+            ".Result = value should not be flagged as task_result"
+        );
     }
 
     #[test]
@@ -699,8 +713,16 @@ public void DoubleBlock() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let count = report.hazards.iter().filter(|h| h.pattern_type == "task_result").count();
-        assert!(count >= 2, "Both .Result calls should be flagged, found {}", count);
+        let count = report
+            .hazards
+            .iter()
+            .filter(|h| h.pattern_type == "task_result")
+            .count();
+        assert!(
+            count >= 2,
+            "Both .Result calls should be flagged, found {}",
+            count
+        );
     }
 
     // ── New tests: .Wait() patterns ──────────────────────────────────────
@@ -713,7 +735,11 @@ public void Flush() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "task_wait").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "task_wait")
+            .unwrap();
         assert_eq!(h.severity, HazardSeverity::Critical);
         assert_eq!(h.migration_risk, MigrationRisk::Deadlock);
     }
@@ -726,7 +752,11 @@ public void Sync() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "task_wait").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "task_wait")
+            .unwrap();
         assert_eq!(h.modern_equivalent, "await the call");
     }
 
@@ -740,8 +770,13 @@ public void SyncWrapper() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "get_awaiter_result"),
-            "Should detect GetAwaiter().GetResult()");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "get_awaiter_result"),
+            "Should detect GetAwaiter().GetResult()"
+        );
     }
 
     #[test]
@@ -752,7 +787,11 @@ public string FetchSync() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "get_awaiter_result").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "get_awaiter_result")
+            .unwrap();
         assert_eq!(h.severity, HazardSeverity::High);
         assert_eq!(h.migration_risk, MigrationRisk::ThreadBlocking);
     }
@@ -766,8 +805,13 @@ public void Safe() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "get_awaiter_result"),
-            ".GetAwaiter() alone should not flag get_awaiter_result");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "get_awaiter_result"),
+            ".GetAwaiter() alone should not flag get_awaiter_result"
+        );
     }
 
     // ── New tests: Thread.Sleep ───────────────────────────────────────────
@@ -780,7 +824,11 @@ public void Throttle() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "thread_sleep").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "thread_sleep")
+            .unwrap();
         assert_eq!(h.modern_equivalent, "await Task.Delay()");
     }
 
@@ -792,7 +840,11 @@ public void Poll() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "thread_sleep").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "thread_sleep")
+            .unwrap();
         assert_eq!(h.migration_risk, MigrationRisk::ThreadStarvation);
         assert_eq!(h.severity, HazardSeverity::High);
     }
@@ -806,7 +858,11 @@ public void PollWithRetry() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let count = report.hazards.iter().filter(|h| h.pattern_type == "thread_sleep").count();
+        let count = report
+            .hazards
+            .iter()
+            .filter(|h| h.pattern_type == "thread_sleep")
+            .count();
         assert_eq!(count, 2, "Both Thread.Sleep calls should be detected");
     }
 
@@ -823,8 +879,13 @@ public async Task ProcessAsync() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "lock_with_async"),
-            "lock() + await in same method should be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "lock_with_async"),
+            "lock() + await in same method should be flagged"
+        );
     }
 
     #[test]
@@ -837,8 +898,13 @@ public void Sync() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "lock_with_async"),
-            "lock() without await in same method should NOT flag lock_with_async");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "lock_with_async"),
+            "lock() without await in same method should NOT flag lock_with_async"
+        );
     }
 
     #[test]
@@ -852,9 +918,15 @@ public async Task UpdateAsync() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "lock_with_async").unwrap();
-        assert!(h.modern_equivalent.contains("SemaphoreSlim"),
-            "Should suggest SemaphoreSlim as modern equivalent");
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "lock_with_async")
+            .unwrap();
+        assert!(
+            h.modern_equivalent.contains("SemaphoreSlim"),
+            "Should suggest SemaphoreSlim as modern equivalent"
+        );
     }
 
     // ── New tests: HttpContext.Current ────────────────────────────────────
@@ -867,7 +939,11 @@ public void Handle() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "http_context_current").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "http_context_current")
+            .unwrap();
         assert_eq!(h.migration_risk, MigrationRisk::NullReference);
         assert_eq!(h.severity, HazardSeverity::High);
     }
@@ -882,8 +958,15 @@ public void DoWork() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let count = report.hazards.iter().filter(|h| h.pattern_type == "http_context_current").count();
-        assert_eq!(count, 3, "All three HttpContext.Current accesses should be flagged");
+        let count = report
+            .hazards
+            .iter()
+            .filter(|h| h.pattern_type == "http_context_current")
+            .count();
+        assert_eq!(
+            count, 3,
+            "All three HttpContext.Current accesses should be flagged"
+        );
     }
 
     // ── New tests: Sync file I/O variants ─────────────────────────────────
@@ -896,8 +979,13 @@ public void SaveLog() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_file_io"),
-            "File.WriteAllText should be flagged as sync_file_io");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "sync_file_io"),
+            "File.WriteAllText should be flagged as sync_file_io"
+        );
     }
 
     #[test]
@@ -909,7 +997,11 @@ public void ManageFiles() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let count = report.hazards.iter().filter(|h| h.pattern_type == "sync_file_io").count();
+        let count = report
+            .hazards
+            .iter()
+            .filter(|h| h.pattern_type == "sync_file_io")
+            .count();
         assert_eq!(count, 2, "File.Copy and File.Delete should both be flagged");
     }
 
@@ -925,8 +1017,13 @@ public async Task ReadAsync() {
         let report = detect_sync_hazards(code, false);
         // File.ReadAllTextAsync contains "ReadAllText" — verify the regex doesn't false-positive
         // The regex specifically matches ReadAllText( (with open paren) so *Async won't match
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "sync_file_io"),
-            "File.ReadAllTextAsync should NOT be flagged as sync_file_io");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "sync_file_io"),
+            "File.ReadAllTextAsync should NOT be flagged as sync_file_io"
+        );
     }
 
     // ── New tests: Sync HTTP / WebClient ──────────────────────────────────
@@ -939,7 +1036,11 @@ public void FetchPage() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "sync_http").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "sync_http")
+            .unwrap();
         assert_eq!(h.severity, HazardSeverity::Medium);
     }
 
@@ -951,8 +1052,10 @@ public void CallApi() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_http"),
-            "HttpWebRequest should be flagged");
+        assert!(
+            report.hazards.iter().any(|h| h.pattern_type == "sync_http"),
+            "HttpWebRequest should be flagged"
+        );
     }
 
     // ── New tests: sync_stream ────────────────────────────────────────────
@@ -965,8 +1068,13 @@ public void ReadFile() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_stream"),
-            "new StreamReader should be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "sync_stream"),
+            "new StreamReader should be flagged"
+        );
     }
 
     #[test]
@@ -977,8 +1085,13 @@ public void WriteFile() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "sync_stream"),
-            "new StreamWriter should be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "sync_stream"),
+            "new StreamWriter should be flagged"
+        );
     }
 
     #[test]
@@ -996,8 +1109,13 @@ public async Task ReadAsync() {
         //  sees "Async" in the comment and skips it)
         // The line is: `    var sr = new StreamReader("file.txt"); // ReadToEndAsync`
         // which DOES contain "Async" in the comment → the detector should skip it
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "sync_stream"),
-            "StreamReader line with 'Async' anywhere on it should NOT be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "sync_stream"),
+            "StreamReader line with 'Async' anywhere on it should NOT be flagged"
+        );
     }
 
     // ── New tests: WebConfigurationManager ───────────────────────────────
@@ -1010,8 +1128,13 @@ public void GetConfig() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "web_configuration_manager"),
-            "WebConfigurationManager should be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "web_configuration_manager"),
+            "WebConfigurationManager should be flagged"
+        );
     }
 
     #[test]
@@ -1020,8 +1143,11 @@ public void GetConfig() {
 var cfg = WebConfigurationManager.AppSettings["key"];
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter()
-            .find(|h| h.pattern_type == "web_configuration_manager").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "web_configuration_manager")
+            .unwrap();
         assert_eq!(h.migration_risk, MigrationRisk::Deprecation);
         assert_eq!(h.severity, HazardSeverity::Medium);
     }
@@ -1036,8 +1162,13 @@ Public Sub WaitABit()
 End Sub
 "#;
         let report = detect_sync_hazards(code, true);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "thread_sleep"),
-            "Thread.Sleep should be detected in VB.NET code");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "thread_sleep"),
+            "Thread.Sleep should be detected in VB.NET code"
+        );
     }
 
     #[test]
@@ -1048,8 +1179,13 @@ Public Sub LoadData()
 End Sub
 "#;
         let report = detect_sync_hazards(code, true);
-        assert!(report.hazards.iter().any(|h| h.pattern_type == "task_result"),
-            ".Result should be detected in VB.NET code");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .any(|h| h.pattern_type == "task_result"),
+            ".Result should be detected in VB.NET code"
+        );
     }
 
     // ── New tests: async readiness score ─────────────────────────────────
@@ -1065,8 +1201,10 @@ public void Init() {
 "#;
         let report = detect_sync_hazards(code, false);
         // 2 medium × 0.05 = 0.1 penalty → readiness = 0.9
-        assert!(report.async_readiness > 0.5,
-            "Two medium hazards should still yield readiness > 0.5");
+        assert!(
+            report.async_readiness > 0.5,
+            "Two medium hazards should still yield readiness > 0.5"
+        );
         assert_eq!(report.medium_count, 2);
         assert_eq!(report.critical_count, 0);
         assert_eq!(report.high_count, 0);
@@ -1083,8 +1221,10 @@ public void D() { d1().Result; }
 public void E() { e1().Wait(); }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert_eq!(report.async_readiness, 0.0,
-            "5 critical hazards should clamp readiness to 0.0");
+        assert_eq!(
+            report.async_readiness, 0.0,
+            "5 critical hazards should clamp readiness to 0.0"
+        );
     }
 
     #[test]
@@ -1097,7 +1237,11 @@ public class MyService {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "task_result")
+            .unwrap();
         assert!(
             h.containing_method.as_deref() == Some("PerformWork"),
             "containing_method should be 'PerformWork', got {:?}",
@@ -1109,8 +1253,15 @@ public class MyService {
     fn line_number_is_correct_one_based() {
         let code = "public void A() {\n    var x = GetAsync().Result;\n}\n";
         let report = detect_sync_hazards(code, false);
-        let h = report.hazards.iter().find(|h| h.pattern_type == "task_result").unwrap();
-        assert_eq!(h.line_number, 2, "Result on line 2 should report line_number=2");
+        let h = report
+            .hazards
+            .iter()
+            .find(|h| h.pattern_type == "task_result")
+            .unwrap();
+        assert_eq!(
+            h.line_number, 2,
+            "Result on line 2 should report line_number=2"
+        );
     }
 
     #[test]
@@ -1122,7 +1273,12 @@ public void A() {
 }
 "#;
         let report = detect_sync_hazards(code, false);
-        assert!(report.hazards.iter().all(|h| h.pattern_type != "task_result"),
-            "Commented-out .Result should not be flagged");
+        assert!(
+            report
+                .hazards
+                .iter()
+                .all(|h| h.pattern_type != "task_result"),
+            "Commented-out .Result should not be flagged"
+        );
     }
 }

@@ -106,7 +106,10 @@ mod tests {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
         store
-            .upsert_nodes("proj", &[make_file_node("file_a"), make_file_node("file_b")])
+            .upsert_nodes(
+                "proj",
+                &[make_file_node("file_a"), make_file_node("file_b")],
+            )
             .unwrap();
         // The dedup logic keeps only the pair where src < tgt lexicographically.
         store
@@ -155,10 +158,7 @@ mod tests {
             .flat_map(|i| {
                 let a = &files[i * 2];
                 let b = &files[i * 2 + 1];
-                vec![
-                    make_temporal_edge(a, b, 10),
-                    make_temporal_edge(b, a, 10),
-                ]
+                vec![make_temporal_edge(a, b, 10), make_temporal_edge(b, a, 10)]
             })
             .collect();
         store.upsert_edges("proj", &edges).unwrap();

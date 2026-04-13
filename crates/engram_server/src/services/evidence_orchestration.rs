@@ -242,7 +242,10 @@ async fn derive_graph_impact(
             "ENG-AUD-2026-X14-0004: derive_graph_impact spawn_blocking join failed — \
              returning degraded metrics: {e}"
         );
-        GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() }
+        GraphImpactMetrics {
+            join_failed: true,
+            ..GraphImpactMetrics::default()
+        }
     })
 }
 
@@ -556,10 +559,7 @@ async fn derive_has_runtime_evidence(state: &AppState, project_id: &str) -> bool
     let pid = project_id.to_string();
     // count_docs_by_namespace is synchronous / potentially blocking — run it
     // in a blocking task so we do not stall the async executor.
-    let counts = tokio::task::spawn_blocking(move || {
-        search.count_docs_by_namespace(&pid)
-    })
-    .await;
+    let counts = tokio::task::spawn_blocking(move || search.count_docs_by_namespace(&pid)).await;
 
     match counts {
         Ok(Ok(ns_map)) => {
@@ -632,10 +632,10 @@ fn derive_extraction_confidence(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::autonomous_decision_service::evaluate_gates;
     use crate::services::autonomous_decision_service::{
         AdpInput, AdpVerdict, GraphImpactMetrics, RetrievalMode, RiskProfile,
     };
-    use crate::services::autonomous_decision_service::evaluate_gates;
     use crate::services::blast_radius_service::RiskBand;
     use crate::services::safety_service::{PolicyDecision, RiskLevel};
 
@@ -645,7 +645,12 @@ mod tests {
     fn deep_mode_skipped_result_is_coherent() {
         // When the benchmark cannot run (timeout, missing project), the returned
         // mode must be Skipped — never Live with None values.
-        let skipped = (None::<bool>, None::<f64>, None::<f64>, RetrievalMode::Skipped);
+        let skipped = (
+            None::<bool>,
+            None::<f64>,
+            None::<f64>,
+            RetrievalMode::Skipped,
+        );
         let (prod, ndcg, recall, mode) = skipped;
         // Invariant: Live is only valid when all three metric fields are Some.
         if mode == RetrievalMode::Live {
@@ -665,10 +670,18 @@ mod tests {
     fn live_mode_result_is_coherent() {
         // A synthesised Live result (as returned by run_live_retrieval_benchmark
         // on success) must carry all three metric fields.
-        let live = (Some(true), Some(0.72f64), Some(0.80f64), RetrievalMode::Live);
+        let live = (
+            Some(true),
+            Some(0.72f64),
+            Some(0.80f64),
+            RetrievalMode::Live,
+        );
         let (prod, ndcg, recall, mode) = live;
         assert_eq!(mode, RetrievalMode::Live);
-        assert!(prod.is_some(), "production_ready must be Some for Live mode");
+        assert!(
+            prod.is_some(),
+            "production_ready must be Some for Live mode"
+        );
         assert!(ndcg.is_some(), "ndcg must be Some for Live mode");
         assert!(recall.is_some(), "recall must be Some for Live mode");
         // Gate values must be in [0,1]
@@ -682,7 +695,10 @@ mod tests {
         assert_eq!(EvidenceDepth::from_str("FAST"), Ok(EvidenceDepth::Fast));
         assert_eq!(EvidenceDepth::from_str("deep"), Ok(EvidenceDepth::Deep));
         assert_eq!(EvidenceDepth::from_str("Deep"), Ok(EvidenceDepth::Deep));
-        assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+        assert_eq!(
+            EvidenceDepth::from_str("standard"),
+            Ok(EvidenceDepth::Standard)
+        );
         // Empty defaults to Standard (explicit)
         assert_eq!(EvidenceDepth::from_str(""), Ok(EvidenceDepth::Standard));
         // Unknown strings must now return Err (ENG-AUD-2026-0002)
@@ -708,9 +724,19 @@ mod tests {
     fn live_benchmark_timeout_constant_is_positive() {
         // Sanity-check that the timeout value is meaningful (> 0) and fits in a
         // Duration::from_millis call (u64).
-        const { assert!(LIVE_BENCHMARK_TIMEOUT_MS > 0, "live benchmark timeout must be positive") };
+        const {
+            assert!(
+                LIVE_BENCHMARK_TIMEOUT_MS > 0,
+                "live benchmark timeout must be positive"
+            )
+        };
         // 30 s hard upper bound so ADP never blocks for more than half a minute.
-        const { assert!(LIVE_BENCHMARK_TIMEOUT_MS <= 30_000, "live benchmark timeout must not exceed 30 s") };
+        const {
+            assert!(
+                LIVE_BENCHMARK_TIMEOUT_MS <= 30_000,
+                "live benchmark timeout must not exceed 30 s"
+            )
+        };
     }
 
     // ── ENG-AUD-2026-N9-0003: multi-file blast radius uses max risk policy ────
@@ -746,7 +772,9 @@ mod tests {
             if replace {
                 best_risk = Some(risk);
                 best_band = Some(band);
-            } else if let Some(br) = best_risk && risk > br {
+            } else if let Some(br) = best_risk
+                && risk > br
+            {
                 best_risk = Some(risk);
             }
             total_downstream += downstream;
@@ -945,14 +973,20 @@ mod tests {
         let infra: usize = 5;
         // Production formula: (q_count.saturating_sub(infra_error_count)).max(1)
         let scored = (q.saturating_sub(infra)).max(1);
-        assert_eq!(scored, 1,
+        assert_eq!(
+            scored, 1,
             "AUD-2026-INV-0005: all-infra-error case must yield scored_count=1 \
-             to prevent division by zero; got {scored}");
+             to prevent division by zero; got {scored}"
+        );
         let mean_ndcg = 0.0f64 / scored as f64;
-        assert!(mean_ndcg.is_finite(),
-            "AUD-2026-INV-0005: 0.0/1 must be finite, not NaN");
-        assert!((mean_ndcg).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: mean_ndcg must be 0.0 when no query scored");
+        assert!(
+            mean_ndcg.is_finite(),
+            "AUD-2026-INV-0005: 0.0/1 must be finite, not NaN"
+        );
+        assert!(
+            (mean_ndcg).abs() < f64::EPSILON,
+            "AUD-2026-INV-0005: mean_ndcg must be 0.0 when no query scored"
+        );
     }
 
     // ── Gate 2.5→3.0 realism: derive_has_runtime_evidence unknown project ────
@@ -966,8 +1000,8 @@ mod tests {
     /// test validates actual runtime behavior rather than source-tag assertions.
     #[tokio::test]
     async fn derive_has_runtime_evidence_returns_false_for_unknown_project() {
-        let tmp = tempfile::TempDir::new()
-            .expect("failed to create temp dir for AppState realism test");
+        let tmp =
+            tempfile::TempDir::new().expect("failed to create temp dir for AppState realism test");
         let tmp_path = tmp.path().to_path_buf();
 
         let cfg = engram_core::Config {
@@ -982,8 +1016,7 @@ mod tests {
 
         // The projects DashMap is empty — this project id is never registered.
         // The "project not loaded" branch must fire and return false, not panic.
-        let result =
-            derive_has_runtime_evidence(&state, "nonexistent-project-gate-2-5-3-0").await;
+        let result = derive_has_runtime_evidence(&state, "nonexistent-project-gate-2-5-3-0").await;
 
         assert!(
             !result,
@@ -1072,7 +1105,9 @@ mod tests {
         let decision = evaluate_gates(&input);
 
         assert!(
-            !decision.failed_gates.contains(&"runtime_evidence".to_string()),
+            !decision
+                .failed_gates
+                .contains(&"runtime_evidence".to_string()),
             "AUD-2026-INV-0004: runtime_evidence gate must NOT be in failed_gates \
              when has_runtime_evidence=true; verdict={:?}, failed={:?}",
             decision.verdict,
@@ -1105,7 +1140,9 @@ mod tests {
         let decision = evaluate_gates(&input);
 
         assert!(
-            decision.failed_gates.contains(&"runtime_evidence".to_string()),
+            decision
+                .failed_gates
+                .contains(&"runtime_evidence".to_string()),
             "AUD-2026-INV-0004: runtime_evidence gate must be in failed_gates \
              when has_runtime_evidence=false; failed={:?}",
             decision.failed_gates,
@@ -1129,12 +1166,16 @@ mod tests {
         let q_count: usize = 3;
         // 1 infra failure → 2 successful queries → scored_count = 2
         let scored_count = (q_count.saturating_sub(1usize)).max(1);
-        assert_eq!(scored_count, 2,
-            "AUD-2026-INV-0005: 1-of-3 infra failure must yield scored_count=2, got {scored_count}");
+        assert_eq!(
+            scored_count, 2,
+            "AUD-2026-INV-0005: 1-of-3 infra failure must yield scored_count=2, got {scored_count}"
+        );
         // 2 perfect queries → mean_ndcg = 2.0 / 2 = 1.0
         let mean_ndcg = 2.0f64 / scored_count as f64;
-        assert!((mean_ndcg - 1.0f64).abs() < f64::EPSILON,
-            "AUD-2026-INV-0005: 2 perfect queries give mean_ndcg=1.0, got {mean_ndcg}");
+        assert!(
+            (mean_ndcg - 1.0f64).abs() < f64::EPSILON,
+            "AUD-2026-INV-0005: 2 perfect queries give mean_ndcg=1.0, got {mean_ndcg}"
+        );
     }
 
     // ── Test #10: AUD-2026-INV-0005 ── Gate 2.5→3.0 ─────────────────────────
@@ -1162,7 +1203,9 @@ mod tests {
         let decision_skipped = evaluate_gates(&input_skipped);
 
         assert!(
-            !decision_skipped.failed_gates.contains(&"retrieval_quality".to_string()),
+            !decision_skipped
+                .failed_gates
+                .contains(&"retrieval_quality".to_string()),
             "AUD-2026-INV-0005: retrieval_quality must NOT be in failed_gates \
              when mode=Skipped; failed={:?}",
             decision_skipped.failed_gates,
@@ -1189,7 +1232,9 @@ mod tests {
         let decision_live_fail = evaluate_gates(&input_live_fail);
 
         assert!(
-            decision_live_fail.failed_gates.contains(&"retrieval_quality".to_string()),
+            decision_live_fail
+                .failed_gates
+                .contains(&"retrieval_quality".to_string()),
             "AUD-2026-INV-0005: retrieval_quality must be in failed_gates when \
              mode=Live and production_ready=false; failed={:?}",
             decision_live_fail.failed_gates,
@@ -1204,12 +1249,10 @@ mod tests {
 
         // The two cases must be observably different.
         assert_ne!(
-            decision_skipped.verdict,
-            decision_live_fail.verdict,
+            decision_skipped.verdict, decision_live_fail.verdict,
             "AUD-2026-INV-0005: Skipped verdict ({:?}) must differ from Live-fail \
              verdict ({:?})",
-            decision_skipped.verdict,
-            decision_live_fail.verdict,
+            decision_skipped.verdict, decision_live_fail.verdict,
         );
     }
 
@@ -1221,11 +1264,20 @@ mod tests {
     /// the discriminator that forces a deny in derive_safety_from_graph.
     #[test]
     fn graph_impact_join_failed_struct_is_distinct_from_genuine_zero() {
-        let degraded = GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() };
+        let degraded = GraphImpactMetrics {
+            join_failed: true,
+            ..GraphImpactMetrics::default()
+        };
         let genuine_zero = GraphImpactMetrics::default();
 
-        assert!(degraded.join_failed, "join_failed=true must be set in degraded metrics");
-        assert!(!genuine_zero.join_failed, "default() must have join_failed=false");
+        assert!(
+            degraded.join_failed,
+            "join_failed=true must be set in degraded metrics"
+        );
+        assert!(
+            !genuine_zero.join_failed,
+            "default() must have join_failed=false"
+        );
         assert_ne!(
             degraded.join_failed, genuine_zero.join_failed,
             "ENG-AUD-2026-S09-0001: degraded and genuine-zero metrics must differ on join_failed \
@@ -1261,8 +1313,10 @@ mod tests {
         let (state, _rx) = crate::state::AppState::new(cfg)
             .expect("AppState::new must succeed with valid temp dirs");
 
-        let degraded =
-            GraphImpactMetrics { join_failed: true, ..GraphImpactMetrics::default() };
+        let degraded = GraphImpactMetrics {
+            join_failed: true,
+            ..GraphImpactMetrics::default()
+        };
 
         let decision = derive_safety_from_graph(
             &state,

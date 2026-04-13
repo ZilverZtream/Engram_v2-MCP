@@ -185,7 +185,12 @@ mod tests {
         }
     }
 
-    fn make_symbol_with_fqn(name: &str, fqn: &str, start_line: u32, end_line: u32) -> ExtractedSymbol {
+    fn make_symbol_with_fqn(
+        name: &str,
+        fqn: &str,
+        start_line: u32,
+        end_line: u32,
+    ) -> ExtractedSymbol {
         let mut meta = std::collections::HashMap::new();
         meta.insert("fqn".to_string(), fqn.to_string());
         ExtractedSymbol {
@@ -231,7 +236,11 @@ mod tests {
         // 20 lines of 10 chars each = 220 chars; limit = 100 → must split
         let text: String = (0..20).map(|i| format!("line_{:04}\n", i)).collect();
         let chunks = chunk_lines(&text, 100);
-        assert!(chunks.len() >= 2, "text exceeding max_chars must split: got {} chunks", chunks.len());
+        assert!(
+            chunks.len() >= 2,
+            "text exceeding max_chars must split: got {} chunks",
+            chunks.len()
+        );
     }
 
     // ── 5. each_chunk_under_max_chars ────────────────────────────────────────
@@ -239,7 +248,9 @@ mod tests {
     #[test]
     fn each_chunk_under_max_chars() {
         // 50 lines of 20 chars each; limit = 80
-        let text: String = (0..50).map(|i| format!("abcdefghij_{:04}xxx\n", i)).collect();
+        let text: String = (0..50)
+            .map(|i| format!("abcdefghij_{:04}xxx\n", i))
+            .collect();
         let max = 80usize;
         let chunks = chunk_lines(&text, max);
         // Each *original* (pre-overlap) chunk must be ≤ max_chars.
@@ -255,7 +266,10 @@ mod tests {
             assert!(
                 span_chars <= max,
                 "chunk span [{},{}] has {} bytes > max {}",
-                c.start_line, c.end_line, span_chars, max
+                c.start_line,
+                c.end_line,
+                span_chars,
+                max
             );
         }
     }
@@ -289,8 +303,15 @@ mod tests {
         // More specifically, the first OVERLAP_LINES lines of chunk[1].content must
         // exactly match the last OVERLAP_LINES lines of chunk[0].content.
         let overlap_count = OVERLAP_LINES.min(chunk0_lines.len());
-        let chunk0_tail: Vec<&str> = chunk0_lines.iter().rev().take(overlap_count).copied()
-            .collect::<Vec<_>>().into_iter().rev().collect();
+        let chunk0_tail: Vec<&str> = chunk0_lines
+            .iter()
+            .rev()
+            .take(overlap_count)
+            .copied()
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
         let chunk1_head: Vec<&str> = chunks[1].content.lines().take(overlap_count).collect();
         assert_eq!(
             chunk1_head, chunk0_tail,
@@ -306,7 +327,9 @@ mod tests {
         // Each line is ~10 chars; max_chars = 60 → roughly 6 raw lines per chunk.
         // The overlap is prepended content: chunk[i+1].content starts with the last
         // N lines of chunk[i]'s original range, where N ≤ OVERLAP_LINES.
-        let text: String = (1u32..=100).map(|i| format!("L{:03}xxxxxxx\n", i)).collect();
+        let text: String = (1u32..=100)
+            .map(|i| format!("L{:03}xxxxxxx\n", i))
+            .collect();
         let chunks = chunk_lines(&text, 60);
         assert!(chunks.len() >= 3, "need ≥3 chunks to check overlap cap");
 
@@ -340,7 +363,9 @@ mod tests {
 
     #[test]
     fn no_content_lost_across_chunks() {
-        let text: String = (1u32..=40).map(|i| format!("unique_line_{}\n", i)).collect();
+        let text: String = (1u32..=40)
+            .map(|i| format!("unique_line_{}\n", i))
+            .collect();
         let chunks = chunk_lines(&text, 80);
         assert!(chunks.len() >= 2, "need multiple chunks for this test");
 
@@ -360,7 +385,10 @@ mod tests {
         let chunks_b = chunk_lines(text, 500);
         assert_eq!(chunks_a.len(), chunks_b.len());
         for (a, b) in chunks_a.iter().zip(chunks_b.iter()) {
-            assert_eq!(a.content_hash, b.content_hash, "content_hash must be deterministic");
+            assert_eq!(
+                a.content_hash, b.content_hash,
+                "content_hash must be deterministic"
+            );
         }
     }
 
@@ -372,9 +400,15 @@ mod tests {
         let mut chunks = chunk_lines(text, 500);
         assert_eq!(chunks.len(), 1);
         // doc_id starts empty
-        assert!(chunks[0].doc_id.0.is_empty(), "doc_id must be empty before set_doc_id");
+        assert!(
+            chunks[0].doc_id.0.is_empty(),
+            "doc_id must be empty before set_doc_id"
+        );
         chunks[0].set_doc_id("src/lib.rs");
-        assert!(!chunks[0].doc_id.0.is_empty(), "doc_id must be non-empty after set_doc_id");
+        assert!(
+            !chunks[0].doc_id.0.is_empty(),
+            "doc_id must be non-empty after set_doc_id"
+        );
     }
 
     // ── 11. doc_id_includes_path_and_lines ───────────────────────────────────
@@ -411,7 +445,10 @@ mod tests {
         let line_count = text.lines().count() as u32;
         let chunks = chunk_lines(&text, 5000);
         assert_eq!(chunks.len(), 1);
-        assert_eq!(chunks[0].end_line, line_count, "end_line must equal the last line number");
+        assert_eq!(
+            chunks[0].end_line, line_count,
+            "end_line must equal the last line number"
+        );
     }
 
     // ── 14. symbol_aware_keeps_function_together ─────────────────────────────
@@ -427,8 +464,14 @@ mod tests {
         let chunks = semantic_chunk_lines(&func_lines, 300, &[sym]);
 
         // All lines of the function must be in the same chunk.
-        let func_chunk = chunks.iter().find(|c| c.start_line == 1).expect("chunk at line 1");
-        assert_eq!(func_chunk.end_line, 10, "entire function must be in one chunk");
+        let func_chunk = chunks
+            .iter()
+            .find(|c| c.start_line == 1)
+            .expect("chunk at line 1");
+        assert_eq!(
+            func_chunk.end_line, 10,
+            "entire function must be in one chunk"
+        );
     }
 
     // ── 15. large_symbol_falls_back_to_line_by_line ──────────────────────────
@@ -453,7 +496,12 @@ mod tests {
         // Every line in the original function must appear in at least one chunk.
         for (lineno, line) in func_lines.lines().enumerate() {
             let found = chunks.iter().any(|c| c.content.contains(line));
-            assert!(found, "line {} ({:?}) missing from all fallback chunks", lineno + 1, line);
+            assert!(
+                found,
+                "line {} ({:?}) missing from all fallback chunks",
+                lineno + 1,
+                line
+            );
         }
 
         // All fallback chunks must have enclosing_symbol set to "big_fn".
@@ -528,7 +576,11 @@ mod tests {
         // One line that is longer than max_chars; should still produce exactly 1 chunk
         let long_line = "x".repeat(200);
         let chunks = chunk_lines(&long_line, 50);
-        assert_eq!(chunks.len(), 1, "a single line, however long, must produce exactly one chunk");
+        assert_eq!(
+            chunks.len(),
+            1,
+            "a single line, however long, must produce exactly one chunk"
+        );
         assert!(chunks[0].content.contains(&long_line));
     }
 

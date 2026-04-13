@@ -1090,35 +1090,71 @@ EndProject
 
     #[test]
     fn classify_file_data_access_patterns() {
-        assert_eq!(classify_file("App_Code/DataAccess.cs"), MigrationItemType::DataAccess);
-        assert_eq!(classify_file("Repository/UserRepo.cs"), MigrationItemType::DataAccess);
-        assert_eq!(classify_file("DAL/OrderDal.cs"), MigrationItemType::DataAccess);
+        assert_eq!(
+            classify_file("App_Code/DataAccess.cs"),
+            MigrationItemType::DataAccess
+        );
+        assert_eq!(
+            classify_file("Repository/UserRepo.cs"),
+            MigrationItemType::DataAccess
+        );
+        assert_eq!(
+            classify_file("DAL/OrderDal.cs"),
+            MigrationItemType::DataAccess
+        );
     }
 
     #[test]
     fn classify_file_config_files() {
-        assert_eq!(classify_file("web.config"), MigrationItemType::Configuration);
-        assert_eq!(classify_file("appsettings.json"), MigrationItemType::Configuration);
-        assert_eq!(classify_file("settings.yaml"), MigrationItemType::Configuration);
+        assert_eq!(
+            classify_file("web.config"),
+            MigrationItemType::Configuration
+        );
+        assert_eq!(
+            classify_file("appsettings.json"),
+            MigrationItemType::Configuration
+        );
+        assert_eq!(
+            classify_file("settings.yaml"),
+            MigrationItemType::Configuration
+        );
     }
 
     #[test]
     fn classify_file_static_assets() {
-        assert_eq!(classify_file("Scripts/app.js"), MigrationItemType::StaticAsset);
-        assert_eq!(classify_file("Styles/main.css"), MigrationItemType::StaticAsset);
-        assert_eq!(classify_file("Images/logo.png"), MigrationItemType::StaticAsset);
+        assert_eq!(
+            classify_file("Scripts/app.js"),
+            MigrationItemType::StaticAsset
+        );
+        assert_eq!(
+            classify_file("Styles/main.css"),
+            MigrationItemType::StaticAsset
+        );
+        assert_eq!(
+            classify_file("Images/logo.png"),
+            MigrationItemType::StaticAsset
+        );
     }
 
     #[test]
     fn classify_file_database_migration() {
-        assert_eq!(classify_file("20240101_AddUsers.sql"), MigrationItemType::DatabaseMigration);
-        assert_eq!(classify_file("Migrations/AddIndex.cs"), MigrationItemType::DatabaseMigration);
+        assert_eq!(
+            classify_file("20240101_AddUsers.sql"),
+            MigrationItemType::DatabaseMigration
+        );
+        assert_eq!(
+            classify_file("Migrations/AddIndex.cs"),
+            MigrationItemType::DatabaseMigration
+        );
     }
 
     #[test]
     fn classify_file_shared_library_fallback() {
         assert_eq!(classify_file("Utils.cs"), MigrationItemType::SharedLibrary);
-        assert_eq!(classify_file("Models/User.cs"), MigrationItemType::SharedLibrary);
+        assert_eq!(
+            classify_file("Models/User.cs"),
+            MigrationItemType::SharedLibrary
+        );
     }
 
     // ── classify_seam_type ───────────────────────────────────────────────────
@@ -1174,19 +1210,27 @@ EndProject
     #[test]
     fn suggest_adapter_pattern_sql_calls_mentions_translator() {
         let adapter = suggest_adapter_pattern("sql_calls");
-        assert!(adapter.contains("translator") || adapter.contains("EF Core") || adapter.contains("ADO.NET"));
+        assert!(
+            adapter.contains("translator")
+                || adapter.contains("EF Core")
+                || adapter.contains("ADO.NET")
+        );
     }
 
     #[test]
     fn suggest_adapter_pattern_state_mentions_state_bridge() {
         let adapter = suggest_adapter_pattern("reads_state");
-        assert!(adapter.contains("bridge") || adapter.contains("Session") || adapter.contains("cache"));
+        assert!(
+            adapter.contains("bridge") || adapter.contains("Session") || adapter.contains("cache")
+        );
     }
 
     #[test]
     fn suggest_adapter_pattern_postback_mentions_ajax() {
         let adapter = suggest_adapter_pattern("triggers_postback");
-        assert!(adapter.contains("AJAX") || adapter.contains("proxy") || adapter.contains("adapter"));
+        assert!(
+            adapter.contains("AJAX") || adapter.contains("proxy") || adapter.contains("adapter")
+        );
     }
 
     // ── generate_contract_test_template ──────────────────────────────────────
@@ -1202,9 +1246,18 @@ EndProject
             adapter_pattern: "Translator".into(),
         };
         let template = generate_contract_test_template(&seam);
-        assert!(template.contains("Legacy.aspx.cs"), "should include legacy endpoint");
-        assert!(template.contains("ModernService.cs"), "should include modern endpoint");
-        assert!(template.contains("[Test]") || template.contains("Test"), "should include test marker");
+        assert!(
+            template.contains("Legacy.aspx.cs"),
+            "should include legacy endpoint"
+        );
+        assert!(
+            template.contains("ModernService.cs"),
+            "should include modern endpoint"
+        );
+        assert!(
+            template.contains("[Test]") || template.contains("Test"),
+            "should include test marker"
+        );
     }
 
     // ── generate_adapter_template ────────────────────────────────────────────
@@ -1218,7 +1271,9 @@ EndProject
     #[test]
     fn adapter_template_translator_mentions_data_mapping() {
         let tmpl = generate_adapter_template("LegacySvc", "ModernSvc", AdapterType::Translator);
-        assert!(tmpl.contains("translator") || tmpl.contains("Translate") || tmpl.contains("DataRow"));
+        assert!(
+            tmpl.contains("translator") || tmpl.contains("Translate") || tmpl.contains("DataRow")
+        );
     }
 
     #[test]
@@ -1283,26 +1338,60 @@ EndProject
         ];
         let playbook = generate_rollback_playbook(&waves);
         assert_eq!(playbook.waves.len(), 2, "one rollback entry per wave");
-        assert!(!playbook.global_rollback_steps.is_empty(), "global steps must be present");
+        assert!(
+            !playbook.global_rollback_steps.is_empty(),
+            "global steps must be present"
+        );
         for wr in &playbook.waves {
             assert!(!wr.steps.is_empty(), "each wave rollback must have steps");
-            assert!(!wr.verification.is_empty(), "each wave rollback must have verification steps");
+            assert!(
+                !wr.verification.is_empty(),
+                "each wave rollback must have verification steps"
+            );
         }
     }
 
     #[test]
     fn rollback_time_matches_wave_risk() {
         let waves = vec![
-            MigrationWave { wave_number: 0, name: "W0".into(), description: "".into(), items: vec![], depends_on: vec![], contract_tests: vec![], adapters: vec![], risk_level: WaveRisk::Low, estimated_effort: 1, project_scope: None, cross_project_deps: vec![] },
-            MigrationWave { wave_number: 1, name: "W1".into(), description: "".into(), items: vec![], depends_on: vec![], contract_tests: vec![], adapters: vec![], risk_level: WaveRisk::Critical, estimated_effort: 8, project_scope: None, cross_project_deps: vec![] },
+            MigrationWave {
+                wave_number: 0,
+                name: "W0".into(),
+                description: "".into(),
+                items: vec![],
+                depends_on: vec![],
+                contract_tests: vec![],
+                adapters: vec![],
+                risk_level: WaveRisk::Low,
+                estimated_effort: 1,
+                project_scope: None,
+                cross_project_deps: vec![],
+            },
+            MigrationWave {
+                wave_number: 1,
+                name: "W1".into(),
+                description: "".into(),
+                items: vec![],
+                depends_on: vec![],
+                contract_tests: vec![],
+                adapters: vec![],
+                risk_level: WaveRisk::Critical,
+                estimated_effort: 8,
+                project_scope: None,
+                cross_project_deps: vec![],
+            },
         ];
         let playbook = generate_rollback_playbook(&waves);
         let low_time = &playbook.waves[0].estimated_rollback_time;
         let critical_time = &playbook.waves[1].estimated_rollback_time;
-        assert!(low_time.contains("15 minutes") || low_time.contains("< 15"),
-            "low risk should have fast rollback: {low_time}");
-        assert!(critical_time.contains("hour") || critical_time.contains("manual"),
-            "critical risk should have long rollback: {critical_time}");
+        assert!(
+            low_time.contains("15 minutes") || low_time.contains("< 15"),
+            "low risk should have fast rollback: {low_time}"
+        );
+        assert!(
+            critical_time.contains("hour") || critical_time.contains("manual"),
+            "critical risk should have long rollback: {critical_time}"
+        );
     }
 
     // ── WaveRisk and related enum display ────────────────────────────────────
@@ -1321,10 +1410,19 @@ EndProject
         assert_eq!(MigrationItemType::Component.to_string(), "component");
         assert_eq!(MigrationItemType::Service.to_string(), "service");
         assert_eq!(MigrationItemType::DataAccess.to_string(), "data_access");
-        assert_eq!(MigrationItemType::Configuration.to_string(), "configuration");
-        assert_eq!(MigrationItemType::SharedLibrary.to_string(), "shared_library");
+        assert_eq!(
+            MigrationItemType::Configuration.to_string(),
+            "configuration"
+        );
+        assert_eq!(
+            MigrationItemType::SharedLibrary.to_string(),
+            "shared_library"
+        );
         assert_eq!(MigrationItemType::StaticAsset.to_string(), "static_asset");
-        assert_eq!(MigrationItemType::DatabaseMigration.to_string(), "database_migration");
+        assert_eq!(
+            MigrationItemType::DatabaseMigration.to_string(),
+            "database_migration"
+        );
     }
 
     #[test]
@@ -1358,7 +1456,11 @@ EndProject
     #[test]
     fn topological_sort_single_cluster_no_edges() {
         let clusters = vec![BoundaryCluster {
-            cluster_id: "only".into(), name: "Only".into(), files: vec![], internal_edges: 0, shared_across: vec![],
+            cluster_id: "only".into(),
+            name: "Only".into(),
+            files: vec![],
+            internal_edges: 0,
+            shared_across: vec![],
         }];
         let order = topological_sort_clusters(&clusters, &[]);
         assert_eq!(order, vec!["only"]);
@@ -1367,13 +1469,43 @@ EndProject
     #[test]
     fn topological_sort_respects_dependency_order() {
         let clusters = vec![
-            BoundaryCluster { cluster_id: "a".into(), name: "A".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
-            BoundaryCluster { cluster_id: "b".into(), name: "B".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
-            BoundaryCluster { cluster_id: "c".into(), name: "C".into(), files: vec![], internal_edges: 0, shared_across: vec![] },
+            BoundaryCluster {
+                cluster_id: "a".into(),
+                name: "A".into(),
+                files: vec![],
+                internal_edges: 0,
+                shared_across: vec![],
+            },
+            BoundaryCluster {
+                cluster_id: "b".into(),
+                name: "B".into(),
+                files: vec![],
+                internal_edges: 0,
+                shared_across: vec![],
+            },
+            BoundaryCluster {
+                cluster_id: "c".into(),
+                name: "C".into(),
+                files: vec![],
+                internal_edges: 0,
+                shared_across: vec![],
+            },
         ];
         let edges = vec![
-            CrossBoundaryEdge { source_cluster: "a".into(), target_cluster: "b".into(), source_file: "".into(), target_file: "".into(), edge_kind: "".into() },
-            CrossBoundaryEdge { source_cluster: "b".into(), target_cluster: "c".into(), source_file: "".into(), target_file: "".into(), edge_kind: "".into() },
+            CrossBoundaryEdge {
+                source_cluster: "a".into(),
+                target_cluster: "b".into(),
+                source_file: "".into(),
+                target_file: "".into(),
+                edge_kind: "".into(),
+            },
+            CrossBoundaryEdge {
+                source_cluster: "b".into(),
+                target_cluster: "c".into(),
+                source_file: "".into(),
+                target_file: "".into(),
+                edge_kind: "".into(),
+            },
         ];
         let order = topological_sort_clusters(&clusters, &edges);
         assert_eq!(order.len(), 3);

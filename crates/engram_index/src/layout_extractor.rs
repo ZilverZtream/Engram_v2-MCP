@@ -1779,12 +1779,21 @@ mod tests {
 "#;
         let (syms, edges) = extract_webforms_layout("Form.aspx", markup);
         // Container symbol present
-        assert!(syms.iter().any(|s| s.kind == "ui_container" && s.name == "pnlForm"));
+        assert!(
+            syms.iter()
+                .any(|s| s.kind == "ui_container" && s.name == "pnlForm")
+        );
         // Both children contained
         let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
         let targets: Vec<&str> = contains.iter().map(|e| e.target_name.as_str()).collect();
-        assert!(targets.contains(&"txtEmail"), "txtEmail should be contained");
-        assert!(targets.contains(&"btnSubmit"), "btnSubmit should be contained");
+        assert!(
+            targets.contains(&"txtEmail"),
+            "txtEmail should be contained"
+        );
+        assert!(
+            targets.contains(&"btnSubmit"),
+            "btnSubmit should be contained"
+        );
         // All contains_ui edges should have pnlForm as source
         for c in &contains {
             assert_eq!(c.source_name, "pnlForm");
@@ -1848,10 +1857,7 @@ mod tests {
             "DropDownList should be in contains_ui edge"
         );
         let meta = ddl_edge.unwrap().metadata.as_ref().unwrap();
-        assert_eq!(
-            meta.get("ui_label").map(|s| s.as_str()),
-            Some("Category:")
-        );
+        assert_eq!(meta.get("ui_label").map(|s| s.as_str()), Some("Category:"));
     }
 
     #[test]
@@ -2061,9 +2067,21 @@ mod tests {
             .iter()
             .filter(|e| e.kind == "ui_layout_neighbor")
             .collect();
-        assert_eq!(neighbors.len(), 2, "3 controls in sequence → 2 neighbor edges");
-        assert!(neighbors.iter().any(|e| e.source_name == "txtA" && e.target_name == "txtB"));
-        assert!(neighbors.iter().any(|e| e.source_name == "txtB" && e.target_name == "txtC"));
+        assert_eq!(
+            neighbors.len(),
+            2,
+            "3 controls in sequence → 2 neighbor edges"
+        );
+        assert!(
+            neighbors
+                .iter()
+                .any(|e| e.source_name == "txtA" && e.target_name == "txtB")
+        );
+        assert!(
+            neighbors
+                .iter()
+                .any(|e| e.source_name == "txtB" && e.target_name == "txtC")
+        );
     }
 
     #[test]
@@ -2153,8 +2171,16 @@ mod tests {
             .filter(|e| e.kind == "ui_layout_neighbor")
             .collect();
         assert_eq!(neighbors.len(), 2);
-        assert!(neighbors.iter().any(|e| e.source_name == "txtStreet" && e.target_name == "txtCity"));
-        assert!(neighbors.iter().any(|e| e.source_name == "txtCity" && e.target_name == "txtZip"));
+        assert!(
+            neighbors
+                .iter()
+                .any(|e| e.source_name == "txtStreet" && e.target_name == "txtCity")
+        );
+        assert!(
+            neighbors
+                .iter()
+                .any(|e| e.source_name == "txtCity" && e.target_name == "txtZip")
+        );
     }
 
     #[test]
@@ -2205,10 +2231,7 @@ mod tests {
             .find(|e| e.kind == "contains_ui" && e.target_name == "textBox1");
         assert!(edge.is_some());
         let meta = edge.unwrap().metadata.as_ref().unwrap();
-        assert_eq!(
-            meta.get("ui_label").map(|s| s.as_str()),
-            Some("Enter text")
-        );
+        assert_eq!(meta.get("ui_label").map(|s| s.as_str()), Some("Enter text"));
     }
 
     #[test]
@@ -2244,6 +2267,10 @@ mod tests {
         assert_eq!(meta.get("layout_style").map(|s| s.as_str()), Some("Flow"));
 
         let contains: Vec<_> = edges.iter().filter(|e| e.kind == "contains_ui").collect();
-        assert_eq!(contains.len(), 1, "Only the TextBox, not the Label, gets a contains_ui edge");
+        assert_eq!(
+            contains.len(),
+            1,
+            "Only the TextBox, not the Label, gets a contains_ui edge"
+        );
     }
 }

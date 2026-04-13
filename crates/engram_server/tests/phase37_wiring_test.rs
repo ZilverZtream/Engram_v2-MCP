@@ -715,9 +715,11 @@ fn w4_analyze_sync_hazards_invalid_severity_rejected_at_deserialization() {
     // Invalid enum values are rejected by serde at deserialization time,
     // before the handler ever runs. This test verifies fail-closed behavior.
     let json = r#"{"project_id":"p1","min_severity":"invalid","output_json":false}"#;
-    let result: Result<engram_server::AnalyzeSyncHazardsRequest, _> =
-        serde_json::from_str(json);
-    assert!(result.is_err(), "should reject invalid min_severity value at deserialization");
+    let result: Result<engram_server::AnalyzeSyncHazardsRequest, _> = serde_json::from_str(json);
+    assert!(
+        result.is_err(),
+        "should reject invalid min_severity value at deserialization"
+    );
 }
 
 #[tokio::test]

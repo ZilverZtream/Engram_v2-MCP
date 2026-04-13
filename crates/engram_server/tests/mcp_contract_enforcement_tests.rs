@@ -10,7 +10,7 @@
 //!  - `engram_server::services::project_service::generate_indexing_report`
 
 use engram_core::runtime_evidence::{
-    validate_batch, RuntimeEvidenceBatch, RuntimeEvent, RuntimeEventType,
+    RuntimeEvent, RuntimeEventType, RuntimeEvidenceBatch, validate_batch,
 };
 use engram_server::services::project_service::{generate_indexing_report, validate_project_id};
 
@@ -22,7 +22,10 @@ fn validate_project_id_accepts_valid_ids() {
     assert!(validate_project_id("my-project").is_ok());
     assert!(validate_project_id("my_project_123").is_ok());
     assert!(validate_project_id("ABC-def-GHI").is_ok());
-    assert!(validate_project_id("a").is_ok(), "single character must be valid");
+    assert!(
+        validate_project_id("a").is_ok(),
+        "single character must be valid"
+    );
     assert!(validate_project_id("proj-v2-alpha").is_ok());
 }
 
@@ -60,13 +63,34 @@ fn validate_project_id_rejects_path_traversal_characters() {
 /// Special characters must be rejected.
 #[test]
 fn validate_project_id_rejects_special_characters() {
-    assert!(validate_project_id("proj ect").is_err(), "space must be rejected");
-    assert!(validate_project_id("proj\0ect").is_err(), "NUL byte must be rejected");
-    assert!(validate_project_id("proj\nect").is_err(), "newline must be rejected");
-    assert!(validate_project_id("proj@ect").is_err(), "@ must be rejected");
-    assert!(validate_project_id("proj.ect").is_err(), "dot must be rejected");
-    assert!(validate_project_id("<script>").is_err(), "angle brackets must be rejected");
-    assert!(validate_project_id("proj;DROP TABLE").is_err(), "semicolon must be rejected");
+    assert!(
+        validate_project_id("proj ect").is_err(),
+        "space must be rejected"
+    );
+    assert!(
+        validate_project_id("proj\0ect").is_err(),
+        "NUL byte must be rejected"
+    );
+    assert!(
+        validate_project_id("proj\nect").is_err(),
+        "newline must be rejected"
+    );
+    assert!(
+        validate_project_id("proj@ect").is_err(),
+        "@ must be rejected"
+    );
+    assert!(
+        validate_project_id("proj.ect").is_err(),
+        "dot must be rejected"
+    );
+    assert!(
+        validate_project_id("<script>").is_err(),
+        "angle brackets must be rejected"
+    );
+    assert!(
+        validate_project_id("proj;DROP TABLE").is_err(),
+        "semicolon must be rejected"
+    );
 }
 
 /// Over-length project_id must be rejected to prevent amplification attacks.
@@ -182,9 +206,15 @@ fn validate_batch_rejects_empty_project_id() {
     let mut batch = make_valid_batch();
     batch.project_id = String::new();
     let errors = validate_batch(&batch);
-    assert!(!errors.is_empty(), "empty project_id must produce validation error");
+    assert!(
+        !errors.is_empty(),
+        "empty project_id must produce validation error"
+    );
     let fields: Vec<&str> = errors.iter().map(|e| e.field.as_str()).collect();
-    assert!(fields.contains(&"project_id"), "error must name 'project_id' field");
+    assert!(
+        fields.contains(&"project_id"),
+        "error must name 'project_id' field"
+    );
 }
 
 /// Empty session_id must be reported as a validation error.
@@ -193,7 +223,10 @@ fn validate_batch_rejects_empty_session_id() {
     let mut batch = make_valid_batch();
     batch.session_id = String::new();
     let errors = validate_batch(&batch);
-    assert!(!errors.is_empty(), "empty session_id must produce validation error");
+    assert!(
+        !errors.is_empty(),
+        "empty session_id must produce validation error"
+    );
 }
 
 /// An event with an empty event_id must be reported as a validation error.

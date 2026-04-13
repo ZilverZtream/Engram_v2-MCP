@@ -6,15 +6,15 @@
 
 use engram_core::{Config, Registry};
 use engram_server::AppState;
-use rmcp::handler::server::tool::Parameters;
-use tempfile::tempdir;
 use engram_server::services::autonomous_decision_service::{
-    AdpInput as RepAdpInput, AdpVerdict as RepAdpVerdict, RiskProfile as RepRiskProfile,
-    RetrievalMode as RepRetrievalMode, evaluate_gates as rep_evaluate_gates,
+    AdpInput as RepAdpInput, AdpVerdict as RepAdpVerdict, RetrievalMode as RepRetrievalMode,
+    RiskProfile as RepRiskProfile, evaluate_gates as rep_evaluate_gates,
 };
 use engram_server::services::safety_service::{
     PolicyDecision as RepPolicyDecision, RiskLevel as RepRiskLevel,
 };
+use rmcp::handler::server::tool::Parameters;
+use tempfile::tempdir;
 
 /// Golden fixture: a small multi-file C# project with known structure.
 fn write_golden_fixture(root: &std::path::Path) {
@@ -482,8 +482,16 @@ async fn search_results_stable_across_queries() {
         use_mmr: false,
     };
 
-    let results1 = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
-    let results2 = ps.search.search(&query, None, &tokio_util::sync::CancellationToken::new()).await.unwrap_or_default();
+    let results1 = ps
+        .search
+        .search(&query, None, &tokio_util::sync::CancellationToken::new())
+        .await
+        .unwrap_or_default();
+    let results2 = ps
+        .search
+        .search(&query, None, &tokio_util::sync::CancellationToken::new())
+        .await
+        .unwrap_or_default();
 
     // Same query should yield same results
     assert_eq!(
@@ -689,7 +697,8 @@ fn adp_skipped_retrieval_confidence_not_depressed_vs_live() {
         delta < 0.40,
         "AUD-2026-INV-0005: skipped retrieval confidence ({}) must not be severely \
          depressed vs live retrieval confidence ({}) — delta={delta:.3}",
-        skip_dec.confidence, live_dec.confidence
+        skip_dec.confidence,
+        live_dec.confidence
     );
 }
 
@@ -720,19 +729,30 @@ fn compound_safety_blast_failure_lower_confidence_than_single_failure() {
     let both_dec = rep_evaluate_gates(&both);
 
     // Both verdicts must be Deny
-    assert_eq!(safety_only_dec.verdict, RepAdpVerdict::Deny,
-        "safety-only failure must Deny");
-    assert_eq!(blast_only_dec.verdict, RepAdpVerdict::Deny,
-        "blast-only failure must Deny");
-    assert_eq!(both_dec.verdict, RepAdpVerdict::Deny,
-        "compound failure must Deny");
+    assert_eq!(
+        safety_only_dec.verdict,
+        RepAdpVerdict::Deny,
+        "safety-only failure must Deny"
+    );
+    assert_eq!(
+        blast_only_dec.verdict,
+        RepAdpVerdict::Deny,
+        "blast-only failure must Deny"
+    );
+    assert_eq!(
+        both_dec.verdict,
+        RepAdpVerdict::Deny,
+        "compound failure must Deny"
+    );
 
     // Compound confidence must be lower than either single failure
     assert!(
         both_dec.confidence <= safety_only_dec.confidence.max(blast_only_dec.confidence),
         "compound failure confidence ({}) must not exceed single-failure confidence \
          (safety={}, blast={})",
-        both_dec.confidence, safety_only_dec.confidence, blast_only_dec.confidence
+        both_dec.confidence,
+        safety_only_dec.confidence,
+        blast_only_dec.confidence
     );
 }
 
@@ -744,12 +764,19 @@ fn same_input_produces_identical_verdict_and_confidence() {
     let dec1 = rep_evaluate_gates(&input);
     let dec2 = rep_evaluate_gates(&input);
 
-    assert_eq!(dec1.verdict, dec2.verdict,
-        "reproducibility: same input must produce same verdict");
-    assert_eq!(dec1.confidence, dec2.confidence,
-        "reproducibility: same input must produce identical confidence");
-    assert_eq!(dec1.gate_results.len(), dec2.gate_results.len(),
-        "reproducibility: same number of gate results");
+    assert_eq!(
+        dec1.verdict, dec2.verdict,
+        "reproducibility: same input must produce same verdict"
+    );
+    assert_eq!(
+        dec1.confidence, dec2.confidence,
+        "reproducibility: same input must produce identical confidence"
+    );
+    assert_eq!(
+        dec1.gate_results.len(),
+        dec2.gate_results.len(),
+        "reproducibility: same number of gate results"
+    );
 }
 
 /// Deterministic: the deny verdict for failing safety must reproduce exactly.
@@ -761,10 +788,14 @@ fn deny_verdict_reproduces_identically() {
     let dec1 = rep_evaluate_gates(&input);
     let dec2 = rep_evaluate_gates(&input);
 
-    assert_eq!(dec1.verdict, dec2.verdict,
-        "deny verdict must be deterministic");
-    assert_eq!(dec1.confidence, dec2.confidence,
-        "deny confidence must be deterministic");
+    assert_eq!(
+        dec1.verdict, dec2.verdict,
+        "deny verdict must be deterministic"
+    );
+    assert_eq!(
+        dec1.confidence, dec2.confidence,
+        "deny confidence must be deterministic"
+    );
 }
 
 /// When a post-index job degrades (enrichment failed), the ADP verdict based
@@ -785,14 +816,18 @@ fn corrected_enrichment_after_degraded_improves_adp_verdict() {
     let clean_dec = rep_evaluate_gates(&clean);
 
     // Clean run should produce Allow (or at least equal/better verdict)
-    assert_eq!(clean_dec.verdict, RepAdpVerdict::Allow,
-        "clean enrichment run must produce Allow");
+    assert_eq!(
+        clean_dec.verdict,
+        RepAdpVerdict::Allow,
+        "clean enrichment run must produce Allow"
+    );
 
     // Clean confidence >= degraded confidence (enrichment adds information)
     assert!(
         clean_dec.confidence >= degraded_dec.confidence,
         "clean enrichment confidence ({}) must be >= degraded confidence ({})",
-        clean_dec.confidence, degraded_dec.confidence
+        clean_dec.confidence,
+        degraded_dec.confidence
     );
 }
 
@@ -827,17 +862,25 @@ fn adp_deny_when_all_three_hard_gates_fail() {
 fn adp_mutation_safety_fail_changes_allow_to_deny() {
     let baseline = all_green_input();
     let baseline_dec = rep_evaluate_gates(&baseline);
-    assert_eq!(baseline_dec.verdict, RepAdpVerdict::Allow,
-        "baseline must be Allow");
+    assert_eq!(
+        baseline_dec.verdict,
+        RepAdpVerdict::Allow,
+        "baseline must be Allow"
+    );
 
     let mut mutated = all_green_input();
     mutated.safety_decision = Some(unsafe_policy());
     let mutated_dec = rep_evaluate_gates(&mutated);
 
-    assert_eq!(mutated_dec.verdict, RepAdpVerdict::Deny,
-        "safety mutation must flip Allow to Deny");
-    assert_ne!(baseline_dec.verdict, mutated_dec.verdict,
-        "mutation must produce detectably different verdict");
+    assert_eq!(
+        mutated_dec.verdict,
+        RepAdpVerdict::Deny,
+        "safety mutation must flip Allow to Deny"
+    );
+    assert_ne!(
+        baseline_dec.verdict, mutated_dec.verdict,
+        "mutation must produce detectably different verdict"
+    );
 }
 
 /// Mutation test: injecting critical blast radius into all-green must
@@ -855,8 +898,12 @@ fn adp_mutation_critical_blast_radius_changes_allow_to_deny() {
     mutated.max_blast_radius_for_auto = 5;
 
     let dec = rep_evaluate_gates(&mutated);
-    assert_ne!(dec.verdict, RepAdpVerdict::Allow,
-        "critical blast radius mutation must not remain Allow; got {:?}", dec.verdict);
+    assert_ne!(
+        dec.verdict,
+        RepAdpVerdict::Allow,
+        "critical blast radius mutation must not remain Allow; got {:?}",
+        dec.verdict
+    );
 }
 
 /// Canary: all-green input must produce Allow with confidence > 0.7.
@@ -867,8 +914,11 @@ fn enrichment_canary_all_green_produces_allow_with_high_confidence() {
     let input = all_green_input();
     let decision = rep_evaluate_gates(&input);
 
-    assert_eq!(decision.verdict, RepAdpVerdict::Allow,
-        "enrichment canary: all-green must Allow");
+    assert_eq!(
+        decision.verdict,
+        RepAdpVerdict::Allow,
+        "enrichment canary: all-green must Allow"
+    );
     assert!(
         decision.confidence > 0.7,
         "enrichment canary: all-green confidence must exceed 0.7; got {}",
@@ -948,8 +998,10 @@ fn embed_parse_parity_all_valid_json_float_types() {
 
     for (json_val, expected) in &cases {
         let result: Option<f64> = json_val.as_f64();
-        assert!(result.is_some(),
-            "valid float JSON value must parse via as_f64(): {json_val}");
+        assert!(
+            result.is_some(),
+            "valid float JSON value must parse via as_f64(): {json_val}"
+        );
         let parsed = result.unwrap() as f32;
         assert!(
             (parsed - expected).abs() < 1e-4,

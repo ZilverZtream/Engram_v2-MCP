@@ -134,7 +134,9 @@ async fn cancel_slo_pre_cancelled_index_docs_indexes_nothing() {
     let cancel = CancellationToken::new();
     cancel.cancel();
 
-    let _ = engine.index_docs("cancel-nowrite-proj", &docs, &cancel).await;
+    let _ = engine
+        .index_docs("cancel-nowrite-proj", &docs, &cancel)
+        .await;
 
     let count = engine.count_docs("cancel-nowrite-proj").unwrap();
     assert_eq!(

@@ -2176,7 +2176,11 @@ mod tests {
             n += component.matches("NotImplementedException").count();
             n
         };
-        let migration_status = if placeholder_count == 0 { "ready" } else { "incomplete" };
+        let migration_status = if placeholder_count == 0 {
+            "ready"
+        } else {
+            "incomplete"
+        };
 
         assert_eq!(
             placeholder_count, 2,
@@ -2199,7 +2203,11 @@ mod tests {
             n += component.matches("NotImplementedException").count();
             n
         };
-        let migration_status = if placeholder_count == 0 { "ready" } else { "incomplete" };
+        let migration_status = if placeholder_count == 0 {
+            "ready"
+        } else {
+            "incomplete"
+        };
 
         assert_eq!(
             placeholder_count, 0,

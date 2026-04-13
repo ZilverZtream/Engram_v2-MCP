@@ -170,7 +170,8 @@ async fn watcher_try_send_on_full_channel_returns_immediately_not_blocking() {
 
     let (tx, _rx) = mpsc::channel::<String>(1);
     // Fill the single slot
-    tx.try_send("fill".to_string()).expect("first send to empty channel must succeed");
+    tx.try_send("fill".to_string())
+        .expect("first send to empty channel must succeed");
 
     // Now saturated — must return Full immediately, never block
     let result = tx.try_send("overflow".to_string());
@@ -232,30 +233,43 @@ fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
     let number_val = serde_json::json!(0.5f64);
 
     // Behavioral contract: non-numeric values must return None from as_f64()
-    assert!(null_val.as_f64().is_none(),
-        "Gate 2.5: JSON null must return None from as_f64()");
-    assert!(str_val.as_f64().is_none(),
-        "Gate 2.5: JSON string must return None from as_f64()");
-    assert!(bool_val.as_f64().is_none(),
-        "Gate 2.5: JSON bool must return None from as_f64()");
+    assert!(
+        null_val.as_f64().is_none(),
+        "Gate 2.5: JSON null must return None from as_f64()"
+    );
+    assert!(
+        str_val.as_f64().is_none(),
+        "Gate 2.5: JSON string must return None from as_f64()"
+    );
+    assert!(
+        bool_val.as_f64().is_none(),
+        "Gate 2.5: JSON bool must return None from as_f64()"
+    );
 
     // Behavioral contract: numeric values must return Some
-    assert!(number_val.as_f64().is_some(),
-        "Gate 2.5: JSON number must return Some from as_f64()");
+    assert!(
+        number_val.as_f64().is_some(),
+        "Gate 2.5: JSON number must return Some from as_f64()"
+    );
 
     // Demonstrate why None → 0.0 via unwrap_or(0.0) is WRONG:
     // It silently produces a zero-filled embedding that looks valid to the ADP gate.
     let silent_bad = null_val.as_f64().unwrap_or(0.0);
-    assert_eq!(silent_bad, 0.0f64,
+    assert_eq!(
+        silent_bad, 0.0f64,
         "Gate 2.5: unwrap_or(0.0) on null gives 0.0 — this is the silent false-success \
-         that parse_embedding_array was fixed to reject with Err");
+         that parse_embedding_array was fixed to reject with Err"
+    );
 
     // The fix: None must map to Err, not to 0.0
-    let correct: anyhow::Result<f32> = null_val.as_f64()
+    let correct: anyhow::Result<f32> = null_val
+        .as_f64()
         .ok_or_else(|| anyhow::anyhow!("non-numeric element"))
         .map(|f| f as f32);
-    assert!(correct.is_err(),
-        "Gate 2.5: None.ok_or_else(Err) must produce Err, not Ok(0.0)");
+    assert!(
+        correct.is_err(),
+        "Gate 2.5: None.ok_or_else(Err) must produce Err, not Ok(0.0)"
+    );
 }
 
 // ── Test 14 (Gate 2.5): post-index enrichment degraded message is descriptive ──
@@ -292,19 +306,32 @@ fn post_index_enrichment_degraded_message_describes_all_failures() {
     } else if res_failed {
         "hard failure".to_string()
     } else if !warnings.is_empty() {
-        format!("completed with enrichment warnings: {}", warnings.join("; "))
+        format!(
+            "completed with enrichment warnings: {}",
+            warnings.join("; ")
+        )
     } else {
         "completed".to_string()
     };
 
-    assert_eq!(status, "degraded",
-        "Gate 2.5: multi-warning enrichment must produce 'degraded' status");
-    assert!(msg.contains("link_sql_to_schema"),
-        "Gate 2.5: message must mention link_sql_to_schema failure; got: '{msg}'");
-    assert!(msg.contains("resolve_symbol_edges"),
-        "Gate 2.5: message must mention resolve_symbol_edges failure; got: '{msg}'");
-    assert!(msg.contains("enrichment warnings"),
-        "Gate 2.5: message must use 'enrichment warnings' framing; got: '{msg}'");
-    assert_ne!(msg, "completed",
-        "Gate 2.5: degraded message must not be the clean success banner 'completed'");
+    assert_eq!(
+        status, "degraded",
+        "Gate 2.5: multi-warning enrichment must produce 'degraded' status"
+    );
+    assert!(
+        msg.contains("link_sql_to_schema"),
+        "Gate 2.5: message must mention link_sql_to_schema failure; got: '{msg}'"
+    );
+    assert!(
+        msg.contains("resolve_symbol_edges"),
+        "Gate 2.5: message must mention resolve_symbol_edges failure; got: '{msg}'"
+    );
+    assert!(
+        msg.contains("enrichment warnings"),
+        "Gate 2.5: message must use 'enrichment warnings' framing; got: '{msg}'"
+    );
+    assert_ne!(
+        msg, "completed",
+        "Gate 2.5: degraded message must not be the clean success banner 'completed'"
+    );
 }

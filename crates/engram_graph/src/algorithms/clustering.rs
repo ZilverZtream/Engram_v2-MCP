@@ -185,7 +185,14 @@ mod tests {
         // Three isolated nodes — no edges, so label propagation leaves each as its own community.
         // With min_size=2, all single-node communities are filtered out.
         store
-            .upsert_nodes("proj", &[make_chunk_node("a"), make_chunk_node("b"), make_chunk_node("c")])
+            .upsert_nodes(
+                "proj",
+                &[
+                    make_chunk_node("a"),
+                    make_chunk_node("b"),
+                    make_chunk_node("c"),
+                ],
+            )
             .unwrap();
         let result = find_cooccurrence_clusters(&store, "proj", 1, 2, 100).unwrap();
         assert!(result.is_empty());

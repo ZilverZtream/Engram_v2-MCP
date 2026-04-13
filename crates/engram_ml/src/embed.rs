@@ -47,7 +47,9 @@ pub trait Embedder: Send + Sync {
             anyhow::bail!("EMB1: embedding cancelled before start");
         }
         let results = self.embed_batch_cancellable(&[text], cancel).await?;
-        results.into_iter().next()
+        results
+            .into_iter()
+            .next()
             .ok_or_else(|| anyhow::anyhow!("EMB1: embed_batch_cancellable returned empty result"))
     }
 }
@@ -193,9 +195,12 @@ fn parse_embedding_array(arr: &[serde_json::Value]) -> anyhow::Result<Vec<f32>> 
         .enumerate()
         .map(|(i, v)| {
             v.as_f64()
-                .ok_or_else(|| anyhow::anyhow!(
-                    "ENG-AUD-2026-S12-0001: non-numeric element at index {i}: {:?}", v
-                ))
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "ENG-AUD-2026-S12-0001: non-numeric element at index {i}: {:?}",
+                        v
+                    )
+                })
                 .map(|f| f as f32)
         })
         .collect()
@@ -258,14 +263,20 @@ mod projection_tests {
         let result = embedder.embed("").await.unwrap();
         assert_eq!(result.len(), 64);
         let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!(norm > 0.9, "empty string must produce unit vector; norm={norm}");
+        assert!(
+            norm > 0.9,
+            "empty string must produce unit vector; norm={norm}"
+        );
     }
 
     /// Normal text produces a vector of the correct dimension, normalized.
     #[tokio::test]
     async fn projection_normal_text_correct_dim_and_normalized() {
         let embedder = ProjectionEmbedder::new(384);
-        let result = embedder.embed("fn main() { println!(\"hello\"); }").await.unwrap();
+        let result = embedder
+            .embed("fn main() { println!(\"hello\"); }")
+            .await
+            .unwrap();
         assert_eq!(result.len(), 384);
         let norm: f32 = result.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!(
@@ -280,7 +291,10 @@ mod projection_tests {
         let embedder = ProjectionEmbedder::new(256);
         let a = embedder.embed("deterministic test").await.unwrap();
         let b = embedder.embed("deterministic test").await.unwrap();
-        assert_eq!(a, b, "ProjectionEmbedder must produce identical output across calls");
+        assert_eq!(
+            a, b,
+            "ProjectionEmbedder must produce identical output across calls"
+        );
     }
 }
 
@@ -305,18 +319,27 @@ impl OllamaEmbedder {
     ///
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
     /// `timeout_secs`: maximum wall-clock time for a single HTTP request (EMB1/D6).
-    pub fn new(model: impl Into<String>, url: impl Into<String>, dim: usize, timeout_secs: u64) -> anyhow::Result<Self> {
+    pub fn new(
+        model: impl Into<String>,
+        url: impl Into<String>,
+        dim: usize,
+        timeout_secs: u64,
+    ) -> anyhow::Result<Self> {
         // EMB3: reject dim=0 at construction time; hybrid.rs also catches this but
         // fail-fast here avoids deferred surprises.
         if dim == 0 {
-            anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
+            anyhow::bail!(
+                "EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config"
+            );
         }
         let request_timeout = if timeout_secs == 0 { 30 } else { timeout_secs };
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(request_timeout))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
-            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build Ollama HTTP client: {e}"))?;
+            .map_err(|e| {
+                anyhow::anyhow!("ENG-AUD-2026-0007: failed to build Ollama HTTP client: {e}")
+            })?;
         Ok(Self {
             model: model.into(),
             url: url.into().trim_end_matches('/').to_string(),
@@ -349,7 +372,15 @@ impl Embedder for OllamaEmbedder {
         if cancel.is_cancelled() {
             anyhow::bail!("embedding cancelled before start");
         }
-        embed_batch_via_ollama_cancellable(&self.client, &self.url, &self.model, texts, self.dim, cancel).await
+        embed_batch_via_ollama_cancellable(
+            &self.client,
+            &self.url,
+            &self.model,
+            texts,
+            self.dim,
+            cancel,
+        )
+        .await
     }
 }
 
@@ -622,14 +653,18 @@ impl OpenAIEmbedder {
     ) -> anyhow::Result<Self> {
         // EMB3: reject dim=0 at construction time; fail-fast before any HTTP call.
         if dim == 0 {
-            anyhow::bail!("EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config");
+            anyhow::bail!(
+                "EMB-AUD: embedder dim must be > 0 (got 0); check ollama_embed_dim/openai_embed_dim config"
+            );
         }
         let request_timeout = if timeout_secs == 0 { 30 } else { timeout_secs };
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(request_timeout))
             .connect_timeout(std::time::Duration::from_secs(10))
             .build()
-            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build OpenAI HTTP client: {e}"))?;
+            .map_err(|e| {
+                anyhow::anyhow!("ENG-AUD-2026-0007: failed to build OpenAI HTTP client: {e}")
+            })?;
         Ok(Self {
             model: model.into(),
             api_key: api_key.into(),
@@ -828,17 +863,18 @@ async fn embed_batch_via_openai(
                 // OpenAI returns data sorted by "index" field; sort to match input order.
                 let mut indexed: Vec<(usize, Vec<f32>)> = Vec::with_capacity(arr.len());
                 for item in arr {
-                    let idx = item["index"]
-                        .as_u64()
-                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: item missing or invalid 'index' field"))?
-                        as usize;
+                    let idx = item["index"].as_u64().ok_or_else(|| {
+                        anyhow::anyhow!("OpenAI batch: item missing or invalid 'index' field")
+                    })? as usize;
                     let vec: Vec<f32> = item["embedding"]
                         .as_array()
                         .ok_or_else(|| anyhow::anyhow!("OpenAI batch: missing embedding"))?
                         .iter()
                         .map(|v| {
                             v.as_f64()
-                                .ok_or_else(|| anyhow::anyhow!("OpenAI batch: non-numeric embedding element"))
+                                .ok_or_else(|| {
+                                    anyhow::anyhow!("OpenAI batch: non-numeric embedding element")
+                                })
                                 .map(|f| f as f32)
                         })
                         .collect::<Result<Vec<f32>, _>>()?;
@@ -939,10 +975,9 @@ async fn embed_batch_via_openai_cancellable(
                 }
                 let mut indexed: Vec<(usize, Vec<f32>)> = Vec::with_capacity(arr.len());
                 for item in arr {
-                    let idx = item["index"]
-                        .as_u64()
-                        .ok_or_else(|| anyhow::anyhow!("OpenAI batch: item missing 'index' field"))?
-                        as usize;
+                    let idx = item["index"].as_u64().ok_or_else(|| {
+                        anyhow::anyhow!("OpenAI batch: item missing 'index' field")
+                    })? as usize;
                     let vec: Vec<f32> = item["embedding"]
                         .as_array()
                         .ok_or_else(|| anyhow::anyhow!("OpenAI batch: missing embedding"))?
@@ -991,7 +1026,11 @@ impl RemoteEmbedder {
     /// Create an Ollama-backed remote embedder.
     /// `dim` should match the model's output dimensionality (e.g. 768 for nomic-embed-text).
     /// Returns `Err` if the HTTP client cannot be built (ENG-AUD-2026-0007).
-    pub fn ollama(model: impl Into<String>, url: impl Into<String>, dim: usize) -> anyhow::Result<Self> {
+    pub fn ollama(
+        model: impl Into<String>,
+        url: impl Into<String>,
+        dim: usize,
+    ) -> anyhow::Result<Self> {
         Ok(Self {
             backend: RemoteBackend::Ollama(OllamaEmbedder::new(model, url, dim, 30)?),
         })
@@ -1035,7 +1074,11 @@ impl RemoteEmbedder {
     ) -> anyhow::Result<Self> {
         Ok(Self {
             backend: RemoteBackend::OpenAI(OpenAIEmbedder::new(
-                model, api_key, api_base, dim, timeout_secs,
+                model,
+                api_key,
+                api_base,
+                dim,
+                timeout_secs,
             )?),
         })
     }
@@ -1127,7 +1170,12 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             let dim = cfg.ollama_embed_dim.unwrap_or(768);
             // EMB2: wrap in RemoteEmbedder so L2 normalisation is always applied,
             // regardless of which code path calls the embedder.
-            Ok(Box::new(RemoteEmbedder::ollama_with_timeout(model, url, dim, cfg.embedding_request_timeout_secs)?))
+            Ok(Box::new(RemoteEmbedder::ollama_with_timeout(
+                model,
+                url,
+                dim,
+                cfg.embedding_request_timeout_secs,
+            )?))
         }
         "openai" => {
             let api_key = cfg.openai_api_key.clone().unwrap_or_default();
@@ -1148,7 +1196,13 @@ pub fn build_embedder(cfg: &engram_core::Config) -> anyhow::Result<Box<dyn Embed
             // Defaults to 1536 (text-embedding-3-small) for backward compatibility.
             let dim = cfg.openai_embed_dim.unwrap_or(1536);
             // EMB2: wrap in RemoteEmbedder so L2 normalisation is always applied.
-            Ok(Box::new(RemoteEmbedder::openai_with_timeout(model, api_key, api_base, dim, cfg.embedding_request_timeout_secs)?))
+            Ok(Box::new(RemoteEmbedder::openai_with_timeout(
+                model,
+                api_key,
+                api_base,
+                dim,
+                cfg.embedding_request_timeout_secs,
+            )?))
         }
         // Known local-mode backends that all resolve to LocalEmbedder.
         "local" | "candle" | "fts_only" => Ok(Box::new(LocalEmbedder)),
@@ -1174,7 +1228,10 @@ mod embed_factory_tests {
     fn build_embedder_rejects_unknown_backend() {
         let cfg = make_cfg("bad_backend_xyz");
         let result = build_embedder(&cfg);
-        assert!(result.is_err(), "build_embedder must reject unknown backend");
+        assert!(
+            result.is_err(),
+            "build_embedder must reject unknown backend"
+        );
         // Map to the error string without requiring Debug on Box<dyn Embedder>.
         let msg = result.err().map(|e| e.to_string()).unwrap_or_default();
         assert!(
@@ -1430,7 +1487,11 @@ mod provider_parity_tests {
         let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 4, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
-        assert!(result.is_ok(), "valid OpenAI response must parse correctly: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "valid OpenAI response must parse correctly: {:?}",
+            result
+        );
         let vec = result.unwrap();
         assert_eq!(vec.len(), 4, "embedding dimension must match");
         assert!((vec[0] - 0.1_f32).abs() < 1e-5);
@@ -1449,7 +1510,10 @@ mod provider_parity_tests {
         let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
-        assert!(result.is_err(), "missing data[0].embedding must return error");
+        assert!(
+            result.is_err(),
+            "missing data[0].embedding must return error"
+        );
         let msg = format!("{:?}", result.unwrap_err());
         assert!(
             msg.contains("missing") || msg.contains("embedding"),
@@ -1473,7 +1537,10 @@ mod provider_parity_tests {
         assert!(result.is_err(), "dimension mismatch must return error");
         let msg = format!("{:?}", result.unwrap_err());
         assert!(
-            msg.contains("dim") || msg.contains("dimension") || msg.contains("1536") || msg.contains("expected"),
+            msg.contains("dim")
+                || msg.contains("dimension")
+                || msg.contains("1536")
+                || msg.contains("expected"),
             "error must mention dimension, got: {msg}"
         );
     }
@@ -1486,7 +1553,10 @@ mod provider_parity_tests {
         let embedder = OpenAIEmbedder::new("text-embedding-3-small", "test-key", url, 3, 30)
             .expect("OpenAIEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
-        assert!(result.is_err(), "HTTP 401 must return Err, not empty embedding");
+        assert!(
+            result.is_err(),
+            "HTTP 401 must return Err, not empty embedding"
+        );
     }
 
     // ── Ollama provider ───────────────────────────────────────────────────
@@ -1506,7 +1576,11 @@ mod provider_parity_tests {
         let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3, 30)
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
-        assert!(result.is_ok(), "valid Ollama response must parse correctly: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "valid Ollama response must parse correctly: {:?}",
+            result
+        );
         let vec = result.unwrap();
         assert_eq!(vec.len(), 3);
         assert!((vec[0] - 0.5_f32).abs() < 1e-5);
@@ -1541,7 +1615,10 @@ mod provider_parity_tests {
         let embedder = OllamaEmbedder::new("nomic-embed-text", url, 768, 30) // expects 768
             .expect("OllamaEmbedder::new must succeed in test environment");
         let result = embedder.embed("hello").await;
-        assert!(result.is_err(), "dimension mismatch (3 vs 768) must return error");
+        assert!(
+            result.is_err(),
+            "dimension mismatch (3 vs 768) must return error"
+        );
     }
 
     /// ENG-AUD-2026-EXH-0006: Ollama 5xx server error must return Err within
@@ -1556,11 +1633,8 @@ mod provider_parity_tests {
         let url = format!("http://127.0.0.1:{port1}");
         let embedder = OllamaEmbedder::new("nomic-embed-text", url, 3, 30)
             .expect("OllamaEmbedder::new must succeed in test environment");
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            embedder.embed("hello"),
-        )
-        .await;
+        let result =
+            tokio::time::timeout(std::time::Duration::from_secs(10), embedder.embed("hello")).await;
         match result {
             Ok(Err(_)) => {} // expected: error returned after all retries exhausted
             Ok(Ok(_)) => panic!("503 response must not produce a successful embedding"),
@@ -1629,7 +1703,11 @@ mod provider_parity_tests {
         let embedder = RemoteEmbedder::openai("text-embedding-3-small", "test-key", url, 2)
             .expect("RemoteEmbedder::openai must succeed in test environment");
         let result = embedder.embed("test").await;
-        assert!(result.is_ok(), "RemoteEmbedder::openai must parse OpenAI schema: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "RemoteEmbedder::openai must parse OpenAI schema: {:?}",
+            result
+        );
         assert_eq!(result.unwrap().len(), 2);
     }
 
@@ -1647,7 +1725,11 @@ mod provider_parity_tests {
         let embedder = RemoteEmbedder::ollama("nomic-embed-text", url, 2)
             .expect("RemoteEmbedder::ollama must succeed in test environment");
         let result = embedder.embed("test").await;
-        assert!(result.is_ok(), "RemoteEmbedder::ollama must parse Ollama schema: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "RemoteEmbedder::ollama must parse Ollama schema: {:?}",
+            result
+        );
         assert_eq!(result.unwrap().len(), 2);
     }
 }
