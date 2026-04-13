@@ -2752,7 +2752,7 @@ fn parse_vb_identifier_prefix(src: &str) -> Option<(String, usize)> {
 
     if first == '[' {
         let mut inner = String::new();
-        let mut consumed = first.len_utf8();
+        let mut consumed = 0usize;
         for (idx, ch) in chars {
             consumed = idx + ch.len_utf8();
             if ch == ']' {
