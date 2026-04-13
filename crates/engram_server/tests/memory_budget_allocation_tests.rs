@@ -7,8 +7,8 @@
 //! 3. `AllocationGuard` RAII drop correctly returns bytes to the budget.
 //! 4. Multiple subsystem counters track independently.
 
-use engram_core::{MemoryBudget, MemoryDecision, Subsystem};
 use engram_core::memory::AllocationGuard;
+use engram_core::{MemoryBudget, MemoryDecision, Subsystem};
 
 /// Allocations under budget must be granted.
 #[test]
@@ -16,7 +16,10 @@ fn allocate_within_budget_returns_allowed() {
     let budget = MemoryBudget::new(1_000_000); // 1 MB
     let decision = budget.try_allocate(100_000, Subsystem::Tantivy);
     assert!(
-        matches!(decision, MemoryDecision::Allowed | MemoryDecision::SoftPressure),
+        matches!(
+            decision,
+            MemoryDecision::Allowed | MemoryDecision::SoftPressure
+        ),
         "allocation within budget must return Allowed or SoftPressure; got {decision:?}"
     );
 }
@@ -58,7 +61,10 @@ fn allocation_guard_releases_bytes_on_drop() {
     // After drop, budget is restored.
     let after_drop = budget.try_allocate(80_000, Subsystem::DocStore);
     assert!(
-        matches!(after_drop, MemoryDecision::Allowed | MemoryDecision::SoftPressure),
+        matches!(
+            after_drop,
+            MemoryDecision::Allowed | MemoryDecision::SoftPressure
+        ),
         "allocation after guard drop must succeed — bytes must have been released; got {after_drop:?}"
     );
 }
@@ -92,18 +98,24 @@ fn concurrent_allocations_cannot_exceed_budget() {
     let allow_count = Arc::new(AtomicUsize::new(0));
 
     // 20 threads each try to allocate 100 KB (2 MB total requested > 1 MB budget).
-    let handles: Vec<_> = (0..20).map(|_| {
-        let budget = budget.clone();
-        let rejections = rejection_count.clone();
-        let allows = allow_count.clone();
-        std::thread::spawn(move || {
-            let decision = budget.try_allocate(100_000, Subsystem::ParseBuffer);
-            match decision {
-                MemoryDecision::Rejected => { rejections.fetch_add(1, Ordering::Relaxed); }
-                _ => { allows.fetch_add(1, Ordering::Relaxed); }
-            }
+    let handles: Vec<_> = (0..20)
+        .map(|_| {
+            let budget = budget.clone();
+            let rejections = rejection_count.clone();
+            let allows = allow_count.clone();
+            std::thread::spawn(move || {
+                let decision = budget.try_allocate(100_000, Subsystem::ParseBuffer);
+                match decision {
+                    MemoryDecision::Rejected => {
+                        rejections.fetch_add(1, Ordering::Relaxed);
+                    }
+                    _ => {
+                        allows.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            })
         })
-    }).collect();
+        .collect();
 
     for h in handles {
         h.join().expect("thread must not panic");
@@ -134,7 +146,10 @@ fn soft_pressure_triggered_above_80_percent() {
     // Next small allocation must trigger SoftPressure (or Rejected if at 100%).
     let decision = budget.try_allocate(10_000, Subsystem::Misc);
     assert!(
-        matches!(decision, MemoryDecision::SoftPressure | MemoryDecision::Rejected),
+        matches!(
+            decision,
+            MemoryDecision::SoftPressure | MemoryDecision::Rejected
+        ),
         "allocation above 80% soft limit must return SoftPressure or Rejected; got {decision:?}"
     );
 }
@@ -154,7 +169,10 @@ fn all_subsystem_variants_accepted() {
     ] {
         let decision = budget.try_allocate(100, subsystem);
         assert!(
-            matches!(decision, MemoryDecision::Allowed | MemoryDecision::SoftPressure),
+            matches!(
+                decision,
+                MemoryDecision::Allowed | MemoryDecision::SoftPressure
+            ),
             "allocation for {subsystem:?} must not be Rejected; got {decision:?}"
         );
     }
@@ -196,10 +214,22 @@ fn breakdown_reflects_per_subsystem_usage() {
     budget.try_allocate(3_000, Subsystem::Graph);
 
     let bd = budget.breakdown();
-    assert_eq!(bd.tantivy, 1_000, "tantivy counter must reflect 1 KB allocation");
-    assert_eq!(bd.lancedb, 2_000, "lancedb counter must reflect 2 KB allocation");
-    assert_eq!(bd.graph, 3_000, "graph counter must reflect 3 KB allocation");
-    assert_eq!(bd.total_used, 6_000, "total_used must be sum of all subsystem allocations");
+    assert_eq!(
+        bd.tantivy, 1_000,
+        "tantivy counter must reflect 1 KB allocation"
+    );
+    assert_eq!(
+        bd.lancedb, 2_000,
+        "lancedb counter must reflect 2 KB allocation"
+    );
+    assert_eq!(
+        bd.graph, 3_000,
+        "graph counter must reflect 3 KB allocation"
+    );
+    assert_eq!(
+        bd.total_used, 6_000,
+        "total_used must be sum of all subsystem allocations"
+    );
 }
 
 /// MEM1-e5d7: AllocationGuard must release its reserved bytes even when the
@@ -219,8 +249,9 @@ fn allocation_guard_releases_bytes_on_panic_unwind() {
     // Clone budget so it can be moved into the catch_unwind closure.
     let budget_clone = budget.clone();
     let _ = std::panic::catch_unwind(move || {
-        let _guard = AllocationGuard::try_new(&budget_clone, 100_000, Subsystem::Graph, "panic-test-op")
-            .expect("allocation must succeed within budget");
+        let _guard =
+            AllocationGuard::try_new(&budget_clone, 100_000, Subsystem::Graph, "panic-test-op")
+                .expect("allocation must succeed within budget");
         // Guard is held — panic here — Drop must run on unwind.
         panic!("MEM1-e5d7: intentional panic to test unwind cleanup");
     });
@@ -264,8 +295,16 @@ fn mem1_known_heavy_allocation_sites_use_allocation_guard() {
     let ingest_src = include_str!("../src/services/ingest_service.rs");
 
     let guarded_sites: &[(&str, &str, &str)] = &[
-        ("hybrid.rs tantivy/vector batch",    hybrid_src,  "AllocationGuard::try_new"),
-        ("ingest_service.rs graph build",     ingest_src,  "AllocationGuard::try_new"),
+        (
+            "hybrid.rs tantivy/vector batch",
+            hybrid_src,
+            "AllocationGuard::try_new",
+        ),
+        (
+            "ingest_service.rs graph build",
+            ingest_src,
+            "AllocationGuard::try_new",
+        ),
     ];
 
     for (desc, src, pattern) in guarded_sites {
@@ -283,12 +322,14 @@ fn mem1_known_heavy_allocation_sites_use_allocation_guard() {
 fn mem1_embed_allocation_guard_dropped_before_await() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    let drop_pos = src.find("drop(_embed_guard)")
-        .expect("MEM1/X2: hybrid.rs must explicitly drop the embed AllocationGuard \
-                 before the remote embed await");
+    let drop_pos = src.find("drop(_embed_guard)").expect(
+        "MEM1/X2: hybrid.rs must explicitly drop the embed AllocationGuard \
+                 before the remote embed await",
+    );
 
     let after_drop = &src[drop_pos..];
-    let embed_pos = after_drop.find("embed_batch_cancellable")
+    let embed_pos = after_drop
+        .find("embed_batch_cancellable")
         .expect("MEM1/X2: embed_batch_cancellable must appear after drop(_embed_guard)");
 
     assert!(
@@ -379,13 +420,15 @@ fn mem1_allocation_guard_implements_drop_for_panic_safety() {
          on panic — without Drop, early returns leak allocated budget quota"
     );
     // The Drop impl must call release or equivalent.
-    let drop_pos = src.find("impl Drop for AllocationGuard")
+    let drop_pos = src
+        .find("impl Drop for AllocationGuard")
         .expect("MEM1: Drop impl must exist");
     let drop_body = &src[drop_pos..drop_pos + 150.min(src.len() - drop_pos)];
     assert!(
         drop_body.contains("release") || drop_body.contains("fetch_sub"),
         "MEM1: Drop impl must release the budget via release() or fetch_sub(); \
-         body: {:?}", &drop_body[..100.min(drop_body.len())]
+         body: {:?}",
+        &drop_body[..100.min(drop_body.len())]
     );
 }
 
@@ -397,7 +440,8 @@ fn mem1_x2_embed_guard_released_before_remote_await_in_hybrid() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // The guard drop must appear before embed_batch_cancellable await.
-    let guard_drop_pos = src.find("drop(guard)")
+    let guard_drop_pos = src
+        .find("drop(guard)")
         .or_else(|| src.find("drop(embed_guard)"))
         .or_else(|| src.find("// MEM1"))
         .or_else(|| src.find("AllocationGuard"));
@@ -428,7 +472,8 @@ fn mem1_try_allocate_uses_cas_not_optimistic_fetch_add() {
     );
 
     // The CAS must reject (return None) when budget exceeded, not rollback.
-    let fn_pos = src.find("fn try_allocate(")
+    let fn_pos = src
+        .find("fn try_allocate(")
         .expect("MEM1: try_allocate must exist in memory.rs");
     let body = &src[fn_pos..fn_pos + 800.min(src.len() - fn_pos)];
     assert!(

@@ -716,7 +716,10 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].kind, "registers_handler");
         // Class name is extracted before the first comma
-        assert_eq!(edges[0].target_name, "System.Web.Handlers.ScriptResourceHandler");
+        assert_eq!(
+            edges[0].target_name,
+            "System.Web.Handlers.ScriptResourceHandler"
+        );
     }
 
     #[test]

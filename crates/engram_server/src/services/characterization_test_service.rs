@@ -139,8 +139,7 @@ pub fn generate_characterization_tests(
     file_path: &str,
     framework_str: &str,
 ) -> anyhow::Result<CharacterizationTestResult> {
-    let fw = TestFramework::from_str(framework_str)
-        .map_err(|e| anyhow::anyhow!(e))?;
+    let fw = TestFramework::from_str(framework_str).map_err(|e| anyhow::anyhow!(e))?;
     let ctx = collect_test_context(graph, project_id, file_path)?;
     let mut warnings = Vec::new();
 
@@ -1374,9 +1373,18 @@ mod tests {
 
     #[test]
     fn test_framework_from_str() {
-        assert_eq!(TestFramework::from_str("nunit").unwrap(), TestFramework::NUnit);
-        assert_eq!(TestFramework::from_str("xunit").unwrap(), TestFramework::XUnit);
-        assert_eq!(TestFramework::from_str("mstest").unwrap(), TestFramework::MSTest);
+        assert_eq!(
+            TestFramework::from_str("nunit").unwrap(),
+            TestFramework::NUnit
+        );
+        assert_eq!(
+            TestFramework::from_str("xunit").unwrap(),
+            TestFramework::XUnit
+        );
+        assert_eq!(
+            TestFramework::from_str("mstest").unwrap(),
+            TestFramework::MSTest
+        );
         assert!(TestFramework::from_str("unknown").is_err()); // fail-closed
     }
 

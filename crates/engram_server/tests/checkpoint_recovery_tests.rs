@@ -9,9 +9,9 @@
 //!  - `Checkpoint::is_resumable`
 //!  - `Checkpoint::compute_idempotency_key`
 
-use engram_core::{Checkpoint, CheckpointStore, JobPhase, Config, Registry};
+use engram_core::{Checkpoint, CheckpointStore, Config, JobPhase, Registry};
+use engram_server::actors::gc::{purge_project_old_gens, run_gc_scheduler};
 use engram_server::state::AppState;
-use engram_server::actors::gc::{run_gc_scheduler, purge_project_old_gens};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
@@ -55,7 +55,10 @@ fn checkpoint_put_then_get_round_trips() {
     store.put(&cp).expect("put must succeed");
 
     let retrieved = store.get("job-001").expect("get must not error");
-    assert!(retrieved.is_some(), "get must return the checkpoint after put");
+    assert!(
+        retrieved.is_some(),
+        "get must return the checkpoint after put"
+    );
 
     let r = retrieved.unwrap();
     assert_eq!(r.job_id, "job-001");
@@ -82,7 +85,11 @@ fn checkpoint_get_nonexistent_returns_none() {
 /// In-progress phases must be resumable.
 #[test]
 fn checkpoint_in_progress_phases_are_resumable() {
-    for phase in [JobPhase::Parsing, JobPhase::TantivyIndexing, JobPhase::VectorIndexing] {
+    for phase in [
+        JobPhase::Parsing,
+        JobPhase::TantivyIndexing,
+        JobPhase::VectorIndexing,
+    ] {
         let cp = make_checkpoint("j", "p", phase);
         assert!(
             cp.is_resumable(),
@@ -174,7 +181,10 @@ fn checkpoint_remove_deletes_record() {
     store.put(&cp).expect("put");
 
     // Verify it exists
-    assert!(store.get("job-remove").expect("get").is_some(), "must exist before remove");
+    assert!(
+        store.get("job-remove").expect("get").is_some(),
+        "must exist before remove"
+    );
 
     store.remove("job-remove").expect("remove must succeed");
 
@@ -266,7 +276,10 @@ fn cleanup_old_removes_expired_checkpoints() {
     );
 
     // Old must be gone, recent must remain
-    assert!(store.get("job-old").expect("get").is_none(), "old checkpoint must be removed");
+    assert!(
+        store.get("job-old").expect("get").is_none(),
+        "old checkpoint must be removed"
+    );
     assert!(
         store.get("job-recent").expect("get").is_some(),
         "recent checkpoint must survive cleanup"
@@ -321,8 +334,10 @@ fn checkpoint_overwrite_is_last_write_wins() {
 
     let got = store.get("retry-job").unwrap().unwrap();
     assert_eq!(
-        got.phase, JobPhase::Failed,
-        "second write must win; expected Failed, got {:?}", got.phase
+        got.phase,
+        JobPhase::Failed,
+        "second write must win; expected Failed, got {:?}",
+        got.phase
     );
     assert!(
         got.error.as_deref().unwrap_or("").contains("injected"),
@@ -365,10 +380,14 @@ fn checkpoint_crash_recovery_finds_resumable_after_reopen() {
     );
     let cp = resumable.unwrap();
     assert_eq!(
-        cp.phase, JobPhase::VectorIndexing,
+        cp.phase,
+        JobPhase::VectorIndexing,
         "recovered checkpoint must have the phase written before crash"
     );
-    assert_eq!(cp.items_processed, 70, "items_processed must match checkpoint");
+    assert_eq!(
+        cp.items_processed, 70,
+        "items_processed must match checkpoint"
+    );
 }
 
 /// A Completed checkpoint must NOT be returned by find_resumable.
@@ -467,8 +486,9 @@ fn crash_recovery_full_lifecycle_advances_to_completed() {
     // Phase 3: process restart — find_resumable returns TantivyIndexing.
     {
         let store = CheckpointStore::open(&path).unwrap();
-        let resumable = store.find_resumable("lifecycle-proj").unwrap()
-            .expect("JOB1: after crash in TantivyIndexing, find_resumable must return resumable checkpoint");
+        let resumable = store.find_resumable("lifecycle-proj").unwrap().expect(
+            "JOB1: after crash in TantivyIndexing, find_resumable must return resumable checkpoint",
+        );
         assert_eq!(
             resumable.phase,
             JobPhase::TantivyIndexing,
@@ -523,9 +543,7 @@ async fn purge_is_skipped_when_active_indexing_count_is_nonzero() {
     let (state, _rx) = AppState::new(cfg).unwrap();
 
     // Simulate in-flight indexing job by incrementing the count.
-    state
-        .active_indexing_count
-        .store(1, Ordering::SeqCst);
+    state.active_indexing_count.store(1, Ordering::SeqCst);
 
     tokio::time::pause();
 
@@ -863,7 +881,8 @@ async fn kill_switch_persists_across_restart_when_registry_set() {
     tokio::task::spawn_blocking({
         let reg = state1.registry.clone();
         move || {
-            reg.set_adp_kill_switch(true).expect("set_adp_kill_switch must succeed");
+            reg.set_adp_kill_switch(true)
+                .expect("set_adp_kill_switch must succeed");
         }
     })
     .await
@@ -961,17 +980,27 @@ fn registry_kill_switch_round_trips() {
 
     // Default: not set → get returns None/false.
     let initial = reg.get_adp_kill_switch().unwrap_or(false);
-    assert!(!initial, "kill_switch must default to false (no registry entry)");
+    assert!(
+        !initial,
+        "kill_switch must default to false (no registry entry)"
+    );
 
     // Set to true.
     reg.set_adp_kill_switch(true).expect("set must succeed");
     let after_set = reg.get_adp_kill_switch().unwrap_or(false);
-    assert!(after_set, "kill_switch must read back true after set_adp_kill_switch(true)");
+    assert!(
+        after_set,
+        "kill_switch must read back true after set_adp_kill_switch(true)"
+    );
 
     // Set to false again.
-    reg.set_adp_kill_switch(false).expect("set to false must succeed");
+    reg.set_adp_kill_switch(false)
+        .expect("set to false must succeed");
     let after_clear = reg.get_adp_kill_switch().unwrap_or(true);
-    assert!(!after_clear, "kill_switch must read back false after set_adp_kill_switch(false)");
+    assert!(
+        !after_clear,
+        "kill_switch must read back false after set_adp_kill_switch(false)"
+    );
 }
 
 // ── JOB1/X6: tombstone persistence failure and CancellationOutcome coverage ──
@@ -1003,8 +1032,8 @@ fn job1_cancellation_outcome_was_cancelled_contract() {
 /// not panic or return a cancelled outcome for a job that doesn't exist.
 #[tokio::test]
 async fn job1_cancel_nonexistent_job_returns_not_found() {
-    use engram_server::services::job_service::{cancel_job_internal, CancellationOutcome};
     use engram_core::Config;
+    use engram_server::services::job_service::{CancellationOutcome, cancel_job_internal};
     use engram_server::state::AppState;
 
     let tmp = tempfile::TempDir::new().unwrap();
@@ -1071,7 +1100,9 @@ fn job1_failed_phase_checkpoint_is_not_resumable_after_reopen() {
     store.put(&cp).expect("put Failed checkpoint must succeed");
 
     // Must not be offered for resume.
-    let resumable = store.find_resumable("proj-1").expect("find_resumable must not error");
+    let resumable = store
+        .find_resumable("proj-1")
+        .expect("find_resumable must not error");
     assert!(
         resumable.is_none(),
         "JOB1: Failed-phase checkpoint must not be resumable — \
@@ -1123,12 +1154,14 @@ fn x6_tombstone_on_live_job_returns_cancelled_with_tombstone_and_blocks_resume()
     );
 
     // After tombstone the job must not be resumable.
-    let resumable = store.find_resumable("proj-tombstone")
+    let resumable = store
+        .find_resumable("proj-tombstone")
         .expect("find_resumable must not error");
     assert!(
         resumable.is_none(),
         "X6: tombstoned job must not appear as resumable — \
-         Cancelled phase must be excluded from resume candidates; got: {:?}", resumable
+         Cancelled phase must be excluded from resume candidates; got: {:?}",
+        resumable
     );
 }
 

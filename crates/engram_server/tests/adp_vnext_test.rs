@@ -377,7 +377,10 @@ fn evidence_depth_from_str_parses_correctly() {
 
     assert_eq!(EvidenceDepth::from_str("fast"), Ok(EvidenceDepth::Fast));
     assert_eq!(EvidenceDepth::from_str("DEEP"), Ok(EvidenceDepth::Deep));
-    assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+    assert_eq!(
+        EvidenceDepth::from_str("standard"),
+        Ok(EvidenceDepth::Standard)
+    );
     assert!(
         EvidenceDepth::from_str("unknown").is_err(),
         "unknown string should return an error"

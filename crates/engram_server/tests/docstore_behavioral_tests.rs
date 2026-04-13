@@ -74,7 +74,9 @@ fn docstore_count_docs_for_project_matches_inserted_count() {
         )
         .expect("put_docs must succeed");
 
-    let count = store.count_docs_for_project("proj-count").expect("count_docs_for_project");
+    let count = store
+        .count_docs_for_project("proj-count")
+        .expect("count_docs_for_project");
     assert_eq!(count, 3, "must count 3 docs; got {count}");
 }
 
@@ -100,10 +102,7 @@ fn docstore_count_docs_for_project_project_isolation() {
     store
         .put_docs(
             "proj-B",
-            &[
-                make_doc("d2", "b.rs", "rs"),
-                make_doc("d3", "c.rs", "rs"),
-            ],
+            &[make_doc("d2", "b.rs", "rs"), make_doc("d3", "c.rs", "rs")],
         )
         .expect("put proj-B");
 
@@ -147,7 +146,10 @@ fn docstore_list_doc_summaries_empty_project_returns_empty() {
     let summaries = store
         .list_doc_summaries_for_project("proj-none")
         .expect("must not error");
-    assert!(summaries.is_empty(), "empty project must yield no summaries");
+    assert!(
+        summaries.is_empty(),
+        "empty project must yield no summaries"
+    );
 }
 
 // ── set_docs_for_file / get_docs_for_file ────────────────────────────────────
@@ -158,7 +160,11 @@ fn docstore_set_and_get_docs_for_file_round_trips() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let store = open_store(&tmp);
 
-    let doc_ids = vec!["chunk-001".to_string(), "chunk-002".to_string(), "chunk-003".to_string()];
+    let doc_ids = vec![
+        "chunk-001".to_string(),
+        "chunk-002".to_string(),
+        "chunk-003".to_string(),
+    ];
     store
         .set_docs_for_file("proj-file", "rust", "src/parser.rs", &doc_ids)
         .expect("set_docs_for_file must succeed");
@@ -167,7 +173,10 @@ fn docstore_set_and_get_docs_for_file_round_trips() {
         .get_docs_for_file("proj-file", "rust", "src/parser.rs")
         .expect("get_docs_for_file must not error");
 
-    assert_eq!(retrieved, doc_ids, "retrieved doc_ids must match stored list");
+    assert_eq!(
+        retrieved, doc_ids,
+        "retrieved doc_ids must match stored list"
+    );
 }
 
 /// get_docs_for_file for an unknown file must return empty vec, not Err.
@@ -179,7 +188,10 @@ fn docstore_get_docs_for_file_unknown_returns_empty() {
     let result = store
         .get_docs_for_file("proj-x", "rust", "no/such/file.rs")
         .expect("get_docs_for_file must not error");
-    assert!(result.is_empty(), "unknown file must return empty vec, not Err");
+    assert!(
+        result.is_empty(),
+        "unknown file must return empty vec, not Err"
+    );
 }
 
 /// set_docs_for_file must overwrite a previous mapping (idempotent update).
@@ -231,7 +243,12 @@ fn docstore_get_all_docs_for_file_returns_full_records() {
         .get_all_docs_for_file("proj-all", "rust", "src/types.rs")
         .expect("get_all_docs_for_file must not error");
 
-    assert_eq!(recs.len(), 2, "must return 2 DocRecords; got {}", recs.len());
+    assert_eq!(
+        recs.len(),
+        2,
+        "must return 2 DocRecords; got {}",
+        recs.len()
+    );
     assert_eq!(recs[0].doc_id, "file-doc-a");
     assert_eq!(recs[1].doc_id, "file-doc-b");
 }
@@ -308,7 +325,12 @@ fn docstore_list_tracked_paths_returns_all_files_for_namespace() {
         .list_tracked_paths("proj-tracked", "rust")
         .expect("list_tracked_paths must not error");
 
-    assert_eq!(tracked.len(), 3, "must list 3 tracked paths; got {}", tracked.len());
+    assert_eq!(
+        tracked.len(),
+        3,
+        "must list 3 tracked paths; got {}",
+        tracked.len()
+    );
     for p in paths {
         assert!(
             tracked.contains(&p.to_string()),
@@ -339,8 +361,16 @@ fn docstore_list_tracked_paths_namespace_isolation() {
 
     assert_eq!(rust_paths.len(), 1, "rust namespace must have 1 path");
     assert_eq!(cs_paths.len(), 1, "csharp namespace must have 1 path");
-    assert!(rust_paths[0] == "lib.rs", "rust path must be lib.rs; got {}", rust_paths[0]);
-    assert!(cs_paths[0] == "Form.cs", "csharp path must be Form.cs; got {}", cs_paths[0]);
+    assert!(
+        rust_paths[0] == "lib.rs",
+        "rust path must be lib.rs; got {}",
+        rust_paths[0]
+    );
+    assert!(
+        cs_paths[0] == "Form.cs",
+        "csharp path must be Form.cs; got {}",
+        cs_paths[0]
+    );
 }
 
 /// list_tracked_paths for empty project must return empty vec.
@@ -349,8 +379,13 @@ fn docstore_list_tracked_paths_empty_project_returns_empty() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let store = open_store(&tmp);
 
-    let tracked = store.list_tracked_paths("proj-empty", "rust").expect("list");
-    assert!(tracked.is_empty(), "empty project must have 0 tracked paths");
+    let tracked = store
+        .list_tracked_paths("proj-empty", "rust")
+        .expect("list");
+    assert!(
+        tracked.is_empty(),
+        "empty project must have 0 tracked paths"
+    );
 }
 
 // ── all_doc_ids_for_project ───────────────────────────────────────────────────
@@ -376,10 +411,24 @@ fn docstore_all_doc_ids_for_project_includes_all_namespaces() {
         .all_doc_ids_for_project("proj-all-ids")
         .expect("all_doc_ids_for_project must not error");
 
-    assert_eq!(all_ids.len(), 3, "must return 3 doc_ids; got {}", all_ids.len());
-    assert!(all_ids.contains(&"fn-doc-1".to_string()), "must include fn-doc-1");
-    assert!(all_ids.contains(&"fn-doc-2".to_string()), "must include fn-doc-2");
-    assert!(all_ids.contains(&"class-doc-1".to_string()), "must include class-doc-1");
+    assert_eq!(
+        all_ids.len(),
+        3,
+        "must return 3 doc_ids; got {}",
+        all_ids.len()
+    );
+    assert!(
+        all_ids.contains(&"fn-doc-1".to_string()),
+        "must include fn-doc-1"
+    );
+    assert!(
+        all_ids.contains(&"fn-doc-2".to_string()),
+        "must include fn-doc-2"
+    );
+    assert!(
+        all_ids.contains(&"class-doc-1".to_string()),
+        "must include class-doc-1"
+    );
 }
 
 /// all_doc_ids_for_project must return empty for a project with no docs.
@@ -388,7 +437,9 @@ fn docstore_all_doc_ids_for_project_empty_returns_empty() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let store = open_store(&tmp);
 
-    let ids = store.all_doc_ids_for_project("proj-empty-ids").expect("must not error");
+    let ids = store
+        .all_doc_ids_for_project("proj-empty-ids")
+        .expect("must not error");
     assert!(ids.is_empty(), "empty project must yield no doc_ids");
 }
 
@@ -431,24 +482,37 @@ fn docstore_delete_namespace_removes_only_that_namespace() {
     let rust_doc = store
         .get_doc("proj-del-ns", "rust", "rust-doc-1")
         .expect("get after delete");
-    assert!(rust_doc.is_none(), "rust-doc-1 must be gone after delete_namespace");
+    assert!(
+        rust_doc.is_none(),
+        "rust-doc-1 must be gone after delete_namespace"
+    );
 
     // rust file mapping must be gone
     let rust_paths = store
         .list_tracked_paths("proj-del-ns", "rust")
         .expect("list tracked");
-    assert!(rust_paths.is_empty(), "rust tracked paths must be empty after delete_namespace");
+    assert!(
+        rust_paths.is_empty(),
+        "rust tracked paths must be empty after delete_namespace"
+    );
 
     // csharp doc must NOT be affected
     let cs_doc = store
         .get_doc("proj-del-ns", "csharp", "cs-doc-1")
         .expect("get csharp doc");
-    assert!(cs_doc.is_some(), "csharp doc must survive delete_namespace(rust)");
+    assert!(
+        cs_doc.is_some(),
+        "csharp doc must survive delete_namespace(rust)"
+    );
 
     let cs_paths = store
         .list_tracked_paths("proj-del-ns", "csharp")
         .expect("list csharp tracked");
-    assert_eq!(cs_paths.len(), 1, "csharp tracked paths must survive delete_namespace(rust)");
+    assert_eq!(
+        cs_paths.len(),
+        1,
+        "csharp tracked paths must survive delete_namespace(rust)"
+    );
 }
 
 /// delete_namespace on a non-existent namespace must succeed (idempotent).
@@ -458,7 +522,10 @@ fn docstore_delete_namespace_nonexistent_is_idempotent() {
     let store = open_store(&tmp);
 
     let result = store.delete_namespace("proj-none", "no-such-ns");
-    assert!(result.is_ok(), "delete_namespace of nonexistent namespace must be idempotent");
+    assert!(
+        result.is_ok(),
+        "delete_namespace of nonexistent namespace must be idempotent"
+    );
 }
 
 // ── DS1: corruption-injection tests ──────────────────────────────────────────
@@ -569,8 +636,13 @@ fn docstore_count_after_delete_namespace_reflects_removal() {
         .delete_namespace("proj-recount", "rust")
         .expect("delete rust namespace");
 
-    let after = store.count_docs_for_project("proj-recount").expect("count after");
-    assert_eq!(after, 1, "must have 1 doc remaining after deleting rust namespace; got {after}");
+    let after = store
+        .count_docs_for_project("proj-recount")
+        .expect("count after");
+    assert_eq!(
+        after, 1,
+        "must have 1 doc remaining after deleting rust namespace; got {after}"
+    );
 }
 
 /// DS3: `delete_namespace` must also remove FILE_FINGERPRINT entries for every
@@ -612,11 +684,17 @@ fn ds3_delete_namespace_clears_file_fingerprints() {
 
     // Verify fingerprints exist before deletion.
     assert!(
-        store.get_fingerprint("proj-ds3", "src/main.rs").unwrap().is_some(),
+        store
+            .get_fingerprint("proj-ds3", "src/main.rs")
+            .unwrap()
+            .is_some(),
         "DS3: fingerprint for src/main.rs must exist before delete_namespace"
     );
     assert!(
-        store.get_fingerprint("proj-ds3", "src/lib.rs").unwrap().is_some(),
+        store
+            .get_fingerprint("proj-ds3", "src/lib.rs")
+            .unwrap()
+            .is_some(),
         "DS3: fingerprint for src/lib.rs must exist before delete_namespace"
     );
 
@@ -627,12 +705,18 @@ fn ds3_delete_namespace_clears_file_fingerprints() {
 
     // After deletion, fingerprints must be gone — no stale row accumulation.
     assert!(
-        store.get_fingerprint("proj-ds3", "src/main.rs").unwrap().is_none(),
+        store
+            .get_fingerprint("proj-ds3", "src/main.rs")
+            .unwrap()
+            .is_none(),
         "DS3: delete_namespace must purge the FILE_FINGERPRINT row for src/main.rs; \
          stale fingerprint will bias copy-forward change detection"
     );
     assert!(
-        store.get_fingerprint("proj-ds3", "src/lib.rs").unwrap().is_none(),
+        store
+            .get_fingerprint("proj-ds3", "src/lib.rs")
+            .unwrap()
+            .is_none(),
         "DS3: delete_namespace must purge the FILE_FINGERPRINT row for src/lib.rs; \
          stale fingerprint will bias copy-forward change detection"
     );
@@ -661,7 +745,10 @@ fn ds1_purge_old_generation_removes_stale_keeps_current() {
         .purge_old_generation_docs("ds1-proj", "code", 3)
         .expect("purge_old_generation_docs must succeed");
 
-    assert_eq!(removed, 2, "DS1: must remove exactly 2 stale docs (gen=1 and gen=2)");
+    assert_eq!(
+        removed, 2,
+        "DS1: must remove exactly 2 stale docs (gen=1 and gen=2)"
+    );
 
     // gen=3 must still be readable.
     let surviving = store
@@ -695,11 +782,17 @@ fn ds1_purge_old_generation_noop_when_nothing_stale() {
     let removed = store
         .purge_old_generation_docs("ds1-noop", "code", 5)
         .expect("purge must succeed");
-    assert_eq!(removed, 0, "DS1: nothing stale at generation=5; must remove 0");
+    assert_eq!(
+        removed, 0,
+        "DS1: nothing stale at generation=5; must remove 0"
+    );
 
     // Doc must survive.
     assert!(
-        store.get_doc("ds1-noop", "code", "doc_fresh").unwrap().is_some(),
+        store
+            .get_doc("ds1-noop", "code", "doc_fresh")
+            .unwrap()
+            .is_some(),
         "DS1: doc at current generation must survive purge"
     );
 }
@@ -724,11 +817,17 @@ fn ds1_purge_old_generation_namespace_isolation() {
     let removed = store
         .purge_old_generation_docs("ds1-iso", "code", 2)
         .expect("purge must succeed");
-    assert_eq!(removed, 1, "DS1: only the 'code' namespace doc must be removed");
+    assert_eq!(
+        removed, 1,
+        "DS1: only the 'code' namespace doc must be removed"
+    );
 
     // "memory" namespace doc must still exist.
     assert!(
-        store.get_doc("ds1-iso", "memory", "keeper_doc").unwrap().is_some(),
+        store
+            .get_doc("ds1-iso", "memory", "keeper_doc")
+            .unwrap()
+            .is_some(),
         "DS1: docs in other namespaces must not be affected by purge"
     );
 }
@@ -761,17 +860,27 @@ fn ds3_delete_namespace_preserves_other_namespace_fingerprints() {
         size: 2,
         mtime_ms: 0,
     };
-    store.set_fingerprints("proj-ds3b", &[fp_a, fp_b]).expect("set fps");
+    store
+        .set_fingerprints("proj-ds3b", &[fp_a, fp_b])
+        .expect("set fps");
 
     // Delete ns-a — only a.rs fingerprint should be removed.
-    store.delete_namespace("proj-ds3b", "ns-a").expect("delete ns-a");
+    store
+        .delete_namespace("proj-ds3b", "ns-a")
+        .expect("delete ns-a");
 
     assert!(
-        store.get_fingerprint("proj-ds3b", "a.rs").unwrap().is_none(),
+        store
+            .get_fingerprint("proj-ds3b", "a.rs")
+            .unwrap()
+            .is_none(),
         "DS3: a.rs fingerprint must be removed when ns-a is deleted"
     );
     assert!(
-        store.get_fingerprint("proj-ds3b", "b.rs").unwrap().is_some(),
+        store
+            .get_fingerprint("proj-ds3b", "b.rs")
+            .unwrap()
+            .is_some(),
         "DS3: b.rs fingerprint must survive deletion of ns-a (belongs to ns-b)"
     );
 }
@@ -794,15 +903,24 @@ fn purge_old_generation_reconciles_docs_by_file_mapping() {
     // Gen 1: index doc-a1 for src/a.rs.
     let mut doc_a1 = make_doc("doc-a1", "src/a.rs", "code");
     doc_a1.generation = 1;
-    store.put_doc("proj-purge-map", &doc_a1).expect("put doc-a1");
     store
-        .set_docs_for_file("proj-purge-map", "code", "src/a.rs", &["doc-a1".to_string()])
+        .put_doc("proj-purge-map", &doc_a1)
+        .expect("put doc-a1");
+    store
+        .set_docs_for_file(
+            "proj-purge-map",
+            "code",
+            "src/a.rs",
+            &["doc-a1".to_string()],
+        )
         .expect("set file mapping gen1");
 
     // Gen 2: index doc-a2 for src/a.rs (new generation doc for same file).
     let mut doc_a2 = make_doc("doc-a2", "src/a.rs", "code");
     doc_a2.generation = 2;
-    store.put_doc("proj-purge-map", &doc_a2).expect("put doc-a2");
+    store
+        .put_doc("proj-purge-map", &doc_a2)
+        .expect("put doc-a2");
     store
         .set_docs_for_file(
             "proj-purge-map",
@@ -912,7 +1030,12 @@ fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
     doc_a.generation = 1;
     store.put_doc("proj-sibling", &doc_a).expect("put doc_a");
     store
-        .set_docs_for_file("proj-sibling", "code", "a.rs", &["doc-sibling-a1".to_string()])
+        .set_docs_for_file(
+            "proj-sibling",
+            "code",
+            "a.rs",
+            &["doc-sibling-a1".to_string()],
+        )
         .expect("set a.rs mapping");
 
     // File B: gen 2 (live, must survive).
@@ -920,7 +1043,12 @@ fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
     doc_b.generation = 2;
     store.put_doc("proj-sibling", &doc_b).expect("put doc_b");
     store
-        .set_docs_for_file("proj-sibling", "code", "b.rs", &["doc-sibling-b2".to_string()])
+        .set_docs_for_file(
+            "proj-sibling",
+            "code",
+            "b.rs",
+            &["doc-sibling-b2".to_string()],
+        )
         .expect("set b.rs mapping");
 
     // Purge gen < 2 — only doc_a is stale.
@@ -950,8 +1078,7 @@ fn purge_old_generation_does_not_corrupt_sibling_file_mapping() {
 // We inject corruption by writing raw bytes directly into the Redb table that
 // backs DOC_BY_ID, bypassing the DocStore serialization layer.
 
-const DOC_BY_ID_TABLE: TableDefinition<&str, &[u8]> =
-    TableDefinition::new("doc_by_id");
+const DOC_BY_ID_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("doc_by_id");
 const FILE_FINGERPRINT_TABLE: TableDefinition<&str, &[u8]> =
     TableDefinition::new("file_fingerprint");
 
@@ -1029,14 +1156,16 @@ fn healthy_docs_remain_accessible_when_one_record_is_corrupted() {
     assert!(
         result_b.is_ok(),
         "DS1: healthy doc must be readable even when a sibling record is corrupted; \
-         got: {:?}", result_b.err()
+         got: {:?}",
+        result_b.err()
     );
 
     // doc_a (corrupted) must fail closed.
     let result_a = store.get_doc("proj-mixed", "code", "doc-healthy-a");
     assert!(
         result_a.is_err(),
-        "DS1: corrupted doc must return Err; got Ok({:?})", result_a.ok()
+        "DS1: corrupted doc must return Err; got Ok({:?})",
+        result_a.ok()
     );
 }
 
@@ -1066,7 +1195,8 @@ fn purge_with_corrupted_record_fails_closed_rather_than_skipping() {
     assert!(
         result.is_err(),
         "DS1: purge must fail closed on a corrupted record rather than silently \
-         leaving corrupt bytes in the table; got Ok({:?})", result.ok()
+         leaving corrupt bytes in the table; got Ok({:?})",
+        result.ok()
     );
 }
 
@@ -1082,7 +1212,11 @@ fn ds1_corrupt_list_entry_leaves_healthy_siblings_visible() {
     {
         let store = DocStore::open(&db_path).expect("open");
         for id in ["doc-a", "doc-b", "doc-c"] {
-            store.put_doc("proj-ds1-list", &make_doc(id, &format!("src/{id}.rs"), "code"))
+            store
+                .put_doc(
+                    "proj-ds1-list",
+                    &make_doc(id, &format!("src/{id}.rs"), "code"),
+                )
                 .expect("put_doc must succeed");
         }
     }
@@ -1091,16 +1225,26 @@ fn ds1_corrupt_list_entry_leaves_healthy_siblings_visible() {
     inject_corrupted_doc(&db_path, "proj-ds1-list\x00code\x00doc-a");
 
     let store = DocStore::open(&db_path).expect("reopen");
-    let summaries = store.list_doc_summaries_for_project("proj-ds1-list")
+    let summaries = store
+        .list_doc_summaries_for_project("proj-ds1-list")
         .expect("list_doc_summaries_for_project must not error on corrupt record");
 
     let ids: Vec<&str> = summaries.iter().map(|s| s.doc_id.as_str()).collect();
-    assert!(ids.contains(&"doc-b"),
-        "DS1: doc-b must be visible even though doc-a is corrupt; got: {:?}", ids);
-    assert!(ids.contains(&"doc-c"),
-        "DS1: doc-c must be visible even though doc-a is corrupt; got: {:?}", ids);
-    assert!(!ids.contains(&"doc-a"),
-        "DS1: corrupt doc-a must be skipped in list_doc_summaries; got: {:?}", ids);
+    assert!(
+        ids.contains(&"doc-b"),
+        "DS1: doc-b must be visible even though doc-a is corrupt; got: {:?}",
+        ids
+    );
+    assert!(
+        ids.contains(&"doc-c"),
+        "DS1: doc-c must be visible even though doc-a is corrupt; got: {:?}",
+        ids
+    );
+    assert!(
+        !ids.contains(&"doc-a"),
+        "DS1: corrupt doc-a must be skipped in list_doc_summaries; got: {:?}",
+        ids
+    );
 }
 
 /// DS1: list_doc_summaries_for_project on a project with ALL corrupt records
@@ -1112,7 +1256,11 @@ fn ds1_all_corrupt_list_entries_returns_empty_not_error() {
 
     {
         let store = DocStore::open(&db_path).expect("open");
-        store.put_doc("proj-ds1-allcorrupt", &make_doc("doc-only", "src/x.rs", "code"))
+        store
+            .put_doc(
+                "proj-ds1-allcorrupt",
+                &make_doc("doc-only", "src/x.rs", "code"),
+            )
             .expect("put_doc");
     }
 
@@ -1120,11 +1268,17 @@ fn ds1_all_corrupt_list_entries_returns_empty_not_error() {
 
     let store = DocStore::open(&db_path).expect("reopen");
     let result = store.list_doc_summaries_for_project("proj-ds1-allcorrupt");
-    assert!(result.is_ok(),
+    assert!(
+        result.is_ok(),
         "DS1: list_doc_summaries_for_project must return Ok([]) when all records \
-         are corrupt — skip-not-abort must not become an error; got: {:?}", result.err());
-    assert_eq!(result.unwrap().len(), 0,
-        "DS1: all-corrupt project must return empty list");
+         are corrupt — skip-not-abort must not become an error; got: {:?}",
+        result.err()
+    );
+    assert_eq!(
+        result.unwrap().len(),
+        0,
+        "DS1: all-corrupt project must return empty list"
+    );
 }
 
 // ── DS1 D5: copy-forward fingerprint corruption semantics ─────────────────────
@@ -1143,10 +1297,15 @@ fn inject_corrupted_fingerprint(db_path: &std::path::Path, key: &str) {
     let db = Database::open(db_path).expect("open for fingerprint corruption injection");
     let wtx = db.begin_write().expect("begin_write");
     {
-        let mut t = wtx.open_table(FILE_FINGERPRINT_TABLE).expect("open file_fingerprint table");
+        let mut t = wtx
+            .open_table(FILE_FINGERPRINT_TABLE)
+            .expect("open file_fingerprint table");
         // Bytes that are neither valid bincode nor valid JSON for a FileFingerprint.
-        t.insert(key, b"\xff\xfe\xfd\x00corrupted-fingerprint-garbage".as_slice())
-            .expect("inject fingerprint corruption");
+        t.insert(
+            key,
+            b"\xff\xfe\xfd\x00corrupted-fingerprint-garbage".as_slice(),
+        )
+        .expect("inject fingerprint corruption");
     }
     wtx.commit().expect("commit corruption");
 }
@@ -1162,7 +1321,8 @@ fn ds1_corrupted_fingerprint_causes_get_fingerprint_to_fail_closed() {
 
     {
         let store = DocStore::open(&db_path).expect("open");
-        store.set_fingerprint("proj-fp-corrupt", &make_fingerprint("src/main.rs"))
+        store
+            .set_fingerprint("proj-fp-corrupt", &make_fingerprint("src/main.rs"))
             .expect("set_fingerprint");
     }
 
@@ -1175,7 +1335,8 @@ fn ds1_corrupted_fingerprint_causes_get_fingerprint_to_fail_closed() {
         result.is_err(),
         "DS1-D5: get_fingerprint must return Err for a corrupted record — \
          caller must treat fingerprint error as 'file changed' and re-index; \
-         got: {:?}", result.ok()
+         got: {:?}",
+        result.ok()
     );
 }
 
@@ -1189,9 +1350,11 @@ fn ds1_corrupt_fingerprint_does_not_affect_healthy_sibling() {
 
     {
         let store = DocStore::open(&db_path).expect("open");
-        store.set_fingerprint("proj-fp-sibling", &make_fingerprint("src/corrupt.rs"))
+        store
+            .set_fingerprint("proj-fp-sibling", &make_fingerprint("src/corrupt.rs"))
             .expect("set corrupt fingerprint");
-        store.set_fingerprint("proj-fp-sibling", &make_fingerprint("src/healthy.rs"))
+        store
+            .set_fingerprint("proj-fp-sibling", &make_fingerprint("src/healthy.rs"))
             .expect("set healthy fingerprint");
     }
 
@@ -1203,7 +1366,8 @@ fn ds1_corrupt_fingerprint_does_not_affect_healthy_sibling() {
     let corrupt_result = store.get_fingerprint("proj-fp-sibling", "src/corrupt.rs");
     assert!(
         corrupt_result.is_err(),
-        "DS1-D5: corrupt fingerprint must return Err; got: {:?}", corrupt_result.ok()
+        "DS1-D5: corrupt fingerprint must return Err; got: {:?}",
+        corrupt_result.ok()
     );
 
     // Healthy sibling is unaffected.
@@ -1211,12 +1375,14 @@ fn ds1_corrupt_fingerprint_does_not_affect_healthy_sibling() {
     assert!(
         healthy_result.is_ok(),
         "DS1-D5: healthy fingerprint must be readable even when sibling is corrupt; \
-         got: {:?}", healthy_result.err()
+         got: {:?}",
+        healthy_result.err()
     );
     let fp = healthy_result.unwrap().expect("fingerprint must be Some");
     assert_eq!(
         fp.rel_path, "src/healthy.rs",
-        "DS1-D5: healthy fingerprint rel_path must match; got: {:?}", fp.rel_path
+        "DS1-D5: healthy fingerprint rel_path must match; got: {:?}",
+        fp.rel_path
     );
 }
 
@@ -1228,12 +1394,13 @@ fn ds1_missing_fingerprint_returns_none_indicating_file_is_new() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let store = open_store(&tmp);
 
-    let result = store.get_fingerprint("proj-new", "src/never_indexed.rs")
+    let result = store
+        .get_fingerprint("proj-new", "src/never_indexed.rs")
         .expect("get_fingerprint must not error for missing key");
     assert!(
         result.is_none(),
         "DS1-D5: missing fingerprint must return Ok(None) — file must be treated as new; \
-         got: {:?}", result
+         got: {:?}",
+        result
     );
 }
-

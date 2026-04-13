@@ -10,12 +10,12 @@
 //!  - `get_doc_by_doc_id`
 //!  - `lexical_search` — full FTS query path
 
+use engram_core::RelPath;
 use engram_core::{Config, ProjectRecord, Registry};
 use engram_index::{HybridQuery, HybridSearchEngine, IndexDoc};
-use engram_core::RelPath;
-use tokio_util::sync::CancellationToken;
-use std::sync::Arc;
 use engram_server::state::{AppEvent, AppState};
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +101,9 @@ async fn hybrid_count_docs_zero_before_any_indexing() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let engine = open_engine(&tmp).await;
 
-    let count = engine.count_docs("proj-empty").expect("count_docs must not error");
+    let count = engine
+        .count_docs("proj-empty")
+        .expect("count_docs must not error");
     assert_eq!(count, 0, "empty project must have 0 docs");
 }
 
@@ -123,7 +125,10 @@ async fn hybrid_count_docs_matches_indexed_doc_count() {
         .expect("index_docs must succeed");
 
     let count = engine.count_docs("proj-count").expect("count_docs");
-    assert_eq!(count, 3, "count_docs must return 3 after indexing 3 docs; got {count}");
+    assert_eq!(
+        count, 3,
+        "count_docs must return 3 after indexing 3 docs; got {count}"
+    );
 }
 
 /// count_docs must not count docs from other projects.
@@ -134,7 +139,11 @@ async fn hybrid_count_docs_project_isolation() {
     let cancel = CancellationToken::new();
 
     engine
-        .index_docs("proj-A", &[make_doc("d1", "a.rs", "rust", "fn a() {}")], &cancel)
+        .index_docs(
+            "proj-A",
+            &[make_doc("d1", "a.rs", "rust", "fn a() {}")],
+            &cancel,
+        )
         .await
         .expect("index A");
     engine
@@ -189,12 +198,17 @@ async fn hybrid_count_docs_by_namespace_correct_breakdown() {
         .await
         .expect("index history docs");
 
-    let by_ns = engine.count_docs_by_namespace("proj-ns").expect("count_by_ns");
+    let by_ns = engine
+        .count_docs_by_namespace("proj-ns")
+        .expect("count_by_ns");
     let mem_count = by_ns.get("memory").copied().unwrap_or(0);
     let hist_count = by_ns.get("history").copied().unwrap_or(0);
 
     assert_eq!(mem_count, 2, "must count 2 'memory' docs; got {mem_count}");
-    assert_eq!(hist_count, 1, "must count 1 'history' doc; got {hist_count}");
+    assert_eq!(
+        hist_count, 1,
+        "must count 1 'history' doc; got {hist_count}"
+    );
 }
 
 // ── count_docs_by_language ────────────────────────────────────────────────────
@@ -218,7 +232,9 @@ async fn hybrid_count_docs_by_language_correct_breakdown() {
         .await
         .expect("index");
 
-    let by_lang = engine.count_docs_by_language("proj-lang").expect("count_by_lang");
+    let by_lang = engine
+        .count_docs_by_language("proj-lang")
+        .expect("count_by_lang");
     let rust_count = by_lang.get("rust").copied().unwrap_or(0);
     let cs_count = by_lang.get("csharp").copied().unwrap_or(0);
 
@@ -256,7 +272,12 @@ async fn hybrid_list_docs_for_project_returns_all_docs() {
     let summaries = engine
         .list_docs_for_project("proj-list")
         .expect("list_docs_for_project must not error");
-    assert_eq!(summaries.len(), 2, "must list 2 summaries; got {}", summaries.len());
+    assert_eq!(
+        summaries.len(),
+        2,
+        "must list 2 summaries; got {}",
+        summaries.len()
+    );
 }
 
 /// list_docs_for_project must return empty for an empty project.
@@ -268,7 +289,10 @@ async fn hybrid_list_docs_for_project_empty_returns_empty() {
     let summaries = engine
         .list_docs_for_project("proj-empty-list")
         .expect("must not error");
-    assert!(summaries.is_empty(), "empty project must yield no summaries");
+    assert!(
+        summaries.is_empty(),
+        "empty project must yield no summaries"
+    );
 }
 
 // ── get_doc_by_doc_id ─────────────────────────────────────────────────────────
@@ -280,7 +304,12 @@ async fn hybrid_get_doc_by_doc_id_returns_indexed_doc() {
     let engine = open_engine(&tmp).await;
     let cancel = CancellationToken::new();
 
-    let doc = make_doc("unique-doc-id", "src/handler.rs", "functions", "fn handle() {}");
+    let doc = make_doc(
+        "unique-doc-id",
+        "src/handler.rs",
+        "functions",
+        "fn handle() {}",
+    );
     engine
         .index_docs("proj-getdoc", &[doc], &cancel)
         .await
@@ -342,7 +371,9 @@ async fn hybrid_lexical_search_returns_matching_docs() {
         .expect("index docs");
 
     let q = fts_query("proj-fts", "functions", "payment");
-    let hits = engine.lexical_search(&q).expect("lexical_search must not error");
+    let hits = engine
+        .lexical_search(&q)
+        .expect("lexical_search must not error");
 
     assert!(
         !hits.is_empty(),
@@ -371,7 +402,11 @@ async fn hybrid_lexical_search_no_match_returns_empty() {
         .await
         .expect("index");
 
-    let q = fts_query("proj-nomatch", "functions", "zzz_definitely_not_in_content_xyz");
+    let q = fts_query(
+        "proj-nomatch",
+        "functions",
+        "zzz_definitely_not_in_content_xyz",
+    );
     let hits = engine
         .lexical_search(&q)
         .expect("lexical_search with no match must not error");
@@ -484,7 +519,14 @@ async fn index_docs_accepts_homogeneous_namespace_batch() {
     let cancel = CancellationToken::new();
 
     let docs: Vec<_> = (0..3)
-        .map(|i| make_doc(&format!("doc{i}"), &format!("f{i}.rs"), "memory", "fn x() {}"))
+        .map(|i| {
+            make_doc(
+                &format!("doc{i}"),
+                &format!("f{i}.rs"),
+                "memory",
+                "fn x() {}",
+            )
+        })
         .collect();
 
     let result = engine.index_docs("proj-ns-homo", &docs, &cancel).await;
@@ -502,9 +544,7 @@ async fn index_docs_accepts_homogeneous_namespace_batch() {
 fn vector_search_timeout_is_not_masked_as_empty_result() {
     // Structural regression: verify the hybrid.rs source does not contain
     // Ok(Vec::new()) in the timeout branch, and does contain the audit tag.
-    let source = include_str!(
-        "../../engram_index/src/hybrid.rs"
-    );
+    let source = include_str!("../../engram_index/src/hybrid.rs");
     assert!(
         source.contains("ENG-AUD-2026-S05-0002"),
         "hybrid.rs must contain ENG-AUD-2026-S05-0002 audit tag"
@@ -532,13 +572,41 @@ async fn lexical_search_results_are_identical_across_repeated_calls() {
     let cancel = CancellationToken::new();
 
     let docs = vec![
-        make_doc("s6-doc-gamma", "src/gamma.rs", "functions", "fn process_event() {}"),
-        make_doc("s6-doc-alpha", "src/alpha.rs", "functions", "fn process_event() {}"),
-        make_doc("s6-doc-beta",  "src/beta.rs",  "functions", "fn process_event() {}"),
-        make_doc("s6-doc-delta", "src/delta.rs", "functions", "fn process_event() {}"),
-        make_doc("s6-doc-echo",  "src/echo.rs",  "functions", "fn process_event() {}"),
+        make_doc(
+            "s6-doc-gamma",
+            "src/gamma.rs",
+            "functions",
+            "fn process_event() {}",
+        ),
+        make_doc(
+            "s6-doc-alpha",
+            "src/alpha.rs",
+            "functions",
+            "fn process_event() {}",
+        ),
+        make_doc(
+            "s6-doc-beta",
+            "src/beta.rs",
+            "functions",
+            "fn process_event() {}",
+        ),
+        make_doc(
+            "s6-doc-delta",
+            "src/delta.rs",
+            "functions",
+            "fn process_event() {}",
+        ),
+        make_doc(
+            "s6-doc-echo",
+            "src/echo.rs",
+            "functions",
+            "fn process_event() {}",
+        ),
     ];
-    engine.index_docs("proj-s06-repeat", &docs, &cancel).await.expect("index_docs");
+    engine
+        .index_docs("proj-s06-repeat", &docs, &cancel)
+        .await
+        .expect("index_docs");
 
     let q = fts_query("proj-s06-repeat", "functions", "process_event");
 
@@ -553,7 +621,9 @@ async fn lexical_search_results_are_identical_across_repeated_calls() {
         .collect();
 
     for run in 2..=10 {
-        let result = engine.lexical_search(&q).unwrap_or_else(|_| panic!("search run {run}"));
+        let result = engine
+            .lexical_search(&q)
+            .unwrap_or_else(|_| panic!("search run {run}"));
         let key: Vec<(String, String, u64)> = result
             .iter()
             .map(|h| (h.path.as_str().to_string(), h.doc_id.clone(), h.chunk_id))
@@ -583,14 +653,22 @@ async fn lexical_search_equal_score_docs_sorted_by_path() {
     let same_content = "fn seam_function() { /* identical implementation */ }";
     let docs = vec![
         make_doc("id-charlie", "src/charlie.rs", "functions", same_content),
-        make_doc("id-alpha",   "src/alpha.rs",   "functions", same_content),
-        make_doc("id-bravo",   "src/bravo.rs",   "functions", same_content),
+        make_doc("id-alpha", "src/alpha.rs", "functions", same_content),
+        make_doc("id-bravo", "src/bravo.rs", "functions", same_content),
     ];
-    engine.index_docs("proj-s06-tiebreak", &docs, &cancel).await.expect("index_docs");
+    engine
+        .index_docs("proj-s06-tiebreak", &docs, &cancel)
+        .await
+        .expect("index_docs");
 
     let q = fts_query("proj-s06-tiebreak", "functions", "seam_function");
     let hits = engine.lexical_search(&q).expect("lexical_search");
-    assert_eq!(hits.len(), 3, "must return all 3 equal-score docs; got {}", hits.len());
+    assert_eq!(
+        hits.len(),
+        3,
+        "must return all 3 equal-score docs; got {}",
+        hits.len()
+    );
 
     // All scores must be equal (identical content, identical doc length).
     let scores: Vec<f32> = hits.iter().map(|h| h.score).collect();
@@ -749,9 +827,24 @@ async fn vector_search_projection_backend_returns_nonempty_results() {
 
     let cancel = CancellationToken::new();
     let docs = vec![
-        make_doc("vp-a", "src/auth.rs",    "memory", "fn validate_session(id: &str) -> bool { true }"),
-        make_doc("vp-b", "src/payment.rs", "memory", "fn charge_card(amount: f64) -> Result<(), Error> { Ok(()) }"),
-        make_doc("vp-c", "src/db.rs",      "memory", "fn query_users() -> Vec<User> { vec![] }"),
+        make_doc(
+            "vp-a",
+            "src/auth.rs",
+            "memory",
+            "fn validate_session(id: &str) -> bool { true }",
+        ),
+        make_doc(
+            "vp-b",
+            "src/payment.rs",
+            "memory",
+            "fn charge_card(amount: f64) -> Result<(), Error> { Ok(()) }",
+        ),
+        make_doc(
+            "vp-c",
+            "src/db.rs",
+            "memory",
+            "fn query_users() -> Vec<User> { vec![] }",
+        ),
     ];
     engine
         .index_docs("proj-vp-nonempty", &docs, &cancel)
@@ -806,10 +899,13 @@ async fn upsert_same_docs_twice_does_not_double_the_row_count() {
     let cancel = CancellationToken::new();
 
     // First insert.
-    engine.index_docs(PROJ, &docs, &cancel).await
+    engine
+        .index_docs(PROJ, &docs, &cancel)
+        .await
         .expect("VEC2: first index_docs must succeed");
 
-    let count_after_first = engine.count_docs(PROJ)
+    let count_after_first = engine
+        .count_docs(PROJ)
         .expect("VEC2: count_docs after first insert must succeed");
     assert_eq!(
         count_after_first, N,
@@ -817,10 +913,13 @@ async fn upsert_same_docs_twice_does_not_double_the_row_count() {
     );
 
     // Second insert of the same batch — upsert must overwrite, not duplicate.
-    engine.index_docs(PROJ, &docs, &cancel).await
+    engine
+        .index_docs(PROJ, &docs, &cancel)
+        .await
         .expect("VEC2: second index_docs (idempotent upsert) must succeed");
 
-    let count_after_second = engine.count_docs(PROJ)
+    let count_after_second = engine
+        .count_docs(PROJ)
         .expect("VEC2: count_docs after second insert must succeed");
     assert_eq!(
         count_after_second, N,
@@ -857,7 +956,9 @@ async fn upsert_updated_doc_content_replaces_old_content() {
 
     let cancel = CancellationToken::new();
 
-    engine.index_docs(PROJ, &[doc_v1], &cancel).await
+    engine
+        .index_docs(PROJ, &[doc_v1], &cancel)
+        .await
         .expect("VEC2: insert v1 must succeed");
     let count_v1 = engine.count_docs(PROJ).unwrap();
     assert_eq!(count_v1, 1, "VEC2: exactly 1 doc after v1 insert");
@@ -878,7 +979,9 @@ async fn upsert_updated_doc_content_replaces_old_content() {
         content_hash: "hash-v2".into(),
     };
 
-    engine.index_docs(PROJ, &[doc_v2], &cancel).await
+    engine
+        .index_docs(PROJ, &[doc_v2], &cancel)
+        .await
         .expect("VEC2: update v2 must succeed");
     let count_v2 = engine.count_docs(PROJ).unwrap();
     assert_eq!(
@@ -1182,9 +1285,7 @@ async fn global_mutable_concurrent_writes_last_write_wins() {
                 doc_id: doc_id.clone(),
                 content_hash: format!("hash-{i}"),
             };
-            engine
-                .index_docs(project_id, &[doc], &cancel)
-                .await
+            engine.index_docs(project_id, &[doc], &cancel).await
         }));
     }
 
@@ -1266,9 +1367,7 @@ async fn global_mutable_concurrent_distinct_writes_all_survive() {
                 doc_id: format!("insight-key-{i}"),
                 content_hash: format!("hash-distinct-{i}"),
             };
-            engine
-                .index_docs(project_id, &[doc], &cancel)
-                .await
+            engine.index_docs(project_id, &[doc], &cancel).await
         }));
     }
 
@@ -1395,12 +1494,14 @@ async fn lexical_and_hybrid_search_complete_within_bounded_time() {
 
     // Index 50 docs to give the query a real workload.
     let docs: Vec<_> = (0..50)
-        .map(|i| make_doc(
-            &format!("doc-{i:03}"),
-            &format!("src/file_{i:03}.rs"),
-            "code",
-            &format!("fn function_{i}() {{ let x = {i}; x + {i} }}"),
-        ))
+        .map(|i| {
+            make_doc(
+                &format!("doc-{i:03}"),
+                &format!("src/file_{i:03}.rs"),
+                "code",
+                &format!("fn function_{i}() {{ let x = {i}; x + {i} }}"),
+            )
+        })
         .collect();
     engine.index_docs("slo-proj", &docs, &cancel).await.unwrap();
 
@@ -1419,7 +1520,11 @@ async fn lexical_and_hybrid_search_complete_within_bounded_time() {
     );
 
     // Full search path (lexical + vector merge) must also complete within SLO.
-    let search_result = timeout(SLO, engine.search(&q, None, &tokio_util::sync::CancellationToken::new())).await;
+    let search_result = timeout(
+        SLO,
+        engine.search(&q, None, &tokio_util::sync::CancellationToken::new()),
+    )
+    .await;
     assert!(
         search_result.is_ok(),
         "CANCEL1-v4q8: search must complete within {SLO:?} on a 50-doc index; \
@@ -1482,7 +1587,10 @@ async fn full_reindex_required_event_is_receivable_on_channel() {
     });
 
     // The receiver must get the event.
-    let event = rx.recv().await.expect("must receive FullReindexRequired event");
+    let event = rx
+        .recv()
+        .await
+        .expect("must receive FullReindexRequired event");
     match event {
         AppEvent::FullReindexRequired { project_id } => {
             assert_eq!(
@@ -1490,9 +1598,7 @@ async fn full_reindex_required_event_is_receivable_on_channel() {
                 "project_id must match what was sent"
             );
         }
-        other => panic!(
-            "expected FullReindexRequired, got {other:?}"
-        ),
+        other => panic!("expected FullReindexRequired, got {other:?}"),
     }
 }
 
@@ -1549,10 +1655,7 @@ fn clear_reindex_required_restores_healthy_state() {
     reg.set_reindex_required("proj-vec1-recovery", 5_000_000)
         .expect("set_reindex_required must succeed");
 
-    let degraded = reg
-        .get_project("proj-vec1-recovery")
-        .unwrap()
-        .unwrap();
+    let degraded = reg.get_project("proj-vec1-recovery").unwrap().unwrap();
     assert!(
         degraded.reindex_required_since_ms.is_some(),
         "precondition: reindex flag must be set"
@@ -1562,10 +1665,7 @@ fn clear_reindex_required_restores_healthy_state() {
     reg.clear_reindex_required("proj-vec1-recovery")
         .expect("clear_reindex_required must succeed");
 
-    let healthy = reg
-        .get_project("proj-vec1-recovery")
-        .unwrap()
-        .unwrap();
+    let healthy = reg.get_project("proj-vec1-recovery").unwrap().unwrap();
     assert!(
         healthy.reindex_required_since_ms.is_none(),
         "reindex_required_since_ms must be None after clear_reindex_required — \
@@ -1776,7 +1876,10 @@ async fn vec1_lifecycle_index_reindex_required_flag_clear_search_restored() {
         "VEC1: must index at least one file/chunk in generation 1"
     );
     let count_gen1 = engine.count_docs(PROJ).unwrap();
-    assert!(count_gen1 > 0, "VEC1: docs must be present after generation 1 index");
+    assert!(
+        count_gen1 > 0,
+        "VEC1: docs must be present after generation 1 index"
+    );
 
     // Step 2: Simulate schema mismatch — set the reindex_required flag.
     reg.set_reindex_required(PROJ, 9_000_000).unwrap();
@@ -1864,25 +1967,26 @@ fn upsert_vectors_calls_merge_insert_exactly_once() {
 /// VEC1/PRE-IMAGE: structural proof that `open_or_create_table` captures the row count
 /// before dropping a schema-mismatched table.
 ///
-/// The `Recreated` outcome carries `prior_row_count: u64` — captured immediately
-/// before `conn.drop_table()`.  This gives operators an observable data-loss metric
-/// and is the foundation for future dual-write migration.  Without this capture,
-/// a recreation of an empty table looks identical to one that destroyed 500 000 rows.
+/// The `Recreated` outcome carries `prior_row_count: Option<u64>` — captured immediately
+/// before `conn.drop_table()`.  `Some(n)` gives operators the exact data-loss metric;
+/// `None` signals that count_rows itself failed so magnitude is unknown (non-zero assumed).
+/// Without this capture, a recreation of an empty table looks identical to one that
+/// destroyed 500 000 rows.
 #[test]
 fn open_or_create_table_recreated_variant_carries_prior_row_count() {
     let source = include_str!("../../engram_index/src/vector.rs");
 
-    // The Recreated variant must include prior_row_count.
+    // The Recreated variant must include prior_row_count (now Option<u64>).
     assert!(
-        source.contains("prior_row_count: u64"),
-        "VEC1/PRE-IMAGE: TableOpenOutcome::Recreated must carry prior_row_count: u64 \
-         so callers have an observable data-loss metric; without it, schema-mismatch \
-         data loss is silent regardless of row count"
+        source.contains("prior_row_count: Option<u64>"),
+        "VEC1/PRE-IMAGE: TableOpenOutcome::Recreated must carry prior_row_count: Option<u64> \
+         so callers have an observable data-loss metric; None means count_rows failed and \
+         loss magnitude is unknown; without this field schema-mismatch data loss is silent"
     );
 
     // count_rows must be called before drop_table to capture the pre-drop state.
     let count_pos = source.find("count_rows(None)").unwrap_or(usize::MAX);
-    let drop_pos  = source.find("drop_table(name").unwrap_or(usize::MAX);
+    let drop_pos = source.find("drop_table(name").unwrap_or(usize::MAX);
     assert!(
         count_pos < drop_pos,
         "VEC1/PRE-IMAGE: count_rows() must appear before drop_table() in \
@@ -1925,7 +2029,9 @@ fn upsert_vectors_propagates_execute_error_not_swallowed() {
     let sig_start2 = source
         .find("pub async fn upsert_vectors")
         .expect("VEC1/PROPAGATE: upsert_vectors must exist in vector.rs");
-    let brace_offset2 = source[sig_start2..].find('{').expect("upsert_vectors must have body");
+    let brace_offset2 = source[sig_start2..]
+        .find('{')
+        .expect("upsert_vectors must have body");
     let fn_start2 = sig_start2 + brace_offset2;
     let fn_body = &source[fn_start2..fn_start2 + 600.min(source.len() - fn_start2)];
 
@@ -1965,15 +2071,19 @@ fn vec2_tantivy_commit_precedes_vector_upsert_in_index_docs() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // Find the index_docs function.
-    let fn_start = src.find("fn index_docs").expect("index_docs must exist in hybrid.rs");
+    let fn_start = src
+        .find("fn index_docs")
+        .expect("index_docs must exist in hybrid.rs");
     let fn_body = &src[fn_start..];
 
     // Find first writer.commit() in the function.
-    let commit_pos = fn_body.find("writer.commit()")
+    let commit_pos = fn_body
+        .find("writer.commit()")
         .expect("VEC2: index_docs must call writer.commit() for Tantivy");
 
     // Find upsert_vectors call (the vector write path).
-    let upsert_pos = fn_body.find("upsert_vectors")
+    let upsert_pos = fn_body
+        .find("upsert_vectors")
         .expect("VEC2: index_docs must call upsert_vectors for vector upsert");
 
     assert!(
@@ -1991,7 +2101,8 @@ fn vec2_recreated_table_outcome_triggers_bail() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // Find the Recreated arm handling.
-    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+    let recreated_pos = src
+        .find("TableOpenOutcome::Recreated")
         .expect("VEC2: hybrid.rs must handle TableOpenOutcome::Recreated");
 
     let after_recreated = &src[recreated_pos..recreated_pos + 1500.min(src.len() - recreated_pos)];
@@ -2012,7 +2123,8 @@ fn vec2_recreated_table_outcome_triggers_bail() {
 fn x1_recreated_error_message_includes_divergence_context() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+    let recreated_pos = src
+        .find("TableOpenOutcome::Recreated")
         .expect("X1: hybrid.rs must handle TableOpenOutcome::Recreated");
     // Look for the bail! string which is right after the Recreated match arm.
     let after = &src[recreated_pos..recreated_pos + 1800.min(src.len() - recreated_pos)];
@@ -2020,7 +2132,8 @@ fn x1_recreated_error_message_includes_divergence_context() {
     assert!(
         after.contains("table_name") || after.contains("{table_name}"),
         "X1: Recreated error message must include table_name for operator diagnosis; \
-         context: {:?}", &after[..200.min(after.len())]
+         context: {:?}",
+        &after[..200.min(after.len())]
     );
     assert!(
         after.contains("prior_row_count") || after.contains("vectors were lost"),
@@ -2041,7 +2154,8 @@ fn x2_embed_guard_explicitly_dropped_before_embed_await() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // Find the explicit drop of the embed guard.
-    let drop_pos = src.find("drop(_embed_guard)")
+    let drop_pos = src
+        .find("drop(_embed_guard)")
         .expect("X2: hybrid.rs must explicitly drop _embed_guard before remote embed await");
 
     // embed_batch_cancellable must come AFTER the drop.
@@ -2070,7 +2184,7 @@ fn x2_embed_guard_explicitly_dropped_before_embed_await() {
 /// regardless of the input generation value. This is the clamping contract.
 #[test]
 fn ns1_global_mutable_generation_clamped_to_zero() {
-    use engram_core::{build_pk, get_policy, NamespaceVersioning};
+    use engram_core::{NamespaceVersioning, build_pk, get_policy};
 
     // Find a namespace that is GlobalMutable.
     let global_ns = "business_logic"; // Known GlobalMutable namespace from namespaces.rs.
@@ -2116,7 +2230,9 @@ fn ns1_concurrent_global_mutable_writes_produce_same_pk() {
         })
         .collect();
 
-    for h in handles { h.join().unwrap(); }
+    for h in handles {
+        h.join().unwrap();
+    }
 
     let all_pks = pks.lock().unwrap();
     // All 8 concurrent writes must produce identical PKs (all clamped to gen=0).
@@ -2139,7 +2255,8 @@ fn ns1_concurrent_global_mutable_writes_produce_same_pk() {
 fn vec1_recreated_bail_error_carries_reindex_directive() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    let recreated_pos = src.find("TableOpenOutcome::Recreated")
+    let recreated_pos = src
+        .find("TableOpenOutcome::Recreated")
         .expect("VEC1: hybrid.rs must handle TableOpenOutcome::Recreated");
 
     // Scan a generous window for the bail! message content.
@@ -2148,7 +2265,8 @@ fn vec1_recreated_bail_error_carries_reindex_directive() {
     assert!(
         window.contains("re-index") || window.contains("reindex") || window.contains("re_index"),
         "VEC1: bail! message after Recreated must direct callers to schedule a re-index; \
-         window: {:?}", &window[..200.min(window.len())]
+         window: {:?}",
+        &window[..200.min(window.len())]
     );
 }
 
@@ -2160,7 +2278,8 @@ fn vec1_index_docs_caller_propagates_error_with_question_mark() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // Find index_docs CALL site (not the definition) — look for .index_docs( or self.index_docs(
-    let index_call_pos = src.find(".index_docs(")
+    let index_call_pos = src
+        .find(".index_docs(")
         .or_else(|| src.find("self.index_docs("))
         .expect("VEC1: hybrid.rs must contain a .index_docs() call site");
 
@@ -2169,7 +2288,8 @@ fn vec1_index_docs_caller_propagates_error_with_question_mark() {
     assert!(
         after_call.contains("?") || after_call.contains(".await?"),
         "VEC1: index_docs call must be propagated with `?` so Recreated errors \
-         reach the job runner; found: {:?}", &after_call[..80.min(after_call.len())]
+         reach the job runner; found: {:?}",
+        &after_call[..80.min(after_call.len())]
     );
 }
 
@@ -2203,11 +2323,13 @@ fn fts1_deeply_nested_group_pattern_bounded_by_length_cap() {
 
     // Deeply nested groups are caught by the length cap.
     // A pattern like ((((....((a)...)))) grows linearly in length.
-    let max_len_pos = src.find("MAX_REGEX_PATTERN_LEN")
+    let max_len_pos = src
+        .find("MAX_REGEX_PATTERN_LEN")
         .expect("FTS1: MAX_REGEX_PATTERN_LEN must exist in hybrid.rs");
 
     // The length check must appear BEFORE the parse call.
-    let parse_pos = src.find("RegexQuery::from_pattern")
+    let parse_pos = src
+        .find("RegexQuery::from_pattern")
         .or_else(|| src.find("parse_query"))
         .or_else(|| src.find("RegexQuery::"))
         .unwrap_or(src.len());
@@ -2226,7 +2348,8 @@ fn fts1_unknown_fts_mode_produces_fail_closed_error() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // The unknown mode arm must use bail! not a silent default fallback.
-    let unknown_pos = src.find("unknown =>")
+    let unknown_pos = src
+        .find("unknown =>")
         .or_else(|| src.find("_ =>"))
         .expect("FTS1: hybrid.rs lexical_search must have an unknown/catch-all mode arm");
 
@@ -2234,7 +2357,8 @@ fn fts1_unknown_fts_mode_produces_fail_closed_error() {
     assert!(
         after_unknown.contains("bail!") || after_unknown.contains("return Err"),
         "FTS1: unknown fts_mode arm must bail!/return Err — no silent fallback; \
-         context: {:?}", &after_unknown[..100.min(after_unknown.len())]
+         context: {:?}",
+        &after_unknown[..100.min(after_unknown.len())]
     );
 }
 
@@ -2248,7 +2372,8 @@ fn x1_index_docs_returns_result_for_error_propagation() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // index_docs signature must declare Result return type.
-    let fn_pos = src.find("fn index_docs(")
+    let fn_pos = src
+        .find("fn index_docs(")
         .or_else(|| src.find("async fn index_docs("))
         .expect("X1: index_docs must exist in hybrid.rs");
 
@@ -2256,7 +2381,8 @@ fn x1_index_docs_returns_result_for_error_propagation() {
     assert!(
         sig_window.contains("-> Result") || sig_window.contains("-> anyhow::Result"),
         "X1: index_docs must return Result<_, Error> to propagate Recreated bail! \
-         to the job runner; sig: {:?}", &sig_window[..100.min(sig_window.len())]
+         to the job runner; sig: {:?}",
+        &sig_window[..100.min(sig_window.len())]
     );
 }
 
@@ -2314,7 +2440,9 @@ fn mig1_handler_serializes_completeness_to_response() {
 
     // Handler must reference report_is_complete in its response formatting.
     assert!(
-        src.contains("report_is_complete") || src.contains("is_complete") || src.contains("degraded"),
+        src.contains("report_is_complete")
+            || src.contains("is_complete")
+            || src.contains("degraded"),
         "MIG1: migration_tools.rs handler must surface completeness information \
          (report_is_complete / degraded) in the response so API callers can detect \
          partial analysis and decide whether to trust results"
@@ -2331,13 +2459,15 @@ fn vec1_job_runner_records_failure_on_recreated_error() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // The function containing index_docs must use `?` to propagate the error.
-    let fn_pos = src.find("async fn ingest_batch(")
+    let fn_pos = src
+        .find("async fn ingest_batch(")
         .or_else(|| src.find("pub async fn ingest("))
         .or_else(|| src.find("pub fn ingest_batch("))
         .unwrap_or(0);
 
     // Search for a .index_docs( call site (not the fn definition) in the function or whole file.
-    let idx_call = src[fn_pos..].find(".index_docs(")
+    let idx_call = src[fn_pos..]
+        .find(".index_docs(")
         .or_else(|| src.find(".index_docs("));
 
     if let Some(rel) = idx_call {
@@ -2346,7 +2476,8 @@ fn vec1_job_runner_records_failure_on_recreated_error() {
         assert!(
             context.contains("?") || context.contains("await?"),
             "VEC1: index_docs call must propagate errors with ? so Recreated bail! \
-             reaches job runner; found: {:?}", &context[..60.min(context.len())]
+             reaches job runner; found: {:?}",
+            &context[..60.min(context.len())]
         );
     }
 }
@@ -2361,7 +2492,8 @@ fn fts1_regex_mode_error_propagates_with_context() {
 
     // The regex parse call must use ? to propagate errors upward.
     // Use `"regex" =>` to find the match arm specifically, not the struct field comment.
-    let regex_pos = src.find("\"regex\" =>")
+    let regex_pos = src
+        .find("\"regex\" =>")
         .expect("FTS1: hybrid.rs must have a \"regex\" => match arm");
 
     let after_regex = &src[regex_pos..regex_pos + 800.min(src.len() - regex_pos)];
@@ -2383,7 +2515,8 @@ fn fts1_regex_mode_error_propagates_with_context() {
 fn vec1_recreated_table_bail_includes_prior_row_count_for_operator_visibility() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    let bail_pos = src.find("VEC1: vector table")
+    let bail_pos = src
+        .find("VEC1: vector table")
         .or_else(|| src.find("Recreated"))
         .expect("VEC1: hybrid.rs must have a VEC1/Recreated error path");
 
@@ -2404,11 +2537,13 @@ fn x1_tantivy_commit_precedes_vector_recreate_bail_in_index_docs() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // Find the commit() call in the lexical write path.
-    let commit_pos = src.find("writer.commit()")
+    let commit_pos = src
+        .find("writer.commit()")
         .expect("X1: hybrid.rs must call writer.commit() for Tantivy");
 
     // The Recreated bail! must come AFTER the commit.
-    let recreate_pos = src.find("Recreated")
+    let recreate_pos = src
+        .find("Recreated")
         .expect("X1: hybrid.rs must handle TableOpenOutcome::Recreated");
 
     assert!(
@@ -2428,7 +2563,8 @@ fn ns1_build_pk_clamps_global_mutable_generation_to_zero() {
     let src = include_str!("../../engram_core/src/ids.rs");
 
     // build_pk must exist.
-    let fn_pos = src.find("fn build_pk(")
+    let fn_pos = src
+        .find("fn build_pk(")
         .expect("NS1: ids.rs must define build_pk");
 
     let body = &src[fn_pos..fn_pos + 800.min(src.len() - fn_pos)];
@@ -2443,7 +2579,8 @@ fn ns1_build_pk_clamps_global_mutable_generation_to_zero() {
     assert!(
         body.contains("0"),
         "NS1: build_pk must use generation=0 for GlobalMutable — \
-         this is intentional last-write-wins; found: {:?}", &body[..200.min(body.len())]
+         this is intentional last-write-wins; found: {:?}",
+        &body[..200.min(body.len())]
     );
 }
 
@@ -2454,16 +2591,21 @@ fn ns1_fallback_pk_uses_same_separator_as_build_pk() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // The fallback format! must use ':' separator.
-    let fallback_pos = src.find("NS1: the fallback key")
+    let fallback_pos = src
+        .find("NS1: the fallback key")
         .or_else(|| src.find("NS1: fallback"))
         .expect("NS1: hybrid.rs fallback PK must have an NS1 comment");
 
     let window = &src[fallback_pos..fallback_pos + 400.min(src.len() - fallback_pos)];
     assert!(
-        window.contains("':'") || window.contains("separator") || window.contains("\":\"")
-            || window.contains("{}:{}") || window.contains("colon"),
+        window.contains("':'")
+            || window.contains("separator")
+            || window.contains("\":\"")
+            || window.contains("{}:{}")
+            || window.contains("colon"),
         "NS1: fallback PK comment/format must document ':' separator matching build_pk; \
-         window: {:?}", &window[..200.min(window.len())]
+         window: {:?}",
+        &window[..200.min(window.len())]
     );
 }
 
@@ -2486,13 +2628,16 @@ fn mig1_report_completeness_bit_is_coupled_to_degraded_sections() {
     );
 
     // The completeness computation must reference degraded_sections.
-    let complete_pos = src.find("report_is_complete")
+    let complete_pos = src
+        .find("report_is_complete")
         .expect("MIG1: report_is_complete must exist");
     // Find where report_is_complete is SET (not just declared).
     // The assignment should be after the degraded_sections collection.
-    let _degraded_pos = src.rfind("degraded_sections")
+    let _degraded_pos = src
+        .rfind("degraded_sections")
         .expect("MIG1: degraded_sections must exist");
-    let complete_assign = src[complete_pos..].find("report_is_complete:")
+    let complete_assign = src[complete_pos..]
+        .find("report_is_complete:")
         .or_else(|| src[complete_pos..].find("report_is_complete ="));
     let _ = complete_assign; // structural — the fields must co-exist in the struct
 
@@ -2515,8 +2660,14 @@ fn mig1_graph_query_helpers_both_register_degraded_context() {
     let src = include_str!("../../engram_server/src/services/full_project_migration_service.rs");
 
     // Both helpers must exist.
-    assert!(src.contains("fn edges_or_warn("), "MIG1: edges_or_warn helper must exist");
-    assert!(src.contains("fn nodes_or_warn("), "MIG1: nodes_or_warn helper must exist");
+    assert!(
+        src.contains("fn edges_or_warn("),
+        "MIG1: edges_or_warn helper must exist"
+    );
+    assert!(
+        src.contains("fn nodes_or_warn("),
+        "MIG1: nodes_or_warn helper must exist"
+    );
 
     // Both must record the degraded context.
     let edges_pos = src.find("fn edges_or_warn(").expect("MIG1: edges_or_warn");
@@ -2543,13 +2694,31 @@ fn mig1_graph_query_helpers_both_register_degraded_context() {
 #[test]
 fn reg1_all_handler_files_reference_project_id_validation() {
     let handlers: &[(&str, &str)] = &[
-        ("cognitive_tools.rs",    include_str!("../src/handlers/cognitive_tools.rs")),
-        ("project_tools.rs",      include_str!("../src/handlers/project_tools.rs")),
-        ("search_tools.rs",       include_str!("../src/handlers/search_tools.rs")),
-        ("git_tools.rs",          include_str!("../src/handlers/git_tools.rs")),
-        ("graph_tools.rs",        include_str!("../src/handlers/graph_tools.rs")),
-        ("migration_tools.rs",    include_str!("../src/handlers/migration_tools.rs")),
-        ("access_layer_tools.rs", include_str!("../src/handlers/access_layer_tools.rs")),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
+        (
+            "access_layer_tools.rs",
+            include_str!("../src/handlers/access_layer_tools.rs"),
+        ),
     ];
 
     for (name, src) in handlers {
@@ -2578,8 +2747,10 @@ fn adp1_gate_evaluation_order_is_documented_in_source() {
     let src = include_str!("../../engram_server/src/services/autonomous_decision_service.rs");
 
     // The gate order must be explicit (numbered comments or sequential match arms).
-    let has_order = src.contains("gate_1") || src.contains("gate1")
-        || src.contains("// 1.") || src.contains("// Gate 1")
+    let has_order = src.contains("gate_1")
+        || src.contains("gate1")
+        || src.contains("// 1.")
+        || src.contains("// Gate 1")
         || src.contains("evaluate_gates");
     assert!(
         has_order,
@@ -2620,7 +2791,8 @@ fn ns1_fallback_pk_is_only_in_rrf_merge_context_not_in_write_paths() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
     // The NS1 comment explicitly documents non-persistence of the fallback key.
-    let doc_pos = src.find("not stored to any index")
+    let doc_pos = src
+        .find("not stored to any index")
         .or_else(|| src.find("only used for\nRRF"))
         .or_else(|| src.find("only used for"))
         .expect("NS1: hybrid.rs must document that fallback PK is not stored to index");
@@ -2630,7 +2802,8 @@ fn ns1_fallback_pk_is_only_in_rrf_merge_context_not_in_write_paths() {
     assert!(
         window.contains("format!(") || window.contains("hit.pk"),
         "NS1: fallback PK construction must be adjacent to its non-persistence doc comment; \
-         window: {:?}", &window[..200.min(window.len())]
+         window: {:?}",
+        &window[..200.min(window.len())]
     );
 }
 
@@ -2643,7 +2816,9 @@ fn ns1_fallback_pk_construction_is_not_in_write_paths() {
 
     // The fallback format: "{}:{}:{}" with path+chunk_id+doc_id
     // Find ALL occurrences of this pattern.
-    let fallback_pattern_count = src.matches("hit.path.as_str(), hit.chunk_id, hit.doc_id").count();
+    let fallback_pattern_count = src
+        .matches("hit.path.as_str(), hit.chunk_id, hit.doc_id")
+        .count();
     assert!(
         fallback_pattern_count > 0,
         "NS1: hybrid.rs must contain fallback pk format; expected \
@@ -2669,7 +2844,8 @@ fn ns1_fallback_pk_construction_is_not_in_write_paths() {
             !near_write,
             "NS1: fallback PK construction must not appear in write paths; \
              found write-path keyword near occurrence at offset {abs_idx}; \
-             window: {:?}", &window[..200.min(window.len())]
+             window: {:?}",
+            &window[..200.min(window.len())]
         );
         pos = abs_idx + 1;
     }

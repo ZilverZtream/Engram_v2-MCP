@@ -171,10 +171,8 @@ fn zip_history_core(
                 }
 
                 let mut hasher = blake3::Hasher::new();
-                let mut limited = std::io::Read::take(
-                    &mut f,
-                    MAX_ENTRY_UNCOMPRESSED_BYTES.saturating_add(1),
-                );
+                let mut limited =
+                    std::io::Read::take(&mut f, MAX_ENTRY_UNCOMPRESSED_BYTES.saturating_add(1));
                 let copied = std::io::copy(&mut limited, &mut hasher)?;
                 if copied > MAX_ENTRY_UNCOMPRESSED_BYTES {
                     skipped_entries += 1;
@@ -609,7 +607,9 @@ impl Engram {
 
         // X5: increment active_indexing_count so GC skips purge ticks while
         // git history indexing is in flight — mirrors the project_tools pattern.
-        state.active_indexing_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        state
+            .active_indexing_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let state_for_decrement = state.clone();
 
         let handle = tokio::spawn(async move {
@@ -617,7 +617,9 @@ impl Engram {
             struct ActiveGuard(crate::state::AppState);
             impl Drop for ActiveGuard {
                 fn drop(&mut self) {
-                    self.0.active_indexing_count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    self.0
+                        .active_indexing_count
+                        .fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
                 }
             }
             let _active_guard = ActiveGuard(state_for_decrement);
@@ -1232,14 +1234,18 @@ impl Engram {
             // of sync rather than silently returning success with stale state.
             tokio::task::spawn_blocking(move || graph.upsert_edges(&pid, &ap_edges))
                 .await
-                .map_err(|e| McpError::internal_error(
-                    format!("spawn_blocking join error persisting anti-pattern edges: {e}"),
-                    None,
-                ))?
-                .map_err(|e| McpError::internal_error(
-                    format!("failed to persist anti-pattern edges to graph: {e:#}"),
-                    None,
-                ))?;
+                .map_err(|e| {
+                    McpError::internal_error(
+                        format!("spawn_blocking join error persisting anti-pattern edges: {e}"),
+                        None,
+                    )
+                })?
+                .map_err(|e| {
+                    McpError::internal_error(
+                        format!("failed to persist anti-pattern edges to graph: {e:#}"),
+                        None,
+                    )
+                })?;
         }
 
         // Record metrics

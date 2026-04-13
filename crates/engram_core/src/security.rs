@@ -83,10 +83,11 @@ impl PathContext {
                             // in the unresolved suffix can point outside allowed_roots even
                             // though the lexical `starts_with` check below would pass.
                             //
-                            // SEC1-TOCTOU: call symlink_metadata directly without a preceding
-                            // `exists()` check. NotFound or any other error means the
-                            // component is not a symlink — treat both Ok(non-symlink) and Err
-                            // as "safe to continue".
+                            // SEC1-c2de10: call symlink_metadata directly without a preceding
+                            // `exists()` check. NotFound means the component does not yet exist
+                            // and is safe to continue. Any other error (PermissionDenied, I/O
+                            // failure) means we cannot safely verify the component — fail closed
+                            // rather than silently accepting a potentially unsafe path.
                             let mut partial = canon_ancestor.clone();
                             for component in suffix.components() {
                                 partial.push(component);
@@ -96,7 +97,13 @@ impl PathContext {
                                             "cannot access {input:?}: symlink in unresolved path component {partial:?}"
                                         )));
                                     }
-                                    Ok(_) | Err(_) => {}
+                                    Ok(_) => {}
+                                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                                    Err(e) => {
+                                        return Err(EngramError::PathNotAllowed(format!(
+                                            "cannot access {input:?}: unable to verify path component {partial:?}: {e}"
+                                        )));
+                                    }
                                 }
                             }
                             break Ok(canon_ancestor.join(&suffix));
@@ -181,11 +188,30 @@ fn is_windows_reserved_name(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or(name);
     matches!(
         stem.to_ascii_uppercase().as_str(),
-        "CON" | "PRN" | "AUX" | "NUL"
-            | "COM0" | "COM1" | "COM2" | "COM3" | "COM4"
-            | "COM5" | "COM6" | "COM7" | "COM8" | "COM9"
-            | "LPT0" | "LPT1" | "LPT2" | "LPT3" | "LPT4"
-            | "LPT5" | "LPT6" | "LPT7" | "LPT8" | "LPT9"
+        "CON"
+            | "PRN"
+            | "AUX"
+            | "NUL"
+            | "COM0"
+            | "COM1"
+            | "COM2"
+            | "COM3"
+            | "COM4"
+            | "COM5"
+            | "COM6"
+            | "COM7"
+            | "COM8"
+            | "COM9"
+            | "LPT0"
+            | "LPT1"
+            | "LPT2"
+            | "LPT3"
+            | "LPT4"
+            | "LPT5"
+            | "LPT6"
+            | "LPT7"
+            | "LPT8"
+            | "LPT9"
     )
 }
 
@@ -393,9 +419,8 @@ pub fn safe_read_to_string(base_dir: &Path, sub_path: &str) -> Result<String> {
     use std::io::Read as _;
     let mut file = safe_open_read(base_dir, sub_path)?;
     let mut content = String::new();
-    file.read_to_string(&mut content).map_err(|e| {
-        EngramError::PathNotAllowed(format!("read error for {sub_path:?}: {e}"))
-    })?;
+    file.read_to_string(&mut content)
+        .map_err(|e| EngramError::PathNotAllowed(format!("read error for {sub_path:?}: {e}")))?;
     Ok(content)
 }
 
@@ -417,7 +442,11 @@ pub fn validate_key_component(name: &str, value: &str) -> std::result::Result<()
     // so ':' is safe there.  The build_pk composite key (colon-delimited) is
     // protected separately: project_id is validated via `validate_project_id` to
     // [A-Za-z0-9_-] (no ':'), and doc_id is blake3-hex (no ':').
-    for (ch, label) in [('\0', "NUL byte"), ('\n', "newline"), ('\r', "carriage-return")] {
+    for (ch, label) in [
+        ('\0', "NUL byte"),
+        ('\n', "newline"),
+        ('\r', "carriage-return"),
+    ] {
         if value.contains(ch) {
             return Err(format!(
                 "ENG-AUD-2026-S09-001: key component '{name}' contains {label} — this would corrupt composite keys. \
@@ -582,7 +611,12 @@ mod tests {
         );
 
         // Ordinary names that look like device prefixes must pass.
-        for name in ["console.log", "printer.txt", "nullify.rs", "communication.md"] {
+        for name in [
+            "console.log",
+            "printer.txt",
+            "nullify.rs",
+            "communication.md",
+        ] {
             assert!(
                 safe_join(base, name).is_ok(),
                 "SEC2-c91d0b: safe_join must allow ordinary name '{name}' that starts like a device name"
@@ -593,7 +627,9 @@ mod tests {
     /// SEC2-c91d0b: is_windows_reserved_name must be case-insensitive.
     #[test]
     fn windows_reserved_name_check_is_case_insensitive() {
-        for name in ["nul", "NUL", "Nul", "con", "CON", "com1", "COM1", "lpt1", "LPT1"] {
+        for name in [
+            "nul", "NUL", "Nul", "con", "CON", "com1", "COM1", "lpt1", "LPT1",
+        ] {
             assert!(
                 is_windows_reserved_name(name),
                 "SEC2-c91d0b: '{name}' must be detected as a Windows reserved name"
@@ -609,7 +645,10 @@ mod tests {
         let base = tmp.path();
         std::fs::write(base.join("hello.txt"), "world").unwrap();
         let file = safe_open_read(base, "hello.txt");
-        assert!(file.is_ok(), "safe_open_read should succeed for a real file");
+        assert!(
+            file.is_ok(),
+            "safe_open_read should succeed for a real file"
+        );
     }
 
     #[test]
@@ -679,7 +718,8 @@ mod tests {
         // Should succeed lexically (the path doesn't exist, but that's OK)
         assert!(
             result.is_ok(),
-            "nonexistent path must be accepted (NotFound is safe): {:?}", result
+            "nonexistent path must be accepted (NotFound is safe): {:?}",
+            result
         );
     }
 
@@ -863,7 +903,8 @@ mod tests {
         );
         // The old value 64 must not appear as the canonical depth constant assignment.
         // (It may still appear in other contexts like MAX_ANCESTOR_DEPTH.)
-        let max_canonical_line = source.lines()
+        let max_canonical_line = source
+            .lines()
             .find(|l| l.contains("MAX_CANONICAL_DEPTH") && l.contains("=") && l.contains("usize"));
         if let Some(line) = max_canonical_line {
             assert!(

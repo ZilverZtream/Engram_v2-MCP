@@ -918,7 +918,10 @@ Public Sub Load()
 End Sub
 "#;
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "On_Error_Resume_Next");
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "On_Error_Resume_Next");
         assert!(trap.is_some(), "Should detect On_Error_Resume_Next");
         assert_eq!(trap.unwrap().risk, "silent_bug");
     }
@@ -951,7 +954,10 @@ End Sub
 "#;
         let report = detect(code);
         // On Error GoTo 0 matches the regex — it resets error handling.
-        assert!(has_trap(&report, "On_Error_GoTo"), "On Error GoTo 0 should be detected");
+        assert!(
+            has_trap(&report, "On_Error_GoTo"),
+            "On Error GoTo 0 should be detected"
+        );
     }
 
     #[test]
@@ -980,7 +986,10 @@ Public Sub Init()
 End Sub
 "#;
         let report = detect(code);
-        assert!(has_trap(&report, "Nothing_ValueType"), "Date = Nothing should be a trap");
+        assert!(
+            has_trap(&report, "Nothing_ValueType"),
+            "Date = Nothing should be a trap"
+        );
     }
 
     #[test]
@@ -992,8 +1001,15 @@ Public Sub Init()
 End Sub
 "#;
         let report = detect(code);
-        let count = report.traps.iter().filter(|t| t.trap == "Nothing_ValueType").count();
-        assert_eq!(count, 2, "Both Decimal and Guid should trigger Nothing_ValueType");
+        let count = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "Nothing_ValueType")
+            .count();
+        assert_eq!(
+            count, 2,
+            "Both Decimal and Guid should trigger Nothing_ValueType"
+        );
     }
 
     #[test]
@@ -1006,8 +1022,10 @@ Public Sub Init()
 End Sub
 "#;
         let report = detect(code);
-        assert!(!has_trap(&report, "Nothing_ValueType"),
-            "String/Object = Nothing should NOT trigger Nothing_ValueType");
+        assert!(
+            !has_trap(&report, "Nothing_ValueType"),
+            "String/Object = Nothing should NOT trigger Nothing_ValueType"
+        );
     }
 
     // ── New tests: My_Namespace variants ──────────────────────────────────
@@ -1043,7 +1061,11 @@ Public Sub Save()
 End Sub
 "#;
         let report = detect(code);
-        let my_traps: Vec<_> = report.traps.iter().filter(|t| t.trap == "My_Namespace").collect();
+        let my_traps: Vec<_> = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "My_Namespace")
+            .collect();
         assert!(!my_traps.is_empty());
         // All My.* traps are compile_error
         assert!(my_traps.iter().all(|t| t.risk == "compile_error"));
@@ -1068,7 +1090,10 @@ End Sub
 Dim y2k = #1/1/00#
 "#;
         let report = detect(code);
-        assert!(has_trap(&report, "Date_Literal"), "Short year date literal should be detected");
+        assert!(
+            has_trap(&report, "Date_Literal"),
+            "Short year date literal should be detected"
+        );
     }
 
     #[test]
@@ -1080,8 +1105,10 @@ Public Sub PathExample()
 End Sub
 "#;
         let report = detect(code);
-        assert!(!has_trap(&report, "Date_Literal"),
-            "String with slashes should not be flagged as date literal");
+        assert!(
+            !has_trap(&report, "Date_Literal"),
+            "String with slashes should not be flagged as date literal"
+        );
     }
 
     // ── New tests: Array upper-bound ──────────────────────────────────────
@@ -1095,8 +1122,10 @@ Public Sub SingleElement()
 End Sub
 "#;
         let report = detect(code);
-        assert!(has_trap(&report, "Array_Upper_Bound"),
-            "Dim arr(0) should still trigger Array_Upper_Bound trap");
+        assert!(
+            has_trap(&report, "Array_Upper_Bound"),
+            "Dim arr(0) should still trigger Array_Upper_Bound trap"
+        );
     }
 
     #[test]
@@ -1105,9 +1134,15 @@ End Sub
 Dim items(5) As String
 "#;
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "Array_Upper_Bound").unwrap();
-        assert!(trap.guidance.contains("off-by-one") || trap.guidance.contains("Off-by-one"),
-            "Guidance should mention off-by-one risk");
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "Array_Upper_Bound")
+            .unwrap();
+        assert!(
+            trap.guidance.contains("off-by-one") || trap.guidance.contains("Off-by-one"),
+            "Guidance should mention off-by-one risk"
+        );
     }
 
     // ── New tests: ReDim_Preserve ─────────────────────────────────────────
@@ -1124,7 +1159,11 @@ Public Sub BuildList()
 End Sub
 "#;
         let report = detect(code);
-        let count = report.traps.iter().filter(|t| t.trap == "ReDim_Preserve").count();
+        let count = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "ReDim_Preserve")
+            .count();
         assert!(count >= 1, "ReDim Preserve inside loop should be detected");
     }
 
@@ -1138,8 +1177,10 @@ Public Sub Reset()
 End Sub
 "#;
         let report = detect(code);
-        assert!(!has_trap(&report, "ReDim_Preserve"),
-            "ReDim without Preserve should not be flagged");
+        assert!(
+            !has_trap(&report, "ReDim_Preserve"),
+            "ReDim without Preserve should not be flagged"
+        );
     }
 
     // ── New tests: WithEvents/Handles ─────────────────────────────────────
@@ -1163,9 +1204,15 @@ End Class
 Private WithEvents btn As Button
 "#;
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "WithEvents_Handles").unwrap();
-        assert!(trap.guidance.contains("event") || trap.guidance.contains("Handles"),
-            "Guidance should mention event wiring");
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "WithEvents_Handles")
+            .unwrap();
+        assert!(
+            trap.guidance.contains("event") || trap.guidance.contains("Handles"),
+            "Guidance should mention event wiring"
+        );
     }
 
     // ── New tests: String_Functions ───────────────────────────────────────
@@ -1178,7 +1225,10 @@ Public Sub CheckLength()
 End Sub
 "#;
         let report = detect(code);
-        assert!(has_trap(&report, "String_Functions"), "Len() should be detected");
+        assert!(
+            has_trap(&report, "String_Functions"),
+            "Len() should be detected"
+        );
     }
 
     #[test]
@@ -1190,7 +1240,11 @@ Public Sub Normalize()
 End Sub
 "#;
         let report = detect(code);
-        let count = report.traps.iter().filter(|t| t.trap == "String_Functions").count();
+        let count = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "String_Functions")
+            .count();
         assert!(count >= 2, "UCase and LCase should each be detected");
     }
 
@@ -1200,9 +1254,15 @@ End Sub
 Dim s = Mid(text, 1, 3)
 "#;
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "String_Functions").unwrap();
-        assert!(trap.guidance.contains("1-based") || trap.guidance.contains("0-based"),
-            "Guidance should explain 1-based vs 0-based indexing");
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "String_Functions")
+            .unwrap();
+        assert!(
+            trap.guidance.contains("1-based") || trap.guidance.contains("0-based"),
+            "Guidance should explain 1-based vs 0-based indexing"
+        );
     }
 
     // ── New tests: Integer_Division ───────────────────────────────────────
@@ -1216,7 +1276,11 @@ Public Sub Calc()
 End Sub
 "#;
         let report = detect(code);
-        let count = report.traps.iter().filter(|t| t.trap == "Integer_Division").count();
+        let count = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "Integer_Division")
+            .count();
         assert!(count >= 2, "Both \\ operators should be detected");
     }
 
@@ -1232,15 +1296,19 @@ End Sub
         // Comment lines should be skipped (the comment starts with ')
         // The regex may still match if the comment isn't on a line starting with '
         // This tests that the '  comment skipping in INTEGER_DIVISION_RE is working
-        let division_traps: Vec<_> = report.traps.iter()
+        let division_traps: Vec<_> = report
+            .traps
+            .iter()
             .filter(|t| t.trap == "Integer_Division")
             .collect();
         // All matched traps should NOT have their vb_code come from the comment line
         for trap in &division_traps {
             // The comment line starts with ' so the line trimmed starts with '
             // Verify no trap comes from comment lines
-            assert!(!trap.vb_code.contains("This uses"),
-                "Should not flag code inside comments");
+            assert!(
+                !trap.vb_code.contains("This uses"),
+                "Should not flag code inside comments"
+            );
         }
     }
 
@@ -1253,12 +1321,16 @@ End Sub
 "#;
         let report = detect(code);
         // File paths with \\ or :\ should be skipped
-        let division_traps: Vec<_> = report.traps.iter()
+        let division_traps: Vec<_> = report
+            .traps
+            .iter()
             .filter(|t| t.trap == "Integer_Division")
             .collect();
         for trap in &division_traps {
-            assert!(!trap.vb_code.contains("Users"),
-                "Should not flag backslash in file paths");
+            assert!(
+                !trap.vb_code.contains("Users"),
+                "Should not flag backslash in file paths"
+            );
         }
     }
 
@@ -1268,18 +1340,26 @@ End Sub
     fn option_compare_text_guidance_mentions_case_insensitive() {
         let code = "Option Compare Text\n";
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "Option_Compare_Text").unwrap();
-        assert!(trap.guidance.to_lowercase().contains("case-insensitive")
-            || trap.guidance.to_lowercase().contains("case_insensitive"),
-            "Guidance should mention case-insensitive comparison");
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "Option_Compare_Text")
+            .unwrap();
+        assert!(
+            trap.guidance.to_lowercase().contains("case-insensitive")
+                || trap.guidance.to_lowercase().contains("case_insensitive"),
+            "Guidance should mention case-insensitive comparison"
+        );
     }
 
     #[test]
     fn option_compare_binary_not_flagged() {
         let code = "Option Compare Binary\n";
         let report = detect(code);
-        assert!(!has_trap(&report, "Option_Compare_Text"),
-            "Option Compare Binary should NOT trigger the trap");
+        assert!(
+            !has_trap(&report, "Option_Compare_Text"),
+            "Option Compare Binary should NOT trigger the trap"
+        );
     }
 
     // ── New tests: Late_Binding / Option Strict Off ───────────────────────
@@ -1294,8 +1374,14 @@ Public Sub Test()
 End Sub
 "#;
         let report = detect(code);
-        assert!(has_trap(&report, "Late_Binding"), "Option Strict Off → Late_Binding");
-        assert!(has_trap(&report, "Default_Properties"), "Option Strict Off → Default_Properties");
+        assert!(
+            has_trap(&report, "Late_Binding"),
+            "Option Strict Off → Late_Binding"
+        );
+        assert!(
+            has_trap(&report, "Default_Properties"),
+            "Option Strict Off → Default_Properties"
+        );
     }
 
     #[test]
@@ -1307,10 +1393,14 @@ Public Sub StrictMethod()
 End Sub
 "#;
         let report = detect(code);
-        assert!(!has_trap(&report, "Late_Binding"),
-            "Option Strict On should NOT trigger Late_Binding");
-        assert!(!has_trap(&report, "Default_Properties"),
-            "Option Strict On should NOT trigger Default_Properties");
+        assert!(
+            !has_trap(&report, "Late_Binding"),
+            "Option Strict On should NOT trigger Late_Binding"
+        );
+        assert!(
+            !has_trap(&report, "Default_Properties"),
+            "Option Strict On should NOT trigger Default_Properties"
+        );
     }
 
     // ── New tests: location tracking ──────────────────────────────────────
@@ -1323,9 +1413,16 @@ Public Class MyClass
 End Class
 "#;
         let report = detect(code);
-        let trap = report.traps.iter().find(|t| t.trap == "Option_Compare_Text").unwrap();
+        let trap = report
+            .traps
+            .iter()
+            .find(|t| t.trap == "Option_Compare_Text")
+            .unwrap();
         // No method defined before line 1, so location should be "file:line N"
-        assert!(trap.location.contains("line"), "Location should contain line number");
+        assert!(
+            trap.location.contains("line"),
+            "Location should contain line number"
+        );
     }
 
     #[test]
@@ -1333,7 +1430,7 @@ End Class
         let files: &[(&str, &str)] = &[
             ("First.vb", "On Error Resume Next\n"),
             ("Second.vb", "Dim x(10) As Integer\n"),
-            ("Third.cs", "var x = 1;"),  // should be skipped
+            ("Third.cs", "var x = 1;"), // should be skipped
         ];
         let report = detect_vb_translation_traps(files);
         assert_eq!(report.files_analyzed, 2, "Only .vb files should be counted");
@@ -1370,8 +1467,11 @@ Dim y(10) As String
         // Verify traps_by_category counts match actual traps
         for (cat, &count) in &report.traps_by_category {
             let actual = report.traps.iter().filter(|t| &t.trap == cat).count();
-            assert_eq!(actual, count,
-                "traps_by_category[{}] = {} but actual count = {}", cat, count, actual);
+            assert_eq!(
+                actual, count,
+                "traps_by_category[{}] = {} but actual count = {}",
+                cat, count, actual
+            );
         }
     }
 
@@ -1387,8 +1487,10 @@ End Sub
 "#;
         let report = detect(code);
         // The "conn = Nothing" part matches the regex
-        assert!(has_trap(&report, "Is_vs_Equals"),
-            "Comparison inside 'Not' expression should still be detected");
+        assert!(
+            has_trap(&report, "Is_vs_Equals"),
+            "Comparison inside 'Not' expression should still be detected"
+        );
     }
 
     #[test]
@@ -1401,7 +1503,14 @@ Public Class MyClass
 End Class
 "#;
         let report = detect(code);
-        let count = report.traps.iter().filter(|t| t.trap == "WithEvents_Handles").count();
-        assert_eq!(count, 3, "All three WithEvents declarations should be detected");
+        let count = report
+            .traps
+            .iter()
+            .filter(|t| t.trap == "WithEvents_Handles")
+            .count();
+        assert_eq!(
+            count, 3,
+            "All three WithEvents declarations should be detected"
+        );
     }
 }

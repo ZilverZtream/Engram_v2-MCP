@@ -297,19 +297,27 @@ impl HybridSearchEngine {
                 self.embedder.dimension(),
             )
             .await?;
-            if let crate::vector::TableOpenOutcome::Recreated { ref reason, prior_row_count } = open_outcome {
+            if let crate::vector::TableOpenOutcome::Recreated {
+                ref reason,
+                prior_row_count,
+            } = open_outcome
+            {
                 // VEC1/X1: fail-closed so the caller knows a full re-index is required.
-                // `prior_row_count` gives operators the exact data-loss metric: the number
-                // of vectors that existed before the schema mismatch forced a drop.
+                // `prior_row_count` gives operators the data-loss metric: Some(n) = exact
+                // loss, None = count failed so magnitude is unknown (treat as non-zero).
                 // Returning Err here propagates up to the job runner, which must
                 // schedule a full project reindex to repopulate the vector store.
                 // The Tantivy write committed above is idempotent — retrying the
                 // full batch is safe and will repair both stores.
+                let loss_str = match prior_row_count {
+                    Some(n) => format!("{n} historical vectors were lost"),
+                    None => "historical vector count unknown (count_rows failed before drop)"
+                        .to_string(),
+                };
                 anyhow::bail!(
                     "VEC1: vector table '{table_name}' was recreated due to schema mismatch \
-                     ({reason}) — {prior_row_count} historical vectors were lost. A full \
-                     re-index is required to restore semantic search quality. Schedule a \
-                     reindex job for project '{project_id}' and retry."
+                     ({reason}) — {loss_str}. A full re-index is required to restore semantic \
+                     search quality. Schedule a reindex job for project '{project_id}' and retry."
                 );
             }
 
@@ -439,12 +447,14 @@ impl HybridSearchEngine {
                 // Silently swallowing this error (the previous behaviour) left
                 // Tantivy and LanceDB permanently diverged with no recovery
                 // signal to the caller (C-2 fix).
-                crate::vector::upsert_vectors(&table, vec![batch]).await.map_err(|e| {
-                    anyhow::anyhow!(
-                        "LanceDB vector upsert failed; lexical index was committed \
+                crate::vector::upsert_vectors(&table, vec![batch])
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!(
+                            "LanceDB vector upsert failed; lexical index was committed \
                          but vector index was not updated — retry to repair: {e:#}"
-                    )
-                })?;
+                        )
+                    })?;
             }
         }
 
@@ -458,6 +468,21 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<()> {
         // 1. Tantivy purge
         {
+            // MEM3-7d30af: acquire AllocationGuard before opening writer so the
+            // memory budget is informed of the write-buffer reservation even during
+            // purge/GC operations (same as index_docs does for the write path).
+            let _tantivy_guard = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        self.tantivy_writer_memory as u64,
+                        Subsystem::Tantivy,
+                        "tantivy purge writer",
+                    )
+                })
+                .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
                 self.tantivy_index.writer(self.tantivy_writer_memory)?;
 
@@ -718,6 +743,21 @@ impl HybridSearchEngine {
 
         // 2. Tantivy — commit only after LanceDB succeeds (or the vector feature is absent).
         {
+            // MEM3-7d30af: acquire AllocationGuard before opening writer so the
+            // memory budget is informed of the write-buffer reservation during
+            // delete operations (mirrors index_docs guard pattern).
+            let _tantivy_guard = self
+                .memory_budget
+                .as_ref()
+                .map(|budget| {
+                    AllocationGuard::try_new(
+                        budget,
+                        self.tantivy_writer_memory as u64,
+                        Subsystem::Tantivy,
+                        "tantivy delete writer",
+                    )
+                })
+                .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
                 self.tantivy_index.writer(self.tantivy_writer_memory)?;
             for p in paths {
@@ -1556,7 +1596,11 @@ impl HybridSearchEngine {
         Ok(())
     }
 
-    pub async fn vector_search(&self, q: &HybridQuery, cancel: &CancellationToken) -> anyhow::Result<Vec<HybridHit>> {
+    pub async fn vector_search(
+        &self,
+        q: &HybridQuery,
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<Vec<HybridHit>> {
         if self.embedding_backend == "fts_only" {
             return Ok(Vec::new());
         }
@@ -1729,7 +1773,9 @@ impl HybridSearchEngine {
 
         let timeout_dur = std::time::Duration::from_millis(timeout_ms);
         let mut hits =
-            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled, cancel)).await {
+            match tokio::time::timeout(timeout_dur, self.vector_search(&q_oversampled, cancel))
+                .await
+            {
                 Ok(result) => result?,
                 Err(_) => {
                     // ENG-AUD-2026-S05-0002: return a typed Err rather than
@@ -1757,7 +1803,10 @@ impl HybridSearchEngine {
             // of silently running reranking with an empty vector map (which
             // produces degenerate rankings where all cosine similarities are
             // 0.0, defeating the diversity objective entirely).
-            match self.get_vectors_by_chunk_ids(&q.project_id, &chunk_ids).await {
+            match self
+                .get_vectors_by_chunk_ids(&q.project_id, &chunk_ids)
+                .await
+            {
                 Ok(vectors) => {
                     hits = self.mmr_rerank(hits, &vectors, q.top_k, 0.7);
                 }
@@ -2047,7 +2096,6 @@ fn count_unescaped_alternations(pat: &str) -> usize {
     }
     count
 }
-
 
 pub fn escape_tantivy_literal(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

@@ -1013,15 +1013,39 @@ mod tests {
         }
 
         // Validate the expected wave structure (regression guard).
-        assert_eq!(plan1.waves.len(), 4, "expected 4 waves for 5-node fan-in chain");
+        assert_eq!(
+            plan1.waves.len(),
+            4,
+            "expected 4 waves for 5-node fan-in chain"
+        );
 
-        let wave1_paths: Vec<&str> = plan1.waves[0].files.iter().map(|f| f.path.as_str()).collect();
-        let wave2_paths: Vec<&str> = plan1.waves[1].files.iter().map(|f| f.path.as_str()).collect();
-        let wave3_paths: Vec<&str> = plan1.waves[2].files.iter().map(|f| f.path.as_str()).collect();
-        let wave4_paths: Vec<&str> = plan1.waves[3].files.iter().map(|f| f.path.as_str()).collect();
+        let wave1_paths: Vec<&str> = plan1.waves[0]
+            .files
+            .iter()
+            .map(|f| f.path.as_str())
+            .collect();
+        let wave2_paths: Vec<&str> = plan1.waves[1]
+            .files
+            .iter()
+            .map(|f| f.path.as_str())
+            .collect();
+        let wave3_paths: Vec<&str> = plan1.waves[2]
+            .files
+            .iter()
+            .map(|f| f.path.as_str())
+            .collect();
+        let wave4_paths: Vec<&str> = plan1.waves[3]
+            .files
+            .iter()
+            .map(|f| f.path.as_str())
+            .collect();
 
         assert_eq!(wave1_paths, vec!["e.vb"], "wave 1 must contain only e.vb");
-        assert_eq!(wave2_paths, vec!["a.vb", "b.vb"], "wave 2 must be [a.vb, b.vb] sorted");
+        assert_eq!(
+            wave2_paths,
+            vec!["a.vb", "b.vb"],
+            "wave 2 must be [a.vb, b.vb] sorted"
+        );
         assert_eq!(wave3_paths, vec!["c.vb"], "wave 3 must contain only c.vb");
         assert_eq!(wave4_paths, vec!["d.vb"], "wave 4 must contain only d.vb");
     }

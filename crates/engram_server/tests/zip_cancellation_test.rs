@@ -104,7 +104,9 @@ async fn test_zip_history_background_cancellation_token_is_wired() {
     loop {
         tokio::time::sleep(Duration::from_millis(50)).await;
         let job = state.registry.get_job(&job_id).unwrap();
-        if let Some(j) = &job && (j.status == "completed" || j.status == "failed") {
+        if let Some(j) = &job
+            && (j.status == "completed" || j.status == "failed")
+        {
             break;
         }
         if std::time::Instant::now() > deadline {
@@ -140,14 +142,8 @@ async fn test_zip_history_background_cancel_removes_token() {
     std::fs::create_dir_all(&zip_dir).unwrap();
 
     // Two snapshots minimum.
-    make_zip(
-        &zip_dir.join("01_snap.zip"),
-        &[("x.rs", b"fn x() {}")],
-    );
-    make_zip(
-        &zip_dir.join("02_snap.zip"),
-        &[("x.rs", b"fn x_v2() {}")],
-    );
+    make_zip(&zip_dir.join("01_snap.zip"), &[("x.rs", b"fn x() {}")]);
+    make_zip(&zip_dir.join("02_snap.zip"), &[("x.rs", b"fn x_v2() {}")]);
 
     let cfg = Config {
         allowed_roots: vec![root.to_path_buf()],
@@ -197,12 +193,19 @@ async fn test_zip_history_background_cancel_removes_token() {
     // Token must exist before cancellation.
     {
         let tokens = state.cancellation_tokens.read().await;
-        assert!(tokens.contains_key(&job_id), "token must exist before cancel");
+        assert!(
+            tokens.contains_key(&job_id),
+            "token must exist before cancel"
+        );
     }
 
     // Cancel via the service function (replicates what the cancel_job tool does).
-    let cancelled = engram_server::services::job_service::cancel_job_internal(&state, &job_id).await;
-    assert!(cancelled.was_cancelled(), "cancel_job_internal must return a cancellation outcome when token exists");
+    let cancelled =
+        engram_server::services::job_service::cancel_job_internal(&state, &job_id).await;
+    assert!(
+        cancelled.was_cancelled(),
+        "cancel_job_internal must return a cancellation outcome when token exists"
+    );
 
     // Token must be removed by cancel_job_internal immediately.
     {
@@ -219,7 +222,9 @@ async fn test_zip_history_background_cancel_removes_token() {
     let deadline = std::time::Instant::now() + Duration::from_secs(5);
     loop {
         tokio::time::sleep(Duration::from_millis(20)).await;
-        if let Ok(Some(j)) = state.registry.get_job(&job_id) && (j.status == "cancelled" || j.status == "failed") {
+        if let Ok(Some(j)) = state.registry.get_job(&job_id)
+            && (j.status == "cancelled" || j.status == "failed")
+        {
             break;
         }
         if std::time::Instant::now() > deadline {
@@ -284,7 +289,10 @@ async fn cancel_stale_job_id_tombstones_resumable_checkpoint() {
 
     // Verify checkpoint is resumable before cancel.
     let before = state.checkpoints.get(job_id).unwrap().unwrap();
-    assert!(before.is_resumable(), "precondition: checkpoint must be resumable before cancel");
+    assert!(
+        before.is_resumable(),
+        "precondition: checkpoint must be resumable before cancel"
+    );
 
     // No token is registered — cancel_job_internal takes the NotFound path.
     {
@@ -349,7 +357,10 @@ async fn cancel_stale_job_writes_registry_tombstone_when_prior_record_exists() {
         created_at_ms: 1_000_000,
         updated_at_ms: 1_000_000,
     };
-    state.registry.put_job(&prior).expect("pre-condition: put prior job record");
+    state
+        .registry
+        .put_job(&prior)
+        .expect("pre-condition: put prior job record");
 
     // No cancellation token — cancel takes the NotFound path.
     let outcome = engram_server::services::job_service::cancel_job_internal(&state, job_id).await;
@@ -406,11 +417,19 @@ async fn cancel_completely_unknown_job_does_not_fabricate_registry_record() {
 
     // Precondition: nothing in the system for this job_id.
     assert!(
-        state.registry.get_job(job_id).expect("get must not error").is_none(),
+        state
+            .registry
+            .get_job(job_id)
+            .expect("get must not error")
+            .is_none(),
         "precondition: no prior job record must exist"
     );
     assert!(
-        state.checkpoints.get(job_id).expect("get must not error").is_none(),
+        state
+            .checkpoints
+            .get(job_id)
+            .expect("get must not error")
+            .is_none(),
         "precondition: no checkpoint must exist"
     );
 

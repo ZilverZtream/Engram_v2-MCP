@@ -317,7 +317,10 @@ mod tests {
         let relevant = vec!["a".into(), "b".into(), "c".into(), "d".into()];
         let retrieved = vec!["x".into(), "b".into(), "y".into(), "d".into()];
         let ndcg = compute_ndcg(&retrieved, &relevant, 4);
-        assert!(ndcg > 0.0 && ndcg < 1.0, "partial match should be between 0 and 1, got {ndcg}");
+        assert!(
+            ndcg > 0.0 && ndcg < 1.0,
+            "partial match should be between 0 and 1, got {ndcg}"
+        );
     }
 
     // ── compute_recall edge cases ────────────────────────────────────────────
@@ -343,7 +346,10 @@ mod tests {
         let relevant = vec!["a".into(), "b".into(), "c".into()];
         let retrieved = vec!["a".into(), "b".into(), "c".into(), "d".into()];
         let recall = compute_recall(&retrieved, &relevant, 4);
-        assert!((recall - 1.0).abs() < 0.001, "all relevant items found → recall = 1.0");
+        assert!(
+            (recall - 1.0).abs() < 0.001,
+            "all relevant items found → recall = 1.0"
+        );
     }
 
     #[test]
@@ -378,7 +384,10 @@ mod tests {
         let relevant = vec!["c".into()];
         let retrieved = vec!["a".into(), "b".into(), "c".into()];
         let rr = compute_reciprocal_rank(&retrieved, &relevant);
-        assert!((rr - (1.0 / 3.0)).abs() < 0.001, "3rd position → RR=1/3, got {rr}");
+        assert!(
+            (rr - (1.0 / 3.0)).abs() < 0.001,
+            "3rd position → RR=1/3, got {rr}"
+        );
     }
 
     // ── evaluate_gates: boundary conditions ─────────────────────────────────
@@ -412,7 +421,10 @@ mod tests {
     #[test]
     fn legacy_benchmark_queries_not_empty() {
         let queries = generate_legacy_benchmark_queries();
-        assert!(!queries.is_empty(), "should have at least one benchmark query");
+        assert!(
+            !queries.is_empty(),
+            "should have at least one benchmark query"
+        );
     }
 
     #[test]
@@ -421,7 +433,8 @@ mod tests {
             assert!(!q.query.is_empty(), "query text must not be empty");
             assert!(
                 !q.relevant_paths.is_empty(),
-                "query '{}' must have at least one relevant path", q.query
+                "query '{}' must have at least one relevant path",
+                q.query
             );
         }
     }
@@ -429,7 +442,11 @@ mod tests {
     #[test]
     fn legacy_benchmark_queries_cover_key_webforms_concepts() {
         let queries = generate_legacy_benchmark_queries();
-        let all_queries: String = queries.iter().map(|q| q.query.as_str()).collect::<Vec<_>>().join(" ");
+        let all_queries: String = queries
+            .iter()
+            .map(|q| q.query.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
         assert!(all_queries.contains("session") || all_queries.contains("Session"));
         assert!(all_queries.contains("GridView") || all_queries.contains("database"));
         assert!(all_queries.contains("AJAX") || all_queries.contains("UpdatePanel"));
@@ -444,7 +461,10 @@ mod tests {
         // We test this via NDCG: perfect order should give 1.0
         let retrieved = relevant.clone();
         let ndcg = compute_ndcg(&retrieved, &relevant, 3);
-        assert!((ndcg - 1.0).abs() < 0.001, "perfect retrieval must give 1.0");
+        assert!(
+            (ndcg - 1.0).abs() < 0.001,
+            "perfect retrieval must give 1.0"
+        );
     }
 
     #[test]

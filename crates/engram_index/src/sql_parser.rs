@@ -436,9 +436,7 @@ pub fn generate_composite_dto(analysis: &SqlAnalysis) -> Option<(String, bool)> 
     // machine-readable signal — callers must propagate it to their own metadata.
     let columns_parsed_ok = !(primary_cols.is_empty() && joined_cols.is_empty());
     if !columns_parsed_ok {
-        code.push_str(
-            "    // WARNING: column extraction incomplete — review SQL manually\n",
-        );
+        code.push_str("    // WARNING: column extraction incomplete — review SQL manually\n");
     }
 
     code.push_str("}\n");
@@ -1329,7 +1327,8 @@ mod tests {
 
     #[test]
     fn extract_left_join_table() {
-        let sql = "SELECT e.Name, d.DeptName FROM Employees e LEFT JOIN Departments d ON e.DeptId = d.Id";
+        let sql =
+            "SELECT e.Name, d.DeptName FROM Employees e LEFT JOIN Departments d ON e.DeptId = d.Id";
         let a = analyze_sql(sql);
         assert_eq!(a.primary_table.as_deref(), Some("Employees"));
         assert_eq!(a.joined_tables.len(), 1);
@@ -1347,7 +1346,8 @@ mod tests {
 
     #[test]
     fn extract_subquery_table() {
-        let sql = "SELECT * FROM Orders WHERE CustomerId IN (SELECT Id FROM Customers WHERE Active = 1)";
+        let sql =
+            "SELECT * FROM Orders WHERE CustomerId IN (SELECT Id FROM Customers WHERE Active = 1)";
         let a = analyze_sql(sql);
         assert!(a.has_subquery, "inner SELECT should be flagged as subquery");
         assert_eq!(a.primary_table.as_deref(), Some("Orders"));
@@ -1372,7 +1372,8 @@ mod tests {
 
     #[test]
     fn extract_delete_with_join() {
-        let sql = "DELETE o FROM Orders o JOIN Customers c ON o.CustomerId = c.Id WHERE c.Active = 0";
+        let sql =
+            "DELETE o FROM Orders o JOIN Customers c ON o.CustomerId = c.Id WHERE c.Active = 0";
         let a = analyze_sql(sql);
         assert_eq!(a.operation, SqlOp::Delete);
     }
@@ -1394,7 +1395,10 @@ mod tests {
         let sql = "SELECT FirstName AS fname, LastName AS lname FROM Employees";
         let a = analyze_sql(sql);
         assert_eq!(a.selected_columns.len(), 2);
-        let first = a.selected_columns.iter().find(|c| c.column_name == "FirstName");
+        let first = a
+            .selected_columns
+            .iter()
+            .find(|c| c.column_name == "FirstName");
         assert!(first.is_some(), "FirstName column should be extracted");
         assert_eq!(first.and_then(|c| c.alias.as_deref()), Some("fname"));
     }
@@ -1425,7 +1429,11 @@ mod tests {
         assert!(a.selected_columns.iter().any(|c| c.column_name == "col1"));
         assert!(a.selected_columns.iter().any(|c| c.column_name == "col2"));
         // table_alias should be captured
-        assert!(a.selected_columns.iter().all(|c| c.table_alias.as_deref() == Some("t")));
+        assert!(
+            a.selected_columns
+                .iter()
+                .all(|c| c.table_alias.as_deref() == Some("t"))
+        );
     }
 
     // ── Stored procedure parsing ────────────────────────────────────────
@@ -1436,7 +1444,11 @@ mod tests {
         let a = analyze_sql(sql);
         assert_eq!(a.operation, SqlOp::Exec);
         assert!(a.parameters.len() >= 2, "expected at least 2 parameters");
-        assert!(a.parameters.iter().any(|p| p.name == "id" || p.name == "CustomerId"));
+        assert!(
+            a.parameters
+                .iter()
+                .any(|p| p.name == "id" || p.name == "CustomerId")
+        );
     }
 
     #[test]
@@ -1483,7 +1495,11 @@ mod tests {
         let a = analyze_sql(sql);
         assert_eq!(a.operation, SqlOp::Select);
         // Brackets are stripped from column names
-        assert!(a.selected_columns.iter().any(|c| c.column_name == "OrderId"));
+        assert!(
+            a.selected_columns
+                .iter()
+                .any(|c| c.column_name == "OrderId")
+        );
         assert!(a.selected_columns.iter().any(|c| c.column_name == "Total"));
         assert_eq!(a.parameters.len(), 1);
     }
@@ -1554,7 +1570,10 @@ mod tests {
     fn multiple_statements_parsed() {
         let sql = "SELECT * FROM Orders WHERE Status = 'Active'; SELECT COUNT(*) FROM Customers";
         let a = analyze_sql(sql);
-        assert!(a.is_multi_statement, "two SELECT statements → multi-statement");
+        assert!(
+            a.is_multi_statement,
+            "two SELECT statements → multi-statement"
+        );
     }
 
     #[test]
@@ -1569,7 +1588,8 @@ mod tests {
 
     #[test]
     fn inner_join_keyword() {
-        let sql = "SELECT e.Name, d.Name FROM Employees e INNER JOIN Departments d ON e.DeptId = d.Id";
+        let sql =
+            "SELECT e.Name, d.Name FROM Employees e INNER JOIN Departments d ON e.DeptId = d.Id";
         let a = analyze_sql(sql);
         assert_eq!(a.joined_tables.len(), 1);
         assert!(a.joined_tables[0].join_type.contains("INNER"));
@@ -1662,7 +1682,11 @@ mod tests {
         assert_eq!(a.operation, SqlOp::Select);
         assert_eq!(a.primary_table.as_deref(), Some("Orders"));
         // DISTINCT modifier should not appear in column list
-        assert!(!a.selected_columns.iter().any(|c| c.column_name.to_uppercase() == "DISTINCT"));
+        assert!(
+            !a.selected_columns
+                .iter()
+                .any(|c| c.column_name.to_uppercase() == "DISTINCT")
+        );
     }
 
     #[test]
@@ -1672,7 +1696,11 @@ mod tests {
         assert_eq!(a.operation, SqlOp::Select);
         assert_eq!(a.primary_table.as_deref(), Some("Orders"));
         // TOP 10 modifier should not appear in column names
-        assert!(!a.selected_columns.iter().any(|c| c.column_name.to_uppercase() == "TOP"));
+        assert!(
+            !a.selected_columns
+                .iter()
+                .any(|c| c.column_name.to_uppercase() == "TOP")
+        );
     }
 
     #[test]
@@ -1681,7 +1709,10 @@ mod tests {
         let a = analyze_sql(sql);
         let name = generate_method_name(&a);
         assert!(name.contains("Update"), "method name should contain Update");
-        assert!(name.contains("Customers") || name.contains("Customer"), "method name: {name}");
+        assert!(
+            name.contains("Customers") || name.contains("Customer"),
+            "method name: {name}"
+        );
     }
 
     #[test]
@@ -1814,11 +1845,15 @@ mod tests {
 
     #[test]
     fn update_multi_param_where() {
-        let sql = "UPDATE Orders SET Status = @status WHERE CustomerId = @custId AND OrderDate > @since";
+        let sql =
+            "UPDATE Orders SET Status = @status WHERE CustomerId = @custId AND OrderDate > @since";
         let a = analyze_sql(sql);
         assert_eq!(a.operation, SqlOp::Update);
         assert!(a.parameters.len() >= 3);
         let name = generate_method_name(&a);
-        assert!(name.starts_with("Update"), "should start with Update: {name}");
+        assert!(
+            name.starts_with("Update"),
+            "should start with Update: {name}"
+        );
     }
 }

@@ -10,9 +10,7 @@
 //!  - `put_job` / `get_job` / `list_jobs` / `delete_job`
 //!  - `cleanup_orphaned_jobs`
 
-use engram_core::{
-    JobRecord, MemorySection, ProjectRecord, Registry, RepoRule, WatchRecord,
-};
+use engram_core::{JobRecord, MemorySection, ProjectRecord, Registry, RepoRule, WatchRecord};
 
 fn open_registry(tmp: &tempfile::TempDir) -> Registry {
     Registry::open(&tmp.path().join("reg.redb")).expect("Registry::open must succeed")
@@ -83,8 +81,13 @@ fn registry_put_and_get_project_round_trips() {
     let proj = make_project("proj-001", "My Project");
     reg.put_project(&proj).expect("put_project must succeed");
 
-    let retrieved = reg.get_project("proj-001").expect("get_project must not error");
-    assert!(retrieved.is_some(), "get_project must return the record after put");
+    let retrieved = reg
+        .get_project("proj-001")
+        .expect("get_project must not error");
+    assert!(
+        retrieved.is_some(),
+        "get_project must return the record after put"
+    );
 
     let r = retrieved.unwrap();
     assert_eq!(r.project_id, "proj-001");
@@ -98,8 +101,13 @@ fn registry_get_project_unknown_returns_none() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    let result = reg.get_project("no-such-project").expect("get_project must not error");
-    assert!(result.is_none(), "get_project for unknown id must return None");
+    let result = reg
+        .get_project("no-such-project")
+        .expect("get_project must not error");
+    assert!(
+        result.is_none(),
+        "get_project for unknown id must return None"
+    );
 }
 
 /// list_projects must return all inserted projects sorted by project_name.
@@ -108,15 +116,27 @@ fn registry_list_projects_sorted_by_name() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_project(&make_project("p1", "Zebra")).expect("put p1");
-    reg.put_project(&make_project("p2", "Alpha")).expect("put p2");
-    reg.put_project(&make_project("p3", "Mango")).expect("put p3");
+    reg.put_project(&make_project("p1", "Zebra"))
+        .expect("put p1");
+    reg.put_project(&make_project("p2", "Alpha"))
+        .expect("put p2");
+    reg.put_project(&make_project("p3", "Mango"))
+        .expect("put p3");
 
     let projects = reg.list_projects().expect("list_projects must not error");
     assert_eq!(projects.len(), 3, "must return 3 projects");
-    assert_eq!(projects[0].project_name, "Alpha", "must be sorted: Alpha first");
-    assert_eq!(projects[1].project_name, "Mango", "must be sorted: Mango second");
-    assert_eq!(projects[2].project_name, "Zebra", "must be sorted: Zebra third");
+    assert_eq!(
+        projects[0].project_name, "Alpha",
+        "must be sorted: Alpha first"
+    );
+    assert_eq!(
+        projects[1].project_name, "Mango",
+        "must be sorted: Mango second"
+    );
+    assert_eq!(
+        projects[2].project_name, "Zebra",
+        "must be sorted: Zebra third"
+    );
 }
 
 /// delete_project must remove the record; subsequent get_project returns None.
@@ -125,10 +145,15 @@ fn registry_delete_project_makes_get_return_none() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_project(&make_project("p-del", "ToDelete")).expect("put");
-    assert!(reg.get_project("p-del").expect("get").is_some(), "must exist before delete");
+    reg.put_project(&make_project("p-del", "ToDelete"))
+        .expect("put");
+    assert!(
+        reg.get_project("p-del").expect("get").is_some(),
+        "must exist before delete"
+    );
 
-    reg.delete_project("p-del").expect("delete_project must succeed");
+    reg.delete_project("p-del")
+        .expect("delete_project must succeed");
 
     let after = reg.get_project("p-del").expect("get after delete");
     assert!(after.is_none(), "project must be gone after delete");
@@ -156,7 +181,8 @@ fn registry_delete_all_for_project_cascades_across_tables() {
     reg.set_meta(proj_a, "active_generation", "5")
         .expect("set meta");
 
-    reg.delete_all_for_project(proj_a).expect("delete_all_for_project must succeed");
+    reg.delete_all_for_project(proj_a)
+        .expect("delete_all_for_project must succeed");
 
     // proj_a must be gone
     assert!(
@@ -165,10 +191,16 @@ fn registry_delete_all_for_project_cascades_across_tables() {
     );
     // proj_a memory sections must be gone
     let sections = reg.list_memory_sections(proj_a).expect("list");
-    assert!(sections.is_empty(), "memory sections for A must be gone after delete_all");
+    assert!(
+        sections.is_empty(),
+        "memory sections for A must be gone after delete_all"
+    );
     // proj_a repo rules must be gone
     let rules = reg.list_repo_rules(proj_a).expect("list");
-    assert!(rules.is_empty(), "repo rules for A must be gone after delete_all");
+    assert!(
+        rules.is_empty(),
+        "repo rules for A must be gone after delete_all"
+    );
     // proj_a meta must be gone
     let meta = reg.get_meta(proj_a, "active_generation").expect("get meta");
     assert!(meta.is_none(), "meta for A must be gone after delete_all");
@@ -189,7 +221,8 @@ fn registry_put_and_get_memory_section_round_trips() {
     let reg = open_registry(&tmp);
 
     let sec = make_memory_section("sec-001", "Architecture Notes");
-    reg.put_memory_section("proj-mem", &sec).expect("put_memory_section must succeed");
+    reg.put_memory_section("proj-mem", &sec)
+        .expect("put_memory_section must succeed");
 
     let retrieved = reg
         .get_memory_section("proj-mem", "sec-001")
@@ -243,14 +276,18 @@ fn registry_delete_memory_section_removes_record() {
     let sec = make_memory_section("sec-del", "To Remove");
     reg.put_memory_section("proj-del", &sec).expect("put");
     assert!(
-        reg.get_memory_section("proj-del", "sec-del").expect("get").is_some(),
+        reg.get_memory_section("proj-del", "sec-del")
+            .expect("get")
+            .is_some(),
         "must exist before delete"
     );
 
     reg.delete_memory_section("proj-del", "sec-del")
         .expect("delete_memory_section must succeed");
 
-    let after = reg.get_memory_section("proj-del", "sec-del").expect("get after delete");
+    let after = reg
+        .get_memory_section("proj-del", "sec-del")
+        .expect("get after delete");
     assert!(after.is_none(), "section must be gone after delete");
 }
 
@@ -267,7 +304,9 @@ fn registry_put_repo_rule_and_list_round_trips() {
     reg.put_repo_rule("proj-rules", &make_repo_rule("rule-002", "*.aspx"))
         .expect("put second rule");
 
-    let rules = reg.list_repo_rules("proj-rules").expect("list_repo_rules must not error");
+    let rules = reg
+        .list_repo_rules("proj-rules")
+        .expect("list_repo_rules must not error");
     assert_eq!(rules.len(), 2, "must return 2 repo rules");
 
     let patterns: Vec<&str> = rules.iter().map(|r| r.file_pattern.as_str()).collect();
@@ -281,14 +320,20 @@ fn registry_delete_repo_rule_removes_only_that_rule() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_repo_rule("proj-r", &make_repo_rule("keep-rule", "*.rs")).expect("put keep");
-    reg.put_repo_rule("proj-r", &make_repo_rule("del-rule", "*.tmp")).expect("put del");
+    reg.put_repo_rule("proj-r", &make_repo_rule("keep-rule", "*.rs"))
+        .expect("put keep");
+    reg.put_repo_rule("proj-r", &make_repo_rule("del-rule", "*.tmp"))
+        .expect("put del");
 
-    reg.delete_repo_rule("proj-r", "del-rule").expect("delete_repo_rule must succeed");
+    reg.delete_repo_rule("proj-r", "del-rule")
+        .expect("delete_repo_rule must succeed");
 
     let rules = reg.list_repo_rules("proj-r").expect("list");
     assert_eq!(rules.len(), 1, "must have exactly 1 rule after delete");
-    assert_eq!(rules[0].rule_id, "keep-rule", "remaining rule must be 'keep-rule'");
+    assert_eq!(
+        rules[0].rule_id, "keep-rule",
+        "remaining rule must be 'keep-rule'"
+    );
 }
 
 // ── WatchRecord ───────────────────────────────────────────────────────────────
@@ -299,15 +344,22 @@ fn registry_put_watch_and_list_watches_round_trips() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_watch("proj-w", &make_watch("watch-001", "/code/src")).expect("put watch");
-    reg.put_watch("proj-w", &make_watch("watch-002", "/code/tests")).expect("put watch 2");
+    reg.put_watch("proj-w", &make_watch("watch-001", "/code/src"))
+        .expect("put watch");
+    reg.put_watch("proj-w", &make_watch("watch-002", "/code/tests"))
+        .expect("put watch 2");
 
-    let watches = reg.list_watches("proj-w").expect("list_watches must not error");
+    let watches = reg
+        .list_watches("proj-w")
+        .expect("list_watches must not error");
     assert_eq!(watches.len(), 2, "must return 2 watches");
 
     let dirs: Vec<&str> = watches.iter().map(|w| w.directory.as_str()).collect();
     assert!(dirs.contains(&"/code/src"), "must contain /code/src watch");
-    assert!(dirs.contains(&"/code/tests"), "must contain /code/tests watch");
+    assert!(
+        dirs.contains(&"/code/tests"),
+        "must contain /code/tests watch"
+    );
 }
 
 /// list_watches for a project with no watches must return empty vec.
@@ -316,7 +368,9 @@ fn registry_list_watches_empty_project_returns_empty() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    let watches = reg.list_watches("proj-no-watches").expect("list_watches must not error");
+    let watches = reg
+        .list_watches("proj-no-watches")
+        .expect("list_watches must not error");
     assert!(watches.is_empty(), "no watches → empty list");
 }
 
@@ -332,7 +386,10 @@ fn registry_put_and_get_job_round_trips() {
     reg.put_job(&job).expect("put_job must succeed");
 
     let retrieved = reg.get_job("job-001").expect("get_job must not error");
-    assert!(retrieved.is_some(), "get_job must return the record after put");
+    assert!(
+        retrieved.is_some(),
+        "get_job must return the record after put"
+    );
 
     let r = retrieved.unwrap();
     assert_eq!(r.job_id, "job-001");
@@ -356,9 +413,12 @@ fn registry_list_jobs_no_filter_returns_all() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_job(&make_job("j1", Some("proj-1"), "completed")).expect("put j1");
-    reg.put_job(&make_job("j2", Some("proj-2"), "running")).expect("put j2");
-    reg.put_job(&make_job("j3", None, "failed")).expect("put j3");
+    reg.put_job(&make_job("j1", Some("proj-1"), "completed"))
+        .expect("put j1");
+    reg.put_job(&make_job("j2", Some("proj-2"), "running"))
+        .expect("put j2");
+    reg.put_job(&make_job("j3", None, "failed"))
+        .expect("put j3");
 
     let all = reg.list_jobs(None).expect("list_jobs must not error");
     assert_eq!(all.len(), 3, "list_jobs(None) must return all 3 jobs");
@@ -370,12 +430,20 @@ fn registry_list_jobs_filtered_by_project_id() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_job(&make_job("j-a1", Some("proj-A"), "running")).expect("put j-a1");
-    reg.put_job(&make_job("j-a2", Some("proj-A"), "completed")).expect("put j-a2");
-    reg.put_job(&make_job("j-b1", Some("proj-B"), "running")).expect("put j-b1");
+    reg.put_job(&make_job("j-a1", Some("proj-A"), "running"))
+        .expect("put j-a1");
+    reg.put_job(&make_job("j-a2", Some("proj-A"), "completed"))
+        .expect("put j-a2");
+    reg.put_job(&make_job("j-b1", Some("proj-B"), "running"))
+        .expect("put j-b1");
 
     let a_jobs = reg.list_jobs(Some("proj-A")).expect("list filtered");
-    assert_eq!(a_jobs.len(), 2, "proj-A must have 2 jobs; got {}", a_jobs.len());
+    assert_eq!(
+        a_jobs.len(),
+        2,
+        "proj-A must have 2 jobs; got {}",
+        a_jobs.len()
+    );
 
     let b_jobs = reg.list_jobs(Some("proj-B")).expect("list filtered");
     assert_eq!(b_jobs.len(), 1, "proj-B must have 1 job");
@@ -387,7 +455,8 @@ fn registry_delete_job_removes_record() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_job(&make_job("job-del", Some("proj"), "running")).expect("put");
+    reg.put_job(&make_job("job-del", Some("proj"), "running"))
+        .expect("put");
     assert!(
         reg.get_job("job-del").expect("get").is_some(),
         "job must exist before delete"
@@ -408,11 +477,16 @@ fn registry_cleanup_orphaned_jobs_aborts_running_jobs() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_job(&make_job("j-run-1", None, "running")).expect("put running 1");
-    reg.put_job(&make_job("j-run-2", None, "running")).expect("put running 2");
-    reg.put_job(&make_job("j-done", None, "completed")).expect("put completed");
+    reg.put_job(&make_job("j-run-1", None, "running"))
+        .expect("put running 1");
+    reg.put_job(&make_job("j-run-2", None, "running"))
+        .expect("put running 2");
+    reg.put_job(&make_job("j-done", None, "completed"))
+        .expect("put completed");
 
-    let count = reg.cleanup_orphaned_jobs().expect("cleanup_orphaned_jobs must succeed");
+    let count = reg
+        .cleanup_orphaned_jobs()
+        .expect("cleanup_orphaned_jobs must succeed");
     assert_eq!(count, 2, "must abort exactly 2 running jobs; got {count}");
 
     // running jobs must now be "aborted"
@@ -423,7 +497,10 @@ fn registry_cleanup_orphaned_jobs_aborts_running_jobs() {
 
     // completed job must be unchanged
     let jd = reg.get_job("j-done").expect("get").unwrap();
-    assert_eq!(jd.status, "completed", "completed job must not be changed by cleanup");
+    assert_eq!(
+        jd.status, "completed",
+        "completed job must not be changed by cleanup"
+    );
 }
 
 /// cleanup_orphaned_jobs with no running jobs must return 0 and not error.
@@ -432,7 +509,8 @@ fn registry_cleanup_orphaned_jobs_zero_running_returns_zero() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = open_registry(&tmp);
 
-    reg.put_job(&make_job("j1", None, "completed")).expect("put");
+    reg.put_job(&make_job("j1", None, "completed"))
+        .expect("put");
     reg.put_job(&make_job("j2", None, "failed")).expect("put");
 
     let count = reg.cleanup_orphaned_jobs().expect("cleanup must not error");
@@ -453,7 +531,9 @@ fn registry_memory_section_project_isolation() {
         .expect("put Y");
 
     // proj-X must not see proj-Y's section
-    let cross = reg.get_memory_section("proj-X", "sec-y").expect("cross-project get");
+    let cross = reg
+        .get_memory_section("proj-X", "sec-y")
+        .expect("cross-project get");
     assert!(
         cross.is_none(),
         "proj-X must not see proj-Y's section 'sec-y' — project isolation failure"
@@ -656,11 +736,17 @@ fn get_memory_section_rejects_null_byte_in_project_id() {
     let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
     // Adversarial project_id with embedded NUL delimiter
     let result = reg.get_memory_section("proj\0other", "sec");
-    assert!(result.is_err(), "get_memory_section must reject NUL in project_id");
+    assert!(
+        result.is_err(),
+        "get_memory_section must reject NUL in project_id"
+    );
     let msg = result.unwrap_err().to_string();
     assert!(
-        msg.contains("invalid") || msg.contains("null") || msg.contains("\\0")
-            || msg.contains("NUL") || msg.contains("ENG-AUD"),
+        msg.contains("invalid")
+            || msg.contains("null")
+            || msg.contains("\\0")
+            || msg.contains("NUL")
+            || msg.contains("ENG-AUD"),
         "error should mention invalid key component; got: {msg}"
     );
 }
@@ -678,7 +764,10 @@ fn list_memory_sections_rejects_null_byte_in_project_id() {
     let tmp = tempfile::TempDir::new().expect("tempdir");
     let reg = Registry::open(&tmp.path().join("r.redb")).unwrap();
     let result = reg.list_memory_sections("proj\0other");
-    assert!(result.is_err(), "list_memory_sections must reject NUL in project_id");
+    assert!(
+        result.is_err(),
+        "list_memory_sections must reject NUL in project_id"
+    );
 }
 
 #[test]
@@ -703,17 +792,11 @@ fn composite_key_validation_accepts_normal_ids() {
     )
     .expect("put_memory_section must accept id with hyphens and underscores");
 
-    reg.put_repo_rule(
-        "proj-normal",
-        &make_repo_rule("rule_001-alpha", "*.cs"),
-    )
-    .expect("put_repo_rule must accept id with hyphens and underscores");
+    reg.put_repo_rule("proj-normal", &make_repo_rule("rule_001-alpha", "*.cs"))
+        .expect("put_repo_rule must accept id with hyphens and underscores");
 
-    reg.put_watch(
-        "proj-normal",
-        &make_watch("watch-alpha_01", "/code"),
-    )
-    .expect("put_watch must accept id with hyphens and underscores");
+    reg.put_watch("proj-normal", &make_watch("watch-alpha_01", "/code"))
+        .expect("put_watch must accept id with hyphens and underscores");
 
     reg.set_meta("proj-normal", "active_generation", "5")
         .expect("set_meta must accept key with underscores");

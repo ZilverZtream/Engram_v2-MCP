@@ -917,31 +917,45 @@ End Sub
     #[test]
     fn test_lifecycle_readonly_no_writers() {
         let lifecycle = classify_viewstate_lifecycle(&["Page_Load".to_string()], &[]);
-        assert!(lifecycle.contains("ReadOnly"), "no writers → ReadOnly: {lifecycle}");
+        assert!(
+            lifecycle.contains("ReadOnly"),
+            "no writers → ReadOnly: {lifecycle}"
+        );
     }
 
     #[test]
     fn test_lifecycle_writeonly_no_readers() {
         let lifecycle = classify_viewstate_lifecycle(&[], &["Page_Load".to_string()]);
-        assert!(lifecycle.contains("WriteOnly"), "no readers → WriteOnly: {lifecycle}");
+        assert!(
+            lifecycle.contains("WriteOnly"),
+            "no readers → WriteOnly: {lifecycle}"
+        );
     }
 
     #[test]
     fn test_lifecycle_single_writer() {
-        let lifecycle = classify_viewstate_lifecycle(
-            &["gvSorting".to_string()],
-            &["Page_Load".to_string()],
+        let lifecycle =
+            classify_viewstate_lifecycle(&["gvSorting".to_string()], &["Page_Load".to_string()]);
+        assert!(
+            lifecycle.contains("SingleWriter"),
+            "one writer → SingleWriter: {lifecycle}"
         );
-        assert!(lifecycle.contains("SingleWriter"), "one writer → SingleWriter: {lifecycle}");
     }
 
     #[test]
     fn test_lifecycle_multi_writer() {
         let lifecycle = classify_viewstate_lifecycle(
             &["reader".to_string()],
-            &["writer1".to_string(), "writer2".to_string(), "writer3".to_string()],
+            &[
+                "writer1".to_string(),
+                "writer2".to_string(),
+                "writer3".to_string(),
+            ],
         );
-        assert!(lifecycle.contains("MultiWriter"), "three writers → MultiWriter: {lifecycle}");
+        assert!(
+            lifecycle.contains("MultiWriter"),
+            "three writers → MultiWriter: {lifecycle}"
+        );
         assert!(lifecycle.contains("3"), "should mention 3 writers");
     }
 
@@ -1001,11 +1015,15 @@ End Sub
         let graph = make_graph();
         let code = r#"ViewState("Filter") = "x""#;
         let aspx = r#"<asp:TextBox ID="txtName" runat="server" />"#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, Some(aspx)).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, Some(aspx))
+                .unwrap();
         // 1 explicit + 1 TextBox (1 property) = 2 total → Low
         assert!(
-            result.migration_complexity.contains("Low") || result.migration_complexity.contains("None"),
-            "few fields should be Low or None: {}", result.migration_complexity
+            result.migration_complexity.contains("Low")
+                || result.migration_complexity.contains("None"),
+            "few fields should be Low or None: {}",
+            result.migration_complexity
         );
     }
 
@@ -1023,10 +1041,14 @@ End Sub
         let code: String = (0..20)
             .map(|i| format!("ViewState(\"Key{i}\") = {i}\n"))
             .collect();
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", &code, Some(aspx)).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", &code, Some(aspx))
+                .unwrap();
         assert!(
-            result.migration_complexity.contains("High") || result.migration_complexity.contains("Medium"),
-            "heavy controls + many keys should be High or Medium: {}", result.migration_complexity
+            result.migration_complexity.contains("High")
+                || result.migration_complexity.contains("Medium"),
+            "heavy controls + many keys should be High or Medium: {}",
+            result.migration_complexity
         );
     }
 
@@ -1036,30 +1058,47 @@ End Sub
     fn test_format_viewstate_report_contains_header() {
         let graph = make_graph();
         let code = r#"ViewState("SortCol") = "Name""#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Orders.aspx.vb", code, None).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Orders.aspx.vb", code, None).unwrap();
         let formatted = format_viewstate_report(&result);
-        assert!(formatted.contains("ViewState Dependency Report"), "should have report header");
-        assert!(formatted.contains("Orders.aspx.vb"), "should include file path");
+        assert!(
+            formatted.contains("ViewState Dependency Report"),
+            "should have report header"
+        );
+        assert!(
+            formatted.contains("Orders.aspx.vb"),
+            "should include file path"
+        );
     }
 
     #[test]
     fn test_format_viewstate_report_lists_explicit_keys() {
         let graph = make_graph();
         let code = r#"ViewState("FilterText") = txtFilter.Text"#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
         let formatted = format_viewstate_report(&result);
-        assert!(formatted.contains("FilterText"), "should list explicit ViewState key");
+        assert!(
+            formatted.contains("FilterText"),
+            "should list explicit ViewState key"
+        );
     }
 
     #[test]
     fn test_format_viewstate_report_includes_modern_state_model() {
         let graph = make_graph();
         let code = r#"ViewState("SortColumn") = "Name""#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", code, None).unwrap();
         let formatted = format_viewstate_report(&result);
-        assert!(formatted.contains("Modern State Model") || formatted.contains("Recommended"),
-            "should include modern state model section: {formatted}");
-        assert!(formatted.contains("private"), "should include private field declarations");
+        assert!(
+            formatted.contains("Modern State Model") || formatted.contains("Recommended"),
+            "should include modern state model section: {formatted}"
+        );
+        assert!(
+            formatted.contains("private"),
+            "should include private field declarations"
+        );
     }
 
     // ── page-level ViewState true ────────────────────────────────────────────
@@ -1068,7 +1107,8 @@ End Sub
     fn test_page_level_viewstate_true() {
         let graph = make_graph();
         let aspx = r#"<%@ Page Language="C#" EnableViewState="true" %>"#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.cs", "", Some(aspx)).unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.cs", "", Some(aspx)).unwrap();
         assert_eq!(result.page_level_viewstate, Some(true));
     }
 
@@ -1078,8 +1118,13 @@ End Sub
     fn test_implicit_viewstate_calendar() {
         let graph = make_graph();
         let aspx = r#"<asp:Calendar ID="calPicker" runat="server" />"#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
-        let cal = result.implicit_viewstate.iter().find(|v| v.control_id == "calPicker").unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
+        let cal = result
+            .implicit_viewstate
+            .iter()
+            .find(|v| v.control_id == "calPicker")
+            .unwrap();
         assert_eq!(cal.control_type, "Calendar");
         assert!(cal.properties_persisted.iter().any(|p| p == "SelectedDate"));
     }
@@ -1088,8 +1133,13 @@ End Sub
     fn test_implicit_viewstate_checkbox() {
         let graph = make_graph();
         let aspx = r#"<asp:CheckBox ID="chkActive" runat="server" />"#;
-        let result = analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
-        let cb = result.implicit_viewstate.iter().find(|v| v.control_id == "chkActive").unwrap();
+        let result =
+            analyze_viewstate_dependencies(&graph, "test", "Page.aspx.vb", "", Some(aspx)).unwrap();
+        let cb = result
+            .implicit_viewstate
+            .iter()
+            .find(|v| v.control_id == "chkActive")
+            .unwrap();
         assert_eq!(cb.control_type, "CheckBox");
         assert!(cb.properties_persisted.iter().any(|p| p == "Checked"));
     }

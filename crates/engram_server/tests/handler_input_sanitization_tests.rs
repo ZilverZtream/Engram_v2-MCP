@@ -181,8 +181,8 @@ fn request_model_provides_graph_cardinality_sanitizers() {
 fn migration_tools_validates_paths_and_project_ids() {
     let source = include_str!("../src/handlers/migration_tools.rs");
 
-    let has_project_guard = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_project_guard =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     let has_path_guard = source.contains("safe_join")
         || source.contains("resolve_path")
         || source.contains("state.paths");

@@ -14,9 +14,7 @@ fn main() {
         .join("autonomous_decision_service.rs");
 
     // Re-run this script whenever the gate logic file changes.
-    println!(
-        "cargo:rerun-if-changed=src/services/autonomous_decision_service.rs"
-    );
+    println!("cargo:rerun-if-changed=src/services/autonomous_decision_service.rs");
 
     let source_bytes = fs::read(&service_path)
         .unwrap_or_else(|e| panic!("build.rs: failed to read {}: {e}", service_path.display()));

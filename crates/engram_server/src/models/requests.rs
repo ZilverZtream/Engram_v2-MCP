@@ -2185,7 +2185,10 @@ mod unknown_field_tests {
         // at deserialization, not silently broadened to the full extension set.
         let bad = r#"{"directory":"/tmp","project_name":"n","project_type":"aspnet_webforms"}"#;
         let result: Result<IndexProjectRequest, _> = serde_json::from_str(bad);
-        assert!(result.is_err(), "unknown project_type must be rejected at deserialization");
+        assert!(
+            result.is_err(),
+            "unknown project_type must be rejected at deserialization"
+        );
 
         let bad2 = r#"{"directory":"/tmp","project_name":"n","project_type":"dotnet_webform_cs"}"#;
         let result2: Result<IndexProjectRequest, _> = serde_json::from_str(bad2);
@@ -2209,7 +2212,12 @@ mod unknown_field_tests {
                 s
             );
             let result: Result<IndexProjectRequest, _> = serde_json::from_str(&json);
-            assert!(result.is_ok(), "project_type {:?} should be valid, got: {:?}", s, result);
+            assert!(
+                result.is_ok(),
+                "project_type {:?} should be valid, got: {:?}",
+                s,
+                result
+            );
         }
     }
 
@@ -2217,7 +2225,10 @@ mod unknown_field_tests {
     fn update_project_rejects_unknown_fields() {
         let bad = r#"{"project_id":"p1","projcet_type":"aspnet"}"#;
         let result: Result<UpdateProjectRequest, _> = serde_json::from_str(bad);
-        assert!(result.is_err(), "unknown field projcet_type must be rejected");
+        assert!(
+            result.is_err(),
+            "unknown field projcet_type must be rejected"
+        );
     }
 
     #[test]
@@ -2225,7 +2236,11 @@ mod unknown_field_tests {
         // valid
         let good = r#"{"project_id":"p1","query":"hello"}"#;
         let result: Result<SearchMemoryRequest, _> = serde_json::from_str(good);
-        assert!(result.is_ok(), "valid search JSON must deserialize: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "valid search JSON must deserialize: {:?}",
+            result
+        );
 
         // typo in field name
         let bad = r#"{"project_id":"p1","qurey":"hello","top_kk":5}"#;
@@ -2237,7 +2252,11 @@ mod unknown_field_tests {
     fn graph_search_rejects_unknown_fields() {
         let good = r#"{"project_id":"p1","query":"hello"}"#;
         let result: Result<GraphSearchRequest, _> = serde_json::from_str(good);
-        assert!(result.is_ok(), "valid graph search JSON must deserialize: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "valid graph search JSON must deserialize: {:?}",
+            result
+        );
 
         let bad = r#"{"project_id":"p1","query":"hello","unknwon_field":true}"#;
         let result: Result<GraphSearchRequest, _> = serde_json::from_str(bad);
@@ -2248,11 +2267,18 @@ mod unknown_field_tests {
     fn adp_request_rejects_unknown_fields() {
         let good = r#"{"project_id":"p1","proposed_change":"diff"}"#;
         let result: Result<AutonomousDecisionGateRequest, _> = serde_json::from_str(good);
-        assert!(result.is_ok(), "valid ADP JSON must deserialize: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "valid ADP JSON must deserialize: {:?}",
+            result
+        );
 
         let bad = r#"{"project_id":"p1","proposed_change":"diff","evidnece_depth":"fast"}"#;
         let result: Result<AutonomousDecisionGateRequest, _> = serde_json::from_str(bad);
-        assert!(result.is_err(), "typo field evidnece_depth must be rejected");
+        assert!(
+            result.is_err(),
+            "typo field evidnece_depth must be rejected"
+        );
     }
 }
 

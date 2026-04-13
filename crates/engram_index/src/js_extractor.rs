@@ -2201,18 +2201,30 @@ mod tests {
     fn detect_document_get_element_by_id() {
         let js = r#"var el = document.getElementById('txtUsername');"#;
         let (_, edges) = extract_js(&test_path("login.js"), js);
-        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
-        assert!(!dom.is_empty(), "should detect getElementById as DOM access");
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
+        assert!(
+            !dom.is_empty(),
+            "should detect getElementById as DOM access"
+        );
         assert_eq!(dom[0].target_name, "txtUsername");
         let meta = dom[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("selector_type").map(|s| s.as_str()), Some("getelementbyid"));
+        assert_eq!(
+            meta.get("selector_type").map(|s| s.as_str()),
+            Some("getelementbyid")
+        );
     }
 
     #[test]
     fn getelementbyid_double_quotes() {
         let js = r#"document.getElementById("btnSave").disabled = true;"#;
         let (_, edges) = extract_js(&test_path("form.js"), js);
-        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
         assert!(!dom.is_empty());
         assert_eq!(dom[0].target_name, "btnSave");
     }
@@ -2232,7 +2244,10 @@ mod tests {
     fn detect_jquery_dollar_ends_with() {
         let js = r#"$('[id$="ddlStatus"]').val();"#;
         let (_, edges) = extract_js(&test_path("status.js"), js);
-        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
         assert!(!dom.is_empty());
         assert_eq!(dom[0].target_name, "ddlStatus");
     }
@@ -2245,7 +2260,10 @@ mod tests {
             var b = $("[id$='txtEmail']");
         "#;
         let (_, edges) = extract_js(&test_path("multi.js"), js);
-        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
         assert_eq!(dom.len(), 2, "two distinct controls should produce 2 edges");
         assert!(dom.iter().any(|e| e.target_name == "txtName"));
         assert!(dom.iter().any(|e| e.target_name == "txtEmail"));
@@ -2257,7 +2275,10 @@ mod tests {
     fn detect_dopostback_call() {
         let js = r#"__doPostBack('lnkRefresh', '');"#;
         let (_, edges) = extract_js(&test_path("nav.js"), js);
-        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        let pb: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "triggers_postback")
+            .collect();
         assert_eq!(pb.len(), 1);
         assert_eq!(pb[0].target_name, "lnkRefresh");
         assert_eq!(pb[0].target_kind, Some("control"));
@@ -2267,7 +2288,10 @@ mod tests {
     fn detect_dopostback_with_event_argument() {
         let js = r#"__doPostBack('gvOrders$ctl02$lnkEdit', 'Select$0');"#;
         let (_, edges) = extract_js(&test_path("grid.js"), js);
-        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        let pb: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "triggers_postback")
+            .collect();
         assert_eq!(pb.len(), 1);
         // Short name is last segment after $
         assert_eq!(pb[0].target_name, "lnkEdit");
@@ -2283,7 +2307,10 @@ mod tests {
         // Inline handler as a string containing __doPostBack
         let js = r#"button.onclick = "__doPostBack('btnProcess', '')";"#;
         let (_, edges) = extract_js(&test_path("dyn.js"), js);
-        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        let pb: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "triggers_postback")
+            .collect();
         assert_eq!(pb.len(), 1);
         assert_eq!(pb[0].target_name, "btnProcess");
     }
@@ -2297,7 +2324,10 @@ mod tests {
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         assert!(!api.is_empty(), "fetch should produce api_call edge");
         let meta = api[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("fetch"));
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("fetch")
+        );
     }
 
     #[test]
@@ -2336,7 +2366,10 @@ mod tests {
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         assert!(!api.is_empty());
         let meta = api[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_ajax"));
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("jquery_ajax")
+        );
     }
 
     #[test]
@@ -2347,7 +2380,10 @@ mod tests {
         assert!(!api.is_empty());
         assert_eq!(api[0].target_name, "Services/Lookup.asmx");
         let meta = api[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_shorthand"));
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("jquery_shorthand")
+        );
     }
 
     #[test]
@@ -2358,7 +2394,10 @@ mod tests {
         assert!(!api.is_empty());
         assert_eq!(api[0].target_name, "Services/Save.asmx");
         let meta = api[0].metadata.as_ref().expect("metadata");
-        assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("jquery_shorthand"));
+        assert_eq!(
+            meta.get("ajax_transport").map(|s| s.as_str()),
+            Some("jquery_shorthand")
+        );
     }
 
     #[test]
@@ -2401,7 +2440,10 @@ mod tests {
     fn asp_client_id_in_function_call() {
         let js = r#"$('#<%= hdnUserId.ClientID %>').val(userId);"#;
         let (_, edges) = extract_js(&test_path("user.js"), js);
-        let dom: Vec<_> = edges.iter().filter(|e| e.kind == "manipulates_dom").collect();
+        let dom: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "manipulates_dom")
+            .collect();
         assert!(!dom.is_empty(), "ClientID expression should produce edge");
         assert!(dom.iter().any(|e| e.target_name == "hdnUserId"));
     }
@@ -2418,7 +2460,9 @@ mod tests {
                 e.kind == "manipulates_dom"
                     && e.metadata
                         .as_ref()
-                        .map(|m| m.get("selector_type").map(|s| s.as_str()) == Some("asp_client_id"))
+                        .map(|m| {
+                            m.get("selector_type").map(|s| s.as_str()) == Some("asp_client_id")
+                        })
                         .unwrap_or(false)
             })
             .collect();
@@ -2454,7 +2498,10 @@ mod tests {
         // If the tail segment is lowercase, it's not treated as a method name
         let (path, method) = split_service_url("api/patients/search");
         // Lowercase tail → not split as method
-        assert!(method.is_none() || path.contains("patients"), "path: {path}, method: {method:?}");
+        assert!(
+            method.is_none() || path.contains("patients"),
+            "path: {path}, method: {method:?}"
+        );
     }
 
     #[test]
@@ -2483,12 +2530,13 @@ mod tests {
         let bridge: Vec<_> = edges
             .iter()
             .filter(|e| {
-                e.kind == "manipulates_dom"
-                    || e.kind == "triggers_postback"
-                    || e.kind == "api_call"
+                e.kind == "manipulates_dom" || e.kind == "triggers_postback" || e.kind == "api_call"
             })
             .collect();
-        assert!(bridge.is_empty(), "pure comments should produce no bridge edges");
+        assert!(
+            bridge.is_empty(),
+            "pure comments should produce no bridge edges"
+        );
     }
 
     #[test]
@@ -2499,7 +2547,10 @@ mod tests {
         let (_, edges) = extract_js(&test_path("bundle.min.js"), &minified);
         // Should not panic and should detect the embedded AJAX call
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
-        assert!(!api.is_empty(), "AJAX call in minified code should still be detected");
+        assert!(
+            !api.is_empty(),
+            "AJAX call in minified code should still be detected"
+        );
     }
 
     #[test]
@@ -2520,7 +2571,11 @@ mod tests {
         "#;
         let (_, edges) = extract_js(&test_path("multi_ajax.js"), js);
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
-        assert_eq!(api.len(), 3, "three distinct AJAX calls should produce 3 edges");
+        assert_eq!(
+            api.len(),
+            3,
+            "three distinct AJAX calls should produce 3 edges"
+        );
     }
 
     #[test]
@@ -2530,7 +2585,10 @@ mod tests {
             __doPostBack('btnCancel', '');
         "#;
         let (_, edges) = extract_js(&test_path("form.js"), js);
-        let pb: Vec<_> = edges.iter().filter(|e| e.kind == "triggers_postback").collect();
+        let pb: Vec<_> = edges
+            .iter()
+            .filter(|e| e.kind == "triggers_postback")
+            .collect();
         assert_eq!(pb.len(), 2);
         assert!(pb.iter().any(|e| e.target_name == "btnSave"));
         assert!(pb.iter().any(|e| e.target_name == "btnCancel"));
@@ -2557,7 +2615,9 @@ mod tests {
                 e.kind == "manipulates_dom"
                     && e.metadata
                         .as_ref()
-                        .map(|m| m.get("selector_type").map(|s| s.as_str()) == Some("getelementbyid"))
+                        .map(|m| {
+                            m.get("selector_type").map(|s| s.as_str()) == Some("getelementbyid")
+                        })
                         .unwrap_or(false)
             })
             .collect();
@@ -2598,7 +2658,10 @@ mod tests {
         "#;
         let (_, edges) = extract_js(&test_path("shapes.js"), js);
         let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
-        assert!(spatial.len() >= 2, "polygon and circle should each produce spatial_call");
+        assert!(
+            spatial.len() >= 2,
+            "polygon and circle should each produce spatial_call"
+        );
         assert!(
             spatial.iter().any(|e| {
                 e.metadata
@@ -2618,19 +2681,23 @@ mod tests {
         let (_, edges) = extract_js(&test_path("markers.js"), js);
         let spatial: Vec<_> = edges.iter().filter(|e| e.kind == "spatial_call").collect();
         assert!(!spatial.is_empty());
-        let marker_edge = spatial
-            .iter()
-            .find(|e| {
-                e.metadata
-                    .as_ref()
-                    .unwrap()
-                    .get("map_class")
-                    .map(|s| s.as_str())
-                    == Some("Marker")
-            });
+        let marker_edge = spatial.iter().find(|e| {
+            e.metadata
+                .as_ref()
+                .unwrap()
+                .get("map_class")
+                .map(|s| s.as_str())
+                == Some("Marker")
+        });
         assert!(marker_edge.is_some(), "Marker spatial edge should exist");
         assert_eq!(
-            marker_edge.unwrap().metadata.as_ref().unwrap().get("gis_library").map(|s| s.as_str()),
+            marker_edge
+                .unwrap()
+                .metadata
+                .as_ref()
+                .unwrap()
+                .get("gis_library")
+                .map(|s| s.as_str()),
             Some("google_maps")
         );
     }
@@ -2653,7 +2720,11 @@ mod tests {
         let (_, edges) = extract_js(&test_path("dup_ajax.js"), js);
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         // Same (source, target, kind) triple → deduplicated to 1
-        assert_eq!(api.len(), 1, "duplicate AJAX calls to same URL should be deduped");
+        assert_eq!(
+            api.len(),
+            1,
+            "duplicate AJAX calls to same URL should be deduped"
+        );
     }
 
     #[test]

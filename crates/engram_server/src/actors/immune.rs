@@ -72,7 +72,9 @@ pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
             // large project list can be preempted cooperatively during process
             // shutdown rather than running to completion (mirrors dreamer actor).
             if shutdown.is_cancelled() {
-                tracing::info!("immune actor: shutdown cancelled during project scan loop — exiting");
+                tracing::info!(
+                    "immune actor: shutdown cancelled during project scan loop — exiting"
+                );
                 return;
             }
             if let Err(e) = scan_project_reverts(&state, &pid, &shutdown).await {
@@ -93,7 +95,11 @@ async fn scan_project_reverts(
     let reg = state.registry.clone();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
         .await
-        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S14-0001: spawn_blocking panicked in immune project lookup: {e}"))?
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "ENG-AUD-2026-S14-0001: spawn_blocking panicked in immune project lookup: {e}"
+            )
+        })?
         .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S14-0001: registry get_project failed: {e}"))?;
     let Some(rec) = rec else {
         return Ok(());
@@ -105,13 +111,16 @@ async fn scan_project_reverts(
     let watermark_key = "immune_watermark";
     let pid2 = project_id.to_string();
     let reg2 = state.registry.clone();
-    let watermark_str: Option<String> =
-        tokio::task::spawn_blocking(move || reg2.get_meta(&pid2, watermark_key).ok().flatten())
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!("ENG-AUD-2026-S14-0001: watermark fetch join failure — scanning from scratch: {e}");
-                None
-            });
+    let watermark_str: Option<String> = tokio::task::spawn_blocking(move || {
+        reg2.get_meta(&pid2, watermark_key).ok().flatten()
+    })
+    .await
+    .unwrap_or_else(|e| {
+        tracing::warn!(
+            "ENG-AUD-2026-S14-0001: watermark fetch join failure — scanning from scratch: {e}"
+        );
+        None
+    });
 
     let stop_oid: Option<git2::Oid> = watermark_str
         .as_deref()
@@ -136,10 +145,18 @@ async fn scan_project_reverts(
                 .join("projects")
                 .join(project_id)
                 .join("lancedb");
-            std::fs::create_dir_all(&tantivy_dir)
-                .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}", tantivy_dir))?;
-            std::fs::create_dir_all(&lancedb_dir)
-                .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}", lancedb_dir))?;
+            std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
+                anyhow::anyhow!(
+                    "ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}",
+                    tantivy_dir
+                )
+            })?;
+            std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
+                anyhow::anyhow!(
+                    "ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}",
+                    lancedb_dir
+                )
+            })?;
 
             let search = engram_index::HybridSearchEngine::new_with_budget(
                 tantivy_dir.clone(),
@@ -352,11 +369,10 @@ mod tests {
     /// propagation chain produces a JoinError (not silently swallowed).
     #[tokio::test]
     async fn spawn_blocking_panic_in_bootstrap_produces_join_error() {
-        let result: Result<Vec<String>, _> =
-            tokio::task::spawn_blocking(|| -> Vec<String> {
-                panic!("simulated registry failure in immune bootstrap");
-            })
-            .await;
+        let result: Result<Vec<String>, _> = tokio::task::spawn_blocking(|| -> Vec<String> {
+            panic!("simulated registry failure in immune bootstrap");
+        })
+        .await;
         assert!(
             result.is_err(),
             "ENG-AUD-S1-0003: spawn_blocking panic in immune bootstrap must \
@@ -413,7 +429,10 @@ mod tests {
         use std::io::Write;
         let dir = tempfile::tempdir().unwrap();
         let file_path = dir.path().join("existing_file");
-        std::fs::File::create(&file_path).unwrap().write_all(b"x").unwrap();
+        std::fs::File::create(&file_path)
+            .unwrap()
+            .write_all(b"x")
+            .unwrap();
         // Now try to create a dir with same path as the file — must fail
         let result = std::fs::create_dir_all(&file_path);
         assert!(result.is_err(), "create_dir_all on existing file must fail");

@@ -8,11 +8,11 @@
 use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::metrics;
-use tokio_util::sync::CancellationToken;
 use engram_index::docstore::{DocStore, DocSummary};
 use engram_index::hybrid::SearchDocSummary;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
 
 /// Result of a single cross-store consistency check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -118,8 +118,18 @@ pub async fn check_project_integrity_with_policy(
             .map_err(|e| anyhow::anyhow!("registry lookup failed for {project_id}: {e}"))?
             .ok_or_else(|| anyhow::anyhow!("Project {project_id} does not exist in registry"))?;
 
-        let tantivy_dir = state.cfg.data_dir.join("projects").join(project_id).join("tantivy");
-        let lancedb_dir = state.cfg.data_dir.join("projects").join(project_id).join("lancedb");
+        let tantivy_dir = state
+            .cfg
+            .data_dir
+            .join("projects")
+            .join(project_id)
+            .join("tantivy");
+        let lancedb_dir = state
+            .cfg
+            .data_dir
+            .join("projects")
+            .join(project_id)
+            .join("lancedb");
         // Ignore dir-creation errors here — search engine open will fail with a better message
         let _ = std::fs::create_dir_all(&tantivy_dir);
         let _ = std::fs::create_dir_all(&lancedb_dir);
@@ -608,9 +618,18 @@ mod tests {
         assert_eq!(MismatchKind::TantivyOrphan.to_string(), "tantivy_orphan");
         assert_eq!(MismatchKind::DocstoreOrphan.to_string(), "docstore_orphan");
         assert_eq!(MismatchKind::VectorOrphan.to_string(), "vector_orphan");
-        assert_eq!(MismatchKind::GraphStaleGeneration.to_string(), "graph_stale_generation");
-        assert_eq!(MismatchKind::CountDivergence.to_string(), "count_divergence");
-        assert_eq!(MismatchKind::RegistryMismatch.to_string(), "registry_mismatch");
+        assert_eq!(
+            MismatchKind::GraphStaleGeneration.to_string(),
+            "graph_stale_generation"
+        );
+        assert_eq!(
+            MismatchKind::CountDivergence.to_string(),
+            "count_divergence"
+        );
+        assert_eq!(
+            MismatchKind::RegistryMismatch.to_string(),
+            "registry_mismatch"
+        );
     }
 
     // ── build_integrity_mismatches: no mismatches ────────────────────────────
@@ -626,7 +645,10 @@ mod tests {
             ddoc("memory", "b", "src/b.rs"),
         ];
         let mismatches = build_integrity_mismatches(2, 2, 1, &docs, &ddocs);
-        assert!(mismatches.is_empty(), "perfectly aligned stores should have no mismatches");
+        assert!(
+            mismatches.is_empty(),
+            "perfectly aligned stores should have no mismatches"
+        );
     }
 
     #[test]
@@ -649,7 +671,9 @@ mod tests {
             .collect();
         let mismatches = build_integrity_mismatches(90, 100, 0, &tdocs, &ddocs);
         assert!(
-            mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::CountDivergence),
             "diff of 10 (>5% of 100) should trigger divergence"
         );
     }
@@ -666,7 +690,9 @@ mod tests {
         // No orphans because all tantivy docs are subset of docstore
         let mismatches = build_integrity_mismatches(97, 100, 0, &tdocs, &ddocs);
         assert!(
-            !mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            !mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::CountDivergence),
             "diff of 3 (<5% of 100) should not trigger divergence"
         );
     }
@@ -683,7 +709,9 @@ mod tests {
             .collect();
         let mismatches = build_integrity_mismatches(6, 10, 0, &tdocs, &ddocs);
         assert!(
-            !mismatches.iter().any(|m| m.kind == MismatchKind::CountDivergence),
+            !mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::CountDivergence),
             "diff of 4 should not exceed minimum threshold of 5"
         );
     }
@@ -702,7 +730,9 @@ mod tests {
             .collect();
         let mismatches = build_integrity_mismatches(1000, 1000, 1200, &tdocs, &ddocs);
         assert!(
-            mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::VectorOrphan),
             "1200 vectors vs 1000 tantivy docs should trigger VectorOrphan"
         );
     }
@@ -719,7 +749,9 @@ mod tests {
             .collect();
         let mismatches = build_integrity_mismatches(1000, 1000, 1050, &tdocs, &ddocs);
         assert!(
-            !mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan),
+            !mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::VectorOrphan),
             "vector count only 50 above tantivy should not trigger VectorOrphan"
         );
     }
@@ -733,9 +765,21 @@ mod tests {
         let ddocs = vec![ddoc("ns", "a", "a.rs"), ddoc("ns", "missing", "missing.rs")];
         let mismatches = build_integrity_mismatches(2, 2, 5000, &tdocs, &ddocs);
         // Should detect both TantivyOrphan (extra) and DocstoreOrphan (missing)
-        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::TantivyOrphan));
-        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::DocstoreOrphan));
-        assert!(mismatches.iter().any(|m| m.kind == MismatchKind::VectorOrphan));
+        assert!(
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::TantivyOrphan)
+        );
+        assert!(
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::DocstoreOrphan)
+        );
+        assert!(
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::VectorOrphan)
+        );
     }
 
     // ── summarize_samples helper ─────────────────────────────────────────────
@@ -755,7 +799,8 @@ mod tests {
         // description should include the orphan key formatted as namespace:doc_id@path
         assert!(
             mm.description.contains("memory:doc2@src/other.rs"),
-            "description should include orphan sample: {:?}", mm.description
+            "description should include orphan sample: {:?}",
+            mm.description
         );
     }
 
@@ -813,7 +858,8 @@ mod tests {
             })
             .collect();
         assert_eq!(
-            hard_fail_lines.len(), 0,
+            hard_fail_lines.len(),
+            0,
             "integrity check must not hard-fail when project is not in cache; \
              found: {hard_fail_lines:?}"
         );
@@ -832,14 +878,23 @@ mod tests {
 
     #[test]
     fn overall_healthy_is_true_when_no_mismatches() {
-        let mismatches = build_integrity_mismatches(5, 5, 3,
+        let mismatches = build_integrity_mismatches(
+            5,
+            5,
+            3,
             &[
-                tdoc("ns","a","a.rs"),tdoc("ns","b","b.rs"),
-                tdoc("ns","c","c.rs"),tdoc("ns","d","d.rs"),tdoc("ns","e","e.rs"),
+                tdoc("ns", "a", "a.rs"),
+                tdoc("ns", "b", "b.rs"),
+                tdoc("ns", "c", "c.rs"),
+                tdoc("ns", "d", "d.rs"),
+                tdoc("ns", "e", "e.rs"),
             ],
             &[
-                ddoc("ns","a","a.rs"),ddoc("ns","b","b.rs"),
-                ddoc("ns","c","c.rs"),ddoc("ns","d","d.rs"),ddoc("ns","e","e.rs"),
+                ddoc("ns", "a", "a.rs"),
+                ddoc("ns", "b", "b.rs"),
+                ddoc("ns", "c", "c.rs"),
+                ddoc("ns", "d", "d.rs"),
+                ddoc("ns", "e", "e.rs"),
             ],
         );
         let overall_healthy = mismatches.is_empty();

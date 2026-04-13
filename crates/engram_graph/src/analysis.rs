@@ -399,11 +399,16 @@ mod tests {
     fn pagerank_single_node_has_positive_score() {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
-        store.upsert_nodes("proj", &[make_node("only", "function")]).unwrap();
+        store
+            .upsert_nodes("proj", &[make_node("only", "function")])
+            .unwrap();
         let result = compute_pagerank(&store, "proj", 1).unwrap();
         assert_eq!(result.pagerank.len(), 1);
         let score = *result.pagerank.get("only").unwrap();
-        assert!(score > 0.0, "single node PageRank should be positive, got {score}");
+        assert!(
+            score > 0.0,
+            "single node PageRank should be positive, got {score}"
+        );
     }
 
     #[test]
@@ -438,7 +443,9 @@ mod tests {
     fn pagerank_scores_sum_approximately_to_one() {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
-        let nodes: Vec<Node> = (0..5).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        let nodes: Vec<Node> = (0..5)
+            .map(|i| make_node(&format!("n{i}"), "function"))
+            .collect();
         store.upsert_nodes("proj", &nodes).unwrap();
         // Chain: n0→n1→n2→n3→n4
         let edges: Vec<Edge> = (0..4)
@@ -458,7 +465,9 @@ mod tests {
     fn pagerank_deterministic() {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
-        let nodes: Vec<Node> = (0..4).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        let nodes: Vec<Node> = (0..4)
+            .map(|i| make_node(&format!("n{i}"), "function"))
+            .collect();
         store.upsert_nodes("proj", &nodes).unwrap();
         store
             .upsert_edges(
@@ -541,7 +550,9 @@ mod tests {
     fn blended_score_zero_weights_returns_zero() {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
-        store.upsert_nodes("proj", &[make_node("x", "function")]).unwrap();
+        store
+            .upsert_nodes("proj", &[make_node("x", "function")])
+            .unwrap();
         let mc = compute_multi_centrality(&store, "proj", 1, 4).unwrap();
         let score = mc.blended_score("x", 0.0, 0.0, 0.0);
         assert_eq!(score, 0.0);
@@ -607,7 +618,9 @@ mod tests {
     fn blended_score_in_range_zero_to_one() {
         let dir = tempdir().unwrap();
         let store = GraphStore::open(&dir.path().join("graph.db")).unwrap();
-        let nodes: Vec<Node> = (0..5).map(|i| make_node(&format!("n{i}"), "function")).collect();
+        let nodes: Vec<Node> = (0..5)
+            .map(|i| make_node(&format!("n{i}"), "function"))
+            .collect();
         store.upsert_nodes("proj", &nodes).unwrap();
         let edges: Vec<Edge> = (0..4)
             .map(|i| make_dep_edge(&format!("n{i}"), &format!("n{}", i + 1), 1))

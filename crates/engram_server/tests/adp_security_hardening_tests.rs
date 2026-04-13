@@ -8,7 +8,7 @@
 //!  - Enrichment degradation message completeness
 //!  - Actor spawn_blocking panic propagation (dreamer + immune regression)
 
-use engram_core::{safe_join, PathContext};
+use engram_core::{PathContext, safe_join};
 use engram_server::services::autonomous_decision_service::*;
 use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
 use std::path::PathBuf;
@@ -71,11 +71,15 @@ fn embedding_valid_floats_parse_to_correct_f32_values() {
         serde_json::json!(-0.3f64),
         serde_json::json!(1.0f64),
     ];
-    let parsed: anyhow::Result<Vec<f32>> = values.iter().enumerate().map(|(i, v)| {
-        v.as_f64()
-            .ok_or_else(|| anyhow::anyhow!("non-numeric at {i}: {:?}", v))
-            .map(|f| f as f32)
-    }).collect();
+    let parsed: anyhow::Result<Vec<f32>> = values
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            v.as_f64()
+                .ok_or_else(|| anyhow::anyhow!("non-numeric at {i}: {:?}", v))
+                .map(|f| f as f32)
+        })
+        .collect();
 
     assert!(parsed.is_ok(), "valid floats must parse without error");
     let vec = parsed.unwrap();
@@ -106,7 +110,8 @@ fn adp_cached_retrieval_lower_confidence_than_live() {
     assert!(
         cached_dec.confidence < live_dec.confidence,
         "Cached confidence ({}) must be less than Live confidence ({})",
-        cached_dec.confidence, live_dec.confidence
+        cached_dec.confidence,
+        live_dec.confidence
     );
 }
 
@@ -155,8 +160,10 @@ fn evaluate_gates_degenerate_input_does_not_panic() {
         decision.verdict
     );
     // Confidence must be finite
-    assert!(decision.confidence.is_finite(),
-        "confidence must be finite even with all-None inputs");
+    assert!(
+        decision.confidence.is_finite(),
+        "confidence must be finite even with all-None inputs"
+    );
 }
 
 // ── graph_impact join_failed → safety_decision deny → ADP Deny ───────────────
@@ -245,11 +252,16 @@ fn adp_missing_blast_radius_with_high_risk_is_not_allow() {
 async fn actor_dreamer_spawn_blocking_panic_is_join_error_regression() {
     let result: Result<String, _> = tokio::task::spawn_blocking(|| -> String {
         panic!("simulated dreamer registry panic");
-    }).await;
-    assert!(result.is_err(),
-        "dreamer spawn_blocking panic must be JoinError (regression)");
-    assert!(result.unwrap_err().is_panic(),
-        "error must be identifiable as panic");
+    })
+    .await;
+    assert!(
+        result.is_err(),
+        "dreamer spawn_blocking panic must be JoinError (regression)"
+    );
+    assert!(
+        result.unwrap_err().is_panic(),
+        "error must be identifiable as panic"
+    );
 }
 
 // ── immune spawn_blocking panic → JoinError (Gate 3.0 regression) ───
@@ -260,9 +272,12 @@ async fn actor_dreamer_spawn_blocking_panic_is_join_error_regression() {
 async fn actor_immune_spawn_blocking_panic_is_join_error_regression() {
     let result: Result<Vec<String>, _> = tokio::task::spawn_blocking(|| -> Vec<String> {
         panic!("simulated immune registry panic");
-    }).await;
-    assert!(result.is_err(),
-        "immune spawn_blocking panic must be JoinError (regression)");
+    })
+    .await;
+    assert!(
+        result.is_err(),
+        "immune spawn_blocking panic must be JoinError (regression)"
+    );
 }
 
 // ── adversarial path validation — production code ───────────────────────────
@@ -334,20 +349,26 @@ fn all_enrichment_warnings_appear_in_job_message_not_just_first() {
         "git_update_stream failed: not a git repository".to_string(),
     ];
 
-    let msg = format!("completed with enrichment warnings: {}", warnings.join("; "));
+    let msg = format!(
+        "completed with enrichment warnings: {}",
+        warnings.join("; ")
+    );
 
     for (i, w) in warnings.iter().enumerate() {
         let keyword = w.split(':').next().unwrap_or("").trim();
         assert!(
             msg.contains(keyword),
             "warning {} ({}) must appear in message; msg='{}'",
-            i + 1, keyword, msg
+            i + 1,
+            keyword,
+            msg
         );
     }
-    assert!(msg.contains("enrichment warnings"),
-        "must use 'enrichment warnings' framing");
-    assert_ne!(msg, "completed",
-        "must not be clean success banner");
+    assert!(
+        msg.contains("enrichment warnings"),
+        "must use 'enrichment warnings' framing"
+    );
+    assert_ne!(msg, "completed", "must not be clean success banner");
 }
 
 // ── no partial record when directory creation fails ─────────────────
@@ -381,4 +402,3 @@ fn no_project_record_when_dir_creation_fails_explicit_err() {
         "error message must not be empty (must be diagnosable)"
     );
 }
-

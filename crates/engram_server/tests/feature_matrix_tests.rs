@@ -50,9 +50,7 @@ fn feature_matrix_vector_off_cfg_blocks_return_safe_defaults() {
     let source = include_str!("../../engram_index/src/hybrid.rs");
 
     // All four expected cfg-not-vector blocks must exist.
-    let cfg_count = source
-        .matches("#[cfg(not(feature = \"vector\"))]")
-        .count();
+    let cfg_count = source.matches("#[cfg(not(feature = \"vector\"))]").count();
     assert!(
         cfg_count >= 3,
         "feature_matrix: hybrid.rs must have at least 3 cfg(not(feature=vector)) blocks \
@@ -75,7 +73,8 @@ fn feature_matrix_vector_off_cfg_blocks_return_safe_defaults() {
 
     // No unconditional panic/unwrap should appear in the vector-off fallback paths.
     // (We check the cfg-not-vector blocks are always return-based, not panic-based.)
-    let has_panic_in_vector_off = source.contains("#[cfg(not(feature = \"vector\"))]\n        panic!")
+    let has_panic_in_vector_off = source
+        .contains("#[cfg(not(feature = \"vector\"))]\n        panic!")
         || source.contains("#[cfg(not(feature = \"vector\"))]\n        {\n            panic!");
     assert!(
         !has_panic_in_vector_off,
@@ -157,7 +156,16 @@ async fn feature_matrix_fts_only_engine_returns_fts_results_without_panic() {
 
     let cancel = CancellationToken::new();
     engine
-        .index_files("fts-search-proj", "code", 1, tmp.path(), vec![src], 4096, &cancel, |_, _| {})
+        .index_files(
+            "fts-search-proj",
+            "code",
+            1,
+            tmp.path(),
+            vec![src],
+            4096,
+            &cancel,
+            |_, _| {},
+        )
         .await
         .unwrap();
 
@@ -263,7 +271,8 @@ fn fts2_vector_off_branch_exists_in_hybrid_source() {
         .find(r#"cfg(not(feature = "vector"))"#)
         .or_else(|| hybrid_src.find(r#"cfg(not(feature="vector"))"#))
         .unwrap_or(0);
-    let window = &hybrid_src[no_vector_idx..no_vector_idx.min(hybrid_src.len() - no_vector_idx) + 200];
+    let window =
+        &hybrid_src[no_vector_idx..no_vector_idx.min(hybrid_src.len() - no_vector_idx) + 200];
     assert!(
         !window.contains("todo!()") && !window.contains("unimplemented!()"),
         "FTS2: vector-off branch must have a real degrade implementation, not todo!/unimplemented!"

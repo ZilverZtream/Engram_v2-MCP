@@ -1,14 +1,14 @@
 #![allow(clippy::unwrap_used)]
 use engram_core::{Config, build_pk};
+use engram_graph::GraphStore;
 use engram_server::Engram;
+use engram_server::services::full_project_migration_service::{
+    FileContent, ProjectFileBundle, ProjectReferenceBundle, analyze_full_project,
+};
 use engram_server::state::AppState;
 use rmcp::handler::server::tool::Parameters;
-use tempfile::tempdir;
 use std::sync::Arc;
-use engram_graph::GraphStore;
-use engram_server::services::full_project_migration_service::{
-    analyze_full_project, FileContent, ProjectFileBundle, ProjectReferenceBundle,
-};
+use tempfile::tempdir;
 use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
@@ -4796,8 +4796,15 @@ fn analyze_full_project_empty_graph_returns_complete_with_no_degraded_sections()
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
 
     let bundle = empty_bundle();
-    let report = analyze_full_project(&graph, "test-proj", "react", &bundle, 100, &CancellationToken::new())
-        .expect("analyze_full_project must succeed on empty graph");
+    let report = analyze_full_project(
+        &graph,
+        "test-proj",
+        "react",
+        &bundle,
+        100,
+        &CancellationToken::new(),
+    )
+    .expect("analyze_full_project must succeed on empty graph");
 
     assert!(
         report.report_is_complete,
@@ -4825,14 +4832,39 @@ fn consecutive_analysis_calls_reset_tls_accumulator_independently() {
 
     let bundle = empty_bundle();
 
-    let r1 = analyze_full_project(&graph, "proj-a", "blazor", &bundle, 50, &CancellationToken::new()).unwrap();
-    let r2 = analyze_full_project(&graph, "proj-b", "blazor", &bundle, 50, &CancellationToken::new()).unwrap();
+    let r1 = analyze_full_project(
+        &graph,
+        "proj-a",
+        "blazor",
+        &bundle,
+        50,
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    let r2 = analyze_full_project(
+        &graph,
+        "proj-b",
+        "blazor",
+        &bundle,
+        50,
+        &CancellationToken::new(),
+    )
+    .unwrap();
 
     // Neither call should pollute the other's completeness state.
     assert!(r1.report_is_complete, "call 1 must be complete");
-    assert!(r2.report_is_complete, "call 2 must be complete — TLS must have been reset");
-    assert!(r1.degraded_sections.is_empty(), "call 1 degraded_sections must be empty");
-    assert!(r2.degraded_sections.is_empty(), "call 2 degraded_sections must be empty");
+    assert!(
+        r2.report_is_complete,
+        "call 2 must be complete — TLS must have been reset"
+    );
+    assert!(
+        r1.degraded_sections.is_empty(),
+        "call 1 degraded_sections must be empty"
+    );
+    assert!(
+        r2.degraded_sections.is_empty(),
+        "call 2 degraded_sections must be empty"
+    );
 }
 
 /// MIG1-e84f: Two concurrent `analyze_full_project` calls on separate OS threads
@@ -4849,15 +4881,35 @@ fn concurrent_analysis_threads_have_isolated_tls_accumulators() {
     // Run both analyze_full_project calls concurrently on separate threads.
     let g1 = graph1.clone();
     let handle1 = std::thread::spawn(move || {
-        analyze_full_project(&g1, "thread-proj-1", "react", &empty_bundle(), 100, &CancellationToken::new())
+        analyze_full_project(
+            &g1,
+            "thread-proj-1",
+            "react",
+            &empty_bundle(),
+            100,
+            &CancellationToken::new(),
+        )
     });
     let g2 = graph2.clone();
     let handle2 = std::thread::spawn(move || {
-        analyze_full_project(&g2, "thread-proj-2", "blazor", &empty_bundle(), 100, &CancellationToken::new())
+        analyze_full_project(
+            &g2,
+            "thread-proj-2",
+            "blazor",
+            &empty_bundle(),
+            100,
+            &CancellationToken::new(),
+        )
     });
 
-    let r1 = handle1.join().expect("thread 1 must not panic").expect("analyze 1 must succeed");
-    let r2 = handle2.join().expect("thread 2 must not panic").expect("analyze 2 must succeed");
+    let r1 = handle1
+        .join()
+        .expect("thread 1 must not panic")
+        .expect("analyze 1 must succeed");
+    let r2 = handle2
+        .join()
+        .expect("thread 2 must not panic")
+        .expect("analyze 2 must succeed");
 
     // Both results must be complete with independent (empty) degraded_sections.
     assert!(
@@ -4886,18 +4938,27 @@ fn concurrent_analysis_threads_have_isolated_tls_accumulators() {
 /// a distinct graph, must all report complete and isolated results.
 #[test]
 fn four_concurrent_analysis_threads_all_produce_isolated_complete_reports() {
-    let handles: Vec<_> = (0..4).map(|i| {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
-        let project_type = ["react", "blazor", "general", "react"][i];
-        std::thread::spawn(move || {
-            let r = analyze_full_project(&graph, &format!("proj-{i}"), project_type, &empty_bundle(), 50, &CancellationToken::new())
+    let handles: Vec<_> = (0..4)
+        .map(|i| {
+            let tmp = tempfile::TempDir::new().unwrap();
+            let graph = Arc::new(GraphStore::open(&tmp.path().join("g.redb")).unwrap());
+            let project_type = ["react", "blazor", "general", "react"][i];
+            std::thread::spawn(move || {
+                let r = analyze_full_project(
+                    &graph,
+                    &format!("proj-{i}"),
+                    project_type,
+                    &empty_bundle(),
+                    50,
+                    &CancellationToken::new(),
+                )
                 .expect("analyze_full_project must succeed");
-            // Keep tmp alive until after analyze completes.
-            let _ = tmp;
-            r
+                // Keep tmp alive until after analyze completes.
+                let _ = tmp;
+                r
+            })
         })
-    }).collect();
+        .collect();
 
     for (i, handle) in handles.into_iter().enumerate() {
         let report = handle.join().expect("thread must not panic");
@@ -4926,7 +4987,9 @@ fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
         markup_files: vec![FileContent {
             file_path: "Default.aspx".into(),
             markup_content: "<%@ Page Language=\"C#\" %>".into(),
-            codebehind_content: Some("public partial class _Default : System.Web.UI.Page {}".into()),
+            codebehind_content: Some(
+                "public partial class _Default : System.Web.UI.Page {}".into(),
+            ),
         }],
         code_files: vec![("App_Code/Helper.cs".into(), "public class Helper {}".into())],
         project_references: vec![ProjectReferenceBundle {
@@ -4941,7 +5004,14 @@ fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
         ..empty_bundle()
     };
 
-    let result = analyze_full_project(&graph, "real-proj", "react", &bundle, 10, &CancellationToken::new());
+    let result = analyze_full_project(
+        &graph,
+        "real-proj",
+        "react",
+        &bundle,
+        10,
+        &CancellationToken::new(),
+    );
     assert!(
         result.is_ok(),
         "MIG1: minimal non-empty bundle must not panic; got: {:?}",
@@ -5012,8 +5082,15 @@ fn analysis_report_is_complete_and_degraded_sections_is_empty_are_consistent() {
     let graph = Arc::new(GraphStore::open(&db_path).expect("GraphStore::open must succeed"));
 
     let bundle = empty_bundle();
-    let report = analyze_full_project(&graph, "inv-proj", "react", &bundle, 10, &CancellationToken::new())
-        .expect("analyze_full_project must succeed");
+    let report = analyze_full_project(
+        &graph,
+        "inv-proj",
+        "react",
+        &bundle,
+        10,
+        &CancellationToken::new(),
+    )
+    .expect("analyze_full_project must succeed");
 
     // Invariant: report_is_complete == degraded_sections.is_empty()
     assert_eq!(
@@ -5155,7 +5232,14 @@ fn migration_cancellation_terminates_per_file_loop() {
 
     // Run analysis in a separate thread so we can cancel from this thread.
     let handle = std::thread::spawn(move || {
-        analyze_full_project(&graph, "in-flight-proj", "react", &bundle, 30, &cancel_clone)
+        analyze_full_project(
+            &graph,
+            "in-flight-proj",
+            "react",
+            &bundle,
+            30,
+            &cancel_clone,
+        )
     });
 
     // Cancel immediately — the function is synchronous so it checks cancel at the
@@ -5206,9 +5290,7 @@ public partial class MyPage : System.Web.UI.Page {
 }
 "#;
     let bundle = ProjectFileBundle {
-        code_files: vec![
-            ("Default.aspx.cs".into(), cs_code.into()),
-        ],
+        code_files: vec![("Default.aspx.cs".into(), cs_code.into())],
         ..empty_bundle()
     };
 
@@ -5254,9 +5336,7 @@ Public Class MyPage
 End Class
 "#;
     let bundle = ProjectFileBundle {
-        code_files: vec![
-            ("Default.aspx.vb".into(), vb_code.into()),
-        ],
+        code_files: vec![("Default.aspx.vb".into(), vb_code.into())],
         ..empty_bundle()
     };
 
@@ -5306,9 +5386,8 @@ fn method_body_extraction_helpers_log_compile_failures_via_inspect_err() {
 // ── ADP enqueue enforcement, retrieval watcher, and vNext tests ───────────────
 
 use engram_server::services::autonomous_decision_service::{
-    AdpInput, AdpVerdict, RiskProfile, RolloutPhase,
-    apply_rollout_policy, evaluate_gates, evaluate_wave,
-    WaveAdpInput, ReconciliationScores, GraphImpactMetrics, RetrievalMode,
+    AdpInput, AdpVerdict, GraphImpactMetrics, ReconciliationScores, RetrievalMode, RiskProfile,
+    RolloutPhase, WaveAdpInput, apply_rollout_policy, evaluate_gates, evaluate_wave,
     format_wave_decision,
 };
 use engram_server::services::safety_service::{PolicyDecision, RiskLevel};
@@ -5628,7 +5707,10 @@ fn adp_deny_verdict_is_unambiguous() {
         format!("{allow}"),
         "JOB1: Deny and Allow must render as distinct strings"
     );
-    assert_ne!(deny, allow, "JOB1: Deny and Allow must be distinct enum variants");
+    assert_ne!(
+        deny, allow,
+        "JOB1: Deny and Allow must be distinct enum variants"
+    );
 }
 
 /// Blast radius exceeding max_blast_radius_for_auto must produce Deny in Guarded mode.
@@ -5799,7 +5881,10 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
         "BLOCK immune verdict Deny must survive Guarded mode policy application"
     );
     assert!(
-        enforced.failed_gates.iter().any(|g| g.contains("anti_pattern") || g.contains("immune")),
+        enforced
+            .failed_gates
+            .iter()
+            .any(|g| g.contains("anti_pattern") || g.contains("immune")),
         "anti_pattern gate must appear in failed_gates; got: {:?}",
         enforced.failed_gates
     );
@@ -5830,7 +5915,9 @@ fn wave_with_one_deny_item_produces_wave_deny() {
          a single unsafe file must not be auto-applied even if all others are safe"
     );
     assert!(
-        wave_decision.blocking_items.contains(&"file_b.cs".to_string()),
+        wave_decision
+            .blocking_items
+            .contains(&"file_b.cs".to_string()),
         "blocking_items must identify the deny-producing file; \
          got: {:?}",
         wave_decision.blocking_items
@@ -5952,7 +6039,8 @@ async fn watcher_try_send_on_full_channel_returns_immediately_not_blocking() {
 
     let (tx, _rx) = mpsc::channel::<String>(1);
     // Fill the single slot
-    tx.try_send("fill".to_string()).expect("first send to empty channel must succeed");
+    tx.try_send("fill".to_string())
+        .expect("first send to empty channel must succeed");
 
     // Now saturated — must return Full immediately, never block
     let result = tx.try_send("overflow".to_string());
@@ -6012,30 +6100,43 @@ fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
     let number_val = serde_json::json!(0.5f64);
 
     // Behavioral contract: non-numeric values must return None from as_f64()
-    assert!(null_val.as_f64().is_none(),
-        "Gate 2.5: JSON null must return None from as_f64()");
-    assert!(str_val.as_f64().is_none(),
-        "Gate 2.5: JSON string must return None from as_f64()");
-    assert!(bool_val.as_f64().is_none(),
-        "Gate 2.5: JSON bool must return None from as_f64()");
+    assert!(
+        null_val.as_f64().is_none(),
+        "Gate 2.5: JSON null must return None from as_f64()"
+    );
+    assert!(
+        str_val.as_f64().is_none(),
+        "Gate 2.5: JSON string must return None from as_f64()"
+    );
+    assert!(
+        bool_val.as_f64().is_none(),
+        "Gate 2.5: JSON bool must return None from as_f64()"
+    );
 
     // Behavioral contract: numeric values must return Some
-    assert!(number_val.as_f64().is_some(),
-        "Gate 2.5: JSON number must return Some from as_f64()");
+    assert!(
+        number_val.as_f64().is_some(),
+        "Gate 2.5: JSON number must return Some from as_f64()"
+    );
 
     // Demonstrate why None → 0.0 via unwrap_or(0.0) is WRONG:
     // It silently produces a zero-filled embedding that looks valid to the ADP gate.
     let silent_bad = null_val.as_f64().unwrap_or(0.0);
-    assert_eq!(silent_bad, 0.0f64,
+    assert_eq!(
+        silent_bad, 0.0f64,
         "Gate 2.5: unwrap_or(0.0) on null gives 0.0 — this is the silent false-success \
-         that parse_embedding_array was fixed to reject with Err");
+         that parse_embedding_array was fixed to reject with Err"
+    );
 
     // The fix: None must map to Err, not to 0.0
-    let correct: anyhow::Result<f32> = null_val.as_f64()
+    let correct: anyhow::Result<f32> = null_val
+        .as_f64()
         .ok_or_else(|| anyhow::anyhow!("non-numeric element"))
         .map(|f| f as f32);
-    assert!(correct.is_err(),
-        "Gate 2.5: None.ok_or_else(Err) must produce Err, not Ok(0.0)");
+    assert!(
+        correct.is_err(),
+        "Gate 2.5: None.ok_or_else(Err) must produce Err, not Ok(0.0)"
+    );
 }
 
 /// Gate 2.5 Test 14 (AUD-2026-INV-0002): When enrichment degrades during indexing,
@@ -6070,21 +6171,34 @@ fn post_index_enrichment_degraded_message_describes_all_failures() {
     } else if res_failed {
         "hard failure".to_string()
     } else if !warnings.is_empty() {
-        format!("completed with enrichment warnings: {}", warnings.join("; "))
+        format!(
+            "completed with enrichment warnings: {}",
+            warnings.join("; ")
+        )
     } else {
         "completed".to_string()
     };
 
-    assert_eq!(status, "degraded",
-        "Gate 2.5: multi-warning enrichment must produce 'degraded' status");
-    assert!(msg.contains("link_sql_to_schema"),
-        "Gate 2.5: message must mention link_sql_to_schema failure; got: '{msg}'");
-    assert!(msg.contains("resolve_symbol_edges"),
-        "Gate 2.5: message must mention resolve_symbol_edges failure; got: '{msg}'");
-    assert!(msg.contains("enrichment warnings"),
-        "Gate 2.5: message must use 'enrichment warnings' framing; got: '{msg}'");
-    assert_ne!(msg, "completed",
-        "Gate 2.5: degraded message must not be the clean success banner 'completed'");
+    assert_eq!(
+        status, "degraded",
+        "Gate 2.5: multi-warning enrichment must produce 'degraded' status"
+    );
+    assert!(
+        msg.contains("link_sql_to_schema"),
+        "Gate 2.5: message must mention link_sql_to_schema failure; got: '{msg}'"
+    );
+    assert!(
+        msg.contains("resolve_symbol_edges"),
+        "Gate 2.5: message must mention resolve_symbol_edges failure; got: '{msg}'"
+    );
+    assert!(
+        msg.contains("enrichment warnings"),
+        "Gate 2.5: message must use 'enrichment warnings' framing; got: '{msg}'"
+    );
+    assert_ne!(
+        msg, "completed",
+        "Gate 2.5: degraded message must not be the clean success banner 'completed'"
+    );
 }
 
 // ── adp_vnext_test (from adp_vnext_test.rs) ───────────────────────────────────
@@ -6389,7 +6503,10 @@ fn evidence_depth_from_str_parses_correctly() {
 
     assert_eq!(EvidenceDepth::from_str("fast"), Ok(EvidenceDepth::Fast));
     assert_eq!(EvidenceDepth::from_str("DEEP"), Ok(EvidenceDepth::Deep));
-    assert_eq!(EvidenceDepth::from_str("standard"), Ok(EvidenceDepth::Standard));
+    assert_eq!(
+        EvidenceDepth::from_str("standard"),
+        Ok(EvidenceDepth::Standard)
+    );
     assert!(
         EvidenceDepth::from_str("unknown").is_err(),
         "unknown string should return an error"

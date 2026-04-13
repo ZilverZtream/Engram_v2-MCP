@@ -1748,7 +1748,10 @@ END
         assert_eq!(defs.len(), 1);
         let sp = &defs[0];
         // return_columns come from the FIRST select statement only
-        assert!(!sp.return_columns.is_empty(), "Should detect return columns");
+        assert!(
+            !sp.return_columns.is_empty(),
+            "Should detect return columns"
+        );
         assert!(
             sp.tables_read.contains(&"Orders".to_string()),
             "Should read Orders"

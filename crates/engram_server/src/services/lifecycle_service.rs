@@ -1302,23 +1302,32 @@ End Class
     #[test]
     fn test_map_lifecycle_event_page_load_returns_known_blazor() {
         let (blazor, react, angular, _notes) = map_lifecycle_event("Page_Load", false, &[], &[]);
-        assert!(blazor.contains("OnParametersSet") || blazor.contains("OnInitialized"),
-            "Page_Load blazor mapping should reference OnParametersSet or OnInitialized, got: {blazor}");
+        assert!(
+            blazor.contains("OnParametersSet") || blazor.contains("OnInitialized"),
+            "Page_Load blazor mapping should reference OnParametersSet or OnInitialized, got: {blazor}"
+        );
         assert!(!react.is_empty());
         assert!(!angular.is_empty());
     }
 
     #[test]
     fn test_map_lifecycle_event_page_unload_returns_dispose() {
-        let (blazor, _react, _angular, _notes) = map_lifecycle_event("Page_Unload", false, &[], &[]);
-        assert!(blazor.contains("Dispose") || blazor.contains("IDisposable"),
-            "Page_Unload should map to Dispose pattern, got: {blazor}");
+        let (blazor, _react, _angular, _notes) =
+            map_lifecycle_event("Page_Unload", false, &[], &[]);
+        assert!(
+            blazor.contains("Dispose") || blazor.contains("IDisposable"),
+            "Page_Unload should map to Dispose pattern, got: {blazor}"
+        );
     }
 
     #[test]
     fn test_map_lifecycle_event_page_prerender() {
-        let (blazor, react, angular, _notes) = map_lifecycle_event("Page_PreRender", false, &[], &[]);
-        assert!(blazor.contains("OnAfterRender"), "Page_PreRender → OnAfterRender");
+        let (blazor, react, angular, _notes) =
+            map_lifecycle_event("Page_PreRender", false, &[], &[]);
+        assert!(
+            blazor.contains("OnAfterRender"),
+            "Page_PreRender → OnAfterRender"
+        );
         assert!(react.contains("useLayoutEffect") || react.contains("useMemo"));
         assert!(angular.contains("ngAfterViewChecked"));
     }
@@ -1329,7 +1338,10 @@ End Class
         let postback = vec!["State: Session[\"x\"] = 1".to_string()];
         let (_blazor, _react, _angular, notes) =
             map_lifecycle_event("Page_Load", true, &first_load, &postback);
-        assert!(!notes.is_empty(), "postback branching should produce migration notes");
+        assert!(
+            !notes.is_empty(),
+            "postback branching should produce migration notes"
+        );
         // Notes should mention OnInitializedAsync
         assert!(notes.iter().any(|n| n.contains("OnInitializedAsync")));
     }
@@ -1337,7 +1349,10 @@ End Class
     #[test]
     fn test_map_lifecycle_event_unknown_event_returns_comment() {
         let (blazor, react, _angular, _notes) = map_lifecycle_event("Page_Custom", false, &[], &[]);
-        assert!(blazor.contains("No mapping"), "unknown event should produce no-mapping comment");
+        assert!(
+            blazor.contains("No mapping"),
+            "unknown event should produce no-mapping comment"
+        );
         assert!(react.contains("No mapping"));
     }
 
@@ -1353,8 +1368,10 @@ End Class
     #[test]
     fn test_map_control_event_selectedindexchanged() {
         let (blazor, react) = map_control_event("selectedindexchanged", "ddlState");
-        assert!(blazor.contains("@onchange") || blazor.contains("@bind"),
-            "SelectedIndexChanged → @onchange or @bind in Blazor");
+        assert!(
+            blazor.contains("@onchange") || blazor.contains("@bind"),
+            "SelectedIndexChanged → @onchange or @bind in Blazor"
+        );
         assert!(react.contains("onChange"));
     }
 
@@ -1362,15 +1379,19 @@ End Class
     fn test_map_control_event_row_editing() {
         let (blazor, _react) = map_control_event("rowediting", "gvData");
         assert!(!blazor.is_empty());
-        assert!(blazor.contains("DataGrid") || blazor.contains("edit"),
-            "rowediting should mention DataGrid or edit, got: {blazor}");
+        assert!(
+            blazor.contains("DataGrid") || blazor.contains("edit"),
+            "rowediting should mention DataGrid or edit, got: {blazor}"
+        );
     }
 
     #[test]
     fn test_map_control_event_sorting() {
         let (blazor, _react) = map_control_event("sorting", "gvData");
-        assert!(blazor.contains("Sort") || blazor.contains("QuickGrid"),
-            "sorting should mention Sort or QuickGrid, got: {blazor}");
+        assert!(
+            blazor.contains("Sort") || blazor.contains("QuickGrid"),
+            "sorting should mention Sort or QuickGrid, got: {blazor}"
+        );
     }
 
     // ── is_postback_trigger_event ────────────────────────────────────────────
@@ -1378,7 +1399,7 @@ End Class
     #[test]
     fn test_postback_trigger_events() {
         assert!(is_postback_trigger_event("click"));
-        assert!(is_postback_trigger_event("Click"));   // uppercase
+        assert!(is_postback_trigger_event("Click")); // uppercase
         assert!(is_postback_trigger_event("selectedindexchanged"));
         assert!(is_postback_trigger_event("textchanged"));
         assert!(is_postback_trigger_event("sorting"));
@@ -1431,8 +1452,14 @@ End Class
         "#;
         let result = analyze_page_lifecycle(&graph, "test", "MyPage.aspx.vb", code, None).unwrap();
         let formatted = format_lifecycle_map(&result);
-        assert!(formatted.contains("MyPage.aspx.vb"), "should include file path");
-        assert!(formatted.contains("Lifecycle Events"), "should have Lifecycle Events section");
+        assert!(
+            formatted.contains("MyPage.aspx.vb"),
+            "should include file path"
+        );
+        assert!(
+            formatted.contains("Lifecycle Events"),
+            "should have Lifecycle Events section"
+        );
     }
 
     #[test]
@@ -1452,13 +1479,25 @@ public partial class Search : System.Web.UI.Page
 }
         "#;
         let result = analyze_page_lifecycle(&graph, "test", "Search.aspx.cs", code, None).unwrap();
-        assert_eq!(result.control_events.len(), 2, "should find 2 control events");
+        assert_eq!(
+            result.control_events.len(),
+            2,
+            "should find 2 control events"
+        );
 
-        let btn = result.control_events.iter().find(|e| e.control_id == "btnSearch").unwrap();
+        let btn = result
+            .control_events
+            .iter()
+            .find(|e| e.control_id == "btnSearch")
+            .unwrap();
         assert_eq!(btn.event_name, "Click");
         assert!(btn.is_postback_trigger);
 
-        let gv = result.control_events.iter().find(|e| e.control_id == "gvResults").unwrap();
+        let gv = result
+            .control_events
+            .iter()
+            .find(|e| e.control_id == "gvResults")
+            .unwrap();
         assert_eq!(gv.event_name, "Sorting");
     }
 }

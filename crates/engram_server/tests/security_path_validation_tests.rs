@@ -10,7 +10,7 @@
 //! was previously used. Every assertion is against the actual production
 //! enforcement path, not a re-implementation of it.
 
-use engram_core::{safe_join, safe_open_read, PathContext};
+use engram_core::{PathContext, safe_join, safe_open_read};
 use std::path::PathBuf;
 
 // ── PathContext construction contracts ────────────────────────────────────────
@@ -36,9 +36,7 @@ fn path_context_new_empty_roots_fails_closed() {
 /// PathContext::new canonicalizes each root and fails if it doesn't exist.
 #[test]
 fn path_context_new_nonexistent_root_returns_err() {
-    let nonexistent = PathBuf::from(
-        "/definitely_does_not_exist_engram_test_root_abc123_xyz",
-    );
+    let nonexistent = PathBuf::from("/definitely_does_not_exist_engram_test_root_abc123_xyz");
     let result = PathContext::new(vec![nonexistent]);
     assert!(
         result.is_err(),
@@ -102,10 +100,16 @@ fn safe_join_rejects_dotdot_traversal() {
     let base = PathBuf::from("/project/root");
 
     let r1 = safe_join(&base, "../etc/passwd");
-    assert!(r1.is_err(), "safe_join must reject '../etc/passwd' traversal");
+    assert!(
+        r1.is_err(),
+        "safe_join must reject '../etc/passwd' traversal"
+    );
 
     let r2 = safe_join(&base, "src/../../etc/passwd");
-    assert!(r2.is_err(), "safe_join must reject nested '..' traversal via 'src/../../'");
+    assert!(
+        r2.is_err(),
+        "safe_join must reject nested '..' traversal via 'src/../../'"
+    );
 
     // Error message must be informative, not empty
     let err_msg = r1.unwrap_err().to_string();
@@ -399,8 +403,8 @@ fn resolve_path_ancestor_walk_branch_is_race_safe_for_nonexistent_leaf() {
     // The leaf does NOT exist — triggers the ancestor-walk branch.
     let nonexistent_leaf = existing_subdir.join("new_file_not_yet_created.rs");
 
-    let ctx = PathContext::new(vec![tmp.path().to_path_buf()])
-        .expect("PathContext::new must succeed");
+    let ctx =
+        PathContext::new(vec![tmp.path().to_path_buf()]).expect("PathContext::new must succeed");
 
     // resolve_path must accept the path (parent exists, no symlink in suffix).
     // The ancestor walk finds `existing_subdir`, checks its suffix component
@@ -640,10 +644,7 @@ fn safe_join_rejects_windows_extended_length_prefix() {
     use engram_core::safe_join;
     let base = std::path::Path::new("C:\\projects\\safe");
 
-    let ext_paths = [
-        r"\\?\C:\Windows\System32",
-        r"\\?\UNC\server\share\file.txt",
-    ];
+    let ext_paths = [r"\\?\C:\Windows\System32", r"\\?\UNC\server\share\file.txt"];
 
     for p in &ext_paths {
         let result = safe_join(base, p);
@@ -661,10 +662,7 @@ fn safe_join_rejects_unc_network_paths() {
     use engram_core::safe_join;
     let base = std::path::Path::new("/projects/safe");
 
-    let unc_paths = [
-        r"\\server\share\file.txt",
-        r"\\192.168.1.1\c$\Windows",
-    ];
+    let unc_paths = [r"\\server\share\file.txt", r"\\192.168.1.1\c$\Windows"];
 
     for p in &unc_paths {
         let result = safe_join(base, p);
@@ -708,9 +706,9 @@ fn safe_join_rejects_windows_reserved_device_names() {
     let base = std::path::Path::new("/projects/safe");
 
     // Windows reserved device names — must not be reachable as path components.
-    let reserved = ["CON", "PRN", "AUX", "NUL",
-                    "COM1", "COM2", "COM9",
-                    "LPT1", "LPT2", "LPT9"];
+    let reserved = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM9", "LPT1", "LPT2", "LPT9",
+    ];
 
     for name in &reserved {
         // As a filename component.
@@ -744,11 +742,11 @@ fn safe_join_rejects_dot_slash_space_traversal_variants() {
     let base = std::path::Path::new("/safe/base");
 
     let adversarial: &[&str] = &[
-        "..%2F..%2Fetc%2Fpasswd",       // URL-encoded traversal (must stay inside)
-        r"..\..\windows\system32",      // mixed separators
-        "foo/../../etc/shadow",         // multi-hop traversal
-        "./../../etc/passwd",           // dot-relative traversal
-        "valid/../../../etc/hosts",     // valid prefix then escape
+        "..%2F..%2Fetc%2Fpasswd",   // URL-encoded traversal (must stay inside)
+        r"..\..\windows\system32",  // mixed separators
+        "foo/../../etc/shadow",     // multi-hop traversal
+        "./../../etc/passwd",       // dot-relative traversal
+        "valid/../../../etc/hosts", // valid prefix then escape
     ];
 
     for path in adversarial {
@@ -783,7 +781,7 @@ fn sec1_windows_path_corpus_comprehensive() {
         r"\?\C:\Windows\System32\cmd.exe",
         r"\server\share",
         r"\192.168.0.1\c$\Windows",
-        r"\.\ ",              // device with trailing space
+        r"\.\ ", // device with trailing space
         r"\?\GLOBALROOT\Device\HarddiskVolume1",
     ];
 
@@ -848,14 +846,7 @@ fn sec1_windows_device_names_as_path_components_rejected() {
 
     // NUL/CON/COM1-9/LPT1-9 are reserved Windows device names.
     // They must NOT be allowed as sub-path components.
-    let device_paths: &[&str] = &[
-        r"CON",
-        r"NUL",
-        r"COM1",
-        r"LPT1",
-        r"AUX",
-        r"PRN",
-    ];
+    let device_paths: &[&str] = &[r"CON", r"NUL", r"COM1", r"LPT1", r"AUX", r"PRN"];
 
     for path in device_paths {
         // On Linux these are valid filenames so we check the source-level guard
@@ -864,7 +855,10 @@ fn sec1_windows_device_names_as_path_components_rejected() {
         // Structural: the source must document Windows device name handling.
         let src = include_str!("../../engram_core/src/security.rs");
         assert!(
-            src.contains("CON") || src.contains("NUL") || src.contains("device") || src.contains("Component::Prefix"),
+            src.contains("CON")
+                || src.contains("NUL")
+                || src.contains("device")
+                || src.contains("Component::Prefix"),
             "SEC1: security.rs must reference Windows device names or Prefix components \
              to document Windows-specific path guard behavior; path: {path}"
         );
@@ -893,7 +887,8 @@ fn mcp1_analyze_file_coding_style_uses_safe_join_not_raw_join() {
     let src = include_str!("../src/handlers/cognitive_tools.rs");
 
     // Find the handle_analyze_file_coding_style function.
-    let fn_pos = src.find("fn handle_analyze_file_coding_style")
+    let fn_pos = src
+        .find("fn handle_analyze_file_coding_style")
         .expect("MCP1: handle_analyze_file_coding_style must exist in cognitive_tools.rs");
 
     // Scan the function body (~600 bytes from function start for the path construction).
@@ -904,7 +899,8 @@ fn mcp1_analyze_file_coding_style_uses_safe_join_not_raw_join() {
         window.contains("safe_join("),
         "MCP1-s4u3: handle_analyze_file_coding_style must use safe_join() for path \
          construction to prevent path traversal via '../' or absolute paths; \
-         raw .join() not acceptable. Window: {:?}", &window[..300.min(window.len())]
+         raw .join() not acceptable. Window: {:?}",
+        &window[..300.min(window.len())]
     );
 
     // Must NOT use the old unsafe pattern: .join(&req.file_path) without safe_join.

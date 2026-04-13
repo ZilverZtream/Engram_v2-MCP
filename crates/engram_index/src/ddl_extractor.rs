@@ -445,7 +445,12 @@ CREATE TABLE Orders (
         let (syms, _) = extract_ddl(&rel, ddl);
         let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
         // "CONSTRAINT" keyword line is skipped, so only OrderId should be extracted
-        assert_eq!(cols.len(), 1, "cols: {:?}", cols.iter().map(|c| &c.name).collect::<Vec<_>>());
+        assert_eq!(
+            cols.len(),
+            1,
+            "cols: {:?}",
+            cols.iter().map(|c| &c.name).collect::<Vec<_>>()
+        );
         assert_eq!(cols[0].name, "OrderId");
     }
 
@@ -478,7 +483,8 @@ CREATE TABLE Orders (
 
     #[test]
     fn create_table_with_not_null_constraint() {
-        let ddl = "CREATE TABLE Accounts (\n    Id INT NOT NULL,\n    Balance DECIMAL(18,2) NULL\n)";
+        let ddl =
+            "CREATE TABLE Accounts (\n    Id INT NOT NULL,\n    Balance DECIMAL(18,2) NULL\n)";
         let rel = RelPath::new("schema.sql");
         let (syms, _) = extract_ddl(&rel, ddl);
 
@@ -487,7 +493,10 @@ CREATE TABLE Orders (
         // NOT NULL → nullable = false
         assert_eq!(id_meta["nullable"], "false");
 
-        let bal_col = syms.iter().find(|s| s.name == "Balance").expect("Balance col");
+        let bal_col = syms
+            .iter()
+            .find(|s| s.name == "Balance")
+            .expect("Balance col");
         let bal_meta = bal_col.metadata.as_ref().expect("meta");
         assert_eq!(bal_meta["nullable"], "true");
     }
@@ -535,7 +544,12 @@ CREATE TABLE Orders (
         let (syms, _) = extract_ddl(&rel, ddl);
         let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
         // Only the CREATE TABLE produces a table symbol
-        assert_eq!(tables.len(), 1, "Only one table expected, got: {:?}", tables.iter().map(|t| &t.name).collect::<Vec<_>>());
+        assert_eq!(
+            tables.len(),
+            1,
+            "Only one table expected, got: {:?}",
+            tables.iter().map(|t| &t.name).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -659,14 +673,24 @@ CREATE TABLE Users (
         let cols: Vec<_> = syms.iter().filter(|s| s.kind == "db_column").collect();
         // Only "Total" should be a column; the CONSTRAINT line is a keyword and gets skipped
         let col_names: Vec<&str> = cols.iter().map(|c| c.name.as_str()).collect();
-        assert!(!col_names.contains(&"CONSTRAINT"), "CONSTRAINT should not be a column name");
-        assert!(!col_names.contains(&"CK_Total"), "CK_Total should not be a column name");
-        assert!(col_names.contains(&"Total"), "Total should be extracted: {col_names:?}");
+        assert!(
+            !col_names.contains(&"CONSTRAINT"),
+            "CONSTRAINT should not be a column name"
+        );
+        assert!(
+            !col_names.contains(&"CK_Total"),
+            "CK_Total should not be a column name"
+        );
+        assert!(
+            col_names.contains(&"Total"),
+            "Total should be extracted: {col_names:?}"
+        );
     }
 
     #[test]
     fn has_column_edges_point_to_correct_table() {
-        let ddl = "CREATE TABLE Widgets (\n    WidgetId INT NOT NULL,\n    Color VARCHAR(50) NULL\n)";
+        let ddl =
+            "CREATE TABLE Widgets (\n    WidgetId INT NOT NULL,\n    Color VARCHAR(50) NULL\n)";
         let rel = RelPath::new("schema.sql");
         let (syms, edges) = extract_ddl(&rel, ddl);
 
@@ -679,8 +703,14 @@ CREATE TABLE Users (
             assert_eq!(e.target_kind, Some("db_column"));
         }
 
-        let target_names: Vec<&str> = has_col_edges.iter().map(|e| e.target_name.as_str()).collect();
-        assert!(target_names.contains(&"WidgetId"), "targets: {target_names:?}");
+        let target_names: Vec<&str> = has_col_edges
+            .iter()
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            target_names.contains(&"WidgetId"),
+            "targets: {target_names:?}"
+        );
         assert!(target_names.contains(&"Color"), "targets: {target_names:?}");
 
         // All symbols must include the table
@@ -711,7 +741,10 @@ CREATE TABLE Users (
         let meta = table.metadata.as_ref().expect("metadata");
         let ddl_text = meta.get("ddl").expect("ddl key");
         assert!(ddl_text.contains("Events"), "DDL should include table name");
-        assert!(ddl_text.contains("CREATE TABLE"), "DDL should include CREATE TABLE");
+        assert!(
+            ddl_text.contains("CREATE TABLE"),
+            "DDL should include CREATE TABLE"
+        );
     }
 
     #[test]
@@ -757,7 +790,12 @@ END
 
         let tables: Vec<_> = syms.iter().filter(|s| s.kind == "db_table").collect();
         // Only Employees should be found, not any fake "table" from the stored procedure
-        assert_eq!(tables.len(), 1, "Only one table expected: {:?}", tables.iter().map(|t| &t.name).collect::<Vec<_>>());
+        assert_eq!(
+            tables.len(),
+            1,
+            "Only one table expected: {:?}",
+            tables.iter().map(|t| &t.name).collect::<Vec<_>>()
+        );
         assert_eq!(tables[0].name, "Employees");
     }
 

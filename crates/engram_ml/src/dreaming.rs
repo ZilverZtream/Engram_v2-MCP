@@ -178,7 +178,9 @@ impl LlmBackend {
             .timeout(Duration::from_secs(120))
             .connect_timeout(Duration::from_secs(10))
             .build()
-            .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0007: failed to build LLM HTTP client: {e}"))?;
+            .map_err(|e| {
+                anyhow::anyhow!("ENG-AUD-2026-0007: failed to build LLM HTTP client: {e}")
+            })?;
 
         let backend = cfg
             .llm_provider
@@ -277,7 +279,10 @@ struct LlmBackendHandle {
 
 impl DreamingEngine {
     pub fn new() -> Self {
-        Self { llm: None, degraded: false }
+        Self {
+            llm: None,
+            degraded: false,
+        }
     }
 
     /// Create a dreaming engine with a real LLM backend configured from Config.
@@ -321,11 +326,15 @@ impl DreamingEngine {
         match timeout(max_wait, self.llm_summarize(context_blobs)).await {
             Ok(Ok(insight)) => insight,
             Ok(Err(e)) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM summarize failed (using deterministic fallback): {e:#}");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM summarize failed (using deterministic fallback): {e:#}"
+                );
                 self.deterministic_summarize(context_blobs)
             }
             Err(_) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM summarize timed out (using deterministic fallback)");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM summarize timed out (using deterministic fallback)"
+                );
                 self.deterministic_summarize(context_blobs)
             }
         }
@@ -360,11 +369,15 @@ impl DreamingEngine {
                 }
             }
             Ok(Err(e)) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM insight generation failed (using empty fallback): {e:#}");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM insight generation failed (using empty fallback): {e:#}"
+                );
                 String::new()
             }
             Err(_) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM insight generation timed out (using empty fallback)");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM insight generation timed out (using empty fallback)"
+                );
                 String::new()
             }
         }
@@ -419,7 +432,9 @@ impl DreamingEngine {
             Ok(Ok(raw)) => {
                 let boundaries = parse_boundary_response(&raw);
                 if boundaries.is_empty() {
-                    tracing::warn!("ENG-AUD-2026-0008: LLM returned unparseable boundary response, using deterministic fallback");
+                    tracing::warn!(
+                        "ENG-AUD-2026-0008: LLM returned unparseable boundary response, using deterministic fallback"
+                    );
                     deterministic_boundaries_with_data(
                         clusters_text,
                         shared_state_text,
@@ -430,7 +445,9 @@ impl DreamingEngine {
                 }
             }
             Ok(Err(e)) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM boundary suggestion failed (using fallback): {e:#}");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM boundary suggestion failed (using fallback): {e:#}"
+                );
                 deterministic_boundaries_with_data(
                     clusters_text,
                     shared_state_text,
@@ -438,7 +455,9 @@ impl DreamingEngine {
                 )
             }
             Err(_) => {
-                tracing::warn!("ENG-AUD-2026-0008: LLM boundary suggestion timed out (using fallback)");
+                tracing::warn!(
+                    "ENG-AUD-2026-0008: LLM boundary suggestion timed out (using fallback)"
+                );
                 deterministic_boundaries_with_data(
                     clusters_text,
                     shared_state_text,
@@ -1013,10 +1032,7 @@ mod dreaming_fallback_tests {
         // All fallback paths must use warn! not debug!
         // We check the production code only (before the test modules).
         // Stop scanning at the first `#[cfg(test)]` marker.
-        let production_code = source
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap_or(source);
+        let production_code = source.split("#[cfg(test)]").next().unwrap_or(source);
         for line in production_code.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("//") {

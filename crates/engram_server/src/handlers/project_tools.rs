@@ -65,7 +65,11 @@ use super::validate_project_id;
 /// tested directly without a running AppState.
 ///
 /// Priority: cancelled > failed > degraded > done.
-fn determine_job_status(cancelled: bool, res_failed: bool, enrich_warnings: &[String]) -> &'static str {
+fn determine_job_status(
+    cancelled: bool,
+    res_failed: bool,
+    enrich_warnings: &[String],
+) -> &'static str {
     if cancelled {
         "cancelled"
     } else if res_failed {
@@ -1027,9 +1031,10 @@ impl Engram {
                     // VEC1/D1: clear reindex-required flag now that a full index succeeded.
                     let reg_clr = engram.state.registry.clone();
                     let pid_clr = pid.clone();
-                    if let Err(e) =
-                        tokio::task::spawn_blocking(move || reg_clr.clear_reindex_required(&pid_clr))
-                            .await
+                    if let Err(e) = tokio::task::spawn_blocking(move || {
+                        reg_clr.clear_reindex_required(&pid_clr)
+                    })
+                    .await
                     {
                         tracing::warn!(
                             project_id = %pid,
@@ -1314,8 +1319,11 @@ impl Engram {
 
             // Fix 12: Derive progress from the actual outcome, not a pre-set constant.
             // "degraded" counts as complete (indexing finished, enrichment partial).
-            let final_progress: u8 =
-                if final_status == "done" || final_status == "degraded" { 100 } else { 0 };
+            let final_progress: u8 = if final_status == "done" || final_status == "degraded" {
+                100
+            } else {
+                0
+            };
 
             // Fix 11: Write failure/cancellation checkpoint on abnormal exit.
             // "degraded" still advances generation — do not write a failure checkpoint for it.
@@ -1441,12 +1449,18 @@ impl Engram {
 
         // Resume from a previously interrupted job: narrow the pending-file list
         // so only files not yet processed are re-indexed.
-        let changed = if let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await {
+        let changed = if let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await
+        {
             if !rs.pending_files.is_empty() {
                 engram_core::metrics().checkpoints_resumed.inc();
                 let pending_set: std::collections::HashSet<PathBuf> =
-                    from_rel_paths(&dir, &rs.pending_files).into_iter().collect();
-                changed.into_iter().filter(|p| pending_set.contains(p)).collect()
+                    from_rel_paths(&dir, &rs.pending_files)
+                        .into_iter()
+                        .collect();
+                changed
+                    .into_iter()
+                    .filter(|p| pending_set.contains(p))
+                    .collect()
             } else {
                 changed
             }
@@ -1733,13 +1747,12 @@ impl Engram {
         }
 
         let ps = self.ensure_project_runtime(&pid).await?;
-        let current_gen = self
-            .get_active_generation(&pid)
-            .await
-            .map_err(|e| McpError::internal_error(
+        let current_gen = self.get_active_generation(&pid).await.map_err(|e| {
+            McpError::internal_error(
                 format!("AUD-2026-INV-0002: get_active_generation failed during repair: {e:#}"),
                 None,
-            ))?;
+            )
+        })?;
         let new_gen = current_gen + 1;
 
         let exts = exts_for_project_type(&rec.project_type);
@@ -1763,18 +1776,24 @@ impl Engram {
 
         self.process_ingest_stats(&pid, new_gen, &stats)
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("AUD-2026-INV-0002: process_ingest_stats failed during repair: {e:#}"),
-                None,
-            ))?;
+            .map_err(|e| {
+                McpError::internal_error(
+                    format!("AUD-2026-INV-0002: process_ingest_stats failed during repair: {e:#}"),
+                    None,
+                )
+            })?;
 
         self.state
             .registry
             .set_meta(&pid, "active_generation", &new_gen.to_string())
-            .map_err(|e| McpError::internal_error(
-                format!("AUD-2026-INV-0002: set_meta active_generation failed during repair: {e:#}"),
-                None,
-            ))?;
+            .map_err(|e| {
+                McpError::internal_error(
+                    format!(
+                        "AUD-2026-INV-0002: set_meta active_generation failed during repair: {e:#}"
+                    ),
+                    None,
+                )
+            })?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}",
@@ -1921,14 +1940,20 @@ impl Engram {
         req: CancelJobRequest,
     ) -> Result<CallToolResult, McpError> {
         let outcome = self.cancel_job_internal(&req.job_id).await;
-        Ok(CallToolResult::success(vec![Content::text(match outcome {
-            job_service::CancellationOutcome::CancelledWithTombstone =>
-                format!("✅ cancelled job_id: {} (tombstone persisted)", req.job_id),
-            job_service::CancellationOutcome::CancelledWithoutTombstone =>
-                format!("⚠️ cancelled job_id: {} (WARNING: tombstone persistence failed — audit metadata may be missing)", req.job_id),
-            job_service::CancellationOutcome::NotFound =>
-                format!("❌ job_id not active: {}", req.job_id),
-        })]))
+        Ok(CallToolResult::success(vec![Content::text(
+            match outcome {
+                job_service::CancellationOutcome::CancelledWithTombstone => {
+                    format!("✅ cancelled job_id: {} (tombstone persisted)", req.job_id)
+                }
+                job_service::CancellationOutcome::CancelledWithoutTombstone => format!(
+                    "⚠️ cancelled job_id: {} (WARNING: tombstone persistence failed — audit metadata may be missing)",
+                    req.job_id
+                ),
+                job_service::CancellationOutcome::NotFound => {
+                    format!("❌ job_id not active: {}", req.job_id)
+                }
+            },
+        )]))
     }
 
     pub async fn handle_get_job_status(
@@ -2278,10 +2303,7 @@ impl Engram {
             tokio::task::spawn_blocking(move || reg.put_memory_section(&pid, &sec_clone))
                 .await
                 .map_err(|e| {
-                    McpError::internal_error(
-                        format!("registry write task panicked: {e}"),
-                        None,
-                    )
+                    McpError::internal_error(format!("registry write task panicked: {e}"), None)
                 })?
                 .map_err(|e| {
                     McpError::internal_error(
@@ -2439,13 +2461,19 @@ mod inv_tag_tests {
     fn repair_set_meta_failure_produces_degraded_not_done() {
         let warnings = vec!["set_meta active_generation failed: disk full".to_string()];
         let status = determine_job_status(false, false, &warnings);
-        assert_ne!(status, "done",
-            "AUD-2026-INV-0002: set_meta failure must NOT produce 'done'; got '{status}'");
+        assert_ne!(
+            status, "done",
+            "AUD-2026-INV-0002: set_meta failure must NOT produce 'done'; got '{status}'"
+        );
         let msg = determine_job_message(false, None, &warnings);
-        assert!(msg.contains("enrichment warnings"),
-            "AUD-2026-INV-0002: degraded message must use 'enrichment warnings' framing; got '{msg}'");
-        assert!(msg.contains("set_meta"),
-            "AUD-2026-INV-0002: message must identify set_meta as failing component; got '{msg}'");
+        assert!(
+            msg.contains("enrichment warnings"),
+            "AUD-2026-INV-0002: degraded message must use 'enrichment warnings' framing; got '{msg}'"
+        );
+        assert!(
+            msg.contains("set_meta"),
+            "AUD-2026-INV-0002: message must identify set_meta as failing component; got '{msg}'"
+        );
     }
 
     /// AUD-2026-INV-0002: process_ingest_stats failure also degrades the job.
@@ -2453,8 +2481,10 @@ mod inv_tag_tests {
     fn repair_process_ingest_stats_failure_produces_degraded_not_done() {
         let warnings = vec!["process_ingest_stats failed: redb transaction error".to_string()];
         let status = determine_job_status(false, false, &warnings);
-        assert_ne!(status, "done",
-            "AUD-2026-INV-0002: process_ingest_stats failure must not report 'done'; got '{status}'");
+        assert_ne!(
+            status, "done",
+            "AUD-2026-INV-0002: process_ingest_stats failure must not report 'done'; got '{status}'"
+        );
     }
 
     /// AUD-2026-INV-0003: create_dir_all on an existing file must return Err.
@@ -2465,9 +2495,11 @@ mod inv_tag_tests {
         let file_path = tmp.path().join("collision.dat");
         std::fs::write(&file_path, b"content").expect("write file");
         let result = std::fs::create_dir_all(&file_path);
-        assert!(result.is_err(),
+        assert!(
+            result.is_err(),
             "AUD-2026-INV-0003: create_dir_all on existing file must return Err — \
-             previously .ok() would silently swallow this, allowing partial project records");
+             previously .ok() would silently swallow this, allowing partial project records"
+        );
     }
 
     /// AUD-2026-INV-0003: create_dir_all on a new path must succeed.
@@ -2499,8 +2531,10 @@ mod inv_tag_tests {
         // → new_gen never replaces old_gen in the persistent store.
         let set_meta_failed = true;
         let visible_gen = if set_meta_failed { old_gen } else { new_gen };
-        assert_eq!(visible_gen, old_gen,
-            "AUD-2026-XSYS: when set_meta fails, visible generation must remain old_gen");
+        assert_eq!(
+            visible_gen, old_gen,
+            "AUD-2026-XSYS: when set_meta fails, visible generation must remain old_gen"
+        );
     }
 
     /// Gate 3.5 behavioral: multiple enrichment warnings all appear in message.
@@ -2512,10 +2546,22 @@ mod inv_tag_tests {
             "git_update_stream failed: not a git repo".to_string(),
         ];
         let msg = determine_job_message(false, None, &warnings);
-        assert!(msg.contains("link_sql_to_schema"), "msg must contain warning 1");
-        assert!(msg.contains("resolve_symbol_edges"), "msg must contain warning 2");
-        assert!(msg.contains("git_update_stream"), "msg must contain warning 3");
-        assert!(msg.contains("enrichment warnings"), "must use 'enrichment warnings' framing");
+        assert!(
+            msg.contains("link_sql_to_schema"),
+            "msg must contain warning 1"
+        );
+        assert!(
+            msg.contains("resolve_symbol_edges"),
+            "msg must contain warning 2"
+        );
+        assert!(
+            msg.contains("git_update_stream"),
+            "msg must contain warning 3"
+        );
+        assert!(
+            msg.contains("enrichment warnings"),
+            "must use 'enrichment warnings' framing"
+        );
     }
 
     // ── Gate 2.0 Tests 1–3: enrichment failures surface as "degraded" ───────
@@ -2579,7 +2625,10 @@ mod inv_tag_tests {
         let status = determine_job_status(false, false, &[]);
         assert_eq!(status, "done", "Clean completion must produce 'done'");
         let msg = determine_job_message(false, None, &[]);
-        assert_eq!(msg, "completed", "Clean completion message must be 'completed'");
+        assert_eq!(
+            msg, "completed",
+            "Clean completion message must be 'completed'"
+        );
     }
 
     /// Sanity: hard failure (res.is_err()) → "failed", not "degraded".

@@ -17,11 +17,7 @@ const DIM: usize = 4;
 
 /// Build a minimal record batch: `n` rows, all with `gen=1`, using the supplied
 /// `content_hash` and sequential pk values `"{prefix}:k0"`, `"{prefix}:k1"`, …
-fn make_batch(
-    project_id: &str,
-    pks: &[String],
-    content_hash: &str,
-) -> arrow_array::RecordBatch {
+fn make_batch(project_id: &str, pks: &[String], content_hash: &str) -> arrow_array::RecordBatch {
     let n = pks.len();
     let doc_ids: Vec<String> = pks.iter().map(|pk| format!("doc_{pk}")).collect();
     let content_hashes: Vec<String> = vec![content_hash.to_string(); n];
@@ -78,7 +74,10 @@ async fn vec2_repeated_upsert_same_pks_does_not_grow_row_count() {
     upsert_vectors(&table, vec![batch1]).await.unwrap();
 
     let count_after_first = table.count_rows(None).await.unwrap();
-    assert_eq!(count_after_first, 5, "VEC2: first upsert must insert 5 rows");
+    assert_eq!(
+        count_after_first, 5,
+        "VEC2: first upsert must insert 5 rows"
+    );
 
     // Second upsert — same 5 PKs, different content_hash.
     let batch2 = make_batch("proj", &all_pks, "hash_v2");
@@ -160,7 +159,10 @@ async fn vec2_empty_batch_is_noop() {
     // Now upsert with an empty batch list.
     upsert_vectors(&table, vec![]).await.unwrap();
     let count = table.count_rows(None).await.unwrap();
-    assert_eq!(count, 2, "VEC2: empty upsert must leave row count unchanged; got {count}");
+    assert_eq!(
+        count, 2,
+        "VEC2: empty upsert must leave row count unchanged; got {count}"
+    );
 }
 
 /// VEC2 error surface: `upsert_vectors` must surface storage errors as `Err`
@@ -172,8 +174,8 @@ fn upsert_vectors_maps_errors_to_anyhow_err() {
     let source = include_str!("../src/vector.rs");
 
     // The function must use ? or map_err on the merge result — not .unwrap()/.expect().
-    let has_error_propagation = source.contains("map_err")
-        || (source.contains(".execute(") && source.contains("?"));
+    let has_error_propagation =
+        source.contains("map_err") || (source.contains(".execute(") && source.contains("?"));
 
     assert!(
         has_error_propagation,
@@ -199,7 +201,9 @@ async fn upsert_vectors_schema_mismatch_returns_err_and_preserves_table() {
     let conn = connect(tmp.path()).await.unwrap();
 
     // Create table with DIM=4.
-    let (table, _) = open_or_create_table(&conn, "vectors_mismatch", DIM).await.unwrap();
+    let (table, _) = open_or_create_table(&conn, "vectors_mismatch", DIM)
+        .await
+        .unwrap();
 
     // Insert 2 good rows first.
     let good_pks = pks("good", 0..2);
@@ -220,11 +224,21 @@ async fn upsert_vectors_schema_mismatch_returns_err_and_preserves_table() {
     let bad_ts: Vec<Option<u64>> = vec![None];
     let bad_vecs: Vec<Vec<f32>> = vec![vec![0.125f32; DIM8]];
     let bad_batch = create_record_batch(
-        "proj", "code", 1,
-        &bad_pks, &bad_doc_ids, &bad_hashes, &bad_chunks,
-        &bad_paths, &bad_langs, &bad_authors, &bad_ts,
-        &bad_vecs, DIM8,
-    ).expect("create_record_batch with dim=8 must succeed");
+        "proj",
+        "code",
+        1,
+        &bad_pks,
+        &bad_doc_ids,
+        &bad_hashes,
+        &bad_chunks,
+        &bad_paths,
+        &bad_langs,
+        &bad_authors,
+        &bad_ts,
+        &bad_vecs,
+        DIM8,
+    )
+    .expect("create_record_batch with dim=8 must succeed");
 
     // Attempt to upsert the 8-dim batch into a 4-dim table — must fail.
     let result = upsert_vectors(&table, vec![bad_batch]).await;

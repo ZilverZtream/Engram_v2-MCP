@@ -50,6 +50,19 @@ pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
                 tracing::info!("GC: shutdown requested mid-sweep — stopping");
                 return;
             }
+            // JOB3-2af4c8: double-check active count before each per-project purge to
+            // narrow the TOCTOU window between the initial guard and the purge loop.
+            // A job started between the initial load and this point would be caught here.
+            let active_now = state
+                .active_indexing_count
+                .load(std::sync::atomic::Ordering::Relaxed);
+            if active_now > 0 {
+                tracing::info!(
+                    active_jobs = active_now,
+                    "GC: aborting mid-sweep — {active_now} indexing job(s) started since guard check (JOB3 guard)"
+                );
+                break;
+            }
             if let Err(e) = purge_project_old_gens(&state, &pid).await {
                 tracing::error!("GC error for project {}: {:?}", pid, e);
             }

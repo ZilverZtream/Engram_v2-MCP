@@ -147,7 +147,11 @@ async fn load_project_runtime(
     let pid = project_id.to_string();
     let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
         .await
-        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S13-0001: spawn_blocking panicked in dreamer registry lookup: {e}"))?
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "ENG-AUD-2026-S13-0001: spawn_blocking panicked in dreamer registry lookup: {e}"
+            )
+        })?
         .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S13-0001: registry get_project failed: {e}"))?;
     let Some(rec) = rec else {
         return Ok(None);
@@ -166,10 +170,16 @@ async fn load_project_runtime(
         .join(project_id)
         .join("lancedb");
     std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
-        anyhow::anyhow!("ENG-AUD-S1-0002: failed to create tantivy dir {:?}: {e}", tantivy_dir)
+        anyhow::anyhow!(
+            "ENG-AUD-S1-0002: failed to create tantivy dir {:?}: {e}",
+            tantivy_dir
+        )
     })?;
     std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
-        anyhow::anyhow!("ENG-AUD-S1-0002: failed to create lancedb dir {:?}: {e}", lancedb_dir)
+        anyhow::anyhow!(
+            "ENG-AUD-S1-0002: failed to create lancedb dir {:?}: {e}",
+            lancedb_dir
+        )
     })?;
 
     let search = engram_index::HybridSearchEngine::new_with_budget(
@@ -196,19 +206,27 @@ async fn load_project_runtime(
 /// Fetch the active generation from the registry.
 /// Returns Err on spawn failure or registry/parse error (ENG-AUD-2026-0003).
 /// Callers should propagate the error rather than defaulting to generation 1.
-async fn fetch_active_generation(state: &crate::state::AppState, project_id: &str) -> anyhow::Result<u64> {
+async fn fetch_active_generation(
+    state: &crate::state::AppState,
+    project_id: &str,
+) -> anyhow::Result<u64> {
     let reg = state.registry.clone();
     let pid = project_id.to_string();
     tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
-        let gen_str = reg.get_meta(&pid, "active_generation")
+        let gen_str = reg
+            .get_meta(&pid, "active_generation")
             .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0003: registry get_meta failed: {e}"))?
             .unwrap_or_else(|| "1".to_string());
-        gen_str.parse::<u64>().map_err(|e| anyhow::anyhow!(
-            "ENG-AUD-2026-0003: active_generation metadata is corrupt (value={gen_str:?}): {e}"
-        ))
+        gen_str.parse::<u64>().map_err(|e| {
+            anyhow::anyhow!(
+                "ENG-AUD-2026-0003: active_generation metadata is corrupt (value={gen_str:?}): {e}"
+            )
+        })
     })
     .await
-    .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-0003: spawn_blocking panicked reading active_generation: {e}"))?
+    .map_err(|e| {
+        anyhow::anyhow!("ENG-AUD-2026-0003: spawn_blocking panicked reading active_generation: {e}")
+    })?
 }
 
 pub async fn record_cooccurrence(
@@ -409,7 +427,10 @@ pub async fn dream_once(
             .summarize_cluster(&ctx, Duration::from_secs(10))
             .await;
         if insight.used_llm_fallback {
-            tracing::debug!(project_id, "dreamer: LLM unavailable — insight generated via deterministic fallback");
+            tracing::debug!(
+                project_id,
+                "dreamer: LLM unavailable — insight generated via deterministic fallback"
+            );
         }
         let mut summary = insight.summary_markdown;
         if is_antipattern {
@@ -660,6 +681,9 @@ mod tests {
             panic!("simulated registry panic");
         })
         .await;
-        assert!(result.is_err(), "spawn_blocking panic must produce JoinError");
+        assert!(
+            result.is_err(),
+            "spawn_blocking panic must produce JoinError"
+        );
     }
 }

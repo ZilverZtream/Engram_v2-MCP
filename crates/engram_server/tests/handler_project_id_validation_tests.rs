@@ -17,8 +17,8 @@
 fn search_tools_validates_project_id() {
     let source = include_str!("../src/handlers/search_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "search_tools.rs must call validate_project_id or ensure_project_record \
@@ -31,8 +31,8 @@ fn search_tools_validates_project_id() {
 fn project_tools_validates_project_id() {
     let source = include_str!("../src/handlers/project_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "project_tools.rs must call validate_project_id or ensure_project_record"
@@ -44,8 +44,8 @@ fn project_tools_validates_project_id() {
 fn cognitive_tools_validates_project_id() {
     let source = include_str!("../src/handlers/cognitive_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "cognitive_tools.rs must call validate_project_id or ensure_project_record"
@@ -57,8 +57,8 @@ fn cognitive_tools_validates_project_id() {
 fn graph_tools_validates_project_id() {
     let source = include_str!("../src/handlers/graph_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "graph_tools.rs must call validate_project_id or ensure_project_record"
@@ -70,8 +70,8 @@ fn graph_tools_validates_project_id() {
 fn git_tools_validates_project_id() {
     let source = include_str!("../src/handlers/git_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "git_tools.rs must call validate_project_id or ensure_project_record"
@@ -83,8 +83,8 @@ fn git_tools_validates_project_id() {
 fn migration_tools_validates_project_id() {
     let source = include_str!("../src/handlers/migration_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "migration_tools.rs must call validate_project_id or ensure_project_record"
@@ -96,8 +96,8 @@ fn migration_tools_validates_project_id() {
 fn access_layer_tools_validates_project_id() {
     let source = include_str!("../src/handlers/access_layer_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     assert!(
         has_validation,
         "access_layer_tools.rs must call validate_project_id or ensure_project_record"
@@ -110,8 +110,8 @@ fn access_layer_tools_validates_project_id() {
 fn runtime_observation_tools_validates_project_id() {
     let source = include_str!("../src/handlers/runtime_observation_tools.rs");
 
-    let has_validation = source.contains("validate_project_id")
-        || source.contains("ensure_project_record");
+    let has_validation =
+        source.contains("validate_project_id") || source.contains("ensure_project_record");
     // runtime_observation_tools may not take a project_id — it's acceptable if neither is present
     // AND the handler doesn't accept project_id at all.
     let accepts_project_id = source.contains("project_id");
@@ -133,22 +133,43 @@ fn validate_project_id_gate_covers_all_adversarial_classes() {
     use engram_server::services::project_service::validate_project_id;
 
     // Path traversal — directory escape
-    assert!(validate_project_id("../etc/passwd").is_err(), "path traversal rejected");
+    assert!(
+        validate_project_id("../etc/passwd").is_err(),
+        "path traversal rejected"
+    );
     // NUL byte — composite key corruption
-    assert!(validate_project_id("proj\0evil").is_err(), "NUL byte rejected");
+    assert!(
+        validate_project_id("proj\0evil").is_err(),
+        "NUL byte rejected"
+    );
     // Newline — key delimiter injection
-    assert!(validate_project_id("proj\nevil").is_err(), "newline rejected");
+    assert!(
+        validate_project_id("proj\nevil").is_err(),
+        "newline rejected"
+    );
     // Slash — directory separator injection
     assert!(validate_project_id("proj/sub").is_err(), "slash rejected");
     // Empty — no project can have an empty id
     assert!(validate_project_id("").is_err(), "empty id rejected");
     // Oversized — amplification prevention
-    assert!(validate_project_id(&"a".repeat(200)).is_err(), "oversized id rejected");
+    assert!(
+        validate_project_id(&"a".repeat(200)).is_err(),
+        "oversized id rejected"
+    );
     // Shell metacharacters
-    assert!(validate_project_id("$(rm -rf /)").is_err(), "shell metacharacters rejected");
+    assert!(
+        validate_project_id("$(rm -rf /)").is_err(),
+        "shell metacharacters rejected"
+    );
     // Valid — must NOT be rejected
-    assert!(validate_project_id("my-project-123").is_ok(), "valid id must be accepted");
-    assert!(validate_project_id("abc_DEF-456").is_ok(), "valid id with mixed chars accepted");
+    assert!(
+        validate_project_id("my-project-123").is_ok(),
+        "valid id must be accepted"
+    );
+    assert!(
+        validate_project_id("abc_DEF-456").is_ok(),
+        "valid id with mixed chars accepted"
+    );
 }
 
 /// the handler module must export or re-export validate_project_id so all
@@ -247,11 +268,11 @@ fn handler_boundary_rejects_slash_and_dotdot_project_ids() {
 
 // ── Security hardening tests (from adp_security_hardening_tests.rs) ───────────
 
-use engram_core::{safe_join, PathContext};
+use engram_core::{PathContext, safe_join};
 use engram_server::services::autonomous_decision_service::{
-    AdpInput as SecAdpInput, AdpVerdict as SecAdpVerdict, RiskProfile as SecRiskProfile,
-    RetrievalMode as SecRetrievalMode, GraphImpactMetrics as SecGraphImpactMetrics,
-    evaluate_gates as sec_evaluate_gates,
+    AdpInput as SecAdpInput, AdpVerdict as SecAdpVerdict,
+    GraphImpactMetrics as SecGraphImpactMetrics, RetrievalMode as SecRetrievalMode,
+    RiskProfile as SecRiskProfile, evaluate_gates as sec_evaluate_gates,
 };
 use engram_server::services::safety_service::{
     PolicyDecision as SecPolicyDecision, RiskLevel as SecRiskLevel,
@@ -312,11 +333,15 @@ fn embedding_valid_floats_parse_to_correct_f32_values() {
         serde_json::json!(-0.3f64),
         serde_json::json!(1.0f64),
     ];
-    let parsed: anyhow::Result<Vec<f32>> = values.iter().enumerate().map(|(i, v)| {
-        v.as_f64()
-            .ok_or_else(|| anyhow::anyhow!("non-numeric at {i}: {:?}", v))
-            .map(|f| f as f32)
-    }).collect();
+    let parsed: anyhow::Result<Vec<f32>> = values
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            v.as_f64()
+                .ok_or_else(|| anyhow::anyhow!("non-numeric at {i}: {:?}", v))
+                .map(|f| f as f32)
+        })
+        .collect();
 
     assert!(parsed.is_ok(), "valid floats must parse without error");
     let vec = parsed.unwrap();
@@ -345,7 +370,8 @@ fn adp_cached_retrieval_lower_confidence_than_live() {
     assert!(
         cached_dec.confidence < live_dec.confidence,
         "Cached confidence ({}) must be less than Live confidence ({})",
-        cached_dec.confidence, live_dec.confidence
+        cached_dec.confidence,
+        live_dec.confidence
     );
 }
 
@@ -385,15 +411,21 @@ fn evaluate_gates_degenerate_input_does_not_panic() {
     let decision = sec_evaluate_gates(&input);
 
     // Must return a valid verdict
-    let valid_verdicts = [SecAdpVerdict::Allow, SecAdpVerdict::Deny, SecAdpVerdict::Abstain];
+    let valid_verdicts = [
+        SecAdpVerdict::Allow,
+        SecAdpVerdict::Deny,
+        SecAdpVerdict::Abstain,
+    ];
     assert!(
         valid_verdicts.contains(&decision.verdict),
         "verdict must be Allow/Deny/Abstain, got {:?}",
         decision.verdict
     );
     // Confidence must be finite
-    assert!(decision.confidence.is_finite(),
-        "confidence must be finite even with all-None inputs");
+    assert!(
+        decision.confidence.is_finite(),
+        "confidence must be finite even with all-None inputs"
+    );
 }
 
 /// Cross-subsystem: `derive_safety_from_graph` (in evidence_orchestration) produces
@@ -472,11 +504,16 @@ fn adp_missing_blast_radius_with_high_risk_is_not_allow() {
 async fn actor_dreamer_spawn_blocking_panic_is_join_error_regression() {
     let result: Result<String, _> = tokio::task::spawn_blocking(|| -> String {
         panic!("simulated dreamer registry panic");
-    }).await;
-    assert!(result.is_err(),
-        "dreamer spawn_blocking panic must be JoinError (regression)");
-    assert!(result.unwrap_err().is_panic(),
-        "error must be identifiable as panic");
+    })
+    .await;
+    assert!(
+        result.is_err(),
+        "dreamer spawn_blocking panic must be JoinError (regression)"
+    );
+    assert!(
+        result.unwrap_err().is_panic(),
+        "error must be identifiable as panic"
+    );
 }
 
 /// Actor immune — spawn_blocking panic propagates as explicit
@@ -485,9 +522,12 @@ async fn actor_dreamer_spawn_blocking_panic_is_join_error_regression() {
 async fn actor_immune_spawn_blocking_panic_is_join_error_regression() {
     let result: Result<Vec<String>, _> = tokio::task::spawn_blocking(|| -> Vec<String> {
         panic!("simulated immune registry panic");
-    }).await;
-    assert!(result.is_err(),
-        "immune spawn_blocking panic must be JoinError (regression)");
+    })
+    .await;
+    assert!(
+        result.is_err(),
+        "immune spawn_blocking panic must be JoinError (regression)"
+    );
 }
 
 /// Parent-directory traversal must be rejected by the production `safe_join`
@@ -555,20 +595,26 @@ fn all_enrichment_warnings_appear_in_job_message_not_just_first() {
         "git_update_stream failed: not a git repository".to_string(),
     ];
 
-    let msg = format!("completed with enrichment warnings: {}", warnings.join("; "));
+    let msg = format!(
+        "completed with enrichment warnings: {}",
+        warnings.join("; ")
+    );
 
     for (i, w) in warnings.iter().enumerate() {
         let keyword = w.split(':').next().unwrap_or("").trim();
         assert!(
             msg.contains(keyword),
             "warning {} ({}) must appear in message; msg='{}'",
-            i + 1, keyword, msg
+            i + 1,
+            keyword,
+            msg
         );
     }
-    assert!(msg.contains("enrichment warnings"),
-        "must use 'enrichment warnings' framing");
-    assert_ne!(msg, "completed",
-        "must not be clean success banner");
+    assert!(
+        msg.contains("enrichment warnings"),
+        "must use 'enrichment warnings' framing"
+    );
+    assert_ne!(msg, "completed", "must not be clean success banner");
 }
 
 /// When a required directory cannot be created, the operation
@@ -622,10 +668,10 @@ fn handle_update_memory_bank_validates_section_id_at_handler_boundary() {
     let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
 
     // validate_key_component must be called on section_id before put_memory_section.
-    let validate_pos = fn_body
-        .find("validate_key_component")
-        .expect("REG2: handle_update_memory_bank must call validate_key_component \
-                  on section_id before persisting to registry or search index");
+    let validate_pos = fn_body.find("validate_key_component").expect(
+        "REG2: handle_update_memory_bank must call validate_key_component \
+                  on section_id before persisting to registry or search index",
+    );
 
     let persist_pos = fn_body
         .find("put_memory_section")
@@ -667,10 +713,16 @@ fn validate_key_component_rejects_section_id_delimiters() {
     );
 
     // Valid section_id patterns must pass.
-    for valid in ["overview", "engram/index_report", "section-1", "my.section_v2"] {
+    for valid in [
+        "overview",
+        "engram/index_report",
+        "section-1",
+        "my.section_v2",
+    ] {
         assert!(
             validate_key_component("section_id", valid).is_ok(),
-            "REG2: valid section_id {:?} must pass validate_key_component", valid
+            "REG2: valid section_id {:?} must pass validate_key_component",
+            valid
         );
     }
 }
@@ -684,13 +736,31 @@ fn validate_key_component_rejects_section_id_delimiters() {
 #[test]
 fn all_handler_files_that_use_project_id_call_validate_project_id() {
     let handler_sources: &[(&str, &str)] = &[
-        ("project_tools.rs",           include_str!("../src/handlers/project_tools.rs")),
-        ("cognitive_tools.rs",         include_str!("../src/handlers/cognitive_tools.rs")),
-        ("search_tools.rs",            include_str!("../src/handlers/search_tools.rs")),
-        ("migration_tools.rs",         include_str!("../src/handlers/migration_tools.rs")),
-        ("git_tools.rs",               include_str!("../src/handlers/git_tools.rs")),
-        ("graph_tools.rs",             include_str!("../src/handlers/graph_tools.rs")),
-        ("access_layer_tools.rs",      include_str!("../src/handlers/access_layer_tools.rs")),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        (
+            "access_layer_tools.rs",
+            include_str!("../src/handlers/access_layer_tools.rs"),
+        ),
     ];
 
     for (name, src) in handler_sources {
@@ -771,17 +841,20 @@ fn cross_subsystem_section_id_validated_before_index_path_use() {
     let src = include_str!("../src/handlers/project_tools.rs");
 
     // Find the handle_update_memory_bank function body.
-    let fn_start = src.find("fn handle_update_memory_bank")
+    let fn_start = src
+        .find("fn handle_update_memory_bank")
         .expect("X3: handle_update_memory_bank must exist in project_tools.rs");
 
     let fn_body = &src[fn_start..];
 
     // validate_key_component must appear before any path join or index write.
-    let validate_pos = fn_body.find("validate_key_component")
+    let validate_pos = fn_body
+        .find("validate_key_component")
         .expect("X3: validate_key_component must be called in handle_update_memory_bank");
 
     // The index write / path construction must appear AFTER validation.
-    let index_write_pos = fn_body.find("put_memory_section")
+    let index_write_pos = fn_body
+        .find("put_memory_section")
         .or_else(|| fn_body.find("index_doc"))
         .or_else(|| fn_body.find("safe_join"))
         .expect("X3: handle_update_memory_bank must contain an index write after validation");
@@ -801,13 +874,31 @@ fn cross_subsystem_section_id_validated_before_index_path_use() {
 #[test]
 fn reg1_all_handler_files_use_approved_project_id_validation() {
     let handlers: &[(&str, &str)] = &[
-        ("cognitive_tools.rs",          include_str!("../src/handlers/cognitive_tools.rs")),
-        ("project_tools.rs",            include_str!("../src/handlers/project_tools.rs")),
-        ("search_tools.rs",             include_str!("../src/handlers/search_tools.rs")),
-        ("git_tools.rs",                include_str!("../src/handlers/git_tools.rs")),
-        ("graph_tools.rs",              include_str!("../src/handlers/graph_tools.rs")),
-        ("migration_tools.rs",          include_str!("../src/handlers/migration_tools.rs")),
-        ("access_layer_tools.rs",       include_str!("../src/handlers/access_layer_tools.rs")),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
+        (
+            "access_layer_tools.rs",
+            include_str!("../src/handlers/access_layer_tools.rs"),
+        ),
     ];
 
     // At least one of these patterns must appear in each handler file.
@@ -900,12 +991,14 @@ fn mcp1_access_layer_tools_uses_project_validation() {
 fn x3_search_tools_validates_project_id_before_search() {
     let src = include_str!("../src/handlers/search_tools.rs");
 
-    let validate_pos = src.find("validate_project_id")
+    let validate_pos = src
+        .find("validate_project_id")
         .or_else(|| src.find("ensure_project_runtime"))
         .expect("X3: search_tools.rs must validate project_id before issuing search");
 
     // hybrid_search or semantic_search or search call must appear after validation.
-    let search_pos = src.find("hybrid_search(")
+    let search_pos = src
+        .find("hybrid_search(")
         .or_else(|| src.find("semantic_search("))
         .or_else(|| src.find(".search("))
         .unwrap_or(src.len());
@@ -924,12 +1017,14 @@ fn x3_search_tools_validates_project_id_before_search() {
 fn x3_git_tools_validates_project_id_before_git_operations() {
     let src = include_str!("../src/handlers/git_tools.rs");
 
-    let validate_pos = src.find("validate_project_id")
+    let validate_pos = src
+        .find("validate_project_id")
         .or_else(|| src.find("ensure_project_runtime"))
         .expect("X3: git_tools.rs must validate project_id before git operations");
 
     // The git_update_stream or git registry lookup must appear after validation.
-    let git_pos = src.find("git_update_stream(")
+    let git_pos = src
+        .find("git_update_stream(")
         .or_else(|| src.find("get_project("))
         .unwrap_or(src.len());
 
@@ -956,7 +1051,8 @@ fn reg1_validate_key_component_rejects_null_byte_in_all_position() {
         assert!(
             result.is_err(),
             "REG1: validate_key_component must reject project_id with null byte; \
-             input: {:?}", bad_id
+             input: {:?}",
+            bad_id
         );
     }
 }
@@ -966,19 +1062,41 @@ fn reg1_validate_key_component_rejects_null_byte_in_all_position() {
 #[test]
 fn reg1_section9_typed_id_validation_coverage_all_handlers() {
     let handlers: &[(&str, &str)] = &[
-        ("cognitive_tools.rs",    include_str!("../src/handlers/cognitive_tools.rs")),
-        ("project_tools.rs",      include_str!("../src/handlers/project_tools.rs")),
-        ("search_tools.rs",       include_str!("../src/handlers/search_tools.rs")),
-        ("git_tools.rs",          include_str!("../src/handlers/git_tools.rs")),
-        ("graph_tools.rs",        include_str!("../src/handlers/graph_tools.rs")),
-        ("migration_tools.rs",    include_str!("../src/handlers/migration_tools.rs")),
-        ("access_layer_tools.rs", include_str!("../src/handlers/access_layer_tools.rs")),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        (
+            "migration_tools.rs",
+            include_str!("../src/handlers/migration_tools.rs"),
+        ),
+        (
+            "access_layer_tools.rs",
+            include_str!("../src/handlers/access_layer_tools.rs"),
+        ),
     ];
 
     // Note: typed ID wrappers enforced at compile-time would be stronger than
     // this structural check (Section 9 score +0.2 to +0.5). Until then, each
     // handler file must contain at least one approved validation call.
-    let approved = ["validate_project_id", "ensure_project_record", "ensure_project_runtime"];
+    let approved = [
+        "validate_project_id",
+        "ensure_project_record",
+        "ensure_project_runtime",
+    ];
 
     for (name, src) in handlers {
         assert!(
@@ -996,9 +1114,15 @@ fn reg1_section9_typed_id_validation_coverage_all_handlers() {
 #[test]
 fn mcp1_handlers_use_safe_join_for_path_construction() {
     let sources: &[(&str, &str)] = &[
-        ("project_tools.rs",  include_str!("../src/handlers/project_tools.rs")),
-        ("cognitive_tools.rs", include_str!("../src/handlers/cognitive_tools.rs")),
-        ("git_tools.rs",       include_str!("../src/handlers/git_tools.rs")),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
     ];
 
     // At least one path-safe pattern must be present in path-handling files.
@@ -1062,14 +1186,32 @@ fn reg1_project_id_allowed_character_set() {
     use engram_server::services::project_service::validate_project_id;
 
     // Characters NOT in [A-Za-z0-9_-] must be rejected.
-    assert!(validate_project_id("my.project").is_err(), "REG1: dot must be rejected");
-    assert!(validate_project_id("my project").is_err(), "REG1: space must be rejected");
-    assert!(validate_project_id("my:project").is_err(), "REG1: colon must be rejected");
-    assert!(validate_project_id("my@proj").is_err(),    "REG1: at-sign must be rejected");
+    assert!(
+        validate_project_id("my.project").is_err(),
+        "REG1: dot must be rejected"
+    );
+    assert!(
+        validate_project_id("my project").is_err(),
+        "REG1: space must be rejected"
+    );
+    assert!(
+        validate_project_id("my:project").is_err(),
+        "REG1: colon must be rejected"
+    );
+    assert!(
+        validate_project_id("my@proj").is_err(),
+        "REG1: at-sign must be rejected"
+    );
 
     // Characters IN [A-Za-z0-9_-] must be accepted.
-    assert!(validate_project_id("my-project_v2").is_ok(), "REG1: alphanum+hyphen+underscore accepted");
-    assert!(validate_project_id("UPPER_lower-123").is_ok(), "REG1: mixed case + digits accepted");
+    assert!(
+        validate_project_id("my-project_v2").is_ok(),
+        "REG1: alphanum+hyphen+underscore accepted"
+    );
+    assert!(
+        validate_project_id("UPPER_lower-123").is_ok(),
+        "REG1: mixed case + digits accepted"
+    );
 }
 
 // ── MCP1-r5n1: search handlers gate user-supplied limits via sanitized_* ──────
@@ -1081,10 +1223,19 @@ fn reg1_project_id_allowed_character_set() {
 #[test]
 fn mcp1_search_handler_files_use_sanitized_limit_methods() {
     let sources: &[(&str, &str)] = &[
-        ("search_tools.rs",  include_str!("../src/handlers/search_tools.rs")),
-        ("graph_tools.rs",   include_str!("../src/handlers/graph_tools.rs")),
-        ("cognitive_tools.rs", include_str!("../src/handlers/cognitive_tools.rs")),
-        ("git_tools.rs",     include_str!("../src/handlers/git_tools.rs")),
+        (
+            "search_tools.rs",
+            include_str!("../src/handlers/search_tools.rs"),
+        ),
+        (
+            "graph_tools.rs",
+            include_str!("../src/handlers/graph_tools.rs"),
+        ),
+        (
+            "cognitive_tools.rs",
+            include_str!("../src/handlers/cognitive_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
     ];
 
     for (name, src) in sources {

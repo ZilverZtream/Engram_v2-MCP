@@ -1083,6 +1083,13 @@ pub struct ResourceFileInfo {
 /// migrations.  The function checks the token at the boundary of each major
 /// analysis phase; if cancelled it returns `Err` immediately, allowing the
 /// caller to surface the abort without leaving the service in partial state.
+///
+/// MIG3-3410fe: This function is **purely in-memory** — no checkpoint or phase
+/// marker is written between analysis phases.  Cancellation is safe (no partial
+/// writes can corrupt storage), but there is **no resume capability**: a cancelled
+/// run must restart from scratch on retry.  For short projects this is acceptable;
+/// for very large codebases, future work may add a checkpoint store so that
+/// per-file dossier results accumulated before cancellation can be replayed.
 pub fn analyze_full_project(
     graph: &Arc<GraphStore>,
     project_id: &str,
@@ -2557,14 +2564,32 @@ fn build_service_endpoint_summary(
     graph: &Arc<GraphStore>,
     project_id: &str,
 ) -> ServiceEndpointSummary {
-    let ws = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesWebService, 1_000), "ExposesWebService");
-    let hh = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesHttpHandler, 1_000), "ExposesHttpHandler");
-    let wcf = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ExposesWcfService, 1_000), "ExposesWcfService");
-    let mods = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::RegistersModule, 1_000), "RegistersModule");
-    let routes = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::RegistersHandler, 1_000), "RegistersHandler");
+    let ws = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ExposesWebService, 1_000),
+        "ExposesWebService",
+    );
+    let hh = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ExposesHttpHandler, 1_000),
+        "ExposesHttpHandler",
+    );
+    let wcf = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ExposesWcfService, 1_000),
+        "ExposesWcfService",
+    );
+    let mods = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::RegistersModule, 1_000),
+        "RegistersModule",
+    );
+    let routes = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::RegistersHandler, 1_000),
+        "RegistersHandler",
+    );
 
     // Get ApiCall edges to cross-reference callers
-    let api_calls = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000), "ApiCall");
+    let api_calls = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000),
+        "ApiCall",
+    );
 
     let build_endpoints = |edges: &[engram_graph::Edge], modern: &str| -> Vec<ServiceEndpoint> {
         let mut map: BTreeMap<String, ServiceEndpoint> = BTreeMap::new();
@@ -2732,10 +2757,22 @@ fn build_js_analysis(
     markup_files: &[FileContent],
     js_files: &[(String, String)],
 ) -> JsAnalysisSummary {
-    let dom_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000), "ManipulatesDom");
-    let postback_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::TriggersPostback, 10_000), "TriggersPostback");
-    let api_call_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000), "ApiCall/js");
-    let contains_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::Contains, 50_000), "Contains");
+    let dom_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000),
+        "ManipulatesDom",
+    );
+    let postback_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::TriggersPostback, 10_000),
+        "TriggersPostback",
+    );
+    let api_call_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000),
+        "ApiCall/js",
+    );
+    let contains_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::Contains, 50_000),
+        "Contains",
+    );
 
     // Build DOM manipulation refs
     let dom_manipulations: Vec<JsDomRef> = dom_edges
@@ -2895,21 +2932,27 @@ fn build_gis_analysis(
     project_id: &str,
     target_stack: &str,
 ) -> GisAnalysisSummary {
-    let spatial_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::SpatialCall, 10_000), "SpatialCall");
+    let spatial_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::SpatialCall, 10_000),
+        "SpatialCall",
+    );
 
     // Query insight nodes for GIS inventories
-    let gis_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 1_000), "gis_insights")
-        .into_iter()
-        .filter(|n| {
-            let name_lower = n.name.to_lowercase();
-            name_lower.contains("gis_inventory")
-                || name_lower.contains("google_maps")
-                || name_lower.contains("esri")
-                || name_lower.contains("leaflet")
-                || name_lower.contains("openlayers")
-                || name_lower.contains("spatial")
-        })
-        .collect::<Vec<_>>();
+    let gis_insights = nodes_or_warn(
+        graph.query_nodes(project_id, Some("insight"), None, None, 1_000),
+        "gis_insights",
+    )
+    .into_iter()
+    .filter(|n| {
+        let name_lower = n.name.to_lowercase();
+        name_lower.contains("gis_inventory")
+            || name_lower.contains("google_maps")
+            || name_lower.contains("esri")
+            || name_lower.contains("leaflet")
+            || name_lower.contains("openlayers")
+            || name_lower.contains("spatial")
+    })
+    .collect::<Vec<_>>();
 
     if spatial_edges.is_empty() && gis_insights.is_empty() {
         return GisAnalysisSummary {
@@ -3179,10 +3222,13 @@ fn build_classic_asp_summary(
 ) -> ClassicAspSummary {
     if asp_files.is_empty() {
         // Check graph for any existing classic ASP insights
-        let asp_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 1_000), "asp_insights")
-            .into_iter()
-            .filter(|n| n.name.to_lowercase().contains("classic_asp"))
-            .count();
+        let asp_insights = nodes_or_warn(
+            graph.query_nodes(project_id, Some("insight"), None, None, 1_000),
+            "asp_insights",
+        )
+        .into_iter()
+        .filter(|n| n.name.to_lowercase().contains("classic_asp"))
+        .count();
         if asp_insights == 0 {
             return ClassicAspSummary {
                 total_asp_files: 0,
@@ -3196,7 +3242,10 @@ fn build_classic_asp_summary(
         }
     }
 
-    let include_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::IncludesFile, 5_000), "IncludesFile");
+    let include_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::IncludesFile, 5_000),
+        "IncludesFile",
+    );
 
     let mut com_objects = Vec::new();
     let mut ado_connections = 0usize;
@@ -3267,7 +3316,10 @@ fn build_report_summary(
     report_files: &[(String, String)],
 ) -> ReportSummary {
     // Query graph for report-related insights
-    let all_insights = nodes_or_warn(graph.query_nodes(project_id, Some("insight"), None, None, 2_000), "report_insights");
+    let all_insights = nodes_or_warn(
+        graph.query_nodes(project_id, Some("insight"), None, None, 2_000),
+        "report_insights",
+    );
 
     let report_insights: Vec<_> = all_insights
         .iter()
@@ -3281,7 +3333,10 @@ fn build_report_summary(
         .collect();
 
     // Also query for anti-pattern edges related to Crystal Reports
-    let ap_edges = edges_or_warn(graph.list_edges_by_kind(project_id, EdgeKind::AntiPattern, 5_000), "AntiPattern/reports");
+    let ap_edges = edges_or_warn(
+        graph.list_edges_by_kind(project_id, EdgeKind::AntiPattern, 5_000),
+        "AntiPattern/reports",
+    );
     let crystal_edges: Vec<_> = ap_edges
         .iter()
         .filter(|e| {
@@ -4961,7 +5016,8 @@ fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationRep
             }
         }};
     }
-    let option_strict_re = compile_re!(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b", "option_strict_re");
+    let option_strict_re =
+        compile_re!(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b", "option_strict_re");
     let method_re = compile_re!(
         r"(?is)\b(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\b.*?\bEnd\s+(?:Sub|Function)\b",
         "method_re"
@@ -12494,13 +12550,19 @@ public class MapData : WebService {
         MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
         // Simulate an error path in edges_or_warn.
-        let _empty: Vec<engram_graph::Edge> =
-            edges_or_warn(Err(anyhow::anyhow!("simulated graph failure")), "test_context_A");
+        let _empty: Vec<engram_graph::Edge> = edges_or_warn(
+            Err(anyhow::anyhow!("simulated graph failure")),
+            "test_context_A",
+        );
         let _empty2: Vec<engram_graph::Edge> =
             edges_or_warn(Err(anyhow::anyhow!("another failure")), "test_context_B");
 
         let degraded = take_mig_degraded();
-        assert_eq!(degraded.len(), 2, "MIG1: two failures must produce two degraded entries");
+        assert_eq!(
+            degraded.len(),
+            2,
+            "MIG1: two failures must produce two degraded entries"
+        );
         assert!(degraded.contains(&"test_context_A".to_string()));
         assert!(degraded.contains(&"test_context_B".to_string()));
 
@@ -12518,7 +12580,11 @@ public class MapData : WebService {
             nodes_or_warn(Err(anyhow::anyhow!("node query failure")), "node_context");
 
         let degraded = take_mig_degraded();
-        assert_eq!(degraded.len(), 1, "MIG1: one node failure must produce one degraded entry");
+        assert_eq!(
+            degraded.len(),
+            1,
+            "MIG1: one node failure must produce one degraded entry"
+        );
         assert_eq!(degraded[0], "node_context");
     }
 
@@ -12527,8 +12593,7 @@ public class MapData : WebService {
     fn mig1_edges_or_warn_does_not_record_on_success() {
         MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
-        let _result: Vec<engram_graph::Edge> =
-            edges_or_warn(Ok(Vec::new()), "success_context");
+        let _result: Vec<engram_graph::Edge> = edges_or_warn(Ok(Vec::new()), "success_context");
 
         let degraded = take_mig_degraded();
         assert!(
@@ -12546,19 +12611,24 @@ public class MapData : WebService {
         MIG_DEGRADED.with(|v| v.borrow_mut().clear());
 
         // Phase A fails — returns empty vec, records degraded context.
-        let phase_a: Vec<engram_graph::Edge> =
-            edges_or_warn(Err(anyhow::anyhow!("phase A graph failure")), "phase_a_edges");
-        assert!(phase_a.is_empty(), "MIG1: failed phase must return empty vec (best-effort)");
+        let phase_a: Vec<engram_graph::Edge> = edges_or_warn(
+            Err(anyhow::anyhow!("phase A graph failure")),
+            "phase_a_edges",
+        );
+        assert!(
+            phase_a.is_empty(),
+            "MIG1: failed phase must return empty vec (best-effort)"
+        );
 
         // Phase B succeeds — returns its data, does NOT record degraded context.
-        let phase_b: Vec<engram_graph::Edge> =
-            edges_or_warn(Ok(Vec::new()), "phase_b_edges");
+        let phase_b: Vec<engram_graph::Edge> = edges_or_warn(Ok(Vec::new()), "phase_b_edges");
         // phase_b is empty here because we passed Ok(Vec::new()); the key assertion
         // is that the degraded list still has only the ONE failure from phase A.
 
         let degraded = take_mig_degraded();
         assert_eq!(
-            degraded.len(), 1,
+            degraded.len(),
+            1,
             "MIG1: only the failed phase must appear in degraded_sections; \
              success does not roll back prior phases or add extra entries"
         );
@@ -12585,11 +12655,13 @@ public class MapData : WebService {
         let report_is_complete = degraded_sections.is_empty();
 
         // Contract: non-empty degraded_sections → report_is_complete = false.
-        assert!(!report_is_complete,
+        assert!(
+            !report_is_complete,
             "MIG1-k2v6: partial-failure must set report_is_complete=false; \
              callers must check this field before relying on all sections being present"
         );
-        assert!(!degraded_sections.is_empty(),
+        assert!(
+            !degraded_sections.is_empty(),
             "MIG1-k2v6: degraded_sections must be non-empty when report_is_complete=false"
         );
     }
@@ -12603,14 +12675,19 @@ public class MapData : WebService {
         let degraded = take_mig_degraded();
         assert!(degraded.is_empty());
         let complete = degraded.is_empty();
-        assert!(complete, "MIG1: empty degraded_sections must give report_is_complete = true");
+        assert!(
+            complete,
+            "MIG1: empty degraded_sections must give report_is_complete = true"
+        );
 
         // One failure → report_is_complete should be false.
-        let _: Vec<engram_graph::Edge> =
-            edges_or_warn(Err(anyhow::anyhow!("failure")), "ctx");
+        let _: Vec<engram_graph::Edge> = edges_or_warn(Err(anyhow::anyhow!("failure")), "ctx");
         let degraded2 = take_mig_degraded();
         let complete2 = degraded2.is_empty();
-        assert!(!complete2, "MIG1: non-empty degraded_sections must give report_is_complete = false");
+        assert!(
+            !complete2,
+            "MIG1: non-empty degraded_sections must give report_is_complete = false"
+        );
     }
 
     /// Verifies that when Global.asax does not exist on disk, the analysis

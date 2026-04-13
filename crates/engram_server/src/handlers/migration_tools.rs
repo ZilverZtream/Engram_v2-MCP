@@ -1279,7 +1279,14 @@ impl Engram {
             tokens.insert(migration_job_id.clone(), cancel);
         }
         let report_result = tokio::task::spawn_blocking(move || {
-            full_mig::analyze_full_project(&graph, &pid, &target_stack, &bundle, max_files, &cancel_for_task)
+            full_mig::analyze_full_project(
+                &graph,
+                &pid,
+                &target_stack,
+                &bundle,
+                max_files,
+                &cancel_for_task,
+            )
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -1315,10 +1322,7 @@ impl Engram {
         // MIG1: prepend a machine-readable completeness header to markdown output
         // so automation can detect partial reports via regex without JSON parsing.
         // MIG1-D3C1: include migration_job_id so callers can cancel via cancel_job.
-        let header = format!(
-            "<!-- MIG1:job_id={} -->\n",
-            migration_job_id
-        );
+        let header = format!("<!-- MIG1:job_id={} -->\n", migration_job_id);
         let markdown = if report.report_is_complete {
             format!("{}{}", header, report.markdown_report)
         } else {

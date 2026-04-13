@@ -842,7 +842,10 @@ mod tests {
             ..Config::default()
         };
         let result = cfg.validate();
-        assert!(result.is_err(), "validate() must reject unknown embedding_backend");
+        assert!(
+            result.is_err(),
+            "validate() must reject unknown embedding_backend"
+        );
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("embedding_backend"),
@@ -884,7 +887,10 @@ mod tests {
             ..Config::default()
         };
         let result = cfg.validate();
-        assert!(result.is_err(), "validate() must reject unknown llm_backend");
+        assert!(
+            result.is_err(),
+            "validate() must reject unknown llm_backend"
+        );
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("llm_backend"),
@@ -1054,13 +1060,8 @@ mod tests {
         fn path_traversal_in_allowed_roots_is_resolved_or_rejected() {
             // AUD-2026-INV-0001
             let traversal_input = "../../../etc";
-            let yaml = format!(
-                "allowed_roots: [\"{traversal_input}\"]\ndata_dir: /tmp\n"
-            );
-            let path = write_temp_yaml(
-                "engram_adv_path_traversal_test.yaml",
-                &yaml,
-            );
+            let yaml = format!("allowed_roots: [\"{traversal_input}\"]\ndata_dir: /tmp\n");
+            let path = write_temp_yaml("engram_adv_path_traversal_test.yaml", &yaml);
 
             let result = Config::load_from_path(&path);
             let _ = std::fs::remove_file(&path);
@@ -1145,16 +1146,10 @@ mod tests {
         fn config_with_nonexistent_data_dir_is_accepted_until_use() {
             // AUD-2026-INV-0001 (deferred-existence behaviour documentation)
             // Use a path that is very unlikely to exist on any CI machine.
-            let nonexistent_data_dir =
-                "/tmp/engram_adv_nonexistent_sentinel_dir_xK9z2Q7w/data";
+            let nonexistent_data_dir = "/tmp/engram_adv_nonexistent_sentinel_dir_xK9z2Q7w/data";
 
-            let yaml = format!(
-                "allowed_roots: [/tmp]\ndata_dir: {nonexistent_data_dir}\n"
-            );
-            let path = write_temp_yaml(
-                "engram_adv_nonexistent_data_dir_test.yaml",
-                &yaml,
-            );
+            let yaml = format!("allowed_roots: [/tmp]\ndata_dir: {nonexistent_data_dir}\n");
+            let path = write_temp_yaml("engram_adv_nonexistent_data_dir_test.yaml", &yaml);
 
             let result = Config::load_from_path(&path);
             let _ = std::fs::remove_file(&path);
@@ -1189,24 +1184,21 @@ mod tests {
             // Strategy: write the config file into a temp subdirectory.  The
             // relative root "." in the config should resolve to that subdir,
             // NOT to the process CWD (which is very likely a different path).
-            let tmp = tempfile::TempDir::new()
-                .expect("EXH-0002: create temp dir");
+            let tmp = tempfile::TempDir::new().expect("EXH-0002: create temp dir");
             let config_dir = tmp.path();
             let config_path = config_dir.join("engram_exh0002_test.yaml");
 
             // Use "." as the relative root — it must resolve to `config_dir`.
             let yaml = "allowed_roots: [.]\ndata_dir: /tmp\n";
-            let mut f = std::fs::File::create(&config_path)
-                .expect("EXH-0002: create config file");
-            f.write_all(yaml.as_bytes()).expect("EXH-0002: write config");
+            let mut f = std::fs::File::create(&config_path).expect("EXH-0002: create config file");
+            f.write_all(yaml.as_bytes())
+                .expect("EXH-0002: write config");
             drop(f);
 
             let result = Config::load_from_path(&config_path);
             let _ = std::fs::remove_file(&config_path);
 
-            let cfg = result.expect(
-                "EXH-0002: load_from_path must succeed with relative root '.'"
-            );
+            let cfg = result.expect("EXH-0002: load_from_path must succeed with relative root '.'");
 
             assert!(
                 !cfg.allowed_roots.is_empty(),
@@ -1222,16 +1214,17 @@ mod tests {
 
             // The resolved path must equal config_dir (possibly via
             // canonicalization), not the process CWD.
-            let canon_config_dir = std::fs::canonicalize(config_dir)
-                .unwrap_or_else(|_| config_dir.to_path_buf());
-            let canon_cwd = std::env::current_dir()
-                .unwrap_or_else(|_| std::path::PathBuf::from("/"));
+            let canon_config_dir =
+                std::fs::canonicalize(config_dir).unwrap_or_else(|_| config_dir.to_path_buf());
+            let canon_cwd =
+                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/"));
 
             // If CWD happens to equal config_dir this assertion is vacuous but
             // harmless — we can at least confirm the path is absolute.
             if canon_cwd != canon_config_dir {
                 assert_eq!(
-                    *resolved, canon_config_dir,
+                    *resolved,
+                    canon_config_dir,
                     "ENG-AUD-2026-EXH-0002: relative root '.' must resolve to config dir \
                      ({}) not process CWD ({})",
                     canon_config_dir.display(),
@@ -1286,9 +1279,13 @@ mod tests {
 
             // Set the env var to point at our explicit config file
             // SAFETY: single-threaded test; no other thread reads ENGRAM_CONFIG_PATH.
-            unsafe { std::env::set_var("ENGRAM_CONFIG_PATH", &config_path); }
+            unsafe {
+                std::env::set_var("ENGRAM_CONFIG_PATH", &config_path);
+            }
             let result = Config::load();
-            unsafe { std::env::remove_var("ENGRAM_CONFIG_PATH"); }
+            unsafe {
+                std::env::remove_var("ENGRAM_CONFIG_PATH");
+            }
 
             // Should succeed — explicit path is trusted
             assert!(

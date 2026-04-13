@@ -216,15 +216,24 @@ fn main_passes_shutdown_to_integrity_checker() {
 #[test]
 fn all_async_loops_in_server_have_cancellation_checks() {
     let sources = [
-        ("actors/gc.rs",               include_str!("../src/actors/gc.rs")),
-        ("actors/dreamer.rs",          include_str!("../src/actors/dreamer.rs")),
-        ("actors/watcher.rs",          include_str!("../src/actors/watcher.rs")),
-        ("actors/immune.rs",           include_str!("../src/actors/immune.rs")),
-        ("services/integrity_service.rs", include_str!("../src/services/integrity_service.rs")),
+        ("actors/gc.rs", include_str!("../src/actors/gc.rs")),
+        (
+            "actors/dreamer.rs",
+            include_str!("../src/actors/dreamer.rs"),
+        ),
+        (
+            "actors/watcher.rs",
+            include_str!("../src/actors/watcher.rs"),
+        ),
+        ("actors/immune.rs", include_str!("../src/actors/immune.rs")),
+        (
+            "services/integrity_service.rs",
+            include_str!("../src/services/integrity_service.rs"),
+        ),
     ];
 
     for (name, src) in sources {
-        let has_loop  = src.contains("loop {");
+        let has_loop = src.contains("loop {");
         let has_await = src.contains(".await");
         let has_cancel = src.contains(".cancelled()") || src.contains("CancellationToken");
 
@@ -265,7 +274,9 @@ fn embed_memory_guard_is_scoped_to_batch_not_job() {
     );
 
     // Both guard and cancellable call must appear within the same logical block.
-    let guard_pos = source.find("_embed_guard").or_else(|| source.find("embed_guard"));
+    let guard_pos = source
+        .find("_embed_guard")
+        .or_else(|| source.find("embed_guard"));
     let cancellable_pos = source.find("embed_batch_cancellable");
     if let (Some(g), Some(c)) = (guard_pos, cancellable_pos) {
         let distance = (c as isize - g as isize).unsigned_abs();
@@ -330,7 +341,8 @@ fn all_job_creation_handlers_have_authorization_gate_before_spawn() {
     // cognitive_tools.rs must contain the ADP evaluation gate (evaluate_gates).
     let cognitive_tools = include_str!("../src/handlers/cognitive_tools.rs");
     assert!(
-        cognitive_tools.contains("evaluate_gates") || cognitive_tools.contains("apply_rollout_policy"),
+        cognitive_tools.contains("evaluate_gates")
+            || cognitive_tools.contains("apply_rollout_policy"),
         "X4-adpjob-2n8q: cognitive_tools.rs must contain ADP gate evaluation \
          (evaluate_gates / apply_rollout_policy) as the pre-condition for any \
          autonomous action approval"
@@ -512,7 +524,9 @@ fn x1_7f9b_embed_guard_dropped_before_await() {
 
     // The drop must appear before the embed_batch_cancellable call.
     let drop_pos = source.find("drop(_embed_guard)").unwrap_or(usize::MAX);
-    let embed_pos = source.find("embed_batch_cancellable(chunk, cancel).await").unwrap_or(usize::MAX);
+    let embed_pos = source
+        .find("embed_batch_cancellable(chunk, cancel).await")
+        .unwrap_or(usize::MAX);
     assert!(
         drop_pos < embed_pos,
         "X1-7f9b: `drop(_embed_guard)` must appear before `embed_batch_cancellable(...).await` \
@@ -646,7 +660,8 @@ fn migration_service_report_is_complete_derived_from_degraded_sections() {
         .find("let report_is_complete")
         .or_else(|| service_src.find("report_is_complete ="))
         .expect("report_is_complete must be assigned in migration service");
-    let after_assign = &service_src[assign_pos..assign_pos + 200.min(service_src.len() - assign_pos)];
+    let after_assign =
+        &service_src[assign_pos..assign_pos + 200.min(service_src.len() - assign_pos)];
 
     assert!(
         after_assign.contains("degraded_sections"),
@@ -818,7 +833,8 @@ fn immune_actor_mid_loop_shutdown_uses_return_not_break() {
         .expect("CANCEL1-b2h7: shutdown.is_cancelled() must be present in immune.rs");
 
     // The `return` keyword must appear within 10 lines of the check.
-    let nearby = &source[cancel_pos..cancel_pos.min(source.len() - 1) + 300.min(source.len() - cancel_pos)];
+    let nearby =
+        &source[cancel_pos..cancel_pos.min(source.len() - 1) + 300.min(source.len() - cancel_pos)];
     assert!(
         nearby.contains("return"),
         "CANCEL1-b2h7: immune actor mid-loop shutdown check must exit via `return`, \
@@ -859,11 +875,20 @@ fn cancellation_policy_every_async_loop_body_has_cancel_check() {
     const WINDOW: usize = 3_000;
 
     let actor_sources: &[(&str, &str)] = &[
-        ("actors/gc.rs",                  include_str!("../src/actors/gc.rs")),
-        ("actors/dreamer.rs",             include_str!("../src/actors/dreamer.rs")),
-        ("actors/watcher.rs",             include_str!("../src/actors/watcher.rs")),
-        ("actors/immune.rs",              include_str!("../src/actors/immune.rs")),
-        ("services/integrity_service.rs", include_str!("../src/services/integrity_service.rs")),
+        ("actors/gc.rs", include_str!("../src/actors/gc.rs")),
+        (
+            "actors/dreamer.rs",
+            include_str!("../src/actors/dreamer.rs"),
+        ),
+        (
+            "actors/watcher.rs",
+            include_str!("../src/actors/watcher.rs"),
+        ),
+        ("actors/immune.rs", include_str!("../src/actors/immune.rs")),
+        (
+            "services/integrity_service.rs",
+            include_str!("../src/services/integrity_service.rs"),
+        ),
     ];
 
     for (name, src) in actor_sources {
@@ -873,7 +898,7 @@ fn cancellation_policy_every_async_loop_body_has_cancel_check() {
             let window_end = (loop_start + WINDOW).min(src.len());
             let window = &src[loop_start..window_end];
 
-            let has_await  = window.contains(".await");
+            let has_await = window.contains(".await");
             let has_cancel = window.contains(".cancelled()")
                 || window.contains("is_cancelled()")
                 || window.contains("CancellationToken");
@@ -934,16 +959,17 @@ fn migration_service_has_all_five_cancellation_boundary_messages() {
 /// return Err before any work is done (the "before start" checkpoint fires first).
 #[test]
 fn migration_analyse_returns_err_when_cancelled_before_start() {
-    use engram_server::services::full_project_migration_service::{
-        analyze_full_project, ProjectFileBundle,
-    };
     use engram_graph::GraphStore;
+    use engram_server::services::full_project_migration_service::{
+        ProjectFileBundle, analyze_full_project,
+    };
     use std::sync::Arc;
     use tokio_util::sync::CancellationToken;
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    let graph = Arc::new(GraphStore::open(tmp.path().join("graph.redb").as_path())
-        .expect("GraphStore::open"));
+    let graph = Arc::new(
+        GraphStore::open(tmp.path().join("graph.redb").as_path()).expect("GraphStore::open"),
+    );
     let bundle = ProjectFileBundle {
         markup_files: vec![],
         js_files: vec![],
@@ -994,9 +1020,9 @@ fn migration_cancellation_boundary_checks_are_in_phase_order() {
 
     let mut last_pos = 0usize;
     for (i, msg) in boundaries.iter().enumerate() {
-        let pos = src.find(msg).unwrap_or_else(|| {
-            panic!("MIG1: cancellation boundary message not found: {msg:?}")
-        });
+        let pos = src
+            .find(msg)
+            .unwrap_or_else(|| panic!("MIG1: cancellation boundary message not found: {msg:?}"));
         assert!(
             pos > last_pos,
             "MIG1: cancellation boundary [{i}] {msg:?} appears at byte {pos} which is \
@@ -1051,8 +1077,9 @@ fn cancel1_watcher_inner_loop_cancel_check_has_early_exit() {
 
     // The production loop must call shutdown.is_cancelled() (not just the outer
     // select! shutdown.cancelled() branch) so that the watcher can exit mid-scan.
-    let check_pos = src.find("shutdown.is_cancelled()")
-        .expect("CANCEL1: watcher.rs must call shutdown.is_cancelled() inside the project-trigger loop");
+    let check_pos = src.find("shutdown.is_cancelled()").expect(
+        "CANCEL1: watcher.rs must call shutdown.is_cancelled() inside the project-trigger loop",
+    );
 
     let after_check = &src[check_pos..check_pos + 200.min(src.len() - check_pos)];
     assert!(
@@ -1085,14 +1112,14 @@ fn cancel1_actor_cancel_checks_are_proximate_to_await_points() {
     let actor_sources: &[(&str, &str)] = &[
         ("dreamer.rs", include_str!("../src/actors/dreamer.rs")),
         ("watcher.rs", include_str!("../src/actors/watcher.rs")),
-        ("immune.rs",  include_str!("../src/actors/immune.rs")),
-        ("gc.rs",      include_str!("../src/actors/gc.rs")),
+        ("immune.rs", include_str!("../src/actors/immune.rs")),
+        ("gc.rs", include_str!("../src/actors/gc.rs")),
     ];
 
     for (name, src) in actor_sources {
         // Find the first is_cancelled() or .cancelled() check.
         let has_cancel = src.contains("is_cancelled()") || src.contains(".cancelled()");
-        let has_await  = src.contains(".await");
+        let has_await = src.contains(".await");
 
         assert!(
             has_cancel,
@@ -1115,7 +1142,7 @@ fn cancel1_actor_cancel_checks_are_proximate_to_await_points() {
 #[test]
 fn x5_spawn_job_functions_active_indexing_count_registry() {
     let project_tools = include_str!("../src/handlers/project_tools.rs");
-    let git_tools     = include_str!("../src/handlers/git_tools.rs");
+    let git_tools = include_str!("../src/handlers/git_tools.rs");
 
     // project_tools spawn functions DO use active_indexing_count (GC guard).
     assert!(
@@ -1196,7 +1223,9 @@ fn cancel1_exhaustive_async_loop_cancel_check_all_actors() {
             // Only check loops that contain .await (async loops).
             if window.contains(".await") {
                 // Check if any exemption marker applies to this loop.
-                let is_exempt = actor.exempt_markers.iter()
+                let is_exempt = actor
+                    .exempt_markers
+                    .iter()
                     .any(|marker| window.contains(marker));
 
                 if !is_exempt {
@@ -1284,7 +1313,7 @@ fn x5_git_tools_now_uses_active_indexing_count() {
 #[test]
 fn job1_all_write_job_kinds_use_active_indexing_count_guard() {
     let project_tools = include_str!("../src/handlers/project_tools.rs");
-    let git_tools     = include_str!("../src/handlers/git_tools.rs");
+    let git_tools = include_str!("../src/handlers/git_tools.rs");
 
     // project_tools: uses CAS fetch_update for concurrency-limited increment.
     assert!(
@@ -1373,15 +1402,23 @@ fn x6_cancellation_outcome_distinguishes_tombstone_variants() {
 #[test]
 fn cancel1_actor_loops_have_sufficient_cancel_check_density() {
     let actor_files: &[(&str, &str)] = &[
-        ("watcher.rs", include_str!("../../engram_server/src/actors/watcher.rs")),
-        ("dreamer.rs", include_str!("../../engram_server/src/actors/dreamer.rs")),
-        ("gc.rs",      include_str!("../../engram_server/src/actors/gc.rs")),
+        (
+            "watcher.rs",
+            include_str!("../../engram_server/src/actors/watcher.rs"),
+        ),
+        (
+            "dreamer.rs",
+            include_str!("../../engram_server/src/actors/dreamer.rs"),
+        ),
+        (
+            "gc.rs",
+            include_str!("../../engram_server/src/actors/gc.rs"),
+        ),
     ];
 
     for (name, src) in actor_files {
         let cancel_checks = src.matches("is_cancelled()").count();
-        let select_sites = src.matches("tokio::select!").count()
-            + src.matches("select! {").count();
+        let select_sites = src.matches("tokio::select!").count() + src.matches("select! {").count();
 
         // Every actor with a select! loop must have at least one is_cancelled check.
         if select_sites > 0 {
@@ -1399,9 +1436,18 @@ fn cancel1_actor_loops_have_sufficient_cancel_check_density() {
 #[test]
 fn cancel1_all_actor_files_declare_cancellation_token_parameter() {
     let actor_files: &[(&str, &str)] = &[
-        ("watcher.rs", include_str!("../../engram_server/src/actors/watcher.rs")),
-        ("dreamer.rs", include_str!("../../engram_server/src/actors/dreamer.rs")),
-        ("gc.rs",      include_str!("../../engram_server/src/actors/gc.rs")),
+        (
+            "watcher.rs",
+            include_str!("../../engram_server/src/actors/watcher.rs"),
+        ),
+        (
+            "dreamer.rs",
+            include_str!("../../engram_server/src/actors/dreamer.rs"),
+        ),
+        (
+            "gc.rs",
+            include_str!("../../engram_server/src/actors/gc.rs"),
+        ),
     ];
 
     for (name, src) in actor_files {
@@ -1447,15 +1493,22 @@ fn job1_gc_guard_explicitly_scoped_to_active_indexing_count_convention() {
 #[test]
 fn x5_active_indexing_count_raii_guard_uses_increment_and_fetch_sub() {
     let sources: &[(&str, &str)] = &[
-        ("project_tools.rs", include_str!("../../engram_server/src/handlers/project_tools.rs")),
-        ("git_tools.rs",     include_str!("../../engram_server/src/handlers/git_tools.rs")),
+        (
+            "project_tools.rs",
+            include_str!("../../engram_server/src/handlers/project_tools.rs"),
+        ),
+        (
+            "git_tools.rs",
+            include_str!("../../engram_server/src/handlers/git_tools.rs"),
+        ),
     ];
 
     for (name, src) in sources {
         if src.contains("active_indexing_count") {
             // Accepted patterns: ActiveGuard struct, or (fetch_add OR fetch_update) + fetch_sub.
             let has_raii = src.contains("ActiveGuard")
-                || (src.contains("fetch_sub") && (src.contains("fetch_add") || src.contains("fetch_update")));
+                || (src.contains("fetch_sub")
+                    && (src.contains("fetch_add") || src.contains("fetch_update")));
             assert!(
                 has_raii,
                 "X5: {name} uses active_indexing_count but lacks RAII guard \
@@ -1476,17 +1529,23 @@ fn x5_active_indexing_count_raii_guard_uses_increment_and_fetch_sub() {
 fn job1_gc_active_count_check_precedes_purge_operation() {
     let src = include_str!("../src/actors/gc.rs");
 
-    let count_pos = src.find("active_indexing_count")
+    let count_pos = src
+        .find("active_indexing_count")
         .expect("D3/JOB1: gc.rs must load active_indexing_count before purge");
 
     // The purge/delete/cleanup operation must occur AFTER the count check.
-    let purge_pos = src.find("purge").or_else(|| src.find("delete")).or_else(|| src.find("cleanup"));
+    let purge_pos = src
+        .find("purge")
+        .or_else(|| src.find("delete"))
+        .or_else(|| src.find("cleanup"));
     if let Some(pp) = purge_pos {
         // The guard check must appear before the purge (lower character offset = earlier in file).
         // This is a structural ordering invariant: guard → conditional → purge.
         // A reordering here would be a regression.
         assert!(
-            count_pos < pp || src[count_pos..].contains("if") || src[count_pos..].contains("continue"),
+            count_pos < pp
+                || src[count_pos..].contains("if")
+                || src[count_pos..].contains("continue"),
             "D3/JOB1: active_indexing_count must be checked and produce an early return/continue \
              BEFORE any purge in gc.rs; ordering violation detected"
         );
@@ -1501,12 +1560,16 @@ fn job1_gc_active_count_check_precedes_purge_operation() {
 fn job1_gc_active_count_check_has_skip_path() {
     let src = include_str!("../src/actors/gc.rs");
 
-    let count_pos = src.find("active_indexing_count")
+    let count_pos = src
+        .find("active_indexing_count")
         .expect("D3/JOB1: gc.rs must use active_indexing_count");
 
     let window = &src[count_pos..count_pos + 500.min(src.len() - count_pos)];
-    let has_skip = window.contains("continue") || window.contains("return")
-        || window.contains("> 0") || window.contains("!= 0") || window.contains("skip");
+    let has_skip = window.contains("continue")
+        || window.contains("return")
+        || window.contains("> 0")
+        || window.contains("!= 0")
+        || window.contains("skip");
     assert!(
         has_skip,
         "D3/JOB1: after reading active_indexing_count, gc.rs must have a skip/return path \
@@ -1692,8 +1755,11 @@ fn x5_exhaustive_indexing_handler_registry_has_active_indexing_count_guards() {
     // ALL handler files that spawn or directly perform write-path indexing jobs.
     // Update this list when adding a new handler that writes to the vector/FTS index.
     let write_handlers: &[(&str, &str)] = &[
-        ("project_tools.rs", include_str!("../src/handlers/project_tools.rs")),
-        ("git_tools.rs",     include_str!("../src/handlers/git_tools.rs")),
+        (
+            "project_tools.rs",
+            include_str!("../src/handlers/project_tools.rs"),
+        ),
+        ("git_tools.rs", include_str!("../src/handlers/git_tools.rs")),
     ];
 
     for (name, src) in write_handlers {

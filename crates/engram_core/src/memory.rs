@@ -84,18 +84,17 @@ impl MemoryBudget {
         let soft_limit = (budget as f64 * SOFT_LIMIT_RATIO) as u64;
 
         // CAS loop: only commit the addition when the new value stays within budget.
-        let result = self.inner.used.fetch_update(
-            Ordering::SeqCst,
-            Ordering::SeqCst,
-            |current| {
+        let result = self
+            .inner
+            .used
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
                 let new_used = current.saturating_add(bytes);
                 if new_used > budget {
                     None // reject — don't commit
                 } else {
                     Some(new_used)
                 }
-            },
-        );
+            });
 
         // MEM1 fix: fetch_update returns Ok(old_value). The actual new usage is
         // old_value + bytes (the closure guarantees new_used ≤ budget, so the
@@ -118,7 +117,9 @@ impl MemoryBudget {
         // Allocation committed — update subsystem counter and metrics.
         self.subsystem_counter(subsystem)
             .fetch_add(bytes, Ordering::Relaxed);
-        metrics::metrics().memory_bytes_used.set(actual_new_used as i64);
+        metrics::metrics()
+            .memory_bytes_used
+            .set(actual_new_used as i64);
 
         if actual_new_used > soft_limit {
             self.inner.pressure_active.store(true, Ordering::Relaxed);
@@ -471,12 +472,20 @@ mod tests {
         // This documents that the check is against the tracked counter, not RSS.
         let decision = mb.try_allocate(1, Subsystem::Misc);
         assert_eq!(decision, MemoryDecision::Allowed);
-        assert_eq!(mb.used(), 1, "MEM1-h9f3: budget tracks the 1-byte estimate exactly");
+        assert_eq!(
+            mb.used(),
+            1,
+            "MEM1-h9f3: budget tracks the 1-byte estimate exactly"
+        );
 
         // Allocating 0 bytes is a no-op — budget unaffected.
         let zero_decision = mb.try_allocate(0, Subsystem::Misc);
         assert_eq!(zero_decision, MemoryDecision::Allowed);
-        assert_eq!(mb.used(), 1, "MEM1-h9f3: 0-byte allocation must not change tracked usage");
+        assert_eq!(
+            mb.used(),
+            1,
+            "MEM1-h9f3: 0-byte allocation must not change tracked usage"
+        );
     }
 
     /// MEM1-h9f3: CAS prevents overcommit — two concurrent allocations that together
@@ -493,17 +502,22 @@ mod tests {
         let mb = Arc::new(MemoryBudget::new(budget));
         let barrier = Arc::new(Barrier::new(2));
 
-        let handles: Vec<_> = (0..2).map(|_| {
-            let mb_c = mb.clone();
-            let bar = barrier.clone();
-            std::thread::spawn(move || {
-                bar.wait(); // synchronize start to maximize contention
-                mb_c.try_allocate(alloc, Subsystem::Tantivy)
+        let handles: Vec<_> = (0..2)
+            .map(|_| {
+                let mb_c = mb.clone();
+                let bar = barrier.clone();
+                std::thread::spawn(move || {
+                    bar.wait(); // synchronize start to maximize contention
+                    mb_c.try_allocate(alloc, Subsystem::Tantivy)
+                })
             })
-        }).collect();
+            .collect();
 
         let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-        let accepted = results.iter().filter(|d| **d != MemoryDecision::Rejected).count();
+        let accepted = results
+            .iter()
+            .filter(|d| **d != MemoryDecision::Rejected)
+            .count();
         let final_used = mb.used();
 
         assert_eq!(

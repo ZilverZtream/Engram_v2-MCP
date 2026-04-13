@@ -37,11 +37,15 @@ pub async fn run_watcher(
         let reg = state.registry.clone();
         let projects = match tokio::task::spawn_blocking(move || reg.list_projects()).await {
             Err(e) => {
-                tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing projects: {e}; watch coverage disabled");
+                tracing::error!(
+                    "ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing projects: {e}; watch coverage disabled"
+                );
                 vec![]
             }
             Ok(Err(e)) => {
-                tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: registry list_projects error: {e}; watch coverage disabled");
+                tracing::error!(
+                    "ENG-AUD-S1-0001: watcher bootstrap: registry list_projects error: {e}; watch coverage disabled"
+                );
                 vec![]
             }
             Ok(Ok(v)) => v,
@@ -51,18 +55,25 @@ pub async fn run_watcher(
             let pid = p.project_id.clone();
             let reg_clone = state.registry.clone();
             let pid_for_list = pid.clone();
-            let watches =
-                match tokio::task::spawn_blocking(move || reg_clone.list_watches(&pid_for_list)).await {
-                    Err(e) => {
-                        tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing watches for {pid}: {e}; project will not be watched");
-                        vec![]
-                    }
-                    Ok(Err(e)) => {
-                        tracing::error!("ENG-AUD-S1-0001: watcher bootstrap: registry list_watches error for {pid}: {e}; project will not be watched");
-                        vec![]
-                    }
-                    Ok(Ok(v)) => v,
-                };
+            let watches = match tokio::task::spawn_blocking(move || {
+                reg_clone.list_watches(&pid_for_list)
+            })
+            .await
+            {
+                Err(e) => {
+                    tracing::error!(
+                        "ENG-AUD-S1-0001: watcher bootstrap: spawn_blocking panicked listing watches for {pid}: {e}; project will not be watched"
+                    );
+                    vec![]
+                }
+                Ok(Err(e)) => {
+                    tracing::error!(
+                        "ENG-AUD-S1-0001: watcher bootstrap: registry list_watches error for {pid}: {e}; project will not be watched"
+                    );
+                    vec![]
+                }
+                Ok(Ok(v)) => v,
+            };
 
             if watches.into_iter().any(|w| w.enabled)
                 && let Ok(canon) = state.paths.resolve_path(&p.directory)
@@ -359,11 +370,10 @@ mod tests {
     /// (the mechanism the bootstrap error-logging fix relies on).
     #[tokio::test]
     async fn spawn_blocking_panic_in_bootstrap_is_join_error_s1_0001() {
-        let result: Result<Vec<String>, _> =
-            tokio::task::spawn_blocking(|| -> Vec<String> {
-                panic!("ENG-AUD-S1-0001: simulated watcher bootstrap registry panic");
-            })
-            .await;
+        let result: Result<Vec<String>, _> = tokio::task::spawn_blocking(|| -> Vec<String> {
+            panic!("ENG-AUD-S1-0001: simulated watcher bootstrap registry panic");
+        })
+        .await;
         assert!(
             result.is_err(),
             "ENG-AUD-S1-0001: watcher bootstrap spawn_blocking panic must produce \
@@ -584,9 +594,8 @@ mod tests {
         // This exercises the branch in run_watcher bootstrap that logs an error
         // and skips inserting the watcher into the map.
         let watcher = watcher_opt.as_mut().unwrap();
-        let nonexistent = std::path::Path::new(
-            "/this/path/does/not/exist/engram_t18_0005_sentinel",
-        );
+        let nonexistent =
+            std::path::Path::new("/this/path/does/not/exist/engram_t18_0005_sentinel");
         let watch_result = watcher.watch(nonexistent, RecursiveMode::Recursive);
         assert!(
             watch_result.is_err(),
@@ -608,7 +617,8 @@ mod tests {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<i32>(1);
 
         // Fill the channel — this must succeed.
-        tx.try_send(1).expect("AUD-2026-INV-0006: first send into empty channel must succeed");
+        tx.try_send(1)
+            .expect("AUD-2026-INV-0006: first send into empty channel must succeed");
 
         // The channel is now full; the next try_send must return Full immediately
         // (non-blocking) rather than blocking the caller.
@@ -645,7 +655,8 @@ mod tests {
 
         // capacity=1: one item fills it
         let (tx, _rx) = mpsc::channel::<String>(1);
-        tx.try_send("fill".to_string()).expect("first send must succeed");
+        tx.try_send("fill".to_string())
+            .expect("first send must succeed");
 
         // Now channel is full — try_send must return Full immediately
         let result = tx.try_send("overflow".to_string());
@@ -668,20 +679,26 @@ mod tests {
         // Test Full variant
         let (tx, _rx) = mpsc::channel::<u32>(1);
         tx.try_send(1).unwrap();
-        assert!(matches!(tx.try_send(2), Err(TrySendError::Full(_))),
-            "capacity-full channel must give TrySendError::Full");
+        assert!(
+            matches!(tx.try_send(2), Err(TrySendError::Full(_))),
+            "capacity-full channel must give TrySendError::Full"
+        );
 
         // Test Closed variant
         let (tx2, rx2) = mpsc::channel::<u32>(16);
         drop(rx2); // close the receiver
-        assert!(matches!(tx2.try_send(1), Err(TrySendError::Closed(_))),
-            "dropped-receiver channel must give TrySendError::Closed");
+        assert!(
+            matches!(tx2.try_send(1), Err(TrySendError::Closed(_))),
+            "dropped-receiver channel must give TrySendError::Closed"
+        );
 
         // Prove the two are not the same match arm
         let full_is_closed = matches!(tx.try_send(3), Err(TrySendError::Closed(_)));
-        assert!(!full_is_closed,
+        assert!(
+            !full_is_closed,
             "AUD-2026-INV-0006: Full and Closed must be separate error arms so \
-             overflow telemetry (warn!) fires only on Full, not on Closed (debug!)");
+             overflow telemetry (warn!) fires only on Full, not on Closed (debug!)"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -778,8 +795,14 @@ mod tests {
         let item1 = rx.recv().await;
         let item2 = rx.recv().await;
 
-        assert!(item0.is_some(), "AUD-2026-INV-0006: first successful item must be receivable");
-        assert!(item1.is_some(), "AUD-2026-INV-0006: second successful item must be receivable");
+        assert!(
+            item0.is_some(),
+            "AUD-2026-INV-0006: first successful item must be receivable"
+        );
+        assert!(
+            item1.is_some(),
+            "AUD-2026-INV-0006: second successful item must be receivable"
+        );
         assert!(
             item2.is_none(),
             "AUD-2026-INV-0006: channel must be empty after receiving the 2 successful items; \
