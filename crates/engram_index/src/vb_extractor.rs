@@ -464,7 +464,22 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     }
 
     let tree = match parser.parse(source, None) {
-        Some(t) => t,
+        Some(t) => {
+            if t.root_node().has_error() {
+                if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
+                    tracing::error!(
+                        "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                        path.display()
+                    );
+                }
+                tracing::warn!(
+                    "tree-sitter VB tree contains error nodes in {}, falling back to regex",
+                    path.display()
+                );
+                return regex_extract(path, source);
+            }
+            t
+        }
         None => {
             if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
                 tracing::error!(
@@ -5143,6 +5158,68 @@ End Namespace
         let ro_prop = symbols.iter().find(|s| s.name == "Count");
         assert!(ro_prop.is_some(), "should detect ReadOnly Property");
         assert_eq!(ro_prop.unwrap().kind, "property");
+    }
+
+    #[test]
+    fn test_nested_inner_class_with_trailing_methods_indexes_methods() {
+        // Real-world pattern: outer class contains an inner class (TablePrefix),
+        // followed by methods in the outer class. Prior to the has_error()
+        // fallback, tree-sitter produced a malformed tree and the trailing
+        // methods were silently dropped.
+        let code = r#"
+Namespace _gd
+    Public Class handelselogg
+
+        Public Class TablePrefix
+            Public Shared ReadOnly Property InstallationPlan As String
+                Get
+                    Return "fj"
+                End Get
+            End Property
+            Public Shared ReadOnly Property MapMarker As String
+                Get
+                    Return "io"
+                End Get
+            End Property
+        End Class
+
+        Public Shared Function GetBySearch(fromDate As Date?, toDate As Date?) As List(Of Object)
+            Return Nothing
+        End Function
+
+        Public Shared Function Create(entry As Object) As Boolean
+            Return True
+        End Function
+
+        Public Shared Sub DeleteAll()
+        End Sub
+    End Class
+End Namespace
+"#;
+
+        let (symbols, _edges) = extract_vb(Path::new("handelselogg.vb"), code);
+
+        let function_names: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.kind == "function")
+            .map(|s| s.name.as_str())
+            .collect();
+
+        assert!(
+            function_names.contains(&"GetBySearch"),
+            "GetBySearch should be indexed; found functions: {:?}",
+            function_names
+        );
+        assert!(
+            function_names.contains(&"Create"),
+            "Create should be indexed; found functions: {:?}",
+            function_names
+        );
+        assert!(
+            function_names.contains(&"DeleteAll"),
+            "DeleteAll should be indexed; found functions: {:?}",
+            function_names
+        );
     }
 
     // ── Lifecycle metadata tests ──────────────────────────────────────────
