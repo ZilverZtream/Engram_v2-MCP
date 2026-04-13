@@ -1,6 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+var jsonOpts = new JsonSerializerOptions
+{
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+};
+
 while (Console.In.ReadLine() is { } line)
 {
     if (string.IsNullOrWhiteSpace(line))
@@ -15,28 +20,28 @@ while (Console.In.ReadLine() is { } line)
     }
     catch (Exception ex)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = ex.Message }));
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = ex.Message }, jsonOpts));
         Console.Out.Flush();
         continue;
     }
 
     if (request is null)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = "invalid request" }));
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = "invalid request" }, jsonOpts));
         Console.Out.Flush();
         continue;
     }
 
     if (request.Cmd == "shutdown")
     {
-        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse()));
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse(), jsonOpts));
         Console.Out.Flush();
         return;
     }
 
     if (request.Cmd != "parse")
     {
-        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }));
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }, jsonOpts));
         Console.Out.Flush();
         continue;
     }
@@ -49,11 +54,11 @@ while (Console.In.ReadLine() is { } line)
             Path = request.Path,
             Symbols = symbols,
             Edges = edges,
-        }));
+        }, jsonOpts));
     }
     catch (Exception ex)
     {
-        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = ex.ToString() }));
+        Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = ex.ToString() }, jsonOpts));
     }
 
     Console.Out.Flush();
