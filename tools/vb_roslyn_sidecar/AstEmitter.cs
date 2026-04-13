@@ -38,7 +38,7 @@ internal static class AstEmitter
 
         if (root.Options.Any())
         {
-            var strict = root.Options.FirstOrDefault(o => o.Name.ToString().Equals("Strict", StringComparison.OrdinalIgnoreCase));
+            var strict = root.Options.FirstOrDefault(o => o.ToString().StartsWith("Option Strict", StringComparison.OrdinalIgnoreCase));
             if (strict is not null)
             {
                 symbols.Add(new SymbolDto
@@ -635,11 +635,6 @@ internal static class AstEmitter
 
         static string ParseDelegateExpression(ExpressionSyntax delegateExpression)
         {
-            if (delegateExpression is AddressOfExpressionSyntax addressOfExpression)
-            {
-                return ExtractInvocationName(addressOfExpression.Expression);
-            }
-
             var raw = delegateExpression.ToString();
             const string prefix = "AddressOf ";
             if (raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -747,7 +742,7 @@ internal static class AstEmitter
 
         static bool LooksLikeControlField(FieldDeclarationSyntax field, VariableDeclaratorSyntax declarator)
         {
-            var typeText = declarator.AsClause?.ToString() ?? field.AsClause?.ToString() ?? string.Empty;
+            var typeText = declarator.AsClause?.ToString() ?? string.Empty;
             return Regex.IsMatch(typeText, @"\b(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase);
         }
     }
