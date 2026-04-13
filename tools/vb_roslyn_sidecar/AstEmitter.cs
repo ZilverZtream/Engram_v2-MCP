@@ -643,7 +643,7 @@ internal static class AstEmitter
             _ => expression.ToString()
         };
 
-        static string SanitizeName(string raw)
+        static string SanitizeName(string? raw)
         {
             if (string.IsNullOrEmpty(raw)) return raw;
             // Collapse newlines and tabs to single spaces, trim, and limit length.
@@ -673,9 +673,10 @@ internal static class AstEmitter
 
         static string ParseDelegateExpression(ExpressionSyntax delegateExpression)
         {
-            if (delegateExpression is AddressOfExpressionSyntax addressOfExpression)
+            if (delegateExpression is UnaryExpressionSyntax unary &&
+                unary.IsKind(SyntaxKind.AddressOfExpression))
             {
-                return SanitizeName(ExtractInvocationName(addressOfExpression.Expression));
+                return SanitizeName(ExtractInvocationName(unary.Operand));
             }
 
             var raw = delegateExpression.ToString();
