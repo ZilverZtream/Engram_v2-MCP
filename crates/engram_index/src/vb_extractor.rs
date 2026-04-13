@@ -621,18 +621,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             return regex_extract(path, source);
         }
     };
-            }
-        }
-        None => {
-            if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-                tracing::error!(
-                    "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB parse returned None"
-                );
-            }
-            tracing::warn!("tree-sitter VB parse returned None, using regex fallback");
-            return regex_extract(path, source);
-        }
-    };
+    let parse_source = parse_source.as_str();
 
     // ── Pass 1: Build FQN tables ──────────────────────────────────────────
     let fqn_maps = build_fqn_tables(&query, &tree, parse_source);
