@@ -418,6 +418,51 @@ fn count_dynamic_dispatch_patterns(method_body: &str) -> DynamicDispatchCounters
     }
 }
 
+/// Normalize VB.NET source to work around known `arborium_vb` grammar limitations.
+///
+/// Transformations applied:
+///   1. `<Attr>` → `<Attr()>` for member-level attributes (single attribute on its own line).
+///   2. `<Attr>` → `<Attr()>` for parameter-level attributes inside method signatures.
+///   3. `Partial Class` → `Public Partial Class` when no access modifier precedes `Partial`.
+///
+/// All transformations preserve byte length where possible. Where length changes
+/// (`Partial` → `Public Partial` adds bytes), tree-sitter's reported line/column
+/// positions remain accurate because insertion happens at declaration starts.
+fn normalize_vb_for_tree_sitter(source: &str) -> String {
+    static MEMBER_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+    static PARAM_ATTR_RE: OnceLock<Regex> = OnceLock::new();
+    static PARTIAL_CLASS_RE: OnceLock<Regex> = OnceLock::new();
+
+    // Pattern 1: <Attr> on its own line (member-level), no parentheses.
+    let member_re = MEMBER_ATTR_RE.get_or_init(|| {
+        Regex::new(
+            r"(?m)^(?P<indent>\s*)<(?P<name>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)>(?P<trailing>\s*(?:'.*)?$)",
+        )
+        .expect("member_re must compile")
+    });
+
+    // Pattern 2: <Attr> immediately followed by an identifier inside a parameter list.
+    let param_re = PARAM_ATTR_RE.get_or_init(|| {
+        Regex::new(
+            r"<(?P<name>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)>(?P<gap>\s+)(?P<rest>(?:ByVal\s+|ByRef\s+|Optional\s+|ParamArray\s+)?[A-Za-z_])",
+        )
+        .expect("param_re must compile")
+    });
+
+    // Pattern 3: `Partial Class` at start of line with no access modifier.
+    let partial_re = PARTIAL_CLASS_RE.get_or_init(|| {
+        Regex::new(r"(?im)^(?P<indent>\s*)Partial\s+Class\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)")
+            .expect("partial_re must compile")
+    });
+
+    // Apply transformations. Each step works on the previous step's output.
+    let step1 = member_re.replace_all(source, "$indent<$name()>$trailing");
+    let step2 = param_re.replace_all(&step1, "<$name()>$gap$rest");
+    let step3 = partial_re.replace_all(&step2, "${indent}Public Partial Class $name");
+
+    step3.into_owned()
+}
+
 // ── Public entry point ──────────────────────────────────────────────────────
 
 /// Extract symbols and call-graph edges from a `.vb` source file.
@@ -463,22 +508,63 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         return regex_extract(path, source);
     }
 
-    let tree = match parser.parse(source, None) {
+    // Normalize source to work around known arborium_vb grammar limitations.
+    // This rewrites attribute-without-parens and partial-class-without-access-modifier
+    // patterns that otherwise produce error trees.
+    let normalized = normalize_vb_for_tree_sitter(source);
+    let parse_source: &str = if normalized != source {
+        tracing::debug!(
+            "applied VB tree-sitter normalization rewrites for {}",
+            path.display()
+        );
+        &normalized
+    } else {
+        source
+    };
+
+    let tree = match parser.parse(parse_source, None) {
         Some(t) => {
             if t.root_node().has_error() {
-                if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
-                    tracing::error!(
-                        "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                // If normalization didn't help, try the original source — perhaps the
+                // normalization regex itself broke something the grammar handles.
+                if parse_source != source {
+                    tracing::debug!(
+                        "normalized VB source for {} still has error nodes, retrying with original",
                         path.display()
                     );
+                    if let Some(orig_tree) = parser.parse(source, None)
+                        && !orig_tree.root_node().has_error()
+                    {
+                        orig_tree
+                    } else {
+                        if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
+                            tracing::error!(
+                                "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                                path.display()
+                            );
+                        }
+                        tracing::warn!(
+                            "tree-sitter VB tree contains error nodes in {} (after normalization), falling back to regex",
+                            path.display()
+                        );
+                        return regex_extract(path, source);
+                    }
+                } else {
+                    if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
+                        tracing::error!(
+                            "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
+                            path.display()
+                        );
+                    }
+                    tracing::warn!(
+                        "tree-sitter VB tree contains error nodes in {}, falling back to regex",
+                        path.display()
+                    );
+                    return regex_extract(path, source);
                 }
-                tracing::warn!(
-                    "tree-sitter VB tree contains error nodes in {}, falling back to regex",
-                    path.display()
-                );
-                return regex_extract(path, source);
+            } else {
+                t
             }
-            t
         }
         None => {
             if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
@@ -492,13 +578,13 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     };
 
     // ── Pass 1: Build FQN tables ──────────────────────────────────────────
-    let fqn_maps = build_fqn_tables(&query, &tree, source);
+    let fqn_maps = build_fqn_tables(&query, &tree, parse_source);
 
     // ── Pass 2: Emit symbols + edges ──────────────────────────────────────
     let mut symbols: Vec<ExtractedSymbol> = Vec::new();
     let mut edges: Vec<ExtractedEdge> = Vec::new();
 
-    let option_strict = extract_option_strict_setting(source);
+    let option_strict = extract_option_strict_setting(parse_source);
 
     // All scopes encountered, used for post-processing SQL attribution
     let mut all_scopes: Vec<ScopeEntry> = Vec::new();
@@ -522,7 +608,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     let mut scope_stack: Vec<ScopeEntry> = Vec::new();
 
     let mut cursor = QueryCursor::new();
-    let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+    let mut matches = cursor.matches(&query, tree.root_node(), parse_source.as_bytes());
 
     while let Some(m) = matches.next() {
         let mut node_main = None;
@@ -547,7 +633,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
         // ── Case A: Imports ──────────────────────────────────────────────
         if let Some(n) = import_node {
-            let ns_text = node_text(source, &n);
+            let ns_text = node_text(parse_source, &n);
             if !ns_text.is_empty() {
                 push_edge(
                     &mut edges,
@@ -569,7 +655,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         // ── Case B: Calls ────────────────────────────────────────────────
         if let Some(n) = call_name_node {
             let callee_raw =
-                sanitize_vb_dotted_identifier(node_text(source, &n)).unwrap_or_default();
+                sanitize_vb_dotted_identifier(node_text(parse_source, &n)).unwrap_or_default();
             if !callee_raw.is_empty() {
                 let mut callee_fqn = fqn_maps.resolve(&callee_raw);
 
@@ -637,7 +723,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             let mut name = String::new();
             for sibling_cap in m.captures {
                 if query.capture_names()[sibling_cap.index as usize] == "name" {
-                    name = sanitize_vb_identifier(node_text(source, &sibling_cap.node))
+                    name = sanitize_vb_identifier(node_text(parse_source, &sibling_cap.node))
                         .unwrap_or_default();
                     break;
                 }
@@ -704,7 +790,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 // Side-effect classification for codebehind methods.
                 if kind == "function"
                     && let Some(body) =
-                        source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
+                        parse_source.get(actual_main_node.start_byte()..actual_main_node.end_byte())
                 {
                     let dyn_dispatch = count_dynamic_dispatch_patterns(body);
                     if dyn_dispatch.late_binding_call_count > 0 {
@@ -794,7 +880,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         edges.extend(dynamic_edges);
     }
     // Enhanced SQL extraction for CommandText/sql assignments + StringBuilder patterns.
-    let ts_sql_results = extract_ts_command_text(&tree, source);
+    let ts_sql_results = extract_ts_command_text(&tree, parse_source);
     let mut sql_candidates = ts_sql_results;
     sql_candidates.extend(extract_sql_var_assignments(source));
     sql_candidates.extend(extract_string_builder_sql(source));
@@ -4190,6 +4276,162 @@ End Namespace
             gen_sym.metadata.as_ref().unwrap()["fqn"],
             "MyOrg.Reports.OrderReport.GenerateReport"
         );
+    }
+
+    #[test]
+    fn test_normalize_member_attribute_without_parens() {
+        let input = r#"<HttpPost>
+Public Function Login() As String
+End Function"#;
+        let out = normalize_vb_for_tree_sitter(input);
+        assert!(out.contains("<HttpPost()>"), "got: {}", out);
+        assert!(
+            !out.contains(
+                "<HttpPost>
+"
+            ),
+            "got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_normalize_param_attribute_without_parens() {
+        let input = "Public Function GetValues(<FromUri> q As CustomerQuery) As String";
+        let out = normalize_vb_for_tree_sitter(input);
+        assert!(out.contains("<FromUri()>"), "got: {}", out);
+    }
+
+    #[test]
+    fn test_normalize_partial_class_adds_public() {
+        let input = "Partial Class api
+End Class";
+        let out = normalize_vb_for_tree_sitter(input);
+        assert!(out.contains("Public Partial Class api"), "got: {}", out);
+    }
+
+    #[test]
+    fn test_normalize_preserves_already_correct_syntax() {
+        let input = "Public Partial Class api
+<HttpGet()>
+Public Sub Foo()
+End Sub
+End Class";
+        let out = normalize_vb_for_tree_sitter(input);
+        assert_eq!(out, input);
+    }
+
+    #[test]
+    fn test_normalize_does_not_double_apply() {
+        let input = "<HttpPost()>
+Public Sub Foo()
+End Sub";
+        let out = normalize_vb_for_tree_sitter(input);
+        assert!(!out.contains("()()"), "got: {}", out);
+        assert!(out.contains("<HttpPost()>"), "got: {}", out);
+    }
+
+    #[test]
+    fn test_normalize_preserves_dotted_attribute_names() {
+        let input = "<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated>
+Public Class Foo
+End Class";
+        let out = normalize_vb_for_tree_sitter(input);
+        assert!(
+            out.contains("<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>"),
+            "got: {}",
+            out
+        );
+    }
+
+    #[test]
+    fn test_attribute_no_parens_indexes_method() {
+        let code = r#"Imports System.Web.Http
+
+Public Class TestController
+    Inherits ApiController
+
+    <HttpGet>
+    Public Function GetFoo() As String
+        Return "hello"
+    End Function
+
+    <HttpPost>
+    Public Sub PostFoo()
+    End Sub
+End Class"#;
+
+        let (symbols, _) = extract_vb(Path::new("TestController.vb"), code);
+        let names: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.kind == "function")
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(
+            names.contains(&"GetFoo"),
+            "GetFoo not indexed; found: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"PostFoo"),
+            "PostFoo not indexed; found: {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn test_param_attribute_indexes_method() {
+        let code = r#"Imports System.Web.Http
+
+Public Class QueryController
+    Inherits ApiController
+
+    Public Function GetValues(<FromUri> q As String) As String
+        Return q
+    End Function
+End Class"#;
+
+        let (symbols, _) = extract_vb(Path::new("QueryController.vb"), code);
+        let names: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.kind == "function")
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(
+            names.contains(&"GetValues"),
+            "GetValues not indexed; found: {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn test_partial_class_no_access_modifier_indexes_methods() {
+        let code = r#"Imports System.Web.Services
+
+Partial Class api
+    Inherits System.Web.Services.WebService
+
+    Public Function Hello() As String
+        Return "hello"
+    End Function
+End Class"#;
+
+        let (symbols, _) = extract_vb(Path::new("api.vb"), code);
+        let names: Vec<&str> = symbols
+            .iter()
+            .filter(|s| s.kind == "function")
+            .map(|s| s.name.as_str())
+            .collect();
+        assert!(
+            names.contains(&"Hello"),
+            "Hello not indexed; found: {:?}",
+            names
+        );
+
+        let class_sym = symbols
+            .iter()
+            .find(|s| s.kind == "class" && s.name == "api");
+        assert!(class_sym.is_some(), "api class not indexed");
     }
 
     #[test]
