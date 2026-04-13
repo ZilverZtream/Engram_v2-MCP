@@ -491,13 +491,16 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     if let Some(setting) = option_strict {
         let mut meta = HashMap::from([("fqn".into(), "file".into())]);
         meta.insert("option_strict".into(), setting.to_string());
-        symbols.push(ExtractedSymbol {
-            name: "file_directives".to_string(),
-            kind: "file",
-            start_line: 1,
-            end_line: 1,
-            metadata: Some(meta),
-        });
+        push_symbol(
+            &mut symbols,
+            ExtractedSymbol {
+                name: "file_directives".to_string(),
+                kind: "file",
+                start_line: 1,
+                end_line: 1,
+                metadata: Some(meta),
+            },
+        );
     }
 
     // Scope stack borrows name/kind slices from `source` (zero-copy).
@@ -531,24 +534,27 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         if let Some(n) = import_node {
             let ns_text = node_text(source, &n);
             if !ns_text.is_empty() {
-                edges.push(ExtractedEdge {
-                    source_name: "file".into(),
-                    source_kind: "file",
-                    source_start_line: 0,
-                    source_language: "vb",
-                    target_name: ns_text.to_string(),
-                    target_kind: None,
-                    target_start_line: None,
-                    kind: "imports",
-                    metadata: None,
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: "file".into(),
+                        source_kind: "file",
+                        source_start_line: 0,
+                        source_language: "vb",
+                        target_name: ns_text.to_string(),
+                        target_kind: None,
+                        target_start_line: None,
+                        kind: "imports",
+                        metadata: None,
+                    },
+                );
             }
         }
 
         // ── Case B: Calls ────────────────────────────────────────────────
         if let Some(n) = call_name_node {
-            let callee_raw = sanitize_vb_dotted_identifier(node_text(source, &n))
-                .unwrap_or_else(|| node_text(source, &n).trim().to_string());
+            let callee_raw =
+                sanitize_vb_dotted_identifier(node_text(source, &n)).unwrap_or_default();
             if !callee_raw.is_empty() {
                 let mut callee_fqn = fqn_maps.resolve(&callee_raw);
 
@@ -593,17 +599,20 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                         (callee_fqn, Some("function"))
                     };
 
-                edges.push(ExtractedEdge {
-                    source_name: src_name.to_string(),
-                    source_kind: src_kind,
-                    source_start_line: src_line,
-                    source_language: "vb",
-                    target_name,
-                    target_kind,
-                    target_start_line: None,
-                    kind: "calls",
-                    metadata: if meta.is_empty() { None } else { Some(meta) },
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name,
+                        target_kind,
+                        target_start_line: None,
+                        kind: "calls",
+                        metadata: if meta.is_empty() { None } else { Some(meta) },
+                    },
+                );
             }
         }
 
@@ -707,29 +716,35 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                     }
                 }
 
-                symbols.push(ExtractedSymbol {
-                    name: name.to_string(),
-                    kind,
-                    start_line,
-                    end_line,
-                    metadata: Some(meta),
-                });
+                push_symbol(
+                    &mut symbols,
+                    ExtractedSymbol {
+                        name: name.to_string(),
+                        kind,
+                        start_line,
+                        end_line,
+                        metadata: Some(meta),
+                    },
+                );
 
                 // Prune closed scopes, then emit containment edge
                 prune_scope_stack(&mut scope_stack, actual_main_node.start_byte());
 
                 if let Some(parent) = scope_stack.last() {
-                    edges.push(ExtractedEdge {
-                        source_name: parent.fqn.clone(),
-                        source_kind: parent.kind,
-                        source_start_line: parent.line,
-                        source_language: "vb",
-                        target_name: fqn.clone(),
-                        target_kind: Some(kind),
-                        target_start_line: Some(start_line),
-                        kind: "contains",
-                        metadata: None,
-                    });
+                    push_edge(
+                        &mut edges,
+                        ExtractedEdge {
+                            source_name: parent.fqn.clone(),
+                            source_kind: parent.kind,
+                            source_start_line: parent.line,
+                            source_language: "vb",
+                            target_name: fqn.clone(),
+                            target_kind: Some(kind),
+                            target_start_line: Some(start_line),
+                            kind: "contains",
+                            metadata: None,
+                        },
+                    );
                 }
 
                 let entry = ScopeEntry {
@@ -804,36 +819,42 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         if inferred {
             meta.insert("inferred".into(), "true".into());
         }
-        edges.push(ExtractedEdge {
-            source_name: src_name.to_string(),
-            source_kind: src_kind,
-            source_start_line: src_line,
-            source_language: "vb",
-            target_name: target_id,
-            target_kind: Some(target_kind_str),
-            target_start_line: None,
-            kind: "sql_calls",
-            metadata: Some(meta),
-        });
-
-        for table in tables {
-            edges.push(ExtractedEdge {
+        push_edge(
+            &mut edges,
+            ExtractedEdge {
                 source_name: src_name.to_string(),
                 source_kind: src_kind,
                 source_start_line: src_line,
                 source_language: "vb",
-                target_name: table.to_lowercase(),
-                target_kind: Some("db_table"),
+                target_name: target_id,
+                target_kind: Some(target_kind_str),
                 target_start_line: None,
-                kind: "queries_table",
-                metadata: Some(HashMap::from([
-                    ("inferred".into(), inferred.to_string()),
-                    (
-                        "table_inference_confidence".into(),
-                        format!("{confidence:.2}"),
-                    ),
-                ])),
-            });
+                kind: "sql_calls",
+                metadata: Some(meta),
+            },
+        );
+
+        for table in tables {
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: table.to_lowercase(),
+                    target_kind: Some("db_table"),
+                    target_start_line: None,
+                    kind: "queries_table",
+                    metadata: Some(HashMap::from([
+                        ("inferred".into(), inferred.to_string()),
+                        (
+                            "table_inference_confidence".into(),
+                            format!("{confidence:.2}"),
+                        ),
+                    ])),
+                },
+            );
         }
     }
 
@@ -866,23 +887,26 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 }
             }
             for table in tables {
-                edges.push(ExtractedEdge {
-                    source_name: src_name.to_string(),
-                    source_kind: src_kind,
-                    source_start_line: src_line,
-                    source_language: "vb",
-                    target_name: table.to_lowercase(),
-                    target_kind: Some("db_table"),
-                    target_start_line: None,
-                    kind: "queries_table",
-                    metadata: Some(HashMap::from([
-                        ("inferred".into(), inferred.to_string()),
-                        ("table_inference_confidence".into(), confidence.clone()),
-                    ])),
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name: table.to_lowercase(),
+                        target_kind: Some("db_table"),
+                        target_start_line: None,
+                        kind: "queries_table",
+                        metadata: Some(HashMap::from([
+                            ("inferred".into(), inferred.to_string()),
+                            ("table_inference_confidence".into(), confidence.clone()),
+                        ])),
+                    },
+                );
             }
 
-            edges.push(edge);
+            push_edge(&mut edges, edge);
         }
     }
 
@@ -1159,17 +1183,20 @@ fn extract_on_error_patterns(
                 "try/catch with specific exception types".to_string(),
             );
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: "unstructured_error_handling".to_string(),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: "unstructured_error_handling".to_string(),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                },
+            );
         }
 
         // Detect On Error GoTo
@@ -1206,17 +1233,20 @@ fn extract_on_error_patterns(
                     "try/catch with specific exception types".to_string(),
                 );
 
-                edges.push(ExtractedEdge {
-                    source_name: src_name.to_string(),
-                    source_kind: src_kind,
-                    source_start_line: src_line,
-                    source_language: "vb",
-                    target_name: "unstructured_error_handling".to_string(),
-                    target_kind: Some("insight"),
-                    target_start_line: resolved_line.or(Some(line_num)),
-                    kind: "anti_pattern",
-                    metadata: Some(meta),
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name: "unstructured_error_handling".to_string(),
+                        target_kind: Some("insight"),
+                        target_start_line: resolved_line.or(Some(line_num)),
+                        kind: "anti_pattern",
+                        metadata: Some(meta),
+                    },
+                );
 
                 active_goto_handlers.push((label.to_string(), line_num, src_name.to_string()));
             }
@@ -1260,13 +1290,16 @@ fn extract_on_error_patterns(
             "try/catch with specific exception types".to_string(),
         );
 
-        symbols.push(ExtractedSymbol {
-            name: "unstructured_error_handling".to_string(),
-            kind: "insight",
-            start_line: 0,
-            end_line: 0,
-            metadata: Some(meta),
-        });
+        push_symbol(
+            &mut symbols,
+            ExtractedSymbol {
+                name: "unstructured_error_handling".to_string(),
+                kind: "insight",
+                start_line: 0,
+                end_line: 0,
+                metadata: Some(meta),
+            },
+        );
     }
 
     (symbols, edges)
@@ -1373,17 +1406,20 @@ fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
                 meta.insert("nesting_depth".to_string(), frame.depth.to_string());
             }
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name,
-                target_kind: Some("global_state"),
-                target_start_line: Some(line_num),
-                kind: edge_kind,
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name,
+                    target_kind: Some("global_state"),
+                    target_start_line: Some(line_num),
+                    kind: edge_kind,
+                    metadata: Some(meta),
+                },
+            );
         }
 
         byte_offset += line_text.len() + 1;
@@ -1696,17 +1732,20 @@ fn extract_late_binding(
                 modern_equivalent_for_prog_id(prog_id).to_string(),
             );
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: format!("com_interop:{}", prog_id),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("com_interop:{}", prog_id),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                },
+            );
 
             prog_ids_seen.insert(prog_id.to_lowercase());
         }
@@ -1730,17 +1769,20 @@ fn extract_late_binding(
                 modern_equivalent_for_prog_id(prog_id).to_string(),
             );
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: format!("com_interop:{}", prog_id),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("com_interop:{}", prog_id),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                },
+            );
 
             prog_ids_seen.insert(prog_id.to_lowercase());
         }
@@ -1759,17 +1801,20 @@ fn extract_late_binding(
                 "Direct interface dispatch or reflection with explicit contract".to_string(),
             );
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: "late_binding:CallByName".to_string(),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: "late_binding:CallByName".to_string(),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -1798,17 +1843,20 @@ fn extract_late_binding(
                 );
             }
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: format!("late_binding:Object_{}", var_name),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("late_binding:Object_{}", var_name),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -1834,17 +1882,20 @@ fn extract_late_binding(
                 "modern_equivalent".to_string(),
                 modern_equivalent_for_prog_id(best_prog_id).to_string(),
             );
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: best.target_name.clone(),
-                target_kind: Some("insight"),
-                target_start_line: Some(line_num),
-                kind: "anti_pattern",
-                metadata: Some(anti_meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: best.target_name.clone(),
+                    target_kind: Some("insight"),
+                    target_start_line: Some(line_num),
+                    kind: "anti_pattern",
+                    metadata: Some(anti_meta),
+                },
+            );
         }
 
         for candidate in candidates {
@@ -1859,17 +1910,20 @@ fn extract_late_binding(
             meta.insert("method".to_string(), method.clone());
             meta.insert("arity".to_string(), arity.to_string());
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: candidate.target_name,
-                target_kind: Some("function"),
-                target_start_line: Some(line_num),
-                kind: "dependency",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: candidate.target_name,
+                    target_kind: Some("function"),
+                    target_start_line: Some(line_num),
+                    kind: "dependency",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -1926,17 +1980,20 @@ fn extract_my_namespace(
                 "IConfiguration / IOptions<T>".to_string(),
             );
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: format!("AppSetting:{}", setting_name),
-                target_kind: Some("app_setting"),
-                target_start_line: Some(line_num),
-                kind: "reads_state",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("AppSetting:{}", setting_name),
+                    target_kind: Some("app_setting"),
+                    target_start_line: Some(line_num),
+                    kind: "reads_state",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -1994,17 +2051,20 @@ fn extract_my_namespace(
                     pat.modern_equivalent.to_string(),
                 );
 
-                edges.push(ExtractedEdge {
-                    source_name: src_name.to_string(),
-                    source_kind: src_kind,
-                    source_start_line: src_line,
-                    source_language: "vb",
-                    target_name: format!("{}:{}", pat.category, member),
-                    target_kind: Some("insight"),
-                    target_start_line: Some(line_num),
-                    kind: "reads_state",
-                    metadata: Some(meta),
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: src_name.to_string(),
+                        source_kind: src_kind,
+                        source_start_line: src_line,
+                        source_language: "vb",
+                        target_name: format!("{}:{}", pat.category, member),
+                        target_kind: Some("insight"),
+                        target_start_line: Some(line_num),
+                        kind: "reads_state",
+                        metadata: Some(meta),
+                    },
+                );
 
                 if seen_insights.insert(pat.insight_name.to_string()) {
                     let mut sym_meta = HashMap::new();
@@ -2013,13 +2073,16 @@ fn extract_my_namespace(
                         pat.modern_equivalent.to_string(),
                     );
 
-                    symbols.push(ExtractedSymbol {
-                        name: pat.insight_name.to_string(),
-                        kind: "insight",
-                        start_line: line_num,
-                        end_line: line_num,
-                        metadata: Some(sym_meta),
-                    });
+                    push_symbol(
+                        &mut symbols,
+                        ExtractedSymbol {
+                            name: pat.insight_name.to_string(),
+                            kind: "insight",
+                            start_line: line_num,
+                            end_line: line_num,
+                            metadata: Some(sym_meta),
+                        },
+                    );
                 }
             }
         }
@@ -2070,17 +2133,20 @@ fn extract_redim_usage(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
             "Use List(Of T) or ImmutableArray<T>".to_string(),
         );
 
-        edges.push(ExtractedEdge {
-            source_name: src_name.to_string(),
-            source_kind: src_kind,
-            source_start_line: src_line,
-            source_language: "vb",
-            target_name: format!("dynamic_array_resize:{}", array_name),
-            target_kind: Some("insight"),
-            target_start_line: Some(line_num),
-            kind: "anti_pattern",
-            metadata: Some(meta),
-        });
+        push_edge(
+            &mut edges,
+            ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("dynamic_array_resize:{}", array_name),
+                target_kind: Some("insight"),
+                target_start_line: Some(line_num),
+                kind: "anti_pattern",
+                metadata: Some(meta),
+            },
+        );
     }
 
     edges
@@ -2224,17 +2290,20 @@ fn emit_script_injection_edges(
             meta.insert("script_snippet".into(), snippet);
             meta.insert("target_function".into(), func_name.into());
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: func_name.to_string(),
-                target_kind: Some("function"),
-                target_start_line: None,
-                kind: "injects_script",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: func_name.to_string(),
+                    target_kind: Some("function"),
+                    target_start_line: None,
+                    kind: "injects_script",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -2245,17 +2314,20 @@ fn emit_script_injection_edges(
         meta.insert("injection_method".into(), injection_method.into());
         meta.insert("script_snippet".into(), snippet.clone());
 
-        edges.push(ExtractedEdge {
-            source_name: src_name.to_string(),
-            source_kind: src_kind,
-            source_start_line: src_line,
-            source_language: "vb",
-            target_name: format!("inline_script:{}", &snippet[..snippet.len().min(40)]),
-            target_kind: Some("function"),
-            target_start_line: None,
-            kind: "injects_script",
-            metadata: Some(meta),
-        });
+        push_edge(
+            &mut edges,
+            ExtractedEdge {
+                source_name: src_name.to_string(),
+                source_kind: src_kind,
+                source_start_line: src_line,
+                source_language: "vb",
+                target_name: format!("inline_script:{}", &snippet[..snippet.len().min(40)]),
+                target_kind: Some("function"),
+                target_start_line: None,
+                kind: "injects_script",
+                metadata: Some(meta),
+            },
+        );
     }
 }
 
@@ -2330,17 +2402,20 @@ fn extract_ado_column_access(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Ext
             meta.insert("column_name".into(), col_name.clone());
             meta.insert("access_pattern".into(), access_pattern.to_string());
 
-            edges.push(ExtractedEdge {
-                source_name: src_name.to_string(),
-                source_kind: src_kind,
-                source_start_line: src_line,
-                source_language: "vb",
-                target_name: format!("binding_field:{}", col_name),
-                target_kind: Some("binding_field"),
-                target_start_line: None,
-                kind: "reads_column",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: src_name.to_string(),
+                    source_kind: src_kind,
+                    source_start_line: src_line,
+                    source_language: "vb",
+                    target_name: format!("binding_field:{}", col_name),
+                    target_kind: Some("binding_field"),
+                    target_start_line: None,
+                    kind: "reads_column",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -2549,6 +2624,65 @@ fn node_text<'a>(source: &'a str, node: &tree_sitter::Node) -> &'a str {
 #[inline]
 fn sanitize_vb_identifier(raw: &str) -> Option<String> {
     parse_vb_identifier_prefix(raw.trim()).map(|(ident, _)| ident)
+}
+
+/// Sanitize a string destined for a key component: collapse embedded
+/// control chars and multi-line whitespace to single spaces, trim,
+/// and cap length to avoid pathological keys.
+///
+/// Returns None if the result would be empty after sanitization, telling
+/// the caller to skip emitting the edge/symbol entirely.
+#[inline]
+fn sanitize_key_component(raw: &str) -> Option<String> {
+    const MAX_KEY_LEN: usize = 512;
+    let mut out = String::with_capacity(raw.len().min(MAX_KEY_LEN));
+    let mut last_was_space = true; // trim-left behavior
+    for ch in raw.chars() {
+        if out.len() >= MAX_KEY_LEN {
+            break;
+        }
+        if ch.is_control() || ch.is_whitespace() {
+            if !last_was_space {
+                out.push(' ');
+                last_was_space = true;
+            }
+        } else {
+            out.push(ch);
+            last_was_space = false;
+        }
+    }
+    // Trim trailing space
+    while out.ends_with(' ') {
+        out.pop();
+    }
+    if out.is_empty() { None } else { Some(out) }
+}
+
+/// Push an edge after sanitizing key-relevant string fields.
+/// Returns false if the edge was dropped (had empty/unsanitizable name).
+#[inline]
+fn push_edge(edges: &mut Vec<ExtractedEdge>, mut edge: ExtractedEdge) -> bool {
+    let Some(src) = sanitize_key_component(&edge.source_name) else {
+        return false;
+    };
+    let Some(tgt) = sanitize_key_component(&edge.target_name) else {
+        return false;
+    };
+    edge.source_name = src;
+    edge.target_name = tgt;
+    edges.push(edge);
+    true
+}
+
+/// Push a symbol after sanitizing its name.
+#[inline]
+fn push_symbol(symbols: &mut Vec<ExtractedSymbol>, mut sym: ExtractedSymbol) -> bool {
+    let Some(n) = sanitize_key_component(&sym.name) else {
+        return false;
+    };
+    sym.name = n;
+    symbols.push(sym);
+    true
 }
 
 #[inline]
@@ -2902,17 +3036,20 @@ pub fn extract_handles(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge> {
                     meta.insert("fqn".into(), handler_fqn.clone());
                 }
 
-                edges.push(ExtractedEdge {
-                    source_name: ctrl_id,
-                    source_kind,
-                    source_start_line: (line_no + 1) as u32,
-                    source_language: "vb",
-                    target_name: handler.clone(),
-                    target_kind: Some("function"),
-                    target_start_line: Some((line_no + 1) as u32),
-                    kind: "event_wiring",
-                    metadata: Some(meta),
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: ctrl_id,
+                        source_kind,
+                        source_start_line: (line_no + 1) as u32,
+                        source_language: "vb",
+                        target_name: handler.clone(),
+                        target_kind: Some("function"),
+                        target_start_line: Some((line_no + 1) as u32),
+                        kind: "event_wiring",
+                        metadata: Some(meta),
+                    },
+                );
             }
         }
     }
@@ -2955,17 +3092,20 @@ pub fn extract_addhandler(fqn_maps: &FqnMaps, source: &str) -> Vec<ExtractedEdge
                 meta.insert("fqn".into(), handler_fqn.clone());
             }
 
-            edges.push(ExtractedEdge {
-                source_name: ctrl_id,
-                source_kind: "control",
-                source_start_line: (line_no + 1) as u32,
-                source_language: "vb",
-                target_name: handler_short.to_string(),
-                target_kind: Some("function"),
-                target_start_line: Some((line_no + 1) as u32),
-                kind: "event_wiring",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: ctrl_id,
+                    source_kind: "control",
+                    source_start_line: (line_no + 1) as u32,
+                    source_language: "vb",
+                    target_name: handler_short.to_string(),
+                    target_kind: Some("function"),
+                    target_start_line: Some((line_no + 1) as u32),
+                    kind: "event_wiring",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
     edges
@@ -3115,13 +3255,16 @@ fn extract_dynamic_runtime_controls(
                     symbol_meta.insert("lifecycle_stage".into(), "CreateChildControls".into());
                 }
 
-                symbols.push(ExtractedSymbol {
-                    name: synth_id.clone(),
-                    kind: "control",
-                    start_line: state.first_line,
-                    end_line: state.first_line,
-                    metadata: Some(symbol_meta),
-                });
+                push_symbol(
+                    &mut symbols,
+                    ExtractedSymbol {
+                        name: synth_id.clone(),
+                        kind: "control",
+                        start_line: state.first_line,
+                        end_line: state.first_line,
+                        metadata: Some(symbol_meta),
+                    },
+                );
 
                 let class_fqn = method_fqn
                     .rsplit_once('.')
@@ -3132,17 +3275,20 @@ fn extract_dynamic_runtime_controls(
                     .find(|s| s.fqn == class_fqn)
                     .map(|s| (s.line, s.kind))
                     .unwrap_or((line_no, "class"));
-                edges.push(ExtractedEdge {
-                    source_name: class_fqn.to_string(),
-                    source_kind: class_kind,
-                    source_start_line: class_line,
-                    source_language: "vb",
-                    target_name: synth_id.clone(),
-                    target_kind: Some("control"),
-                    target_start_line: Some(state.first_line),
-                    kind: "contains",
-                    metadata: None,
-                });
+                push_edge(
+                    &mut edges,
+                    ExtractedEdge {
+                        source_name: class_fqn.to_string(),
+                        source_kind: class_kind,
+                        source_start_line: class_line,
+                        source_language: "vb",
+                        target_name: synth_id.clone(),
+                        target_kind: Some("control"),
+                        target_start_line: Some(state.first_line),
+                        kind: "contains",
+                        metadata: None,
+                    },
+                );
             }
 
             let handler_raw = caps["handler"].to_string();
@@ -3156,17 +3302,20 @@ fn extract_dynamic_runtime_controls(
             if handler_fqn != handler_short {
                 meta.insert("fqn".into(), handler_fqn);
             }
-            edges.push(ExtractedEdge {
-                source_name: synth_id,
-                source_kind: "control",
-                source_start_line: line_no,
-                source_language: "vb",
-                target_name: handler_short.to_string(),
-                target_kind: Some("function"),
-                target_start_line: Some(line_no),
-                kind: "event_wiring",
-                metadata: Some(meta),
-            });
+            push_edge(
+                &mut edges,
+                ExtractedEdge {
+                    source_name: synth_id,
+                    source_kind: "control",
+                    source_start_line: line_no,
+                    source_language: "vb",
+                    target_name: handler_short.to_string(),
+                    target_kind: Some("function"),
+                    target_start_line: Some(line_no),
+                    kind: "event_wiring",
+                    metadata: Some(meta),
+                },
+            );
         }
     }
 
@@ -3881,13 +4030,16 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     if let Some(setting) = option_strict {
         let mut meta = HashMap::from([("fqn".into(), "file".into())]);
         meta.insert("option_strict".into(), setting.to_string());
-        symbols.push(ExtractedSymbol {
-            name: "file_directives".to_string(),
-            kind: "file",
-            start_line: 1,
-            end_line: 1,
-            metadata: Some(meta),
-        });
+        push_symbol(
+            &mut symbols,
+            ExtractedSymbol {
+                name: "file_directives".to_string(),
+                kind: "file",
+                start_line: 1,
+                end_line: 1,
+                metadata: Some(meta),
+            },
+        );
     }
 
     for hit in &hits {
@@ -3900,13 +4052,16 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
                 let line_no = line_index.line_of(*pos);
                 let fqn = make_fqn(&current_ns, &current_class, "");
                 let meta = HashMap::from([("fqn".into(), fqn)]);
-                symbols.push(ExtractedSymbol {
-                    name: current_class.clone(),
-                    kind: "class",
-                    start_line: line_no,
-                    end_line: line_no,
-                    metadata: Some(meta),
-                });
+                push_symbol(
+                    &mut symbols,
+                    ExtractedSymbol {
+                        name: current_class.clone(),
+                        kind: "class",
+                        start_line: line_no,
+                        end_line: line_no,
+                        metadata: Some(meta),
+                    },
+                );
             }
             Hit::Member {
                 name,
@@ -3946,13 +4101,16 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
                         );
                     }
                 }
-                symbols.push(ExtractedSymbol {
-                    name: (*name).to_string(),
-                    kind,
-                    start_line: line_no,
-                    end_line: line_no,
-                    metadata: Some(meta),
-                });
+                push_symbol(
+                    &mut symbols,
+                    ExtractedSymbol {
+                        name: (*name).to_string(),
+                        kind,
+                        start_line: line_no,
+                        end_line: line_no,
+                        metadata: Some(meta),
+                    },
+                );
             }
         }
     }
@@ -3960,7 +4118,7 @@ fn regex_extract(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extrac
     if has_sql_keyword(source) {
         let sql_results = regex_extract_sql(source, &[]);
         for (edge, _) in sql_results {
-            edges.push(edge);
+            push_edge(&mut edges, edge);
         }
     }
     if has_handles_keyword(source) {
@@ -4872,6 +5030,97 @@ End Namespace
             sanitize_vb_dotted_identifier(raw),
             Some("App.Repo.Where".to_string())
         );
+    }
+
+    #[test]
+    fn test_sanitize_key_component_collapses_newlines() {
+        assert_eq!(
+            sanitize_key_component("fileLibraryFiles.Where(Function(d)\n  physicalFileNames"),
+            Some("fileLibraryFiles.Where(Function(d) physicalFileNames".to_string())
+        );
+        assert_eq!(
+            sanitize_key_component("{CrStatus.[New], CrStatus.PendingApproval}\r\n    "),
+            Some("{CrStatus.[New], CrStatus.PendingApproval}".to_string())
+        );
+        assert_eq!(sanitize_key_component("   \n\t  "), None);
+        assert_eq!(sanitize_key_component(""), None);
+    }
+
+    #[test]
+    fn test_sanitize_key_component_caps_length() {
+        let long = "a".repeat(5000);
+        let result = sanitize_key_component(&long).unwrap();
+        assert!(result.len() <= 512);
+    }
+
+    #[test]
+    fn test_vb_brace_expression_does_not_leak_into_call_target() {
+        let code = r#"
+Namespace App
+    Class Workflow
+        Sub Check(status As CrStatus)
+            If {CrStatus.[New], CrStatus.PendingApproval, CrStatus.Rejected}.Contains(status) Then
+                Return
+            End If
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Workflow.vb"), code);
+        for edge in &edges {
+            assert!(
+                !edge.target_name.contains('\n') && !edge.target_name.contains('\r'),
+                "Edge target contains newline: {:?}",
+                edge.target_name
+            );
+            assert!(
+                !edge.source_name.contains('\n') && !edge.source_name.contains('\r'),
+                "Edge source contains newline: {:?}",
+                edge.source_name
+            );
+        }
+    }
+
+    #[test]
+    fn test_push_edge_drops_empty_name() {
+        let mut edges = Vec::new();
+        let dropped = !push_edge(
+            &mut edges,
+            ExtractedEdge {
+                source_name: "".to_string(),
+                source_kind: "file",
+                source_start_line: 0,
+                source_language: "vb",
+                target_name: "foo".to_string(),
+                target_kind: None,
+                target_start_line: None,
+                kind: "calls",
+                metadata: None,
+            },
+        );
+        assert!(dropped);
+        assert!(edges.is_empty());
+    }
+
+    #[test]
+    fn test_push_edge_sanitizes_newlines_silently() {
+        let mut edges = Vec::new();
+        push_edge(
+            &mut edges,
+            ExtractedEdge {
+                source_name: "a.b".to_string(),
+                source_kind: "file",
+                source_start_line: 0,
+                source_language: "vb",
+                target_name: "messy\nname\r\n  here".to_string(),
+                target_kind: None,
+                target_start_line: None,
+                kind: "calls",
+                metadata: None,
+            },
+        );
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].target_name, "messy name here");
     }
 
     // ── Regex fallback property detection ────────────────────────────────
