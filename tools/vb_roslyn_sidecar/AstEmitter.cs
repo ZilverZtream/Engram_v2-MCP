@@ -422,7 +422,7 @@ internal static class AstEmitter
 
             foreach (var withBlock in node.DescendantNodes().OfType<WithBlockSyntax>())
             {
-                var withTarget = withBlock.WithStatement.Expression.ToString();
+                var withTarget = SanitizeName(withBlock.WithStatement.Expression.ToString());
                 foreach (var statement in withBlock.Statements)
                 {
                     var lines = statement.ToString().Split('\n');
@@ -438,7 +438,7 @@ internal static class AstEmitter
                             SourceKind = "function",
                             SourceStartLine = Line(tree, statement),
                             SourceLanguage = "vb",
-                            TargetName = $"{withTarget}{stmtText}",
+                            TargetName = SanitizeName($"{withTarget}{stmtText}"),
                             TargetKind = "member",
                             Kind = kind
                         });
@@ -450,13 +450,14 @@ internal static class AstEmitter
                          .Where(m => m.ToString().StartsWith("My.", StringComparison.OrdinalIgnoreCase)))
             {
                 sideEffects.Add("State_Access");
+                var memberName = SanitizeName(member.ToString());
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
                     SourceKind = "function",
                     SourceStartLine = Line(tree, member),
                     SourceLanguage = "vb",
-                    TargetName = member.ToString(),
+                    TargetName = memberName,
                     TargetKind = "state",
                     Kind = "reads_state"
                 });
@@ -477,13 +478,14 @@ internal static class AstEmitter
 
             foreach (var onError in node.DescendantNodes().Where(n => n.ToString().StartsWith("On Error", StringComparison.OrdinalIgnoreCase)))
             {
+                var onErrorName = SanitizeName(onError.ToString());
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
                     SourceKind = "function",
                     SourceStartLine = Line(tree, onError),
                     SourceLanguage = "vb",
-                    TargetName = onError.ToString(),
+                    TargetName = onErrorName,
                     Kind = "anti_pattern"
                 });
             }
@@ -506,7 +508,7 @@ internal static class AstEmitter
             foreach (var addCall in node.DescendantNodes().OfType<InvocationExpressionSyntax>()
                          .Where(i => i.Expression.ToString().EndsWith(".Controls.Add", StringComparison.OrdinalIgnoreCase)))
             {
-                var controlVar = addCall.ArgumentList?.Arguments.FirstOrDefault()?.ToString();
+                var controlVar = SanitizeName(addCall.ArgumentList?.Arguments.FirstOrDefault()?.ToString());
                 if (string.IsNullOrWhiteSpace(controlVar) ||
                     (!dynamicControls.Contains(controlVar) && !knownControlNames.Contains(controlVar)))
                     continue;
@@ -589,7 +591,7 @@ internal static class AstEmitter
             if (namespaces.Count > 0) parts.AddRange(namespaces.Reverse().ToArray());
             if (types.Count > 0) parts.AddRange(types.Reverse().ToArray());
             parts.Add(terminal);
-            return string.Join('.', parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+            return SanitizeName(string.Join('.', parts.Where(p => !string.IsNullOrWhiteSpace(p))));
         }
 
         string ResolveInvocationName(InvocationExpressionSyntax invocation)
@@ -604,13 +606,13 @@ internal static class AstEmitter
                 }
 
                 // Fall back to raw text when no resolved symbol.
-                return invocation.Expression?.ToString() ?? "<unknown>";
+                return SanitizeName(invocation.Expression?.ToString() ?? "<unknown>");
             }
             catch
             {
                 // Any Roslyn semantic lookup can throw on malformed trees.
                 // Degrade gracefully to raw text.
-                return invocation.Expression?.ToString() ?? "<unknown>";
+                return SanitizeName(invocation.Expression?.ToString() ?? "<unknown>");
             }
         }
 
@@ -641,29 +643,50 @@ internal static class AstEmitter
             _ => expression.ToString()
         };
 
+        static string SanitizeName(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return raw;
+            // Collapse newlines and tabs to single spaces, trim, and limit length.
+            var collapsed = Regex.Replace(raw, @"\s+", " ").Trim();
+            const int maxLen = 256;
+            if (collapsed.Length > maxLen)
+            {
+                collapsed = collapsed.Substring(0, maxLen);
+            }
+            return collapsed;
+        }
+
         static (string source, string eventName) ParseEventExpression(ExpressionSyntax eventExpression)
         {
             if (eventExpression is MemberAccessExpressionSyntax member)
             {
-                return (member.Expression.ToString(), member.Name.Identifier.Text);
+                return (SanitizeName(member.Expression.ToString()),
+                        SanitizeName(member.Name.Identifier.Text));
             }
 
             var raw = eventExpression.ToString();
             var parts = raw.Split('.', 2);
-            return parts.Length == 2 ? (parts[0], parts[1]) : (raw, raw);
+            return parts.Length == 2
+                ? (SanitizeName(parts[0]), SanitizeName(parts[1]))
+                : (SanitizeName(raw), SanitizeName(raw));
         }
 
         static string ParseDelegateExpression(ExpressionSyntax delegateExpression)
         {
+            if (delegateExpression is AddressOfExpressionSyntax addressOfExpression)
+            {
+                return SanitizeName(ExtractInvocationName(addressOfExpression.Expression));
+            }
+
             var raw = delegateExpression.ToString();
             const string prefix = "AddressOf ";
             if (raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                return ExtractInvocationName(
-                    SyntaxFactory.ParseExpression(raw[prefix.Length..]));
+                return SanitizeName(ExtractInvocationName(
+                    SyntaxFactory.ParseExpression(raw[prefix.Length..])));
             }
 
-            return ExtractInvocationName(delegateExpression);
+            return SanitizeName(ExtractInvocationName(delegateExpression));
         }
 
         static bool IsSqlExecutionCall(string targetName) =>
