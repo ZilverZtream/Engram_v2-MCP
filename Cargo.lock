@@ -97,27 +97,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arborium-sysroot"
-version = "2.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43374e79fbeaedc2bf27eed475c26686c8ed8eef2180854eef22340b9e25b64a"
-dependencies = [
- "cc",
- "dlmalloc",
-]
-
-[[package]]
-name = "arborium-vb"
-version = "2.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9834b1f36a18fead444c8b17cdf43fd1b37db1f82244102e0be91c81d2ebebb"
-dependencies = [
- "arborium-sysroot",
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
 name = "arc-swap"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1754,17 +1733,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dlmalloc"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6738d2e996274e499bc7b0d693c858b7720b9cd2543a0643a3087e6cb0a4fa16"
-dependencies = [
- "cfg-if",
- "libc",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "downcast-rs"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1861,7 +1829,6 @@ name = "engram_index"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arborium-vb",
  "arrow",
  "arrow-array",
  "arrow-schema",
