@@ -9,13 +9,15 @@ internal static class AstEmitter
 {
     public static (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
     {
-        var tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
-        var compilation = VisualBasicCompilation.Create("sidecar").AddSyntaxTrees(tree);
-        var model = compilation.GetSemanticModel(tree);
-        var root = tree.GetCompilationUnitRoot();
-
         var symbols = new List<SymbolDto>();
         var edges = new List<EdgeDto>();
+        try
+        {
+            var tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+            var compilation = VisualBasicCompilation.Create("sidecar").AddSyntaxTrees(tree);
+            var model = compilation.GetSemanticModel(tree);
+            var root = tree.GetCompilationUnitRoot();
+
         var namespaces = new Stack<string>();
         var types = new Stack<string>();
         var knownControlNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -580,7 +582,6 @@ internal static class AstEmitter
         }
 
         Walk(root);
-        return (symbols, edges);
 
         string ComposeName(string terminal)
         {
@@ -593,21 +594,39 @@ internal static class AstEmitter
 
         string ResolveInvocationName(InvocationExpressionSyntax invocation)
         {
-            var symbol = model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (symbol is not null)
+            try
             {
-                return symbol.ToDisplayString();
-            }
+                var info = model.GetSymbolInfo(invocation);
+                var symbol = info.Symbol as IMethodSymbol;
+                if (symbol is not null)
+                {
+                    return symbol.ToDisplayString();
+                }
 
-            return invocation.Expression.ToString();
+                // Fall back to raw text when no resolved symbol.
+                return invocation.Expression?.ToString() ?? "<unknown>";
+            }
+            catch
+            {
+                // Any Roslyn semantic lookup can throw on malformed trees.
+                // Degrade gracefully to raw text.
+                return invocation.Expression?.ToString() ?? "<unknown>";
+            }
         }
 
         Dictionary<string, string>? ResolveInvocationMetadata(InvocationExpressionSyntax invocation)
         {
-            var symbol = model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
-            if (symbol is not null)
+            try
             {
-                return null;
+                var info = model.GetSymbolInfo(invocation);
+                if (info.Symbol is IMethodSymbol)
+                {
+                    return null;
+                }
+            }
+            catch
+            {
+                // fall through
             }
 
             return new Dictionary<string, string> { ["unresolved"] = "true" };
@@ -746,6 +765,26 @@ internal static class AstEmitter
             var typeText = declarator.AsClause?.ToString() ?? string.Empty;
             return Regex.IsMatch(typeText, @"\b(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase);
         }
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the whole response — return partial results plus an error marker.
+            symbols.Add(new SymbolDto
+            {
+                Name = "file_parse_error",
+                Kind = "file",
+                StartLine = 1,
+                EndLine = 1,
+                Metadata = new()
+                {
+                    ["fqn"] = "file",
+                    ["error"] = ex.GetType().Name,
+                    ["error_message"] = ex.Message
+                }
+            });
+        }
+
+        return (symbols, edges);
     }
 
     static EdgeDto Contains(string src, string target, int line, string targetKind) => new()
