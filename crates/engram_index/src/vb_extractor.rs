@@ -836,7 +836,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
         for table in tables {
             push_edge(
-                edges,
+                &mut edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -1184,7 +1184,7 @@ fn extract_on_error_patterns(
             );
 
             push_edge(
-                edges,
+                &mut edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -1407,7 +1407,7 @@ fn extract_with_blocks(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
             }
 
             push_edge(
-                edges,
+                &mut edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -1733,7 +1733,7 @@ fn extract_late_binding(
             );
 
             push_edge(
-                edges,
+                &mut edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -2134,7 +2134,7 @@ fn extract_redim_usage(source: &str, all_scopes: &[ScopeEntry]) -> Vec<Extracted
         );
 
         push_edge(
-            edges,
+            &mut edges,
             ExtractedEdge {
                 source_name: src_name.to_string(),
                 source_kind: src_kind,
@@ -2291,7 +2291,7 @@ fn emit_script_injection_edges(
             meta.insert("target_function".into(), func_name.into());
 
             push_edge(
-                edges,
+                &mut edges,
                 ExtractedEdge {
                     source_name: src_name.to_string(),
                     source_kind: src_kind,
@@ -2315,7 +2315,7 @@ fn emit_script_injection_edges(
         meta.insert("script_snippet".into(), snippet.clone());
 
         push_edge(
-            edges,
+            &mut edges,
             ExtractedEdge {
                 source_name: src_name.to_string(),
                 source_kind: src_kind,
