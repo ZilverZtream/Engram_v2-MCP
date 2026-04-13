@@ -98,9 +98,9 @@ dependencies = [
 
 [[package]]
 name = "arborium-sysroot"
-version = "2.13.0"
+version = "2.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ce9624bea89e41ab45de48c1e94d4a8587f9ed429801314c91255149a852cc9"
+checksum = "43374e79fbeaedc2bf27eed475c26686c8ed8eef2180854eef22340b9e25b64a"
 dependencies = [
  "cc",
  "dlmalloc",
@@ -108,9 +108,9 @@ dependencies = [
 
 [[package]]
 name = "arborium-vb"
-version = "2.13.0"
+version = "2.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f8f1e83909fa120228f40300fabac504845490debe665e7cb4f5fd407f6f0a6"
+checksum = "a9834b1f36a18fead444c8b17cdf43fd1b37db1f82244102e0be91c81d2ebebb"
 dependencies = [
  "arborium-sysroot",
  "cc",
