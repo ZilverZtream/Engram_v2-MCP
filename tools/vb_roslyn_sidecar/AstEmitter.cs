@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 internal static class AstEmitter
@@ -786,22 +787,48 @@ internal static class AstEmitter
 
 internal sealed class SymbolDto
 {
+    [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("kind")]
     public string Kind { get; set; } = string.Empty;
+
+    [JsonPropertyName("start_line")]
     public int StartLine { get; set; }
+
+    [JsonPropertyName("end_line")]
     public int EndLine { get; set; }
+
+    [JsonPropertyName("metadata")]
     public Dictionary<string, string>? Metadata { get; set; }
 }
 
 internal sealed class EdgeDto
 {
+    [JsonPropertyName("source_name")]
     public string SourceName { get; set; } = string.Empty;
+
+    [JsonPropertyName("source_kind")]
     public string SourceKind { get; set; } = string.Empty;
+
+    [JsonPropertyName("source_start_line")]
     public int SourceStartLine { get; set; }
+
+    [JsonPropertyName("source_language")]
     public string SourceLanguage { get; set; } = "vb";
+
+    [JsonPropertyName("target_name")]
     public string TargetName { get; set; } = string.Empty;
+
+    [JsonPropertyName("target_kind")]
     public string? TargetKind { get; set; }
+
+    [JsonPropertyName("target_start_line")]
     public int? TargetStartLine { get; set; }
+
+    [JsonPropertyName("kind")]
     public string Kind { get; set; } = string.Empty;
+
+    [JsonPropertyName("metadata")]
     public Dictionary<string, string>? Metadata { get; set; }
 }
