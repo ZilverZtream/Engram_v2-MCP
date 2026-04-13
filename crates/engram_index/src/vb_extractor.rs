@@ -547,9 +547,10 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
         // ── Case B: Calls ────────────────────────────────────────────────
         if let Some(n) = call_name_node {
-            let callee_raw = node_text(source, &n);
+            let callee_raw = sanitize_vb_dotted_identifier(node_text(source, &n))
+                .unwrap_or_else(|| node_text(source, &n).trim().to_string());
             if !callee_raw.is_empty() {
-                let mut callee_fqn = fqn_maps.resolve(callee_raw);
+                let mut callee_fqn = fqn_maps.resolve(&callee_raw);
 
                 // Handle member form: resolve dotted call targets.
                 // Repo.Load       → resolve "Repo" → "App.Repo", produce "App.Repo.Load"
@@ -587,7 +588,7 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 let (target_name, target_kind) =
                     if callee_fqn == callee_raw && !callee_raw.contains('.') {
                         meta.insert("unresolved".into(), "true".into());
-                        (callee_raw.to_string(), None)
+                        (callee_raw.clone(), None)
                     } else {
                         (callee_fqn, Some("function"))
                     };
@@ -612,7 +613,8 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             let mut name = String::new();
             for sibling_cap in m.captures {
                 if query.capture_names()[sibling_cap.index as usize] == "name" {
-                    name = node_text(source, &sibling_cap.node).to_string();
+                    name = sanitize_vb_identifier(node_text(source, &sibling_cap.node))
+                        .unwrap_or_default();
                     break;
                 }
             }
@@ -2379,21 +2381,24 @@ fn build_fqn_tables(query: &Query, tree: &tree_sitter::Tree, source: &str) -> Fq
 
         for cap in m.captures {
             let tag = query.capture_names()[cap.index as usize];
-            let text = node_text(source, &cap.node);
-            if text.is_empty() {
-                continue;
-            }
 
             match tag {
                 "ns" => {
+                    let Some(text) = sanitize_vb_dotted_identifier(node_text(source, &cap.node))
+                    else {
+                        continue;
+                    };
                     let end_byte = cap
                         .node
                         .parent()
                         .map(|p| p.end_byte())
                         .unwrap_or(usize::MAX);
-                    namespace_stack.push((text.to_string(), end_byte));
+                    namespace_stack.push((text, end_byte));
                 }
                 "name" => {
+                    let Some(text) = sanitize_vb_identifier(node_text(source, &cap.node)) else {
+                        continue;
+                    };
                     // Check if this same node also has a kind tag in the same match
                     let mut node_kind_tag = "";
                     for other_cap in m.captures {
@@ -2429,23 +2434,23 @@ fn build_fqn_tables(query: &Query, tree: &tree_sitter::Tree, source: &str) -> Fq
                         // For nested types: NS.OuterClass.InnerClass
                         let fqn = if let Some((outer, _)) = class_stack.last() {
                             let parent_fqn = make_fqn(&current_ns, outer, "");
-                            make_fqn(&parent_fqn, text, "")
+                            make_fqn(&parent_fqn, &text, "")
                         } else {
-                            make_fqn(&current_ns, text, "")
+                            make_fqn(&current_ns, &text, "")
                         };
 
                         if let Some(parent) = cap.node.parent() {
                             maps.insert_node(parent.start_byte(), fqn.clone());
                             // IMPORTANT: insert node itself too because extract_vb looks up by node.start_byte()
                             maps.insert_node(cap.node.start_byte(), fqn.clone());
-                            class_stack.push((text.to_string(), parent.end_byte()));
+                            class_stack.push((text.clone(), parent.end_byte()));
                         }
-                        maps.insert_name(text, fqn);
+                        maps.insert_name(&text, fqn);
                     } else {
                         // Method/Sub/Function/Property/Field
                         let current_class =
                             class_stack.last().map(|(c, _)| c.as_str()).unwrap_or("");
-                        let fqn = make_fqn(&current_ns, current_class, text);
+                        let fqn = make_fqn(&current_ns, current_class, &text);
                         if let Some(parent) = cap.node.parent() {
                             maps.insert_node(parent.start_byte(), fqn.clone());
                             maps.insert_node(cap.node.start_byte(), fqn.clone());
@@ -2454,7 +2459,7 @@ fn build_fqn_tables(query: &Query, tree: &tree_sitter::Tree, source: &str) -> Fq
                         if node_kind_tag == "field" {
                             maps.field_names.insert(text.to_lowercase());
                         }
-                        maps.insert_name(text, fqn);
+                        maps.insert_name(&text, fqn);
                     }
                 }
                 _ => {}
@@ -2539,6 +2544,107 @@ fn make_fqn(ns: &str, class: &str, method: &str) -> String {
 #[inline]
 fn node_text<'a>(source: &'a str, node: &tree_sitter::Node) -> &'a str {
     source.get(node.start_byte()..node.end_byte()).unwrap_or("")
+}
+
+#[inline]
+fn sanitize_vb_identifier(raw: &str) -> Option<String> {
+    parse_vb_identifier_prefix(raw.trim()).map(|(ident, _)| ident)
+}
+
+#[inline]
+fn sanitize_vb_dotted_identifier(raw: &str) -> Option<String> {
+    let src = raw.trim();
+    let mut idx = 0usize;
+    let mut parts: Vec<String> = Vec::new();
+
+    while idx < src.len() {
+        while let Some(ch) = src[idx..].chars().next() {
+            if ch.is_whitespace() {
+                idx += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if idx >= src.len() {
+            break;
+        }
+
+        let Some((ident, consumed)) = parse_vb_identifier_prefix(&src[idx..]) else {
+            break;
+        };
+        parts.push(ident);
+        idx += consumed;
+
+        while let Some(ch) = src[idx..].chars().next() {
+            if ch.is_whitespace() {
+                idx += ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+
+        if src[idx..].starts_with('.') {
+            idx += 1;
+            continue;
+        }
+        break;
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("."))
+    }
+}
+
+#[inline]
+fn is_vb_ident_start(ch: char) -> bool {
+    ch == '_' || ch.is_alphabetic()
+}
+
+#[inline]
+fn is_vb_ident_continue(ch: char) -> bool {
+    ch == '_' || ch.is_alphanumeric()
+}
+
+/// Parse the leading VB identifier token from `src`.
+///
+/// Supports both regular identifiers (`FooBar`) and escaped identifiers
+/// (`[Class]`). Returns `(normalized_identifier, bytes_consumed)`.
+fn parse_vb_identifier_prefix(src: &str) -> Option<(String, usize)> {
+    let mut chars = src.char_indices();
+    let (first_idx, first) = chars.next()?;
+    debug_assert_eq!(first_idx, 0);
+
+    if first == '[' {
+        let mut inner = String::new();
+        let mut consumed = first.len_utf8();
+        for (idx, ch) in chars {
+            consumed = idx + ch.len_utf8();
+            if ch == ']' {
+                if inner.is_empty() {
+                    return None;
+                }
+                return Some((inner, consumed));
+            }
+            inner.push(ch);
+        }
+        return None;
+    }
+
+    if !is_vb_ident_start(first) {
+        return None;
+    }
+
+    let mut end = first.len_utf8();
+    for (idx, ch) in chars {
+        if is_vb_ident_continue(ch) {
+            end = idx + ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    Some((src[..end].to_string(), end))
 }
 
 /// Case-insensitive prefix check without allocating an uppercase copy.
@@ -4336,6 +4442,32 @@ End Namespace
     }
 
     #[test]
+    fn test_vb_multiline_lambda_call_name_is_sanitized() {
+        let code = r#"
+Namespace App
+    Class Repo
+        Sub Load()
+            Dim x = fileLibraryFiles.Where(Function(d)
+                physicalFileNames.Contains(d.fl_name)
+            End Function).ToList()
+        End Sub
+    End Class
+End Namespace
+"#;
+        let (_, edges) = extract_vb(Path::new("Repo.vb"), code);
+        let where_call = edges
+            .iter()
+            .find(|e| e.kind == "calls" && e.target_name.contains("Where"))
+            .expect("Should extract Where call");
+        assert!(
+            !where_call.target_name.contains('\n'),
+            "Call target should not contain newlines: {:?}",
+            where_call.target_name
+        );
+        assert_eq!(where_call.target_name, "fileLibraryFiles.Where");
+    }
+
+    #[test]
     fn test_handles_simple() {
         let code = "Protected Sub btnPrint_Click(ByVal sender As Object, ByVal e As EventArgs) _\n    Handles btnPrint.Click\n    PrintReport()\nEnd Sub\n";
         let fqn_maps = FqnMaps::with_capacity(0);
@@ -4722,6 +4854,24 @@ End Namespace
         assert!(starts_with_ci("Execute sp_Foo", "EXECUTE "));
         assert!(!starts_with_ci("EXE", "EXEC "));
         assert!(!starts_with_ci("SELECT 1", "EXEC "));
+    }
+
+    #[test]
+    fn test_sanitize_vb_identifier_supports_bracketed_and_unicode() {
+        assert_eq!(sanitize_vb_identifier("[Class]"), Some("Class".to_string()));
+        assert_eq!(
+            sanitize_vb_identifier("Beräkna"),
+            Some("Beräkna".to_string())
+        );
+    }
+
+    #[test]
+    fn test_sanitize_vb_dotted_identifier_stops_at_expression_tail() {
+        let raw = "App.Repo.Where(Function(d)\n  values.Contains(d.Name))";
+        assert_eq!(
+            sanitize_vb_dotted_identifier(raw),
+            Some("App.Repo.Where".to_string())
+        );
     }
 
     // ── Regex fallback property detection ────────────────────────────────
