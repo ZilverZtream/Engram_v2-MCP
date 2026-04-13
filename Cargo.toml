@@ -69,7 +69,6 @@ tree-sitter-typescript = "0.23"
 tree-sitter-c-sharp = "0.23"
 tree-sitter-c = "0.23"
 tree-sitter-cpp = "0.23"
-arborium-vb = "2.16"
 
 # HTTP client (for Ollama / OpenAI remote backends)
 reqwest = { version = "0.13", features = ["json"] }
