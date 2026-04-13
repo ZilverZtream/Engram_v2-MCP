@@ -463,20 +463,22 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         return regex_extract(path, source);
     }
 
+    let mut tree_has_error = false;
     let tree = match parser.parse(source, None) {
         Some(t) => {
             if t.root_node().has_error() {
+                tree_has_error = true;
                 if cfg!(test) && std::env::var("ENGRAM_REQUIRE_VB_TREESITTER").is_ok() {
                     tracing::error!(
                         "ENGRAM_REQUIRE_VB_TREESITTER=1 but tree-sitter VB tree has error nodes in {}",
                         path.display()
                     );
+                    return regex_extract(path, source);
                 }
                 tracing::warn!(
-                    "tree-sitter VB tree contains error nodes in {}, falling back to regex",
+                    "tree-sitter VB tree contains error nodes in {}, continuing with partial tree",
                     path.display()
                 );
-                return regex_extract(path, source);
             }
             t
         }
@@ -966,6 +968,14 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     // ReDim / ReDim Preserve detection
     if has_redim_keyword(source) {
         edges.extend(extract_redim_usage(source, &all_scopes));
+    }
+
+    if tree_has_error && !symbols.iter().any(|s| s.kind == "function") {
+        tracing::warn!(
+            "tree-sitter VB tree in {} had error nodes and yielded no function symbols; using regex fallback",
+            path.display()
+        );
+        return regex_extract(path, source);
     }
 
     (symbols, edges)
