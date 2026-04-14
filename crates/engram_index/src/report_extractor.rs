@@ -219,13 +219,13 @@ pub fn extract_ssrs_report(
 
                 edges.push(ExtractedEdge {
                     source_name: file_path.clone(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line,
-                    source_language: "xml",
+                    source_language: "xml".to_string(),
                     target_name: subreport_name.clone(),
-                    target_kind: Some("file"),
+                    target_kind: Some("file".to_string()),
                     target_start_line: None,
-                    kind: "dependency",
+                    kind: "dependency".to_string(),
                     metadata: Some(HashMap::from([
                         ("relationship".into(), "subreport".into()),
                         ("subreport_name".into(), subreport_name),
@@ -245,7 +245,7 @@ pub fn extract_ssrs_report(
 
     symbols.push(ExtractedSymbol {
         name: file_name.clone(),
-        kind: "report",
+        kind: "report".to_string(),
         start_line: 0,
         end_line: source.lines().count().saturating_sub(1) as u32,
         metadata: Some(report_meta),
@@ -264,7 +264,7 @@ pub fn extract_ssrs_report(
 
     symbols.push(ExtractedSymbol {
         name: format!("ssrs_report:{file_name}"),
-        kind: "insight",
+        kind: "insight".to_string(),
         start_line: 0,
         end_line: 0,
         metadata: Some(insight_meta),
@@ -320,7 +320,7 @@ fn extract_ssrs_data_sources(
 
             symbols.push(ExtractedSymbol {
                 name: format!("datasource:{ds_name}"),
-                kind: "connection_string",
+                kind: "connection_string".to_string(),
                 start_line: line,
                 end_line: line,
                 metadata: Some(meta),
@@ -329,13 +329,13 @@ fn extract_ssrs_data_sources(
             // Edge: report file contains this data source.
             edges.push(ExtractedEdge {
                 source_name: file_path.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "xml",
+                source_language: "xml".to_string(),
                 target_name: format!("datasource:{ds_name}"),
-                target_kind: Some("connection_string"),
+                target_kind: Some("connection_string".to_string()),
                 target_start_line: Some(line),
-                kind: "contains",
+                kind: "contains".to_string(),
                 metadata: None,
             });
         }
@@ -382,13 +382,13 @@ fn extract_ssrs_command_text(
 
         edges.push(ExtractedEdge {
             source_name: file_path.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "xml",
+            source_language: "xml".to_string(),
             target_name: query_name,
-            target_kind: Some("function"),
+            target_kind: Some("function".to_string()),
             target_start_line: None,
-            kind: "sql_calls",
+            kind: "sql_calls".to_string(),
             metadata: Some(sql_meta),
         });
 
@@ -396,13 +396,13 @@ fn extract_ssrs_command_text(
         for table_name in extract_table_names_from_sql(sql_text) {
             edges.push(ExtractedEdge {
                 source_name: file_path.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "xml",
+                source_language: "xml".to_string(),
                 target_name: table_name.to_lowercase(),
-                target_kind: Some("db_table"),
+                target_kind: Some("db_table".to_string()),
                 target_start_line: None,
-                kind: "queries_table",
+                kind: "queries_table".to_string(),
                 metadata: Some(HashMap::from([(
                     "source_report".into(),
                     file_name.to_string(),
@@ -440,13 +440,13 @@ fn extract_ssrs_data_fields(
 
         edges.push(ExtractedEdge {
             source_name: file_path.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "xml",
+            source_language: "xml".to_string(),
             target_name: data_field.to_lowercase(),
-            target_kind: Some("db_column"),
+            target_kind: Some("db_column".to_string()),
             target_start_line: None,
-            kind: "reads_column",
+            kind: "reads_column".to_string(),
             metadata: Some(HashMap::from([(
                 "source_report".into(),
                 file_name.to_string(),
@@ -525,13 +525,13 @@ pub fn extract_crystal_reports_usage(
                 // Dependency edge to the .rpt file.
                 edges.push(ExtractedEdge {
                     source_name: file_path.clone(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line,
                     source_language,
                     target_name: rpt_path,
-                    target_kind: Some("file"),
+                    target_kind: Some("file".to_string()),
                     target_start_line: None,
-                    kind: "dependency",
+                    kind: "dependency".to_string(),
                     metadata: Some(HashMap::from([(
                         "relationship".into(),
                         "crystal_report_load".into(),
@@ -577,7 +577,7 @@ pub fn extract_crystal_reports_usage(
 
         symbols.push(ExtractedSymbol {
             name: "crystal_reports_usage".into(),
-            kind: "insight",
+            kind: "insight".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(insight_meta),
@@ -598,13 +598,13 @@ pub fn extract_crystal_reports_usage(
 
         edges.push(ExtractedEdge {
             source_name: file_path.clone(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: 0,
             source_language,
             target_name: "crystal_reports_usage".into(),
-            target_kind: Some("insight"),
+            target_kind: Some("insight".to_string()),
             target_start_line: None,
-            kind: "anti_pattern",
+            kind: "anti_pattern".to_string(),
             metadata: Some(ap_meta),
         });
     }
@@ -650,13 +650,13 @@ pub fn extract_crystal_reports_in_markup(
 
             edges.push(ExtractedEdge {
                 source_name: file_path.clone(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "aspx",
+                source_language: "aspx".to_string(),
                 target_name: "CrystalReportViewer".into(),
-                target_kind: Some("control"),
+                target_kind: Some("control".to_string()),
                 target_start_line: None,
-                kind: "contains",
+                kind: "contains".to_string(),
                 metadata: Some(HashMap::from([(
                     "control_type".into(),
                     "CR:CrystalReportViewer".into(),
@@ -679,13 +679,13 @@ pub fn extract_crystal_reports_in_markup(
 
             edges.push(ExtractedEdge {
                 source_name: file_path.clone(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "aspx",
+                source_language: "aspx".to_string(),
                 target_name: format!("CrystalDecisions:{control_name}"),
-                target_kind: Some("control"),
+                target_kind: Some("control".to_string()),
                 target_start_line: None,
-                kind: "contains",
+                kind: "contains".to_string(),
                 metadata: Some(HashMap::from([(
                     "control_type".into(),
                     format!("CrystalDecisions:{control_name}"),
@@ -711,13 +711,13 @@ pub fn extract_crystal_reports_in_markup(
 
                 edges.push(ExtractedEdge {
                     source_name: file_path.clone(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line,
-                    source_language: "aspx",
+                    source_language: "aspx".to_string(),
                     target_name: rpt_path,
-                    target_kind: Some("file"),
+                    target_kind: Some("file".to_string()),
                     target_start_line: None,
-                    kind: "dependency",
+                    kind: "dependency".to_string(),
                     metadata: Some(HashMap::from([(
                         "relationship".into(),
                         "crystal_report_source".into(),
@@ -743,7 +743,7 @@ pub fn extract_crystal_reports_in_markup(
 
         symbols.push(ExtractedSymbol {
             name: "crystal_reports_usage".into(),
-            kind: "insight",
+            kind: "insight".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(insight_meta),
@@ -764,13 +764,13 @@ pub fn extract_crystal_reports_in_markup(
 
         edges.push(ExtractedEdge {
             source_name: file_path.clone(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: 0,
-            source_language: "aspx",
+            source_language: "aspx".to_string(),
             target_name: "crystal_reports_usage".into(),
-            target_kind: Some("insight"),
+            target_kind: Some("insight".to_string()),
             target_start_line: None,
-            kind: "anti_pattern",
+            kind: "anti_pattern".to_string(),
             metadata: Some(ap_meta),
         });
     }

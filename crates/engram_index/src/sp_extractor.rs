@@ -217,7 +217,7 @@ pub fn extract_stored_procedures(
 
         symbols.push(ExtractedSymbol {
             name: sp.name.clone(),
-            kind: "stored_procedure",
+            kind: "stored_procedure".to_string(),
             start_line: sp.start_line,
             end_line: sp.end_line,
             metadata: Some(metadata),
@@ -227,13 +227,13 @@ pub fn extract_stored_procedures(
         for table in &sp.tables_read {
             edges.push(ExtractedEdge {
                 source_name: sp.name.clone(),
-                source_kind: "stored_procedure",
+                source_kind: "stored_procedure".to_string(),
                 source_start_line: sp.start_line,
-                source_language: "sql",
+                source_language: "sql".to_string(),
                 target_name: table.clone(),
-                target_kind: Some("db_table"),
+                target_kind: Some("db_table".to_string()),
                 target_start_line: None,
-                kind: "stored_proc_reads_table",
+                kind: "stored_proc_reads_table".to_string(),
                 metadata: None,
             });
         }
@@ -242,13 +242,13 @@ pub fn extract_stored_procedures(
         for table in &sp.tables_written {
             edges.push(ExtractedEdge {
                 source_name: sp.name.clone(),
-                source_kind: "stored_procedure",
+                source_kind: "stored_procedure".to_string(),
                 source_start_line: sp.start_line,
-                source_language: "sql",
+                source_language: "sql".to_string(),
                 target_name: table.clone(),
-                target_kind: Some("db_table"),
+                target_kind: Some("db_table".to_string()),
                 target_start_line: None,
-                kind: "stored_proc_writes_table",
+                kind: "stored_proc_writes_table".to_string(),
                 metadata: None,
             });
         }
@@ -257,13 +257,13 @@ pub fn extract_stored_procedures(
         for called in &sp.called_procedures {
             edges.push(ExtractedEdge {
                 source_name: sp.name.clone(),
-                source_kind: "stored_procedure",
+                source_kind: "stored_procedure".to_string(),
                 source_start_line: sp.start_line,
-                source_language: "sql",
+                source_language: "sql".to_string(),
                 target_name: called.clone(),
-                target_kind: Some("stored_procedure"),
+                target_kind: Some("stored_procedure".to_string()),
                 target_start_line: None,
-                kind: "calls_stored_procedure",
+                kind: "calls_stored_procedure".to_string(),
                 metadata: None,
             });
         }
@@ -1090,7 +1090,7 @@ pub fn extract_code_side_sp_calls(
         // Emit the edge: code file → stored procedure
         edges.push(ExtractedEdge {
             source_name: rel_path.as_str().to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: sp_call.line,
             source_language: if rel_path.as_str().ends_with(".vb") {
                 "vb"
@@ -1098,9 +1098,9 @@ pub fn extract_code_side_sp_calls(
                 "csharp"
             },
             target_name: sp_call.sp_name.clone(),
-            target_kind: Some("stored_procedure"),
+            target_kind: Some("stored_procedure".to_string()),
             target_start_line: None,
-            kind: "calls_stored_procedure",
+            kind: "calls_stored_procedure".to_string(),
             metadata: Some(metadata),
         });
     }
