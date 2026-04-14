@@ -172,6 +172,7 @@ impl Engram {
             if incoming.is_empty() {
                 return Ok(format!("No dependent nodes found for {target_id}."));
             }
+            let incoming_edge_count = incoming.len();
 
             let mut out = format!("Impact Analysis for {target_id}:\n\n");
             out.push_str("Nodes that depend on or are related to this:\n");
@@ -192,7 +193,7 @@ impl Engram {
             tracing::info!(
                 project_id = %req.project_id,
                 target_id = %target_id,
-                incoming_edge_count = incoming.len(),
+                incoming_edge_count = incoming_edge_count,
                 grouped_source_count = sorted.len(),
                 "impact_analysis: pre-render counts"
             );
