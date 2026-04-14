@@ -189,13 +189,28 @@ impl Engram {
             let mut sorted: Vec<_> = grouped.into_iter().collect();
             sorted.sort_by(|a, b| b.1.1.cmp(&a.1.1));
 
+            tracing::info!(
+                project_id = %req.project_id,
+                target_id = %target_id,
+                incoming_edge_count = incoming.len(),
+                grouped_source_count = sorted.len(),
+                "impact_analysis: pre-render counts"
+            );
+
+            let mut unresolved_count = 0usize;
             for (src_id, (kinds, weight)) in sorted {
-                let Some(src_node) = graph
+                let src_node = graph
                     .get_node(&req.project_id, &src_id)
-                    .map_err(|e| e.to_string())?
-                else {
-                    continue;
-                };
+                    .map_err(|e| e.to_string())?;
+
+                if src_node.is_none() {
+                    unresolved_count += 1;
+                    tracing::debug!(
+                        project_id = %req.project_id,
+                        src_id = %src_id,
+                        "impact_analysis: source node_id has no persisted node record"
+                    );
+                }
 
                 let mut reasons = Vec::new();
                 for ek in kinds {
@@ -228,10 +243,22 @@ impl Engram {
                 } else {
                     reasons.join(", ")
                 };
+                let (display_id, display_type) = match src_node.as_ref() {
+                    Some(n) => (n.node_id.as_str(), n.node_type.as_str()),
+                    None => (src_id.as_str(), "unresolved"),
+                };
 
                 out.push_str(&format!(
                     "- {} [{}] (weight: {weight}) - {reason_str}\n",
-                    src_node.node_id, src_node.node_type
+                    display_id, display_type
+                ));
+            }
+
+            if unresolved_count > 0 {
+                out.push_str(&format!(
+                    "\n(Note: {unresolved_count} source edges pointed at node_ids with no persisted node record. \
+                     This indicates an indexing integrity issue — edges were created but corresponding nodes \
+                     were not. The entries above are still real dependencies.)\n"
                 ));
             }
 
