@@ -35,6 +35,22 @@ while (Console.In.ReadLine() is { } line)
         return;
     }
 
+    if (request.Cmd == "begin_project")
+    {
+        try
+        {
+            emitter.BeginProject(request.ProjectRoot ?? string.Empty);
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse(), AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Error = ex.Message }, AppJsonContext.Default.SidecarResponse));
+        }
+
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd != "parse")
     {
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse { Path = request.Path, Error = $"unknown command {request.Cmd}" }, AppJsonContext.Default.SidecarResponse));
@@ -70,6 +86,9 @@ internal sealed class SidecarRequest
 
     [JsonPropertyName("source")]
     public string? Source { get; set; }
+
+    [JsonPropertyName("project_root")]
+    public string? ProjectRoot { get; set; }
 }
 
 internal sealed class SidecarResponse

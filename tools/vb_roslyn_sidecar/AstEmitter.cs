@@ -16,8 +16,42 @@ internal sealed class AstEmitter
             ["WScript.Shell"] = "System.Diagnostics.Process",
         };
 
-    private VisualBasicCompilation? _compilation;
-    private SyntaxTree? _previousTree;
+    private VisualBasicCompilation? _projectCompilation;
+    private readonly Dictionary<string, SyntaxTree> _treesByPath =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public void BeginProject(string projectRoot)
+    {
+        _treesByPath.Clear();
+
+        if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot))
+        {
+            _projectCompilation = null;
+            return;
+        }
+
+        var trees = new List<SyntaxTree>();
+        foreach (var vbPath in Directory.EnumerateFiles(projectRoot, "*.vb", SearchOption.AllDirectories))
+        {
+            try
+            {
+                var fileSource = File.ReadAllText(vbPath);
+                var tree = VisualBasicSyntaxTree.ParseText(
+                    SourceText.From(fileSource),
+                    path: vbPath
+                );
+                trees.Add(tree);
+                _treesByPath[vbPath] = tree;
+            }
+            catch
+            {
+                // Skip unreadable files and allow single-file fallback in Extract.
+            }
+        }
+
+        _projectCompilation = VisualBasicCompilation.Create("sidecar_project")
+            .AddSyntaxTrees(trees);
+    }
 
     public (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
     {
@@ -25,24 +59,30 @@ internal sealed class AstEmitter
         var edges = new List<EdgeDto>();
         try
         {
-            var tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
-            try
+            SyntaxTree tree;
+            VisualBasicCompilation compilation;
+
+            if (_projectCompilation is not null && _treesByPath.TryGetValue(path, out var existingTree))
             {
-                if (_previousTree is not null)
-                    // Invariant: _previousTree != null implies _compilation != null (set together below).
-                    _compilation = _compilation!.ReplaceSyntaxTree(_previousTree, tree);
-                else
-                    _compilation = VisualBasicCompilation.Create("sidecar").AddSyntaxTrees(tree);
-                _previousTree = tree;
+                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+                compilation = _projectCompilation.ReplaceSyntaxTree(existingTree, tree);
+                _projectCompilation = compilation;
+                _treesByPath[path] = tree;
             }
-            catch
+            else if (_projectCompilation is not null)
             {
-                // Reset cache so the next call gets a fresh compilation.
-                _compilation = null;
-                _previousTree = null;
-                throw;
+                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+                compilation = _projectCompilation.AddSyntaxTrees(tree);
+                _projectCompilation = compilation;
+                _treesByPath[path] = tree;
             }
-            var model = _compilation!.GetSemanticModel(tree);
+            else
+            {
+                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
+                compilation = VisualBasicCompilation.Create("sidecar_single").AddSyntaxTrees(tree);
+            }
+
+            var model = compilation.GetSemanticModel(tree);
             var root = tree.GetCompilationUnitRoot();
 
         var namespaces = new Stack<string>();
