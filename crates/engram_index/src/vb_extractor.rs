@@ -114,6 +114,20 @@ fn parse_via_sidecar(
         anyhow::bail!(error);
     }
 
+    let mut sidecar_edge_kind_counts: HashMap<String, usize> = HashMap::new();
+    for edge in &response.edges {
+        *sidecar_edge_kind_counts
+            .entry(edge.kind.clone())
+            .or_insert(0) += 1;
+    }
+    if !sidecar_edge_kind_counts.is_empty() {
+        tracing::debug!(
+            path = %path.display(),
+            edge_kind_counts = ?sidecar_edge_kind_counts,
+            "VB sidecar parse_via_sidecar deserialized edge counts"
+        );
+    }
+
     let symbols = response
         .symbols
         .into_iter()
