@@ -160,6 +160,7 @@ impl Engram {
                 let mut reasons = Vec::new();
                 for ek in kinds {
                     let r = match ek {
+                        engram_graph::EdgeKind::Calls => "Calls this",
                         engram_graph::EdgeKind::Dependency => "Calls/Uses this",
                         engram_graph::EdgeKind::Contains => "Contains this",
                         engram_graph::EdgeKind::Imports => "Imports this",
