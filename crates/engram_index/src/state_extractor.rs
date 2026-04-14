@@ -222,13 +222,13 @@ pub fn extract_state_accesses(
 
             edges.push(ExtractedEdge {
                 source_name: enclosing,
-                source_kind: "function",
+                source_kind: "function".to_string(),
                 source_start_line: line_idx as u32 + 1,
                 source_language: language,
                 target_name: target_id,
-                target_kind: Some("global_state"),
+                target_kind: Some("global_state".to_string()),
                 target_start_line: None,
-                kind: edge_kind,
+                kind: edge_kind.to_string(),
                 metadata: Some(meta),
             });
 
@@ -240,7 +240,7 @@ pub fn extract_state_accesses(
 
                 symbols.push(ExtractedSymbol {
                     name: format!("{}:{}", state_type, key),
-                    kind: "global_state",
+                    kind: "global_state".to_string(),
                     start_line: line_idx as u32 + 1,
                     end_line: line_idx as u32 + 1,
                     metadata: Some(meta),
@@ -337,13 +337,13 @@ pub fn extract_state_accesses(
 
                 edges.push(ExtractedEdge {
                     source_name: enclosing,
-                    source_kind: "function",
+                    source_kind: "function".to_string(),
                     source_start_line: line_idx as u32 + 1,
                     source_language: language,
                     target_name: target_id,
-                    target_kind: Some("global_state"),
+                    target_kind: Some("global_state".to_string()),
                     target_start_line: None,
-                    kind: edge_kind,
+                    kind: edge_kind.to_string(),
                     metadata: Some(meta),
                 });
 
@@ -354,7 +354,7 @@ pub fn extract_state_accesses(
 
                     symbols.push(ExtractedSymbol {
                         name: format!("{}:{}", state_type, key),
-                        kind: "global_state",
+                        kind: "global_state".to_string(),
                         start_line: line_idx as u32 + 1,
                         end_line: line_idx as u32 + 1,
                         metadata: Some(meta),
@@ -632,13 +632,13 @@ pub fn analyze_state_affinity(
 
         affinity_edges.push(ExtractedEdge {
             source_name: key_a.clone(),
-            source_kind: "global_state",
+            source_kind: "global_state".to_string(),
             source_start_line: 0,
-            source_language: "text",
+            source_language: "text".to_string(),
             target_name: key_b.clone(),
-            target_kind: Some("global_state"),
+            target_kind: Some("global_state".to_string()),
             target_start_line: None,
-            kind: "state_affinity",
+            kind: "state_affinity".to_string(),
             metadata: Some(meta),
         });
     }
@@ -679,7 +679,7 @@ pub fn analyze_state_affinity(
 
         affinity_syms.push(ExtractedSymbol {
             name: format!("viewstate_schema:{}", key_name),
-            kind: "global_state",
+            kind: "global_state".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
@@ -722,7 +722,7 @@ pub fn analyze_state_affinity(
 
         affinity_syms.push(ExtractedSymbol {
             name: format!("session_cluster:{}", anchor_name),
-            kind: "global_state",
+            kind: "global_state".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),

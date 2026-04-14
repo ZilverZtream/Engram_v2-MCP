@@ -277,13 +277,13 @@ fn extract_jquery_selectors(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: None,
-            kind: "manipulates_dom",
+            kind: "manipulates_dom".to_string(),
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "jquery_ends_with".into(),
@@ -319,13 +319,13 @@ fn extract_asp_client_ids(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: None,
-            kind: "manipulates_dom",
+            kind: "manipulates_dom".to_string(),
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "asp_client_id".into(),
@@ -363,13 +363,13 @@ fn extract_postbacks(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: short_id.to_string(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: None,
-            kind: "triggers_postback",
+            kind: "triggers_postback".to_string(),
             metadata: Some(HashMap::from([("unique_id".into(), ctrl_id.to_string())])),
         });
     }
@@ -400,13 +400,13 @@ fn extract_getelementbyid(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: None,
-            kind: "manipulates_dom",
+            kind: "manipulates_dom".to_string(),
             metadata: Some(HashMap::from([(
                 "selector_type".into(),
                 "getelementbyid".into(),
@@ -545,13 +545,13 @@ fn extract_page_methods(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: method_name.to_string(),
-            target_kind: Some("function"),
+            target_kind: Some("function".to_string()),
             target_start_line: None,
-            kind: "api_call",
+            kind: "api_call".to_string(),
             metadata: Some(meta),
         });
     }
@@ -606,13 +606,13 @@ fn emit_ajax_edge(
 
     edges.push(ExtractedEdge {
         source_name: file_name.to_string(),
-        source_kind: "file",
+        source_kind: "file".to_string(),
         source_start_line: line,
-        source_language: "javascript",
+        source_language: "javascript".to_string(),
         target_name: path_part,
-        target_kind: Some(target_kind),
+        target_kind: Some(target_kind.to_string()),
         target_start_line: None,
-        kind: "api_call",
+        kind: "api_call".to_string(),
         metadata: Some(meta),
     });
 }
@@ -662,13 +662,13 @@ fn emit_spatial_edge(
 
     edges.push(ExtractedEdge {
         source_name: file_name.to_string(),
-        source_kind: "file",
+        source_kind: "file".to_string(),
         source_start_line: line,
-        source_language: "javascript",
+        source_language: "javascript".to_string(),
         target_name: format!("gis:{}:{}", library, class.to_lowercase()),
-        target_kind: Some("gis_config"),
+        target_kind: Some("gis_config".to_string()),
         target_start_line: None,
-        kind: "spatial_call",
+        kind: "spatial_call".to_string(),
         metadata: Some(meta),
     });
 }
@@ -837,7 +837,7 @@ fn extract_google_maps(
 
         syms.push(ExtractedSymbol {
             name: format!("google_maps_inventory:{}", file_name),
-            kind: "insight",
+            kind: "insight".to_string(),
             start_line: gmaps_classes.first().map_or(0, |(_, l)| *l),
             end_line: gmaps_classes.last().map_or(0, |(_, l)| *l),
             metadata: Some(meta),
@@ -931,7 +931,7 @@ fn extract_gis_configs(
 
             syms.push(ExtractedSymbol {
                 name: format!("gis_config:{}:api_key", file_name),
-                kind: "gis_config",
+                kind: "gis_config".to_string(),
                 start_line: line,
                 end_line: line,
                 metadata: Some(meta.clone()),
@@ -939,13 +939,13 @@ fn extract_gis_configs(
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "javascript",
+                source_language: "javascript".to_string(),
                 target_name: format!("gis_config:{}:api_key", file_name),
-                target_kind: Some("gis_config"),
+                target_kind: Some("gis_config".to_string()),
                 target_start_line: None,
-                kind: "spatial_call",
+                kind: "spatial_call".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -968,7 +968,7 @@ fn extract_gis_configs(
 
             syms.push(ExtractedSymbol {
                 name: format!("gis_config:{}:zoom", file_name),
-                kind: "gis_config",
+                kind: "gis_config".to_string(),
                 start_line: line,
                 end_line: line,
                 metadata: Some(meta),
@@ -995,7 +995,7 @@ fn extract_gis_configs(
 
             syms.push(ExtractedSymbol {
                 name: format!("gis_config:{}:center", file_name),
-                kind: "gis_config",
+                kind: "gis_config".to_string(),
                 start_line: line,
                 end_line: line,
                 metadata: Some(meta),
@@ -1037,13 +1037,13 @@ fn extract_ctl00_references(
 
         edges.push(ExtractedEdge {
             source_name: file_name.to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: line,
-            source_language: "javascript",
+            source_language: "javascript".to_string(),
             target_name: ctrl_id.to_string(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: None,
-            kind: "manipulates_dom",
+            kind: "manipulates_dom".to_string(),
             metadata: Some(meta),
         });
     }
@@ -1128,13 +1128,13 @@ fn extract_gis_layer_inventory(
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "javascript",
+                source_language: "javascript".to_string(),
                 target_name: format!("gis_layer:wms:{}", url),
-                target_kind: Some("insight"),
+                target_kind: Some("insight".to_string()),
                 target_start_line: None,
-                kind: "spatial_call",
+                kind: "spatial_call".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -1335,7 +1335,7 @@ fn extract_gis_layer_inventory(
 
     syms.push(ExtractedSymbol {
         name: format!("gis_inventory:{}", file_name),
-        kind: "insight",
+        kind: "insight".to_string(),
         start_line: 0,
         end_line: 0,
         metadata: Some(meta),
@@ -1543,13 +1543,13 @@ fn extract_esri_arcgis(
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "javascript",
+                source_language: "javascript".to_string(),
                 target_name: format!("gis:arcgis_rest:{}", service),
-                target_kind: Some("insight"),
+                target_kind: Some("insight".to_string()),
                 target_start_line: None,
-                kind: "spatial_call",
+                kind: "spatial_call".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -1578,13 +1578,13 @@ fn extract_esri_arcgis(
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line,
-                source_language: "javascript",
+                source_language: "javascript".to_string(),
                 target_name: format!("gis:arcgis_dojo:{}", module),
-                target_kind: Some("insight"),
+                target_kind: Some("insight".to_string()),
                 target_start_line: None,
-                kind: "spatial_call",
+                kind: "spatial_call".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -1651,7 +1651,7 @@ fn extract_esri_arcgis(
 
         syms.push(ExtractedSymbol {
             name: format!("esri_arcgis_inventory:{}", file_name),
-            kind: "insight",
+            kind: "insight".to_string(),
             start_line: esri_classes.first().map_or(0, |(_, l)| *l),
             end_line: esri_classes.last().map_or(0, |(_, l)| *l),
             metadata: Some(meta),

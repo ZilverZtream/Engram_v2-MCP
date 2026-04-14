@@ -178,7 +178,7 @@ mod tests {
     fn make_symbol(name: &str, start_line: u32, end_line: u32) -> ExtractedSymbol {
         ExtractedSymbol {
             name: name.to_string(),
-            kind: "function",
+            kind: "function".to_string(),
             start_line,
             end_line,
             metadata: None,
@@ -195,7 +195,7 @@ mod tests {
         meta.insert("fqn".to_string(), fqn.to_string());
         ExtractedSymbol {
             name: name.to_string(),
-            kind: "function",
+            kind: "function".to_string(),
             start_line,
             end_line,
             metadata: Some(meta),
