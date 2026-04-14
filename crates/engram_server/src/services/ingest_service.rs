@@ -323,7 +323,7 @@ pub async fn process_ingest_stats(
                     .map(|s| s.as_str())
             };
             engram_core::ids::NodeId::symbol(
-                edge.source_kind,
+                edge.source_kind.as_str(),
                 fqn,
                 rel_path.as_str(),
                 &edge.source_name,
@@ -516,7 +516,7 @@ pub async fn process_ingest_stats(
             }
         }
 
-        let edge_kind = match edge.kind {
+        let edge_kind = match edge.kind.as_str() {
             "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                 engram_graph::EdgeKind::Contains
             }
