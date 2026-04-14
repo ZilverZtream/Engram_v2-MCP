@@ -5,17 +5,44 @@ using Microsoft.CodeAnalysis.VisualBasic.Syntax;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
-internal static class AstEmitter
+internal sealed class AstEmitter
 {
-    public static (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
+    private static readonly Dictionary<string, string> _progIdMap =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Scripting.FileSystemObject"] = "System.IO",
+            ["ADODB.Connection"] = "System.Data.SqlClient.SqlConnection",
+            ["ADODB.Recordset"] = "System.Data.DataTable",
+            ["WScript.Shell"] = "System.Diagnostics.Process",
+        };
+
+    private VisualBasicCompilation? _compilation;
+    private SyntaxTree? _previousTree;
+
+    public (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
     {
         var symbols = new List<SymbolDto>();
         var edges = new List<EdgeDto>();
         try
         {
             var tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
-            var compilation = VisualBasicCompilation.Create("sidecar").AddSyntaxTrees(tree);
-            var model = compilation.GetSemanticModel(tree);
+            try
+            {
+                if (_previousTree is not null)
+                    // Invariant: _previousTree != null implies _compilation != null (set together below).
+                    _compilation = _compilation!.ReplaceSyntaxTree(_previousTree, tree);
+                else
+                    _compilation = VisualBasicCompilation.Create("sidecar").AddSyntaxTrees(tree);
+                _previousTree = tree;
+            }
+            catch
+            {
+                // Reset cache so the next call gets a fresh compilation.
+                _compilation = null;
+                _previousTree = null;
+                throw;
+            }
+            var model = _compilation!.GetSemanticModel(tree);
             var root = tree.GetCompilationUnitRoot();
 
         var namespaces = new Stack<string>();
@@ -189,7 +216,21 @@ internal static class AstEmitter
                 }
             }
 
-            foreach (var add in node.DescendantNodes().OfType<AddRemoveHandlerStatementSyntax>())
+            // Single-pass traversal — replaces all DescendantNodes().OfType<T>() calls.
+            var collector = new MethodNodeCollector();
+            collector.Visit(node);
+
+            // Populate dynamicControls BEFORE the Invocations loop which uses it.
+            var dynamicControls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var decl in collector.LocalDeclarations)
+            {
+                if (!Patterns.ControlAsDecl().IsMatch(decl.ToString())) continue;
+                foreach (var d in decl.Declarators)
+                    foreach (var n in d.Names)
+                        dynamicControls.Add(n.Identifier.Text);
+            }
+
+            foreach (var add in collector.AddRemoveHandlers)
             {
                 if (add.Kind() == SyntaxKind.AddHandlerStatement)
                 {
@@ -213,7 +254,7 @@ internal static class AstEmitter
                 }
             }
 
-            foreach (var inv in node.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            foreach (var inv in collector.Invocations)
             {
                 var targetName = ResolveInvocationName(inv);
                 edges.Add(new EdgeDto
@@ -258,6 +299,7 @@ internal static class AstEmitter
                         Kind = "reads_column"
                     });
                 }
+
                 if (targetName.Contains("RegisterStartupScript", StringComparison.OrdinalIgnoreCase) ||
                     targetName.Contains("RegisterClientScriptBlock", StringComparison.OrdinalIgnoreCase))
                 {
@@ -299,14 +341,73 @@ internal static class AstEmitter
                         });
                     }
                 }
+
                 if (targetName.Contains("CallByName", StringComparison.OrdinalIgnoreCase))
                 {
                     lateBindingCallCount++;
                     callByNameCount++;
                 }
+
+                // StringBuilder fragment check (merged from the old separate DescendantNodes loop).
+                var exprText = inv.Expression.ToString();
+                if (exprText.EndsWith(".Append", StringComparison.OrdinalIgnoreCase) ||
+                    exprText.EndsWith(".AppendLine", StringComparison.OrdinalIgnoreCase))
+                {
+                    var frag = GetFirstStringArgument(inv);
+                    if (!string.IsNullOrWhiteSpace(frag) && LooksLikeSql(frag))
+                    {
+                        sideEffects.Add("DB_Access");
+                        edges.Add(new EdgeDto
+                        {
+                            SourceName = fqn,
+                            SourceKind = "function",
+                            SourceStartLine = Line(tree, inv),
+                            SourceLanguage = "vb",
+                            TargetName = "sql_query",
+                            TargetKind = "sql",
+                            Kind = "sql_calls",
+                            Metadata = new()
+                            {
+                                ["sql_text"] = frag,
+                                ["classification"] = ClassifySql(frag),
+                                ["table"] = InferSqlTable(frag),
+                                ["source"] = "stringbuilder_fragment"
+                            }
+                        });
+                    }
+                }
+
+                // .Controls.Add check (merged from the old separate DescendantNodes loop).
+                if (exprText.EndsWith(".Controls.Add", StringComparison.OrdinalIgnoreCase))
+                {
+                    var controlVar = SanitizeName(inv.ArgumentList?.Arguments.FirstOrDefault()?.ToString());
+                    if (!string.IsNullOrWhiteSpace(controlVar) &&
+                        (dynamicControls.Contains(controlVar) || knownControlNames.Contains(controlVar)))
+                    {
+                        var dynName = $"dynamic_control:{fqn}:{controlVar}";
+                        symbols.Add(new SymbolDto
+                        {
+                            Name = dynName,
+                            Kind = "dynamic_control",
+                            StartLine = Line(tree, inv),
+                            EndLine = Line(tree, inv)
+                        });
+                        sideEffects.Add("UI_Mutation");
+                        edges.Add(new EdgeDto
+                        {
+                            SourceName = fqn,
+                            SourceKind = "function",
+                            SourceStartLine = Line(tree, inv),
+                            SourceLanguage = "vb",
+                            TargetName = dynName,
+                            TargetKind = "dynamic_control",
+                            Kind = "creates_dynamic_control"
+                        });
+                    }
+                }
             }
 
-            foreach (var create in node.DescendantNodes().OfType<ObjectCreationExpressionSyntax>())
+            foreach (var create in collector.ObjectCreations)
             {
                 var typeText = create.Type.ToString();
                 if (!typeText.Contains("Command", StringComparison.OrdinalIgnoreCase)) continue;
@@ -318,7 +419,6 @@ internal static class AstEmitter
                 if (string.IsNullOrWhiteSpace(sqlArg)) continue;
                 if (!LooksLikeSql(sqlArg)) continue;
                 sideEffects.Add("DB_Access");
-
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
@@ -337,7 +437,7 @@ internal static class AstEmitter
                 });
             }
 
-            foreach (var assignment in node.DescendantNodes().OfType<AssignmentStatementSyntax>())
+            foreach (var assignment in collector.Assignments)
             {
                 if (!assignment.Left.ToString().EndsWith(".CommandText", StringComparison.OrdinalIgnoreCase)) continue;
                 var sql = TryExtractStringLiteral(assignment.Right);
@@ -361,10 +461,10 @@ internal static class AstEmitter
                 });
             }
 
-            foreach (var local in node.DescendantNodes().OfType<LocalDeclarationStatementSyntax>())
+            foreach (var local in collector.LocalDeclarations)
             {
                 var txt = local.ToString();
-                if (!Regex.IsMatch(txt, @"\b(sql|query)\b", RegexOptions.IgnoreCase)) continue;
+                if (!Patterns.SqlQueryVariable().IsMatch(txt)) continue;
                 var sql = TryExtractSqlFromExpressionText(txt);
                 if (string.IsNullOrWhiteSpace(sql) || !LooksLikeSql(sql)) continue;
                 sideEffects.Add("DB_Access");
@@ -387,40 +487,7 @@ internal static class AstEmitter
                 });
             }
 
-            foreach (var append in node.DescendantNodes().OfType<InvocationExpressionSyntax>())
-            {
-                var exprText = append.Expression.ToString();
-                if (!exprText.EndsWith(".Append", StringComparison.OrdinalIgnoreCase) &&
-                    !exprText.EndsWith(".AppendLine", StringComparison.OrdinalIgnoreCase)) continue;
-                var frag = GetFirstStringArgument(append);
-                if (string.IsNullOrWhiteSpace(frag) || !LooksLikeSql(frag)) continue;
-                sideEffects.Add("DB_Access");
-                edges.Add(new EdgeDto
-                {
-                    SourceName = fqn,
-                    SourceKind = "function",
-                    SourceStartLine = Line(tree, append),
-                    SourceLanguage = "vb",
-                    TargetName = "sql_query",
-                    TargetKind = "sql",
-                    Kind = "sql_calls",
-                    Metadata = new()
-                    {
-                        ["sql_text"] = frag,
-                        ["classification"] = ClassifySql(frag),
-                        ["table"] = InferSqlTable(frag),
-                        ["source"] = "stringbuilder_fragment"
-                    }
-                });
-            }
-
-            foreach (var localType in node.DescendantNodes().OfType<TypeBlockSyntax>()
-                         .Where(t => !t.Ancestors().OfType<TypeBlockSyntax>().Any()))
-            {
-                Walk(localType);
-            }
-
-            foreach (var withBlock in node.DescendantNodes().OfType<WithBlockSyntax>())
+            foreach (var withBlock in collector.WithBlocks)
             {
                 var withTarget = SanitizeName(withBlock.WithStatement.Expression.ToString());
                 foreach (var statement in withBlock.Statements)
@@ -446,24 +513,23 @@ internal static class AstEmitter
                 }
             }
 
-            foreach (var member in node.DescendantNodes().OfType<MemberAccessExpressionSyntax>()
-                         .Where(m => m.ToString().StartsWith("My.", StringComparison.OrdinalIgnoreCase)))
+            foreach (var member in collector.MemberAccesses)
             {
+                if (!member.ToString().StartsWith("My.", StringComparison.OrdinalIgnoreCase)) continue;
                 sideEffects.Add("State_Access");
-                var memberName = SanitizeName(member.ToString());
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
                     SourceKind = "function",
                     SourceStartLine = Line(tree, member),
                     SourceLanguage = "vb",
-                    TargetName = memberName,
+                    TargetName = SanitizeName(member.ToString()),
                     TargetKind = "state",
                     Kind = "reads_state"
                 });
             }
 
-            foreach (var redim in node.DescendantNodes().Where(n => n.Kind() == SyntaxKind.ReDimStatement))
+            foreach (var redim in collector.ReDims)
             {
                 edges.Add(new EdgeDto
                 {
@@ -476,67 +542,27 @@ internal static class AstEmitter
                 });
             }
 
-            foreach (var onError in node.DescendantNodes().Where(n => n.ToString().StartsWith("On Error", StringComparison.OrdinalIgnoreCase)))
+            foreach (var onError in collector.OnErrors)
             {
-                var onErrorName = SanitizeName(onError.ToString());
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
                     SourceKind = "function",
                     SourceStartLine = Line(tree, onError),
                     SourceLanguage = "vb",
-                    TargetName = onErrorName,
+                    TargetName = SanitizeName(onError.ToString()),
                     Kind = "anti_pattern"
                 });
             }
 
-            objectVarCount += node.DescendantNodes().OfType<VariableDeclaratorSyntax>()
+            objectVarCount += collector.VariableDeclarators
                 .Count(v => v.AsClause?.ToString().Contains("As Object", StringComparison.OrdinalIgnoreCase) == true);
-            var dynamicControls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var decl in node.DescendantNodes().OfType<LocalDeclarationStatementSyntax>())
-            {
-                if (!Regex.IsMatch(decl.ToString(), @"As\s+(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase))
-                    continue;
-                foreach (var d in decl.Declarators)
-                {
-                    foreach (var n in d.Names)
-                    {
-                        dynamicControls.Add(n.Identifier.Text);
-                    }
-                }
-            }
-            foreach (var addCall in node.DescendantNodes().OfType<InvocationExpressionSyntax>()
-                         .Where(i => i.Expression.ToString().EndsWith(".Controls.Add", StringComparison.OrdinalIgnoreCase)))
-            {
-                var controlVar = SanitizeName(addCall.ArgumentList?.Arguments.FirstOrDefault()?.ToString());
-                if (string.IsNullOrWhiteSpace(controlVar) ||
-                    (!dynamicControls.Contains(controlVar) && !knownControlNames.Contains(controlVar)))
-                    continue;
-                var dynName = $"dynamic_control:{fqn}:{controlVar}";
-                symbols.Add(new SymbolDto
-                {
-                    Name = dynName,
-                    Kind = "dynamic_control",
-                    StartLine = Line(tree, addCall),
-                    EndLine = Line(tree, addCall)
-                });
-                sideEffects.Add("UI_Mutation");
-                edges.Add(new EdgeDto
-                {
-                    SourceName = fqn,
-                    SourceKind = "function",
-                    SourceStartLine = Line(tree, addCall),
-                    SourceLanguage = "vb",
-                    TargetName = dynName,
-                    TargetKind = "dynamic_control",
-                    Kind = "creates_dynamic_control"
-                });
-            }
+
+            foreach (var localType in collector.TopLevelTypeBlocks)
+                Walk(localType);
 
             if (sideEffects.Count > 0)
-            {
                 metadata["side_effects"] = string.Join(",", sideEffects.OrderBy(s => s));
-            }
             if (lateBindingCallCount > 0) metadata["late_binding_call_count"] = lateBindingCallCount.ToString();
             if (callByNameCount > 0) metadata["callbyname_count"] = callByNameCount.ToString();
             if (objectVarCount > 0) metadata["object_var_count"] = objectVarCount.ToString();
@@ -587,11 +613,11 @@ internal static class AstEmitter
 
         string ComposeName(string terminal)
         {
-            var parts = new List<string>();
-            if (namespaces.Count > 0) parts.AddRange(namespaces.Reverse().ToArray());
-            if (types.Count > 0) parts.AddRange(types.Reverse().ToArray());
-            parts.Add(terminal);
-            return SanitizeName(string.Join('.', parts.Where(p => !string.IsNullOrWhiteSpace(p))));
+            var parts = namespaces.Reverse()
+                .Concat(types.Reverse())
+                .Append(terminal)
+                .Where(p => !string.IsNullOrWhiteSpace(p));
+            return SanitizeName(string.Join('.', parts));
         }
 
         string ResolveInvocationName(InvocationExpressionSyntax invocation)
@@ -643,16 +669,13 @@ internal static class AstEmitter
             _ => expression.ToString()
         };
 
-        static string SanitizeName(string? raw)
+        static string SanitizeName(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return raw;
-            // Collapse newlines and tabs to single spaces, trim, and limit length.
-            var collapsed = Regex.Replace(raw, @"\s+", " ").Trim();
+            var collapsed = Patterns.Whitespace().Replace(raw, " ").Trim();
             const int maxLen = 256;
             if (collapsed.Length > maxLen)
-            {
                 collapsed = collapsed.Substring(0, maxLen);
-            }
             return collapsed;
         }
 
@@ -673,12 +696,6 @@ internal static class AstEmitter
 
         static string ParseDelegateExpression(ExpressionSyntax delegateExpression)
         {
-            if (delegateExpression is UnaryExpressionSyntax unary &&
-                unary.IsKind(SyntaxKind.AddressOfExpression))
-            {
-                return SanitizeName(ExtractInvocationName(unary.Operand));
-            }
-
             var raw = delegateExpression.ToString();
             const string prefix = "AddressOf ";
             if (raw.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -696,14 +713,14 @@ internal static class AstEmitter
             targetName.Contains("ExecuteScalar", StringComparison.OrdinalIgnoreCase);
 
         static bool LooksLikeSql(string value) =>
-            Regex.IsMatch(value, @"\b(select|insert|update|delete|exec(?:ute)?)\b", RegexOptions.IgnoreCase);
+            Patterns.SqlKeywords().IsMatch(value);
 
         static string ClassifySql(string value) =>
-            Regex.IsMatch(value, @"^\s*exec(?:ute)?\b", RegexOptions.IgnoreCase) ? "stored_proc" : "inline";
+            Patterns.SqlExecPrefix().IsMatch(value) ? "stored_proc" : "inline";
 
         static string InferSqlTable(string value)
         {
-            var matches = Regex.Matches(value, @"\b(?:from|join|into|update)\s+([a-zA-Z0-9_\.\[\]]+)", RegexOptions.IgnoreCase)
+            var matches = Patterns.SqlTableRef().Matches(value)
                 .Cast<Match>()
                 .Select(m => m.Groups[1].Value)
                 .Where(v => !string.IsNullOrWhiteSpace(v))
@@ -714,7 +731,7 @@ internal static class AstEmitter
 
         static string? TryExtractSqlFromExpressionText(string expressionText)
         {
-            var fragments = Regex.Matches(expressionText, "\"([^\"]+)\"")
+            var fragments = Patterns.StringLiterals().Matches(expressionText)
                 .Cast<Match>()
                 .Select(m => m.Groups[1].Value.Trim())
                 .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -723,17 +740,8 @@ internal static class AstEmitter
             return string.Join(" ", fragments);
         }
 
-        static string MapProgIdToModernEquivalent(string progId)
-        {
-            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Scripting.FileSystemObject"] = "System.IO",
-                ["ADODB.Connection"] = "System.Data.SqlClient.SqlConnection",
-                ["ADODB.Recordset"] = "System.Data.DataTable",
-                ["WScript.Shell"] = "System.Diagnostics.Process",
-            };
-            return map.TryGetValue(progId, out var modern) ? modern : "unknown";
-        }
+        static string MapProgIdToModernEquivalent(string progId) =>
+            _progIdMap.TryGetValue(progId, out var modern) ? modern : "unknown";
 
         static string? TryExtractStringLiteral(ExpressionSyntax expression)
         {
@@ -756,18 +764,15 @@ internal static class AstEmitter
             columnName = string.Empty;
             var stringArg = GetFirstStringArgument(invocation);
             if (string.IsNullOrWhiteSpace(stringArg))
-            {
                 return false;
-            }
 
             var exprText = invocation.Expression.ToString();
-            if (Regex.IsMatch(exprText, @"\.(Item|Fields|GetOrdinal)$", RegexOptions.IgnoreCase) ||
-                Regex.IsMatch(exprText, @"^(row|dr|reader|datarow|record)\b", RegexOptions.IgnoreCase))
+            if (Patterns.ColumnAccessExpr().IsMatch(exprText) ||
+                Patterns.RowReaderPrefix().IsMatch(exprText))
             {
                 columnName = stringArg;
                 return true;
             }
-
             return false;
         }
 
@@ -787,7 +792,7 @@ internal static class AstEmitter
         static bool LooksLikeControlField(FieldDeclarationSyntax field, VariableDeclaratorSyntax declarator)
         {
             var typeText = declarator.AsClause?.ToString() ?? string.Empty;
-            return Regex.IsMatch(typeText, @"\b(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase);
+            return Patterns.ControlTypeName().IsMatch(typeText);
         }
         }
         catch (Exception ex)
@@ -846,6 +851,61 @@ internal static class AstEmitter
         "onunload" => ("Unload", "11"),
         _ => null
     };
+
+    private sealed class MethodNodeCollector : VisualBasicSyntaxWalker
+    {
+        public readonly List<AddRemoveHandlerStatementSyntax> AddRemoveHandlers = [];
+        public readonly List<InvocationExpressionSyntax> Invocations = [];
+        public readonly List<ObjectCreationExpressionSyntax> ObjectCreations = [];
+        public readonly List<AssignmentStatementSyntax> Assignments = [];
+        public readonly List<LocalDeclarationStatementSyntax> LocalDeclarations = [];
+        public readonly List<WithBlockSyntax> WithBlocks = [];
+        public readonly List<MemberAccessExpressionSyntax> MemberAccesses = [];
+        public readonly List<ReDimStatementSyntax> ReDims = [];
+        public readonly List<SyntaxNode> OnErrors = [];
+        public readonly List<VariableDeclaratorSyntax> VariableDeclarators = [];
+        public readonly List<SyntaxNode> TopLevelTypeBlocks = [];
+
+        public override void VisitAddRemoveHandlerStatement(AddRemoveHandlerStatementSyntax node)
+        { AddRemoveHandlers.Add(node); base.VisitAddRemoveHandlerStatement(node); }
+
+        public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+        { Invocations.Add(node); base.VisitInvocationExpression(node); }
+
+        public override void VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
+        { ObjectCreations.Add(node); base.VisitObjectCreationExpression(node); }
+
+        public override void VisitAssignmentStatement(AssignmentStatementSyntax node)
+        { Assignments.Add(node); base.VisitAssignmentStatement(node); }
+
+        public override void VisitLocalDeclarationStatement(LocalDeclarationStatementSyntax node)
+        { LocalDeclarations.Add(node); base.VisitLocalDeclarationStatement(node); }
+
+        public override void VisitWithBlock(WithBlockSyntax node)
+        { WithBlocks.Add(node); base.VisitWithBlock(node); }
+
+        public override void VisitMemberAccessExpression(MemberAccessExpressionSyntax node)
+        { MemberAccesses.Add(node); base.VisitMemberAccessExpression(node); }
+
+        public override void VisitVariableDeclarator(VariableDeclaratorSyntax node)
+        { VariableDeclarators.Add(node); base.VisitVariableDeclarator(node); }
+
+        public override void VisitReDimStatement(ReDimStatementSyntax node)
+        { ReDims.Add(node); base.VisitReDimStatement(node); }
+
+        public override void VisitOnErrorGoToStatement(OnErrorGoToStatementSyntax node)
+        { OnErrors.Add(node); base.VisitOnErrorGoToStatement(node); }
+
+        public override void VisitOnErrorResumeNextStatement(OnErrorResumeNextStatementSyntax node)
+        { OnErrors.Add(node); base.VisitOnErrorResumeNextStatement(node); }
+
+        // Do NOT call base for type blocks — Walk() handles them separately.
+        public override void VisitClassBlock(ClassBlockSyntax node) => TopLevelTypeBlocks.Add(node);
+        public override void VisitModuleBlock(ModuleBlockSyntax node) => TopLevelTypeBlocks.Add(node);
+        public override void VisitStructureBlock(StructureBlockSyntax node) => TopLevelTypeBlocks.Add(node);
+        public override void VisitInterfaceBlock(InterfaceBlockSyntax node) => TopLevelTypeBlocks.Add(node);
+        public override void VisitEnumBlock(EnumBlockSyntax node) => TopLevelTypeBlocks.Add(node);
+    }
 }
 
 internal sealed class SymbolDto
@@ -894,4 +954,37 @@ internal sealed class EdgeDto
 
     [JsonPropertyName("metadata")]
     public Dictionary<string, string>? Metadata { get; set; }
+}
+
+internal static partial class Patterns
+{
+    [GeneratedRegex(@"\b(select|insert|update|delete|exec(?:ute)?)\b", RegexOptions.IgnoreCase)]
+    public static partial Regex SqlKeywords();
+
+    [GeneratedRegex(@"^\s*exec(?:ute)?\b", RegexOptions.IgnoreCase)]
+    public static partial Regex SqlExecPrefix();
+
+    [GeneratedRegex(@"\b(?:from|join|into|update)\s+([a-zA-Z0-9_\.\[\]]+)", RegexOptions.IgnoreCase)]
+    public static partial Regex SqlTableRef();
+
+    [GeneratedRegex("\"([^\"]+)\"")]
+    public static partial Regex StringLiterals();
+
+    [GeneratedRegex(@"\s+")]
+    public static partial Regex Whitespace();
+
+    [GeneratedRegex(@"\.(Item|Fields|GetOrdinal)$", RegexOptions.IgnoreCase)]
+    public static partial Regex ColumnAccessExpr();
+
+    [GeneratedRegex(@"^(row|dr|reader|datarow|record)\b", RegexOptions.IgnoreCase)]
+    public static partial Regex RowReaderPrefix();
+
+    [GeneratedRegex(@"\b(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase)]
+    public static partial Regex ControlTypeName();
+
+    [GeneratedRegex(@"\b(sql|query)\b", RegexOptions.IgnoreCase)]
+    public static partial Regex SqlQueryVariable();
+
+    [GeneratedRegex(@"As\s+(Button|TextBox|DropDownList|GridView|Panel|Label|LinkButton)\b", RegexOptions.IgnoreCase)]
+    public static partial Regex ControlAsDecl();
 }
