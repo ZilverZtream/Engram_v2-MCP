@@ -239,8 +239,8 @@ pub fn resolve_app_code_globals(
     let mut unmatched = 0usize;
 
     for edge in &call_edges {
-        let bare_name = edge.target_id.trim_start_matches(':');
-        if bare_name.is_empty() || bare_name.contains('.') || !edge.target_id.starts_with("::") {
+        let bare_name = &edge.target_id;
+        if bare_name.is_empty() || bare_name.contains('.') {
             continue;
         }
 
