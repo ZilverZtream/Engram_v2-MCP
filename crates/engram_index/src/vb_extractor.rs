@@ -4,12 +4,14 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 struct Sidecar {
     child: Child,
     stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    stdout: Option<BufReader<ChildStdout>>,
 }
 
 static SIDECAR: OnceLock<Mutex<Option<Sidecar>>> = OnceLock::new();
@@ -38,15 +40,39 @@ fn ensure_sidecar(guard: &mut Option<Sidecar>) -> std::io::Result<&mut Sidecar> 
             .stderr(Stdio::piped())
             .spawn()?;
 
+        if let Some(stderr) = child.stderr.take() {
+            std::thread::spawn(move || {
+                let mut reader = BufReader::new(stderr);
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) => break,
+                        Ok(_) => tracing::warn!(message = line.trim_end(), "vb_sidecar_stderr"),
+                        Err(err) => {
+                            tracing::warn!("vb_sidecar_stderr read failed: {err}");
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
         let stdin = child.stdin.take().expect("sidecar stdin should be piped");
         let stdout = BufReader::new(child.stdout.take().expect("sidecar stdout should be piped"));
         *guard = Some(Sidecar {
             child,
             stdin,
-            stdout,
+            stdout: Some(stdout),
         });
     }
     Ok(guard.as_mut().expect("sidecar initialized"))
+}
+
+#[derive(Debug)]
+enum SidecarParseError {
+    Protocol(anyhow::Error),
+    Sidecar(String),
 }
 
 #[derive(Serialize)]
@@ -90,28 +116,65 @@ struct SidecarEdge {
     metadata: HashMap<String, String>,
 }
 
-fn str_to_static(s: String) -> &'static str {
-    Box::leak(s.into_boxed_str())
-}
-
 fn parse_via_sidecar(
     sidecar: &mut Sidecar,
     path: &Path,
     source: &str,
-) -> anyhow::Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>)> {
+) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>), SidecarParseError> {
     let req = SidecarRequest {
         cmd: "parse",
         path: path.display().to_string(),
         source,
     };
-    writeln!(sidecar.stdin, "{}", serde_json::to_string(&req)?)?;
-    sidecar.stdin.flush()?;
+    writeln!(
+        sidecar.stdin,
+        "{}",
+        serde_json::to_string(&req).map_err(SidecarParseError::Protocol)?
+    )
+    .map_err(|e| SidecarParseError::Protocol(e.into()))?;
+    sidecar
+        .stdin
+        .flush()
+        .map_err(|e| SidecarParseError::Protocol(e.into()))?;
 
-    let mut line = String::new();
-    sidecar.stdout.read_line(&mut line)?;
-    let response: SidecarResponse = serde_json::from_str(&line)?;
+    let timeout_secs = std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(60);
+    let mut stdout = sidecar
+        .stdout
+        .take()
+        .ok_or_else(|| SidecarParseError::Protocol(anyhow::anyhow!("sidecar stdout missing")))?;
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut line = String::new();
+        let read = stdout.read_line(&mut line).map(|_| line);
+        let _ = tx.send((stdout, read));
+    });
+    let (stdout, line) = match rx.recv_timeout(Duration::from_secs(timeout_secs)) {
+        Ok((stdout, read_result)) => (
+            stdout,
+            read_result.map_err(|e| SidecarParseError::Protocol(e.into()))?,
+        ),
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+                "sidecar parse response timed out after {}s for {}",
+                timeout_secs,
+                path.display()
+            )));
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+                "sidecar parse response channel disconnected"
+            )));
+        }
+    };
+    sidecar.stdout = Some(stdout);
+    let response: SidecarResponse =
+        serde_json::from_str(&line).map_err(|e| SidecarParseError::Protocol(e.into()))?;
     if let Some(error) = response.error {
-        anyhow::bail!(error);
+        return Err(SidecarParseError::Sidecar(error));
     }
 
     let mut sidecar_edge_kind_counts: HashMap<String, usize> = HashMap::new();
@@ -133,7 +196,7 @@ fn parse_via_sidecar(
         .into_iter()
         .map(|s| ExtractedSymbol {
             name: s.name,
-            kind: str_to_static(s.kind),
+            kind: s.kind,
             start_line: s.start_line,
             end_line: s.end_line,
             metadata: if s.metadata.is_empty() {
@@ -149,13 +212,13 @@ fn parse_via_sidecar(
         .into_iter()
         .map(|e| ExtractedEdge {
             source_name: e.source_name,
-            source_kind: str_to_static(e.source_kind),
+            source_kind: e.source_kind,
             source_start_line: e.source_start_line,
-            source_language: str_to_static(e.source_language),
+            source_language: e.source_language,
             target_name: e.target_name,
-            target_kind: e.target_kind.map(str_to_static),
+            target_kind: e.target_kind,
             target_start_line: e.target_start_line,
-            kind: str_to_static(e.kind),
+            kind: e.kind,
             metadata: if e.metadata.is_empty() {
                 None
             } else {
@@ -202,8 +265,35 @@ pub fn begin_project(project_root: &Path) {
     }
 
     let mut line = String::new();
-    if let Err(e) = sidecar.stdout.read_line(&mut line) {
+    let Some(stdout) = sidecar.stdout.as_mut() else {
+        tracing::warn!("begin_project response read failed: sidecar stdout missing");
+        let _ = sidecar.child.kill();
+        *guard = None;
+        return;
+    };
+    if let Err(e) = stdout.read_line(&mut line) {
         tracing::warn!("begin_project response read failed: {e}");
+        return;
+    }
+    if line.trim().is_empty() {
+        tracing::warn!("begin_project returned empty response");
+        let _ = sidecar.child.kill();
+        *guard = None;
+        return;
+    }
+    let parsed: serde_json::Value = match serde_json::from_str(&line) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("begin_project response parse failed: {e}");
+            let _ = sidecar.child.kill();
+            *guard = None;
+            return;
+        }
+    };
+    if let Some(err) = parsed.get("error").and_then(|v| v.as_str()) {
+        tracing::warn!("begin_project sidecar error: {err}");
+        let _ = sidecar.child.kill();
+        *guard = None;
         return;
     }
 
@@ -214,7 +304,7 @@ pub fn begin_project(project_root: &Path) {
 }
 
 pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-    if source.trim().is_empty() {
+    if source.bytes().all(|b| b.is_ascii_whitespace()) {
         return (Vec::new(), Vec::new());
     }
 
@@ -237,8 +327,12 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
     match parse_via_sidecar(sidecar, path, source) {
         Ok(result) => result,
-        Err(err) => {
-            tracing::warn!("VB sidecar parse failed for {}: {err}", path.display());
+        Err(SidecarParseError::Sidecar(err)) => {
+            tracing::warn!("VB sidecar parse error for {}: {err}", path.display());
+            fallback_extract_vb(path, source)
+        }
+        Err(SidecarParseError::Protocol(err)) => {
+            tracing::warn!("VB sidecar protocol failure for {}: {err}", path.display());
             let _ = sidecar.child.kill();
             *guard = None;
             fallback_extract_vb(path, source)
@@ -254,10 +348,10 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
     let mut ty = String::new();
 
     let mut add_symbol =
-        |name: String, kind: &'static str, line: u32, metadata: Option<HashMap<String, String>>| {
+        |name: String, kind: &str, line: u32, metadata: Option<HashMap<String, String>>| {
             symbols.push(ExtractedSymbol {
                 name,
-                kind,
+                kind: kind.to_string(),
                 start_line: line,
                 end_line: line,
                 metadata,
@@ -290,13 +384,13 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
             if !ns.is_empty() {
                 edges.push(ExtractedEdge {
                     source_name: ns.clone(),
-                    source_kind: "namespace",
+                    source_kind: "namespace".to_string(),
                     source_start_line: 1,
-                    source_language: "vb",
+                    source_language: "vb".to_string(),
                     target_name: name,
-                    target_kind: Some("class"),
+                    target_kind: Some("class".to_string()),
                     target_start_line: Some(line_no),
-                    kind: "contains",
+                    kind: "contains".to_string(),
                     metadata: None,
                 });
             }
@@ -346,13 +440,13 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
                 if !ty.is_empty() {
                     edges.push(ExtractedEdge {
                         source_name: ty.clone(),
-                        source_kind: "class",
+                        source_kind: "class".to_string(),
                         source_start_line: line_no,
-                        source_language: "vb",
+                        source_language: "vb".to_string(),
                         target_name: fqn.clone(),
-                        target_kind: Some("function"),
+                        target_kind: Some("function".to_string()),
                         target_start_line: Some(line_no),
-                        kind: "contains",
+                        kind: "contains".to_string(),
                         metadata: None,
                     });
                 }
@@ -365,13 +459,13 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
                             m.insert("fqn".to_string(), fqn.clone());
                             edges.push(ExtractedEdge {
                                 source_name: control.trim().to_string(),
-                                source_kind: "control",
+                                source_kind: "control".to_string(),
                                 source_start_line: line_no,
-                                source_language: "vb",
+                                source_language: "vb".to_string(),
                                 target_name: method.clone(),
-                                target_kind: Some("function"),
+                                target_kind: Some("function".to_string()),
                                 target_start_line: Some(line_no),
-                                kind: "event_wiring",
+                                kind: "event_wiring".to_string(),
                                 metadata: Some(m),
                             });
                         }
@@ -382,13 +476,13 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
             let target = line[8..].trim().to_string();
             edges.push(ExtractedEdge {
                 source_name: path.display().to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line_no,
-                source_language: "vb",
+                source_language: "vb".to_string(),
                 target_name: target,
-                target_kind: Some("namespace"),
+                target_kind: Some("namespace".to_string()),
                 target_start_line: None,
-                kind: "imports",
+                kind: "imports".to_string(),
                 metadata: None,
             });
         }
@@ -437,5 +531,21 @@ mod tests {
         let code = "Class Foo\n Sub Bar()\n   Dim x = app?.Name\n   Dim s = $\"Hello {name}\"\n End Sub\nEnd Class";
         let (symbols, _) = extract_vb(Path::new("foo.vb"), code);
         assert!(symbols.iter().any(|s| s.name.contains("Bar")));
+    }
+
+    #[test]
+    fn sidecar_parse_smoke_when_enabled() {
+        if std::env::var("ENGRAM_VB_SIDECAR_TEST").ok().as_deref() != Some("1") {
+            return;
+        }
+        let sidecar_path = super::sidecar_binary_path();
+        if !sidecar_path.exists() {
+            return;
+        }
+
+        let code = "Namespace App_Code\nPublic Class SharedFunc\nPublic Sub SafeRedirect()\nEnd Sub\nEnd Class\nEnd Namespace";
+        let (symbols, edges) = extract_vb(Path::new("App_Code/SharedFunc.vb"), code);
+        assert!(!symbols.is_empty(), "expected sidecar/fallback symbols");
+        assert!(edges.iter().any(|e| e.kind == "contains"));
     }
 }

@@ -6,7 +6,7 @@ use tree_sitter::{Parser, Query, QueryCursor};
 #[derive(Debug, Clone)]
 pub struct ExtractedSymbol {
     pub name: String,
-    pub kind: &'static str, // "function" | "class" | "struct" | "impl" | …
+    pub kind: String, // "function" | "class" | "struct" | "impl" | …
     pub start_line: u32,
     pub end_line: u32,
     pub metadata: Option<std::collections::HashMap<String, String>>,
@@ -15,13 +15,13 @@ pub struct ExtractedSymbol {
 #[derive(Debug, Clone)]
 pub struct ExtractedEdge {
     pub source_name: String,
-    pub source_kind: &'static str,
+    pub source_kind: String,
     pub source_start_line: u32,
-    pub source_language: &'static str,
+    pub source_language: String,
     pub target_name: String,
-    pub target_kind: Option<&'static str>,
+    pub target_kind: Option<String>,
     pub target_start_line: Option<u32>,
-    pub kind: &'static str, // "calls" | "contains" | "imports" | …
+    pub kind: String, // "calls" | "contains" | "imports" | …
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
@@ -493,9 +493,9 @@ impl SymbolExtractor {
                         })
                     {
                         let mut meta = std::collections::HashMap::new();
-                        let (target_name, target_kind): (String, Option<&'static str>) =
+                        let (target_name, target_kind): (String, Option<String>) =
                             if let Some(fqn) = callee_fqn {
-                                (fqn, Some("function"))
+                                (fqn, Some("function".to_string()))
                             } else {
                                 meta.insert("unresolved".into(), "true".into());
                                 (callee_short.to_string(), None)
@@ -503,13 +503,13 @@ impl SymbolExtractor {
 
                         edges.push(ExtractedEdge {
                             source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                            source_kind: parent_kind,
+                            source_kind: parent_kind.to_string(),
                             source_start_line: *parent_line,
-                            source_language: static_ext,
+                            source_language: static_ext.to_string(),
                             target_name,
                             target_kind,
                             target_start_line: None,
-                            kind: "calls",
+                            kind: "calls".to_string(),
                             metadata: if meta.is_empty() { None } else { Some(meta) },
                         });
                     }
@@ -549,13 +549,13 @@ impl SymbolExtractor {
 
                     edges.push(ExtractedEdge {
                         source_name: src_name,
-                        source_kind: src_kind,
+                        source_kind: src_kind.to_string(),
                         source_start_line: src_line,
-                        source_language: static_ext,
+                        source_language: static_ext.to_string(),
                         target_name: target_id,
-                        target_kind: Some(target_kind),
+                        target_kind: Some(target_kind.to_string()),
                         target_start_line: None,
-                        kind: "sql_calls",
+                        kind: "sql_calls".to_string(),
                         metadata: Some(meta),
                     });
                     continue;
@@ -565,13 +565,13 @@ impl SymbolExtractor {
                     let imported = &content[node.start_byte()..node.end_byte()];
                     edges.push(ExtractedEdge {
                         source_name: "file".to_string(),
-                        source_kind: "file",
+                        source_kind: "file".to_string(),
                         source_start_line: 0,
-                        source_language: static_ext,
+                        source_language: static_ext.to_string(),
                         target_name: imported.to_string(),
                         target_kind: None,
                         target_start_line: None,
-                        kind: "imports",
+                        kind: "imports".to_string(),
                         metadata: None,
                     });
                     continue;
@@ -629,7 +629,7 @@ impl SymbolExtractor {
 
                 symbols.push(ExtractedSymbol {
                     name: name.clone(),
-                    kind,
+                    kind: kind.to_string(),
                     start_line,
                     end_line: (node.end_position().row + 1) as u32,
                     metadata: if meta.is_empty() { None } else { Some(meta) },
@@ -645,13 +645,13 @@ impl SymbolExtractor {
                     let target_fqn = fqn_table.get(&name).cloned();
                     edges.push(ExtractedEdge {
                         source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
-                        source_kind: parent_kind,
+                        source_kind: parent_kind.to_string(),
                         source_start_line: *parent_line,
-                        source_language: static_ext,
+                        source_language: static_ext.to_string(),
                         target_name: target_fqn.unwrap_or_else(|| name.clone()),
-                        target_kind: Some(kind),
+                        target_kind: Some(kind.to_string()),
                         target_start_line: Some(start_line),
-                        kind: "contains",
+                        kind: "contains".to_string(),
                         metadata: None,
                     });
                 }

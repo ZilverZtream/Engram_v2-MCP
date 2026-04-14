@@ -571,7 +571,7 @@ pub fn extract_webforms_layout(
 
         symbols.push(ExtractedSymbol {
             name: container.id.clone(),
-            kind: "ui_container",
+            kind: "ui_container".to_string(),
             start_line: container.start_line,
             end_line: container.start_line,
             metadata: Some(meta),
@@ -605,13 +605,13 @@ pub fn extract_webforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: parent_id.clone(),
-                source_kind: "ui_container",
+                source_kind: "ui_container".to_string(),
                 source_start_line: child.line,
-                source_language: "aspx",
+                source_language: "aspx".to_string(),
                 target_name: child.id.clone(),
-                target_kind: Some("control"),
+                target_kind: Some("control".to_string()),
                 target_start_line: Some(child.line),
-                kind: "contains_ui",
+                kind: "contains_ui".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -655,13 +655,13 @@ pub fn extract_webforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: prev.id.clone(),
-                source_kind: "control",
+                source_kind: "control".to_string(),
                 source_start_line: prev.line,
-                source_language: "aspx",
+                source_language: "aspx".to_string(),
                 target_name: next.id.clone(),
-                target_kind: Some("control"),
+                target_kind: Some("control".to_string()),
                 target_start_line: Some(next.line),
-                kind: "ui_layout_neighbor",
+                kind: "ui_layout_neighbor".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -691,7 +691,7 @@ pub fn extract_webforms_layout(
             // Emit as "control_layout" so it doesn't clash with the existing "control" symbol.
             symbols.push(ExtractedSymbol {
                 name: child.id.clone(),
-                kind: "control_layout",
+                kind: "control_layout".to_string(),
                 start_line: child.line,
                 end_line: child.line,
                 metadata: Some(meta),
@@ -1034,7 +1034,7 @@ pub fn extract_winforms_layout(
 
             symbols.push(ExtractedSymbol {
                 name: name.clone(),
-                kind: "ui_container",
+                kind: "ui_container".to_string(),
                 start_line: ctrl.line,
                 end_line: ctrl.line,
                 metadata: Some(meta),
@@ -1065,13 +1065,13 @@ pub fn extract_winforms_layout(
 
         edges.push(ExtractedEdge {
             source_name: parent.clone(),
-            source_kind: "ui_container",
+            source_kind: "ui_container".to_string(),
             source_start_line: *line,
-            source_language: "designer",
+            source_language: "designer".to_string(),
             target_name: child.clone(),
-            target_kind: Some("control"),
+            target_kind: Some("control".to_string()),
             target_start_line: controls.get(child).map(|c| c.line),
-            kind: "contains_ui",
+            kind: "contains_ui".to_string(),
             metadata: if meta.is_empty() { None } else { Some(meta) },
         });
     }
@@ -1130,13 +1130,13 @@ pub fn extract_winforms_layout(
 
             edges.push(ExtractedEdge {
                 source_name: prev.name.clone(),
-                source_kind: "control",
+                source_kind: "control".to_string(),
                 source_start_line: prev.line,
-                source_language: "designer",
+                source_language: "designer".to_string(),
                 target_name: next.name.clone(),
-                target_kind: Some("control"),
+                target_kind: Some("control".to_string()),
                 target_start_line: Some(next.line),
-                kind: "ui_layout_neighbor",
+                kind: "ui_layout_neighbor".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -1169,7 +1169,7 @@ pub fn extract_winforms_layout(
 
         symbols.push(ExtractedSymbol {
             name: name.clone(),
-            kind: "control_layout",
+            kind: "control_layout".to_string(),
             start_line: ctrl.line,
             end_line: ctrl.line,
             metadata: Some(meta),

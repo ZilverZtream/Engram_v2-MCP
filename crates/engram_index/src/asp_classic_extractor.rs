@@ -231,7 +231,7 @@ pub fn extract_classic_asp(
 
         symbols.push(ExtractedSymbol {
             name: "classic_asp_file".to_string(),
-            kind: "insight",
+            kind: "insight".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
@@ -312,7 +312,7 @@ fn extract_server_functions(source: &str, lines: &[&str], symbols: &mut Vec<Extr
 
             symbols.push(ExtractedSymbol {
                 name: func_name.to_string(),
-                kind: "function",
+                kind: "function".to_string(),
                 start_line,
                 end_line,
                 metadata: None,
@@ -369,13 +369,13 @@ fn extract_state_accesses(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: target,
-                    target_kind: Some("global_state"),
+                    target_kind: Some("global_state".to_string()),
                     target_start_line: None,
-                    kind: edge_kind,
+                    kind: edge_kind.to_string(),
                     metadata: Some(meta),
                 });
 
@@ -414,13 +414,13 @@ fn extract_state_accesses(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: target,
-                    target_kind: Some("global_state"),
+                    target_kind: Some("global_state".to_string()),
                     target_start_line: None,
-                    kind: "reads_state",
+                    kind: "reads_state".to_string(),
                     metadata: Some(meta),
                 });
 
@@ -457,13 +457,13 @@ fn extract_state_accesses(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: target,
-                    target_kind: Some("global_state"),
+                    target_kind: Some("global_state".to_string()),
                     target_start_line: None,
-                    kind: "writes_state",
+                    kind: "writes_state".to_string(),
                     metadata: Some(meta),
                 });
 
@@ -501,13 +501,13 @@ fn extract_navigation(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: url,
-                    target_kind: Some("file"),
+                    target_kind: Some("file".to_string()),
                     target_start_line: None,
-                    kind: "dependency",
+                    kind: "dependency".to_string(),
                     metadata: Some(meta),
                 });
             }
@@ -528,13 +528,13 @@ fn extract_navigation(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: url,
-                    target_kind: Some("file"),
+                    target_kind: Some("file".to_string()),
                     target_start_line: None,
-                    kind: "dependency",
+                    kind: "dependency".to_string(),
                     metadata: Some(meta),
                 });
             }
@@ -576,7 +576,7 @@ fn extract_com_database(
 
                     symbols.push(ExtractedSymbol {
                         name: "com_interop_usage".to_string(),
-                        kind: "insight",
+                        kind: "insight".to_string(),
                         start_line: line_idx as u32,
                         end_line: line_idx as u32,
                         metadata: Some(meta),
@@ -600,7 +600,7 @@ fn extract_com_database(
 
                 symbols.push(ExtractedSymbol {
                     name: format!("connection:{}", sanitize_conn_string(&conn_str)),
-                    kind: "connection_string",
+                    kind: "connection_string".to_string(),
                     start_line: line_idx as u32,
                     end_line: line_idx as u32,
                     metadata: Some(meta),
@@ -623,13 +623,13 @@ fn extract_com_database(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: extract_table_from_sql(&sql),
-                    target_kind: Some("db_table"),
+                    target_kind: Some("db_table".to_string()),
                     target_start_line: None,
-                    kind: "sql_calls",
+                    kind: "sql_calls".to_string(),
                     metadata: Some(meta),
                 });
             }
@@ -650,13 +650,13 @@ fn extract_com_database(
 
                 edges.push(ExtractedEdge {
                     source_name: file_name.to_string(),
-                    source_kind: "file",
+                    source_kind: "file".to_string(),
                     source_start_line: line_idx as u32,
-                    source_language: "vbscript",
+                    source_language: "vbscript".to_string(),
                     target_name: extract_table_from_sql(&sql),
-                    target_kind: Some("db_table"),
+                    target_kind: Some("db_table".to_string()),
                     target_start_line: None,
-                    kind: "sql_calls",
+                    kind: "sql_calls".to_string(),
                     metadata: Some(meta),
                 });
             }
@@ -709,13 +709,13 @@ fn extract_includes(
 
             edges.push(ExtractedEdge {
                 source_name: file_name.to_string(),
-                source_kind: "file",
+                source_kind: "file".to_string(),
                 source_start_line: line_idx as u32,
-                source_language: "vbscript",
+                source_language: "vbscript".to_string(),
                 target_name: path,
-                target_kind: Some("file"),
+                target_kind: Some("file".to_string()),
                 target_start_line: None,
-                kind: "includes_file",
+                kind: "includes_file".to_string(),
                 metadata: Some(meta),
             });
         }
@@ -769,7 +769,7 @@ fn emit_state_symbol(
 
     symbols.push(ExtractedSymbol {
         name: format!("{}:{}", store_type, key),
-        kind: "global_state",
+        kind: "global_state".to_string(),
         start_line: line,
         end_line: line,
         metadata: Some(meta),

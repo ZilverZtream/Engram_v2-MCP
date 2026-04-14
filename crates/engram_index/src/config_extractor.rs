@@ -106,7 +106,7 @@ fn process_element(
 
         symbols.push(ExtractedSymbol {
             name: name.clone(),
-            kind: "http_module",
+            kind: "http_module".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
@@ -114,13 +114,13 @@ fn process_element(
 
         edges.push(ExtractedEdge {
             source_name: rel_path.as_str().to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: 0,
-            source_language: "xml",
+            source_language: "xml".to_string(),
             target_name: class_name,
-            target_kind: Some("class"),
+            target_kind: Some("class".to_string()),
             target_start_line: None,
-            kind: "registers_module",
+            kind: "registers_module".to_string(),
             metadata: Some(HashMap::from([("module_name".into(), name)])),
         });
     }
@@ -148,7 +148,7 @@ fn process_element(
 
         symbols.push(ExtractedSymbol {
             name: name.clone(),
-            kind: "route_handler",
+            kind: "route_handler".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
@@ -156,13 +156,13 @@ fn process_element(
 
         edges.push(ExtractedEdge {
             source_name: rel_path.as_str().to_string(),
-            source_kind: "file",
+            source_kind: "file".to_string(),
             source_start_line: 0,
-            source_language: "xml",
+            source_language: "xml".to_string(),
             target_name: class_name,
-            target_kind: Some("class"),
+            target_kind: Some("class".to_string()),
             target_start_line: None,
-            kind: "registers_handler",
+            kind: "registers_handler".to_string(),
             metadata: Some(HashMap::from([("handler_name".into(), name)])),
         });
     }
@@ -179,7 +179,7 @@ fn process_element(
 
         symbols.push(ExtractedSymbol {
             name: key,
-            kind: "app_setting",
+            kind: "app_setting".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
@@ -201,7 +201,7 @@ fn process_element(
 
         symbols.push(ExtractedSymbol {
             name,
-            kind: "connection_string",
+            kind: "connection_string".to_string(),
             start_line: 0,
             end_line: 0,
             metadata: Some(meta),
