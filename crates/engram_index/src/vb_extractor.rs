@@ -153,6 +153,52 @@ fn parse_via_sidecar(
     Ok((symbols, edges))
 }
 
+pub fn begin_project(project_root: &Path) {
+    let mutex = get_or_spawn_sidecar();
+    let mut guard = match mutex.lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            tracing::error!("VB sidecar mutex poisoned during begin_project: {poisoned}");
+            return;
+        }
+    };
+
+    let sidecar = match ensure_sidecar(&mut guard) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("failed to spawn sidecar for begin_project: {e}");
+            return;
+        }
+    };
+
+    let req = serde_json::json!({
+        "cmd": "begin_project",
+        "project_root": project_root.display().to_string(),
+    });
+
+    if let Err(e) = writeln!(sidecar.stdin, "{}", req) {
+        tracing::warn!("begin_project write failed: {e}");
+        let _ = sidecar.child.kill();
+        *guard = None;
+        return;
+    }
+    if let Err(e) = sidecar.stdin.flush() {
+        tracing::warn!("begin_project flush failed: {e}");
+        return;
+    }
+
+    let mut line = String::new();
+    if let Err(e) = sidecar.stdout.read_line(&mut line) {
+        tracing::warn!("begin_project response read failed: {e}");
+        return;
+    }
+
+    tracing::info!(
+        "VB sidecar begin_project completed for {}",
+        project_root.display()
+    );
+}
+
 pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     if source.trim().is_empty() {
         return (Vec::new(), Vec::new());

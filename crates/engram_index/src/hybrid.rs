@@ -971,6 +971,8 @@ impl HybridSearchEngine {
         let total_files = files.len();
         stats.files = total_files;
 
+        crate::vb_extractor::begin_project(root);
+
         let mut batch: Vec<IndexDoc> = Vec::with_capacity(512);
         let mut processed_count = 0;
 
