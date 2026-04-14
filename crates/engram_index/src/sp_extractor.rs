@@ -1093,9 +1093,9 @@ pub fn extract_code_side_sp_calls(
             source_kind: "file".to_string(),
             source_start_line: sp_call.line,
             source_language: if rel_path.as_str().ends_with(".vb") {
-                "vb"
+                "vb".to_string()
             } else {
-                "csharp"
+                "csharp".to_string()
             },
             target_name: sp_call.sp_name.clone(),
             target_kind: Some("stored_procedure".to_string()),
