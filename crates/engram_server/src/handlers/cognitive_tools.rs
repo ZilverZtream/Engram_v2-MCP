@@ -20,6 +20,17 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
+/// Strip a trailing `:<digits>` line-suffix that VB metadata can append to FQNs.
+fn strip_fqn_line_suffix(s: &str) -> &str {
+    if let Some((head, tail)) = s.rsplit_once(':')
+        && !tail.is_empty()
+        && tail.bytes().all(|b| b.is_ascii_digit())
+    {
+        return head;
+    }
+    s
+}
+
 impl Engram {
     pub(crate) async fn cancel_job_internal(
         &self,
@@ -74,7 +85,18 @@ impl Engram {
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let target_id = if let Some(ref fqn) = req.symbol_fqn {
-                if fqn.starts_with("sql:") || fqn.starts_with("table:") || fqn.starts_with("state:")
+                if fqn.starts_with("sym:") {
+                    if graph
+                        .get_node(&req.project_id, fqn)
+                        .map_err(|e| e.to_string())?
+                        .is_none()
+                    {
+                        return Ok(format!("node_id '{fqn}' not found in project."));
+                    }
+                    fqn.clone()
+                } else if fqn.starts_with("sql:")
+                    || fqn.starts_with("table:")
+                    || fqn.starts_with("state:")
                 {
                     fqn.clone()
                 } else {
@@ -85,33 +107,44 @@ impl Engram {
                         .is_some()
                     {
                         table_id
-                    } else if let Ok(candidates) =
-                        graph.query_nodes(&req.project_id, None, None, None, 500)
-                        && let Some(n) = candidates.iter().find(|n| {
-                            n.metadata
-                                .as_ref()
-                                .and_then(|m| m.get("fqn"))
-                                .and_then(|v| v.as_str())
-                                == Some(fqn)
-                        })
-                    {
-                        n.node_id.clone()
                     } else {
                         let short = fqn.split('.').next_back().unwrap_or(fqn);
                         if let Ok(candidates) =
                             graph.query_nodes(&req.project_id, None, Some(short), None, 500)
-                            && !candidates.is_empty()
+                        && !candidates.is_empty()
                         {
+                            let want = strip_fqn_line_suffix(fqn);
                             if let Some(exact) = candidates.iter().find(|n| {
                                 n.metadata
                                     .as_ref()
                                     .and_then(|m| m.get("fqn"))
                                     .and_then(|v| v.as_str())
-                                    == Some(fqn)
+                                    .map(strip_fqn_line_suffix)
+                                    == Some(want)
                             }) {
                                 exact.node_id.clone()
                             } else {
-                                candidates[0].node_id.clone()
+                                let suggestions: Vec<String> = candidates
+                                    .iter()
+                                    .take(5)
+                                    .map(|n| {
+                                        let fqn_meta = n
+                                            .metadata
+                                            .as_ref()
+                                            .and_then(|m| m.get("fqn"))
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("(no fqn)");
+                                        format!(
+                                            "  - {} [{}] fqn={}",
+                                            n.node_id, n.node_type, fqn_meta
+                                        )
+                                    })
+                                    .collect();
+                                return Ok(format!(
+                                    "Symbol '{fqn}' not uniquely resolvable. {} name-substring candidates found:\n{}\n\nUse the full node_id as symbol_fqn, or use find_symbol_references for non-unique matches.",
+                                    candidates.len(),
+                                    suggestions.join("\n")
+                                ));
                             }
                         } else {
                             return Ok(format!("Symbol '{fqn}' not found in graph."));
@@ -123,6 +156,13 @@ impl Engram {
             } else {
                 unreachable!()
             };
+
+            tracing::info!(
+                project_id = %req.project_id,
+                symbol_fqn = ?req.symbol_fqn,
+                resolved_target_id = %target_id,
+                "impact_analysis: resolved symbol to node_id"
+            );
 
             let capped_limit = req.limit.clamp(1, 1000);
             let incoming = graph
