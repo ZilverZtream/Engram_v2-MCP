@@ -63,16 +63,7 @@ impl Engram {
         req: FindReferencesRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let kind = match req.edge_kind.as_deref() {
-            Some("co_occurrence") => Some(EdgeKind::CoOccurrence),
-            Some("temporal_coupling") => Some(EdgeKind::TemporalCoupling),
-            Some("insight") => Some(EdgeKind::Insight),
-            Some("dependency") => Some(EdgeKind::Dependency),
-            Some("anti_pattern") => Some(EdgeKind::AntiPattern),
-            Some("contains") => Some(EdgeKind::Contains),
-            Some("imports") => Some(EdgeKind::Imports),
-            _ => None,
-        };
+        let kind = req.edge_kind.as_deref().and_then(EdgeKind::parse);
 
         let graph = self.state.graph.clone();
         let edge_kind_str = req.edge_kind.clone();
@@ -231,6 +222,7 @@ impl Engram {
 
         // 3. Determine expansion edge kinds
         let default_expansion_kinds = vec![
+            EdgeKind::Calls,
             EdgeKind::Dependency,
             EdgeKind::Contains,
             EdgeKind::Imports,

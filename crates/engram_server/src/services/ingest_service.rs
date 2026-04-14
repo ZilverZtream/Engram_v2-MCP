@@ -39,6 +39,19 @@ pub async fn process_ingest_stats(
     generation: u64,
     stats: &engram_index::IngestStats,
 ) -> anyhow::Result<()> {
+    let mut input_edge_kind_counts: std::collections::HashMap<&'static str, usize> =
+        std::collections::HashMap::new();
+    for (_, edge) in &stats.edges {
+        *input_edge_kind_counts.entry(edge.kind).or_insert(0) += 1;
+    }
+    if !input_edge_kind_counts.is_empty() {
+        tracing::debug!(
+            project_id = %project_id,
+            edge_kind_counts = ?input_edge_kind_counts,
+            "process_ingest_stats: extracted edge kinds before graph mapping"
+        );
+    }
+
     let graph_estimate_bytes = ((stats.symbols.len() + stats.edges.len() + stats.all_files.len())
         as u64)
         .saturating_mul(512);
@@ -506,6 +519,7 @@ pub async fn process_ingest_stats(
             "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                 engram_graph::EdgeKind::Contains
             }
+            "calls" => engram_graph::EdgeKind::Calls,
             "imports" => engram_graph::EdgeKind::Imports,
             "sql_calls" => engram_graph::EdgeKind::SqlCalls,
             "has_column" => engram_graph::EdgeKind::HasColumn,
@@ -553,6 +567,21 @@ pub async fn process_ingest_stats(
             }),
             updated_at_ms: now_ms(),
         });
+    }
+
+    if !edges.is_empty() {
+        let mut mapped_edge_kind_counts: std::collections::HashMap<&'static str, usize> =
+            std::collections::HashMap::new();
+        for edge in &edges {
+            *mapped_edge_kind_counts
+                .entry(edge.edge_kind.as_str())
+                .or_insert(0) += 1;
+        }
+        tracing::debug!(
+            project_id = %project_id,
+            edge_kind_counts = ?mapped_edge_kind_counts,
+            "process_ingest_stats: graph edge kinds after mapping"
+        );
     }
 
     if !nodes.is_empty() || !edges.is_empty() {
