@@ -60,6 +60,7 @@ pub enum EdgeKind {
     CoOccurrence,
     TemporalCoupling,
     Insight,
+    Calls,
     Dependency,
     AntiPattern,
     Contains,
@@ -112,6 +113,7 @@ impl EdgeKind {
         EdgeKind::CoOccurrence,
         EdgeKind::TemporalCoupling,
         EdgeKind::Insight,
+        EdgeKind::Calls,
         EdgeKind::Dependency,
         EdgeKind::AntiPattern,
         EdgeKind::Contains,
@@ -155,6 +157,7 @@ impl EdgeKind {
             EdgeKind::CoOccurrence => "co_occurrence",
             EdgeKind::TemporalCoupling => "temporal_coupling",
             EdgeKind::Insight => "insight",
+            EdgeKind::Calls => "calls",
             EdgeKind::Dependency => "dependency",
             EdgeKind::AntiPattern => "anti_pattern",
             EdgeKind::Contains => "contains",
@@ -199,6 +202,7 @@ impl EdgeKind {
             "co_occurrence" => Some(EdgeKind::CoOccurrence),
             "temporal_coupling" => Some(EdgeKind::TemporalCoupling),
             "insight" => Some(EdgeKind::Insight),
+            "calls" => Some(EdgeKind::Calls),
             "dependency" => Some(EdgeKind::Dependency),
             "anti_pattern" => Some(EdgeKind::AntiPattern),
             "contains" => Some(EdgeKind::Contains),
@@ -1947,6 +1951,7 @@ mod tests {
                 EdgeKind::CoOccurrence
                 | EdgeKind::TemporalCoupling
                 | EdgeKind::Insight
+                | EdgeKind::Calls
                 | EdgeKind::Dependency
                 | EdgeKind::AntiPattern
                 | EdgeKind::Contains
@@ -1994,7 +1999,7 @@ mod tests {
             );
         }
 
-        let variant_count = 39;
+        let variant_count = 40;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,
