@@ -477,10 +477,10 @@ pub fn extract_crystal_reports_usage(
     let file_path = rel_path.as_str().to_string();
     let line_offsets = build_line_offsets(source);
 
-    let source_language: &'static str = match language {
-        "csharp" | "cs" => "csharp",
-        "vb" | "vbnet" => "vbnet",
-        _ => "csharp",
+    let source_language = match language {
+        "csharp" | "cs" => "csharp".to_string(),
+        "vb" | "vbnet" => "vbnet".to_string(),
+        _ => "csharp".to_string(),
     };
 
     let mut has_crystal = false;
@@ -527,7 +527,7 @@ pub fn extract_crystal_reports_usage(
                     source_name: file_path.clone(),
                     source_kind: "file".to_string(),
                     source_start_line: line,
-                    source_language,
+                    source_language: source_language.clone(),
                     target_name: rpt_path,
                     target_kind: Some("file".to_string()),
                     target_start_line: None,

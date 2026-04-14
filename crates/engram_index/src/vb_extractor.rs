@@ -129,7 +129,7 @@ fn parse_via_sidecar(
     writeln!(
         sidecar.stdin,
         "{}",
-        serde_json::to_string(&req).map_err(SidecarParseError::Protocol)?
+        serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?
     )
     .map_err(|e| SidecarParseError::Protocol(e.into()))?;
     sidecar

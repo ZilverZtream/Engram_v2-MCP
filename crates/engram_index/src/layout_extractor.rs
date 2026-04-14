@@ -702,14 +702,14 @@ pub fn extract_webforms_layout(
     symbols.sort_by(|a, b| {
         a.name
             .cmp(&b.name)
-            .then_with(|| a.kind.cmp(b.kind))
+            .then_with(|| a.kind.cmp(&b.kind))
             .then_with(|| a.start_line.cmp(&b.start_line))
     });
     edges.sort_by(|a, b| {
         a.source_name
             .cmp(&b.source_name)
             .then_with(|| a.target_name.cmp(&b.target_name))
-            .then_with(|| a.kind.cmp(b.kind))
+            .then_with(|| a.kind.cmp(&b.kind))
             .then_with(|| a.source_start_line.cmp(&b.source_start_line))
     });
 
@@ -1179,14 +1179,14 @@ pub fn extract_winforms_layout(
     symbols.sort_by(|a, b| {
         a.name
             .cmp(&b.name)
-            .then_with(|| a.kind.cmp(b.kind))
+            .then_with(|| a.kind.cmp(&b.kind))
             .then_with(|| a.start_line.cmp(&b.start_line))
     });
     edges.sort_by(|a, b| {
         a.source_name
             .cmp(&b.source_name)
             .then_with(|| a.target_name.cmp(&b.target_name))
-            .then_with(|| a.kind.cmp(b.kind))
+            .then_with(|| a.kind.cmp(&b.kind))
             .then_with(|| a.source_start_line.cmp(&b.source_start_line))
     });
 

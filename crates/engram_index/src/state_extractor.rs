@@ -224,7 +224,7 @@ pub fn extract_state_accesses(
                 source_name: enclosing,
                 source_kind: "function".to_string(),
                 source_start_line: line_idx as u32 + 1,
-                source_language: language,
+                source_language: language.to_string(),
                 target_name: target_id,
                 target_kind: Some("global_state".to_string()),
                 target_start_line: None,
@@ -339,7 +339,7 @@ pub fn extract_state_accesses(
                     source_name: enclosing,
                     source_kind: "function".to_string(),
                     source_start_line: line_idx as u32 + 1,
-                    source_language: language,
+                    source_language: language.to_string(),
                     target_name: target_id,
                     target_kind: Some("global_state".to_string()),
                     target_start_line: None,
@@ -562,7 +562,7 @@ pub fn analyze_state_affinity(
         method_to_keys
             .entry(method.clone())
             .or_default()
-            .push((state_key, edge.kind));
+            .push((state_key, edge.kind.as_str()));
 
         key_access_methods
             .entry(state_key.to_string())
@@ -572,7 +572,7 @@ pub fn analyze_state_affinity(
         key_access_patterns
             .entry(state_key.to_string())
             .or_default()
-            .insert(edge.kind);
+            .insert(edge.kind.as_str());
     }
 
     // Step 2: For each method with 2+ state keys, emit affinity edges
