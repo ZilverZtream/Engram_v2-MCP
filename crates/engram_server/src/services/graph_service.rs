@@ -107,6 +107,8 @@ pub fn resolve_app_code_globals(
 
     let mut app_code_by_name_ci: HashMap<String, String> = HashMap::new();
     let mut app_code_by_name: HashMap<String, String> = HashMap::new();
+    let mut terminal_to_fqn: HashMap<String, Vec<String>> = HashMap::new();
+    let mut fqn_to_node_id: HashMap<String, String> = HashMap::new();
 
     let is_app_code_path = |path: &str| -> bool {
         let lower = path.to_lowercase().replace('\\', "/");
@@ -132,6 +134,14 @@ pub fn resolve_app_code_globals(
             if let Some(short) = fqn.split('.').next_back() {
                 app_code_by_name_ci.insert(short.to_lowercase(), node.node_id.clone());
                 app_code_by_name.insert(short.to_string(), node.node_id.clone());
+
+                if node.node_type == "function" {
+                    terminal_to_fqn
+                        .entry(short.to_string())
+                        .or_default()
+                        .push(fqn.to_string());
+                    fqn_to_node_id.insert(fqn.to_string(), node.node_id.clone());
+                }
             }
             // Also register the full FQN for direct lookups
             app_code_by_name_ci.insert(fqn.to_lowercase(), node.node_id.clone());
@@ -210,6 +220,89 @@ pub fn resolve_app_code_globals(
             project_id
         );
     }
+
+    // Step 3: Rewrite unqualified call edges (`::Foo`) to qualified App_Code FQNs
+    // when there is exactly one matching App_Code function terminal.
+    if terminal_to_fqn.is_empty() {
+        return Ok(count);
+    }
+
+    for fqns in terminal_to_fqn.values_mut() {
+        fqns.sort();
+        fqns.dedup();
+    }
+
+    let call_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Calls))?;
+    let mut rewritten_edges: Vec<engram_graph::Edge> = Vec::new();
+    let mut rewritten = 0usize;
+    let mut ambiguous = 0usize;
+    let mut unmatched = 0usize;
+
+    for edge in &call_edges {
+        let bare_name = edge.target_id.trim_start_matches(':');
+        if bare_name.is_empty() || bare_name.contains('.') || !edge.target_id.starts_with("::") {
+            continue;
+        }
+
+        match terminal_to_fqn.get(bare_name) {
+            Some(matches) if matches.len() == 1 => {
+                let matched_fqn = &matches[0];
+                let Some(new_target_id) = fqn_to_node_id.get(matched_fqn) else {
+                    unmatched += 1;
+                    continue;
+                };
+
+                if edge.target_id == *new_target_id {
+                    continue;
+                }
+
+                let mut metadata_obj = edge
+                    .metadata
+                    .clone()
+                    .and_then(|m| m.as_object().cloned())
+                    .unwrap_or_default();
+                metadata_obj.insert(
+                    "original_target_name".into(),
+                    serde_json::Value::String(bare_name.to_string()),
+                );
+                metadata_obj.insert(
+                    "resolved_target_fqn".into(),
+                    serde_json::Value::String(matched_fqn.to_string()),
+                );
+
+                let mut rewritten_edge = edge.clone();
+                rewritten_edge.target_id = new_target_id.clone();
+                rewritten_edge.metadata = Some(serde_json::Value::Object(metadata_obj));
+                rewritten_edge.generation = generation;
+                rewritten_edge.updated_at_ms = now_ms();
+                rewritten_edges.push(rewritten_edge);
+                rewritten += 1;
+            }
+            Some(matches) if matches.len() > 1 => {
+                ambiguous += 1;
+                tracing::debug!(
+                    target_name = bare_name,
+                    matching_fqns = ?matches,
+                    count = matches.len(),
+                    "resolve_app_code_globals: ambiguous_bare_call"
+                );
+            }
+            _ => {
+                unmatched += 1;
+            }
+        }
+    }
+
+    if !rewritten_edges.is_empty() {
+        graph.upsert_edges(project_id, &rewritten_edges)?;
+    }
+
+    tracing::info!(
+        "resolve_app_code_globals: rewrote {} unqualified call edges to qualified FQNs, {} ambiguous unchanged, {} unmatched",
+        rewritten,
+        ambiguous,
+        unmatched
+    );
     Ok(count)
 }
 
