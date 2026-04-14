@@ -305,7 +305,7 @@ pub fn extract_webforms(
                     source_name: cb_path.clone(),
                     source_kind: "file".to_string(),
                     source_start_line: line,
-                    source_language: cb_lang,
+                    source_language: cb_lang.to_string(),
                     target_name: simple_name,
                     target_kind: Some("class".to_string()),
                     target_start_line: None,
@@ -710,7 +710,7 @@ fn extract_service_directives(
                     source_name: cb_path.clone(),
                     source_kind: "file".to_string(),
                     source_start_line: line,
-                    source_language: cb_lang,
+                    source_language: cb_lang.to_string(),
                     target_name: simple_name,
                     target_kind: Some("class".to_string()),
                     target_start_line: None,
@@ -1623,7 +1623,7 @@ fn extract_datasource_parameters(
 
         edges.push(ExtractedEdge {
             source_name,
-            source_kind,
+            source_kind: source_kind.to_string(),
             source_start_line: line,
             source_language: "aspx".to_string(),
             target_name,

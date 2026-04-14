@@ -1283,10 +1283,12 @@ impl HybridSearchEngine {
             self.index_docs(project_id, &batch, cancel).await?;
         }
 
-        let mut extracted_edge_kind_counts: std::collections::HashMap<&'static str, usize> =
+        let mut extracted_edge_kind_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         for (_, edge) in &stats.edges {
-            *extracted_edge_kind_counts.entry(edge.kind).or_insert(0) += 1;
+            *extracted_edge_kind_counts
+                .entry(edge.kind.clone())
+                .or_insert(0) += 1;
         }
         if !extracted_edge_kind_counts.is_empty() {
             tracing::debug!(
