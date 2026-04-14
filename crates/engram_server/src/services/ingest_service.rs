@@ -39,10 +39,10 @@ pub async fn process_ingest_stats(
     generation: u64,
     stats: &engram_index::IngestStats,
 ) -> anyhow::Result<()> {
-    let mut input_edge_kind_counts: std::collections::HashMap<&'static str, usize> =
+    let mut input_edge_kind_counts: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
     for (_, edge) in &stats.edges {
-        *input_edge_kind_counts.entry(edge.kind).or_insert(0) += 1;
+        *input_edge_kind_counts.entry(edge.kind.clone()).or_insert(0) += 1;
     }
     if !input_edge_kind_counts.is_empty() {
         tracing::debug!(
@@ -224,7 +224,7 @@ pub async fn process_ingest_stats(
         } else {
             (
                 engram_core::ids::NodeId::symbol(
-                    sym.kind,
+                    sym.kind.as_str(),
                     fqn,
                     rel_path.as_str(),
                     &sym.name,
@@ -332,7 +332,8 @@ pub async fn process_ingest_stats(
             .0
         };
 
-        let target_id = if edge.target_name == "file" || edge.target_kind == Some("file") {
+        let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
+        {
             let path = if edge.target_name == "file" {
                 rel_path.as_str()
             } else {
@@ -345,14 +346,14 @@ pub async fn process_ingest_stats(
                     rel_path.as_str()
                 );
             }
-            if edge.target_kind == Some("page") {
+            if edge.target_kind.as_deref() == Some("page") {
                 engram_core::ids::NodeId::page(path).0
             } else {
                 engram_core::ids::NodeId::file(path).0
             }
-        } else if edge.target_kind == Some("page") {
+        } else if edge.target_kind.as_deref() == Some("page") {
             engram_core::ids::NodeId::page(rel_path.as_str()).0
-        } else if edge.target_kind == Some("control") {
+        } else if edge.target_kind.as_deref() == Some("control") {
             let control_id = edge
                 .metadata
                 .as_ref()
@@ -360,7 +361,7 @@ pub async fn process_ingest_stats(
                 .map(|s| s.as_str())
                 .unwrap_or(edge.target_name.as_str());
             engram_core::ids::NodeId::control(rel_path.as_str(), control_id).0
-        } else if edge.target_kind == Some("control_ref") {
+        } else if edge.target_kind.as_deref() == Some("control_ref") {
             let path_str = rel_path.as_str();
             let page_path = if let Some(idx) = path_str.find(".designer.") {
                 &path_str[..idx]
@@ -387,9 +388,9 @@ pub async fn process_ingest_stats(
             || edge.target_name.starts_with("column:")
         {
             edge.target_name.clone()
-        } else if edge.target_kind == Some("db_table") {
+        } else if edge.target_kind.as_deref() == Some("db_table") {
             engram_core::ids::NodeId::table(&edge.target_name).0
-        } else if edge.target_kind == Some("db_column") {
+        } else if edge.target_kind.as_deref() == Some("db_column") {
             let table = edge
                 .metadata
                 .as_ref()
@@ -407,7 +408,7 @@ pub async fn process_ingest_stats(
                     .map(|s| s.as_str())
             };
             engram_core::ids::NodeId::symbol(
-                kind,
+                kind.as_str(),
                 fqn,
                 rel_path.as_str(),
                 &edge.target_name,
@@ -570,11 +571,11 @@ pub async fn process_ingest_stats(
     }
 
     if !edges.is_empty() {
-        let mut mapped_edge_kind_counts: std::collections::HashMap<&'static str, usize> =
+        let mut mapped_edge_kind_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
         for edge in &edges {
             *mapped_edge_kind_counts
-                .entry(edge.edge_kind.as_str())
+                .entry(edge.edge_kind.as_str().to_string())
                 .or_insert(0) += 1;
         }
         tracing::debug!(

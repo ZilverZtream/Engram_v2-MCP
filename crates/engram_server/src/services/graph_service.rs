@@ -100,6 +100,54 @@ pub fn resolve_app_code_globals(
     project_id: &str,
     generation: u64,
 ) -> anyhow::Result<usize> {
+    let app_code_function_kinds = ["function", "method", "sub", "procedure"];
+    let edge_target_terminal = |target_id: &str| -> Option<String> {
+        if target_id.starts_with("::") {
+            let unresolved = target_id.trim_start_matches(':').trim();
+            return (!unresolved.is_empty()).then(|| unresolved.to_string());
+        }
+
+        if let Some(stripped) = target_id.strip_prefix("sym:") {
+            let mut parts = stripped.rsplitn(2, ':');
+            let last = parts.next().unwrap_or_default();
+            let penultimate = parts.next().unwrap_or_default();
+
+            // Format: sym:<kind>:<rel_path>:<name>:<start_line>
+            if !last.is_empty()
+                && last.chars().all(|c| c.is_ascii_digit())
+                && !penultimate.is_empty()
+            {
+                return Some(penultimate.to_string());
+            }
+
+            // Format: sym:<kind>:<fqn>
+            if !last.is_empty() {
+                return Some(last.split('.').next_back().unwrap_or(last).to_string());
+            }
+        }
+
+        if target_id.contains(':') {
+            return None;
+        }
+
+        let bare = target_id.trim();
+        (!bare.is_empty()).then(|| bare.to_string())
+    };
+    let unresolved_target_name = |target_id: &str| -> Option<String> {
+        if target_id.starts_with("::") {
+            return Some(target_id.trim_start_matches(':').to_string());
+        }
+        if let Some(stripped) = target_id.strip_prefix("sym:function:") {
+            let mut parts = stripped.rsplitn(2, ':');
+            let line = parts.next().unwrap_or_default();
+            let name = parts.next().unwrap_or_default();
+            if line == "0" && !name.is_empty() {
+                return Some(name.to_string());
+            }
+        }
+        None
+    };
+
     // Step 1: Collect all nodes under App_Code/
     // We check for both "App_Code/" and "app_code/" since path casing varies.
     let all_classes = graph.query_nodes(project_id, Some("class"), None, None, 10_000)?;
@@ -125,17 +173,28 @@ pub fn resolve_app_code_globals(
 
         // Also expose FQN components: if node_id is "sym:class:Namespace.ClassName",
         // register both "ClassName" and the full FQN
-        if let Some(fqn) = node
+        let inferred_fqn = node
             .metadata
             .as_ref()
             .and_then(|m| m.get("fqn"))
             .and_then(|v| v.as_str())
-        {
+            .map(|f| f.to_string())
+            .or_else(|| {
+                node.node_id
+                    .strip_prefix("sym:")
+                    .and_then(|rest| rest.split_once(':'))
+                    .and_then(|(_, maybe_fqn)| {
+                        maybe_fqn.contains('.').then(|| maybe_fqn.to_string())
+                    })
+            })
+            .or_else(|| node.name.contains('.').then(|| node.name.clone()));
+        if let Some(fqn) = inferred_fqn {
             if let Some(short) = fqn.split('.').next_back() {
                 app_code_by_name_ci.insert(short.to_lowercase(), node.node_id.clone());
                 app_code_by_name.insert(short.to_string(), node.node_id.clone());
 
-                if node.node_type == "function" {
+                let lowered_node_type = node.node_type.to_ascii_lowercase();
+                if app_code_function_kinds.contains(&lowered_node_type.as_str()) {
                     terminal_to_fqn
                         .entry(short.to_string())
                         .or_default()
@@ -162,23 +221,19 @@ pub fn resolve_app_code_globals(
     // Step 2: Find all unresolved edges (target_id starts with "::")
     // These are edges where the call resolver couldn't find a target.
     let all_dep_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Dependency))?;
+    let all_call_edges = graph.list_edges(project_id, Some(engram_graph::EdgeKind::Calls))?;
 
     let mut new_edges: Vec<engram_graph::Edge> = Vec::new();
     let mut resolved_set: HashSet<(String, String)> = HashSet::new();
 
-    for edge in &all_dep_edges {
-        if !edge.target_id.starts_with("::") {
+    for edge in all_dep_edges.iter().chain(all_call_edges.iter()) {
+        let Some(unresolved_name) = unresolved_target_name(&edge.target_id) else {
             continue;
-        }
-
-        let unresolved_name = edge.target_id.trim_start_matches(':');
-        if unresolved_name.is_empty() {
-            continue;
-        }
+        };
 
         // Try exact match first, then case-insensitive
         let resolved_target = app_code_by_name
-            .get(unresolved_name)
+            .get(unresolved_name.as_str())
             .or_else(|| app_code_by_name_ci.get(&unresolved_name.to_lowercase()));
 
         if let Some(target_id) = resolved_target {
@@ -223,6 +278,12 @@ pub fn resolve_app_code_globals(
 
     // Step 3: Rewrite unqualified call edges (`::Foo`) to qualified App_Code FQNs
     // when there is exactly one matching App_Code function terminal.
+    tracing::info!(
+        project_id = %project_id,
+        terminal_to_fqn_len = terminal_to_fqn.len(),
+        fqn_to_node_id_len = fqn_to_node_id.len(),
+        "resolve_app_code_globals: step3_lookup_sizes"
+    );
     if terminal_to_fqn.is_empty() {
         return Ok(count);
     }
@@ -237,18 +298,44 @@ pub fn resolve_app_code_globals(
     let mut rewritten = 0usize;
     let mut ambiguous = 0usize;
     let mut unmatched = 0usize;
+    let mut skipped_empty = 0usize;
+    let mut skipped_contains_dot = 0usize;
+    let mut no_terminal_match = 0usize;
+    let mut fqn_not_in_node_map = 0usize;
+    let sample_target_ids: Vec<String> = call_edges
+        .iter()
+        .take(3)
+        .map(|edge| edge.target_id.clone())
+        .collect();
+    let sample_terminals: Vec<String> = terminal_to_fqn.keys().take(3).cloned().collect();
+    tracing::info!(
+        project_id = %project_id,
+        sample_target_ids = ?sample_target_ids,
+        sample_terminals = ?sample_terminals,
+        "resolve_app_code_globals: step3_samples"
+    );
 
     for edge in &call_edges {
-        let bare_name = &edge.target_id;
-        if bare_name.is_empty() || bare_name.contains('.') {
+        let Some(bare_name) = edge_target_terminal(&edge.target_id) else {
+            no_terminal_match += 1;
+            unmatched += 1;
+            continue;
+        };
+        if bare_name.is_empty() {
+            skipped_empty += 1;
+            continue;
+        }
+        if bare_name.contains('.') {
+            skipped_contains_dot += 1;
             continue;
         }
 
-        match terminal_to_fqn.get(bare_name) {
+        match terminal_to_fqn.get(&bare_name) {
             Some(matches) if matches.len() == 1 => {
                 let matched_fqn = &matches[0];
                 let Some(new_target_id) = fqn_to_node_id.get(matched_fqn) else {
                     unmatched += 1;
+                    fqn_not_in_node_map += 1;
                     continue;
                 };
 
@@ -263,7 +350,7 @@ pub fn resolve_app_code_globals(
                     .unwrap_or_default();
                 metadata_obj.insert(
                     "original_target_name".into(),
-                    serde_json::Value::String(bare_name.to_string()),
+                    serde_json::Value::String(bare_name.clone()),
                 );
                 metadata_obj.insert(
                     "resolved_target_fqn".into(),
@@ -289,6 +376,7 @@ pub fn resolve_app_code_globals(
             }
             _ => {
                 unmatched += 1;
+                no_terminal_match += 1;
             }
         }
     }
@@ -298,10 +386,14 @@ pub fn resolve_app_code_globals(
     }
 
     tracing::info!(
-        "resolve_app_code_globals: rewrote {} unqualified call edges to qualified FQNs, {} ambiguous unchanged, {} unmatched",
+        "resolve_app_code_globals: rewrote {} unqualified call edges to qualified FQNs, {} ambiguous unchanged, {} unmatched, skipped_empty={}, skipped_contains_dot={}, no_terminal_match={}, fqn_not_in_node_map={}",
         rewritten,
         ambiguous,
-        unmatched
+        unmatched,
+        skipped_empty,
+        skipped_contains_dot,
+        no_terminal_match,
+        fqn_not_in_node_map
     );
     Ok(count)
 }
