@@ -75,6 +75,10 @@ struct CompiledQueries {
     go_ns: Option<Query>,
     /// Pass-1 module query for Rust (mod items).
     rust_mod: Option<Query>,
+    /// Pass-1 namespace/class query for TypeScript.
+    ts_ns: Option<Query>,
+    /// Pass-1 class query for JavaScript.
+    js_ns: Option<Query>,
 }
 
 // SAFETY: tree_sitter::Query is Send + Sync (immutable compiled pattern data).
@@ -142,8 +146,24 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &ts_lang,
         r#"
         (function_declaration name: (identifier) @name) @func
+        (function_signature name: (identifier) @name) @func
+        (method_definition name: (property_identifier) @name) @func
+        (method_signature name: (property_identifier) @name) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (arrow_function)) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (function_expression)) @func
+        (public_field_definition
+            name: (property_identifier) @name
+            value: (arrow_function)) @func
         (class_declaration name: (type_identifier) @name) @class
+        (abstract_class_declaration name: (type_identifier) @name) @class
         (interface_declaration name: (type_identifier) @name) @class
+        (enum_declaration name: (identifier) @name) @class
+        (type_alias_declaration name: (type_identifier) @name) @class
+        (internal_module name: (identifier) @name) @class
         (call_expression function: (identifier) @call.name)
         (call_expression function: (member_expression property: (property_identifier) @call.name))
         "#,
@@ -154,6 +174,13 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &js_lang,
         r#"
         (function_declaration name: (identifier) @name) @func
+        (method_definition name: (property_identifier) @name) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (arrow_function)) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (function_expression)) @func
         (class_declaration name: (identifier) @name) @class
         (call_expression function: (identifier) @call.name)
         (call_expression function: (member_expression property: (property_identifier) @call.name))
@@ -257,6 +284,48 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     )
     .ok();
 
+    let ts_ns = Query::new(
+        &ts_lang,
+        r#"
+        (internal_module name: (identifier) @ns)
+        (class_declaration name: (type_identifier) @class)
+        (abstract_class_declaration name: (type_identifier) @class)
+        (interface_declaration name: (type_identifier) @class)
+        (enum_declaration name: (identifier) @class)
+        (type_alias_declaration name: (type_identifier) @class)
+        (function_declaration name: (identifier) @method)
+        (function_signature name: (identifier) @method)
+        (method_definition name: (property_identifier) @method)
+        (method_signature name: (property_identifier) @method)
+        (variable_declarator
+            name: (identifier) @method
+            value: (arrow_function))
+        (variable_declarator
+            name: (identifier) @method
+            value: (function_expression))
+        (public_field_definition
+            name: (property_identifier) @method
+            value: (arrow_function))
+        "#,
+    )
+    .ok();
+
+    let js_ns = Query::new(
+        &js_lang,
+        r#"
+        (class_declaration name: (identifier) @class)
+        (function_declaration name: (identifier) @method)
+        (method_definition name: (property_identifier) @method)
+        (variable_declarator
+            name: (identifier) @method
+            value: (arrow_function))
+        (variable_declarator
+            name: (identifier) @method
+            value: (function_expression))
+        "#,
+    )
+    .ok();
+
     CompiledQueries {
         rust,
         python,
@@ -271,6 +340,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         java_ns,
         go_ns,
         rust_mod,
+        ts_ns,
+        js_ns,
     }
 });
 
@@ -332,6 +403,8 @@ impl SymbolExtractor {
             "java" => &QUERIES.java_ns,
             "go" => &QUERIES.go_ns,
             "rs" => &QUERIES.rust_mod,
+            "ts" | "tsx" => &QUERIES.ts_ns,
+            "js" | "jsx" => &QUERIES.js_ns,
             _ => return FqnTable::new(),
         };
         let Some(query) = query_opt else {
@@ -438,10 +511,7 @@ impl SymbolExtractor {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
                 QUERIES.ts.as_ref(),
             ),
-            "js" | "jsx" => (
-                tree_sitter_javascript::LANGUAGE.into(),
-                QUERIES.js.as_ref(),
-            ),
+            "js" | "jsx" => (tree_sitter_javascript::LANGUAGE.into(), QUERIES.js.as_ref()),
             "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
             "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
             "cpp" | "hpp" | "cc" | "cxx" | "hh" => {
@@ -740,6 +810,7 @@ fn classify_cs_sql(sql: &str) -> (String, &'static str) {
 mod tests {
     use super::*;
     use std::path::Path;
+    use tree_sitter::{Query, QueryCursor};
 
     /// Compile-time proof that `CompiledQueries` is Send + Sync.
     #[test]
@@ -772,5 +843,132 @@ namespace MyApp {
 
         assert_eq!(edge.target_kind, None);
         assert_eq!(edge.metadata.as_ref().unwrap()["unresolved"], "true");
+    }
+
+    fn count_tag_captures(
+        language: &tree_sitter::Language,
+        query_src: &str,
+        code: &str,
+        tags: &[&str],
+    ) -> std::collections::HashMap<String, usize> {
+        let query = Query::new(language, query_src).expect("query should compile");
+        let mut parser = Parser::new();
+        parser
+            .set_language(language)
+            .expect("language should be set");
+        let tree = parser.parse(code, None).expect("code should parse");
+
+        let mut counts: std::collections::HashMap<String, usize> =
+            tags.iter().map(|t| ((*t).to_string(), 0usize)).collect();
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
+        while let Some(m) = matches.next() {
+            for cap in m.captures {
+                let tag = query.capture_names()[cap.index as usize];
+                if counts.contains_key(tag) {
+                    *counts.get_mut(tag).expect("tag key should exist") += 1;
+                }
+            }
+        }
+        counts
+    }
+
+    #[test]
+    fn ts_query_captures_modern_declarations() {
+        let snippet1 = r#"
+class Foo {
+    bar() { return 1; }
+    async baz(): Promise<number> { return 2; }
+    private qux = (x: number) => x + 1;
+}
+"#;
+        let snippet2 = r#"
+const greet = (name: string) => `Hello ${name}`;
+const oldStyle = function(x: number) { return x * 2; };
+"#;
+        let snippet3 = r#"
+interface IFoo { bar(): void; }
+enum Color { Red, Green }
+type Handler = (e: Event) => void;
+namespace Q { export function init(): void {} }
+"#;
+
+        let ts_lang: tree_sitter::Language = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+
+        let ts_query = r#"
+        (function_declaration name: (identifier) @name) @func
+        (function_signature name: (identifier) @name) @func
+        (method_definition name: (property_identifier) @name) @func
+        (method_signature name: (property_identifier) @name) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (arrow_function)) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (function_expression)) @func
+        (public_field_definition
+            name: (property_identifier) @name
+            value: (arrow_function)) @func
+        (class_declaration name: (type_identifier) @name) @class
+        (abstract_class_declaration name: (type_identifier) @name) @class
+        (interface_declaration name: (type_identifier) @name) @class
+        (enum_declaration name: (identifier) @name) @class
+        (type_alias_declaration name: (type_identifier) @name) @class
+        (internal_module name: (identifier) @name) @class
+        "#;
+
+        let counts1 = count_tag_captures(&ts_lang, ts_query, snippet1, &["func", "class"]);
+        assert_eq!(*counts1.get("class").unwrap(), 1);
+        assert_eq!(*counts1.get("func").unwrap(), 3);
+
+        let counts2 = count_tag_captures(&ts_lang, ts_query, snippet2, &["func"]);
+        assert_eq!(*counts2.get("func").unwrap(), 2);
+
+        let counts3 = count_tag_captures(&ts_lang, ts_query, snippet3, &["func", "class"]);
+        assert_eq!(*counts3.get("class").unwrap(), 4);
+        assert_eq!(*counts3.get("func").unwrap(), 2);
+    }
+
+    #[test]
+    fn ts_and_js_methods_receive_class_fqn() {
+        let extractor = SymbolExtractor::new();
+
+        let ts_code = r#"
+class Foo {
+    bar() {}
+}
+"#;
+        let (ts_symbols, _) = extractor.extract(Path::new("sample.ts"), ts_code);
+        let ts_method = ts_symbols
+            .iter()
+            .find(|s| s.kind == "function" && s.name == "bar")
+            .expect("TS method should be extracted");
+        assert_eq!(
+            ts_method
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(String::as_str),
+            Some("Foo.bar")
+        );
+
+        let js_code = r#"
+class Baz {
+    qux() {}
+}
+"#;
+        let (js_symbols, _) = extractor.extract(Path::new("sample.js"), js_code);
+        let js_method = js_symbols
+            .iter()
+            .find(|s| s.kind == "function" && s.name == "qux")
+            .expect("JS method should be extracted");
+        assert_eq!(
+            js_method
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .map(String::as_str),
+            Some("Baz.qux")
+        );
     }
 }
