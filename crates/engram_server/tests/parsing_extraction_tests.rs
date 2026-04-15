@@ -22,6 +22,29 @@ fn has_symbol<'a>(
     symbols.iter().find(|s| s.name == name && s.kind == kind)
 }
 
+fn assert_has_symbol_and_call_edge(
+    ex: &SymbolExtractor,
+    path: &str,
+    src: &str,
+    symbol_name: &str,
+    symbol_kind: &str,
+    caller: &str,
+    callee: &str,
+) {
+    let (symbols, edges) = ex.extract(Path::new(path), src);
+    assert!(
+        has_symbol(&symbols, symbol_name, symbol_kind).is_some(),
+        "expected symbol '{symbol_name}' ({symbol_kind}) for {path}; got symbols: {symbols:?}"
+    );
+    let has_call = edges.iter().any(|e| {
+        e.kind == "calls" && e.source_name.contains(caller) && e.target_name.contains(callee)
+    });
+    assert!(
+        has_call,
+        "expected call edge {caller} -> {callee} for {path}; got edges: {edges:?}"
+    );
+}
+
 // ── unknown / unsupported extension ──────────────────────────────────────────
 
 /// Unsupported extensions must return empty vecs, never panic.
@@ -274,6 +297,67 @@ fn extract_python_empty_content_returns_empty_no_panic() {
     let (syms, edges) = ex.extract(Path::new("empty.py"), "");
     assert!(syms.is_empty(), "empty Python must yield no symbols");
     assert!(edges.is_empty(), "empty Python must yield no edges");
+}
+
+// ── JavaScript / TypeScript extraction regression coverage ───────────────────
+
+/// JS and JSX files should be parsed with JavaScript grammar, preserving
+/// extraction for JavaScript-specific constructs.
+#[test]
+fn extract_js_and_jsx_js_only_constructs_symbols_and_calls() {
+    let ex = extractor();
+    // `with` statement is intentionally JavaScript-only; the caller->helper edge
+    // verifies call extraction still works when this construct is present.
+    let js_only = r#"
+function helper() { return 1; }
+function caller(obj) {
+    with (obj) {
+        helper();
+    }
+}
+"#;
+    for ext in ["js", "jsx"] {
+        assert_has_symbol_and_call_edge(
+            &ex,
+            &format!("sample.{ext}"),
+            js_only,
+            "caller",
+            "function",
+            "caller",
+            "helper",
+        );
+    }
+}
+
+/// TS and TSX files should be parsed with TypeScript grammar, preserving
+/// extraction for TypeScript-only constructs.
+#[test]
+fn extract_ts_and_tsx_ts_only_constructs_symbols_and_calls() {
+    let ex = extractor();
+    let ts_only = r#"
+interface Greeter {
+    greet(name: string): string;
+}
+
+function helper(name: string): string {
+    return `Hello ${name}`;
+}
+
+function caller(name: string): string {
+    return helper(name);
+}
+"#;
+    for ext in ["ts", "tsx"] {
+        assert_has_symbol_and_call_edge(
+            &ex,
+            &format!("sample.{ext}"),
+            ts_only,
+            "Greeter",
+            "class",
+            "caller",
+            "helper",
+        );
+    }
 }
 
 // ── C# extraction ─────────────────────────────────────────────────────────────
