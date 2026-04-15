@@ -112,8 +112,6 @@ impl Engram {
             } else {
                 let candidates = [
                     format!("file:{entry_raw}"),
-                    format!("sym:class:{entry_raw}"),
-                    format!("sym:function:{entry_raw}"),
                     format!("page:{entry_raw}"),
                     format!("control:{entry_raw}"),
                 ];
@@ -127,6 +125,20 @@ impl Engram {
                         found = Some(cand.clone());
                         break;
                     }
+                }
+                if found.is_none()
+                    && let Ok(nodes) = graph.query_nodes(&project_id, None, None, None, 2000)
+                {
+                    found = nodes
+                        .into_iter()
+                        .find(|n| {
+                            n.metadata
+                                .as_ref()
+                                .and_then(|m| m.get("fqn"))
+                                .and_then(|v| v.as_str())
+                                .is_some_and(|fqn| fqn == entry_raw)
+                        })
+                        .map(|n| n.node_id);
                 }
                 if found.is_none() {
                     let nodes = graph
