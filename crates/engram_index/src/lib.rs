@@ -7,6 +7,7 @@ pub mod chunking;
 pub mod confidence;
 pub mod config_extractor;
 pub mod control_mapping;
+pub mod cs_extractor;
 pub mod ddl_extractor;
 pub mod docstore;
 pub mod hybrid;

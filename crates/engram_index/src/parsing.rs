@@ -438,10 +438,7 @@ impl SymbolExtractor {
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
                 QUERIES.ts.as_ref(),
             ),
-            "js" | "jsx" => (
-                tree_sitter_javascript::LANGUAGE.into(),
-                QUERIES.js.as_ref(),
-            ),
+            "js" | "jsx" => (tree_sitter_javascript::LANGUAGE.into(), QUERIES.js.as_ref()),
             "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
             "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
             "cpp" | "hpp" | "cc" | "cxx" | "hh" => {
