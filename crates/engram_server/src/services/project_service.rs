@@ -1,4 +1,5 @@
 use crate::error::EngramError;
+use crate::models::ProjectType;
 use crate::state::{AppState, ProjectInfo, ProjectState};
 use engram_core::ProjectRecord;
 use std::path::{Path, PathBuf};
@@ -49,7 +50,16 @@ pub async fn ensure_project_runtime(
         return Ok(p);
     }
 
-    let rec = ensure_project_record(state, project_id).await?;
+    let mut rec = ensure_project_record(state, project_id).await?;
+    if let Some(project_type) = ProjectType::from_registry_str(&rec.project_type) {
+        let canonical = project_type.as_str();
+        if rec.project_type != canonical {
+            rec.project_type = canonical.to_string();
+            let reg = state.registry.clone();
+            let rec_for_write = rec.clone();
+            tokio::task::spawn_blocking(move || reg.put_project(&rec_for_write)).await??;
+        }
+    }
     let project_root = state.cfg.data_dir.join("projects").join(project_id);
     let tantivy_dir = project_root.join("tantivy");
     let lancedb_dir = project_root.join("lancedb");
