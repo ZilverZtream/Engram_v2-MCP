@@ -87,7 +87,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     let go_lang = tree_sitter_go::LANGUAGE.into();
     let java_lang = tree_sitter_java::LANGUAGE.into();
     let ts_lang = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
-    let js_lang = tree_sitter_typescript::LANGUAGE_JAVASCRIPT.into();
+    let js_lang = tree_sitter_javascript::LANGUAGE.into();
     let cs_lang = tree_sitter_c_sharp::LANGUAGE.into();
     let c_lang = tree_sitter_c::LANGUAGE.into();
     let cpp_lang = tree_sitter_cpp::LANGUAGE.into();
@@ -439,7 +439,7 @@ impl SymbolExtractor {
                 QUERIES.ts.as_ref(),
             ),
             "js" | "jsx" => (
-                tree_sitter_typescript::LANGUAGE_JAVASCRIPT.into(),
+                tree_sitter_javascript::LANGUAGE.into(),
                 QUERIES.js.as_ref(),
             ),
             "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
