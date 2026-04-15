@@ -1862,11 +1862,7 @@ impl Engram {
             {
                 entry_raw.clone()
             } else {
-                let candidates = [
-                    format!("file:{entry_raw}"),
-                    format!("sym:class:{entry_raw}"),
-                    format!("sym:function:{entry_raw}"),
-                ];
+                let candidates = [format!("file:{entry_raw}")];
                 let mut found = None;
                 for cand in &candidates {
                     if graph
@@ -1877,6 +1873,20 @@ impl Engram {
                         found = Some(cand.clone());
                         break;
                     }
+                }
+                if found.is_none()
+                    && let Ok(nodes) = graph.query_nodes(&project_id, None, None, None, 2000)
+                {
+                    found = nodes
+                        .into_iter()
+                        .find(|n| {
+                            n.metadata
+                                .as_ref()
+                                .and_then(|m| m.get("fqn"))
+                                .and_then(|v| v.as_str())
+                                .is_some_and(|fqn| fqn == entry_raw)
+                        })
+                        .map(|n| n.node_id);
                 }
                 if found.is_none() {
                     let nodes = graph
@@ -2105,20 +2115,28 @@ impl Engram {
             let pid = req.project_id.clone();
             let fqn_c = fqn.clone();
             let found = tokio::task::spawn_blocking(move || {
-                let candidate = format!("sym:function:{}", fqn_c);
-                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
-                    return Some(candidate);
+                if let Ok(nodes) = graph.query_nodes(&pid, None, None, None, 5000)
+                    && let Some(node) = nodes.into_iter().find(|n| {
+                        n.metadata
+                            .as_ref()
+                            .and_then(|m| m.get("fqn"))
+                            .and_then(|v| v.as_str())
+                            .is_some_and(|node_fqn| node_fqn == fqn_c)
+                    })
+                {
+                    return Some(node.node_id);
                 }
-                let candidate = format!("sym:class:{}", fqn_c);
-                if graph.get_node(&pid, &candidate).ok().flatten().is_some() {
-                    return Some(candidate);
-                }
-                None
+
+                let short = fqn_c.split('.').next_back().unwrap_or(&fqn_c);
+                graph
+                    .query_nodes(&pid, None, Some(short), None, 10)
+                    .ok()
+                    .and_then(|nodes| nodes.first().map(|n| n.node_id.clone()))
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-            found.unwrap_or_else(|| format!("sym:function:{}", fqn))
+            found.unwrap_or_else(|| fqn.clone())
         } else {
             return Err(McpError::invalid_params(
                 "Either file_path or symbol_fqn is required",

@@ -126,14 +126,15 @@ pub async fn process_ingest_stats(
 
         let (metadata, fqn) = if let Some(m) = &sym.metadata {
             let fqn_val = m.get("fqn").map(|v| v.as_str().to_string());
-            let map: std::collections::HashMap<String, serde_json::Value> = m
+            let mut map: serde_json::Map<String, serde_json::Value> = m
                 .iter()
                 .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
                 .collect();
-            (
-                Some(serde_json::Value::Object(map.into_iter().collect())),
-                fqn_val,
-            )
+            if let Some(fqn) = &fqn_val {
+                map.entry("fqn".to_string())
+                    .or_insert_with(|| serde_json::Value::String(fqn.clone()));
+            }
+            (Some(serde_json::Value::Object(map)), fqn_val)
         } else {
             (None, None)
         };
