@@ -1136,16 +1136,22 @@ impl HybridSearchEngine {
                         }
 
                         // Post-processing: extract JS→ASP.NET bridge edges.
-                        if matches!(language, "javascript") {
-                            let (_js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
+                        if matches!(language, "javascript" | "typescript") {
+                            let (js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
+                            for s in &js_syms {
+                                local_stats.symbols.push((arc_rel.clone(), s.clone()));
+                            }
                             for e in js_edges {
                                 local_stats.edges.push((arc_rel.clone(), e));
                             }
                         } else if crate::webforms::is_webforms_markup(p) {
                             let inline_js = extract_inline_scripts(&text);
                             if !inline_js.is_empty() {
-                                let (_js_syms, js_edges) =
+                                let (js_syms, js_edges) =
                                     crate::js_extractor::extract_js(p, &inline_js);
+                                for s in &js_syms {
+                                    local_stats.symbols.push((arc_rel.clone(), s.clone()));
+                                }
                                 for e in js_edges {
                                     local_stats.edges.push((arc_rel.clone(), e));
                                 }
