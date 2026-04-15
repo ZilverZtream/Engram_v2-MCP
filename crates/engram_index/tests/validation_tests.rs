@@ -478,6 +478,39 @@ public:
 }
 
 #[test]
+fn symbol_extractor_cpp_adds_calls_edges_for_function_and_method_patterns() {
+    let code = r#"
+class Pipeline {
+public:
+    void helper() {}
+    void execute() {
+        util();
+        this->helper();
+    }
+};
+
+void util() {}
+"#;
+    let (_symbols, edges) = SymbolExtractor::new().extract(Path::new("pipeline.cpp"), code);
+    let calls: Vec<_> = edges.iter().filter(|e| e.kind == "calls").collect();
+
+    assert!(
+        calls
+            .iter()
+            .any(|e| e.source_name == "execute" && e.target_name == "util"),
+        "expected class-method-to-function call edge execute -> util; edges: {:?}",
+        edges
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|e| e.source_name == "execute" && e.target_name == "helper"),
+        "expected method-to-method call edge execute -> helper; edges: {:?}",
+        edges
+    );
+}
+
+#[test]
 fn symbol_extractor_python_finds_function() {
     let code = "def hello():\n    pass\n";
     let (symbols, _) = SymbolExtractor::new().extract(Path::new("hello.py"), code);
