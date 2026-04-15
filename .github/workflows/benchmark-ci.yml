@@ -42,6 +42,9 @@ jobs:
       - name: Run WebForms mutation tests
         run: cargo test -p engram_index --test webforms_mutation_test -- --nocapture
 
+      - name: Run VB/C# parity stress matrix tests
+        run: cargo test -p engram_index --test parity_stress_matrix_test -- --nocapture
+
       - name: Run reproducibility tests
         run: cargo test -p engram_server --test reproducibility_test -- --nocapture --test-threads=1
 
