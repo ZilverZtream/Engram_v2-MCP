@@ -150,6 +150,18 @@ pub enum ProjectType {
     /// Use this when the project type does not match a known specialisation.
     #[serde(alias = "general_purpose", alias = "other")]
     General,
+    /// Rust projects.
+    #[serde(alias = "rustlang", alias = "cargo")]
+    Rust,
+    /// C# projects (non-WebForms focused indexing profile).
+    #[serde(alias = "c#", alias = "cs", alias = "c_sharp", alias = "dotnet_csharp")]
+    CSharp,
+    /// C++ projects.
+    #[serde(alias = "c++", alias = "cxx")]
+    Cpp,
+    /// C projects.
+    #[serde(alias = "ansi_c")]
+    C,
 }
 
 impl ProjectType {
@@ -158,6 +170,71 @@ impl ProjectType {
             Self::DotnetWebformsCs => "dotnet_webforms_cs",
             Self::DotnetWebformsVb => "dotnet_webforms_vb",
             Self::General => "general",
+            Self::Rust => "rust",
+            Self::CSharp => "csharp",
+            Self::Cpp => "cpp",
+            Self::C => "c",
+        }
+    }
+
+    /// Parse project type values loaded from persisted registry records.
+    ///
+    /// Accepts historical aliases used before typed `ProjectType` validation
+    /// was introduced so older records can still be opened and normalized.
+    pub fn from_registry_str(raw: &str) -> Option<Self> {
+        let v = raw.trim();
+        if v.is_empty() {
+            return None;
+        }
+
+        if [
+            "dotnetwebformscs",
+            "dotnet_webforms_cs",
+            "webforms_cs",
+            "webformscs",
+            "aspnet_webforms_cs",
+            "aspnet_webformscs",
+        ]
+        .iter()
+        .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::DotnetWebformsCs)
+        } else if [
+            "dotnetwebformsvb",
+            "dotnet_webforms_vb",
+            "webforms_vb",
+            "webformsvb",
+            "aspnet_webforms_vb",
+            "aspnet_webformsvb",
+        ]
+        .iter()
+        .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::DotnetWebformsVb)
+        } else if ["general", "general_purpose", "other"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::General)
+        } else if ["rust", "rustlang", "cargo"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::Rust)
+        } else if ["csharp", "c#", "cs", "c_sharp", "dotnet_csharp"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::CSharp)
+        } else if ["cpp", "c++", "cxx"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::Cpp)
+        } else if ["c", "ansi_c"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
+            Some(Self::C)
+        } else {
+            None
         }
     }
 }
@@ -2206,6 +2283,13 @@ mod unknown_field_tests {
             "dotnetwebformsvb",
             "webforms_vb",
             "general",
+            "rust",
+            "rustlang",
+            "csharp",
+            "c#",
+            "cpp",
+            "c++",
+            "c",
         ] {
             let json = format!(
                 r#"{{"directory":"/tmp","project_name":"n","project_type":"{}"}}"#,
@@ -2228,6 +2312,31 @@ mod unknown_field_tests {
         assert!(
             result.is_err(),
             "unknown field projcet_type must be rejected"
+        );
+    }
+
+    #[test]
+    fn project_type_from_registry_supports_legacy_values() {
+        assert_eq!(
+            ProjectType::from_registry_str("DotNet_WebForms_CS"),
+            Some(ProjectType::DotnetWebformsCs)
+        );
+        assert_eq!(
+            ProjectType::from_registry_str("webformsvb"),
+            Some(ProjectType::DotnetWebformsVb)
+        );
+        assert_eq!(
+            ProjectType::from_registry_str("c#"),
+            Some(ProjectType::CSharp)
+        );
+        assert_eq!(
+            ProjectType::from_registry_str("c++"),
+            Some(ProjectType::Cpp)
+        );
+        assert_eq!(
+            ProjectType::from_registry_str("unknown"),
+            None,
+            "unknown registry values should be surfaced to fallback handling"
         );
     }
 

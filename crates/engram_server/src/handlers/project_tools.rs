@@ -2,13 +2,13 @@ use crate::models::{
     AddRepoRuleRequest, CancelJobRequest, CheckIntegrityRequest, DeleteRepoRuleRequest,
     GetCheckpointStatusRequest, GetMemoryBudgetRequest, GetMetricsRequest,
     IncrementalIndexingGcRequest, IndexProjectRequest, ListJobsRequest, MemorySectionRequest,
-    ProjectIdRequest, RepairProjectRequest, UpdateMemoryBankRequest, UpdateProjectRequest,
-    WatchProjectRequest,
+    ProjectIdRequest, ProjectType, RepairProjectRequest, UpdateMemoryBankRequest,
+    UpdateProjectRequest, WatchProjectRequest,
 };
 use crate::services::{graph_service, ingest_service, job_service, project_service};
 use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
-use crate::utils::files::exts_for_project_type;
+use crate::utils::files::{exts_for_project_type, exts_for_project_type_enum};
 use crate::utils::now_ms;
 use engram_core::{Checkpoint, JobPhase, JobRecord, MemorySection, ProjectRecord, WatchRecord};
 use rmcp::ErrorData as McpError;
@@ -587,7 +587,9 @@ impl Engram {
             .await;
 
         if req.wait {
-            let exts = exts_for_project_type(&info.project_type);
+            let exts = ProjectType::from_registry_str(&info.project_type)
+                .map(exts_for_project_type_enum)
+                .unwrap_or_else(|| exts_for_project_type(&info.project_type));
             let cancel = tokio_util::sync::CancellationToken::new();
 
             let files = engram_index::ingest::iter_files(&dir, &exts);
@@ -781,7 +783,9 @@ impl Engram {
 
             let res = match search_init {
                 Ok(search) => {
-                    let exts = exts_for_project_type(&project_type);
+                    let exts = ProjectType::from_registry_str(&project_type)
+                        .map(exts_for_project_type_enum)
+                        .unwrap_or_else(|| exts_for_project_type(&project_type));
                     let job_id_for_cb = job_id_for_job.clone();
                     let reg_for_cb = reg2.clone();
                     let engram = Engram::new(state_for_spawn.clone());
@@ -940,7 +944,9 @@ impl Engram {
                     .await
                     {
                         Ok(fresh_search) => {
-                            let exts = exts_for_project_type(&project_type);
+                            let exts = ProjectType::from_registry_str(&project_type)
+                                .map(exts_for_project_type_enum)
+                                .unwrap_or_else(|| exts_for_project_type(&project_type));
                             let files = engram_index::ingest::iter_files(&directory, &exts);
                             res = Engram::new(state_for_spawn.clone())
                                 .index_files_with_parse_guard(
@@ -1172,7 +1178,9 @@ impl Engram {
                     .map_err(|e| anyhow::anyhow!(e.message))?;
 
                 let dir = PathBuf::from(&ps.info.directory);
-                let exts = exts_for_project_type(&ps.info.project_type);
+                let exts = ProjectType::from_registry_str(&ps.info.project_type)
+                    .map(exts_for_project_type_enum)
+                    .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
 
                 let (changed, deleted) = engram
                     .get_incremental_changes(&project_id_for_job, &dir, &exts)
@@ -1437,7 +1445,9 @@ impl Engram {
             .await
             .map_err(|e| anyhow::anyhow!(e.message))?;
 
-        let exts = exts_for_project_type(&ps.info.project_type);
+        let exts = ProjectType::from_registry_str(&ps.info.project_type)
+            .map(exts_for_project_type_enum)
+            .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
         let pid = project_id.to_string();
         let dir = PathBuf::from(&ps.info.directory);
         let old_gen = new_gen.saturating_sub(1);
@@ -1755,7 +1765,9 @@ impl Engram {
         })?;
         let new_gen = current_gen + 1;
 
-        let exts = exts_for_project_type(&rec.project_type);
+        let exts = ProjectType::from_registry_str(&rec.project_type)
+            .map(exts_for_project_type_enum)
+            .unwrap_or_else(|| exts_for_project_type(&rec.project_type));
         let files = engram_index::ingest::iter_files(&dir, &exts);
         let cancel = tokio_util::sync::CancellationToken::new();
 
