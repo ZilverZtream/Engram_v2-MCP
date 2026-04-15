@@ -45,6 +45,9 @@ jobs:
       - name: Run engram_index tests without vector feature
         run: cargo test -p engram_index --no-default-features -- --test-threads=4
 
+      - name: Run VB/C# parity stress matrix tests without vector feature
+        run: cargo test -p engram_index --test parity_stress_matrix_test --no-default-features -- --nocapture --test-threads=4
+
       - name: Run engram_server tests without vector feature
         run: cargo test -p engram_server --no-default-features -- --test-threads=4
 
