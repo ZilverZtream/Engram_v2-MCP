@@ -1136,7 +1136,8 @@ impl HybridSearchEngine {
                         }
 
                         // Post-processing: extract JS→ASP.NET bridge edges.
-                        if matches!(language, "javascript" | "typescript") {
+                        // Use extension-based gating so `.jsx`/`.tsx` files are included.
+                        if crate::js_extractor::is_js_file(p) {
                             let (js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
                             for s in &js_syms {
                                 local_stats.symbols.push((arc_rel.clone(), s.clone()));

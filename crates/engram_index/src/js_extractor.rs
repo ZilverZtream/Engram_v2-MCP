@@ -235,15 +235,17 @@ pub fn extract_js(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     (syms, edges)
 }
 
-/// Check if a file extension is a JavaScript file that should have the
-/// JS bridge extractor run on it.
+/// Check if a file extension should have the JS bridge extractor run on it.
+///
+/// Includes JavaScript and TypeScript source variants so React-style
+/// `.jsx`/`.tsx` files still emit ASP.NET bridge edges.
 pub fn is_js_file(path: &Path) -> bool {
     matches!(
         path.extension()
             .and_then(|e| e.to_str())
             .map(|e| e.to_lowercase())
             .as_deref(),
-        Some("js")
+        Some("js" | "ts" | "jsx" | "tsx")
     )
 }
 
@@ -2703,14 +2705,85 @@ mod tests {
     }
 
     #[test]
-    fn is_js_file_returns_true_for_js_extension() {
+    fn is_js_file_returns_true_for_js_ts_jsx_tsx_extensions() {
         use std::path::PathBuf;
         assert!(is_js_file(&PathBuf::from("Scripts/app.js")));
-        assert!(!is_js_file(&PathBuf::from("Scripts/app.ts")));
+        assert!(is_js_file(&PathBuf::from("Scripts/app.ts")));
+        assert!(is_js_file(&PathBuf::from("Scripts/app.jsx")));
+        assert!(is_js_file(&PathBuf::from("Scripts/app.tsx")));
         assert!(!is_js_file(&PathBuf::from("Pages/Default.aspx")));
         assert!(!is_js_file(&PathBuf::from("noextension")));
     }
 
+    #[test]
+    fn extract_jsx_emits_aspnet_bridge_edges() {
+        let jsx = r#"
+            const save = () => {
+                fetch('/Services/Orders.asmx/SaveOrder', {
+                    method: 'POST',
+                    body: JSON.stringify({ id: 7 })
+                });
+                __doPostBack('ctl00$MainContent$btnSave', '');
+            };
+        "#;
+
+        let (_, edges) = extract_js(&test_path("OrderForm.jsx"), jsx);
+
+        assert!(
+            edges.iter().any(|e| {
+                e.kind == "api_call"
+                    && e.target_name == "Services/Orders.asmx"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("method"))
+                        .map(|v| v.as_str())
+                        == Some("SaveOrder")
+            }),
+            "expected fetch(...) to .asmx endpoint to emit api_call edge; got: {edges:?}"
+        );
+
+        assert!(
+            edges.iter().any(|e| {
+                e.kind == "triggers_postback" && e.target_name == "ctl00$MainContent$btnSave"
+            }),
+            "expected __doPostBack(...) in .jsx to emit triggers_postback edge; got: {edges:?}"
+        );
+    }
+
+    #[test]
+    fn extract_tsx_emits_aspnet_bridge_edges() {
+        let tsx = r#"
+            export function Toolbar() {
+                const submit = async () => {
+                    await fetch('../Services/Profile.asmx/Update', { method: 'POST' });
+                    __doPostBack('ctl00$MainContent$btnUpdate', 'profile');
+                };
+                return <button onClick={submit}>Save</button>;
+            }
+        "#;
+
+        let (_, edges) = extract_js(&test_path("Toolbar.tsx"), tsx);
+
+        assert!(
+            edges.iter().any(|e| {
+                e.kind == "api_call"
+                    && e.target_name == "Services/Profile.asmx"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("method"))
+                        .map(|v| v.as_str())
+                        == Some("Update")
+            }),
+            "expected fetch(...) to .asmx endpoint to emit api_call edge in .tsx; got: {edges:?}"
+        );
+
+        assert!(
+            edges.iter().any(|e| {
+                e.kind == "triggers_postback" && e.target_name == "ctl00$MainContent$btnUpdate"
+            }),
+            "expected __doPostBack(...) in .tsx to emit triggers_postback edge; got: {edges:?}"
+        );
+    }
     #[test]
     fn dedup_same_ajax_url_different_lines() {
         let js = r#"
