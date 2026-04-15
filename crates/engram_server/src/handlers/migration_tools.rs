@@ -911,8 +911,7 @@ impl Engram {
 
         if markup_paths.is_empty() {
             let all_extensions = &[
-                ".aspx", ".ascx", ".master", ".js", ".ts", ".tsx", ".jsx", ".asp", ".rdl",
-                ".rdlc",
+                ".aspx", ".ascx", ".master", ".js", ".ts", ".tsx", ".jsx", ".asp", ".rdl", ".rdlc",
             ];
             let discovered = discover_files_recursive(
                 std::path::Path::new(&project_dir),
@@ -1030,7 +1029,7 @@ impl Engram {
         );
 
         let markup_files: Vec<FileContent> = markup_results.into_iter().flatten().collect();
-        let frontend_script_files: Vec<(String, String)> =
+        let script_files: Vec<(String, String)> =
             frontend_script_results.into_iter().flatten().collect();
         let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
         let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
@@ -1278,7 +1277,7 @@ impl Engram {
 
         let bundle = ProjectFileBundle {
             markup_files,
-            frontend_script_files,
+            script_files,
             classic_asp_files,
             report_files,
             global_asax,
