@@ -5,7 +5,7 @@
 //! controlled source-code strings and assert on extracted symbol names,
 //! kinds, line numbers, and edge lists.
 
-use engram_index::{ExtractedSymbol, SymbolExtractor};
+use engram_index::{ExtractedSymbol, SymbolExtractor, cs_extractor::extract_cs};
 use std::path::Path;
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -399,9 +399,99 @@ public class MyPage : Page
 }
 "#;
     let (syms, _) = ex.extract(Path::new("MyPage.cs"), src);
-    let names: Vec<(&str, &str)> = syms.iter().map(|s| (s.name.as_str(), s.kind)).collect();
+    let names: Vec<(&str, &str)> = syms
+        .iter()
+        .map(|s| (s.name.as_str(), s.kind.as_str()))
+        .collect();
     let has_page_load = syms.iter().any(|s| s.name == "Page_Load");
     assert!(has_page_load, "must extract 'Page_Load'; got: {names:?}");
+}
+
+#[test]
+fn extract_csharp_module_enriches_events_lifecycle_and_sql() {
+    let src = r#"
+using System;
+using System.Data.SqlClient;
+
+public class OrdersPage : Page {
+    public event EventHandler Saved;
+    public delegate void SaveDelegate(int id);
+    public string Title { get; set; }
+
+    public OrdersPage() {
+        this.Load += this.Page_Load;
+    }
+
+    protected override void OnInit(EventArgs e) {
+        base.OnInit(e);
+        btnSave.Click += btnSave_Click;
+    }
+
+    protected void Page_Load(object sender, EventArgs e) {
+        void LocalAudit() { }
+        LocalAudit();
+
+        var cmd = new SqlCommand("SELECT Id FROM Orders");
+        cmd.CommandText = "EXEC proc_LoadOrders";
+        conn.Query("SELECT Name FROM Customers WHERE Id = @id");
+    }
+
+    private void btnSave_Click(object sender, EventArgs e) { }
+}
+"#;
+
+    let (syms, edges) = extract_cs(Path::new("OrdersPage.cs"), src);
+
+    assert!(
+        syms.iter()
+            .any(|s| s.name == "OrdersPage" && s.kind == "constructor"),
+        "constructor should be extracted"
+    );
+    assert!(
+        syms.iter()
+            .any(|s| s.name == "Title" && s.kind == "property"),
+        "property should be extracted"
+    );
+    assert!(
+        syms.iter().any(|s| s.name == "Saved" && s.kind == "event"),
+        "event should be extracted"
+    );
+    assert!(
+        syms.iter()
+            .any(|s| s.name == "SaveDelegate" && s.kind == "delegate"),
+        "delegate should be extracted"
+    );
+    assert!(
+        syms.iter()
+            .any(|s| s.name == "LocalAudit" && s.kind == "local_function"),
+        "local function should be extracted"
+    );
+
+    let on_init = syms
+        .iter()
+        .find(|s| s.name == "OnInit" && s.kind == "function");
+    assert!(on_init.is_some(), "OnInit function should exist");
+    let on_init_meta = on_init.unwrap().metadata.as_ref().unwrap();
+    assert_eq!(
+        on_init_meta.get("lifecycle_stage").map(String::as_str),
+        Some("Init"),
+        "OnInit should have lifecycle metadata"
+    );
+
+    let wiring_count = edges.iter().filter(|e| e.kind == "event_wiring").count();
+    assert!(wiring_count >= 2, "should extract += event wiring edges");
+
+    let sql_edges: Vec<_> = edges.iter().filter(|e| e.kind == "sql_calls").collect();
+    assert!(
+        sql_edges.len() >= 3,
+        "should capture SqlCommand/CommandText/Dapper SQL"
+    );
+    assert!(
+        sql_edges
+            .iter()
+            .any(|e| e.target_name == "sql:stored_proc:proc_LoadOrders"),
+        "EXEC sql should classify as stored proc"
+    );
 }
 
 /// Malformed C# must not panic.
