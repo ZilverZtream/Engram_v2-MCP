@@ -235,6 +235,10 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
         (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
         (class_specifier name: (type_identifier) @name) @class
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (field_expression field: (field_identifier) @call.name))
+        (call_expression function: (qualified_identifier name: (identifier) @call.name))
+        (call_expression function: (qualified_identifier name: (field_identifier) @call.name))
         "#,
     )
     .ok();

@@ -47,6 +47,46 @@ fn test_cpp_parsing() {
 }
 
 #[test]
+fn test_cpp_calls_capture_direct_and_member_calls_across_extensions() {
+    let code = r#"
+class Worker {
+public:
+    void helper() {}
+    void run() {
+        helper();
+        this->helper();
+    }
+};
+
+void free_fn() {}
+void drive() {
+    free_fn();
+}
+"#;
+
+    for ext in ["cpp", "hpp", "cc", "cxx", "hh"] {
+        let path = format!("sample.{ext}");
+        let (_symbols, edges) = SymbolExtractor::new().extract(Path::new(&path), code);
+
+        let call_edges: Vec<_> = edges.iter().filter(|e| e.kind == "calls").collect();
+        assert!(
+            call_edges
+                .iter()
+                .any(|e| e.source_name == "run" && e.target_name == "helper"),
+            "expected run -> helper calls edge for .{ext}; edges: {:?}",
+            edges
+        );
+        assert!(
+            call_edges
+                .iter()
+                .any(|e| e.source_name == "drive" && e.target_name == "free_fn"),
+            "expected drive -> free_fn calls edge for .{ext}; edges: {:?}",
+            edges
+        );
+    }
+}
+
+#[test]
 fn test_literal_escaping() {
     use engram_index::escape_tantivy_literal;
     let code_query = r#"unsafe { *const char: &str }"#;
