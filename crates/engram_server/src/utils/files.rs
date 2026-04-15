@@ -2,9 +2,9 @@ use std::path::{Path, PathBuf};
 
 fn default_exts() -> Vec<&'static str> {
     vec![
-        "rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "cs", "vb", "c", "cpp", "cc", "cxx",
-        "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx", "ascx", "master", "asmx", "ashx",
-        "svc", "asax", "config", "xml",
+        "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "c", "cpp",
+        "cc", "cxx", "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx", "ascx", "master",
+        "asmx", "ashx", "svc", "asax", "config", "xml", "html", "htm", "css", "scss", "less",
     ]
 }
 
@@ -61,14 +61,16 @@ pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
 fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
     vec![
         "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-        "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
+        "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
+        "mjs", "cjs", "html", "htm", "css", "scss", "less",
     ]
 }
 
 fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
     vec![
         "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
-        "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json",
+        "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
+        "mjs", "cjs", "html", "htm", "css", "scss", "less",
     ]
 }
 
@@ -321,6 +323,21 @@ mod tests {
         let exts = exts_for_project_type("DotNet_WebForms_CS");
         assert!(exts.contains(&"csproj"));
         assert!(exts.contains(&"aspx"));
+    }
+
+    #[test]
+    fn webforms_exts_include_frontend_assets() {
+        let cs_exts = exts_for_project_type("dotnet_webforms_cs");
+        let vb_exts = exts_for_project_type("dotnet_webforms_vb");
+        let default = exts_for_project_type("general");
+
+        for ext in [
+            "js", "ts", "jsx", "tsx", "mjs", "cjs", "html", "htm", "css", "scss", "less",
+        ] {
+            assert!(cs_exts.contains(&ext));
+            assert!(vb_exts.contains(&ext));
+            assert!(default.contains(&ext));
+        }
     }
 
     #[test]
