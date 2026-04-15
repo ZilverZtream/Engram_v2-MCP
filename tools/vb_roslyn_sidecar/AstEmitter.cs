@@ -87,6 +87,7 @@ internal sealed class AstEmitter
 
         var namespaces = new Stack<string>();
         var types = new Stack<string>();
+        var typeStartLines = new Stack<int>();
         var knownControlNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         const string fileNode = "file";
         var isDesigner = path.EndsWith(".designer.vb", StringComparison.OrdinalIgnoreCase);
@@ -189,21 +190,24 @@ internal sealed class AstEmitter
         void EmitType(string name, string kind, SyntaxNode node)
         {
             var fqn = ComposeName(name);
+            var typeStartLine = Line(tree, node);
             symbols.Add(new SymbolDto
             {
                 Name = fqn,
                 Kind = kind,
-                StartLine = Line(tree, node),
+                StartLine = typeStartLine,
                 EndLine = EndLine(tree, node),
             });
             if (types.Count > 0)
             {
-                edges.Add(Contains(types.Peek(), fqn, Line(tree, node), kind));
+                edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), typeStartLine, kind));
             }
 
             types.Push(fqn);
+            typeStartLines.Push(typeStartLine);
             foreach (var child in node.ChildNodes()) Walk(child);
             types.Pop();
+            typeStartLines.Pop();
         }
 
         void EmitMethod(MethodBlockSyntax node)
@@ -234,7 +238,7 @@ internal sealed class AstEmitter
                 Metadata = null,
             });
             var methodSymbol = symbols[^1];
-            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, methodStartLine, "function"));
+            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), methodStartLine, "function"));
 
             foreach (var hc in stmt.HandlesClause?.Events ?? new SeparatedSyntaxList<HandlesClauseItemSyntax>())
             {
@@ -628,7 +632,7 @@ internal sealed class AstEmitter
                 StartLine = Line(tree, node),
                 EndLine = EndLine(tree, node),
             });
-            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, Line(tree, node), "property"));
+            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, typeStartLines.Peek(), Line(tree, node), "property"));
             foreach (var child in node.ChildNodes()) Walk(child);
         }
 
@@ -652,7 +656,7 @@ internal sealed class AstEmitter
                         StartLine = Line(tree, name.Identifier),
                         EndLine = Line(tree, name.Identifier)
                     });
-                    if (types.Count > 0) edges.Add(Contains(types.Peek(), fieldName, Line(tree, name.Identifier), kind));
+                    if (types.Count > 0) edges.Add(Contains(types.Peek(), fieldName, typeStartLines.Peek(), Line(tree, name.Identifier), kind));
                 }
             }
         }
@@ -864,15 +868,15 @@ internal sealed class AstEmitter
         return (symbols, edges);
     }
 
-    static EdgeDto Contains(string src, string target, int line, string targetKind) => new()
+    static EdgeDto Contains(string src, string target, int sourceLine, int targetLine, string targetKind) => new()
     {
         SourceName = src,
         SourceKind = "class",
-        SourceStartLine = line,
+        SourceStartLine = sourceLine,
         SourceLanguage = "vb",
         TargetName = target,
         TargetKind = targetKind,
-        TargetStartLine = line,
+        TargetStartLine = targetLine,
         Kind = "contains"
     };
 
