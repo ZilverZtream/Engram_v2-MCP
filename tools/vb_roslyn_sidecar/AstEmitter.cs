@@ -162,7 +162,7 @@ internal sealed class AstEmitter
                     EmitType(cls.ClassStatement.Identifier.ToString(), "class", cls);
                     return;
                 case ModuleBlockSyntax mod:
-                    EmitType(mod.ModuleStatement.Identifier.ToString(), "module", mod);
+                    EmitType(mod.ModuleStatement.Identifier.ToString(), "class", mod);
                     return;
                 case StructureBlockSyntax st:
                     EmitType(st.StructureStatement.Identifier.ToString(), "struct", st);
