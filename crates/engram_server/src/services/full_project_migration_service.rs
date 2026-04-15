@@ -155,7 +155,10 @@ pub struct CrossCuttingSummary {
     pub total_lifecycle_events: usize,
     pub files_with_ispostback: usize,
     // Phase 32 aggregation
-    pub total_js_files: usize,
+    pub total_script_files: usize,
+    /// Backward-compatible alias for external consumers still reading `total_js_files`.
+    #[serde(rename = "total_js_files")]
+    pub legacy_total_js_files: usize,
     pub total_gis_libraries: usize,
     pub total_anti_patterns: usize,
     pub total_service_endpoints: usize,
@@ -205,7 +208,8 @@ pub struct FileContent {
 /// All pre-read file categories for a project, built by the tool handler.
 pub struct ProjectFileBundle {
     pub markup_files: Vec<FileContent>,
-    pub frontend_script_files: Vec<(String, String)>,
+    /// Script source files discovered for client-side analysis (.js, .ts, .tsx, .jsx).
+    pub script_files: Vec<(String, String)>,
     pub classic_asp_files: Vec<(String, String)>,
     pub report_files: Vec<(String, String)>,
     pub global_asax: Option<FileContent>,
@@ -241,8 +245,14 @@ pub struct ProjectReferenceBundle {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct JsAnalysisSummary {
-    pub total_js_files: usize,
-    pub js_files_with_server_deps: usize,
+    pub total_script_files: usize,
+    /// Backward-compatible alias for external consumers still reading `total_js_files`.
+    #[serde(rename = "total_js_files")]
+    pub legacy_total_js_files: usize,
+    pub script_files_with_server_deps: usize,
+    /// Backward-compatible alias for external consumers still reading `js_files_with_server_deps`.
+    #[serde(rename = "js_files_with_server_deps")]
+    pub legacy_js_files_with_server_deps: usize,
     pub dom_manipulations: Vec<JsDomRef>,
     pub postback_triggers: Vec<JsPostbackRef>,
     pub ajax_calls: Vec<JsAjaxCall>,
@@ -1282,7 +1292,7 @@ pub fn analyze_full_project(
         graph,
         project_id,
         &bundle.markup_files,
-        &bundle.frontend_script_files,
+        &bundle.script_files,
     );
 
     let gis_analysis = build_gis_analysis(graph, project_id, target_stack);
@@ -1399,7 +1409,7 @@ pub fn analyze_full_project(
 
     // jQuery ecosystem inventory
     let js_refs: Vec<(&str, &str)> = bundle
-        .frontend_script_files
+        .script_files
         .iter()
         .map(|(p, c)| (p.as_str(), c.as_str()))
         .collect();
@@ -1988,7 +1998,8 @@ fn build_cross_cutting_summary(
         total_update_panels,
         total_lifecycle_events,
         files_with_ispostback,
-        total_js_files: js.total_js_files,
+        total_script_files: js.total_script_files,
+        legacy_total_js_files: js.total_script_files,
         total_gis_libraries: gis.libraries_detected.len(),
         total_anti_patterns: ap.total_anti_patterns,
         total_service_endpoints: se.total_endpoints,
@@ -2760,7 +2771,7 @@ fn build_js_analysis(
     graph: &Arc<GraphStore>,
     project_id: &str,
     markup_files: &[FileContent],
-    frontend_script_files: &[(String, String)],
+    script_files: &[(String, String)],
 ) -> JsAnalysisSummary {
     let dom_edges = edges_or_warn(
         graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000),
@@ -2898,7 +2909,7 @@ fn build_js_analysis(
 
     // Detect jQuery version hint from JS files
     let mut jquery_version_hint = None;
-    for (path, _content) in frontend_script_files {
+    for (path, _content) in script_files {
         if let Some(cap) = JS_JQUERY_RE.captures(&path.to_lowercase()) {
             jquery_version_hint = Some(cap[1].to_string());
             break;
@@ -2919,8 +2930,10 @@ fn build_js_analysis(
     }
 
     JsAnalysisSummary {
-        total_js_files: frontend_script_files.len(),
-        js_files_with_server_deps: js_files_with_deps.len(),
+        total_script_files: script_files.len(),
+        legacy_total_js_files: script_files.len(),
+        script_files_with_server_deps: js_files_with_deps.len(),
+        legacy_js_files_with_server_deps: js_files_with_deps.len(),
         dom_manipulations,
         postback_triggers,
         ajax_calls,
@@ -5750,10 +5763,10 @@ fn render_markdown(
         "- **Files with IsPostBack branching**: {}\n",
         cross.files_with_ispostback
     ));
-    if cross.total_js_files > 0 {
+    if cross.total_script_files > 0 {
         md.push_str(&format!(
-            "- **Frontend script files**: {} ({} with server-side dependencies)\n",
-            cross.total_js_files, js.js_files_with_server_deps
+            "- **Client script files (.js/.ts/.tsx/.jsx)**: {} ({} with server-side dependencies)\n",
+            cross.total_script_files, js.script_files_with_server_deps
         ));
     }
     if cross.total_gis_libraries > 0 {
@@ -6688,12 +6701,12 @@ fn render_markdown(
         md.push('\n');
     }
 
-    // ── JavaScript & Client-Side Dependencies (Phase 32) ─────────────────
-    if js.total_js_files > 0 || !js.dom_manipulations.is_empty() || !js.ajax_calls.is_empty() {
-        md.push_str("## JavaScript & Client-Side Dependencies\n\n");
+    // ── JavaScript/TypeScript & Client-Side Dependencies (Phase 32) ──────
+    if js.total_script_files > 0 || !js.dom_manipulations.is_empty() || !js.ajax_calls.is_empty() {
+        md.push_str("## JavaScript/TypeScript & Client-Side Dependencies\n\n");
         md.push_str(&format!(
-            "**Frontend script files**: {} ({} with server-side dependencies)\n",
-            js.total_js_files, js.js_files_with_server_deps
+            "**Client script files (.js/.ts/.tsx/.jsx)**: {} ({} with server-side dependencies)\n",
+            js.total_script_files, js.script_files_with_server_deps
         ));
         if !js.dom_manipulations.is_empty() {
             let jquery_count = js
@@ -6800,7 +6813,7 @@ fn render_markdown(
         md.push_str("### Migration Impact\n");
         if !js.dom_manipulations.is_empty() {
             md.push_str(&format!("- {} JS files manipulate server control IDs → must update to modern component selectors\n",
-                js.js_files_with_server_deps));
+                js.script_files_with_server_deps));
         }
         if !js.postback_triggers.is_empty() {
             md.push_str(&format!("- {} `__doPostBack` calls → must replace with component event handlers / SignalR\n",
@@ -10655,8 +10668,10 @@ Dim conn As String = GetConnectionForTenant(tenantId)
 
     fn empty_js() -> JsAnalysisSummary {
         JsAnalysisSummary {
-            total_js_files: 0,
-            js_files_with_server_deps: 0,
+            total_script_files: 0,
+            legacy_total_js_files: 0,
+            script_files_with_server_deps: 0,
+            legacy_js_files_with_server_deps: 0,
             dom_manipulations: vec![],
             postback_triggers: vec![],
             ajax_calls: vec![],
@@ -12315,8 +12330,10 @@ public class _Default : SectionPage {
     #[test]
     fn cross_layer_trace_ajax_to_handler() {
         let js_analysis = JsAnalysisSummary {
-            total_js_files: 1,
-            js_files_with_server_deps: 1,
+            total_script_files: 1,
+            legacy_total_js_files: 1,
+            script_files_with_server_deps: 1,
+            legacy_js_files_with_server_deps: 1,
             dom_manipulations: vec![],
             postback_triggers: vec![],
             ajax_calls: vec![JsAjaxCall {
@@ -12395,8 +12412,10 @@ public class MapData : WebService {
     #[test]
     fn cross_layer_unresolved_url_tracked() {
         let js_analysis = JsAnalysisSummary {
-            total_js_files: 1,
-            js_files_with_server_deps: 1,
+            total_script_files: 1,
+            legacy_total_js_files: 1,
+            script_files_with_server_deps: 1,
+            legacy_js_files_with_server_deps: 1,
             dom_manipulations: vec![],
             postback_triggers: vec![],
             ajax_calls: vec![JsAjaxCall {
