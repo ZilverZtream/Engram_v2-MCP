@@ -36,6 +36,7 @@ tree-sitter-python.workspace = true
 tree-sitter-go.workspace = true
 tree-sitter-java.workspace = true
 tree-sitter-typescript.workspace = true
+tree-sitter-javascript.workspace = true
 tree-sitter-c-sharp.workspace = true
 tree-sitter-c.workspace = true
 tree-sitter-cpp.workspace = true
@@ -54,4 +55,3 @@ tracing-subscriber = { workspace = true }
 tempfile = "3"
 arrow-array = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-
