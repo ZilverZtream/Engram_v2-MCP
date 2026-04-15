@@ -205,7 +205,7 @@ pub struct FileContent {
 /// All pre-read file categories for a project, built by the tool handler.
 pub struct ProjectFileBundle {
     pub markup_files: Vec<FileContent>,
-    pub js_files: Vec<(String, String)>,
+    pub frontend_script_files: Vec<(String, String)>,
     pub classic_asp_files: Vec<(String, String)>,
     pub report_files: Vec<(String, String)>,
     pub global_asax: Option<FileContent>,
@@ -1278,7 +1278,12 @@ pub fn analyze_full_project(
 
     let anti_patterns = build_anti_pattern_summary(graph, project_id);
 
-    let js_analysis = build_js_analysis(graph, project_id, &bundle.markup_files, &bundle.js_files);
+    let js_analysis = build_js_analysis(
+        graph,
+        project_id,
+        &bundle.markup_files,
+        &bundle.frontend_script_files,
+    );
 
     let gis_analysis = build_gis_analysis(graph, project_id, target_stack);
 
@@ -1394,7 +1399,7 @@ pub fn analyze_full_project(
 
     // jQuery ecosystem inventory
     let js_refs: Vec<(&str, &str)> = bundle
-        .js_files
+        .frontend_script_files
         .iter()
         .map(|(p, c)| (p.as_str(), c.as_str()))
         .collect();
@@ -2755,7 +2760,7 @@ fn build_js_analysis(
     graph: &Arc<GraphStore>,
     project_id: &str,
     markup_files: &[FileContent],
-    js_files: &[(String, String)],
+    frontend_script_files: &[(String, String)],
 ) -> JsAnalysisSummary {
     let dom_edges = edges_or_warn(
         graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000),
@@ -2893,7 +2898,7 @@ fn build_js_analysis(
 
     // Detect jQuery version hint from JS files
     let mut jquery_version_hint = None;
-    for (path, _content) in js_files {
+    for (path, _content) in frontend_script_files {
         if let Some(cap) = JS_JQUERY_RE.captures(&path.to_lowercase()) {
             jquery_version_hint = Some(cap[1].to_string());
             break;
@@ -2914,7 +2919,7 @@ fn build_js_analysis(
     }
 
     JsAnalysisSummary {
-        total_js_files: js_files.len(),
+        total_js_files: frontend_script_files.len(),
         js_files_with_server_deps: js_files_with_deps.len(),
         dom_manipulations,
         postback_triggers,
@@ -5747,7 +5752,7 @@ fn render_markdown(
     ));
     if cross.total_js_files > 0 {
         md.push_str(&format!(
-            "- **JavaScript files**: {} ({} with server-side dependencies)\n",
+            "- **Frontend script files**: {} ({} with server-side dependencies)\n",
             cross.total_js_files, js.js_files_with_server_deps
         ));
     }
@@ -6687,7 +6692,7 @@ fn render_markdown(
     if js.total_js_files > 0 || !js.dom_manipulations.is_empty() || !js.ajax_calls.is_empty() {
         md.push_str("## JavaScript & Client-Side Dependencies\n\n");
         md.push_str(&format!(
-            "**JS files**: {} ({} with server-side dependencies)\n",
+            "**Frontend script files**: {} ({} with server-side dependencies)\n",
             js.total_js_files, js.js_files_with_server_deps
         ));
         if !js.dom_manipulations.is_empty() {
