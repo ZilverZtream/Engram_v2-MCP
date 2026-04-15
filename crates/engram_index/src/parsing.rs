@@ -223,6 +223,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &c_lang,
         r#"
         (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (parenthesized_declarator (pointer_declarator declarator: (identifier) @name)))) @func
         (struct_specifier name: (type_identifier) @name) @struct
         (call_expression function: (identifier) @call.name)
         "#,
@@ -233,8 +235,24 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &cpp_lang,
         r#"
         (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (type_identifier) @name)) @func
         (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (operator_name) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (field_identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (field_identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (destructor_name (identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (operator_name) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (template_method name: (operator_name) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name))))) @func
+        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name))))) @func
         (class_specifier name: (type_identifier) @name) @class
+        (struct_specifier name: (type_identifier) @name) @struct
         (call_expression function: (identifier) @call.name)
         (call_expression function: (field_expression field: (field_identifier) @call.name))
         (call_expression function: (qualified_identifier name: (identifier) @call.name))
