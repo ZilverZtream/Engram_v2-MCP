@@ -114,6 +114,15 @@ pub struct SyncHazardSummary {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct LanguageDiagnosticSummary {
+    pub location: String,
+    pub category: String,
+    pub severity: String,
+    pub evidence: String,
+    pub guidance: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct EditSafetyResult {
     pub verdict: String,
     pub confidence: f32,
@@ -199,6 +208,7 @@ pub struct ImplementationContext {
     pub state_context: Vec<StateContextSnippet>,
     pub control_mappings: Vec<ControlMappingSnippet>,
     pub vb_traps: Vec<VbTrapSummary>,
+    pub language_diagnostics: Vec<LanguageDiagnosticSummary>,
     pub sync_hazards: Vec<SyncHazardSummary>,
 }
 
@@ -1373,6 +1383,23 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
             md.push_str(&format!(
                 "| {} | {} | {} | {} |\n",
                 t.location, t.trap, t.risk, t.guidance,
+            ));
+        }
+        md.push('\n');
+    }
+
+    if !ctx.language_diagnostics.is_empty() {
+        md.push_str("## Language Diagnostics\n\n");
+        md.push_str("| Location | Category | Severity | Evidence | Guidance |\n");
+        md.push_str("|----------|----------|----------|----------|----------|\n");
+        for d in &ctx.language_diagnostics {
+            md.push_str(&format!(
+                "| {} | {} | {} | `{}` | {} |\n",
+                d.location,
+                d.category,
+                d.severity,
+                d.evidence.replace('`', "'"),
+                d.guidance
             ));
         }
         md.push('\n');
@@ -2715,7 +2742,60 @@ impl Engram {
                 vec![]
             };
 
-            // 9. Sync hazards in this method
+            // 9. Language-family diagnostics for non-VB methods
+            let language_diagnostics = {
+                let ext = Path::new(&file_path)
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_ascii_lowercase())
+                    .unwrap_or_default();
+                let family = match ext.as_str() {
+                    "cs" => Some(engram_index::language_diagnostics::LanguageFamily::CSharp),
+                    "c" | "h" => Some(engram_index::language_diagnostics::LanguageFamily::C),
+                    "cpp" | "cc" | "cxx" | "hpp" | "hh" | "hxx" => {
+                        Some(engram_index::language_diagnostics::LanguageFamily::Cpp)
+                    }
+                    "rs" => Some(engram_index::language_diagnostics::LanguageFamily::Rust),
+                    _ => None,
+                };
+
+                if let Some(family) = family {
+                    let full_path = safe_join(Path::new(&project_dir), &file_path)
+                        .map_err(|e| format!("Path validation: {e}"))?;
+                    if let Ok(content) = std::fs::read_to_string(&full_path) {
+                        let files = vec![(file_path.as_str(), content.as_str())];
+                        let report =
+                            engram_index::language_diagnostics::detect_language_diagnostics(
+                                family, &files,
+                            );
+                        report
+                            .diagnostics
+                            .into_iter()
+                            .filter(|d| {
+                                d.location
+                                    .rsplit(':')
+                                    .next()
+                                    .and_then(|s| s.parse::<u32>().ok())
+                                    .map(|line| line >= node.start_line && line <= node.end_line)
+                                    .unwrap_or(false)
+                            })
+                            .map(|d| LanguageDiagnosticSummary {
+                                location: d.location,
+                                category: d.category,
+                                severity: d.severity,
+                                evidence: d.evidence,
+                                guidance: d.guidance,
+                            })
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                }
+            };
+
+            // 10. Sync hazards in this method
             let sync_hazards = {
                 let full_path = safe_join(Path::new(&project_dir), &file_path)
                     .map_err(|e| format!("Path validation: {e}"))?;
@@ -2752,6 +2832,7 @@ impl Engram {
                 state_context,
                 control_mappings,
                 vb_traps,
+                language_diagnostics,
                 sync_hazards,
             })
         })

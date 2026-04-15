@@ -13,6 +13,7 @@ pub mod hybrid;
 pub mod ingest;
 pub mod jquery_inventory;
 pub mod js_extractor;
+pub mod language_diagnostics;
 pub mod layout_extractor;
 pub mod parsing;
 pub mod report_extractor;
