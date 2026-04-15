@@ -1105,7 +1105,7 @@ impl HybridSearchEngine {
                             let (mut s, mut e) = if base_lang == "vb" {
                                 crate::vb_extractor::extract_vb(p, &text)
                             } else {
-                                extractor.extract(p, &text)
+                                crate::cs_extractor::extract_cs(p, &text)
                             };
                             let (layout_s, layout_e) =
                                 crate::layout_extractor::extract_winforms_layout(
@@ -1121,6 +1121,8 @@ impl HybridSearchEngine {
                             crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
+                        } else if ext_lower.as_deref() == Some("cs") {
+                            crate::cs_extractor::extract_cs(p, &text)
                         } else if ext_lower.as_deref() == Some("asp") {
                             crate::asp_classic_extractor::extract_classic_asp(&arc_rel, &text)
                         } else if matches!(ext_lower.as_deref(), Some("rdlc" | "rdl")) {
