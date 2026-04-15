@@ -875,7 +875,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut markup_paths: Vec<String> = Vec::new();
-        let mut js_paths: Vec<String> = Vec::new();
+        let mut frontend_script_paths: Vec<String> = Vec::new();
         let mut asp_paths: Vec<String> = Vec::new();
         let mut report_paths: Vec<String> = Vec::new();
         let mut code_paths: Vec<String> = Vec::new();
@@ -888,8 +888,12 @@ impl Engram {
                 || name_lower.ends_with(".master")
             {
                 markup_paths.push(n.name.clone());
-            } else if name_lower.ends_with(".js") {
-                js_paths.push(n.name.clone());
+            } else if name_lower.ends_with(".js")
+                || name_lower.ends_with(".ts")
+                || name_lower.ends_with(".tsx")
+                || name_lower.ends_with(".jsx")
+            {
+                frontend_script_paths.push(n.name.clone());
             } else if name_lower.ends_with(".asp") {
                 asp_paths.push(n.name.clone());
             } else if name_lower.ends_with(".rdl") || name_lower.ends_with(".rdlc") {
@@ -906,7 +910,10 @@ impl Engram {
         }
 
         if markup_paths.is_empty() {
-            let all_extensions = &[".aspx", ".ascx", ".master", ".js", ".asp", ".rdl", ".rdlc"];
+            let all_extensions = &[
+                ".aspx", ".ascx", ".master", ".js", ".ts", ".tsx", ".jsx", ".asp", ".rdl",
+                ".rdlc",
+            ];
             let discovered = discover_files_recursive(
                 std::path::Path::new(&project_dir),
                 all_extensions,
@@ -921,8 +928,12 @@ impl Engram {
                     || lower.ends_with(".master")
                 {
                     markup_paths.push(path_str);
-                } else if lower.ends_with(".js") {
-                    js_paths.push(path_str);
+                } else if lower.ends_with(".js")
+                    || lower.ends_with(".ts")
+                    || lower.ends_with(".tsx")
+                    || lower.ends_with(".jsx")
+                {
+                    frontend_script_paths.push(path_str);
                 } else if lower.ends_with(".asp") {
                     asp_paths.push(path_str);
                 } else if lower.ends_with(".rdl") || lower.ends_with(".rdlc") {
@@ -966,7 +977,7 @@ impl Engram {
             })
             .collect();
 
-        let read_js_futures: Vec<_> = js_paths
+        let read_frontend_script_futures: Vec<_> = frontend_script_paths
             .iter()
             .map(|rel_path| {
                 let dir = project_dir.clone();
@@ -1011,15 +1022,16 @@ impl Engram {
             })
             .collect();
 
-        let (markup_results, js_results, asp_results, report_results) = tokio::join!(
+        let (markup_results, frontend_script_results, asp_results, report_results) = tokio::join!(
             futures::future::join_all(read_markup_futures),
-            futures::future::join_all(read_js_futures),
+            futures::future::join_all(read_frontend_script_futures),
             futures::future::join_all(read_asp_futures),
             futures::future::join_all(read_report_futures),
         );
 
         let markup_files: Vec<FileContent> = markup_results.into_iter().flatten().collect();
-        let js_files: Vec<(String, String)> = js_results.into_iter().flatten().collect();
+        let frontend_script_files: Vec<(String, String)> =
+            frontend_script_results.into_iter().flatten().collect();
         let classic_asp_files: Vec<(String, String)> = asp_results.into_iter().flatten().collect();
         let report_files: Vec<(String, String)> = report_results.into_iter().flatten().collect();
 
@@ -1266,7 +1278,7 @@ impl Engram {
 
         let bundle = ProjectFileBundle {
             markup_files,
-            js_files,
+            frontend_script_files,
             classic_asp_files,
             report_files,
             global_asax,
@@ -2733,7 +2745,11 @@ impl Engram {
 
         // Discover JS + markup files
         let (js_disc, markup_disc) = tokio::join!(
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".js"], 5_000,),
+            discover_files_recursive(
+                std::path::Path::new(&project_dir),
+                &[".js", ".ts", ".tsx", ".jsx"],
+                5_000,
+            ),
             discover_files_recursive(
                 std::path::Path::new(&project_dir),
                 &[".aspx", ".ascx", ".master", ".html", ".htm"],
