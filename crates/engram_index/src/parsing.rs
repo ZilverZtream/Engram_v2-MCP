@@ -63,6 +63,7 @@ struct CompiledQueries {
     go: Option<Query>,
     java: Option<Query>,
     ts: Option<Query>,
+    js: Option<Query>,
     cs: Option<Query>,
     c: Option<Query>,
     cpp: Option<Query>,
@@ -86,6 +87,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     let go_lang = tree_sitter_go::LANGUAGE.into();
     let java_lang = tree_sitter_java::LANGUAGE.into();
     let ts_lang = tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into();
+    let js_lang = tree_sitter_typescript::LANGUAGE_JAVASCRIPT.into();
     let cs_lang = tree_sitter_c_sharp::LANGUAGE.into();
     let c_lang = tree_sitter_c::LANGUAGE.into();
     let cpp_lang = tree_sitter_cpp::LANGUAGE.into();
@@ -142,6 +144,17 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (function_declaration name: (identifier) @name) @func
         (class_declaration name: (type_identifier) @name) @class
         (interface_declaration name: (type_identifier) @name) @class
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (member_expression property: (property_identifier) @call.name))
+        "#,
+    )
+    .ok();
+
+    let js = Query::new(
+        &js_lang,
+        r#"
+        (function_declaration name: (identifier) @name) @func
+        (class_declaration name: (identifier) @name) @class
         (call_expression function: (identifier) @call.name)
         (call_expression function: (member_expression property: (property_identifier) @call.name))
         "#,
@@ -250,6 +263,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         go,
         java,
         ts,
+        js,
         cs,
         c,
         cpp,
@@ -420,9 +434,13 @@ impl SymbolExtractor {
             "py" => (tree_sitter_python::LANGUAGE.into(), QUERIES.python.as_ref()),
             "go" => (tree_sitter_go::LANGUAGE.into(), QUERIES.go.as_ref()),
             "java" => (tree_sitter_java::LANGUAGE.into(), QUERIES.java.as_ref()),
-            "ts" | "tsx" | "js" | "jsx" => (
+            "ts" | "tsx" => (
                 tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
                 QUERIES.ts.as_ref(),
+            ),
+            "js" | "jsx" => (
+                tree_sitter_typescript::LANGUAGE_JAVASCRIPT.into(),
+                QUERIES.js.as_ref(),
             ),
             "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
             "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
