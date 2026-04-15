@@ -316,3 +316,93 @@ async fn test_fixture_dotnet_webforms_cs_frontend_bridge() {
         "Should reach SQL from PageMethods handler"
     );
 }
+
+#[tokio::test]
+async fn test_fixture_dotnet_webforms_cs_extractor_enrichment() {
+    let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests")
+        .join("fixtures")
+        .join("dotnet_webforms_cs_extractor");
+
+    let tmp_root = tempfile::tempdir().unwrap();
+    let data_dir = tmp_root.path().join("engram_data");
+
+    let cfg = Config {
+        allowed_roots: vec![fixture_dir.clone()],
+        data_dir,
+        max_project_files: Some(200),
+        max_project_bytes: Some(10 * 1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: fixture_dir.to_string_lossy().to_string(),
+            project_name: "WebFormsCsExtractorFixture".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+
+    let projects = state.registry.list_projects().unwrap();
+    let project_id = &projects[0].project_id;
+
+    state.graph.resolve_symbol_edges(project_id).unwrap();
+
+    let ctor_nodes = state
+        .graph
+        .query_nodes(project_id, Some("constructor"), Some("OrdersPage"), None, 5)
+        .unwrap();
+    assert!(!ctor_nodes.is_empty(), "should extract constructor symbol");
+
+    let local_fn_nodes = state
+        .graph
+        .query_nodes(
+            project_id,
+            Some("local_function"),
+            Some("LocalAudit"),
+            None,
+            5,
+        )
+        .unwrap();
+    assert!(
+        !local_fn_nodes.is_empty(),
+        "should extract local function symbol"
+    );
+
+    let wiring_edges = state.graph.list_edges(project_id, None).unwrap();
+    assert!(
+        wiring_edges
+            .iter()
+            .any(|e| e.target_id.contains("btnSave_Click") || e.target_id.contains("Page_Load")),
+        "should extract += event wiring edges"
+    );
+
+    let sql_edge_to_proc = state
+        .graph
+        .find_incoming_edges(
+            project_id,
+            Some(engram_graph::EdgeKind::SqlCalls),
+            "sql:stored_proc:proc_SaveOrder",
+            10,
+        )
+        .unwrap();
+    assert!(
+        !sql_edge_to_proc.is_empty(),
+        "should extract EXEC stored proc sql edge"
+    );
+}
