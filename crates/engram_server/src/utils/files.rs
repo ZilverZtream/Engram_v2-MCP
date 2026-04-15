@@ -16,30 +16,8 @@ fn default_exts() -> Vec<&'static str> {
 /// New code receiving user input should use `ProjectType` and call
 /// `exts_for_project_type_enum` to get exhaustive, compile-time-verified dispatch.
 pub fn exts_for_project_type(project_type: &str) -> Vec<&'static str> {
-    if [
-        "dotnetwebformscs",
-        "dotnet_webforms_cs",
-        "webforms_cs",
-        "webformscs",
-        "aspnet_webforms_cs",
-        "aspnet_webformscs",
-    ]
-    .iter()
-    .any(|v| project_type.eq_ignore_ascii_case(v))
-    {
-        dotnet_webforms_cs_exts()
-    } else if [
-        "dotnetwebformsvb",
-        "dotnet_webforms_vb",
-        "webforms_vb",
-        "webformsvb",
-        "aspnet_webforms_vb",
-        "aspnet_webformsvb",
-    ]
-    .iter()
-    .any(|v| project_type.eq_ignore_ascii_case(v))
-    {
-        dotnet_webforms_vb_exts()
+    if let Some(pt) = crate::models::ProjectType::from_registry_str(project_type) {
+        exts_for_project_type_enum(pt)
     } else {
         // ENG-AUD-2026-S17-001: unrecognized project_type falls through to the
         // broad default extension set.  This is intentional for backward compat
@@ -74,6 +52,31 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
     ]
 }
 
+fn rust_exts() -> Vec<&'static str> {
+    vec!["rs", "toml", "md", "json", "yaml", "yml"]
+}
+
+fn csharp_exts() -> Vec<&'static str> {
+    vec![
+        "cs", "csproj", "sln", "props", "targets", "config", "json", "xml", "resx", "xaml",
+        "razor", "cshtml", "sql", "md",
+    ]
+}
+
+fn cpp_exts() -> Vec<&'static str> {
+    vec![
+        "cpp", "cc", "cxx", "c++", "hpp", "hh", "hxx", "h++", "h", "inl", "ipp", "tpp", "ixx",
+        "cppm", "c", "cmake", "txt", "md", "json", "yaml", "yml",
+    ]
+}
+
+fn c_exts() -> Vec<&'static str> {
+    vec![
+        "c", "h", "inc", "s", "S", "asm", "lds", "ld", "mak", "mk", "cmake", "txt", "md", "json",
+        "yaml", "yml",
+    ]
+}
+
 /// Exhaustive, enum-dispatched variant for use with validated `ProjectType` input.
 ///
 /// ENG-AUD-2026-EXH-P1-0001: new indexing paths receive a `ProjectType` enum
@@ -85,6 +88,10 @@ pub fn exts_for_project_type_enum(pt: crate::models::ProjectType) -> Vec<&'stati
         ProjectType::DotnetWebformsCs => dotnet_webforms_cs_exts(),
         ProjectType::DotnetWebformsVb => dotnet_webforms_vb_exts(),
         ProjectType::General => default_exts(),
+        ProjectType::Rust => rust_exts(),
+        ProjectType::CSharp => csharp_exts(),
+        ProjectType::Cpp => cpp_exts(),
+        ProjectType::C => c_exts(),
     }
 }
 
@@ -338,6 +345,40 @@ mod tests {
             assert!(vb_exts.contains(&ext));
             assert!(default.contains(&ext));
         }
+    }
+
+    #[test]
+    fn typed_project_modes_have_curated_file_sets() {
+        let rust_exts = exts_for_project_type_enum(crate::models::ProjectType::Rust);
+        assert!(rust_exts.contains(&"rs"));
+        assert!(rust_exts.contains(&"toml"));
+        assert!(!rust_exts.contains(&"cs"));
+
+        let csharp_exts = exts_for_project_type_enum(crate::models::ProjectType::CSharp);
+        assert!(csharp_exts.contains(&"cs"));
+        assert!(csharp_exts.contains(&"csproj"));
+        assert!(!csharp_exts.contains(&"vb"));
+        assert!(!csharp_exts.contains(&"cpp"));
+
+        let cpp_exts = exts_for_project_type_enum(crate::models::ProjectType::Cpp);
+        assert!(cpp_exts.contains(&"cpp"));
+        assert!(cpp_exts.contains(&"hpp"));
+        assert!(!cpp_exts.contains(&"vb"));
+        assert!(!cpp_exts.contains(&"csproj"));
+
+        let c_exts = exts_for_project_type_enum(crate::models::ProjectType::C);
+        assert!(c_exts.contains(&"c"));
+        assert!(c_exts.contains(&"h"));
+        assert!(!c_exts.contains(&"rs"));
+        assert!(!c_exts.contains(&"cs"));
+    }
+
+    #[test]
+    fn registry_aliases_resolve_for_new_typed_modes() {
+        assert!(exts_for_project_type("rustlang").contains(&"rs"));
+        assert!(exts_for_project_type("c#").contains(&"cs"));
+        assert!(exts_for_project_type("c++").contains(&"cpp"));
+        assert!(exts_for_project_type("ansi_c").contains(&"c"));
     }
 
     #[test]
