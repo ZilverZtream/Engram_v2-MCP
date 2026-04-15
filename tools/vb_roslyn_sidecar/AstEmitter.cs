@@ -211,6 +211,7 @@ internal sealed class AstEmitter
             var stmt = node.SubOrFunctionStatement;
             var name = stmt.Identifier.Text;
             var fqn = ComposeName(name);
+            var methodStartLine = Line(tree, node);
             var metadata = new Dictionary<string, string>();
             if (stmt.Modifiers.Any(m => m.Kind() == SyntaxKind.AsyncKeyword))
                 metadata["async"] = "true";
@@ -228,12 +229,12 @@ internal sealed class AstEmitter
             {
                 Name = fqn,
                 Kind = "function",
-                StartLine = Line(tree, node),
+                StartLine = methodStartLine,
                 EndLine = EndLine(tree, node),
                 Metadata = null,
             });
             var methodSymbol = symbols[^1];
-            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, Line(tree, node), "function"));
+            if (types.Count > 0) edges.Add(Contains(types.Peek(), fqn, methodStartLine, "function"));
 
             foreach (var hc in stmt.HandlesClause?.Events ?? new SeparatedSyntaxList<HandlesClauseItemSyntax>())
             {
@@ -297,16 +298,19 @@ internal sealed class AstEmitter
             foreach (var inv in collector.Invocations)
             {
                 var targetName = ResolveInvocationName(inv);
+                var callSiteLine = Line(tree, inv);
+                var invocationMetadata = ResolveInvocationMetadata(inv) ?? new Dictionary<string, string>();
+                invocationMetadata["call_site_line"] = callSiteLine.ToString();
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, inv),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = targetName,
                     TargetKind = "function",
                     Kind = "calls",
-                    Metadata = ResolveInvocationMetadata(inv)
+                    Metadata = invocationMetadata
                 });
 
                 if (IsSqlExecutionCall(targetName))
@@ -316,12 +320,16 @@ internal sealed class AstEmitter
                     {
                         SourceName = fqn,
                         SourceKind = "function",
-                        SourceStartLine = Line(tree, inv),
+                        SourceStartLine = methodStartLine,
                         SourceLanguage = "vb",
                         TargetName = "sql_execution",
                         TargetKind = "sql",
                         Kind = "sql_exec",
-                        Metadata = new() { ["invocation"] = targetName }
+                        Metadata = new()
+                        {
+                            ["invocation"] = targetName,
+                            ["call_site_line"] = callSiteLine.ToString()
+                        }
                     });
                 }
 
@@ -332,7 +340,7 @@ internal sealed class AstEmitter
                     {
                         SourceName = fqn,
                         SourceKind = "function",
-                        SourceStartLine = Line(tree, inv),
+                        SourceStartLine = methodStartLine,
                         SourceLanguage = "vb",
                         TargetName = $"binding_field:{columnName}",
                         TargetKind = "binding_field",
@@ -348,7 +356,7 @@ internal sealed class AstEmitter
                     {
                         SourceName = fqn,
                         SourceKind = "function",
-                        SourceStartLine = Line(tree, inv),
+                        SourceStartLine = methodStartLine,
                         SourceLanguage = "vb",
                         TargetName = "script_runtime",
                         TargetKind = "script",
@@ -368,7 +376,7 @@ internal sealed class AstEmitter
                         {
                             SourceName = fqn,
                             SourceKind = "function",
-                            SourceStartLine = Line(tree, inv),
+                            SourceStartLine = methodStartLine,
                             SourceLanguage = "vb",
                             TargetName = progId,
                             TargetKind = "com_component",
@@ -401,7 +409,7 @@ internal sealed class AstEmitter
                         {
                             SourceName = fqn,
                             SourceKind = "function",
-                            SourceStartLine = Line(tree, inv),
+                            SourceStartLine = methodStartLine,
                             SourceLanguage = "vb",
                             TargetName = "sql_query",
                             TargetKind = "sql",
@@ -437,7 +445,7 @@ internal sealed class AstEmitter
                         {
                             SourceName = fqn,
                             SourceKind = "function",
-                            SourceStartLine = Line(tree, inv),
+                            SourceStartLine = methodStartLine,
                             SourceLanguage = "vb",
                             TargetName = dynName,
                             TargetKind = "dynamic_control",
@@ -463,7 +471,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, create),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = "sql_query",
                     TargetKind = "sql",
@@ -487,7 +495,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, assignment),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = "sql_query",
                     TargetKind = "sql",
@@ -512,7 +520,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, local),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = "sql_query",
                     TargetKind = "sql",
@@ -543,7 +551,7 @@ internal sealed class AstEmitter
                         {
                             SourceName = fqn,
                             SourceKind = "function",
-                            SourceStartLine = Line(tree, statement),
+                            SourceStartLine = methodStartLine,
                             SourceLanguage = "vb",
                             TargetName = SanitizeName($"{withTarget}{stmtText}"),
                             TargetKind = "member",
@@ -561,7 +569,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, member),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = SanitizeName(member.ToString()),
                     TargetKind = "state",
@@ -575,7 +583,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, redim),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = "ReDim",
                     Kind = "anti_pattern"
@@ -588,7 +596,7 @@ internal sealed class AstEmitter
                 {
                     SourceName = fqn,
                     SourceKind = "function",
-                    SourceStartLine = Line(tree, onError),
+                    SourceStartLine = methodStartLine,
                     SourceLanguage = "vb",
                     TargetName = SanitizeName(onError.ToString()),
                     Kind = "anti_pattern"
