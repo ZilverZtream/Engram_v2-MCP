@@ -189,3 +189,130 @@ async fn test_fixture_dotnet_webforms_vb() {
     );
     assert!(text2.contains("sql:inline:"), "Should reach Inline SQL");
 }
+
+#[tokio::test]
+async fn test_fixture_dotnet_webforms_cs_frontend_bridge() {
+    let fixture_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("tests")
+        .join("fixtures")
+        .join("dotnet_webforms_cs_frontend_bridge");
+
+    let tmp_root = tempfile::tempdir().unwrap();
+    let data_dir = tmp_root.path().join("engram_data");
+
+    let cfg = Config {
+        allowed_roots: vec![fixture_dir.clone()],
+        data_dir,
+        max_project_files: Some(200),
+        max_project_bytes: Some(10 * 1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: fixture_dir.to_string_lossy().to_string(),
+            project_name: "WebFormsCsFrontendBridgeFixture".into(),
+            project_type: engram_server::models::ProjectType::DotnetWebformsCs,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+
+    let projects = state.registry.list_projects().unwrap();
+    let project_id = &projects[0].project_id;
+
+    state.graph.resolve_symbol_edges(project_id).unwrap();
+
+    // 1) Frontend postback trigger should connect to control and then reach handler/DAL/SQL.
+    let postback_edges = state
+        .graph
+        .list_edges(project_id, Some(engram_graph::EdgeKind::TriggersPostback))
+        .unwrap();
+    assert!(
+        postback_edges
+            .iter()
+            .any(|e| e.source_id.contains("pageMethods.ts")
+                && e.target_id == "control:Search.aspx:btnSearch"),
+        "TypeScript __doPostBack should point to btnSearch control"
+    );
+
+    let ui_trace = engram
+        .trace_ui_event(Parameters(engram_server::TraceUiEventRequest {
+            project_id: project_id.clone(),
+            page_path: "Search.aspx".to_string(),
+            control_id: Some("btnSearch".to_string()),
+            handler_fqn: None,
+            max_hops: 6,
+            max_paths: 1,
+        }))
+        .await
+        .unwrap();
+    let ui_text = &ui_trace.content[0].as_text().unwrap().text;
+    assert!(
+        ui_text.contains("LegacyApp.FrontendBridgePage.btnSearch_Click"),
+        "Should reach postback click handler"
+    );
+    assert!(
+        ui_text.contains("LegacyApp.CustomerDal.LookupCustomer"),
+        "Should reach DAL method from handler"
+    );
+    assert!(ui_text.contains("sql:inline:"), "Should reach inline SQL");
+
+    // 2) Frontend AJAX calls should be captured for both ASMX and API endpoint shapes.
+    let api_edges = state
+        .graph
+        .list_edges(project_id, Some(engram_graph::EdgeKind::ApiCall))
+        .unwrap();
+    assert!(
+        api_edges.iter().any(|e| {
+            e.source_id.contains("uiTriggers.js") && e.target_id.contains("CustomerService.asmx")
+        }),
+        "Expected AJAX edge to ASMX service from external JS"
+    );
+    assert!(
+        api_edges
+            .iter()
+            .any(|e| e.source_id.contains("uiTriggers.js")
+                && e.target_id.contains("/api/customer/search")),
+        "Expected AJAX edge to API endpoint from external JS"
+    );
+
+    // 3) PageMethods trigger should resolve to method and continue into DAL/SQL.
+    let method_trace = engram
+        .trace_ui_event(Parameters(engram_server::TraceUiEventRequest {
+            project_id: project_id.clone(),
+            page_path: "Search.aspx".to_string(),
+            control_id: None,
+            handler_fqn: Some("LegacyApp.FrontendBridgePage.GetCustomer".to_string()),
+            max_hops: 6,
+            max_paths: 1,
+        }))
+        .await
+        .unwrap();
+    let method_text = &method_trace.content[0].as_text().unwrap().text;
+    assert!(
+        method_text.contains("LegacyApp.FrontendBridgePage.GetCustomer"),
+        "Should find PageMethods target handler"
+    );
+    assert!(
+        method_text.contains("LegacyApp.CustomerDal.LookupCustomer"),
+        "Should reach DAL from PageMethods handler"
+    );
+    assert!(
+        method_text.contains("sql:inline:"),
+        "Should reach SQL from PageMethods handler"
+    );
+}
