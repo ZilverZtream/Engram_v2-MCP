@@ -35,20 +35,17 @@ impl NodeId {
 
     /// Canonical ID for a symbol node.
     ///
-    /// Uses FQN if available for stability across edits and cross-file resolution.
-    /// Falls back to location-based ID if FQN is absent.
+    /// Symbol IDs are always location-based to avoid cross-file collisions for shared names.
+    /// `fqn` is accepted for API compatibility with existing call sites but is intentionally
+    /// ignored here. Persist FQN in node metadata for lookup/disambiguation.
     pub fn symbol(
         kind: &str,
-        fqn: Option<&str>,
+        _fqn: Option<&str>,
         rel_path: &str,
         name: &str,
         start_line: u32,
     ) -> Self {
-        if let Some(fqn) = fqn {
-            Self(format!("sym:{}:{}", kind, fqn))
-        } else {
-            Self(format!("sym:{}:{}:{}:{}", kind, rel_path, name, start_line))
-        }
+        Self(format!("sym:{}:{}:{}:{}", kind, rel_path, name, start_line))
     }
 
     /// Canonical ID for a SQL node.
