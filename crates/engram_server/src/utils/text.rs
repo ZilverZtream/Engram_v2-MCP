@@ -337,8 +337,9 @@ impl StackPatterns {
             ).expect("valid regex"),
 
             // Generic: any file path with recognized extension, optionally followed by :line
+            // Keep in sync with default_exts() in utils/files.rs and project-specific extension lists
             generic_file: regex::Regex::new(
-                r"([\w./\\-]+\.(?:rs|py|js|ts|tsx|jsx|go|java|cs|vb|aspx|ascx|master|config|php|rb|cpp|c|h|swift|kt|scala|lua|sql|cshtml|vbhtml|fs|fsx))[:\(](\d+)"
+                r"([\w./\\-]+\.(?:rs|py|js|ts|tsx|jsx|mjs|cjs|go|java|cs|vb|c|cpp|cc|cxx|h|hpp|md|toml|yaml|yml|json|aspx|ascx|master|asmx|ashx|svc|asax|config|xml|html|htm|css|scss|less|php|rb|swift|kt|scala|lua|sql|cshtml|vbhtml|fs|fsx))[:\(](\d+)"
             ).expect("valid regex"),
         }
     }
