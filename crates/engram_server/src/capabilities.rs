@@ -390,6 +390,22 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         key: "get_vb_translation_traps",
         status: CapabilityStatus::Implemented,
     },
+    CapabilityFlag {
+        key: "get_csharp_diagnostics",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_c_diagnostics",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_cpp_diagnostics",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "get_rust_diagnostics",
+        status: CapabilityStatus::Implemented,
+    },
     // ── Phase 38: The Access Layer ──────────────────────────────────────────
     CapabilityFlag {
         key: "get_method_info",

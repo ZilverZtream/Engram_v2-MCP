@@ -1879,6 +1879,58 @@ pub struct GetVbTranslationTrapsRequest {
     pub output_json: bool,
 }
 
+/// Detect C# migration/modernization diagnostics.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetCsharpDiagnosticsRequest {
+    pub project_id: String,
+    /// Specific .cs file to analyze. If omitted, analyzes all .cs files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Detect C migration diagnostics (buffer/ownership/unsafe API heuristics).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetCDiagnosticsRequest {
+    pub project_id: String,
+    /// Specific C source/header file to analyze. If omitted, analyzes all .c/.h files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Detect C++ migration diagnostics (RAII/new-delete/exception-safety heuristics).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetCppDiagnosticsRequest {
+    pub project_id: String,
+    /// Specific C++ file to analyze. If omitted, analyzes all .cpp/.cc/.cxx/.hpp/.hh/.hxx files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+/// Detect Rust migration diagnostics (panic/blocking-in-async/unsafe boundary heuristics).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetRustDiagnosticsRequest {
+    pub project_id: String,
+    /// Specific .rs file to analyze. If omitted, analyzes all .rs files.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Output as JSON instead of Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
 // ── Phase 38: The Access Layer ────────────────────────────────────────────────
 
 fn default_context_lines() -> u32 {
