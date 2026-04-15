@@ -3,13 +3,14 @@ use crate::models::{
     AnalyzeSyncHazardsRequest, AnalyzeViewStateDepsRequest, CheckMigrationCoverageRequest,
     GenerateCharacterizationTestsRequest, GenerateInstrumentationCodeRequest,
     GenerateMigrationBlueprintRequest, GenerateMigrationPlanRequest,
-    GenerateMigrationScaffoldRequest, GenerateStranglerFigRequest, GetInstrumentationPackRequest,
+    GenerateMigrationScaffoldRequest, GenerateStranglerFigRequest, GetCDiagnosticsRequest,
+    GetCppDiagnosticsRequest, GetCsharpDiagnosticsRequest, GetInstrumentationPackRequest,
     GetJQueryInventoryRequest, GetMigrationDossierRequest, GetMigrationProgressRequest,
-    GetSpDetailsRequest, IngestInstrumentationLogsRequest, ListTriggersRequest,
-    MapAuthConfigRequest, MapPageLifecycleRequest, MapValidationControlsRequest, MinSeverity,
-    ReconcileRuntimeEvidenceRequest, SuggestMigrationBoundariesRequest,
-    SuggestMigrationOrderRequest, SuggestStateMigrationRequest, TraceDataFlowRequest,
-    UpdateMigrationStatusRequest,
+    GetRustDiagnosticsRequest, GetSpDetailsRequest, IngestInstrumentationLogsRequest,
+    ListTriggersRequest, MapAuthConfigRequest, MapPageLifecycleRequest,
+    MapValidationControlsRequest, MinSeverity, ReconcileRuntimeEvidenceRequest,
+    SuggestMigrationBoundariesRequest, SuggestMigrationOrderRequest, SuggestStateMigrationRequest,
+    TraceDataFlowRequest, UpdateMigrationStatusRequest,
 };
 use crate::services::{full_project_migration_service as full_mig, graph_service};
 use crate::tools::Engram;
@@ -3187,5 +3188,179 @@ impl Engram {
         }
 
         Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+
+    fn collect_language_files(
+        project_dir: &str,
+        file_path: Option<&str>,
+        extensions: &[&str],
+    ) -> Result<Vec<(String, String)>, String> {
+        if let Some(specific) = file_path {
+            let full = safe_join(Path::new(project_dir), specific)
+                .map_err(|e| format!("Path validation: {e}"))?;
+            let content = std::fs::read_to_string(&full)
+                .map_err(|e| format!("Cannot read file '{}': {}", specific, e))?;
+            return Ok(vec![(specific.to_string(), content)]);
+        }
+
+        let mut files = Vec::new();
+        fn walk(
+            dir: &std::path::Path,
+            base: &std::path::Path,
+            exts: &[&str],
+            out: &mut Vec<(String, String)>,
+        ) {
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let name = path.file_name().unwrap_or_default().to_string_lossy();
+                    if name.starts_with('.')
+                        || name == "node_modules"
+                        || name == "bin"
+                        || name == "obj"
+                        || name == "packages"
+                    {
+                        continue;
+                    }
+                    walk(&path, base, exts, out);
+                } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if exts.iter().any(|e| ext.eq_ignore_ascii_case(e))
+                        && let Ok(content) = std::fs::read_to_string(&path)
+                    {
+                        let rel = path.strip_prefix(base).unwrap_or(&path);
+                        out.push((rel.to_string_lossy().to_string(), content));
+                    }
+                }
+            }
+        }
+
+        walk(
+            Path::new(project_dir),
+            Path::new(project_dir),
+            extensions,
+            &mut files,
+        );
+        Ok(files)
+    }
+
+    async fn handle_family_diagnostics(
+        &self,
+        project_id: &str,
+        file_path: Option<String>,
+        output_json: bool,
+        extensions: &'static [&'static str],
+        family: engram_index::language_diagnostics::LanguageFamily,
+        title: &'static str,
+    ) -> Result<CallToolResult, McpError> {
+        let rec = self.ensure_project_record(project_id).await?;
+        let project_dir = rec.directory.clone();
+
+        let report = tokio::task::spawn_blocking(move || {
+            let files =
+                Self::collect_language_files(&project_dir, file_path.as_deref(), extensions)?;
+            let refs: Vec<(&str, &str)> = files
+                .iter()
+                .map(|(p, c)| (p.as_str(), c.as_str()))
+                .collect();
+            Ok::<_, String>(
+                engram_index::language_diagnostics::detect_language_diagnostics(family, &refs),
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::invalid_params(e, None))?;
+
+        if output_json {
+            let json = serde_json::to_string_pretty(&report)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(json)]));
+        }
+
+        let mut md = String::with_capacity(6_000);
+        md.push_str(&format!("# {}\n\n", title));
+        md.push_str(&format!(
+            "- **Files analyzed**: {}\n- **Total findings**: {}\n\n",
+            report.files_analyzed, report.total_findings
+        ));
+        if report.diagnostics.is_empty() {
+            md.push_str("No diagnostics detected.\n");
+        } else {
+            md.push_str("| Location | Category | Severity | Evidence | Guidance |\n");
+            md.push_str("|----------|----------|----------|----------|----------|\n");
+            for d in &report.diagnostics {
+                md.push_str(&format!(
+                    "| {} | {} | {} | `{}` | {} |\n",
+                    d.location.replace('|', "\\|"),
+                    d.category.replace('|', "\\|"),
+                    d.severity.replace('|', "\\|"),
+                    d.evidence.replace('|', "\\|").replace('`', "'"),
+                    d.guidance.replace('|', "\\|"),
+                ));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+
+    pub async fn handle_get_csharp_diagnostics(
+        &self,
+        req: GetCsharpDiagnosticsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_family_diagnostics(
+            &req.project_id,
+            req.file_path,
+            req.output_json,
+            &["cs"],
+            engram_index::language_diagnostics::LanguageFamily::CSharp,
+            "C# Diagnostics",
+        )
+        .await
+    }
+
+    pub async fn handle_get_c_diagnostics(
+        &self,
+        req: GetCDiagnosticsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_family_diagnostics(
+            &req.project_id,
+            req.file_path,
+            req.output_json,
+            &["c", "h"],
+            engram_index::language_diagnostics::LanguageFamily::C,
+            "C Diagnostics",
+        )
+        .await
+    }
+
+    pub async fn handle_get_cpp_diagnostics(
+        &self,
+        req: GetCppDiagnosticsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_family_diagnostics(
+            &req.project_id,
+            req.file_path,
+            req.output_json,
+            &["cpp", "cc", "cxx", "hpp", "hh", "hxx"],
+            engram_index::language_diagnostics::LanguageFamily::Cpp,
+            "C++ Diagnostics",
+        )
+        .await
+    }
+
+    pub async fn handle_get_rust_diagnostics(
+        &self,
+        req: GetRustDiagnosticsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_family_diagnostics(
+            &req.project_id,
+            req.file_path,
+            req.output_json,
+            &["rs"],
+            engram_index::language_diagnostics::LanguageFamily::Rust,
+            "Rust Diagnostics",
+        )
+        .await
     }
 }

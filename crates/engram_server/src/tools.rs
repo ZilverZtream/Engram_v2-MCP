@@ -804,6 +804,46 @@ impl Engram {
         self.handle_get_vb_translation_traps(params.0).await
     }
 
+    #[tool(
+        description = "Detect C# diagnostics: async/ConfigureAwait pitfalls, event-leak patterns, and IDisposable misuse hotspots."
+    )]
+    pub async fn get_csharp_diagnostics(
+        &self,
+        params: Parameters<GetCsharpDiagnosticsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_csharp_diagnostics(params.0).await
+    }
+
+    #[tool(
+        description = "Detect C diagnostics: buffer safety and ownership heuristics plus unsafe API hotspots."
+    )]
+    pub async fn get_c_diagnostics(
+        &self,
+        params: Parameters<GetCDiagnosticsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_c_diagnostics(params.0).await
+    }
+
+    #[tool(
+        description = "Detect C++ diagnostics: RAII violations, raw new/delete hotspots, and exception-safety flags."
+    )]
+    pub async fn get_cpp_diagnostics(
+        &self,
+        params: Parameters<GetCppDiagnosticsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_cpp_diagnostics(params.0).await
+    }
+
+    #[tool(
+        description = "Detect Rust diagnostics: unwrap/panic hotspots, blocking-in-async, and unsafe boundary checks."
+    )]
+    pub async fn get_rust_diagnostics(
+        &self,
+        params: Parameters<GetRustDiagnosticsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_rust_diagnostics(params.0).await
+    }
+
     // ── Phase 38: The Access Layer ────────────────────────────────────────────
 
     #[tool(
@@ -847,7 +887,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "LLM context packer: assembles coding style profile, pattern examples from callers, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, and sync hazards — everything an LLM needs to generate correct code in one call."
+        description = "LLM context packer: assembles coding style profile, pattern examples from callers, database schema for referenced tables, SP signatures, session state context, control mappings, VB translation traps, language-family diagnostics (C#/C/C++/Rust), and sync hazards — everything an LLM needs to generate correct code in one call."
     )]
     pub async fn prepare_implementation_context(
         &self,
