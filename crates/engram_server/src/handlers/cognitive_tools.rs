@@ -2158,6 +2158,34 @@ impl Engram {
             report.total_outgoing
         );
 
+        let bd = &report.complexity_breakdown;
+        out.push_str("\n**Complexity Breakdown**:\n");
+        out.push_str(&format!(
+            "- Dependency density: {:.1}/10\n",
+            bd.dependency_density_score
+        ));
+        out.push_str(&format!("- SQL risk: {:.1}/10\n", bd.sql_concat_score));
+        out.push_str(&format!(
+            "- State coupling: {:.1}/10\n",
+            bd.state_coupling_score
+        ));
+        out.push_str(&format!(
+            "- Event wiring: {:.1}/10\n",
+            bd.handles_clause_score
+        ));
+        out.push_str(&format!(
+            "- PageRank centrality: {:.1}/10\n",
+            bd.pagerank_score
+        ));
+        out.push_str(&format!(
+            "- GIS coupling: {:.1}/10\n",
+            bd.gis_coupling_score
+        ));
+        out.push_str(&format!(
+            "- Script injection: {:.1}/10\n",
+            bd.script_injection_score
+        ));
+
         if !report.guidance.is_empty() {
             out.push_str("\n## Migration Guidance\n");
             for g in &report.guidance {
