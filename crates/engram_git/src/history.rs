@@ -369,46 +369,16 @@ impl GitWalker {
 
     /// Check if commit B is a structural revert of commit A.
     ///
-    /// This is true if the diff of B is the exact inverse of the diff of A.
+    /// True when B's tree is identical to A's parent's tree — meaning B
+    /// perfectly undoes A. This is a pure OID comparison (no diff loading).
     pub fn is_structural_revert(repo: &Repository, oid_a: Oid, oid_b: Oid) -> anyhow::Result<bool> {
-        let diff_a = Self::diff_text_for_commit(repo, oid_a, 1_000_000)?;
-        let diff_b = Self::diff_text_for_commit(repo, oid_b, 1_000_000)?;
-
-        if diff_a.len() != diff_b.len() || diff_a.is_empty() {
-            return Ok(false);
-        }
-
-        // Commits must touch same files
-        for ((p_a, _), (p_b, _)) in diff_a.iter().zip(diff_b.iter()) {
-            if p_a != p_b {
-                return Ok(false);
-            }
-
-            // In a revert, additions in A become deletions in B and vice-versa.
-            // A simple check: are they mirror images?
-            // In git diff format, a line starting with '+' in A should be '-' in B at same location.
-            // This is complex to parse perfectly, so we use a heuristic:
-            // Does applying B's diff to A's result state return to A's start state?
-            // Simpler: is the number of '+' in A equal to '-' in B, and vice-versa?
-
-            // Let's use a more robust check:
-            // A revert of A means B's tree is identical to A's parent's tree (for the files touched).
-            // But commit B might touch more files than A.
-        }
-
         let commit_a = repo.find_commit(oid_a)?;
         if commit_a.parent_count() == 0 {
             return Ok(false);
         }
         let parent_a_tree = commit_a.parent(0)?.tree()?;
-
         let commit_b = repo.find_commit(oid_b)?;
         let tree_b = commit_b.tree()?;
-
-        // If commit B perfectly reverts A, then tree_b should be identical to parent_a_tree
-        // for the files touched by A.
-        // Even simpler: If HEAD^ is OID_A, and we do a hard revert, HEAD tree == HEAD^^ tree.
-
         Ok(tree_b.id() == parent_a_tree.id())
     }
 }
