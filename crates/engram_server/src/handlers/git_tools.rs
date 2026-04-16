@@ -16,6 +16,7 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 use std::cell::Cell;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -315,6 +316,60 @@ impl Engram {
         let graph = self.state.graph.clone();
         let active_gen = self.get_active_generation(project_id).await.unwrap_or(1);
 
+        // ── Channel pipeline ─────────────────────────────────────────────
+        // Bounded channel (64 slots) provides backpressure: if the consumer
+        // falls behind, the producer blocks on send — no unbounded growth.
+        let (doc_tx, mut doc_rx) =
+            tokio::sync::mpsc::channel::<Vec<engram_index::IndexDoc>>(64);
+
+        // ── Async consumer: Tantivy bulk writer + vector embedding ───────
+        let search_consumer = search.clone();
+        let cancel_consumer = cancel.clone();
+        let pid_consumer = pid.clone();
+        let consumer_handle = tokio::spawn(async move {
+            // BulkWriterGuard: commits + waits on Drop (cancel-safe).
+            let mut guard = search_consumer.create_bulk_writer()?;
+            let fields = search_consumer.fields();
+            let mut vector_queue: Vec<engram_index::IndexDoc> = Vec::new();
+            const TANTIVY_COMMIT_EVERY: usize = 1000;
+            const VECTOR_FLUSH_EVERY: usize = 500;
+
+            while let Some(batch) = doc_rx.recv().await {
+                if cancel_consumer.is_cancelled() {
+                    break;
+                }
+
+                engram_index::HybridSearchEngine::write_docs_to_writer(
+                    &fields,
+                    &mut guard,
+                    &pid_consumer,
+                    &batch,
+                )?;
+                guard.maybe_commit(TANTIVY_COMMIT_EVERY)?;
+
+                vector_queue.extend(batch);
+                if vector_queue.len() >= VECTOR_FLUSH_EVERY {
+                    let vq = std::mem::take(&mut vector_queue);
+                    search_consumer
+                        .embed_and_upsert_vectors(&pid_consumer, &vq, &cancel_consumer)
+                        .await?;
+                }
+            }
+
+            // Final vector flush
+            if !vector_queue.is_empty() && !cancel_consumer.is_cancelled() {
+                search_consumer
+                    .embed_and_upsert_vectors(&pid_consumer, &vector_queue, &cancel_consumer)
+                    .await?;
+            }
+
+            // finish() commits + waits for merge threads (the one expensive call).
+            // If this is reached via cancel, Drop will do best-effort instead.
+            guard.finish()?;
+            Ok::<(), anyhow::Error>(())
+        });
+
+        // ── Blocking producer: git walk + graph writes ───────────────────
         let summary = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
             use engram_graph::EdgeKind;
 
@@ -324,233 +379,271 @@ impl Engram {
 
             let mut temporal_edges: u64 = 0;
             let mut reverts: usize = 0;
-            let mut anti_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_batch_bytes: usize = 0;
+            let mut anti_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut anti_batch_bytes: usize = 0;
             let newest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
             let oldest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
-            let mut commit_history: Vec<Oid> = Vec::new();
+            // Only need last ~10 commits for revert detection — cap at 12.
+            let mut commit_history: VecDeque<Oid> = VecDeque::with_capacity(12);
             let mut processed_total = 0usize;
 
+            // ── Batched graph edge accumulator ───────────────────────────
+            // Merge edge weights in-memory, flush every 50 commits.
+            let mut edge_accum: HashMap<(EdgeKind, String, String), u32> = HashMap::new();
+            let mut commits_since_edge_flush = 0u32;
+            let mut rename_nodes: Vec<engram_graph::Node> = Vec::new();
+            const EDGE_FLUSH_EVERY: u32 = 50;
+
+            const MAX_BATCH_DOCS: usize = 200;
+            const MAX_BATCH_BYTES: usize = 10_000_000;
+
+            let doc_tx_ref = &doc_tx;
+            let rt = tokio::runtime::Handle::current();
+
             let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
-                    progress_cb(curr, total);
-                    newest_processed_oid.set(Some(oid));
-                    if oldest_processed_oid.get().is_none() {
-                        oldest_processed_oid.set(Some(oid));
-                    }
-                    commit_history.push(oid);
-                    let changes = GitWalker::files_changed_in_commit(&repo, oid)?;
+                progress_cb(curr, total);
+                newest_processed_oid.set(Some(oid));
+                if oldest_processed_oid.get().is_none() {
+                    oldest_processed_oid.set(Some(oid));
+                }
+                commit_history.push_back(oid);
+                if commit_history.len() > 12 {
+                    commit_history.pop_front();
+                }
+                let changes = GitWalker::files_changed_in_commit(&repo, oid)?;
 
-                    let mut commit_edge_batch: Vec<(EdgeKind, String, String, u32)> = Vec::new();
+                // ── Handle renames (batch node upserts) ──────────────
+                for change in &changes {
+                    if let engram_git::history::FileChange::Renamed { old, new } = change {
+                        let old_node_id = format!("file:{}", old);
+                        let new_node_id = format!("file:{}", new);
 
-                    // Handle renames
-                    for change in &changes {
-                        if let engram_git::history::FileChange::Renamed { old, new } = change {
-                            let old_node_id = format!("file:{}", old);
-                            let new_node_id = format!("file:{}", new);
-
-                            if let Ok(neighbors) = graph.neighbors(
-                                &pid_clone,
-                                EdgeKind::TemporalCoupling,
-                                &old_node_id,
-                                1000,
-                            ) {
-                                for (neigh_id, weight) in neighbors {
-                                    if new_node_id != neigh_id {
-                                        commit_edge_batch.push((
+                        if let Ok(neighbors) = graph.neighbors(
+                            &pid_clone,
+                            EdgeKind::TemporalCoupling,
+                            &old_node_id,
+                            1000,
+                        ) {
+                            for (neigh_id, weight) in neighbors {
+                                if new_node_id != neigh_id {
+                                    *edge_accum
+                                        .entry((
                                             EdgeKind::TemporalCoupling,
                                             new_node_id.clone(),
                                             neigh_id,
-                                            weight,
-                                        ));
-                                    }
+                                        ))
+                                        .or_default() += weight;
                                 }
                             }
+                        }
 
-                            if let Ok(Some(mut old_node)) = graph.get_node(&pid_clone, &old_node_id)
-                            {
-                                old_node.generation = 0;
-                                let _ = graph.upsert_nodes(&pid_clone, &[old_node]);
-                            }
+                        if let Ok(Some(mut old_node)) =
+                            graph.get_node(&pid_clone, &old_node_id)
+                        {
+                            old_node.generation = 0;
+                            rename_nodes.push(old_node);
                         }
                     }
+                }
 
-                    // Temporal coupling
-                    let files: Vec<engram_core::RelPath> =
-                        changes.iter().map(|c| c.path().clone()).collect();
-                    let pairs = engram_git::temporal::file_pairs(&files, 80);
+                // Flush batched rename nodes
+                if !rename_nodes.is_empty() {
+                    let _ = graph.upsert_nodes(&pid_clone, &rename_nodes);
+                    rename_nodes.clear();
+                }
 
-                    for (a, b) in &pairs {
-                        let na = format!("file:{}", a);
-                        let nb = format!("file:{}", b);
-                        commit_edge_batch.push((EdgeKind::TemporalCoupling, na, nb, 1));
-                    }
-                    temporal_edges += pairs.len() as u64;
+                // ── Temporal coupling ────────────────────────────────
+                let files: Vec<engram_core::RelPath> =
+                    changes.iter().map(|c| c.path().clone()).collect();
+                let pairs = engram_git::temporal::file_pairs(&files, 80);
 
-                    if !commit_edge_batch.is_empty() {
+                for (a, b) in &pairs {
+                    let na = format!("file:{}", a);
+                    let nb = format!("file:{}", b);
+                    *edge_accum
+                        .entry((EdgeKind::TemporalCoupling, na, nb))
+                        .or_default() += 1;
+                }
+                temporal_edges += pairs.len() as u64;
+
+                // ── Flush graph edges every N commits ────────────────
+                commits_since_edge_flush += 1;
+                if commits_since_edge_flush >= EDGE_FLUSH_EVERY {
+                    if !edge_accum.is_empty() {
+                        let batch: Vec<_> = edge_accum
+                            .drain()
+                            .map(|((k, s, t), w)| (k, s, t, w))
+                            .collect();
                         graph.batch_increment_undirected_edges(
                             &pid_clone,
                             engram_core::namespaces::NAMESPACE_HISTORY,
                             "text",
                             active_gen,
-                            &commit_edge_batch,
+                            &batch,
                         )?;
                     }
+                    commits_since_edge_flush = 0;
+                }
 
-                    let commit = repo.find_commit(oid)?;
-                    let msg = commit.message().unwrap_or("").to_string();
-                    let author = commit.author().name().unwrap_or("unknown").to_string();
-                    let timestamp = commit.time().seconds();
+                // ── Index commit message ─────────────────────────────
+                let commit = repo.find_commit(oid)?;
+                let msg = commit.message().unwrap_or("").to_string();
+                let author = commit.author().name().unwrap_or("unknown").to_string();
+                let timestamp = commit.time().seconds();
 
-                    // Index commit message
-                    let msg_content =
-                        format!("Author: {}\nDate: {}\n\n{}", author, timestamp, msg);
-                    let msg_content_hash =
-                        engram_core::ContentHash::compute(msg_content.as_bytes());
-                    let msg_doc_id_str = engram_core::DocIdStr::compute(
-                        &format!("commit:{}", oid),
+                let msg_content =
+                    format!("Author: {}\nDate: {}\n\n{}", author, timestamp, msg);
+                let msg_content_hash =
+                    engram_core::ContentHash::compute(msg_content.as_bytes());
+                let msg_doc_id_str = engram_core::DocIdStr::compute(
+                    &format!("commit:{}", oid),
+                    0,
+                    0,
+                    &msg_content_hash,
+                )
+                .0;
+                history_batch_bytes += msg_content.len();
+                history_docs.push(engram_index::IndexDoc {
+                    generation,
+                    chunk_id: engram_index::chunk_id_from_content_hash(&msg_content_hash),
+                    doc_id: msg_doc_id_str,
+                    content_hash: msg_content_hash.0,
+                    path: format!("commit:{}", oid).into(),
+                    language: "text".into(),
+                    content: msg_content,
+                    namespace: "history".into(),
+                    author: Some(author.clone()),
+                    timestamp: Some(timestamp as u64),
+                    start_line: 0,
+                    end_line: 0,
+                });
+
+                // ── Index diffs ──────────────────────────────────────
+                let diffs = GitWalker::diff_text_for_commit(&repo, oid, 50_000)?;
+                for (path, text) in diffs {
+                    let diff_content_hash =
+                        engram_core::ContentHash::compute(text.as_bytes());
+                    let diff_path_str = format!("diff:{}:{}", oid, path);
+                    let diff_doc_id_str = engram_core::DocIdStr::compute(
+                        &diff_path_str,
                         0,
                         0,
-                        &msg_content_hash,
+                        &diff_content_hash,
                     )
                     .0;
+                    history_batch_bytes += text.len();
                     history_docs.push(engram_index::IndexDoc {
                         generation,
-                        chunk_id: engram_index::chunk_id_from_content_hash(&msg_content_hash),
-                        doc_id: msg_doc_id_str,
-                        content_hash: msg_content_hash.0,
-                        path: format!("commit:{}", oid).into(),
-                        language: "text".into(),
-                        content: msg_content,
+                        chunk_id: engram_index::chunk_id_from_content_hash(
+                            &diff_content_hash,
+                        ),
+                        doc_id: diff_doc_id_str,
+                        content_hash: diff_content_hash.0,
+                        path: diff_path_str.into(),
+                        language: "diff".into(),
+                        content: text,
                         namespace: "history".into(),
                         author: Some(author.clone()),
                         timestamp: Some(timestamp as u64),
                         start_line: 0,
                         end_line: 0,
                     });
+                }
 
-                    // Index diffs
-                    let diffs = GitWalker::diff_text_for_commit(&repo, oid, 50_000)?;
-                    for (path, text) in diffs {
-                        let diff_content_hash =
-                            engram_core::ContentHash::compute(text.as_bytes());
-                        let diff_path_str = format!("diff:{}:{}", oid, path);
-                        let diff_doc_id_str = engram_core::DocIdStr::compute(
-                            &diff_path_str,
-                            0,
-                            0,
-                            &diff_content_hash,
-                        )
-                        .0;
-                        history_docs.push(engram_index::IndexDoc {
-                            generation,
-                            chunk_id: engram_index::chunk_id_from_content_hash(&diff_content_hash),
-                            doc_id: diff_doc_id_str,
-                            content_hash: diff_content_hash.0,
-                            path: diff_path_str.into(),
-                            language: "diff".into(),
-                            content: text,
-                            namespace: "history".into(),
-                            author: Some(author.clone()),
-                            timestamp: Some(timestamp as u64),
-                            start_line: 0,
-                            end_line: 0,
-                        });
-                    }
+                // ── Revert detection ─────────────────────────────────
+                let mut rev_oid = GitWalker::reverted_oid_from_message(&msg);
 
-                    // Revert detection
-                    let mut rev_oid = GitWalker::reverted_oid_from_message(&msg);
-
-                    if rev_oid.is_none() && index_antipatterns {
-                        for old_oid in commit_history.iter().rev().skip(1).take(10) {
-                            if let Ok(true) =
-                                GitWalker::is_structural_revert(&repo, *old_oid, oid)
-                            {
-                                rev_oid = Some(*old_oid);
-                                break;
-                            }
+                if rev_oid.is_none() && index_antipatterns {
+                    for old_oid in commit_history.iter().rev().skip(1).take(10) {
+                        if let Ok(true) =
+                            GitWalker::is_structural_revert(&repo, *old_oid, oid)
+                        {
+                            rev_oid = Some(*old_oid);
+                            break;
                         }
                     }
+                }
 
-                    if let Some(ro) = rev_oid {
-                        reverts += 1;
-                        if index_antipatterns {
-                            let diffs =
-                                GitWalker::diff_text_for_commit(&repo, ro, 200_000)?;
-                            for (p, d) in diffs {
-                                let augmented_content = format!(
+                if let Some(ro) = rev_oid {
+                    reverts += 1;
+                    if index_antipatterns {
+                        let diffs =
+                            GitWalker::diff_text_for_commit(&repo, ro, 200_000)?;
+                        for (p, d) in diffs {
+                            let augmented_content = format!(
                                 "ANTI-PATTERN\nOriginal Commit: {}\nReverted in Commit: {}\nPath: {}\n\n{}",
                                 ro, oid, p, d
                             );
-                                let anti_content_hash = engram_core::ContentHash::compute(
-                                    augmented_content.as_bytes(),
-                                );
-                                let anti_doc_id_str = engram_core::DocIdStr::compute(
-                                    p.as_str(),
-                                    0,
-                                    0,
-                                    &anti_content_hash,
-                                )
-                                .0;
+                            let anti_content_hash = engram_core::ContentHash::compute(
+                                augmented_content.as_bytes(),
+                            );
+                            let anti_doc_id_str = engram_core::DocIdStr::compute(
+                                p.as_str(),
+                                0,
+                                0,
+                                &anti_content_hash,
+                            )
+                            .0;
 
-                                anti_docs.push(engram_index::IndexDoc {
-                                    generation,
-                                    chunk_id: engram_index::chunk_id_from_content_hash(
-                                        &anti_content_hash,
-                                    ),
-                                    doc_id: anti_doc_id_str,
-                                    content_hash: anti_content_hash.0,
-                                    path: p,
-                                    language: "code".into(),
-                                    content: augmented_content,
-                                    namespace: "antipattern".into(),
-                                    author: Some(author.clone()),
-                                    timestamp: Some(timestamp as u64),
-                                    start_line: 0,
-                                    end_line: 0,
-                                });
-                            }
+                            anti_batch_bytes += augmented_content.len();
+                            anti_docs.push(engram_index::IndexDoc {
+                                generation,
+                                chunk_id: engram_index::chunk_id_from_content_hash(
+                                    &anti_content_hash,
+                                ),
+                                doc_id: anti_doc_id_str,
+                                content_hash: anti_content_hash.0,
+                                path: p,
+                                language: "code".into(),
+                                content: augmented_content,
+                                namespace: "antipattern".into(),
+                                author: Some(author.clone()),
+                                timestamp: Some(timestamp as u64),
+                                start_line: 0,
+                                end_line: 0,
+                            });
                         }
                     }
+                }
 
-                    history_batch_bytes = history_docs.iter().map(|d| d.content.len()).sum();
-                    anti_batch_bytes = anti_docs.iter().map(|d| d.content.len()).sum();
+                // ── Send history doc batch through channel ───────────
+                if history_docs.len() >= MAX_BATCH_DOCS
+                    || history_batch_bytes >= MAX_BATCH_BYTES
+                {
+                    let batch = std::mem::take(&mut history_docs);
+                    history_batch_bytes = 0;
+                    rt.block_on(doc_tx_ref.send(batch))
+                        .map_err(|_| anyhow::anyhow!("index consumer dropped"))?;
+                }
 
-                    const MAX_BATCH_BYTES: usize = 10_000_000;
-                    if history_docs.len() >= 100 || history_batch_bytes >= MAX_BATCH_BYTES {
-                        let rt = tokio::runtime::Handle::current();
-                        rt.block_on(search.index_docs(
-                            &pid_clone,
-                            &history_docs,
-                            &cancel_clone,
-                        ))?;
-                        history_docs.clear();
-                        history_batch_bytes = 0;
-                    }
-                    if anti_docs.len() >= 100 || anti_batch_bytes >= MAX_BATCH_BYTES {
-                        let rt = tokio::runtime::Handle::current();
-                        rt.block_on(search.index_docs(&pid_clone, &anti_docs, &cancel_clone))?;
-                        anti_docs.clear();
-                        anti_batch_bytes = 0;
-                    }
+                // ── Send anti-pattern doc batch through channel ──────
+                if anti_docs.len() >= MAX_BATCH_DOCS
+                    || anti_batch_bytes >= MAX_BATCH_BYTES
+                {
+                    let batch = std::mem::take(&mut anti_docs);
+                    anti_batch_bytes = 0;
+                    rt.block_on(doc_tx_ref.send(batch))
+                        .map_err(|_| anyhow::anyhow!("index consumer dropped"))?;
+                }
 
-                    Ok(())
-                };
-
-            let forward_processed = if matches!(mode, GitHistoryMode::Forward | GitHistoryMode::Both)
-            {
-                GitWalker::walk_commits_streaming(
-                    &repo,
-                    stop,
-                    max_commits,
-                    policy,
-                    &cancel_clone,
-                    &mut process_commit,
-                )?
-            } else {
-                0
+                Ok(())
             };
+
+            let forward_processed =
+                if matches!(mode, GitHistoryMode::Forward | GitHistoryMode::Both) {
+                    GitWalker::walk_commits_streaming(
+                        &repo,
+                        stop,
+                        max_commits,
+                        policy,
+                        &cancel_clone,
+                        &mut process_commit,
+                    )?
+                } else {
+                    0
+                };
             processed_total += forward_processed;
 
             let remaining = max_commits.saturating_sub(processed_total);
@@ -574,6 +667,34 @@ impl Engram {
             let effective_last_oid = newest_processed_oid.get().or(stop);
             let effective_oldest_oid = oldest_processed_oid.get().or(start_backfill);
 
+            // ── Final edge flush ─────────────────────────────────────
+            if !edge_accum.is_empty() {
+                let batch: Vec<_> = edge_accum
+                    .drain()
+                    .map(|((k, s, t), w)| (k, s, t, w))
+                    .collect();
+                graph.batch_increment_undirected_edges(
+                    &pid_clone,
+                    engram_core::namespaces::NAMESPACE_HISTORY,
+                    "text",
+                    active_gen,
+                    &batch,
+                )?;
+            }
+
+            // ── Final doc flushes through channel ────────────────────
+            if !history_docs.is_empty() {
+                rt.block_on(doc_tx_ref.send(history_docs))
+                    .map_err(|_| anyhow::anyhow!("index consumer dropped"))?;
+            }
+            if !anti_docs.is_empty() {
+                rt.block_on(doc_tx_ref.send(anti_docs))
+                    .map_err(|_| anyhow::anyhow!("index consumer dropped"))?;
+            }
+
+            // Drop sender to signal consumer that no more batches are coming.
+            drop(doc_tx);
+
             let diagnostic = if commits_processed == 0 {
                 match mode {
                     GitHistoryMode::Forward => {
@@ -592,16 +713,6 @@ impl Engram {
                 "ok"
             };
 
-            // Final flush
-            if !history_docs.is_empty() {
-                let rt = tokio::runtime::Handle::current();
-                rt.block_on(search.index_docs(&pid_clone, &history_docs, &cancel_clone))?;
-            }
-            if !anti_docs.is_empty() {
-                let rt = tokio::runtime::Handle::current();
-                rt.block_on(search.index_docs(&pid_clone, &anti_docs, &cancel_clone))?;
-            }
-
             Ok(format!(
                 "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\ndiagnostic: {}",
                 commits_processed,
@@ -618,6 +729,12 @@ impl Engram {
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // ── Wait for consumer to finish (Tantivy merge + final vectors) ──
+        consumer_handle
+            .await
+            .map_err(|e| McpError::internal_error(format!("index consumer panicked: {e}"), None))?
+            .map_err(|e| McpError::internal_error(format!("index consumer failed: {e}"), None))?;
 
         // Update git checkpoints meta best-effort.
         if let Some(last_line) = summary.lines().find(|l| l.starts_with("last_oid: ")) {
