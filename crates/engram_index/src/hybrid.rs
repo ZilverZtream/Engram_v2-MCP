@@ -1253,6 +1253,11 @@ impl HybridSearchEngine {
 
         crate::vb_extractor::begin_project(root);
 
+        // Single Tantivy writer for the entire index_files run.
+        // BulkWriterGuard commits + waits on Drop (cancel-safe).
+        let mut guard = self.create_bulk_writer()?;
+        let fields = self.fields();
+
         let mut batch: Vec<IndexDoc> = Vec::with_capacity(512);
         let mut processed_count = 0;
 
@@ -1560,7 +1565,10 @@ impl HybridSearchEngine {
 
             batch.extend(chunk_docs);
             if batch.len() >= 512 {
-                self.index_docs(project_id, &batch, cancel).await?;
+                Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
+                guard.maybe_commit(1000)?;
+                self.embed_and_upsert_vectors(project_id, &batch, cancel)
+                    .await?;
                 batch.clear();
             }
 
@@ -1569,8 +1577,13 @@ impl HybridSearchEngine {
         }
 
         if !batch.is_empty() && !cancel.is_cancelled() {
-            self.index_docs(project_id, &batch, cancel).await?;
+            Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
+            self.embed_and_upsert_vectors(project_id, &batch, cancel)
+                .await?;
         }
+
+        // Single merge wait for the entire run.
+        guard.finish()?;
 
         let mut extracted_edge_kind_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
