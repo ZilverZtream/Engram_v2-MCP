@@ -1864,7 +1864,7 @@ impl QueryBusinessLogicRequest {
 // ── Phase 37: Wiring — Expose Existing Services ──────────────────────────────
 
 fn default_sp_limit() -> usize {
-    50
+    500
 }
 
 /// Full database analysis: schema, stored procedures, triggers, call chains.
@@ -1876,7 +1876,7 @@ pub struct AnalyzeDatabaseIntelligenceRequest {
     /// If omitted, uses all .sql files already indexed for the project.
     #[serde(default)]
     pub sql_file_path: Option<String>,
-    /// Maximum stored procedures to summarize (avoid runaway cost). Default: 50.
+    /// Maximum stored procedures to summarize (avoid runaway cost). Default: 500.
     #[serde(default = "default_sp_limit")]
     pub sp_limit: usize,
     /// Output as JSON instead of Markdown report. Default: false.

@@ -23,7 +23,62 @@ pub struct DatabaseIntelligence {
     pub sp_call_chains: Vec<SpCallChain>,
     pub triggers: Vec<TriggerInfo>,
     pub schema: SchemaReport,
+    /// Analysis of SQL files that are NOT stored-procedure definitions —
+    /// post-deployment seed/merge/migration scripts. See `SqlScriptAnalysis`.
+    #[serde(default)]
+    pub sql_scripts: Vec<SqlScriptAnalysis>,
     pub warnings: Vec<String>,
+}
+
+/// Classification of a standalone SQL file that is not a `CREATE PROCEDURE`
+/// definition — typically a post-deployment seed/merge or a migration step.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScriptType {
+    /// Seeds or refreshes reference data via `INSERT` / `MERGE`.
+    Seed,
+    /// Changes schema: `ALTER TABLE`, constraint changes, etc.
+    Migration,
+    /// Creates or drops indexes / non-table objects.
+    SchemaChange,
+    /// Mixes two or more of the above.
+    Mixed,
+}
+
+impl ScriptType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ScriptType::Seed => "Seed",
+            ScriptType::Migration => "Migration",
+            ScriptType::SchemaChange => "SchemaChange",
+            ScriptType::Mixed => "Mixed",
+        }
+    }
+}
+
+/// Analysis of a single post-deployment SQL script (non-SP file).
+///
+/// The business-logic SQL on real migration projects often lives here —
+/// seed/merge scripts that populate reference tables, per-locale translation
+/// files, and ad-hoc DDL steps. These never show up in the stored-procedure
+/// catalog and are otherwise invisible to migration tooling.
+#[derive(Debug, Clone, Serialize)]
+pub struct SqlScriptAnalysis {
+    pub file_path: String,
+    pub script_type: ScriptType,
+    /// Distinct table names referenced by the detected operations
+    /// (`INSERT`, `MERGE`, `UPDATE`, `DELETE`, `ALTER TABLE`, `CREATE/DROP INDEX`).
+    pub tables_affected: Vec<String>,
+    /// Uppercased operation keywords actually seen, e.g. `INSERT`, `MERGE`, `ALTER`.
+    pub operations: Vec<String>,
+    /// Rough floor on the number of rows touched when the script runs —
+    /// derived by counting `(…),(…)` tuples in `INSERT … VALUES` blocks plus
+    /// the number of `WHEN MATCHED … UPDATE` / `WHEN NOT MATCHED … INSERT`
+    /// branches in `MERGE` statements. `None` when nothing seedy was found.
+    pub row_count_estimate: Option<usize>,
+    /// Deterministic one-line summary (for markdown rendering and for
+    /// consumers that want a stable, non-LLM description).
+    pub purpose_summary: String,
 }
 
 /// Business logic summary for a stored procedure.
@@ -898,6 +953,253 @@ pub fn cross_reference_schema(
     }
 }
 
+// ── Post-deployment script analysis ──────────────────────────────────────────
+
+/// Strip `--` line comments and `/* … */` block comments from a SQL chunk
+/// before regex scanning. The markers inside a string literal are not
+/// removed here — seed scripts rarely contain them and the downstream
+/// counts only need a rough floor.
+fn strip_sql_comments(src: &str) -> String {
+    // Remove /* ... */ block comments (non-greedy, multi-line).
+    static BLOCK_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?s)/\*.*?\*/").expect("BLOCK_RE"));
+    // Remove `-- …` to end of line.
+    static LINE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"--[^\n]*").expect("LINE_RE"));
+    let no_block = BLOCK_RE.replace_all(src, " ");
+    LINE_RE.replace_all(&no_block, " ").into_owned()
+}
+
+/// Extract the bare table name from an optional `[schema].[name]` form,
+/// dropping brackets and quotes so downstream renders are clean.
+fn clean_table_name(raw: &str) -> String {
+    let last = raw
+        .rsplit('.')
+        .next()
+        .unwrap_or(raw)
+        .trim()
+        .trim_matches(|c| matches!(c, '[' | ']' | '"' | '`'));
+    last.to_string()
+}
+
+fn contains_create_procedure(content: &str) -> bool {
+    static CREATE_PROC_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bCREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b").expect("CREATE_PROC_RE")
+    });
+    // Strip comments first — a `-- CREATE PROCEDURE …` line in a seed
+    // script is not an SP definition and must not exclude the file.
+    let stripped = strip_sql_comments(content);
+    CREATE_PROC_RE.is_match(&stripped)
+}
+
+/// Tokens that sometimes follow `UPDATE` or `INSERT INTO` in real SQL but
+/// are not table names — e.g. `UPDATE SET …` inside a `MERGE … WHEN MATCHED
+/// THEN UPDATE SET …` clause. Filter these out so they don't leak into
+/// `tables_affected`.
+fn is_sql_reserved_table_like(token: &str) -> bool {
+    matches!(
+        token.to_ascii_uppercase().as_str(),
+        "SET" | "WHERE" | "FROM" | "ON" | "INTO" | "VALUES" | "SELECT" | "TABLE" | "INDEX"
+    )
+}
+
+fn analyze_sql_script(path: &str, content: &str) -> Option<SqlScriptAnalysis> {
+    static INSERT_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\bINSERT\s+INTO\s+([\[\]\w.\-]+)").expect("INSERT_RE"));
+    static MERGE_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bMERGE\s+(?:INTO\s+)?([\[\]\w.\-]+)").expect("MERGE_RE")
+    });
+    static UPDATE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\bUPDATE\s+([\[\]\w.\-]+)").expect("UPDATE_RE"));
+    static DELETE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\bDELETE\s+FROM\s+([\[\]\w.\-]+)").expect("DELETE_RE"));
+    static ALTER_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\bALTER\s+TABLE\s+([\[\]\w.\-]+)").expect("ALTER_RE"));
+    static CREATE_INDEX_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bCREATE\s+(?:UNIQUE\s+)?(?:CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\s+[\[\]\w.\-]+\s+ON\s+([\[\]\w.\-]+)")
+            .expect("CREATE_INDEX_RE")
+    });
+    static DROP_INDEX_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bDROP\s+INDEX\s+[\[\]\w.\-]+\s+ON\s+([\[\]\w.\-]+)")
+            .expect("DROP_INDEX_RE")
+    });
+    // `(…),` tuple boundaries inside a VALUES list → approximate row count.
+    static ROW_TUPLE_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"\)\s*,\s*\(").expect("ROW_TUPLE_RE"));
+    // `WHEN MATCHED THEN UPDATE` / `WHEN NOT MATCHED THEN INSERT` branches.
+    static MERGE_BRANCH_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"(?i)\bWHEN\s+(?:NOT\s+)?MATCHED\b[\s\S]{0,200}?\bTHEN\s+(?:INSERT|UPDATE|DELETE)",
+        )
+        .expect("MERGE_BRANCH_RE")
+    });
+
+    let stripped = strip_sql_comments(content);
+
+    let mut tables: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    let push_table = |t: &str, tables: &mut Vec<String>, seen: &mut HashSet<String>| {
+        let name = clean_table_name(t);
+        if name.is_empty() || is_sql_reserved_table_like(&name) {
+            return;
+        }
+        let key = name.to_lowercase();
+        if seen.insert(key) {
+            tables.push(name);
+        }
+    };
+
+    let mut operations: Vec<String> = Vec::new();
+    let add_op = |op: &str, ops: &mut Vec<String>| {
+        if !ops.iter().any(|s| s == op) {
+            ops.push(op.to_string());
+        }
+    };
+
+    let mut insert_count = 0usize;
+    for cap in INSERT_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        insert_count += 1;
+    }
+    if insert_count > 0 {
+        add_op("INSERT", &mut operations);
+    }
+
+    let mut merge_count = 0usize;
+    for cap in MERGE_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        merge_count += 1;
+    }
+    if merge_count > 0 {
+        add_op("MERGE", &mut operations);
+    }
+
+    for cap in UPDATE_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        add_op("UPDATE", &mut operations);
+    }
+    for cap in DELETE_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        add_op("DELETE", &mut operations);
+    }
+
+    let mut alter_count = 0usize;
+    for cap in ALTER_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        alter_count += 1;
+    }
+    if alter_count > 0 {
+        add_op("ALTER", &mut operations);
+    }
+
+    let mut index_count = 0usize;
+    for cap in CREATE_INDEX_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        index_count += 1;
+    }
+    for cap in DROP_INDEX_RE.captures_iter(&stripped) {
+        push_table(&cap[1], &mut tables, &mut seen);
+        index_count += 1;
+    }
+    if index_count > 0 {
+        add_op("INDEX", &mut operations);
+    }
+
+    if operations.is_empty() {
+        return None;
+    }
+
+    let is_seed = insert_count > 0 || merge_count > 0;
+    let is_migration = alter_count > 0;
+    let is_index = index_count > 0;
+    let distinct_categories = [is_seed, is_migration, is_index]
+        .iter()
+        .filter(|b| **b)
+        .count();
+    let script_type = if distinct_categories > 1 {
+        ScriptType::Mixed
+    } else if is_seed {
+        ScriptType::Seed
+    } else if is_migration {
+        ScriptType::Migration
+    } else {
+        ScriptType::SchemaChange
+    };
+
+    // Row-count estimate: tuple boundaries in INSERT VALUES (n tuples produce
+    // n-1 boundaries, so add one per detected INSERT) plus MERGE branches.
+    let tuple_boundaries = ROW_TUPLE_RE.find_iter(&stripped).count();
+    let merge_branches = MERGE_BRANCH_RE.find_iter(&stripped).count();
+    let row_count_estimate = if is_seed {
+        let rows = tuple_boundaries + insert_count + merge_branches;
+        if rows == 0 { None } else { Some(rows) }
+    } else {
+        None
+    };
+
+    // Short deterministic summary — the first table wins as the "primary"
+    // subject when there are several, since seed scripts are usually
+    // dominated by one reference table.
+    let primary = tables.first().cloned().unwrap_or_else(|| "—".to_string());
+    let extra_tables = if tables.len() > 1 {
+        format!(" (+{} more)", tables.len() - 1)
+    } else {
+        String::new()
+    };
+    let purpose_summary = match (script_type, row_count_estimate) {
+        (ScriptType::Seed, Some(n)) => {
+            format!("Seeds/updates `{primary}` with ~{n} rows{extra_tables}")
+        }
+        (ScriptType::Seed, None) => format!("Seeds/updates `{primary}`{extra_tables}"),
+        (ScriptType::Migration, _) => format!("Alters schema of `{primary}`{extra_tables}"),
+        (ScriptType::SchemaChange, _) => {
+            format!("Index or constraint change on `{primary}`{extra_tables}")
+        }
+        (ScriptType::Mixed, Some(n)) => {
+            format!(
+                "Mixed operations ({} op kinds, ~{n} rows) on `{primary}`{extra_tables}",
+                operations.len()
+            )
+        }
+        (ScriptType::Mixed, None) => format!(
+            "Mixed operations ({} op kinds) on `{primary}`{extra_tables}",
+            operations.len()
+        ),
+    };
+
+    Some(SqlScriptAnalysis {
+        file_path: path.to_string(),
+        script_type,
+        tables_affected: tables,
+        operations,
+        row_count_estimate,
+        purpose_summary,
+    })
+}
+
+/// Analyse every non-SP SQL file in `sql_files` — those are the post-deploy
+/// seed/merge/DDL scripts that carry real business logic on top of the
+/// stored-procedure catalog.
+fn analyze_post_deploy_scripts(sql_files: &[(String, String)]) -> Vec<SqlScriptAnalysis> {
+    let mut out = Vec::new();
+    for (path, content) in sql_files {
+        if contains_create_procedure(content) {
+            continue;
+        }
+        if let Some(analysis) = analyze_sql_script(path, content) {
+            out.push(analysis);
+        }
+    }
+    // Seed scripts with the most rows first, then alphabetically by path so
+    // the markdown table is deterministic.
+    out.sort_by(|a, b| {
+        b.row_count_estimate
+            .unwrap_or(0)
+            .cmp(&a.row_count_estimate.unwrap_or(0))
+            .then_with(|| a.file_path.cmp(&b.file_path))
+    });
+    out
+}
+
 // ── Full Database Intelligence Builder ───────────────────────────────────────
 
 /// Build the complete database intelligence report.
@@ -932,6 +1234,9 @@ pub fn build_database_intelligence(
     let schema_views = parse_create_views(sql_files);
     let schema_report = cross_reference_schema(schema_tables, schema_views, code_tables);
 
+    // Post-deployment scripts (seed/merge/DDL files that are NOT SP defs)
+    let sql_scripts = analyze_post_deploy_scripts(sql_files);
+
     // Cross-reference triggers with code
     let trigger_warnings = cross_reference_triggers(&triggers, code_tables);
 
@@ -952,6 +1257,7 @@ pub fn build_database_intelligence(
         sp_call_chains,
         triggers,
         schema: schema_report,
+        sql_scripts,
         warnings,
     }
 }
@@ -993,6 +1299,7 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
         && intel.triggers.is_empty()
         && intel.schema.tables.is_empty()
         && intel.sp_call_chains.is_empty()
+        && intel.sql_scripts.is_empty()
     {
         return String::new();
     }
@@ -1053,6 +1360,39 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
                 t.event_types.join(", "),
                 t.trigger_type,
                 t.body_summary.replace('|', "\\|"),
+            ));
+        }
+        md.push('\n');
+    }
+
+    // Post-deployment scripts — seed/merge/DDL files that are not SP bodies.
+    if !intel.sql_scripts.is_empty() {
+        md.push_str("### Post-Deployment Scripts\n\n");
+        md.push_str(
+            "| Script | Type | Tables Affected | Operations | Rows |\n|---|---|---|---|---|\n",
+        );
+        for s in &intel.sql_scripts {
+            let tables = if s.tables_affected.is_empty() {
+                "—".to_string()
+            } else {
+                s.tables_affected.join(", ")
+            };
+            let ops = if s.operations.is_empty() {
+                "—".to_string()
+            } else {
+                s.operations.join(", ")
+            };
+            let rows = match s.row_count_estimate {
+                Some(n) => format!("~{n}"),
+                None => "—".to_string(),
+            };
+            md.push_str(&format!(
+                "| {} | {} | {} | {} | {} |\n",
+                s.file_path.replace('|', "\\|"),
+                s.script_type.as_str(),
+                tables.replace('|', "\\|"),
+                ops.replace('|', "\\|"),
+                rows,
             ));
         }
         md.push('\n');
@@ -1516,6 +1856,7 @@ GO"#
             }],
             triggers: vec![],
             schema: SchemaReport::default(),
+            sql_scripts: vec![],
             warnings: vec![],
         };
 
@@ -1536,11 +1877,152 @@ GO"#
                 body_summary: "Logs to AuditLog".to_string(),
             }],
             schema: SchemaReport::default(),
+            sql_scripts: vec![],
             warnings: vec![],
         };
 
         let md = render_database_intelligence_markdown(&intel);
         assert!(md.contains("trg_Audit"));
         assert!(md.contains("Orders"));
+    }
+
+    // ── Post-deployment script analysis ─────────────────────────────────────
+
+    #[test]
+    fn contains_create_procedure_detects_ddl_keyword() {
+        assert!(contains_create_procedure(
+            "CREATE PROCEDURE [dbo].[usp_Get] AS SELECT 1"
+        ));
+        assert!(contains_create_procedure(
+            "create or alter proc dbo.usp_Foo as select 1"
+        ));
+        assert!(!contains_create_procedure(
+            "INSERT INTO dbo.Settings VALUES (1, 'x')"
+        ));
+        assert!(!contains_create_procedure(
+            "-- CREATE PROCEDURE usp_fake\nINSERT INTO T VALUES (1)"
+        ));
+    }
+
+    #[test]
+    fn clean_table_name_strips_schema_and_brackets() {
+        assert_eq!(
+            clean_table_name("[dbo].[ss_systemSettings]"),
+            "ss_systemSettings"
+        );
+        assert_eq!(clean_table_name("dbo.Orders"), "Orders");
+        assert_eq!(clean_table_name("Orders"), "Orders");
+        assert_eq!(clean_table_name("\"dbo\".\"t\""), "t");
+    }
+
+    #[test]
+    fn analyze_sql_script_classifies_seed_insert() {
+        let sql = r#"
+            -- seed ref table
+            INSERT INTO [dbo].[ss_systemSettings] (id, name) VALUES
+                (1, 'alpha'),
+                (2, 'beta'),
+                (3, 'gamma');
+        "#;
+        let a =
+            analyze_sql_script("Scripts/Post/ss_systemsettings.sql", sql).expect("must analyse");
+        assert_eq!(a.script_type, ScriptType::Seed);
+        assert_eq!(a.tables_affected, vec!["ss_systemSettings"]);
+        assert_eq!(a.operations, vec!["INSERT"]);
+        // 3 tuples → 2 boundaries + 1 INSERT statement = 3 rows estimate
+        assert_eq!(a.row_count_estimate, Some(3));
+        assert!(a.purpose_summary.contains("ss_systemSettings"));
+        assert!(a.purpose_summary.contains("~3 rows"));
+    }
+
+    #[test]
+    fn analyze_sql_script_detects_merge_with_branches() {
+        let sql = r#"
+            MERGE INTO [dbo].[tpr_timeplanRevision] AS tgt
+            USING (SELECT 1 AS id) AS src ON tgt.id = src.id
+            WHEN MATCHED THEN UPDATE SET tgt.status = 'active'
+            WHEN NOT MATCHED THEN INSERT (id, status) VALUES (src.id, 'active');
+        "#;
+        let a = analyze_sql_script("Scripts/Post/tpr.sql", sql).expect("must analyse");
+        assert_eq!(a.script_type, ScriptType::Seed);
+        assert!(a.operations.contains(&"MERGE".to_string()));
+        assert_eq!(a.tables_affected, vec!["tpr_timeplanRevision"]);
+        assert!(a.row_count_estimate.is_some());
+    }
+
+    #[test]
+    fn analyze_sql_script_classifies_migration_alter() {
+        let sql = "ALTER TABLE dbo.Orders ADD newCol INT NULL;";
+        let a = analyze_sql_script("Scripts/Migrate/001.sql", sql).expect("must analyse");
+        assert_eq!(a.script_type, ScriptType::Migration);
+        assert_eq!(a.tables_affected, vec!["Orders"]);
+        assert!(a.operations.contains(&"ALTER".to_string()));
+        assert!(a.row_count_estimate.is_none());
+    }
+
+    #[test]
+    fn analyze_sql_script_classifies_schema_change_index() {
+        let sql = "CREATE NONCLUSTERED INDEX IX_Orders_CustomerId ON dbo.Orders (CustomerId);";
+        let a = analyze_sql_script("Scripts/Indexes/001.sql", sql).expect("must analyse");
+        assert_eq!(a.script_type, ScriptType::SchemaChange);
+        assert!(a.operations.contains(&"INDEX".to_string()));
+        assert_eq!(a.tables_affected, vec!["Orders"]);
+    }
+
+    #[test]
+    fn analyze_sql_script_classifies_mixed() {
+        let sql = r#"
+            ALTER TABLE dbo.Settings ADD flag BIT NOT NULL DEFAULT 0;
+            INSERT INTO dbo.Settings (id, flag) VALUES (1, 1), (2, 0);
+        "#;
+        let a = analyze_sql_script("Scripts/Post/mix.sql", sql).expect("must analyse");
+        assert_eq!(a.script_type, ScriptType::Mixed);
+        assert!(a.operations.contains(&"ALTER".to_string()));
+        assert!(a.operations.contains(&"INSERT".to_string()));
+        // Both operations touch the same table, deduped.
+        assert_eq!(a.tables_affected, vec!["Settings"]);
+    }
+
+    #[test]
+    fn analyze_sql_script_returns_none_for_pure_select() {
+        let sql = "SELECT * FROM dbo.Orders;";
+        assert!(analyze_sql_script("readonly.sql", sql).is_none());
+    }
+
+    #[test]
+    fn analyze_post_deploy_scripts_skips_sp_definitions() {
+        let sp = "CREATE PROCEDURE dbo.usp_Foo AS BEGIN SELECT 1; END";
+        let seed = "INSERT INTO dbo.T VALUES (1);";
+        let files = vec![
+            ("Procs/usp_foo.sql".to_string(), sp.to_string()),
+            ("Post/seed.sql".to_string(), seed.to_string()),
+        ];
+        let out = analyze_post_deploy_scripts(&files);
+        assert_eq!(out.len(), 1, "SP definition file must be excluded");
+        assert_eq!(out[0].file_path, "Post/seed.sql");
+    }
+
+    #[test]
+    fn render_markdown_includes_post_deployment_scripts_section() {
+        let intel = DatabaseIntelligence {
+            sp_logic: vec![],
+            sp_call_chains: vec![],
+            triggers: vec![],
+            schema: SchemaReport::default(),
+            sql_scripts: vec![SqlScriptAnalysis {
+                file_path: "Post/ss_systemsettings.sql".to_string(),
+                script_type: ScriptType::Seed,
+                tables_affected: vec!["ss_systemSettings".to_string()],
+                operations: vec!["INSERT".to_string()],
+                row_count_estimate: Some(195),
+                purpose_summary: "Seeds/updates `ss_systemSettings` with ~195 rows".to_string(),
+            }],
+            warnings: vec![],
+        };
+        let md = render_database_intelligence_markdown(&intel);
+        assert!(md.contains("### Post-Deployment Scripts"));
+        assert!(md.contains("ss_systemsettings.sql"));
+        assert!(md.contains("Seed"));
+        assert!(md.contains("~195"));
     }
 }
