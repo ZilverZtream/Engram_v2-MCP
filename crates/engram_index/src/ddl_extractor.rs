@@ -467,7 +467,7 @@ CREATE TABLE Orders (
         assert_eq!(fk.source_name, "column:orders:customerid");
         assert_eq!(fk.target_name, "column:customers:customerid");
         assert_eq!(fk.source_kind, "db_column");
-        assert_eq!(fk.target_kind, Some("db_column"));
+        assert_eq!(fk.target_kind.as_deref(), Some("db_column"));
 
         // Metadata should carry the table/column names
         let meta = fk.metadata.as_ref().expect("fk metadata");
@@ -700,7 +700,7 @@ CREATE TABLE Users (
         for e in &has_col_edges {
             assert_eq!(e.source_name, "Widgets", "source_name should be table name");
             assert_eq!(e.source_kind, "db_table");
-            assert_eq!(e.target_kind, Some("db_column"));
+            assert_eq!(e.target_kind.as_deref(), Some("db_column"));
         }
 
         let target_names: Vec<&str> = has_col_edges

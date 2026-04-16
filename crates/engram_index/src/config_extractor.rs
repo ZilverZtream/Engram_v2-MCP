@@ -557,7 +557,7 @@ mod tests {
         assert_eq!(edges[0].kind, "registers_module");
         assert_eq!(edges[0].target_name, "MyApp.Diagnostics.TraceModule");
         assert_eq!(edges[0].source_kind, "file");
-        assert_eq!(edges[0].target_kind, Some("class"));
+        assert_eq!(edges[0].target_kind.as_deref(), Some("class"));
     }
 
     #[test]

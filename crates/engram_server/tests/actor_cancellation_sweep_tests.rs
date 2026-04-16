@@ -972,7 +972,7 @@ fn migration_analyse_returns_err_when_cancelled_before_start() {
     );
     let bundle = ProjectFileBundle {
         markup_files: vec![],
-        js_files: vec![],
+        script_files: vec![],
         classic_asp_files: vec![],
         report_files: vec![],
         global_asax: None,
