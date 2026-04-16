@@ -281,6 +281,12 @@ impl HybridSearchEngine {
                 writer.add_document(tdoc)?;
             }
             writer.commit()?;
+            // IMPORTANT: wait for Tantivy merge workers before dropping the writer.
+            // Dropping an IndexWriter cancels in-flight/background merges, which can
+            // leave thousands of tiny segments across batched indexing runs.
+            // This call may block for seconds-to-minutes on large indexes and is
+            // expected for correctness/consolidation.
+            writer.wait_merging_threads()?;
         }
 
         if cancel.is_cancelled() {
@@ -556,6 +562,10 @@ impl HybridSearchEngine {
             // Trigger segment merge to reclaim disk space from deleted documents.
             // Without this, deleted docs remain as tombstones in segments indefinitely.
             drop(writer.garbage_collect_files());
+            // IMPORTANT: consume the writer only after commit/GC side effects are
+            // queued so merge threads can run to completion before writer teardown.
+            // This may block for seconds-to-minutes on heavily fragmented indexes.
+            writer.wait_merging_threads()?;
         }
 
         // 2. LanceDB purge
@@ -781,6 +791,11 @@ impl HybridSearchEngine {
                 writer.delete_query(Box::new(query))?;
             }
             writer.commit()?;
+            // IMPORTANT: wait for Tantivy merge workers before dropping the writer.
+            // Dropping an IndexWriter cancels in-flight/background merges, which can
+            // leave the index in a highly fragmented segment state over time.
+            // This may block for seconds-to-minutes on large indexes and is expected.
+            writer.wait_merging_threads()?;
         }
 
         Ok(())
