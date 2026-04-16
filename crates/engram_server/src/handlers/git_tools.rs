@@ -15,6 +15,7 @@ use rmcp::{
     ErrorData as McpError,
     model::{CallToolResult, Content},
 };
+use std::cell::Cell;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
@@ -327,16 +328,16 @@ impl Engram {
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_batch_bytes: usize = 0;
             let mut anti_batch_bytes: usize = 0;
-            let mut newest_processed_oid: Option<Oid> = None;
-            let mut oldest_processed_oid: Option<Oid> = None;
+            let newest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
+            let oldest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
             let mut commit_history: Vec<Oid> = Vec::new();
             let mut processed_total = 0usize;
 
             let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
                     progress_cb(curr, total);
-                    newest_processed_oid = Some(oid);
-                    if oldest_processed_oid.is_none() {
-                        oldest_processed_oid = Some(oid);
+                    newest_processed_oid.set(Some(oid));
+                    if oldest_processed_oid.get().is_none() {
+                        oldest_processed_oid.set(Some(oid));
                     }
                     commit_history.push(oid);
                     let changes = GitWalker::files_changed_in_commit(&repo, oid)?;
@@ -556,7 +557,7 @@ impl Engram {
             let backfill_processed = if remaining > 0
                 && matches!(mode, GitHistoryMode::Backfill | GitHistoryMode::Both)
             {
-                let backfill_start = oldest_processed_oid.or(start_backfill);
+                let backfill_start = oldest_processed_oid.get().or(start_backfill);
                 GitWalker::walk_older_commits_streaming(
                     &repo,
                     backfill_start,
@@ -570,8 +571,8 @@ impl Engram {
             };
 
             let commits_processed = processed_total + backfill_processed;
-            let effective_last_oid = newest_processed_oid.or(stop);
-            let effective_oldest_oid = oldest_processed_oid.or(start_backfill);
+            let effective_last_oid = newest_processed_oid.get().or(stop);
+            let effective_oldest_oid = oldest_processed_oid.get().or(start_backfill);
 
             let diagnostic = if commits_processed == 0 {
                 match mode {
