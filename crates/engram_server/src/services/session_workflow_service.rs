@@ -122,7 +122,22 @@ pub fn reconstruct_session_workflows(
     let mut key_writers: HashMap<String, Vec<StateOperation>> = HashMap::new();
     let mut key_readers: HashMap<String, Vec<StateOperation>> = HashMap::new();
 
+    // The VB/C# state extractors occasionally emit `WritesState` /
+    // `ReadsState` edges whose `target_id` is a symbol node (e.g.
+    // `sym:member:...`) rather than a real state key. These come from
+    // heuristic matches on patterns like `row.pas_area = pas_area`
+    // inside DAL methods — they are property setters, not ASP.NET state
+    // mutations. A real state key has a target_id starting with
+    // `state:` (resolved) or `unresolved_state:` (best-effort). Filter
+    // the rest out here so they do not pollute the workflow report
+    // with an "Other" bucket of pseudo-state keys.
+    let mut filtered_edges: usize = 0;
+
     for edge in write_edges.iter().chain(unresolved_writes.iter()) {
+        if !is_state_target(&edge.target_id) {
+            filtered_edges += 1;
+            continue;
+        }
         let key = edge.target_id.clone();
         let file = extract_file_from_node_id(&edge.source_id);
         key_writers.entry(key).or_default().push(StateOperation {
@@ -132,6 +147,10 @@ pub fn reconstruct_session_workflows(
     }
 
     for edge in read_edges.iter().chain(unresolved_reads.iter()) {
+        if !is_state_target(&edge.target_id) {
+            filtered_edges += 1;
+            continue;
+        }
         let key = edge.target_id.clone();
         let file = extract_file_from_node_id(&edge.source_id);
         key_readers.entry(key).or_default().push(StateOperation {
@@ -140,12 +159,24 @@ pub fn reconstruct_session_workflows(
         });
     }
 
+    let total_edges =
+        write_edges.len() + unresolved_writes.len() + read_edges.len() + unresolved_reads.len();
+
     // Collect all unique keys
     let all_keys: HashSet<String> = key_writers
         .keys()
         .chain(key_readers.keys())
         .cloned()
         .collect();
+
+    tracing::info!(
+        project_id = %project_id,
+        total_edges = total_edges,
+        accepted_edges = total_edges - filtered_edges,
+        filtered_non_state_targets = filtered_edges,
+        distinct_state_keys = all_keys.len(),
+        "reconstruct_session_workflows: edge filtering summary"
+    );
 
     let mut workflows = Vec::new();
     let mut warnings = Vec::new();
@@ -231,6 +262,15 @@ pub fn reconstruct_session_workflows(
         workflows,
         warnings,
     }
+}
+
+/// True iff `target_id` is a genuine state-key node emitted by the state
+/// extractor — i.e. the `state:<scope>:<key>` form (resolved) or its
+/// best-effort `unresolved_state:<scope>:<key>` counterpart. All other
+/// target shapes (e.g. `sym:member:...` from misclassified property
+/// setters) are rejected so they never enter the workflow report.
+fn is_state_target(target_id: &str) -> bool {
+    target_id.starts_with("state:") || target_id.starts_with("unresolved_state:")
 }
 
 fn extract_file_from_node_id(node_id: &str) -> String {
@@ -704,5 +744,124 @@ mod tests {
         assert!(md.contains("## Session Workflows"));
         assert!(md.contains("Session:CartID"));
         assert!(md.contains("Products.aspx"));
+    }
+
+    // ── is_state_target + reconstruction filter ─────────────────────────────
+
+    #[test]
+    fn is_state_target_accepts_state_and_unresolved_prefixes() {
+        assert!(is_state_target("state:Session:CartID"));
+        assert!(is_state_target("state:Application:Counter"));
+        assert!(is_state_target("state:ViewState:SortColumn"));
+        assert!(is_state_target("state:Cache:HomepageHtml"));
+        assert!(is_state_target("state:Cookies:PreviousUrl"));
+        assert!(is_state_target("unresolved_state:Session:LastLogin"));
+    }
+
+    #[test]
+    fn is_state_target_rejects_symbol_and_file_targets() {
+        // The exact shape of the OciusX pollution: a VB row/property assignment
+        // misclassified as a WritesState edge.
+        assert!(!is_state_target(
+            "sym:member:Site/App_Code/permits/code/permits.vb:row.pas_color = pas_color:0"
+        ));
+        assert!(!is_state_target("sym:class:Foo"));
+        assert!(!is_state_target("sym:function:Foo.Bar"));
+        assert!(!is_state_target("file:Default.aspx.vb"));
+        assert!(!is_state_target("page:Default.aspx"));
+        assert!(!is_state_target(""));
+        assert!(!is_state_target("Session:CartID")); // missing `state:` prefix
+    }
+
+    /// Reconstruction must drop WritesState / ReadsState edges whose
+    /// `target_id` is not a real state key. The real-world symptom on
+    /// OciusX was 879 `sym:member:...` edges polluting the "Other" bucket.
+    #[test]
+    fn reconstruct_session_workflows_filters_non_state_targets() {
+        use engram_graph::{Edge, GraphStore, Node};
+
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let graph =
+            Arc::new(GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open"));
+
+        let project = "proj";
+
+        // Upsert source + target nodes. The content doesn't matter for this
+        // service — it only reads edges — but nodes are required for edges
+        // to resolve cleanly through the store's usual paths.
+        fn mknode(id: &str, kind: &str) -> Node {
+            Node {
+                node_id: id.to_string(),
+                node_type: kind.to_string(),
+                name: id.to_string(),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                file_path: engram_core::RelPath::new("Site/App_Code/Demo.vb"),
+                start_line: 0,
+                end_line: 0,
+                generation: 1,
+                metadata: None,
+            }
+        }
+        fn mkedge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
+            Edge {
+                source_id: src.to_string(),
+                target_id: tgt.to_string(),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+
+        let source_id = "sym:function:Site/App_Code/Demo.vb:DoWork:0";
+        let real_session = "state:Session:CartID";
+        let real_app = "state:Application:Counter";
+        // The pollution: a misclassified VB property-setter assignment.
+        let fake_member =
+            "sym:member:Site/App_Code/permits/code/permits.vb:row.pas_color = pas_color:0";
+
+        graph
+            .upsert_nodes(
+                project,
+                &[
+                    mknode(source_id, "function"),
+                    mknode(real_session, "global_state"),
+                    mknode(real_app, "global_state"),
+                    mknode(fake_member, "member"),
+                ],
+            )
+            .expect("upsert_nodes");
+
+        graph
+            .upsert_edges(
+                project,
+                &[
+                    mkedge(source_id, real_session, EdgeKind::WritesState),
+                    mkedge(source_id, real_app, EdgeKind::WritesState),
+                    mkedge(source_id, fake_member, EdgeKind::WritesState),
+                ],
+            )
+            .expect("upsert_edges");
+
+        let report = reconstruct_session_workflows(&graph, project);
+
+        assert_eq!(
+            report.total_keys, 2,
+            "only the two state:... targets count; sym:member:... must be filtered"
+        );
+        for flow in &report.workflows {
+            assert!(
+                !flow.key.starts_with("sym:"),
+                "no workflow entry may reference a sym: target; got key = {}",
+                flow.key
+            );
+        }
+        let keys: Vec<&str> = report.workflows.iter().map(|f| f.key.as_str()).collect();
+        assert!(keys.contains(&real_session));
+        assert!(keys.contains(&real_app));
     }
 }
