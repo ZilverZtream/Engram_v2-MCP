@@ -18,7 +18,7 @@ use crate::utils::files::{
     discover_files_recursive, find_aspx_for_codebehind, find_codebehind_path,
 };
 use engram_core::safe_join;
-use engram_graph::ResolveResult;
+use engram_graph::store::ResolveResult;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::path::Path;

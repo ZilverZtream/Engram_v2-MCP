@@ -1,5 +1,6 @@
 use crate::utils::now_ms;
 use crate::utils::text::contains_word;
+use engram_graph::store::ResolveResult;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Post-ingest: link SQL nodes (stored_proc, inline_sql) to db_table nodes via QueriesTable edges.
@@ -350,7 +351,7 @@ pub fn resolve_app_code_globals(
                 let matched_fqn = &matches[0];
                 let new_target_id =
                     match graph.resolve_symbol(project_id, matched_fqn, None, None)? {
-                        engram_graph::ResolveResult::Unique(node) => node.node_id,
+                        ResolveResult::Unique(node) => node.node_id,
                         _ => {
                             unmatched += 1;
                             fqn_not_in_node_map += 1;
