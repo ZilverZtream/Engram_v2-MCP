@@ -4,26 +4,26 @@
 //! self-joins. v2 streams commits once and updates weighted edges in the graph.
 
 use engram_core::RelPath;
-use std::collections::BTreeSet;
 
 /// Return all unique unordered pairs from a set of file paths.
 ///
-/// This is O(k^2) per commit, but k (files changed per commit) is typically small.
+/// O(k^2) per commit, but k (files changed per commit) is typically small
+/// and hard-capped. Input is sorted + deduped so `(v[i], v[j])` with `i < j`
+/// is already unique — no set needed.
 pub fn file_pairs(files: &[RelPath], hard_cap: usize) -> Vec<(RelPath, RelPath)> {
-    let mut set: BTreeSet<(RelPath, RelPath)> = BTreeSet::new();
     let mut v: Vec<&RelPath> = files.iter().collect();
     v.sort();
+    v.dedup();
 
-    // Safety guard: a single giant refactor commit shouldn't explode work.
     let k = v.len().min(hard_cap);
+    let pair_count = k * k.saturating_sub(1) / 2;
+    let mut pairs = Vec::with_capacity(pair_count);
 
     for i in 0..k {
         for j in (i + 1)..k {
-            let a = v[i].clone();
-            let b = v[j].clone();
-            set.insert((a, b));
+            pairs.push((v[i].clone(), v[j].clone()));
         }
     }
 
-    set.into_iter().collect()
+    pairs
 }
