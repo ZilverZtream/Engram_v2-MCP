@@ -1736,43 +1736,200 @@ impl GraphStore {
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
 
-        // Scan edges for unresolved targets
-        let mut resolved_count = 0;
-        let wtx = self.db.begin_write()?;
+        // ── Phase 1: Build symbol map (single NODES scan) ────────────
+        let phase1_start = std::time::Instant::now();
+
+        enum SymbolMatch {
+            Unique(String),
+            Ambiguous(Vec<String>),
+        }
+
+        // node_id → file_path (for tiebreaker lookups)
+        let mut node_file_paths: HashMap<String, String> = HashMap::new();
+        // Exact name match
+        let mut by_name: HashMap<String, SymbolMatch> = HashMap::new();
+        // Terminal segment match (last dot-segment of name)
+        let mut by_terminal: HashMap<String, Vec<String>> = HashMap::new();
+        // Legacy metadata.fqn match
+        let mut by_metadata_fqn: HashMap<String, String> = HashMap::new();
+
+        let mut node_count = 0usize;
         {
-            let mut et = wtx.open_table(EDGES)?;
-            let nt = wtx.open_table(NODES)?;
-            let mut updates = Vec::new();
+            let rtx = self.db.begin_read()?;
+            let nt = rtx.open_table(NODES)?;
+            for r in nt.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let node: Node = bincode::deserialize(v.value())?;
+                node_count += 1;
+
+                node_file_paths.insert(node.node_id.clone(), node.file_path.as_str().to_string());
+
+                // by_name: exact Node.name → node_id
+                match by_name.get_mut(&node.name) {
+                    Some(SymbolMatch::Unique(first)) => {
+                        let first_id = first.clone();
+                        by_name.insert(
+                            node.name.clone(),
+                            SymbolMatch::Ambiguous(vec![first_id, node.node_id.clone()]),
+                        );
+                    }
+                    Some(SymbolMatch::Ambiguous(ids)) => {
+                        ids.push(node.node_id.clone());
+                    }
+                    None => {
+                        by_name.insert(node.name.clone(), SymbolMatch::Unique(node.node_id.clone()));
+                    }
+                }
+
+                // by_terminal: last dot-segment of name
+                if let Some(terminal) = node.name.rsplit('.').next() {
+                    if !terminal.is_empty() && terminal != node.name {
+                        by_terminal
+                            .entry(terminal.to_string())
+                            .or_default()
+                            .push(node.node_id.clone());
+                    }
+                }
+
+                // by_metadata_fqn: metadata.fqn → node_id (first wins)
+                if let Some(fqn) = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("fqn"))
+                    .and_then(|v| v.as_str())
+                {
+                    by_metadata_fqn
+                        .entry(fqn.to_string())
+                        .or_insert_with(|| node.node_id.clone());
+                }
+            }
+        }
+
+        let phase1_elapsed = phase1_start.elapsed();
+        tracing::info!(
+            "resolve_symbol_edges: built symbol map project_id={} nodes={} by_name={} by_terminal={} by_metadata_fqn={} elapsed_ms={}",
+            project_id, node_count, by_name.len(), by_terminal.len(), by_metadata_fqn.len(), phase1_elapsed.as_millis()
+        );
+
+        // ── Phase 2: Collect unresolved edges (single EDGES scan) ────
+        let phase2_start = std::time::Instant::now();
+
+        struct UnresolvedEdge {
+            old_key: String,
+            edge: Edge,
+        }
+
+        let mut unresolved: Vec<UnresolvedEdge> = Vec::new();
+        {
+            let rtx = self.db.begin_read()?;
+            let et = rtx.open_table(EDGES)?;
             for r in et.range(prefix.as_str()..)? {
                 let (k, v) = r?;
                 if !k.value().starts_with(&prefix) {
                     break;
                 }
                 let e: Edge = bincode::deserialize(v.value())?;
-
                 if e.target_id.starts_with("::") {
-                    let target_lookup_name = &e.target_id[2..];
-                    let source_key = format!("{project_id}\0{}", e.source_id);
-                    let source_node: Option<Node> = nt
-                        .get(source_key.as_str())?
-                        .and_then(|v| bincode::deserialize(v.value()).ok());
-                    let prefer_file_path = source_node.as_ref().map(|n| n.file_path.as_str());
-
-                    if let ResolveResult::Unique(target) =
-                        self.resolve_symbol(project_id, target_lookup_name, None, prefer_file_path)?
-                    {
-                        let mut new_e = e.clone();
-                        new_e.target_id = target.node_id;
-                        updates.push((k.value().to_string(), new_e));
-                    }
+                    unresolved.push(UnresolvedEdge {
+                        old_key: k.value().to_string(),
+                        edge: e,
+                    });
                 }
             }
+        }
 
+        let phase2_elapsed = phase2_start.elapsed();
+        tracing::info!(
+            "resolve_symbol_edges: collected unresolved edges project_id={} count={} elapsed_ms={}",
+            project_id, unresolved.len(), phase2_elapsed.as_millis()
+        );
+
+        if unresolved.is_empty() {
+            return Ok(0);
+        }
+
+        // ── Phase 3: Resolve via HashMap lookups ─────────────────────
+        let phase3_start = std::time::Instant::now();
+
+        // Tiebreaker: when multiple candidates match, prefer the one
+        // in the same file as the source node.
+        let resolve_ambiguous =
+            |candidates: &[String], source_file: Option<&String>| -> Option<String> {
+                if let Some(sf) = source_file {
+                    for cid in candidates {
+                        if let Some(fp) = node_file_paths.get(cid) {
+                            if fp == sf {
+                                return Some(cid.clone());
+                            }
+                        }
+                    }
+                }
+                None
+            };
+
+        let mut updates: Vec<(String, Edge)> = Vec::new();
+
+        for entry in &unresolved {
+            let name = &entry.edge.target_id[2..]; // strip "::"
+            let source_file = node_file_paths.get(&entry.edge.source_id);
+
+            // Step 1: exact name match
+            let resolved = match by_name.get(name) {
+                Some(SymbolMatch::Unique(id)) => Some(id.clone()),
+                Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file),
+                None => None,
+            };
+
+            if let Some(target_id) = resolved {
+                let mut new_e = entry.edge.clone();
+                new_e.target_id = target_id;
+                updates.push((entry.old_key.clone(), new_e));
+                continue;
+            }
+
+            // Step 2: metadata.fqn match
+            if let Some(id) = by_metadata_fqn.get(name) {
+                let mut new_e = entry.edge.clone();
+                new_e.target_id = id.clone();
+                updates.push((entry.old_key.clone(), new_e));
+                continue;
+            }
+
+            // Step 3: terminal segment fallback
+            let short = name.rsplit('.').next().unwrap_or(name);
+            if let Some(candidates) = by_terminal.get(short) {
+                if candidates.len() == 1 {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = candidates[0].clone();
+                    updates.push((entry.old_key.clone(), new_e));
+                } else if let Some(id) = resolve_ambiguous(candidates, source_file) {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = id;
+                    updates.push((entry.old_key.clone(), new_e));
+                }
+            }
+        }
+
+        let phase3_elapsed = phase3_start.elapsed();
+        tracing::info!(
+            "resolve_symbol_edges: resolved project_id={} resolved={} unresolved={} elapsed_ms={}",
+            project_id, updates.len(), unresolved.len() - updates.len(), phase3_elapsed.as_millis()
+        );
+
+        // ── Phase 4: Apply updates (single write transaction) ────────
+        let phase4_start = std::time::Instant::now();
+
+        let wtx = self.db.begin_write()?;
+        {
+            let mut et = wtx.open_table(EDGES)?;
             let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
             let mut adj_in_t = wtx.open_table(ADJ_IN)?;
             let now = now_ms();
 
-            for (old_key, new_edge) in updates {
+            for (old_key, new_edge) in &updates {
                 et.remove(old_key.as_str())?;
 
                 // Parse old key: "project\0kind\0source\0old_target"
@@ -1780,14 +1937,14 @@ impl GraphStore {
                 if old_parts.len() == 4 {
                     let old_target = old_parts[3];
 
-                    // Remove old adjacency entries (O(1) point deletes).
-                    let out_prefix = adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
+                    let out_prefix =
+                        adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
                     adj_out_t.remove((out_prefix.as_str(), old_target))?;
 
-                    let old_in_prefix = adj_key(project_id, &new_edge.edge_kind, old_target);
+                    let old_in_prefix =
+                        adj_key(project_id, &new_edge.edge_kind, old_target);
                     adj_in_t.remove((old_in_prefix.as_str(), new_edge.source_id.as_str()))?;
 
-                    // Insert new adjacency entries.
                     let adj_val = encode_adj_value(new_edge.weight, now);
                     adj_out_t.insert(
                         (out_prefix.as_str(), new_edge.target_id.as_str()),
@@ -1808,14 +1965,19 @@ impl GraphStore {
                     &new_edge.source_id,
                     &new_edge.target_id,
                 );
-                let val = bincode::serialize(&new_edge)?;
+                let val = bincode::serialize(new_edge)?;
                 et.insert(new_key.as_str(), val.as_slice())?;
-                resolved_count += 1;
             }
         }
         wtx.commit()?;
 
-        Ok(resolved_count)
+        let phase4_elapsed = phase4_start.elapsed();
+        tracing::info!(
+            "resolve_symbol_edges: applied updates project_id={} count={} elapsed_ms={}",
+            project_id, updates.len(), phase4_elapsed.as_millis()
+        );
+
+        Ok(updates.len())
     }
 }
 
