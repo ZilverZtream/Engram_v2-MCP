@@ -177,7 +177,7 @@ pub fn resolve_app_code_globals(
         app_code_by_name.insert(node.name.clone(), node.node_id.clone());
 
         // Also expose FQN components: if node_id is "sym:class:Namespace.ClassName",
-        // register both "ClassName" and the full FQN
+        // register both "ClassName" and the full FQN.
         let inferred_fqn = node
             .metadata
             .as_ref()
@@ -185,35 +185,55 @@ pub fn resolve_app_code_globals(
             .and_then(|v| v.as_str())
             .map(|f| f.to_string())
             .or_else(|| {
+                // Fallback: extract FQN from node_id. Only valid when the
+                // node_id is FQN-shaped (e.g., "sym:class:Namespace.ClassName").
+                // New canonical node_ids contain path separators
+                // ("sym:function:Site/App_Code/foo.vb:Name:42") — those are NOT
+                // FQNs and must be rejected. A real FQN never contains / or \.
                 node.node_id
                     .strip_prefix("sym:")
                     .and_then(|rest| rest.split_once(':'))
                     .and_then(|(_, maybe_fqn)| {
+                        if maybe_fqn.contains('/') || maybe_fqn.contains('\\') {
+                            return None;
+                        }
                         maybe_fqn.contains('.').then(|| maybe_fqn.to_string())
                     })
             })
             .or_else(|| node.name.contains('.').then(|| node.name.clone()));
-        if let Some(fqn) = inferred_fqn {
+
+        if let Some(ref fqn) = inferred_fqn {
             if let Some(short_raw) = fqn.split('.').next_back() {
                 let short = strip_line_suffix(short_raw);
-                if short.is_empty() {
-                    continue;
-                }
-                app_code_by_name_ci.insert(short.to_lowercase(), node.node_id.clone());
-                app_code_by_name.insert(short.to_string(), node.node_id.clone());
-
-                let lowered_node_type = node.node_type.to_ascii_lowercase();
-                if app_code_function_kinds.contains(&lowered_node_type.as_str()) {
-                    terminal_to_fqn
-                        .entry(short.to_string())
-                        .or_default()
-                        .push(fqn.to_string());
+                if !short.is_empty() {
+                    app_code_by_name_ci.insert(short.to_lowercase(), node.node_id.clone());
+                    app_code_by_name.insert(short.to_string(), node.node_id.clone());
                 }
             }
             // Also register the full FQN for direct lookups
-            let normalized_fqn = strip_line_suffix(&fqn);
+            let normalized_fqn = strip_line_suffix(fqn);
             app_code_by_name_ci.insert(normalized_fqn.to_lowercase(), node.node_id.clone());
             app_code_by_name.insert(normalized_fqn.to_string(), node.node_id.clone());
+        }
+
+        // Register in terminal_to_fqn for Step 3 unqualified call rewriting.
+        // Use inferred FQN when available, fall back to node.name (so bare
+        // names like "SafeRedirect" still get registered — resolve_symbol
+        // can find them via Step 2 exact name match + prefer_file_path).
+        let lowered_node_type = node.node_type.to_ascii_lowercase();
+        if app_code_function_kinds.contains(&lowered_node_type.as_str()) {
+            let resolve_key = inferred_fqn.as_deref().unwrap_or(&node.name);
+            let terminal = resolve_key
+                .split('.')
+                .next_back()
+                .unwrap_or(resolve_key);
+            let terminal = strip_line_suffix(terminal);
+            if !terminal.is_empty() {
+                terminal_to_fqn
+                    .entry(terminal.to_string())
+                    .or_default()
+                    .push(resolve_key.to_string());
+            }
         }
     }
 
