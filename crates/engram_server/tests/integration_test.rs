@@ -2040,6 +2040,7 @@ async fn test_search_history() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -2755,6 +2756,7 @@ async fn test_immune_system_end_to_end() {
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
+            mode: None,
             wait: true,
         }))
         .await
@@ -2921,6 +2923,7 @@ async fn test_dream_immune_integration() {
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4048,6 +4051,7 @@ async fn test_incremental_temporal_coupling() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4085,6 +4089,7 @@ async fn test_incremental_temporal_coupling() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4122,6 +4127,7 @@ async fn test_incremental_temporal_coupling() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4205,6 +4211,7 @@ async fn test_rename_preserves_coupling() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4232,6 +4239,7 @@ async fn test_rename_preserves_coupling() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
+            mode: None,
             wait: true,
         }))
         .await
@@ -4373,6 +4381,73 @@ async fn test_merge_commit_policy() {
 }
 
 #[tokio::test]
+async fn test_walk_older_commits_backfill_completes_history_without_overlap() {
+    use std::collections::HashSet;
+
+    let tmp = tempdir().unwrap();
+    let project_dir = tmp.path().join("walk_backfill_project");
+    std::fs::create_dir_all(&project_dir).unwrap();
+
+    let repo = git2::Repository::init(&project_dir).unwrap();
+    let sig = repo.signature().unwrap();
+
+    let mut parent: Option<git2::Commit<'_>> = None;
+    for i in 0..100usize {
+        std::fs::write(project_dir.join("history.txt"), format!("commit {i}\n")).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("history.txt")).unwrap();
+        index.write().unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+        let parents: Vec<&git2::Commit<'_>> = parent.iter().collect();
+        let oid = repo
+            .commit(Some("HEAD"), &sig, &sig, &format!("c{i}"), &tree, &parents)
+            .unwrap();
+        parent = Some(repo.find_commit(oid).unwrap());
+    }
+
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let first_batch = engram_git::history::GitWalker::walk_new_commits(
+        &repo,
+        None,
+        50,
+        engram_git::history::MergeCommitPolicy::AllParents,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(first_batch.len(), 50);
+    let first_batch_oldest = first_batch.first().copied().unwrap();
+
+    let second_batch = engram_git::history::GitWalker::walk_older_commits(
+        &repo,
+        Some(first_batch_oldest),
+        50,
+        engram_git::history::MergeCommitPolicy::AllParents,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(second_batch.len(), 50);
+
+    let first_set: HashSet<_> = first_batch.iter().copied().collect();
+    let second_set: HashSet<_> = second_batch.iter().copied().collect();
+    assert_eq!(first_set.intersection(&second_set).count(), 0);
+
+    let mut all = second_batch.clone();
+    all.extend(first_batch.clone());
+    assert_eq!(all.len(), 100);
+
+    let all_from_head = engram_git::history::GitWalker::walk_new_commits(
+        &repo,
+        None,
+        200,
+        engram_git::history::MergeCommitPolicy::AllParents,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(all, all_from_head);
+}
+
+#[tokio::test]
 async fn test_structural_revert_detection() {
     let tmp = tempdir().unwrap();
     let data_dir = tmp.path().join("data");
@@ -4475,6 +4550,7 @@ async fn test_structural_revert_detection() {
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: true,
+            mode: None,
             wait: true,
         }))
         .await

@@ -1,6 +1,6 @@
 use crate::handlers::validate_project_id;
 use crate::models::{
-    AnalyzeRevertsRequest, AnalyzeTemporalCouplingsRequest, IndexGitHistoryRequest,
+    AnalyzeRevertsRequest, AnalyzeTemporalCouplingsRequest, GitHistoryMode, IndexGitHistoryRequest,
     IngestZipHistoryRequest, SearchHistoryRequest,
 };
 use crate::tools::Engram;
@@ -275,6 +275,7 @@ impl Engram {
         directory: &str,
         generation: u64,
         max_commits: usize,
+        mode: GitHistoryMode,
         index_antipatterns: bool,
         policy: engram_git::history::MergeCommitPolicy,
         cancel: &tokio_util::sync::CancellationToken,
@@ -298,6 +299,15 @@ impl Engram {
         .ok()
         .and_then(|r| r.ok())
         .flatten();
+        let oldest = tokio::task::spawn_blocking({
+            let pid = pid.clone();
+            let reg = self.state.registry.clone();
+            move || reg.get_meta(&pid, "oldest_indexed_git_oid")
+        })
+        .await
+        .ok()
+        .and_then(|r| r.ok())
+        .flatten();
 
         let cancel_clone = cancel.clone();
         let pid_clone = pid.clone();
@@ -309,6 +319,7 @@ impl Engram {
 
             let repo = GitWalker::open_repo(&project_root)?;
             let stop = last.as_deref().and_then(|s| git2::Oid::from_str(s).ok());
+            let start_backfill = oldest.as_deref().and_then(|s| git2::Oid::from_str(s).ok());
 
             let mut temporal_edges: u64 = 0;
             let mut reverts: usize = 0;
@@ -316,18 +327,17 @@ impl Engram {
             let mut history_docs: Vec<engram_index::IndexDoc> = Vec::new();
             let mut history_batch_bytes: usize = 0;
             let mut anti_batch_bytes: usize = 0;
-            let mut last_processed_oid: Option<Oid> = None;
+            let mut newest_processed_oid: Option<Oid> = None;
+            let mut oldest_processed_oid: Option<Oid> = None;
             let mut commit_history: Vec<Oid> = Vec::new();
+            let mut processed_total = 0usize;
 
-            let commits_processed = GitWalker::walk_commits_streaming(
-                &repo,
-                stop,
-                max_commits,
-                policy,
-                &cancel_clone,
-                |oid, curr, total| {
+            let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
                     progress_cb(curr, total);
-                    last_processed_oid = Some(oid);
+                    newest_processed_oid = Some(oid);
+                    if oldest_processed_oid.is_none() {
+                        oldest_processed_oid = Some(oid);
+                    }
                     commit_history.push(oid);
                     let changes = GitWalker::files_changed_in_commit(&repo, oid)?;
 
@@ -525,8 +535,61 @@ impl Engram {
                     }
 
                     Ok(())
-                },
-            )?;
+                };
+
+            let forward_processed = if matches!(mode, GitHistoryMode::Forward | GitHistoryMode::Both)
+            {
+                GitWalker::walk_commits_streaming(
+                    &repo,
+                    stop,
+                    max_commits,
+                    policy,
+                    &cancel_clone,
+                    &mut process_commit,
+                )?
+            } else {
+                0
+            };
+            processed_total += forward_processed;
+
+            let remaining = max_commits.saturating_sub(processed_total);
+            let backfill_processed = if remaining > 0
+                && matches!(mode, GitHistoryMode::Backfill | GitHistoryMode::Both)
+            {
+                let backfill_start = oldest_processed_oid.or(start_backfill);
+                GitWalker::walk_older_commits_streaming(
+                    &repo,
+                    backfill_start,
+                    remaining,
+                    policy,
+                    &cancel_clone,
+                    &mut process_commit,
+                )?
+            } else {
+                0
+            };
+
+            let commits_processed = processed_total + backfill_processed;
+            let effective_last_oid = newest_processed_oid.or(stop);
+            let effective_oldest_oid = oldest_processed_oid.or(start_backfill);
+
+            let diagnostic = if commits_processed == 0 {
+                match mode {
+                    GitHistoryMode::Forward => {
+                        "No new commits at HEAD past last_oid. To backfill older history, set mode='backfill' or mode='both'."
+                    }
+                    GitHistoryMode::Backfill => {
+                        "No older commits were found beyond oldest_indexed_oid. History backfill may already be complete."
+                    }
+                    GitHistoryMode::Both => {
+                        "No new HEAD commits and no older commits found; repository history appears fully indexed."
+                    }
+                }
+            } else if commits_processed >= max_commits {
+                "max_commits cap reached; re-run with mode='both' to continue indexing remaining history."
+            } else {
+                "ok"
+            };
 
             // Final flush
             if !history_docs.is_empty() {
@@ -539,19 +602,23 @@ impl Engram {
             }
 
             Ok(format!(
-                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}",
+                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\ndiagnostic: {}",
                 commits_processed,
                 temporal_edges,
                 reverts,
                 0,
-                last_processed_oid.map(|o: Oid| o.to_string()).unwrap_or_else(|| "<none>".into())
+                effective_last_oid.map(|o: Oid| o.to_string()).unwrap_or_else(|| "<none>".into()),
+                effective_oldest_oid
+                    .map(|o: Oid| o.to_string())
+                    .unwrap_or_else(|| "<none>".into()),
+                diagnostic
             ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // Update last_git_oid meta best-effort
+        // Update git checkpoints meta best-effort.
         if let Some(last_line) = summary.lines().find(|l| l.starts_with("last_oid: ")) {
             let oid = last_line.trim_start_matches("last_oid: ").trim();
             if oid != "<none>" {
@@ -563,6 +630,24 @@ impl Engram {
                     .ok();
             }
         }
+        if let Some(oldest_line) = summary
+            .lines()
+            .find(|l| l.starts_with("oldest_indexed_oid: "))
+        {
+            let oid = oldest_line
+                .trim_start_matches("oldest_indexed_oid: ")
+                .trim();
+            if oid != "<none>" {
+                let reg2 = self.state.registry.clone();
+                let pid2 = project_id.to_string();
+                let oid2 = oid.to_string();
+                tokio::task::spawn_blocking(move || {
+                    reg2.set_meta(&pid2, "oldest_indexed_git_oid", &oid2)
+                })
+                .await
+                .ok();
+            }
+        }
 
         Ok(summary)
     }
@@ -571,6 +656,7 @@ impl Engram {
         &self,
         project_id: String,
         max_commits: usize,
+        mode: GitHistoryMode,
         index_antipatterns: bool,
     ) -> Result<String, McpError> {
         let job_id = Uuid::new_v4().to_string();
@@ -651,6 +737,7 @@ impl Engram {
                         &rec.directory,
                         active_gen,
                         max_commits,
+                        mode,
                         index_antipatterns,
                         engram_git::history::MergeCommitPolicy::AllParents,
                         &token,
@@ -737,12 +824,14 @@ impl Engram {
         if req.wait {
             let active_gen = self.get_active_generation(&req.project_id).await?;
             let cancel = tokio_util::sync::CancellationToken::new();
+            let mode = req.sanitized_mode();
             let summary = self
                 .git_update_stream(
                     &req.project_id,
                     &ps.info.directory,
                     active_gen,
                     req.sanitized_max_commits(),
+                    mode,
                     req.index_antipatterns,
                     engram_git::history::MergeCommitPolicy::AllParents,
                     &cancel,
@@ -757,6 +846,7 @@ impl Engram {
             .spawn_job_git_history(
                 pid_clone,
                 req.sanitized_max_commits(),
+                req.sanitized_mode(),
                 req.index_antipatterns,
             )
             .await?;

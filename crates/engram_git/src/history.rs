@@ -88,6 +88,53 @@ impl GitWalker {
         oids.reverse();
         Ok(oids)
     }
+
+    /// Walk commits older than `start_oid` (exclusive) back through history.
+    /// Used for backfilling history when a prior run was capped by max_commits
+    /// and didn't reach the root of the repository.
+    ///
+    /// If `start_oid` is None, this behaves identically to walking from HEAD.
+    ///
+    /// Returns commits in oldest->newest order (so streaming application is correct).
+    pub fn walk_older_commits(
+        repo: &Repository,
+        start_oid: Option<Oid>,
+        max: usize,
+        policy: MergeCommitPolicy,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Oid>> {
+        let mut revwalk = repo.revwalk()?;
+        match start_oid {
+            Some(oid) => revwalk.push(oid)?,
+            None => revwalk.push_head()?,
+        }
+        revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
+        if policy == MergeCommitPolicy::FirstParentOnly {
+            revwalk.simplify_first_parent()?;
+        }
+
+        let mut oids: Vec<Oid> = Vec::new();
+        let mut first = true;
+        for oid_res in revwalk {
+            if cancel.is_cancelled() {
+                break;
+            }
+            let oid = oid_res?;
+            // Skip the start_oid itself — we only want commits older than it.
+            if first && start_oid == Some(oid) {
+                first = false;
+                continue;
+            }
+            first = false;
+            oids.push(oid);
+            if oids.len() >= max {
+                break;
+            }
+        }
+
+        oids.reverse();
+        Ok(oids)
+    }
     /// Walk commits from HEAD back and stream them to a callback.
     pub fn walk_commits_streaming<F>(
         repo: &Repository,
@@ -135,6 +182,29 @@ impl GitWalker {
             callback(oid, i + 1, count)?;
         }
 
+        Ok(count)
+    }
+
+    /// Walk commits older than `start_oid` (exclusive) and stream them.
+    pub fn walk_older_commits_streaming<F>(
+        repo: &Repository,
+        start_oid: Option<Oid>,
+        max: usize,
+        policy: MergeCommitPolicy,
+        cancel: &tokio_util::sync::CancellationToken,
+        mut callback: F,
+    ) -> anyhow::Result<usize>
+    where
+        F: FnMut(Oid, usize, usize) -> anyhow::Result<()>,
+    {
+        let oids = Self::walk_older_commits(repo, start_oid, max, policy, cancel)?;
+        let count = oids.len();
+        for (i, oid) in oids.into_iter().enumerate() {
+            if cancel.is_cancelled() {
+                break;
+            }
+            callback(oid, i + 1, count)?;
+        }
         Ok(count)
     }
 
