@@ -18,9 +18,31 @@ use crate::utils::files::{
     discover_files_recursive, find_aspx_for_codebehind, find_codebehind_path,
 };
 use engram_core::safe_join;
+use engram_graph::ResolveResult;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::path::Path;
+
+fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node]) -> String {
+    let details = candidates
+        .iter()
+        .take(10)
+        .map(|n| {
+            format!(
+                "  - {} [{}] {}",
+                n.node_id,
+                n.node_type,
+                n.file_path.as_str()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Symbol '{input}' is ambiguous ({} matches):\n{}\n\nPass a fully-qualified node_id (e.g., sym:/file:/page:) to disambiguate.",
+        candidates.len(),
+        details
+    )
+}
 
 impl Engram {
     pub async fn handle_suggest_migration_boundaries(
@@ -111,49 +133,17 @@ impl Engram {
             {
                 entry_raw.clone()
             } else {
-                let candidates = [
-                    format!("file:{entry_raw}"),
-                    format!("page:{entry_raw}"),
-                    format!("control:{entry_raw}"),
-                ];
-                let mut found = None;
-                for cand in &candidates {
-                    if graph
-                        .get_node(&project_id, cand)
-                        .map_err(|e| e.to_string())?
-                        .is_some()
-                    {
-                        found = Some(cand.clone());
-                        break;
-                    }
-                }
-                if found.is_none()
-                    && let Ok(nodes) = graph.query_nodes(&project_id, None, None, None, 2000)
+                match graph
+                    .resolve_symbol(&project_id, &entry_raw, None, None)
+                    .map_err(|e| e.to_string())?
                 {
-                    found = nodes
-                        .into_iter()
-                        .find(|n| {
-                            n.metadata
-                                .as_ref()
-                                .and_then(|m| m.get("fqn"))
-                                .and_then(|v| v.as_str())
-                                .is_some_and(|fqn| fqn == entry_raw)
-                        })
-                        .map(|n| n.node_id);
-                }
-                if found.is_none() {
-                    let nodes = graph
-                        .query_nodes(&project_id, None, Some(&entry_raw), None, 10)
-                        .map_err(|e| e.to_string())?;
-                    if let Some(n) = nodes.first() {
-                        found = Some(n.node_id.clone());
+                    ResolveResult::Unique(node) => node.node_id,
+                    ResolveResult::Ambiguous(candidates) => {
+                        return Err(format_ambiguous_symbol_error(&entry_raw, &candidates));
                     }
-                }
-                match found {
-                    Some(id) => id,
-                    None => {
+                    ResolveResult::NotFound => {
                         return Err(format!(
-                            "No node found matching '{}'. Try query_graph_nodes to discover node IDs.",
+                            "No node found matching '{}'. Use query_graph_nodes to discover valid names/node_ids, then retry.",
                             entry_raw
                         ));
                     }

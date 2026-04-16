@@ -11,7 +11,7 @@ use crate::state::AppEvent;
 use crate::tools::Engram;
 use crate::utils::now_ms;
 use engram_core::safe_join;
-use engram_graph::EdgeKind;
+use engram_graph::{EdgeKind, ResolveResult};
 use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
@@ -20,15 +20,25 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
-/// Strip a trailing `:<digits>` line-suffix that VB metadata can append to FQNs.
-fn strip_fqn_line_suffix(s: &str) -> &str {
-    if let Some((head, tail)) = s.rsplit_once(':')
-        && !tail.is_empty()
-        && tail.bytes().all(|b| b.is_ascii_digit())
-    {
-        return head;
-    }
-    s
+fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node]) -> String {
+    let details = candidates
+        .iter()
+        .take(10)
+        .map(|n| {
+            format!(
+                "  - {} [{}] {}",
+                n.node_id,
+                n.node_type,
+                n.file_path.as_str()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Symbol '{input}' is ambiguous ({} matches):\n{}\n\nPass a fully-qualified node_id (e.g., sym:/file:/table:) to disambiguate.",
+        candidates.len(),
+        details
+    )
 }
 
 impl Engram {
@@ -100,54 +110,18 @@ impl Engram {
                 {
                     fqn.clone()
                 } else {
-                    let table_id = engram_core::ids::NodeId::table(fqn).0;
-                    if graph
-                        .get_node(&req.project_id, &table_id)
+                    match graph
+                        .resolve_symbol(&req.project_id, fqn, None, req.file_path.as_deref())
                         .map_err(|e| e.to_string())?
-                        .is_some()
                     {
-                        table_id
-                    } else {
-                        let short = fqn.split('.').next_back().unwrap_or(fqn);
-                        if let Ok(candidates) =
-                            graph.query_nodes(&req.project_id, None, Some(short), None, 500)
-                        && !candidates.is_empty()
-                        {
-                            let want = strip_fqn_line_suffix(fqn);
-                            if let Some(exact) = candidates.iter().find(|n| {
-                                n.metadata
-                                    .as_ref()
-                                    .and_then(|m| m.get("fqn"))
-                                    .and_then(|v| v.as_str())
-                                    .map(strip_fqn_line_suffix)
-                                    == Some(want)
-                            }) {
-                                exact.node_id.clone()
-                            } else {
-                                let suggestions: Vec<String> = candidates
-                                    .iter()
-                                    .take(5)
-                                    .map(|n| {
-                                        let fqn_meta = n
-                                            .metadata
-                                            .as_ref()
-                                            .and_then(|m| m.get("fqn"))
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("(no fqn)");
-                                        format!(
-                                            "  - {} [{}] fqn={}",
-                                            n.node_id, n.node_type, fqn_meta
-                                        )
-                                    })
-                                    .collect();
-                                return Ok(format!(
-                                    "Symbol '{fqn}' not uniquely resolvable. {} name-substring candidates found:\n{}\n\nUse the full node_id as symbol_fqn, or use find_symbol_references for non-unique matches.",
-                                    candidates.len(),
-                                    suggestions.join("\n")
-                                ));
-                            }
-                        } else {
-                            return Ok(format!("Symbol '{fqn}' not found in graph."));
+                        ResolveResult::Unique(node) => node.node_id,
+                        ResolveResult::Ambiguous(candidates) => {
+                            return Ok(format_ambiguous_symbol_error(fqn, &candidates));
+                        }
+                        ResolveResult::NotFound => {
+                            return Ok(format!(
+                                "Symbol '{fqn}' was not found. Use query_graph_nodes to find the exact node_id/name, then retry with that node_id."
+                            ));
                         }
                     }
                 }
@@ -546,16 +520,27 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .is_none()
             && let Some(ref ctrl) = req.control_id
-            && let Ok(candidates) =
-                self.state
-                    .graph
-                    .query_nodes(&req.project_id, Some("control"), Some(ctrl), None, 10)
-            && !candidates.is_empty()
         {
-            trace_used_fallback = true;
-            trace_candidate_count = candidates.len();
-            unresolved_candidates = candidates.iter().map(|n| n.node_id.clone()).collect();
-            start_id = candidates[0].node_id.clone();
+            match self
+                .state
+                .graph
+                .resolve_symbol(&req.project_id, ctrl, Some("control"), Some(&req.page_path))
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            {
+                ResolveResult::Unique(node) => {
+                    trace_used_fallback = true;
+                    trace_candidate_count = 1;
+                    unresolved_candidates = vec![node.node_id.clone()];
+                    start_id = node.node_id;
+                }
+                ResolveResult::Ambiguous(candidates) => {
+                    return Err(McpError::invalid_params(
+                        format_ambiguous_symbol_error(ctrl, &candidates),
+                        None,
+                    ));
+                }
+                ResolveResult::NotFound => {}
+            }
         }
 
         let paths = self
@@ -1862,46 +1847,21 @@ impl Engram {
             {
                 entry_raw.clone()
             } else {
-                let candidates = [format!("file:{entry_raw}")];
-                let mut found = None;
-                for cand in &candidates {
-                    if graph
-                        .get_node(&project_id, cand)
-                        .map_err(|e| e.to_string())?
-                        .is_some()
-                    {
-                        found = Some(cand.clone());
-                        break;
-                    }
-                }
-                if found.is_none()
-                    && let Ok(nodes) = graph.query_nodes(&project_id, None, None, None, 2000)
+                match graph
+                    .resolve_symbol(&project_id, &entry_raw, None, None)
+                    .map_err(|e| e.to_string())?
                 {
-                    found = nodes
-                        .into_iter()
-                        .find(|n| {
-                            n.metadata
-                                .as_ref()
-                                .and_then(|m| m.get("fqn"))
-                                .and_then(|v| v.as_str())
-                                .is_some_and(|fqn| fqn == entry_raw)
-                        })
-                        .map(|n| n.node_id);
-                }
-                if found.is_none() {
-                    let nodes = graph
-                        .query_nodes(&project_id, None, Some(&entry_raw), None, 10)
-                        .map_err(|e| e.to_string())?;
-                    if let Some(n) = nodes.first() {
-                        found = Some(n.node_id.clone());
+                    ResolveResult::Unique(node) => node.node_id,
+                    ResolveResult::Ambiguous(candidates) => {
+                        return Err(format_ambiguous_symbol_error(&entry_raw, &candidates));
+                    }
+                    ResolveResult::NotFound => {
+                        return Err(format!(
+                            "No node found matching '{}'. Use query_graph_nodes to discover valid names/node_ids, then retry.",
+                            entry_raw
+                        ));
                     }
                 }
-                found.ok_or_else(|| {
-                    format!(
-                        "No node found matching '{}'. Try query_graph_nodes to discover node IDs.",
-                        entry_raw
-                    )
-                })?
             };
 
             let edge_kinds: Vec<EdgeKind> = if compile_time_only {
@@ -2134,63 +2094,32 @@ impl Engram {
             let pid = req.project_id.clone();
             let fqn_c = fqn.clone();
             let found = tokio::task::spawn_blocking(move || {
-                // Step 1: exact node_id path
-                if (fqn_c.starts_with("sym:")
-                    || fqn_c.starts_with("file:")
-                    || fqn_c.starts_with("page:"))
-                    && graph.get_node(&pid, &fqn_c).ok().flatten().is_some()
-                {
-                    return Some(fqn_c.clone());
-                }
-
-                // Step 2: exact match against node.name (canonical VB FQN location)
-                if let Ok(nodes) = graph.query_nodes(&pid, None, Some(&fqn_c), None, 100) {
-                    if let Some(node) = nodes.iter().find(|n| n.name == fqn_c) {
-                        return Some(node.node_id.clone());
-                    }
-                    if nodes.len() == 1 {
-                        return Some(nodes[0].node_id.clone());
-                    }
-                }
-
-                // Step 3: legacy metadata.fqn exact match
-                if let Ok(nodes) = graph.query_nodes(&pid, None, None, None, 5000)
-                    && let Some(node) = nodes.into_iter().find(|n| {
-                        n.metadata
-                            .as_ref()
-                            .and_then(|m| m.get("fqn"))
-                            .and_then(|v| v.as_str())
-                            .is_some_and(|node_fqn| node_fqn == fqn_c)
-                    })
-                {
-                    return Some(node.node_id);
-                }
-
-                // Step 4: short-name fallback with disambiguation
-                let short = fqn_c.split('.').next_back().unwrap_or(&fqn_c);
-                if let Ok(nodes) = graph.query_nodes(&pid, None, Some(short), None, 50) {
-                    if let Some(node) = nodes.iter().find(|n| n.name == short) {
-                        return Some(node.node_id.clone());
-                    }
-                    if nodes.len() == 1 {
-                        return Some(nodes[0].node_id.clone());
-                    }
-                }
-
-                None
+                graph
+                    .resolve_symbol(&pid, &fqn_c, None, None)
+                    .map_err(|e| e.to_string())
             })
             .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e, None))?;
 
-            found.ok_or_else(|| {
-                McpError::invalid_params(
-                    format!(
-                        "Could not resolve symbol_fqn '{}' to a graph node. Try passing the full node_id (e.g. 'sym:function:path/to/file.vb:ClassName.MethodName:LINE'), or use 'file:path/to/file' for file-level analysis.",
-                        fqn
-                    ),
-                    None,
-                )
-            })?
+            match found {
+                ResolveResult::Unique(node) => node.node_id,
+                ResolveResult::Ambiguous(candidates) => {
+                    return Err(McpError::invalid_params(
+                        format_ambiguous_symbol_error(fqn, &candidates),
+                        None,
+                    ));
+                }
+                ResolveResult::NotFound => {
+                    return Err(McpError::invalid_params(
+                        format!(
+                            "Could not resolve symbol_fqn '{}'. Use query_graph_nodes to locate the exact symbol or pass a full node_id (for example sym:/file:/table:).",
+                            fqn
+                        ),
+                        None,
+                    ));
+                }
+            }
         } else {
             return Err(McpError::invalid_params(
                 "Either file_path or symbol_fqn is required",
