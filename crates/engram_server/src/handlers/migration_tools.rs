@@ -1931,7 +1931,7 @@ impl Engram {
             }
         } else {
             let discovered =
-                discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+                discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
             let mut files = Vec::with_capacity(discovered.len());
             for rel in discovered {
                 if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
@@ -2070,7 +2070,7 @@ impl Engram {
 
         // Discover SQL files
         let sql_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
 
         let sql_files: Vec<(String, String)> = sql_paths
             .into_iter()
@@ -2426,7 +2426,7 @@ impl Engram {
 
         // Discover SQL files
         let sql_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 200).await;
+            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
 
         let sql_files: Vec<(String, String)> = sql_paths
             .into_iter()

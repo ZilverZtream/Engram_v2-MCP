@@ -8395,10 +8395,24 @@ pub fn build_sp_catalog_public(
     sp_limit: usize,
 ) -> StoredProcedureCatalog {
     let mut catalog = build_sp_catalog(sql_files, code_files);
+    // Sort so that procs called from application code appear first — when
+    // `sp_limit` truncates, we want business-critical SPs to survive. On
+    // real projects the tail tends to be framework procs (e.g. `aspnet_*`
+    // from Membership) that no application code actually references, so
+    // pushing them to the back via a descending `called_from.len()` sort
+    // (with alphabetical tiebreaker for determinism) is the right shape.
+    catalog.procedures.sort_by(|a, b| {
+        b.called_from
+            .len()
+            .cmp(&a.called_from.len())
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
     if sp_limit > 0 && catalog.procedures.len() > sp_limit {
         catalog.procedures.truncate(sp_limit);
-        catalog.total_procedures = catalog.procedures.len();
     }
+    // Keep `total_procedures` in sync with what's actually returned so the
+    // downstream renderer and JSON consumers agree on the count.
+    catalog.total_procedures = catalog.procedures.len();
     catalog
 }
 
@@ -10825,6 +10839,72 @@ EXEC sp_executesql @sql
                 .modern_equivalent
                 .contains("SQL injection")
         );
+    }
+
+    /// `build_sp_catalog_public` must sort procs with code callers to the
+    /// front so that when `sp_limit` truncates, framework procs (aspnet_*)
+    /// that no application code actually references get dropped first.
+    #[test]
+    fn sp_catalog_public_sorts_called_procs_first_and_truncates_tail() {
+        // Three aspnet_ framework procs with no code references + one
+        // business proc that IS called from code via a SqlCommand.
+        let sql = r#"
+CREATE PROCEDURE aspnet_Users_CreateUser AS SELECT 1
+CREATE PROCEDURE aspnet_Roles_CreateRole AS SELECT 1
+CREATE PROCEDURE aspnet_Membership_SetPassword AS SELECT 1
+CREATE PROCEDURE usp_GetBusinessData @Id int AS SELECT * FROM Business WHERE Id = @Id
+"#;
+        let cs_code = r#"
+var cmd = new SqlCommand();
+cmd.CommandType = CommandType.StoredProcedure;
+cmd.CommandText = "usp_GetBusinessData";
+cmd.ExecuteReader();
+"#;
+        let catalog = build_sp_catalog_public(
+            &[("db/all.sql".to_string(), sql.to_string())],
+            &[("Data/BusinessRepo.cs", cs_code)],
+            /* sp_limit */ 2,
+        );
+
+        assert_eq!(catalog.procedures.len(), 2);
+        // The business proc with a code caller must survive and be first.
+        assert_eq!(catalog.procedures[0].name, "usp_GetBusinessData");
+        assert!(!catalog.procedures[0].called_from.is_empty());
+        // The second slot is one of the aspnet_ procs (tie-broken
+        // alphabetically). The key guarantee is that usp_GetBusinessData
+        // was not evicted by the truncation.
+        assert!(
+            catalog.procedures[1].name.starts_with("aspnet_"),
+            "slot 1 should be a framework proc after usp_; got {}",
+            catalog.procedures[1].name
+        );
+        // total_procedures reflects what's actually in the catalog.
+        assert_eq!(catalog.total_procedures, 2);
+    }
+
+    /// With no truncation, the sort still runs but all procs are retained
+    /// and `total_procedures` equals the proc count. This guards against a
+    /// regression where the sort accidentally dropped rows.
+    #[test]
+    fn sp_catalog_public_no_truncation_keeps_all_procs() {
+        let sql = r#"
+CREATE PROCEDURE aspnet_a AS SELECT 1
+CREATE PROCEDURE usp_business AS SELECT 1
+"#;
+        let cs_code = r#"
+var cmd = new SqlCommand();
+cmd.CommandType = CommandType.StoredProcedure;
+cmd.CommandText = "usp_business";
+cmd.ExecuteReader();
+"#;
+        let catalog = build_sp_catalog_public(
+            &[("db/all.sql".to_string(), sql.to_string())],
+            &[("Data/App.cs", cs_code)],
+            /* sp_limit */ 0,
+        );
+        assert_eq!(catalog.procedures.len(), 2);
+        assert_eq!(catalog.total_procedures, 2);
+        assert_eq!(catalog.procedures[0].name, "usp_business");
     }
 
     // =========================================================================
