@@ -324,6 +324,10 @@ pub fn resolve_app_code_globals(
         "resolve_app_code_globals: step3_samples"
     );
 
+    // Cache source node file_paths to avoid repeated lookups.
+    let mut source_file_cache: HashMap<String, Option<String>> = HashMap::new();
+    let mut ambiguous_fqn_counts: HashMap<String, usize> = HashMap::new();
+
     for edge in &call_edges {
         let Some(bare_name) = extract_terminal_name(&edge.target_id) else {
             no_terminal_match += 1;
@@ -345,19 +349,36 @@ pub fn resolve_app_code_globals(
             continue;
         }
 
+        // Look up the source node's file_path for the prefer_file_path hint.
+        let source_file_path = source_file_cache
+            .entry(edge.source_id.clone())
+            .or_insert_with(|| {
+                graph
+                    .get_node(project_id, &edge.source_id)
+                    .ok()
+                    .flatten()
+                    .map(|n| n.file_path.as_str().to_string())
+            })
+            .as_deref();
+
         let bare_name = strip_line_suffix(bare_name);
         match terminal_to_fqn.get(bare_name) {
             Some(matches) if matches.len() == 1 => {
                 let matched_fqn = &matches[0];
-                let new_target_id =
-                    match graph.resolve_symbol(project_id, matched_fqn, None, None)? {
-                        ResolveResult::Unique(node) => node.node_id,
-                        _ => {
-                            unmatched += 1;
-                            fqn_not_in_node_map += 1;
-                            continue;
-                        }
-                    };
+                let new_target_id = match graph.resolve_symbol(
+                    project_id,
+                    matched_fqn,
+                    None,
+                    source_file_path,
+                )? {
+                    ResolveResult::Unique(node) => node.node_id,
+                    _ => {
+                        unmatched += 1;
+                        fqn_not_in_node_map += 1;
+                        *ambiguous_fqn_counts.entry(matched_fqn.clone()).or_default() += 1;
+                        continue;
+                    }
+                };
 
                 if edge.target_id == new_target_id {
                     continue;
@@ -386,19 +407,80 @@ pub fn resolve_app_code_globals(
                 rewritten += 1;
             }
             Some(matches) if matches.len() > 1 => {
-                ambiguous += 1;
-                tracing::debug!(
-                    target_name = bare_name,
-                    matching_fqns = ?matches,
-                    count = matches.len(),
-                    "resolve_app_code_globals: ambiguous_bare_call"
-                );
+                // Multiple FQN candidates — try resolving each with prefer_file_path.
+                let mut resolved_any = None;
+                let mut resolved_fqn = None;
+                for matched_fqn in matches {
+                    if let ResolveResult::Unique(node) = graph.resolve_symbol(
+                        project_id,
+                        matched_fqn,
+                        None,
+                        source_file_path,
+                    )? {
+                        resolved_any = Some(node);
+                        resolved_fqn = Some(matched_fqn.clone());
+                        break;
+                    }
+                }
+                match resolved_any {
+                    Some(node) => {
+                        let new_target_id = node.node_id;
+                        if edge.target_id == new_target_id {
+                            continue;
+                        }
+
+                        let mut metadata_obj = edge
+                            .metadata
+                            .clone()
+                            .and_then(|m| m.as_object().cloned())
+                            .unwrap_or_default();
+                        metadata_obj.insert(
+                            "original_target_name".into(),
+                            serde_json::Value::String(bare_name.to_string()),
+                        );
+                        metadata_obj.insert(
+                            "resolved_target_fqn".into(),
+                            serde_json::Value::String(
+                                resolved_fqn.unwrap_or_default(),
+                            ),
+                        );
+
+                        let mut rewritten_edge = edge.clone();
+                        rewritten_edge.target_id = new_target_id;
+                        rewritten_edge.metadata =
+                            Some(serde_json::Value::Object(metadata_obj));
+                        rewritten_edge.generation = generation;
+                        rewritten_edge.updated_at_ms = now_ms();
+                        rewritten_edges.push(rewritten_edge);
+                        rewritten += 1;
+                    }
+                    None => {
+                        ambiguous += 1;
+                        tracing::debug!(
+                            target_name = bare_name,
+                            matching_fqns = ?matches,
+                            count = matches.len(),
+                            "resolve_app_code_globals: ambiguous_bare_call"
+                        );
+                    }
+                }
             }
             _ => {
                 unmatched += 1;
                 no_terminal_match += 1;
             }
         }
+    }
+
+    // Diagnostic: top 10 FQNs that couldn't resolve (aids future regression diagnosis).
+    if !ambiguous_fqn_counts.is_empty() {
+        let mut top: Vec<_> = ambiguous_fqn_counts.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1));
+        top.truncate(10);
+        tracing::debug!(
+            "resolve_app_code_globals: top unresolved FQNs = {:?}",
+            top
+        );
     }
 
     if !rewritten_edges.is_empty() {
