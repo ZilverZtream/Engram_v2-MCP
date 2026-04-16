@@ -90,6 +90,8 @@ pub struct BlastRadiusReport {
     pub uncertainty_breakdown: UncertaintyBreakdown,
     pub seam_candidates: Vec<SeamCandidate>,
     pub guidance: Vec<GuidanceItem>,
+    pub total_incoming: usize,
+    pub total_outgoing: usize,
     pub total_downstream: usize,
 }
 
@@ -166,6 +168,9 @@ pub fn compute_blast_radius(
 ) -> anyhow::Result<BlastRadiusReport> {
     // 1. Fetch target node metadata
     let node = graph.get_node(project_id, target_id)?;
+    if node.is_none() {
+        anyhow::bail!("Target node not found: {target_id}");
+    }
     let node_type = node
         .as_ref()
         .map(|n| n.node_type.clone())
@@ -317,7 +322,9 @@ pub fn compute_blast_radius(
     let migration_risk = (raw_score.round() as u8).clamp(1, 10);
 
     // 6. Total downstream count
-    let total_downstream: usize = out_counts.values().sum();
+    let total_incoming: usize = in_counts.values().sum();
+    let total_outgoing: usize = out_counts.values().sum();
+    let total_downstream: usize = total_incoming + total_outgoing;
 
     // 7. Seam detection: boundary nodes where edge kinds change
     let mut seam_candidates = Vec::new();
@@ -484,6 +491,8 @@ pub fn compute_blast_radius(
         },
         seam_candidates,
         guidance,
+        total_incoming,
+        total_outgoing,
         total_downstream,
     })
 }
@@ -496,12 +505,14 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
         "Migration Blast Radius: {}\n\
          Type: {}\n\
          Risk Score: {}/10 ({})\n\
-         Total Downstream Nodes: {}\n\n",
+         Total Downstream Nodes: {} (incoming: {}, outgoing: {})\n\n",
         report.target,
         report.target_type,
         report.migration_risk,
         report.risk_band,
         report.total_downstream,
+        report.total_incoming,
+        report.total_outgoing,
     ));
 
     out.push_str("Complexity Breakdown:\n");
@@ -688,6 +699,8 @@ mod tests {
                 recommendation: "Use parameterized queries".into(),
                 modern_pattern: Some("Dapper".into()),
             }],
+            total_incoming: 10,
+            total_outgoing: 5,
             total_downstream: 15,
         };
         let text = format_report(&report);
@@ -898,6 +911,8 @@ mod tests {
                 recommendation: "Use parameterized queries".into(),
                 modern_pattern: Some("Dapper".into()),
             }],
+            total_incoming: 3,
+            total_outgoing: 5,
             total_downstream: 8,
         };
         let text = format_report(&report);
@@ -946,6 +961,8 @@ mod tests {
             },
             seam_candidates: vec![],
             guidance: vec![],
+            total_incoming: 0,
+            total_outgoing: 0,
             total_downstream: 0,
         };
         let text = format_report(&report);
@@ -981,6 +998,8 @@ mod tests {
             },
             seam_candidates: vec![],
             guidance: vec![],
+            total_incoming: 1,
+            total_outgoing: 1,
             total_downstream: 2,
         };
         let text = format_report(&report);
@@ -1065,6 +1084,8 @@ EndProject
             },
             seam_candidates: vec![],
             guidance: vec![],
+            total_incoming: 4,
+            total_outgoing: 6,
             total_downstream: 10,
         };
 

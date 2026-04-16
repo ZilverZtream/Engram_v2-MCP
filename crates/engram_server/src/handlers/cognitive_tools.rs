@@ -2109,12 +2109,51 @@ impl Engram {
         req: ComputeBlastRadiusRequest,
     ) -> Result<CallToolResult, McpError> {
         let target_id = if let Some(ref fp) = req.file_path {
-            format!("file:{}", fp)
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let file_node_id = format!("file:{fp}");
+            let file_node_id_check = file_node_id.clone();
+            let exists =
+                tokio::task::spawn_blocking(move || graph.get_node(&pid, &file_node_id_check))
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .is_some();
+            if !exists {
+                return Err(McpError::invalid_params(
+                    format!(
+                        "File path '{}' could not be resolved to '{}'. Use query_graph_nodes to locate the exact file node_id/path before retrying.",
+                        fp, file_node_id
+                    ),
+                    None,
+                ));
+            }
+            file_node_id
         } else if let Some(ref fqn) = req.symbol_fqn {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
             let fqn_c = fqn.clone();
             let found = tokio::task::spawn_blocking(move || {
+                // Step 1: exact node_id path
+                if (fqn_c.starts_with("sym:")
+                    || fqn_c.starts_with("file:")
+                    || fqn_c.starts_with("page:"))
+                    && graph.get_node(&pid, &fqn_c).ok().flatten().is_some()
+                {
+                    return Some(fqn_c.clone());
+                }
+
+                // Step 2: exact match against node.name (canonical VB FQN location)
+                if let Ok(nodes) = graph.query_nodes(&pid, None, Some(&fqn_c), None, 100) {
+                    if let Some(node) = nodes.iter().find(|n| n.name == fqn_c) {
+                        return Some(node.node_id.clone());
+                    }
+                    if nodes.len() == 1 {
+                        return Some(nodes[0].node_id.clone());
+                    }
+                }
+
+                // Step 3: legacy metadata.fqn exact match
                 if let Ok(nodes) = graph.query_nodes(&pid, None, None, None, 5000)
                     && let Some(node) = nodes.into_iter().find(|n| {
                         n.metadata
@@ -2127,16 +2166,31 @@ impl Engram {
                     return Some(node.node_id);
                 }
 
+                // Step 4: short-name fallback with disambiguation
                 let short = fqn_c.split('.').next_back().unwrap_or(&fqn_c);
-                graph
-                    .query_nodes(&pid, None, Some(short), None, 10)
-                    .ok()
-                    .and_then(|nodes| nodes.first().map(|n| n.node_id.clone()))
+                if let Ok(nodes) = graph.query_nodes(&pid, None, Some(short), None, 50) {
+                    if let Some(node) = nodes.iter().find(|n| n.name == short) {
+                        return Some(node.node_id.clone());
+                    }
+                    if nodes.len() == 1 {
+                        return Some(nodes[0].node_id.clone());
+                    }
+                }
+
+                None
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-            found.unwrap_or_else(|| fqn.clone())
+            found.ok_or_else(|| {
+                McpError::invalid_params(
+                    format!(
+                        "Could not resolve symbol_fqn '{}' to a graph node. Try passing the full node_id (e.g. 'sym:function:path/to/file.vb:ClassName.MethodName:LINE'), or use 'file:path/to/file' for file-level analysis.",
+                        fqn
+                    ),
+                    None,
+                )
+            })?
         } else {
             return Err(McpError::invalid_params(
                 "Either file_path or symbol_fqn is required",
@@ -2165,8 +2219,13 @@ impl Engram {
         let mut out = format!(
             "# Blast Radius Analysis: {}\n\n\
              **Overall Risk**: {}/10 ({})\n\
-             **Total Downstream**: {}\n",
-            report.target, report.migration_risk, report.risk_band, report.total_downstream
+             **Total Downstream**: {} (incoming: {}, outgoing: {})\n",
+            report.target,
+            report.migration_risk,
+            report.risk_band,
+            report.total_downstream,
+            report.total_incoming,
+            report.total_outgoing
         );
 
         if !report.guidance.is_empty() {
