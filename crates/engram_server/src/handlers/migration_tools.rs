@@ -872,33 +872,47 @@ impl Engram {
         let mut code_paths: Vec<String> = Vec::new();
         let mut has_global_asax = false;
 
+        // `Node.name` for file nodes is the basename (e.g., "Default.aspx") —
+        // `Node.file_path` is the full project-relative path and is what the
+        // downstream async reads and the dossier service (which builds node IDs
+        // as `file:<relative-path>`) need.
         for n in &file_nodes {
-            let name_lower = n.name.to_lowercase();
-            if name_lower.ends_with(".aspx")
-                || name_lower.ends_with(".ascx")
-                || name_lower.ends_with(".master")
+            let rel = n.file_path.as_str();
+            let lower = rel.to_lowercase();
+            if lower.ends_with(".aspx") || lower.ends_with(".ascx") || lower.ends_with(".master") {
+                markup_paths.push(rel.to_string());
+            } else if lower.ends_with(".js")
+                || lower.ends_with(".ts")
+                || lower.ends_with(".tsx")
+                || lower.ends_with(".jsx")
             {
-                markup_paths.push(n.name.clone());
-            } else if name_lower.ends_with(".js")
-                || name_lower.ends_with(".ts")
-                || name_lower.ends_with(".tsx")
-                || name_lower.ends_with(".jsx")
-            {
-                frontend_script_paths.push(n.name.clone());
-            } else if name_lower.ends_with(".asp") {
-                asp_paths.push(n.name.clone());
-            } else if name_lower.ends_with(".rdl") || name_lower.ends_with(".rdlc") {
-                report_paths.push(n.name.clone());
-            } else if name_lower.ends_with(".cs") || name_lower.ends_with(".vb") {
-                code_paths.push(n.name.clone());
+                frontend_script_paths.push(rel.to_string());
+            } else if lower.ends_with(".asp") {
+                asp_paths.push(rel.to_string());
+            } else if lower.ends_with(".rdl") || lower.ends_with(".rdlc") {
+                report_paths.push(rel.to_string());
+            } else if lower.ends_with(".cs") || lower.ends_with(".vb") {
+                code_paths.push(rel.to_string());
             }
-            if name_lower == "global.asax"
-                || name_lower.ends_with("/global.asax")
-                || name_lower.ends_with("\\global.asax")
+            if lower == "global.asax"
+                || lower.ends_with("/global.asax")
+                || lower.ends_with("\\global.asax")
             {
                 has_global_asax = true;
             }
         }
+
+        tracing::info!(
+            project_id = %pid,
+            file_nodes = file_nodes.len(),
+            markup_paths = markup_paths.len(),
+            frontend_script_paths = frontend_script_paths.len(),
+            asp_paths = asp_paths.len(),
+            report_paths = report_paths.len(),
+            code_paths = code_paths.len(),
+            max_files = max_files,
+            "analyze_full_project_migration: file-node collection"
+        );
 
         if markup_paths.is_empty() {
             let all_extensions = &[
@@ -941,6 +955,11 @@ impl Engram {
         }
 
         markup_paths.truncate(max_files);
+        tracing::info!(
+            markup_paths = markup_paths.len(),
+            max_files = max_files,
+            "analyze_full_project_migration: markup_paths after truncate"
+        );
 
         use crate::services::full_project_migration_service::{FileContent, ProjectFileBundle};
 
@@ -950,8 +969,26 @@ impl Engram {
                 let dir = project_dir.clone();
                 let rel = rel_path.clone();
                 async move {
-                    let full_path = safe_join(Path::new(&dir), &rel).ok()?;
-                    let markup = tokio::fs::read_to_string(&full_path).await.ok()?;
+                    let full_path = match safe_join(Path::new(&dir), &rel) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            tracing::warn!(
+                                rel_path = %rel,
+                                "analyze_full_project_migration: safe_join rejected markup path: {e}"
+                            );
+                            return None;
+                        }
+                    };
+                    let markup = match tokio::fs::read_to_string(&full_path).await {
+                        Ok(c) => c,
+                        Err(e) => {
+                            tracing::warn!(
+                                path = %full_path.display(),
+                                "analyze_full_project_migration: markup read failed: {e}"
+                            );
+                            return None;
+                        }
+                    };
                     let cb_path = find_codebehind_path(&full_path);
                     let cb_content = if let Some(ref p) = cb_path {
                         tokio::fs::read_to_string(p).await.ok()
@@ -1018,6 +1055,16 @@ impl Engram {
             futures::future::join_all(read_asp_futures),
             futures::future::join_all(read_report_futures),
         );
+
+        {
+            let total = markup_results.len();
+            let success = markup_results.iter().filter(|r| r.is_some()).count();
+            tracing::info!(
+                success = success,
+                failed = total - success,
+                "analyze_full_project_migration: markup read results"
+            );
+        }
 
         let markup_files: Vec<FileContent> = markup_results.into_iter().flatten().collect();
         let script_files: Vec<(String, String)> =

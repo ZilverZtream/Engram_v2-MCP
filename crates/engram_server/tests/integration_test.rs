@@ -2756,7 +2756,6 @@ async fn test_immune_system_end_to_end() {
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
-            mode: None,
             wait: true,
         }))
         .await
@@ -2923,7 +2922,6 @@ async fn test_dream_immune_integration() {
             project_id: project_id.to_string(),
             max_commits: 100,
             index_antipatterns: true,
-            mode: None,
             wait: true,
         }))
         .await
@@ -4846,7 +4844,7 @@ async fn test_analyze_directory_coding_style() {
 fn empty_bundle() -> ProjectFileBundle {
     ProjectFileBundle {
         markup_files: vec![],
-        js_files: vec![],
+        script_files: vec![],
         classic_asp_files: vec![],
         report_files: vec![],
         global_asax: None,
@@ -6586,5 +6584,190 @@ fn evidence_depth_from_str_parses_correctly() {
     assert!(
         EvidenceDepth::from_str("unknown").is_err(),
         "unknown string should return an error"
+    );
+}
+
+/// Regression test for the `analyze_full_project_migration` empty-dossier bug.
+///
+/// File nodes in the graph are stored with `Node.name` set to the basename
+/// (e.g. `"Default.aspx"`) and `Node.file_path` set to the full project-relative
+/// path (e.g. `"modules/dashboard/Default.aspx"`). The handler used to collect
+/// markup paths from `n.name`, which meant `safe_join(project_dir, basename)`
+/// pointed at the project root where the file did not exist — every read failed
+/// silently via `.ok()?`, `bundle.markup_files` ended up empty, and the per-page
+/// dossier loop produced zero dossiers even though 250+ ASPX pages were indexed.
+///
+/// This test creates 5 ASPX pages (with matching code-behind) under a nested
+/// subdirectory, indexes them, then calls `analyze_full_project_migration` and
+/// asserts that every page produced a dossier. Without the fix, the JSON report
+/// would contain `total_pages_analyzed: 0` and `page_dossiers: []`.
+#[tokio::test]
+async fn analyze_full_project_migration_emits_one_dossier_per_aspx_page() {
+    use engram_server::models::AnalyzeFullProjectMigrationRequest;
+    use engram_server::models::TargetStack;
+
+    let tmp = tempdir().unwrap();
+    let data_dir = tmp.path().join("data");
+    let project_dir = tmp.path().join("webforms_project");
+    std::fs::create_dir_all(&data_dir).unwrap();
+
+    // Nest the pages a few directories deep so the bug (basename vs. full
+    // relative path) would actually reproduce.
+    let pages_dir = project_dir.join("modules").join("dashboard");
+    std::fs::create_dir_all(&pages_dir).unwrap();
+
+    let aspx_markup = |title: &str| -> String {
+        format!(
+            r#"<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="{title}.aspx.cs" Inherits="WebForms.{title}" %>
+<!DOCTYPE html>
+<html>
+<head runat="server"><title>{title}</title></head>
+<body>
+  <form id="form1" runat="server">
+    <asp:Label ID="lbl" runat="server" Text="{title}"></asp:Label>
+  </form>
+</body>
+</html>
+"#
+        )
+    };
+    let cs_codebehind = |title: &str| -> String {
+        format!(
+            r#"using System;
+using System.Web.UI;
+namespace WebForms {{
+    public partial class {title} : Page {{
+        protected void Page_Load(object sender, EventArgs e) {{
+            if (!IsPostBack) {{
+                lbl.Text = "{title}";
+            }}
+        }}
+    }}
+}}
+"#
+        )
+    };
+
+    let titles = ["Home", "Users", "Orders", "Reports", "Settings"];
+    for title in titles {
+        std::fs::write(pages_dir.join(format!("{title}.aspx")), aspx_markup(title)).unwrap();
+        std::fs::write(
+            pages_dir.join(format!("{title}.aspx.cs")),
+            cs_codebehind(title),
+        )
+        .unwrap();
+    }
+
+    let cfg = Config {
+        data_dir: data_dir.clone(),
+        allowed_roots: vec![project_dir.clone()],
+        max_project_files: None,
+        max_project_bytes: None,
+        embedding_backend: "fts_only".into(),
+        embedding_model: None,
+        ollama_url: None,
+        openai_api_key: None,
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = Engram::new(state);
+
+    let index_req = engram_server::IndexProjectRequest {
+        directory: project_dir.to_string_lossy().to_string(),
+        project_name: "webforms_dossier_regression".into(),
+        project_type: engram_server::models::ProjectType::DotnetWebformsCs,
+        wait: true,
+        dedupe_by_directory: true,
+    };
+    let res = engram.index_project(Parameters(index_req)).await.unwrap();
+    let text = match &res.content[0].raw {
+        rmcp::model::RawContent::Text(t) => &t.text,
+        _ => panic!("Expected text content"),
+    };
+    assert!(
+        text.contains("\u{2705} Indexed project_id"),
+        "index_project did not report success: {text}"
+    );
+    let project_id = text
+        .lines()
+        .find(|l: &&str| l.contains("\u{2705} Indexed project_id:"))
+        .unwrap()
+        .split("project_id: ")
+        .nth(1)
+        .unwrap()
+        .trim()
+        .to_string();
+
+    // Sanity-check: the graph actually has file nodes whose `name` is the
+    // basename but whose `file_path` is the full relative path. This is the
+    // condition that triggered the bug.
+    let graph = engram.state.graph.clone();
+    let file_nodes = graph
+        .query_nodes(&project_id, Some("file"), None, None, 10_000)
+        .unwrap();
+    let aspx_nodes: Vec<_> = file_nodes
+        .iter()
+        .filter(|n| n.name.to_lowercase().ends_with(".aspx"))
+        .collect();
+    assert_eq!(
+        aspx_nodes.len(),
+        5,
+        "expected 5 .aspx file nodes, found {}: {:?}",
+        aspx_nodes.len(),
+        aspx_nodes.iter().map(|n| &n.name).collect::<Vec<_>>()
+    );
+    for n in &aspx_nodes {
+        assert!(
+            !n.name.contains('/') && !n.name.contains('\\'),
+            "file-node `name` should be a bare basename, got {:?}",
+            n.name
+        );
+        assert!(
+            n.file_path.as_str().contains("modules/dashboard/"),
+            "file-node `file_path` should be a full relative path, got {:?}",
+            n.file_path.as_str()
+        );
+    }
+
+    // Call the tool with defaults + output_json so we can parse the report.
+    let req = AnalyzeFullProjectMigrationRequest {
+        project_id: project_id.clone(),
+        target_stack: TargetStack::Blazor,
+        max_files: 200,
+        output_json: true,
+        use_llm: false,
+    };
+    let res = engram
+        .handle_analyze_full_project_migration(req)
+        .await
+        .expect("analyze_full_project_migration must succeed");
+    let json_text = match &res.content[0].raw {
+        rmcp::model::RawContent::Text(t) => &t.text,
+        _ => panic!("Expected JSON text content"),
+    };
+    let report: serde_json::Value = serde_json::from_str(json_text).unwrap_or_else(|e| {
+        panic!("output_json=true must emit valid JSON (err: {e}):\n{json_text}")
+    });
+
+    let page_dossiers = report
+        .get("page_dossiers")
+        .and_then(|v| v.as_array())
+        .expect("report JSON must contain `page_dossiers` array");
+    assert_eq!(
+        page_dossiers.len(),
+        5,
+        "expected 5 page dossiers (one per .aspx), got {}",
+        page_dossiers.len()
+    );
+
+    let total_pages_analyzed = report
+        .pointer("/cross_cutting/total_pages_analyzed")
+        .and_then(|v| v.as_u64())
+        .expect("report JSON must contain cross_cutting.total_pages_analyzed");
+    assert_eq!(
+        total_pages_analyzed, 5,
+        "expected cross_cutting.total_pages_analyzed == 5, got {total_pages_analyzed}"
     );
 }
