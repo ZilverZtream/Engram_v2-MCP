@@ -161,7 +161,6 @@ pub fn resolve_app_code_globals(
     let mut app_code_by_name_ci: HashMap<String, String> = HashMap::new();
     let mut app_code_by_name: HashMap<String, String> = HashMap::new();
     let mut terminal_to_fqn: HashMap<String, Vec<String>> = HashMap::new();
-    let mut fqn_to_node_id: HashMap<String, String> = HashMap::new();
 
     let is_app_code_path = |path: &str| -> bool {
         let lower = path.to_lowercase().replace('\\', "/");
@@ -208,7 +207,6 @@ pub fn resolve_app_code_globals(
                         .entry(short.to_string())
                         .or_default()
                         .push(fqn.to_string());
-                    fqn_to_node_id.insert(fqn.to_string(), node.node_id.clone());
                 }
             }
             // Also register the full FQN for direct lookups
@@ -291,7 +289,7 @@ pub fn resolve_app_code_globals(
     tracing::info!(
         project_id = %project_id,
         terminal_to_fqn_len = terminal_to_fqn.len(),
-        fqn_to_node_id_len = fqn_to_node_id.len(),
+        app_code_symbol_count = app_code_by_name.len(),
         "resolve_app_code_globals: step3_lookup_sizes"
     );
     if terminal_to_fqn.is_empty() {
@@ -350,13 +348,17 @@ pub fn resolve_app_code_globals(
         match terminal_to_fqn.get(bare_name) {
             Some(matches) if matches.len() == 1 => {
                 let matched_fqn = &matches[0];
-                let Some(new_target_id) = fqn_to_node_id.get(matched_fqn) else {
-                    unmatched += 1;
-                    fqn_not_in_node_map += 1;
-                    continue;
-                };
+                let new_target_id =
+                    match graph.resolve_symbol(project_id, matched_fqn, None, None)? {
+                        engram_graph::ResolveResult::Unique(node) => node.node_id,
+                        _ => {
+                            unmatched += 1;
+                            fqn_not_in_node_map += 1;
+                            continue;
+                        }
+                    };
 
-                if edge.target_id == *new_target_id {
+                if edge.target_id == new_target_id {
                     continue;
                 }
 
@@ -375,7 +377,7 @@ pub fn resolve_app_code_globals(
                 );
 
                 let mut rewritten_edge = edge.clone();
-                rewritten_edge.target_id = new_target_id.clone();
+                rewritten_edge.target_id = new_target_id;
                 rewritten_edge.metadata = Some(serde_json::Value::Object(metadata_obj));
                 rewritten_edge.generation = generation;
                 rewritten_edge.updated_at_ms = now_ms();

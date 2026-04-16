@@ -327,7 +327,16 @@ pub struct GraphStore {
     db: Arc<Database>,
 }
 
-type TargetMap = HashMap<String, Vec<(String, RelPath, String, Option<serde_json::Value>)>>;
+/// Resolution result from [`GraphStore::resolve_symbol`].
+#[derive(Debug, Clone)]
+pub enum ResolveResult {
+    /// Exactly one node found; safe to use.
+    Unique(Node),
+    /// Multiple candidates found; caller must disambiguate.
+    Ambiguous(Vec<Node>),
+    /// No candidates found.
+    NotFound,
+}
 
 impl GraphStore {
     pub fn open(db_path: &Path) -> anyhow::Result<Self> {
@@ -1001,6 +1010,119 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// Resolve a user-supplied symbol identifier to a node using a fallback ladder:
+    /// 1) direct node_id lookup for known prefixed IDs
+    /// 2) exact `Node.name` match
+    /// 3) exact `metadata.fqn` match (legacy)
+    /// 4) bare-name fallback using terminal `.` segment
+    /// 5) not found
+    ///
+    /// `node_type` narrows candidate searches in steps 2-4.
+    /// `prefer_file_path` is used as a tiebreaker when multiple candidates exist.
+    pub fn resolve_symbol(
+        &self,
+        project_id: &str,
+        input: &str,
+        node_type: Option<&str>,
+        prefer_file_path: Option<&str>,
+    ) -> anyhow::Result<ResolveResult> {
+        const DIRECT_PREFIXES: [&str; 11] = [
+            "sym:",
+            "file:",
+            "page:",
+            "control:",
+            "table:",
+            "column:",
+            "state:",
+            "gis_config:",
+            "binding_field:",
+            "ui_container:",
+            "sql:",
+        ];
+
+        // Step 1: direct node_id lookup.
+        if DIRECT_PREFIXES.iter().any(|p| input.starts_with(p))
+            && let Some(node) = self.get_node(project_id, input)?
+        {
+            return Ok(ResolveResult::Unique(node));
+        }
+
+        // Step 2: exact canonical name match (`Node.name`).
+        if let Ok(nodes) = self.query_nodes(project_id, node_type, Some(input), None, 100) {
+            let exact_name: Vec<Node> = nodes.into_iter().filter(|n| n.name == input).collect();
+            if exact_name.len() == 1 {
+                return Ok(ResolveResult::Unique(exact_name[0].clone()));
+            }
+            if exact_name.len() > 1 {
+                if let Some(prefer) = prefer_file_path
+                    && let Some(node) = exact_name.iter().find(|n| n.file_path.as_str() == prefer)
+                {
+                    return Ok(ResolveResult::Unique(node.clone()));
+                }
+                return Ok(ResolveResult::Ambiguous(exact_name));
+            }
+        }
+
+        // Step 3: legacy metadata.fqn exact match.
+        if let Ok(nodes) = self.query_nodes(project_id, node_type, None, None, 5000) {
+            let fqn_match: Vec<Node> = nodes
+                .into_iter()
+                .filter(|n| {
+                    n.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .and_then(|v| v.as_str())
+                        == Some(input)
+                })
+                .collect();
+            if fqn_match.len() == 1 {
+                return Ok(ResolveResult::Unique(fqn_match[0].clone()));
+            }
+            if fqn_match.len() > 1 {
+                if let Some(prefer) = prefer_file_path
+                    && let Some(node) = fqn_match.iter().find(|n| n.file_path.as_str() == prefer)
+                {
+                    return Ok(ResolveResult::Unique(node.clone()));
+                }
+                return Ok(ResolveResult::Ambiguous(fqn_match));
+            }
+        }
+
+        // Step 4: short-name fallback.
+        let short = input.split('.').next_back().unwrap_or(input);
+        if let Ok(nodes) = self.query_nodes(project_id, node_type, Some(short), None, 50) {
+            let suffix = format!(".{short}");
+            let exact_short: Vec<Node> = nodes
+                .into_iter()
+                .filter(|n| n.name == short || n.name.ends_with(&suffix))
+                .collect();
+            if exact_short.len() == 1 {
+                return Ok(ResolveResult::Unique(exact_short[0].clone()));
+            }
+            if exact_short.len() > 1 {
+                if let Some(prefer) = prefer_file_path
+                    && let Some(node) = exact_short.iter().find(|n| n.file_path.as_str() == prefer)
+                {
+                    return Ok(ResolveResult::Unique(node.clone()));
+                }
+                return Ok(ResolveResult::Ambiguous(exact_short));
+            }
+        }
+
+        Ok(ResolveResult::NotFound)
+    }
+
+    fn try_resolve_unresolved_target(&self, project_id: &str, target_id: &str) -> Option<String> {
+        if !target_id.starts_with("::") {
+            return None;
+        }
+        let name = &target_id[2..];
+        match self.resolve_symbol(project_id, name, None, None).ok()? {
+            ResolveResult::Unique(node) => Some(node.node_id),
+            ResolveResult::Ambiguous(_) | ResolveResult::NotFound => None,
+        }
+    }
+
     pub fn count_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
@@ -1491,29 +1613,9 @@ impl GraphStore {
             neighbors.truncate(MAX_BRANCHING);
 
             for mut next_id in neighbors {
-                if next_id.starts_with("::") {
-                    let name = &next_id[2..];
-                    let short_name = name.split('.').next_back().unwrap_or(name);
-                    if let Ok(candidates) =
-                        self.query_nodes(project_id, None, Some(short_name), None, 5)
-                        && !candidates.is_empty()
-                    {
-                        if name.contains('.') {
-                            if let Some(best) = candidates.iter().find(|n| {
-                                n.metadata
-                                    .as_ref()
-                                    .and_then(|m| m.get("fqn"))
-                                    .and_then(|v| v.as_str())
-                                    == Some(name)
-                            }) {
-                                next_id = best.node_id.clone();
-                            } else if candidates.len() == 1 {
-                                next_id = candidates[0].node_id.clone();
-                            }
-                        } else if candidates.len() == 1 {
-                            next_id = candidates[0].node_id.clone();
-                        }
-                    }
+                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &next_id)
+                {
+                    next_id = resolved_id;
                 }
 
                 // Allow SQL nodes even if in path (they are terminals).
@@ -1614,29 +1716,9 @@ impl GraphStore {
             neighbors.truncate(MAX_BRANCHING_FACTOR);
 
             for mut next_id in neighbors {
-                if next_id.starts_with("::") {
-                    let name = &next_id[2..];
-                    let short_name = name.split('.').next_back().unwrap_or(name);
-                    if let Ok(candidates) =
-                        self.query_nodes(project_id, None, Some(short_name), None, 5)
-                        && !candidates.is_empty()
-                    {
-                        if name.contains('.') {
-                            if let Some(best) = candidates.iter().find(|n| {
-                                n.metadata
-                                    .as_ref()
-                                    .and_then(|m| m.get("fqn"))
-                                    .and_then(|v| v.as_str())
-                                    == Some(name)
-                            }) {
-                                next_id = best.node_id.clone();
-                            } else {
-                                next_id = candidates[0].node_id.clone();
-                            }
-                        } else {
-                            next_id = candidates[0].node_id.clone();
-                        }
-                    }
+                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &next_id)
+                {
+                    next_id = resolved_id;
                 }
 
                 if !visited.contains(&next_id) {
@@ -1654,42 +1736,7 @@ impl GraphStore {
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
 
-        // 1. Collect all potential targets (classes/functions)
-        let mut name_to_targets: TargetMap = HashMap::new();
-        let rtx = self.db.begin_read()?;
-        let nt = rtx.open_table(NODES)?;
-        for r in nt.range(prefix.as_str()..)? {
-            let (k, v) = r?;
-            if !k.value().starts_with(&prefix) {
-                break;
-            }
-            let n: Node = bincode::deserialize(v.value())?;
-            if n.node_type == "function" || n.node_type == "class" {
-                name_to_targets.entry(n.name.clone()).or_default().push((
-                    n.node_id.clone(),
-                    n.file_path.clone(),
-                    n.language.clone(),
-                    n.metadata.clone(),
-                ));
-                if let Some(fqn) = n
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("fqn"))
-                    .and_then(|v| v.as_str())
-                {
-                    name_to_targets.entry(fqn.to_string()).or_default().push((
-                        n.node_id.clone(),
-                        n.file_path.clone(),
-                        n.language.clone(),
-                        n.metadata.clone(),
-                    ));
-                }
-            }
-        }
-        drop(nt);
-        drop(rtx);
-
-        // 2. Scan edges for unresolved targets
+        // Scan edges for unresolved targets
         let mut resolved_count = 0;
         let wtx = self.db.begin_write()?;
         {
@@ -1704,68 +1751,19 @@ impl GraphStore {
                 let e: Edge = bincode::deserialize(v.value())?;
 
                 if e.target_id.starts_with("::") {
-                    let name = &e.target_id[2..];
-                    let short_name = name.split('.').next_back().unwrap_or(name);
+                    let target_lookup_name = &e.target_id[2..];
+                    let source_key = format!("{project_id}\0{}", e.source_id);
+                    let source_node: Option<Node> = nt
+                        .get(source_key.as_str())?
+                        .and_then(|v| bincode::deserialize(v.value()).ok());
+                    let prefer_file_path = source_node.as_ref().map(|n| n.file_path.as_str());
 
-                    if let Some(targets) = name_to_targets.get(short_name) {
-                        let edge_fqn = e
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("fqn"))
-                            .and_then(|v| v.as_str());
-
-                        let target_fqn = if name.contains('.') {
-                            Some(name)
-                        } else {
-                            edge_fqn
-                        };
-
-                        let mut target_node_id = None;
-
-                        if let Some(fqn) = target_fqn {
-                            target_node_id = targets
-                                .iter()
-                                .find(|(_, _, _, meta)| {
-                                    meta.as_ref()
-                                        .and_then(|m| m.get("fqn"))
-                                        .and_then(|v| v.as_str())
-                                        == Some(fqn)
-                                })
-                                .map(|t| t.0.clone());
-                        }
-
-                        if target_node_id.is_none() {
-                            let source_key = format!("{project_id}\0{}", e.source_id);
-                            let source_node: Option<Node> = nt
-                                .get(source_key.as_str())?
-                                .and_then(|v| bincode::deserialize(v.value()).ok());
-
-                            target_node_id = if let Some(sn) = source_node {
-                                if let Some(t) =
-                                    targets.iter().find(|(_, p, _, _)| *p == sn.file_path)
-                                {
-                                    Some(t.0.clone())
-                                } else if let Some(t) =
-                                    targets.iter().find(|(_, _, lang, _)| *lang == sn.language)
-                                {
-                                    Some(t.0.clone())
-                                } else if targets.len() == 1 {
-                                    Some(targets[0].0.clone())
-                                } else {
-                                    None
-                                }
-                            } else if targets.len() == 1 {
-                                Some(targets[0].0.clone())
-                            } else {
-                                None
-                            };
-                        }
-
-                        if let Some(tid) = target_node_id {
-                            let mut new_e = e.clone();
-                            new_e.target_id = tid;
-                            updates.push((k.value().to_string(), new_e));
-                        }
+                    if let ResolveResult::Unique(target) =
+                        self.resolve_symbol(project_id, target_lookup_name, None, prefer_file_path)?
+                    {
+                        let mut new_e = e.clone();
+                        new_e.target_id = target.node_id;
+                        updates.push((k.value().to_string(), new_e));
                     }
                 }
             }
@@ -1941,6 +1939,32 @@ impl AsBfsEntry for BfsEntryOuter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    fn test_store() -> GraphStore {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+        let unique = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+        let mut path: PathBuf = std::env::temp_dir();
+        path.push(format!("engram_graph_store_test_{unique}.redb"));
+        let _ = std::fs::remove_file(&path);
+        GraphStore::open(&path).expect("open test graph store")
+    }
+
+    fn test_node(node_id: &str, node_type: &str, name: &str, file_path: &str) -> Node {
+        Node {
+            node_id: node_id.to_string(),
+            node_type: node_type.to_string(),
+            name: name.to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            file_path: RelPath::from(file_path),
+            start_line: 1,
+            end_line: 1,
+            generation: 1,
+            metadata: None,
+        }
+    }
 
     #[test]
     fn edge_kind_all_is_exhaustive() {
@@ -2070,5 +2094,145 @@ mod tests {
         assert!(decode_adj_value(&[0; 11]).is_err());
         // Exactly 12 bytes should succeed
         assert!(decode_adj_value(&[0; 12]).is_ok());
+    }
+
+    #[test]
+    fn resolve_symbol_direct_id_hit() {
+        let store = test_store();
+        let project = "p1";
+        let node = test_node(
+            "sym:function:src/a.vb:Ns.A:10",
+            "function",
+            "Ns.A",
+            "src/a.vb",
+        );
+        store
+            .upsert_nodes(project, std::slice::from_ref(&node))
+            .unwrap();
+
+        let resolved = store
+            .resolve_symbol(project, &node.node_id, Some("function"), None)
+            .unwrap();
+        match resolved {
+            ResolveResult::Unique(found) => assert_eq!(found.node_id, node.node_id),
+            _ => panic!("expected unique resolution"),
+        }
+    }
+
+    #[test]
+    fn resolve_symbol_exact_name_match() {
+        let store = test_store();
+        let project = "p1";
+        let node = test_node(
+            "sym:function:src/a.vb:Ns.A:10",
+            "function",
+            "Ns.A",
+            "src/a.vb",
+        );
+        store
+            .upsert_nodes(project, std::slice::from_ref(&node))
+            .unwrap();
+
+        let resolved = store
+            .resolve_symbol(project, "Ns.A", Some("function"), None)
+            .unwrap();
+        match resolved {
+            ResolveResult::Unique(found) => assert_eq!(found.node_id, node.node_id),
+            _ => panic!("expected unique resolution"),
+        }
+    }
+
+    #[test]
+    fn resolve_symbol_metadata_fqn_fallback() {
+        let store = test_store();
+        let project = "p1";
+        let mut node = test_node(
+            "sym:function:src/a.vb:CanonicalName:10",
+            "function",
+            "CanonicalName",
+            "src/a.vb",
+        );
+        node.metadata = Some(serde_json::json!({ "fqn": "Ns.LegacyName" }));
+        store
+            .upsert_nodes(project, std::slice::from_ref(&node))
+            .unwrap();
+
+        let resolved = store
+            .resolve_symbol(project, "Ns.LegacyName", Some("function"), None)
+            .unwrap();
+        match resolved {
+            ResolveResult::Unique(found) => assert_eq!(found.node_id, node.node_id),
+            _ => panic!("expected unique resolution"),
+        }
+    }
+
+    #[test]
+    fn resolve_symbol_bare_name_single_match() {
+        let store = test_store();
+        let project = "p1";
+        let node = test_node(
+            "sym:function:src/a.vb:sharedfunc.SafeRedirect:10",
+            "function",
+            "sharedfunc.SafeRedirect",
+            "src/a.vb",
+        );
+        store
+            .upsert_nodes(project, std::slice::from_ref(&node))
+            .unwrap();
+
+        let resolved = store
+            .resolve_symbol(project, "SafeRedirect", Some("function"), None)
+            .unwrap();
+        match resolved {
+            ResolveResult::Unique(found) => assert_eq!(found.node_id, node.node_id),
+            _ => panic!("expected unique resolution"),
+        }
+    }
+
+    #[test]
+    fn resolve_symbol_bare_name_ambiguous_with_and_without_tiebreaker() {
+        let store = test_store();
+        let project = "p1";
+        let left = test_node(
+            "sym:function:src/a.vb:Ns.Left.SafeRedirect:10",
+            "function",
+            "Ns.Left.SafeRedirect",
+            "src/a.vb",
+        );
+        let right = test_node(
+            "sym:function:src/b.vb:Ns.Right.SafeRedirect:10",
+            "function",
+            "Ns.Right.SafeRedirect",
+            "src/b.vb",
+        );
+        store
+            .upsert_nodes(project, &[left.clone(), right.clone()])
+            .unwrap();
+
+        let amb = store
+            .resolve_symbol(project, "SafeRedirect", Some("function"), None)
+            .unwrap();
+        match amb {
+            ResolveResult::Ambiguous(nodes) => assert_eq!(nodes.len(), 2),
+            _ => panic!("expected ambiguous resolution"),
+        }
+
+        let resolved = store
+            .resolve_symbol(project, "SafeRedirect", Some("function"), Some("src/b.vb"))
+            .unwrap();
+        match resolved {
+            ResolveResult::Unique(found) => assert_eq!(found.node_id, right.node_id),
+            _ => panic!("expected unique resolution with tiebreaker"),
+        }
+    }
+
+    #[test]
+    fn resolve_symbol_not_found() {
+        let store = test_store();
+        let project = "p1";
+        let resolved = store
+            .resolve_symbol(project, "Missing.Symbol", Some("function"), None)
+            .unwrap();
+        assert!(matches!(resolved, ResolveResult::NotFound));
     }
 }

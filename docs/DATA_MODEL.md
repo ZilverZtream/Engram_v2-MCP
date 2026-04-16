@@ -28,6 +28,18 @@ This document defines the canonical entities and their storage in Engram v2.
 - **Stored in**: Redb (Table `nodes`)
 - **Fields**: `node_id`, `node_type`, `name`, `file_path`, `start_line`, `end_line`, `metadata`.
 - **Types**: `file`, `chunk`, `symbol` (class/function), `insight`.
+- **Node ID forms**:
+  - Path-and-line composite IDs (common for symbols), e.g. `sym:function:Site/Foo.vb:Namespace.Class.Method:123`.
+  - Domain-prefix IDs, e.g. `file:...`, `table:...`, `state:...`, `page:...`, `control:...`, `sql:...`.
+- **Symbol resolution policy**:
+  - Handler/service code must use `GraphStore::resolve_symbol(project_id, input, node_type, prefer_file_path)` when mapping user-provided names/FQNs to a node.
+  - Resolution ladder:
+    1. Direct prefixed node_id lookup.
+    2. Exact `Node.name` match (**primary**, canonical VB/Roslyn symbol field).
+    3. Exact `metadata.fqn` match (**legacy fallback** only).
+    4. Bare-name fallback using terminal `.` segment with ambiguity signaling.
+    5. Not found.
+  - Rationale: ingest pipelines emit both canonical names and legacy metadata, so a consistent fallback ladder is required to avoid silent mismatches and arbitrary `.first()` picks.
 
 ### Edge
 - **Stored in**: Redb (Table `edges`)
