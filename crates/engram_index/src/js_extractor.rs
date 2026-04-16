@@ -1787,7 +1787,7 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Services/MapData.asmx");
         assert_eq!(edges[0].kind, "api_call");
-        assert_eq!(edges[0].target_kind, Some("web_service"));
+        assert_eq!(edges[0].target_kind.as_deref(), Some("web_service"));
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(
             meta.get("ajax_target_method").map(|s| s.as_str()),
@@ -1805,7 +1805,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("export.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Handlers/Export.ashx");
-        assert_eq!(edges[0].target_kind, Some("http_handler"));
+        assert_eq!(edges[0].target_kind.as_deref(), Some("http_handler"));
     }
 
     // ── Feature 4: $.get / $.post ───────────────────────────────────────
@@ -1844,7 +1844,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("config.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "Services/Config.svc");
-        assert_eq!(edges[0].target_kind, Some("wcf_service"));
+        assert_eq!(edges[0].target_kind.as_deref(), Some("wcf_service"));
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(
             meta.get("ajax_target_method").map(|s| s.as_str()),
@@ -1891,7 +1891,7 @@ mod tests {
         let (_, edges) = extract_js(&test_path("patients.js"), js);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].target_name, "GetPatientList");
-        assert_eq!(edges[0].target_kind, Some("function"));
+        assert_eq!(edges[0].target_kind.as_deref(), Some("function"));
         assert_eq!(edges[0].kind, "api_call");
         let meta = edges[0].metadata.as_ref().expect("metadata");
         assert_eq!(
@@ -2283,7 +2283,7 @@ mod tests {
             .collect();
         assert_eq!(pb.len(), 1);
         assert_eq!(pb[0].target_name, "lnkRefresh");
-        assert_eq!(pb[0].target_kind, Some("control"));
+        assert_eq!(pb[0].target_kind.as_deref(), Some("control"));
     }
 
     #[test]
@@ -2356,7 +2356,7 @@ mod tests {
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         assert!(!api.is_empty(), "XHR.open should produce api_call edge");
         assert_eq!(api[0].target_name, "Handlers/Data.ashx");
-        assert_eq!(api[0].target_kind, Some("http_handler"));
+        assert_eq!(api[0].target_kind.as_deref(), Some("http_handler"));
         let meta = api[0].metadata.as_ref().expect("metadata");
         assert_eq!(meta.get("ajax_transport").map(|s| s.as_str()), Some("xhr"));
     }
@@ -2433,7 +2433,7 @@ mod tests {
         let api: Vec<_> = edges.iter().filter(|e| e.kind == "api_call").collect();
         assert!(!api.is_empty());
         assert_eq!(api[0].target_name, "Services/Auth.asmx");
-        assert_eq!(api[0].target_kind, Some("web_service"));
+        assert_eq!(api[0].target_kind.as_deref(), Some("web_service"));
     }
 
     // ── ASP.NET ClientID variants ────────────────────────────────────────

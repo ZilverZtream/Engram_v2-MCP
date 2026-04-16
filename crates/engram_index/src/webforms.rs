@@ -2419,7 +2419,7 @@ mod tests {
             .iter()
             .find(|e| e.target_name.contains("includes/footer.inc"))
             .expect("includes_file edge for footer.inc");
-        assert_eq!(footer.target_kind, Some("file"));
+        assert_eq!(footer.target_kind.as_deref(), Some("file"));
     }
 
     #[test]
@@ -2586,7 +2586,7 @@ mod tests {
             .find(|e| e.kind == "exposes_web_service")
             .expect("exposes_web_service edge");
         assert_eq!(ws_edge.target_name, "Optician");
-        assert_eq!(ws_edge.target_kind, Some("class"));
+        assert_eq!(ws_edge.target_kind.as_deref(), Some("class"));
 
         // Should emit cb_defines edge
         let cbd_edge = edges
