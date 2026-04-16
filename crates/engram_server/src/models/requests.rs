@@ -248,7 +248,7 @@ pub fn default_top_k() -> usize {
     10
 }
 pub fn default_max_commits() -> usize {
-    200
+    10_000
 }
 pub fn default_namespace_memory() -> String {
     "memory".to_string()
@@ -677,6 +677,18 @@ pub struct GetUiBlueprintRequest {
 
 // -------------------- Git --------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum GitHistoryMode {
+    /// Walk newer commits at HEAD that postdate the last_oid.
+    Forward,
+    /// Walk older commits from oldest_indexed_oid backwards through history.
+    Backfill,
+    /// Run Forward then Backfill until max_commits is exhausted.
+    #[default]
+    Both,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct IndexGitHistoryRequest {
@@ -685,6 +697,8 @@ pub struct IndexGitHistoryRequest {
     pub max_commits: usize,
     #[serde(default)]
     pub index_antipatterns: bool,
+    #[serde(default)]
+    pub mode: Option<GitHistoryMode>,
     #[serde(default = "default_true")]
     pub wait: bool,
 }
@@ -1056,6 +1070,10 @@ impl QueryGraphNodesRequest {
 impl IndexGitHistoryRequest {
     pub fn sanitized_max_commits(&self) -> usize {
         self.max_commits.clamp(1, MAX_GIT_COMMITS)
+    }
+
+    pub fn sanitized_mode(&self) -> GitHistoryMode {
+        self.mode.unwrap_or_default()
     }
 }
 
