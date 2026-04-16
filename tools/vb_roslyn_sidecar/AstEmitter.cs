@@ -64,17 +64,19 @@ internal sealed class AstEmitter
 
             if (_projectCompilation is not null && _treesByPath.TryGetValue(path, out var existingTree))
             {
-                tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
-                compilation = _projectCompilation.ReplaceSyntaxTree(existingTree, tree);
-                _projectCompilation = compilation;
-                _treesByPath[path] = tree;
+                // Reuse the tree and compilation from BeginProject — no re-parse,
+                // no compilation rebuild. This eliminates O(N) ParseText calls and
+                // O(N²) ReplaceSyntaxTree allocations during the extraction loop.
+                tree = existingTree;
+                compilation = _projectCompilation;
             }
             else if (_projectCompilation is not null)
             {
+                // File wasn't in the initial project scan (new file, or path
+                // mismatch). Parse it and add to the compilation for this call,
+                // but don't mutate _projectCompilation — avoids O(N²) rebuilds.
                 tree = VisualBasicSyntaxTree.ParseText(SourceText.From(source), path: path);
                 compilation = _projectCompilation.AddSyntaxTrees(tree);
-                _projectCompilation = compilation;
-                _treesByPath[path] = tree;
             }
             else
             {
