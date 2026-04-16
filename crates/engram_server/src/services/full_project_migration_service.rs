@@ -1219,6 +1219,14 @@ pub fn analyze_full_project(
         file_contents
     };
 
+    tracing::info!(
+        project_id = %project_id,
+        markup_files = file_contents.len(),
+        capped = capped.len(),
+        max_files = max_files,
+        "analyze_full_project: entering per-page dossier loop"
+    );
+
     let mut page_dossiers: Vec<MigrationDossier> = Vec::with_capacity(capped.len());
 
     for fc in capped {
@@ -1244,6 +1252,12 @@ pub fn analyze_full_project(
             }
         }
     }
+
+    tracing::info!(
+        project_id = %project_id,
+        page_dossiers = page_dossiers.len(),
+        "analyze_full_project: per-page dossier loop complete"
+    );
 
     // MIG1: check cancel before Phase 32 bulk analyses.
     if cancel.is_cancelled() {
