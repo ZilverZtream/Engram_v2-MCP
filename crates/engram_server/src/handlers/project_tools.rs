@@ -632,17 +632,39 @@ impl Engram {
                 let graph = self.state.graph.clone();
                 let pid = project_id.clone();
                 let _ = tokio::task::spawn_blocking(move || {
+                    tracing::info!(project_id = %pid, "index_project: starting resolve_app_code_globals");
                     let _ = graph_service::resolve_app_code_globals(&graph, &pid, 1);
+                    tracing::info!(project_id = %pid, "index_project: starting link_binding_fields_to_columns");
                     let _ = graph_service::link_binding_fields_to_columns(&graph, &pid, 1);
+                    tracing::info!(project_id = %pid, "index_project: graph resolution complete");
                 })
                 .await;
             }
 
-            let graph = self.state.graph.clone();
-            let pid = project_id.clone();
-            tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid))
-                .await
-                .ok();
+            {
+                let graph = self.state.graph.clone();
+                let pid = project_id.clone();
+                tracing::info!(project_id = %pid, "index_project: starting resolve_symbol_edges");
+                let result = tokio::time::timeout(
+                    std::time::Duration::from_secs(600),
+                    tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid)),
+                )
+                .await;
+                match result {
+                    Ok(Ok(Ok(n))) => {
+                        tracing::info!(project_id = %project_id, resolved = n, "index_project: resolve_symbol_edges complete");
+                    }
+                    Ok(Ok(Err(e))) => {
+                        tracing::warn!(project_id = %project_id, "index_project: resolve_symbol_edges failed: {e:#}");
+                    }
+                    Ok(Err(e)) => {
+                        tracing::warn!(project_id = %project_id, "index_project: resolve_symbol_edges panicked: {e}");
+                    }
+                    Err(_) => {
+                        tracing::warn!(project_id = %project_id, "index_project: resolve_symbol_edges timed out after 600s — skipping (graph data is usable, some :: edges unresolved)");
+                    }
+                }
+            }
 
             let report = self.generate_indexing_report(&stats);
             if let Err(e) = self
@@ -1021,10 +1043,25 @@ impl Engram {
                     msg = format!("Graph processing failed: {}", e);
                     progress = 0;
                 } else {
+                    tracing::info!(project_id = %pid, "index_project[job]: starting resolve_app_code_globals");
                     let _ = graph_service::resolve_app_code_globals(&engram.state.graph, &pid, 1);
+                    tracing::info!(project_id = %pid, "index_project[job]: starting link_binding_fields_to_columns");
                     let _ =
                         graph_service::link_binding_fields_to_columns(&engram.state.graph, &pid, 1);
-                    let _ = engram.state.graph.resolve_symbol_edges(&pid);
+                    tracing::info!(project_id = %pid, "index_project[job]: starting resolve_symbol_edges");
+                    let graph_for_resolve = engram.state.graph.clone();
+                    let pid_for_resolve = pid.clone();
+                    let resolve_result = tokio::time::timeout(
+                        std::time::Duration::from_secs(600),
+                        tokio::task::spawn_blocking(move || graph_for_resolve.resolve_symbol_edges(&pid_for_resolve)),
+                    )
+                    .await;
+                    match resolve_result {
+                        Ok(Ok(Ok(n))) => tracing::info!(project_id = %pid, resolved = n, "index_project[job]: resolve_symbol_edges complete"),
+                        Ok(Ok(Err(e))) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges failed: {e:#}"),
+                        Ok(Err(e)) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges panicked: {e}"),
+                        Err(_) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges timed out after 600s — skipping"),
+                    }
                     let report = engram.generate_indexing_report(stats);
                     let _ = engram
                         .handle_update_memory_bank(UpdateMemoryBankRequest {

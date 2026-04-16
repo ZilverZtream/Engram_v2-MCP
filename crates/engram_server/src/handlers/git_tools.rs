@@ -330,7 +330,9 @@ impl Engram {
             // BulkWriterGuard: commits + waits on Drop (cancel-safe).
             let mut guard = search_consumer.create_bulk_writer()?;
             let fields = search_consumer.fields();
-            let mut vector_queue: Vec<engram_index::IndexDoc> = Vec::new();
+            // Separate vector queues per namespace to avoid heterogeneous batch errors.
+            let mut vector_queues: std::collections::HashMap<String, Vec<engram_index::IndexDoc>> =
+                std::collections::HashMap::new();
             const TANTIVY_COMMIT_EVERY: usize = 1000;
             const VECTOR_FLUSH_EVERY: usize = 500;
 
@@ -347,20 +349,34 @@ impl Engram {
                 )?;
                 guard.maybe_commit(TANTIVY_COMMIT_EVERY)?;
 
-                vector_queue.extend(batch);
-                if vector_queue.len() >= VECTOR_FLUSH_EVERY {
-                    let vq = std::mem::take(&mut vector_queue);
-                    search_consumer
-                        .embed_and_upsert_vectors(&pid_consumer, &vq, &cancel_consumer)
-                        .await?;
+                // Partition docs by namespace before queuing for vector upsert.
+                for doc in batch {
+                    vector_queues
+                        .entry(doc.namespace.clone())
+                        .or_default()
+                        .push(doc);
+                }
+
+                // Flush any namespace queue that hit the threshold.
+                for (_ns, queue) in vector_queues.iter_mut() {
+                    if queue.len() >= VECTOR_FLUSH_EVERY {
+                        let vq = std::mem::take(queue);
+                        search_consumer
+                            .embed_and_upsert_vectors(&pid_consumer, &vq, &cancel_consumer)
+                            .await?;
+                    }
                 }
             }
 
-            // Final vector flush
-            if !vector_queue.is_empty() && !cancel_consumer.is_cancelled() {
-                search_consumer
-                    .embed_and_upsert_vectors(&pid_consumer, &vector_queue, &cancel_consumer)
-                    .await?;
+            // Final vector flush — each namespace separately.
+            if !cancel_consumer.is_cancelled() {
+                for (_ns, queue) in vector_queues.drain() {
+                    if !queue.is_empty() {
+                        search_consumer
+                            .embed_and_upsert_vectors(&pid_consumer, &queue, &cancel_consumer)
+                            .await?;
+                    }
+                }
             }
 
             // finish() commits + waits for merge threads (the one expensive call).
