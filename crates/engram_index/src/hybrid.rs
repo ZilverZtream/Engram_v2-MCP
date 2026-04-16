@@ -99,6 +99,55 @@ fn escape_like(s: &str) -> String {
     out
 }
 
+/// Cancel-safe scope guard for a long-lived Tantivy IndexWriter.
+///
+/// On drop (including panic/cancel), commits any pending docs and waits
+/// for merge threads so segments are never left orphaned.
+pub struct BulkWriterGuard {
+    writer: Option<tantivy::IndexWriter<tantivy::TantivyDocument>>,
+    docs_since_commit: usize,
+}
+
+impl BulkWriterGuard {
+    /// Commit the current batch. Cheap (no merge wait).
+    pub fn commit(&mut self) -> anyhow::Result<()> {
+        if let Some(ref mut w) = self.writer {
+            w.commit()?;
+            self.docs_since_commit = 0;
+        }
+        Ok(())
+    }
+
+    /// Commit if `docs_since_commit >= threshold`.
+    pub fn maybe_commit(&mut self, threshold: usize) -> anyhow::Result<()> {
+        if self.docs_since_commit >= threshold {
+            self.commit()?;
+        }
+        Ok(())
+    }
+
+    /// Final shutdown: commit + wait for all merge threads.
+    /// This is the expensive call — run it once at the end.
+    pub fn finish(mut self) -> anyhow::Result<()> {
+        if let Some(mut w) = self.writer.take() {
+            w.commit()?;
+            w.wait_merging_threads()?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for BulkWriterGuard {
+    fn drop(&mut self) {
+        if let Some(mut w) = self.writer.take() {
+            // Best-effort commit + merge wait on cancel/panic.
+            if w.commit().is_ok() {
+                let _ = w.wait_merging_threads();
+            }
+        }
+    }
+}
+
 pub struct HybridSearchEngine {
     tantivy_index: tantivy::Index,
     fields: Fields,
@@ -180,6 +229,222 @@ impl HybridSearchEngine {
             mmr_oversampling: cfg.mmr_oversampling,
             memory_budget,
         })
+    }
+
+    /// Create a long-lived Tantivy writer for bulk indexing.
+    ///
+    /// The returned guard commits + waits on drop (cancel-safe).
+    /// Call `write_docs_to_writer` to add documents, then `finish()`.
+    pub fn create_bulk_writer(&self) -> anyhow::Result<BulkWriterGuard> {
+        let writer = self.tantivy_index.writer(self.tantivy_writer_memory)?;
+        Ok(BulkWriterGuard {
+            writer: Some(writer),
+            docs_since_commit: 0,
+        })
+    }
+
+    /// Get a copy of the field schema (for use in blocking closures).
+    pub fn fields(&self) -> Fields {
+        self.fields
+    }
+
+    /// Add documents to a bulk writer without committing.
+    ///
+    /// This is the Tantivy-only portion of `index_docs`. The writer is NOT
+    /// committed — call `guard.maybe_commit(1000)` periodically and
+    /// `guard.finish()` at the end.
+    pub fn write_docs_to_writer(
+        fields: &Fields,
+        guard: &mut BulkWriterGuard,
+        project_id: &str,
+        docs: &[IndexDoc],
+    ) -> anyhow::Result<usize> {
+        let writer = guard
+            .writer
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("BulkWriterGuard already finished"))?;
+        let mut added = 0usize;
+        for d in docs {
+            let effective_gen = if let Ok(policy) = engram_core::get_policy(&d.namespace) {
+                if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                    0
+                } else {
+                    d.generation
+                }
+            } else {
+                tracing::warn!(
+                    namespace = %d.namespace,
+                    generation = d.generation,
+                    "ENG-AUD-2026-S15-001: get_policy failed for namespace; \
+                     using provided generation as fallback"
+                );
+                d.generation
+            };
+
+            let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
+            writer.delete_term(Term::from_field_text(fields.pk, &pk));
+
+            let tdoc = doc!(
+                fields.pk => pk.as_str(),
+                fields.doc_id => d.doc_id.as_str(),
+                fields.content_hash => d.content_hash.as_str(),
+                fields.project_id => project_id,
+                fields.namespace => d.namespace.as_str(),
+                fields.generation => effective_gen,
+                fields.chunk_id => d.chunk_id,
+                fields.path => d.path.as_str(),
+                fields.language => d.language.as_str(),
+                fields.author => d.author.as_deref().unwrap_or(""),
+                fields.timestamp => d.timestamp.unwrap_or(0),
+                fields.start_line => d.start_line as u64,
+                fields.end_line => d.end_line as u64,
+                fields.content => d.content.as_str(),
+            );
+            writer.add_document(tdoc)?;
+            added += 1;
+        }
+        guard.docs_since_commit += added;
+        Ok(added)
+    }
+
+    /// Embed documents and upsert vectors to LanceDB.
+    ///
+    /// This is the vector-only portion of `index_docs`, extracted so bulk
+    /// callers can batch vector writes on a different cadence than Tantivy.
+    /// Does nothing when the `vector` feature is disabled or backend is `fts_only`.
+    pub async fn embed_and_upsert_vectors(
+        &self,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<()> {
+        if docs.is_empty() || cancel.is_cancelled() {
+            return Ok(());
+        }
+
+        #[cfg(feature = "vector")]
+        if self.embedding_backend != "fts_only" {
+            // Namespace homogeneity check
+            {
+                let first_ns = &docs[0].namespace;
+                let bad = docs
+                    .iter()
+                    .enumerate()
+                    .find(|(_, d)| d.namespace != *first_ns);
+                if let Some((idx, bad_doc)) = bad {
+                    return Err(anyhow::anyhow!(
+                        "embed_and_upsert_vectors: heterogeneous namespace batch — \
+                         docs[0].namespace={first_ns:?} but docs[{idx}].namespace={:?}",
+                        bad_doc.namespace
+                    ));
+                }
+            }
+
+            let table_name = format!("project_{}", project_id.replace('-', "_"));
+            let (table, open_outcome) = crate::vector::open_or_create_table(
+                &self.lance_conn,
+                &table_name,
+                self.embedder.dimension(),
+            )
+            .await?;
+            if let crate::vector::TableOpenOutcome::Recreated {
+                ref reason,
+                prior_row_count,
+            } = open_outcome
+            {
+                let loss_str = match prior_row_count {
+                    Some(n) => format!("{n} historical vectors were lost"),
+                    None => "historical vector count unknown".to_string(),
+                };
+                anyhow::bail!(
+                    "VEC1: vector table '{table_name}' recreated ({reason}) — {loss_str}. \
+                     Full re-index required for project '{project_id}'."
+                );
+            }
+
+            let mut pks = Vec::with_capacity(docs.len());
+            let mut doc_ids = Vec::with_capacity(docs.len());
+            let mut content_hashes = Vec::with_capacity(docs.len());
+            let mut chunk_ids = Vec::with_capacity(docs.len());
+            let mut paths = Vec::with_capacity(docs.len());
+            let mut languages = Vec::with_capacity(docs.len());
+            let mut authors = Vec::with_capacity(docs.len());
+            let mut timestamps = Vec::with_capacity(docs.len());
+            let mut effective_gens = Vec::with_capacity(docs.len());
+            let mut vectors = Vec::with_capacity(docs.len());
+            let mut contents_for_embed: Vec<&str> = Vec::with_capacity(docs.len());
+
+            for d in docs {
+                if cancel.is_cancelled() {
+                    break;
+                }
+                let effective_gen = if let Ok(policy) = engram_core::get_policy(&d.namespace) {
+                    if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                        0
+                    } else {
+                        d.generation
+                    }
+                } else {
+                    tracing::warn!(
+                        namespace = %d.namespace,
+                        generation = d.generation,
+                        "get_policy failed for namespace; using provided generation"
+                    );
+                    d.generation
+                };
+
+                let pk = build_pk(project_id, &d.namespace, effective_gen, &d.doc_id);
+                pks.push(pk);
+                doc_ids.push(d.doc_id.clone());
+                content_hashes.push(d.content_hash.clone());
+                chunk_ids.push(d.chunk_id);
+                paths.push(d.path.as_str().to_string());
+                languages.push(d.language.clone());
+                authors.push(d.author.clone());
+                timestamps.push(d.timestamp);
+                effective_gens.push(effective_gen);
+                contents_for_embed.push(&d.content);
+            }
+
+            if !cancel.is_cancelled() && !contents_for_embed.is_empty() {
+                for chunk in contents_for_embed.chunks(64) {
+                    if cancel.is_cancelled() {
+                        break;
+                    }
+                    let batch_vecs =
+                        self.embedder.embed_batch_cancellable(chunk, cancel).await?;
+                    vectors.extend(batch_vecs);
+                }
+            }
+
+            if !cancel.is_cancelled() && !pks.is_empty() && vectors.len() == pks.len() {
+                let ns = &docs[0].namespace;
+                let batch = crate::vector::create_record_batch_with_gens(
+                    project_id,
+                    ns,
+                    &effective_gens,
+                    &pks,
+                    &doc_ids,
+                    &content_hashes,
+                    &chunk_ids,
+                    &paths,
+                    &languages,
+                    &authors,
+                    &timestamps,
+                    &vectors,
+                    self.embedder.dimension(),
+                )?;
+                crate::vector::upsert_vectors(&table, vec![batch])
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!(
+                            "LanceDB vector upsert failed — retry to repair: {e:#}"
+                        )
+                    })?;
+            }
+        }
+
+        Ok(())
     }
 
     pub async fn index_docs(
