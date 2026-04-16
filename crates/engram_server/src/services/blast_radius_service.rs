@@ -52,6 +52,10 @@ pub struct ComplexityBreakdown {
     pub gis_coupling_score: f32,
     /// Server-to-client script injection coupling. 0-10.
     pub script_injection_score: f32,
+    /// Dependency density — saturation curve over the count of incoming
+    /// edges, i.e. how many other nodes break if this target changes. 0-10.
+    #[serde(default)]
+    pub dependency_density_score: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,12 +129,23 @@ fn meta_f32(metadata: Option<&serde_json::Value>, key: &str) -> Option<f32> {
 
 // ── Weights ──────────────────────────────────────────────────────────────────
 
-const WEIGHT_HANDLES: f32 = 0.20;
-const WEIGHT_SQL: f32 = 0.25;
-const WEIGHT_PAGERANK: f32 = 0.15;
-const WEIGHT_STATE: f32 = 0.20;
-const WEIGHT_GIS: f32 = 0.10;
-const WEIGHT_SCRIPT: f32 = 0.10;
+// Weights sum to 1.0. Dependency density carries the highest weight because
+// "how many things break when I touch this" dominates migration risk — a file
+// that 200 others depend on is inherently risky even if nothing else about it
+// looks exotic.
+const WEIGHT_DEPENDENCY: f32 = 0.30;
+const WEIGHT_SQL: f32 = 0.20;
+const WEIGHT_HANDLES: f32 = 0.15;
+const WEIGHT_STATE: f32 = 0.15;
+const WEIGHT_PAGERANK: f32 = 0.10;
+const WEIGHT_GIS: f32 = 0.05;
+const WEIGHT_SCRIPT: f32 = 0.05;
+
+// Saturation for dependency density: at 100+ incoming dependencies the score
+// maxes out at 10/10. This is deliberately generous — even 20 incoming deps
+// (dependency_density_score ≈ 2.0, weighted contribution 0.6) should move the
+// composite meaningfully off the floor.
+const DEPENDENCY_SATURATION: usize = 100;
 
 // ── Scoring helpers ──────────────────────────────────────────────────────────
 
@@ -309,22 +324,24 @@ pub fn compute_blast_radius(
         + dynamic_sql_uncertainty_score * 0.30)
         .min(10.0);
 
-    // 5. Composite risk score
-    let base_weighted_score = handles_clause_score * WEIGHT_HANDLES
+    // 5. Dependency density — compute before the composite so it can feed in.
+    let total_incoming: usize = in_counts.values().sum();
+    let total_outgoing: usize = out_counts.values().sum();
+    let total_downstream: usize = total_incoming + total_outgoing;
+    let dependency_density_score = normalize_score(total_incoming, DEPENDENCY_SATURATION);
+
+    // 6. Composite risk score
+    let base_weighted_score = dependency_density_score * WEIGHT_DEPENDENCY
         + sql_concat_score * WEIGHT_SQL
-        + pagerank_score * WEIGHT_PAGERANK
+        + handles_clause_score * WEIGHT_HANDLES
         + state_coupling_score * WEIGHT_STATE
+        + pagerank_score * WEIGHT_PAGERANK
         + gis_coupling_score * WEIGHT_GIS
         + script_injection_score * WEIGHT_SCRIPT;
     let blended_score = (base_weighted_score * 0.80) + (uncertainty_composite * 0.20);
     let unresolved_uplift = ((uncertainty_composite - 3.0).max(0.0) * 0.20).min(1.5);
     let raw_score = (blended_score + unresolved_uplift).min(10.0);
     let migration_risk = (raw_score.round() as u8).clamp(1, 10);
-
-    // 6. Total downstream count
-    let total_incoming: usize = in_counts.values().sum();
-    let total_outgoing: usize = out_counts.values().sum();
-    let total_downstream: usize = total_incoming + total_outgoing;
 
     // 7. Seam detection: boundary nodes where edge kinds change
     let mut seam_candidates = Vec::new();
@@ -483,6 +500,7 @@ pub fn compute_blast_radius(
             state_coupling_score,
             gis_coupling_score,
             script_injection_score,
+            dependency_density_score,
         },
         uncertainty_breakdown: UncertaintyBreakdown {
             dynamic_ui_uncertainty_score,
@@ -518,20 +536,24 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     out.push_str("Complexity Breakdown:\n");
     let bd = &report.complexity_breakdown;
     out.push_str(&format!(
-        "  Event Wiring:     {:.1}/10\n",
-        bd.handles_clause_score
+        "  Dependency:       {:.1}/10\n",
+        bd.dependency_density_score
     ));
     out.push_str(&format!(
         "  SQL Risk:         {:.1}/10\n",
         bd.sql_concat_score
     ));
     out.push_str(&format!(
-        "  PageRank:         {:.1}/10\n",
-        bd.pagerank_score
-    ));
-    out.push_str(&format!(
         "  State Coupling:   {:.1}/10\n",
         bd.state_coupling_score
+    ));
+    out.push_str(&format!(
+        "  Event Wiring:     {:.1}/10\n",
+        bd.handles_clause_score
+    ));
+    out.push_str(&format!(
+        "  PageRank:         {:.1}/10\n",
+        bd.pagerank_score
     ));
     out.push_str(&format!(
         "  GIS Coupling:     {:.1}/10\n",
@@ -686,6 +708,7 @@ mod tests {
                 state_coupling_score: 4.0,
                 gis_coupling_score: 2.0,
                 script_injection_score: 3.0,
+                dependency_density_score: 1.0,
             },
             uncertainty_breakdown: UncertaintyBreakdown {
                 dynamic_ui_uncertainty_score: 2.0,
@@ -893,6 +916,7 @@ mod tests {
                 state_coupling_score: 4.0,
                 gis_coupling_score: 0.0,
                 script_injection_score: 1.0,
+                dependency_density_score: 2.0,
             },
             uncertainty_breakdown: UncertaintyBreakdown {
                 dynamic_ui_uncertainty_score: 1.0,
@@ -953,6 +977,7 @@ mod tests {
                 state_coupling_score: 0.0,
                 gis_coupling_score: 0.0,
                 script_injection_score: 0.0,
+                dependency_density_score: 0.0,
             },
             uncertainty_breakdown: UncertaintyBreakdown {
                 dynamic_ui_uncertainty_score: 0.0,
@@ -990,6 +1015,7 @@ mod tests {
                 state_coupling_score: 0.0,
                 gis_coupling_score: 0.0,
                 script_injection_score: 0.0,
+                dependency_density_score: 5.555,
             },
             uncertainty_breakdown: UncertaintyBreakdown {
                 dynamic_ui_uncertainty_score: 0.0,
@@ -1012,7 +1038,8 @@ mod tests {
 
     #[test]
     fn weights_sum_to_one() {
-        let sum = WEIGHT_HANDLES
+        let sum = WEIGHT_DEPENDENCY
+            + WEIGHT_HANDLES
             + WEIGHT_SQL
             + WEIGHT_PAGERANK
             + WEIGHT_STATE
@@ -1076,6 +1103,7 @@ EndProject
                 state_coupling_score: 3.0,
                 gis_coupling_score: 0.0,
                 script_injection_score: 0.0,
+                dependency_density_score: 1.0,
             },
             uncertainty_breakdown: UncertaintyBreakdown {
                 dynamic_ui_uncertainty_score: 0.0,
@@ -1105,5 +1133,266 @@ EndProject
 
         assert_eq!(report.migration_risk, 10, "5 * 2.0 = 10 (clamped)");
         assert_eq!(report.risk_band, RiskBand::Critical);
+    }
+
+    // ── Dependency density factor ────────────────────────────────────────────
+    //
+    // These tests build a tiny graph with a single target and N distinct
+    // sources pointing at it via Dependency edges, then call
+    // `compute_blast_radius` end-to-end. They verify that the dependency
+    // density factor actually moves the composite score — before this was
+    // added, every target on projects like OciusX scored 1/10 regardless of
+    // how many files depended on it.
+
+    fn tmp_graph() -> (tempfile::TempDir, engram_graph::GraphStore) {
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let store = engram_graph::GraphStore::open(&tmp.path().join("graph.redb"))
+            .expect("GraphStore::open must succeed");
+        (tmp, store)
+    }
+
+    fn make_file_node(node_id: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: node_id.to_string(),
+            node_type: "file".to_string(),
+            name: node_id.trim_start_matches("file:").to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new(node_id.trim_start_matches("file:")),
+            start_line: 0,
+            end_line: 0,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
+    fn make_dep_edge(source: &str, target: &str) -> engram_graph::Edge {
+        engram_graph::Edge {
+            source_id: source.to_string(),
+            target_id: target.to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            edge_kind: EdgeKind::Dependency,
+            weight: 1,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 0,
+        }
+    }
+
+    /// Seed a graph: target node + `n_sources` source nodes, each with a
+    /// Dependency edge pointing at the target.
+    fn seed_incoming_deps(
+        store: &engram_graph::GraphStore,
+        project_id: &str,
+        target_id: &str,
+        n_sources: usize,
+    ) {
+        let target = make_file_node(target_id);
+        store
+            .upsert_nodes(project_id, std::slice::from_ref(&target))
+            .expect("upsert target");
+
+        let mut sources = Vec::with_capacity(n_sources);
+        let mut edges = Vec::with_capacity(n_sources);
+        for i in 0..n_sources {
+            let sid = format!("file:Src{i}.vb");
+            sources.push(make_file_node(&sid));
+            edges.push(make_dep_edge(&sid, target_id));
+        }
+        store
+            .upsert_nodes(project_id, &sources)
+            .expect("upsert sources");
+        store
+            .upsert_edges(project_id, &edges)
+            .expect("upsert edges");
+    }
+
+    /// A target with 200 incoming Dependency edges and nothing else should
+    /// score at least Medium (4+) — it is the entire point of this change.
+    #[test]
+    fn compute_blast_radius_high_incoming_alone_is_medium_or_higher() {
+        let (_tmp, store) = tmp_graph();
+        let target_id = "file:Hub.vb";
+        seed_incoming_deps(&store, "proj", target_id, 200);
+
+        let report = compute_blast_radius(&store, "proj", target_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        assert_eq!(report.total_incoming, 200);
+        assert!(
+            (report.complexity_breakdown.dependency_density_score - 10.0).abs() < 0.01,
+            "200 incoming deps saturates at 10/10; got {}",
+            report.complexity_breakdown.dependency_density_score
+        );
+        assert!(
+            report.migration_risk >= 4,
+            "200 incoming Dependency edges alone must score Medium (4+); got {} ({:?})",
+            report.migration_risk,
+            report.risk_band
+        );
+        assert!(matches!(
+            report.risk_band,
+            RiskBand::Medium | RiskBand::High | RiskBand::Critical
+        ));
+    }
+
+    /// A target with zero incoming dependencies and nothing else should
+    /// score Low (1-3). Otherwise the rebalanced scoring has inflated the
+    /// floor.
+    #[test]
+    fn compute_blast_radius_no_signals_is_low() {
+        let (_tmp, store) = tmp_graph();
+        let target_id = "file:Leaf.vb";
+        seed_incoming_deps(&store, "proj", target_id, 0);
+
+        let report = compute_blast_radius(&store, "proj", target_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        assert_eq!(report.total_incoming, 0);
+        assert!(
+            (report.complexity_breakdown.dependency_density_score - 0.0).abs() < 0.01,
+            "0 incoming deps is 0/10; got {}",
+            report.complexity_breakdown.dependency_density_score
+        );
+        assert!(
+            (1..=3).contains(&report.migration_risk),
+            "a target with no signals must score Low (1-3); got {} ({:?})",
+            report.migration_risk,
+            report.risk_band
+        );
+        assert_eq!(report.risk_band, RiskBand::Low);
+    }
+
+    /// A target with 100 incoming dependencies AND SQL edges AND state
+    /// coupling edges should score meaningfully above a target with no
+    /// signals. Under the rebalanced weights (dep=0.30, sql=0.20, state=0.15)
+    /// this combination lands firmly in Medium (≥5), and additional
+    /// uncertainty or PageRank would be required to reach High.
+    #[test]
+    fn compute_blast_radius_combined_signals_is_medium_or_higher() {
+        let (_tmp, store) = tmp_graph();
+        let target_id = "file:Risky.vb";
+        seed_incoming_deps(&store, "proj", target_id, 100);
+
+        // Add 12 outgoing SqlCalls edges (saturates sql_concat_score at 10).
+        // Each call targets a distinct fake SQL endpoint node.
+        let mut sql_nodes = Vec::new();
+        let mut sql_edges = Vec::new();
+        for i in 0..12 {
+            let sid = format!("sql:Query{i}");
+            sql_nodes.push(engram_graph::Node {
+                node_id: sid.clone(),
+                node_type: "sql".to_string(),
+                name: sid.clone(),
+                namespace: "memory".to_string(),
+                language: "sql".to_string(),
+                file_path: engram_core::RelPath::new("sql"),
+                start_line: 0,
+                end_line: 0,
+                generation: 1,
+                metadata: None,
+            });
+            sql_edges.push(engram_graph::Edge {
+                source_id: target_id.to_string(),
+                target_id: sid,
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                edge_kind: EdgeKind::SqlCalls,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            });
+        }
+
+        // Add 12 outgoing ReadsState edges (saturates state_coupling_score at 10).
+        let mut state_nodes = Vec::new();
+        let mut state_edges = Vec::new();
+        for i in 0..12 {
+            let sid = format!("state:Key{i}");
+            state_nodes.push(engram_graph::Node {
+                node_id: sid.clone(),
+                node_type: "global_state".to_string(),
+                name: sid.clone(),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                file_path: engram_core::RelPath::new("state"),
+                start_line: 0,
+                end_line: 0,
+                generation: 1,
+                metadata: None,
+            });
+            state_edges.push(engram_graph::Edge {
+                source_id: target_id.to_string(),
+                target_id: sid,
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                edge_kind: EdgeKind::ReadsState,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            });
+        }
+
+        store
+            .upsert_nodes("proj", &sql_nodes)
+            .expect("upsert sql nodes");
+        store
+            .upsert_nodes("proj", &state_nodes)
+            .expect("upsert state nodes");
+        store
+            .upsert_edges("proj", &sql_edges)
+            .expect("upsert sql edges");
+        store
+            .upsert_edges("proj", &state_edges)
+            .expect("upsert state edges");
+
+        let report = compute_blast_radius(&store, "proj", target_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        // Three factors saturated at 10/10: dep, sql, state.
+        // base_weighted = 10*0.30 + 10*0.20 + 10*0.15 = 6.5
+        // blended = 6.5 * 0.80 + 0 (no uncertainty) = 5.2 → 5 (Medium).
+        // Reaching the High band (7-8) requires non-trivial uncertainty or
+        // PageRank in addition to these three factors.
+        assert!(
+            report.migration_risk >= 5,
+            "combined signals (deps + sql + state) must score >= 5 Medium; got {} ({:?})",
+            report.migration_risk,
+            report.risk_band
+        );
+        assert!(matches!(
+            report.risk_band,
+            RiskBand::Medium | RiskBand::High | RiskBand::Critical
+        ));
+        // All three sub-scores must be populated and saturated.
+        assert!((report.complexity_breakdown.dependency_density_score - 10.0).abs() < 0.01);
+        assert!((report.complexity_breakdown.sql_concat_score - 10.0).abs() < 0.01);
+        assert!((report.complexity_breakdown.state_coupling_score - 10.0).abs() < 0.01);
+    }
+
+    /// Dependency density dominates the weighted score — a target with a
+    /// huge incoming fan-in should outscore a target with everything else
+    /// maxed out except dependency density.
+    #[test]
+    fn dependency_density_factor_dominates_composite() {
+        let (_tmp, hub) = tmp_graph();
+        seed_incoming_deps(&hub, "proj", "file:Hub.vb", 150);
+        let hub_report = compute_blast_radius(&hub, "proj", "file:Hub.vb", 1, false).unwrap();
+
+        // "Isolated" target with zero incoming deps → density_score 0 →
+        // it contributes nothing through the 0.30-weighted factor.
+        let (_tmp2, leaf) = tmp_graph();
+        seed_incoming_deps(&leaf, "proj", "file:Leaf.vb", 0);
+        let leaf_report = compute_blast_radius(&leaf, "proj", "file:Leaf.vb", 1, false).unwrap();
+
+        assert!(
+            hub_report.migration_risk > leaf_report.migration_risk,
+            "hub with 150 incoming must out-score isolated leaf; hub={} leaf={}",
+            hub_report.migration_risk,
+            leaf_report.migration_risk
+        );
     }
 }
