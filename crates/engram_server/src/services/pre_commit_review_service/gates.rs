@@ -1100,44 +1100,102 @@ impl Gate for AntiPatternGate {
                 continue;
             }
             let query = crate::utils::text::code_to_query(&df.added_content);
-            let hits = ps
-                .search
-                .search(
-                    &HybridQuery {
-                        project_id: ctx.project_id.to_string(),
-                        namespace: "antipattern".into(),
-                        generation: ctx.generation,
-                        text: query,
-                        top_k: 5,
-                        fts_mode: "loose".into(),
-                        include_path_prefixes: None,
-                        exclude_path_prefixes: None,
-                        language_filters: None,
-                        author_filter: None,
-                        date_after: None,
-                        date_before: None,
-                        use_mmr: false,
-                    },
-                    None,
-                    &CancellationToken::new(),
-                )
-                .await
-                .unwrap_or_default();
+            // Run both namespace searches concurrently — same query,
+            // two indexes (antipattern + wontfix_patterns). Suppression
+            // hits scoped to the diff's file family dampen antipattern
+            // scores for patterns the team has explicitly said "leave
+            // alone" in that code area.
+            let ap_query = HybridQuery {
+                project_id: ctx.project_id.to_string(),
+                namespace: "antipattern".into(),
+                generation: ctx.generation,
+                text: query.clone(),
+                top_k: 5,
+                fts_mode: "loose".into(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let supp_query = HybridQuery {
+                project_id: ctx.project_id.to_string(),
+                namespace: "wontfix_patterns".into(),
+                generation: ctx.generation,
+                text: query,
+                top_k: 5,
+                fts_mode: "loose".into(),
+                // File-family scoping: only pull suppression hits
+                // whose stored `path` (the cluster's file pattern)
+                // prefixes the diff's file path after lowercasing.
+                // This keeps the `gQtyManager` suppression pinned to
+                // qtyManager files instead of dampening every
+                // TypeScript file globally.
+                include_path_prefixes: Some(derive_family_prefixes(&df.path)),
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let cancel = CancellationToken::new();
+            let hits_fut = ps.search.search(&ap_query, None, &cancel);
+            let supp_fut = ps.search.search(&supp_query, None, &cancel);
+            let (hits, supp_hits) = tokio::join!(hits_fut, supp_fut);
+            let hits = hits.unwrap_or_default();
+            let supp_hits = supp_hits.unwrap_or_default();
+
             let relevant: Vec<_> = hits.into_iter().filter(|h| h.score > 0.3).collect();
             if relevant.len() < 2 {
                 continue;
             }
-            let severity = if relevant.iter().any(|h| h.score > 0.6) {
+            // Suppression: if the diff matches ≥1 wontfix_patterns doc
+            // (scoped to this file's family) with score > 0.5, dampen
+            // by one severity tier. This is the file-scoped
+            // false-positive suppression the team explicitly asked for
+            // via the wontFix threads — we don't discard the finding,
+            // we just downgrade it so it doesn't scream about a
+            // pattern someone already looked at and left alone.
+            let strong_supp = supp_hits.iter().any(|h| h.score > 0.5);
+            let mut severity = if relevant.iter().any(|h| h.score > 0.6) {
                 Severity::Warning
             } else {
                 Severity::Info
             };
+            if strong_supp {
+                severity = match severity {
+                    Severity::Warning => Severity::Info,
+                    Severity::Info => Severity::Style,
+                    other => other,
+                };
+            }
+
             let mut evidence: Vec<String> = Vec::new();
             for h in &relevant {
+                // `path` on CodeRabbit-sourced docs is the cluster's
+                // file pattern (e.g. `/site/**/*.vb`) — surface that
+                // so the reader sees it's a CodeRabbit rule, not a
+                // reverted-commit antipattern. The DocStore also
+                // carries `author` = "coderabbit" on those docs; the
+                // path prefix is a reliable visual signal.
+                let path = h.path.as_str();
+                let source_label = if path.contains("**/") || path.starts_with("coderabbit://") {
+                    " [source: CodeRabbit]"
+                } else {
+                    ""
+                };
                 evidence.push(format!(
-                    "match = `{}` (score {:.3})",
-                    h.path.as_str(),
+                    "match = `{path}` (score {:.3}){source_label}",
                     h.score
+                ));
+            }
+            if !supp_hits.is_empty() {
+                evidence.push(format!(
+                    "file-scoped suppressions (wontFix): {} match(es) — severity dampened",
+                    supp_hits.len()
                 ));
             }
             findings.push(
@@ -1147,9 +1205,10 @@ impl Gate for AntiPatternGate {
                     df.path.clone(),
                     format!("Added code resembles {} indexed anti-pattern(s)", relevant.len()),
                     format!(
-                        "The hybrid search index found {} previously-reverted snippet(s) that \
-                         structurally match the added code. Review them before merging to \
-                         confirm you are not re-introducing a known bad pattern.",
+                        "The hybrid search index found {} previously-reverted / CodeRabbit-\
+                         flagged snippet(s) that structurally match the added code. Review \
+                         them before merging to confirm you are not re-introducing a known \
+                         bad pattern.",
                         relevant.len()
                     ),
                     format!(
@@ -1168,6 +1227,30 @@ impl Gate for AntiPatternGate {
 
         Ok(findings)
     }
+}
+
+/// Derive a small set of path prefixes that identify the diff file's
+/// "family" (its own directory, plus progressive parents up to 3
+/// levels). These become `include_path_prefixes` for the
+/// wontfix_patterns search — suppressions stored under a tight path
+/// pattern (e.g. `/site/ts/qty/**/*.ts`) only fire for diffs in that
+/// subtree, not for every TypeScript file globally.
+fn derive_family_prefixes(diff_path: &str) -> Vec<String> {
+    let lower = diff_path.replace('\\', "/").to_ascii_lowercase();
+    let mut out: Vec<String> = Vec::with_capacity(4);
+    let mut cur = lower.as_str();
+    for _ in 0..3 {
+        let Some(idx) = cur.rfind('/') else { break };
+        cur = &cur[..idx];
+        if !cur.is_empty() {
+            out.push(cur.to_string());
+        }
+    }
+    // Always include the leading slash form too — CodeRabbit JSONL
+    // file paths start with `/`, so cluster-stored paths like
+    // `/site/ts/qty/**/*.ts` prefix-match via their leading segments.
+    out.push(format!("/{}", lower.trim_start_matches('/')));
+    out
 }
 
 impl AntiPatternGate {

@@ -40,7 +40,7 @@ use crate::state::AppState;
 
 // ─── Public types ───────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ThreadStatus {
     Fixed,
@@ -48,6 +48,21 @@ pub enum ThreadStatus {
     Closed,
     WontFix,
     Unknown,
+}
+
+// Custom deserializer that tolerates whatever Azure DevOps or CodeRabbit
+// decide to emit — unknown status strings fall back to `Unknown`
+// instead of failing the whole JSONL line. Keeping the record with a
+// known-unknown status is better than dropping it on the floor, since
+// `Unknown` is already a weight-zero no-op in the pipeline.
+impl<'de> Deserialize<'de> for ThreadStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(Self::parse(&s))
+    }
 }
 
 impl ThreadStatus {
@@ -204,7 +219,14 @@ pub struct ParsedRule {
     pub pr_url: String,
     pub thread_id: u64,
     pub pr_date: String,
+    /// Unique identity of this specific (pr_id, thread_id) review —
+    /// drives record-level dedup.
     pub content_hash: String,
+    /// Semantic identity of the *finding* itself — rule_text + tokens +
+    /// file_pattern, WITHOUT the pr_id/thread_id. Used as the LLM
+    /// classifier cache key so we don't spend tokens re-classifying
+    /// the same finding from a different PR.
+    pub semantic_hash: String,
     pub raw_body: String,
 }
 
@@ -903,23 +925,34 @@ pub fn parse_comment(raw: &RawReviewComment) -> Option<ParsedRule> {
     let language = infer_language(&raw.file_path);
     let file_pattern = derive_file_pattern(&raw.file_path);
 
-    // Dedup on (pr_id, thread_id) — not on body — so the same pattern
-    // from different PRs counts as distinct records in the cluster.
-    // A genuine duplicate only appears when the scraper re-pulls the
-    // exact same thread; that case we DO want to collapse.
-    let mut hasher_bytes: Vec<u8> =
-        Vec::with_capacity(rule_text.len() + tokens.len() * 8 + 32);
-    hasher_bytes.extend_from_slice(rule_text.as_bytes());
-    hasher_bytes.push(0);
+    // Two hashes with distinct purposes:
+    //
+    // - `semantic_hash` = rule_text + tokens + file_pattern only.
+    //   Identifies the *finding class*, not a specific PR. Used as
+    //   the LLM classifier cache key so the classifier never spends
+    //   tokens twice on the same finding pattern, even across PRs.
+    //
+    // - `content_hash` = semantic_hash + pr_id + thread_id. Unique
+    //   per-thread identity; drives record-level dedup so the same
+    //   thread re-pulled by a rerun collapses cleanly, but the same
+    //   finding in different PRs stays distinct and contributes
+    //   separate cluster members (which is what drives PR-count
+    //   thresholds for repo-rule auto-promotion).
+    let mut sem_bytes: Vec<u8> = Vec::with_capacity(rule_text.len() + tokens.len() * 8 + 16);
+    sem_bytes.extend_from_slice(rule_text.as_bytes());
+    sem_bytes.push(0);
     for t in &tokens {
-        hasher_bytes.extend_from_slice(t.as_bytes());
-        hasher_bytes.push(0);
+        sem_bytes.extend_from_slice(t.as_bytes());
+        sem_bytes.push(0);
     }
-    hasher_bytes.extend_from_slice(file_pattern.as_bytes());
-    hasher_bytes.push(0);
-    hasher_bytes.extend_from_slice(&raw.pr_id.to_le_bytes());
-    hasher_bytes.extend_from_slice(&raw.thread_id.to_le_bytes());
-    let hash = blake3::hash(&hasher_bytes).to_hex().to_string();
+    sem_bytes.extend_from_slice(file_pattern.as_bytes());
+    let semantic_hash = blake3::hash(&sem_bytes).to_hex()[..32].to_string();
+
+    let mut content_bytes = sem_bytes;
+    content_bytes.push(0);
+    content_bytes.extend_from_slice(&raw.pr_id.to_le_bytes());
+    content_bytes.extend_from_slice(&raw.thread_id.to_le_bytes());
+    let content_hash = blake3::hash(&content_bytes).to_hex()[..32].to_string();
 
     Some(ParsedRule {
         rule_text,
@@ -935,7 +968,8 @@ pub fn parse_comment(raw: &RawReviewComment) -> Option<ParsedRule> {
         pr_url: raw.pr_url.clone(),
         thread_id: raw.thread_id,
         pr_date: raw.pr_date.clone(),
-        content_hash: hash[..32].to_string(),
+        content_hash,
+        semantic_hash,
         raw_body: body,
     })
 }
@@ -957,7 +991,10 @@ async fn classify_ambiguous(
         return None;
     }
 
-    let cache_key = format!("cr_llm:{}", rule.content_hash);
+    // Cache key uses the SEMANTIC hash, not content_hash — the LLM's
+    // answer depends on the finding content + file, not which PR
+    // raised it. Same finding across 3 PRs = 1 classification call.
+    let cache_key = format!("cr_llm:{}", rule.semantic_hash);
     if let Ok(Some(cached)) = state.registry.get_meta(project_id, &cache_key) {
         return parse_llm_resolution(&cached);
     }
@@ -1005,13 +1042,38 @@ async fn classify_ambiguous(
 }
 
 fn parse_llm_single_letter(text: &str) -> Option<LlmResolution> {
-    for ch in text.chars() {
-        match ch.to_ascii_uppercase() {
-            'A' => return Some(LlmResolution::Fixed),
-            'B' => return Some(LlmResolution::Dismissed),
-            'C' => return Some(LlmResolution::Unknown),
-            c if c.is_alphabetic() => return None, // Some other letter — reject
-            _ => continue,
+    // Scan for the FIRST isolated A / B / C — an alphabetic character
+    // that is immediately preceded by a non-alphabetic character (or
+    // string start) and followed by a non-alphanumeric character (or
+    // string end). This handles real LLM responses like `"A"`,
+    // `"Option A"`, `"The answer is A."`, `" A) fix"`, while rejecting
+    // stray alphabetics embedded inside longer words (`"Apple"`
+    // mustn't return Fixed).
+    let bytes = text.as_bytes();
+    for (i, ch) in text.char_indices() {
+        let up = ch.to_ascii_uppercase();
+        if !matches!(up, 'A' | 'B' | 'C') {
+            continue;
+        }
+        // Preceding char must NOT be alphabetic.
+        let before_ok = i == 0
+            || text[..i]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_alphabetic());
+        // Following char must NOT be alphanumeric.
+        let next_idx = i + ch.len_utf8();
+        let after_ok = next_idx >= bytes.len()
+            || text[next_idx..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric());
+        if before_ok && after_ok {
+            return Some(match up {
+                'A' => LlmResolution::Fixed,
+                'B' => LlmResolution::Dismissed,
+                _ => LlmResolution::Unknown,
+            });
         }
     }
     None
@@ -1238,15 +1300,27 @@ fn derive_file_pattern(file_path: &str) -> String {
     // scope suppression (e.g. `Site/ts/qty/qtyManager.ts` → `Site/ts/qty/**/*.ts`),
     // loose enough to cover the generated JS mirrors and sibling files
     // in the same feature folder.
-    let ext = lower.rsplit('.').next().unwrap_or("");
     let dir = match lower.rfind('/') {
         Some(i) => &lower[..i],
         None => "",
     };
-    if dir.is_empty() {
-        format!("**/*.{ext}")
-    } else {
-        format!("{dir}/**/*.{ext}")
+    let filename = match lower.rfind('/') {
+        Some(i) => &lower[i + 1..],
+        None => &lower[..],
+    };
+    // Only derive an `*.ext` pattern when the filename actually has
+    // an extension. Extensionless names (`Makefile`, `Dockerfile`,
+    // `Rakefile`) get a path-only pattern — matching them on sibling
+    // extensionless files only, which is the right scoping.
+    let ext = filename
+        .rfind('.')
+        .filter(|i| *i > 0 && *i < filename.len() - 1)
+        .map(|i| &filename[i + 1..]);
+    match (dir.is_empty(), ext) {
+        (true, Some(e)) => format!("**/*.{e}"),
+        (false, Some(e)) => format!("{dir}/**/*.{e}"),
+        (true, None) => format!("**/{filename}"),
+        (false, None) => format!("{dir}/**/{filename}"),
     }
 }
 
@@ -1272,43 +1346,52 @@ fn cluster_rules(rules: Vec<ParsedRule>, overlap_threshold: f32) -> Vec<ReviewCl
     if rules.is_empty() {
         return Vec::new();
     }
-    // Precompute HashSets for each rule's tokens to avoid rebuilding
-    // inside the O(n²) comparison loop.
-    let token_sets: Vec<HashSet<String>> = rules
-        .iter()
-        .map(|r| r.pattern_tokens.iter().cloned().collect::<HashSet<_>>())
-        .collect();
 
-    let mut cluster_of: Vec<Option<usize>> = vec![None; rules.len()];
-    let mut clusters: Vec<Vec<usize>> = Vec::new();
-
-    for i in 0..rules.len() {
-        if cluster_of[i].is_some() {
-            continue;
-        }
-        let mut new_cluster: Vec<usize> = vec![i];
-        cluster_of[i] = Some(clusters.len());
-        for j in (i + 1)..rules.len() {
-            if cluster_of[j].is_some() {
-                continue;
-            }
-            if rules[i].language != rules[j].language {
-                continue;
-            }
-            let sim = jaccard(&token_sets[i], &token_sets[j]);
-            if sim >= overlap_threshold {
-                cluster_of[j] = Some(clusters.len());
-                new_cluster.push(j);
-            }
-        }
-        clusters.push(new_cluster);
+    // Jaccard requires same-language. Partition rules by language up
+    // front so the O(n²) inner loop only compares within a language —
+    // on a multi-language corpus that cuts the work by the square of
+    // the per-language fraction (e.g. 5 evenly-sized languages → 5×
+    // fewer total pair comparisons).
+    let mut by_language: std::collections::HashMap<String, Vec<ParsedRule>> =
+        std::collections::HashMap::new();
+    for r in rules {
+        by_language.entry(r.language.clone()).or_default().push(r);
     }
 
-    let mut out: Vec<ReviewCluster> = Vec::with_capacity(clusters.len());
-    for member_indices in clusters {
-        let members: Vec<ParsedRule> =
-            member_indices.iter().map(|i| rules[*i].clone()).collect();
-        out.push(build_cluster(members));
+    let mut out: Vec<ReviewCluster> = Vec::new();
+    for (_lang, bucket) in by_language {
+        let n = bucket.len();
+        // Precompute HashSets once per rule, reused across the n²
+        // Jaccard comparisons inside this language bucket.
+        let token_sets: Vec<HashSet<String>> = bucket
+            .iter()
+            .map(|r| r.pattern_tokens.iter().cloned().collect::<HashSet<_>>())
+            .collect();
+        let mut cluster_of: Vec<Option<usize>> = vec![None; n];
+        let mut cluster_indices: Vec<Vec<usize>> = Vec::new();
+        for i in 0..n {
+            if cluster_of[i].is_some() {
+                continue;
+            }
+            let mut new_cluster: Vec<usize> = vec![i];
+            cluster_of[i] = Some(cluster_indices.len());
+            for j in (i + 1)..n {
+                if cluster_of[j].is_some() {
+                    continue;
+                }
+                let sim = jaccard(&token_sets[i], &token_sets[j]);
+                if sim >= overlap_threshold {
+                    cluster_of[j] = Some(cluster_indices.len());
+                    new_cluster.push(j);
+                }
+            }
+            cluster_indices.push(new_cluster);
+        }
+        for idxs in cluster_indices {
+            let members: Vec<ParsedRule> =
+                idxs.iter().map(|i| bucket[*i].clone()).collect();
+            out.push(build_cluster(members));
+        }
     }
     out
 }
@@ -1324,26 +1407,32 @@ fn build_cluster(members: Vec<ParsedRule>) -> ReviewCluster {
         .cloned()
         .expect("cluster must have at least one member");
 
+    // Fix-rate math counts LLM-inferred verdicts alongside the
+    // deterministic thread statuses:
+    //
+    //   fixed  = ThreadStatus::Fixed  ∪  llm_resolution::Fixed
+    //          ∪  (fix_commit present AND not WontFix)
+    //   wont   = ThreadStatus::WontFix  ∪  llm_resolution::Dismissed
+    //
+    // This matches the pipeline's partitioning rule (is_suppression)
+    // so the fix_rate you see here is the fix_rate that actually
+    // gates the sink-filter decision downstream.
     let fixed = members
         .iter()
-        .filter(|m| matches!(m.fix_status, ThreadStatus::Fixed))
+        .filter(|m| {
+            matches!(m.fix_status, ThreadStatus::Fixed)
+                || matches!(m.llm_resolution, Some(LlmResolution::Fixed))
+        })
         .count();
-    let wont = members
-        .iter()
-        .filter(|m| matches!(m.fix_status, ThreadStatus::WontFix))
-        .count();
+    let wont = members.iter().filter(|m| is_suppression(m)).count();
     let decisive = fixed + wont;
     let fix_rate = if decisive == 0 {
-        // Pure suppression cluster — give it a nominal 0 so positive
-        // clusters aren't treated as candidates here.
-        if members
-            .iter()
-            .all(|m| matches!(m.fix_status, ThreadStatus::WontFix))
-        {
-            0.0
-        } else {
-            0.5
-        }
+        // No fixed / wontFix signal — cluster is all Active or
+        // ambiguous Closed with no LLM verdict. Neither positive nor
+        // suppression: give it a nominal 0.5 so the default
+        // `min_fix_rate=0.5` drops it into the positive-index path
+        // only if the caller explicitly lowered the threshold.
+        0.5
     } else {
         fixed as f32 / decisive as f32
     };
@@ -1388,10 +1477,15 @@ fn build_cluster(members: Vec<ParsedRule>) -> ReviewCluster {
 // ─── Stage 4: storage ───────────────────────────────────────────────────────
 
 fn cluster_index_body(c: &ReviewCluster) -> String {
-    // What we want lexical search to hit on: the rule text plus every
-    // pattern token from every member. Body doubles as the snippet
-    // shown in hits.
-    let mut body = String::with_capacity(c.canonical.rule_text.len() + 256);
+    // Keep body bounded — a 1000-member cluster with 20 tokens each
+    // and 3-digit PR IDs could otherwise produce tens of KB per doc,
+    // which inflates the Tantivy index and blows the search snippet
+    // budget. Cap tokens at 128 and PR references at 64, both sorted
+    // so the cap is deterministic.
+    const MAX_TOKENS: usize = 128;
+    const MAX_PR_REFS: usize = 64;
+
+    let mut body = String::with_capacity(c.canonical.rule_text.len() + 512);
     body.push_str(&c.canonical.rule_text);
     body.push_str("\n\n");
     let mut all_tokens: HashSet<String> = HashSet::new();
@@ -1402,16 +1496,17 @@ fn cluster_index_body(c: &ReviewCluster) -> String {
     }
     let mut toks: Vec<String> = all_tokens.into_iter().collect();
     toks.sort();
+    toks.truncate(MAX_TOKENS);
     body.push_str("Tokens: ");
     body.push_str(&toks.join(", "));
+
     body.push_str("\n\nPR references: ");
-    body.push_str(
-        &c.pr_ids
-            .iter()
-            .map(|i| format!("#{i}"))
-            .collect::<Vec<_>>()
-            .join(", "),
-    );
+    let pr_refs: Vec<String> = c.pr_ids.iter().take(MAX_PR_REFS).map(|i| format!("#{i}")).collect();
+    body.push_str(&pr_refs.join(", "));
+    if c.pr_ids.len() > MAX_PR_REFS {
+        body.push_str(&format!(" (+{} more)", c.pr_ids.len() - MAX_PR_REFS));
+    }
+
     if let Some(fc) = &c.canonical.fix_commit {
         body.push_str(&format!("\nFix commit: {fc}"));
     }
@@ -1713,6 +1808,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: format!("{pr}"),
+            semantic_hash: "s".into(),
             raw_body: "".into(),
         };
         let rules = vec![
@@ -1744,6 +1840,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: blake3::hash(tokens.join(",").as_bytes()).to_hex()[..8].to_string(),
+            semantic_hash: "s".into(),
             raw_body: "".into(),
         };
         let rules = vec![
@@ -1771,6 +1868,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: "a".into(),
+            semantic_hash: "sa".into(),
             raw_body: "".into(),
         };
         let mut b = a.clone();
@@ -1800,6 +1898,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: format!("{status:?}"),
+            semantic_hash: "s-status".into(),
             raw_body: "".into(),
         };
         let clusters = cluster_rules(
@@ -1910,6 +2009,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: "x".into(),
+            semantic_hash: "sx".into(),
             raw_body: "".into(),
         };
         assert!((parsed_rule_weight(&rule) - 0.85).abs() < 0.001);
@@ -1933,6 +2033,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: "x".into(),
+            semantic_hash: "sx".into(),
             raw_body: "".into(),
         };
         assert!(is_suppression(&rule));
@@ -1947,6 +2048,136 @@ mod tests {
         assert_eq!(parse_llm_single_letter("a"), Some(LlmResolution::Fixed));
         assert_eq!(parse_llm_single_letter(""), None);
         assert_eq!(parse_llm_single_letter("D"), None);
+    }
+
+    #[test]
+    fn parse_llm_handles_option_a_and_prefixes() {
+        assert_eq!(
+            parse_llm_single_letter("Option A"),
+            Some(LlmResolution::Fixed)
+        );
+        assert_eq!(
+            parse_llm_single_letter("The answer is A."),
+            Some(LlmResolution::Fixed)
+        );
+        assert_eq!(
+            parse_llm_single_letter("B) dismiss"),
+            Some(LlmResolution::Dismissed)
+        );
+        assert_eq!(
+            parse_llm_single_letter("I believe C is correct"),
+            Some(LlmResolution::Unknown)
+        );
+        // Must NOT match an 'A' embedded in a longer word.
+        assert_eq!(parse_llm_single_letter("Apple"), None);
+        assert_eq!(parse_llm_single_letter("Banana"), None);
+        // Empty / unrelated should return None.
+        assert_eq!(parse_llm_single_letter(""), None);
+        assert_eq!(parse_llm_single_letter("hmm no idea"), None);
+    }
+
+    #[test]
+    fn semantic_hash_is_pr_independent() {
+        // Same rule text + tokens + file_pattern from two different
+        // PRs must produce identical semantic_hash (for LLM cache
+        // reuse) but different content_hash (for dedup).
+        let base = RawReviewComment {
+            pr_id: 1,
+            pr_title: "".into(),
+            pr_author: "".into(),
+            pr_date: "".into(),
+            pr_branch: "".into(),
+            pr_url: "".into(),
+            thread_id: 100,
+            thread_status: ThreadStatus::Fixed,
+            file_path: "/Site/foo.ts".into(),
+            line_start: 10,
+            line_end: 12,
+            severity: "major".into(),
+            coderabbit_comment: "_⚠️ Potential issue_ | _🟠 Major_\n\n\
+                **Avoid calling setWarningsText unconditionally.**\n\n\
+                The `setWarningsText()` call in the `else` branch clears other warnings."
+                .into(),
+        };
+        let p1 = parse_comment(&base).unwrap();
+        let base2 = RawReviewComment {
+            pr_id: 2,
+            thread_id: 200,
+            ..base
+        };
+        let p2 = parse_comment(&base2).unwrap();
+        assert_eq!(
+            p1.semantic_hash, p2.semantic_hash,
+            "semantic hash must be PR-independent so the LLM classifier \
+             reuses one cached verdict across PRs"
+        );
+        assert_ne!(
+            p1.content_hash, p2.content_hash,
+            "content hash must include pr_id so cluster PR count is accurate"
+        );
+    }
+
+    #[test]
+    fn fix_rate_counts_llm_verdicts_into_math() {
+        // 1 Fixed + 1 LLM-Fixed (closed) + 1 WontFix → fix_rate = 2/3.
+        let mk = |status: ThreadStatus,
+                  llm: Option<LlmResolution>,
+                  pr: u64|
+         -> ParsedRule {
+            ParsedRule {
+                rule_text: "r".into(),
+                pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
+                file_path: "/x.ts".into(),
+                file_pattern: "/x/**/*.ts".into(),
+                language: "typescript".into(),
+                severity: Severity::Warning,
+                fix_status: status,
+                fix_commit: None,
+                llm_resolution: llm,
+                pr_id: pr,
+                pr_url: "".into(),
+                thread_id: pr,
+                pr_date: "".into(),
+                content_hash: format!("{pr}"),
+                semantic_hash: "s".into(),
+                raw_body: "".into(),
+            }
+        };
+        let rules = vec![
+            mk(ThreadStatus::Fixed, None, 1),
+            mk(ThreadStatus::Closed, Some(LlmResolution::Fixed), 2),
+            mk(ThreadStatus::WontFix, None, 3),
+        ];
+        let clusters = cluster_rules(rules, 0.4);
+        assert_eq!(clusters.len(), 1);
+        let expected = 2.0 / 3.0;
+        assert!(
+            (clusters[0].fix_rate - expected).abs() < 0.001,
+            "expected {:.3}, got {:.3}",
+            expected,
+            clusters[0].fix_rate
+        );
+    }
+
+    #[test]
+    fn unknown_thread_status_falls_back_not_fatal() {
+        // JSONL with a status string serde doesn't recognise should
+        // deserialize cleanly to Unknown — NOT fail the whole record.
+        let line = r#"{"pr_id":1,"thread_status":"pending_review","file_path":"/x.ts","line_start":1,"line_end":2,"severity":"minor","coderabbit_comment":"body"}"#;
+        let parsed: Result<RawReviewComment, _> = serde_json::from_str(line);
+        assert!(
+            parsed.is_ok(),
+            "unknown thread_status must fall back, not fail: {:?}",
+            parsed.err()
+        );
+        assert_eq!(parsed.unwrap().thread_status, ThreadStatus::Unknown);
+    }
+
+    #[test]
+    fn derive_file_pattern_handles_extensionless() {
+        assert_eq!(derive_file_pattern("Makefile"), "**/Makefile".to_ascii_lowercase());
+        assert_eq!(derive_file_pattern("/repo/Dockerfile"), "/repo/**/dockerfile");
+        assert_eq!(derive_file_pattern("/x/Rakefile"), "/x/**/rakefile");
     }
 
     #[test]
@@ -1976,6 +2207,7 @@ mod tests {
             thread_id: 0,
             pr_date: "".into(),
             content_hash: "x".into(),
+            semantic_hash: "sx".into(),
             raw_body: "".into(),
         };
         let clusters = cluster_rules(vec![rule], 0.4);
