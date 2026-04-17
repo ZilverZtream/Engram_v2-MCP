@@ -277,17 +277,49 @@ impl Engram {
             // (e.g. `Site/App_Code/shared-code/sharedfunc.vb` on
             // OciusX — 1000+ real dependents) returned zero.
             if target_id.starts_with("file:") {
+                // Resolve the file's rel_path. Prefer the persisted
+                // node metadata (handles slash / encoding quirks) and
+                // fall back to stripping the `file:` prefix off the
+                // id. This mirrors what `compute_blast_radius` does
+                // in commit `64637ce`.
+                let file_rel_path = graph
+                    .get_node(&req.project_id, &target_id)
+                    .ok()
+                    .flatten()
+                    .map(|n| n.file_path.as_str().to_string())
+                    .unwrap_or_else(|| target_id[5..].to_string());
+
+                // IMPORTANT: do NOT use `graph.neighbors(Contains, …)`
+                // to find contained symbols. On several projects the
+                // Contains edges for file-shaped sources live in the
+                // EDGES table but not in ADJ_OUT (verified by
+                // `traverse_graph(file:…, contains, outgoing)`
+                // returning zero on OciusX). The authoritative
+                // containment signal is `Node.file_path` equality —
+                // every symbol node stores its owning file.
+                //
+                // `query_nodes` with a `Some(file_path)` filter already
+                // does case-insensitive + slash-normalised substring
+                // matching; we add an exact-equality post-filter so a
+                // file whose path is a suffix of another file's path
+                // can't bleed symbols in.
                 let contained: std::collections::HashSet<String> = graph
-                    .neighbors(
-                        &req.project_id,
-                        engram_graph::EdgeKind::Contains,
-                        &target_id,
-                        10_000,
-                    )
+                    .query_nodes(&req.project_id, None, None, Some(&file_rel_path), 50_000)
                     .map_err(|e| e.to_string())?
                     .into_iter()
-                    .map(|(id, _)| id)
+                    .filter(|n| {
+                        n.node_id != target_id && n.file_path.as_str() == file_rel_path
+                    })
+                    .map(|n| n.node_id)
                     .collect();
+
+                tracing::info!(
+                    project_id = %req.project_id,
+                    target_id = %target_id,
+                    file_rel_path = %file_rel_path,
+                    contained_symbols = contained.len(),
+                    "impact_analysis: resolved contained symbols via file_path equality"
+                );
 
                 if !contained.is_empty() {
                     let all_edges = graph
@@ -298,11 +330,11 @@ impl Engram {
                     for edge in all_edges {
                         if contained.contains(&edge.target_id)
                             && edge.source_id != target_id
-                            // Do not re-include file→symbol Contains
-                            // edges as "dependents" of the file — those
-                            // are the structural parent relationship
-                            // the BFS already used to resolve
-                            // `contained`.
+                            // Do not re-include intra-file Contains
+                            // edges (namespace → class, class →
+                            // function) as "dependents" — those are
+                            // structural parent relationships, not
+                            // inbound usages.
                             && !(contained.contains(&edge.source_id)
                                 && edge.edge_kind == engram_graph::EdgeKind::Contains)
                         {
