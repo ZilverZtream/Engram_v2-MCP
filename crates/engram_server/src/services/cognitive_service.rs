@@ -172,8 +172,25 @@ pub async fn analyze_file_style(
     // Try LLM enhancement with the style-analysis prompt.
     let llm_guide = try_llm_style_analysis(state, file_path, &diffs_text).await;
 
+    // Merge policy:
+    //
+    // The deterministic mimicry + static-VB pass produces CONCRETE,
+    // verifiable rules ("Optional db As iFaltDataContext = Nothing
+    // appears in 14 methods"). The LLM pass produces NARRATIVE context
+    // ("the file is a shared-helpers module; team prefers explicit
+    // disposal via Using").
+    //
+    // These complement each other — discarding the rules when the LLM
+    // is reachable (the previous behaviour) silently removed the most
+    // actionable output from every style report on projects where an
+    // LLM backend is configured. The merged output leads with rules
+    // (so a downstream agent sees the actionable list first) and
+    // appends the LLM narrative as supplementary context.
     let style_guide = match (llm_guide, mimicry_combined.is_empty()) {
-        (Some(llm), _) => Some(llm),
+        (Some(llm), true) => Some(llm),
+        (Some(llm), false) => Some(format!(
+            "{mimicry_combined}\n\n---\n### LLM Analysis\n{llm}"
+        )),
         (None, false) => Some(mimicry_combined),
         (None, true) => None,
     };
