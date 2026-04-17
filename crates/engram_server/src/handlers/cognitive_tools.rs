@@ -21,6 +21,38 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
+/// Score a trace path from 0.0 (unusable) to 1.0 (high-certainty direct
+/// evidence). Starts from 1.0 and subtracts a penalty per hop based on
+/// the hop's edge kind (inferred from the `(prev, curr)` node-type pair),
+/// then subtracts any caller-supplied `fallback_penalty` (from ambiguous
+/// control-lookup resolution). Result is floored at 0.10 so a path that
+/// exists but is wholly declarative still reports something non-zero.
+///
+/// Rationale: declarative data-binding hops (control → control via
+/// `DataSourceID`) fire on ASP.NET's schedule, not from a user action,
+/// so they carry genuinely less certainty than direct event-wiring hops
+/// (control → function via `OnClick` / `Handles`). Users reading the
+/// provenance should see paths ranked accordingly.
+fn path_confidence_score(path: &[engram_graph::Node], fallback_penalty: f64) -> f64 {
+    let mut score = 1.0_f64;
+    for w in path.windows(2) {
+        let prev = w[0].node_type.as_str();
+        let curr = w[1].node_type.as_str();
+        let hop_penalty = match (prev, curr) {
+            ("control", "control") => 0.25,   // DataBinding — declarative
+            ("page", "control") => 0.05,      // Contains — structural
+            ("page", "class") => 0.05,        // Inherits
+            ("control", "function") => 0.00,  // EventWiring — direct
+            ("function", "function") => 0.05, // Calls — indirect but typed
+            (_, "inline_sql") | (_, "stored_proc") => 0.00, // terminal evidence
+            _ => 0.10,                        // unknown / generic dependency
+        };
+        score -= hop_penalty;
+    }
+    score -= fallback_penalty;
+    score.clamp(0.10, 1.0)
+}
+
 /// True iff `file_pattern` (from a `RepoRule`) matches `target_path`. The
 /// supported forms mirror what `inject_repo_rules` understands: exact
 /// equality, globs with `*` / `?`, and plain substring for short patterns
@@ -656,11 +688,40 @@ impl Engram {
 
         let mut out = format!("Found {} path(s) to SQL:\n", paths.len());
 
-        let confidence_penalty = if trace_used_fallback {
+        let fallback_penalty = if trace_used_fallback {
             (trace_candidate_count as f64 * 0.2).min(0.8)
         } else {
             0.0
         };
+
+        // Score every path by hop kinds. Paths that cross a
+        // `control → control` hop (DataBinding — GridView DataSourceID
+        // binding to a LinqDataSource / ObjectDataSource / SqlDataSource)
+        // are declarative: the handler fires when ASP.NET chooses to
+        // bind, not from an explicit user action. That's objectively
+        // less certain evidence of "change in handler X affects this
+        // control" than a direct `control → function` hop (EventWiring
+        // via OnClick / Handles). Penalise DataBinding hops so callers
+        // reading the provenance see the weaker paths ranked lower.
+        //
+        // Per-hop penalty table (subtracted from a starting confidence
+        // of 1.0, then floored at 0.1 so a wholly declarative chain
+        // still reports something non-zero):
+        //   control→control   -0.25  (DataBinding — declarative)
+        //   page→control      -0.05  (Contains — structural)
+        //   control→function  -0.00  (EventWiring — direct)
+        //   function→function -0.05  (Calls — indirect but typed)
+        //   *→inline_sql      -0.00  (terminal evidence)
+        //   *→stored_proc     -0.00  (terminal evidence)
+        //   *→*               -0.10  (other / unknown)
+        let path_scores: Vec<f64> = paths
+            .iter()
+            .map(|p| path_confidence_score(p, fallback_penalty))
+            .collect();
+        let best_path_score = path_scores
+            .iter()
+            .copied()
+            .fold(0.0f64, |a, b| if a > b { a } else { b });
 
         out.push_str("\n## Trace Provenance\n");
         out.push_str(&format!("trace_used_fallback: {}\n", trace_used_fallback));
@@ -669,9 +730,10 @@ impl Engram {
             trace_candidate_count
         ));
         out.push_str(&format!(
-            "trace_confidence_penalty: {:.2}\n",
-            confidence_penalty
+            "trace_confidence_penalty_fallback: {:.2}\n",
+            fallback_penalty
         ));
+        out.push_str(&format!("best_path_confidence: {:.2}\n", best_path_score));
         out.push_str(&format!("selected_start_node: {}\n", start_id));
 
         if trace_used_fallback {
@@ -687,14 +749,58 @@ impl Engram {
                 let selected = if i == 0 { " ← SELECTED" } else { "" };
                 out.push_str(&format!("  {}. {}{}\n", i + 1, cand, selected));
             }
+        }
+
+        // Low-confidence paths — emit actionable follow-up probes so the
+        // caller can tighten the trace rather than accepting the
+        // ambiguous result at face value. Fires for BOTH fallback
+        // resolution AND paths that cross a DataBinding hop.
+        let has_data_binding_hop = paths.iter().any(|p| {
+            p.windows(2)
+                .any(|w| w[0].node_type == "control" && w[1].node_type == "control")
+        });
+        if trace_used_fallback || has_data_binding_hop || best_path_score < 0.75 {
             out.push_str("\n### Follow-up Probes\n");
-            out.push_str("- Provide explicit `handler_fqn` to disambiguate\n");
-            out.push_str("- Verify control ID uniqueness across master/user controls\n");
-            out.push_str("- Check code-behind inheritance chain for handler shadowing\n");
+            if trace_used_fallback {
+                out.push_str("- Provide explicit `handler_fqn` to disambiguate control lookup\n");
+                out.push_str("- Verify control ID uniqueness across master / user controls\n");
+                out.push_str("- Check code-behind inheritance chain for handler shadowing\n");
+            }
+            if has_data_binding_hop {
+                out.push_str(
+                    "- Path crosses a declarative data-binding hop (control → control). \
+                     Run `trace_data_flow` on the data-source control's event handler for \
+                     deeper SQL tracing\n",
+                );
+                out.push_str(
+                    "- Run `find_symbol_references` on the resolved handler method to find \
+                     alternate call paths that bypass this trace\n",
+                );
+            }
+            if best_path_score < 0.75 && !trace_used_fallback && !has_data_binding_hop {
+                out.push_str(
+                    "- Best path confidence below 0.75. Consider narrowing with a more \
+                     specific `handler_fqn` or re-running `trace_ui_action` against the \
+                     button that initiates this flow\n",
+                );
+            }
         }
 
         for (i, path) in paths.iter().enumerate() {
-            out.push_str(&format!("\n## Path #{}\n", i + 1));
+            let score = path_scores.get(i).copied().unwrap_or(0.0);
+            let confidence_tag = if score >= 0.85 {
+                "high"
+            } else if score >= 0.6 {
+                "medium"
+            } else {
+                "low"
+            };
+            out.push_str(&format!(
+                "\n## Path #{} (confidence {:.2} — {})\n",
+                i + 1,
+                score,
+                confidence_tag
+            ));
             for (step, node) in path.iter().enumerate() {
                 let label = match node.node_type.as_str() {
                     "page" => "ASPX Page",
@@ -705,22 +811,33 @@ impl Engram {
                     _ => &node.node_type,
                 };
 
-                let justification = if step == 0 {
-                    "Starting point".to_string()
+                let (justification, hop_kind) = if step == 0 {
+                    ("Starting point".to_string(), "start")
                 } else {
                     let prev = &path[step - 1];
                     match (prev.node_type.as_str(), node.node_type.as_str()) {
-                        ("page", "class") => "Inherits class".to_string(),
-                        ("control", "function") => "Event wiring (OnClick/Handles)".to_string(),
-                        ("function", "function") => "Method call".to_string(),
-                        (_, "inline_sql") | (_, "stored_proc") => "Executes SQL".to_string(),
-                        _ => "Dependency".to_string(),
+                        ("page", "class") => ("Inherits class".to_string(), "inherits"),
+                        ("page", "control") => ("Contains control".to_string(), "contains"),
+                        ("control", "control") => (
+                            "Declarative data binding (DataSourceID)".to_string(),
+                            "data_binding",
+                        ),
+                        ("control", "function") => (
+                            "Event wiring (OnClick / Handles)".to_string(),
+                            "event_wiring",
+                        ),
+                        ("function", "function") => ("Method call".to_string(), "calls"),
+                        (_, "inline_sql") | (_, "stored_proc") => {
+                            ("Executes SQL".to_string(), "sql_terminal")
+                        }
+                        _ => ("Dependency".to_string(), "dependency"),
                     }
                 };
 
                 let evidence = format!(
-                    "node_type={}, file={}, lines={}-{}",
+                    "node_type={}, hop_kind={}, file={}, lines={}-{}",
                     node.node_type,
+                    hop_kind,
                     node.file_path.as_str(),
                     node.start_line,
                     node.end_line
@@ -3058,7 +3175,122 @@ impl Engram {
 
 #[cfg(test)]
 mod tests {
-    use super::{detect_destructive_patterns, immune_rule_matches_path};
+    use super::{detect_destructive_patterns, immune_rule_matches_path, path_confidence_score};
+
+    // ── path_confidence_score ───────────────────────────────────────────
+
+    fn node(node_type: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: format!("{node_type}:n"),
+            node_type: node_type.to_string(),
+            name: "n".into(),
+            namespace: "memory".into(),
+            language: "vb".into(),
+            file_path: engram_core::RelPath::new("p.aspx"),
+            start_line: 0,
+            end_line: 0,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
+    #[test]
+    fn path_confidence_direct_event_wiring_scores_high() {
+        // page → control → function → inline_sql — the textbook
+        // direct-event path: one 0.05 Contains penalty, rest are 0.
+        let path = [
+            node("page"),
+            node("control"),
+            node("function"),
+            node("inline_sql"),
+        ];
+        let s = path_confidence_score(&path, 0.0);
+        assert!(
+            (s - 0.95).abs() < 0.001,
+            "direct event path should score ~0.95, got {s}"
+        );
+    }
+
+    #[test]
+    fn path_confidence_declarative_data_binding_scores_lower() {
+        // page → control(grid) → control(datasource) → function → inline_sql.
+        // Extra `control → control` hop adds a 0.25 penalty, so we're
+        // at 1.00 - 0.05 (page→control) - 0.25 (control→control) - 0.00
+        // (control→function) - 0.00 (→inline_sql) = 0.70.
+        let path = [
+            node("page"),
+            node("control"),
+            node("control"),
+            node("function"),
+            node("inline_sql"),
+        ];
+        let s = path_confidence_score(&path, 0.0);
+        assert!(
+            (s - 0.70).abs() < 0.001,
+            "data-binding path should score ~0.70, got {s}"
+        );
+    }
+
+    #[test]
+    fn path_confidence_data_binding_lower_than_direct() {
+        // The task's central claim: data-binding paths score lower than
+        // direct event-wiring paths on the same trace target.
+        let direct = [
+            node("page"),
+            node("control"),
+            node("function"),
+            node("inline_sql"),
+        ];
+        let declarative = [
+            node("page"),
+            node("control"),
+            node("control"),
+            node("function"),
+            node("inline_sql"),
+        ];
+        assert!(
+            path_confidence_score(&direct, 0.0) > path_confidence_score(&declarative, 0.0),
+            "direct event path must outrank declarative-binding path"
+        );
+    }
+
+    #[test]
+    fn path_confidence_fallback_penalty_applies() {
+        let path = [
+            node("page"),
+            node("control"),
+            node("function"),
+            node("inline_sql"),
+        ];
+        let with_fallback = path_confidence_score(&path, 0.2);
+        let without_fallback = path_confidence_score(&path, 0.0);
+        assert!(
+            with_fallback < without_fallback,
+            "fallback penalty must lower the score"
+        );
+        assert!(
+            (without_fallback - with_fallback - 0.2).abs() < 0.001,
+            "fallback penalty must subtract exactly the requested amount"
+        );
+    }
+
+    #[test]
+    fn path_confidence_floored_at_ten_percent() {
+        // Degenerate long chain of unknown hops — score should floor
+        // at 0.10 rather than going negative.
+        let path = vec![node("other"); 20];
+        let s = path_confidence_score(&path, 0.8);
+        assert!(
+            (s - 0.10).abs() < 0.001,
+            "score must floor at 0.10, got {s}"
+        );
+    }
+
+    #[test]
+    fn path_confidence_trivial_path_is_full() {
+        let path = [node("control")];
+        assert!((path_confidence_score(&path, 0.0) - 1.0).abs() < 0.001);
+    }
 
     // ── immune_rule_matches_path ─────────────────────────────────────────
 
