@@ -1,4 +1,5 @@
 pub mod access_layer_tools;
+pub mod code_review_tools;
 pub mod cognitive_tools;
 pub mod git_tools;
 pub mod graph_tools;

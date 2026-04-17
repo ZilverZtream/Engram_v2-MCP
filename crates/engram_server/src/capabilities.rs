@@ -202,6 +202,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "ingest_code_review_history",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "get_instrumentation_pack",
         status: CapabilityStatus::Implemented,
     },
