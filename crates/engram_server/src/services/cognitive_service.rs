@@ -88,12 +88,33 @@ pub async fn analyze_file_style(
             .unwrap_or_else(|_| Ok(Vec::new()))
             .unwrap_or_default();
 
-    if diffs.is_empty() {
+    // Always read the current file content — the mimicry engine's
+    // language-specific detectors and the new static fallback both need
+    // the full file body to produce a rich guide. Before this fix the
+    // handler passed the short `file_path` string into `current_file`
+    // (misusing the parameter contract) so mimicry only ever saw the
+    // diff text, and for stable files like `sharedfunc.vb` the git
+    // history is thin — yielding a near-empty style guide.
+    let file_content: Option<String> = {
+        let dir = std::path::PathBuf::from(&rec.directory);
+        let fp = file_path.to_string();
+        tokio::task::spawn_blocking(move || match engram_core::safe_join(&dir, &fp) {
+            Ok(full) => std::fs::read_to_string(full).ok(),
+            Err(_) => None,
+        })
+        .await
+        .ok()
+        .flatten()
+    };
+
+    if diffs.is_empty() && file_content.is_none() {
         return StyleAnalysisResult {
             style_guide: None,
             analyzed_commits: Vec::new(),
             file_path: file_path.to_string(),
-            error: Some("No git history found for this file".into()),
+            error: Some(
+                "No git history found and file could not be read for static fallback".into(),
+            ),
         };
     }
 
@@ -117,20 +138,43 @@ pub async fn analyze_file_style(
     }
 
     // Try the AST/regex-based mimicry engine first (always available).
-    // Then optionally enhance with LLM if configured.
+    // Pass the actual file CONTENT as `current_file` (not the file path,
+    // which was the old bug) so the mimicry engine can analyse the body
+    // even when git history is shallow. Then optionally enhance with LLM.
     let diff_snippets: Vec<String> = diffs.iter().map(|(_, _, d)| d.clone()).collect();
     let mimicry_guide = state
         .mimicry
-        .analyze(&diff_snippets, Some(file_path))
-        .bullets
-        .join("\n");
+        .analyze(&diff_snippets, file_content.as_deref())
+        .bullets;
+
+    // Static fallback: when git history is shallow (< 5 diffs) and we
+    // have the file body, run a light language-specific static pass
+    // that emits concrete patterns (Optional-param shape, Using block
+    // discipline, Is-Nothing guards, etc.). Static bullets are MERGED
+    // after git/mimicry bullets — git signals take priority because
+    // they represent active choices by the team, static fills the gaps.
+    const SHALLOW_HISTORY_THRESHOLD: usize = 5;
+    let mut merged_bullets: Vec<String> = mimicry_guide;
+    if diffs.len() < SHALLOW_HISTORY_THRESHOLD
+        && let Some(ref content) = file_content
+    {
+        let static_bullets = static_analyze_file_style(content, file_path);
+        for b in static_bullets {
+            // Dedup on exact bullet text — cheap because counts are small.
+            if !merged_bullets.iter().any(|existing| existing == &b) {
+                merged_bullets.push(b);
+            }
+        }
+    }
+
+    let mimicry_combined = merged_bullets.join("\n");
 
     // Try LLM enhancement with the style-analysis prompt.
     let llm_guide = try_llm_style_analysis(state, file_path, &diffs_text).await;
 
-    let style_guide = match (llm_guide, mimicry_guide.is_empty()) {
+    let style_guide = match (llm_guide, mimicry_combined.is_empty()) {
         (Some(llm), _) => Some(llm),
-        (None, false) => Some(mimicry_guide),
+        (None, false) => Some(mimicry_combined),
         (None, true) => None,
     };
 
@@ -149,6 +193,271 @@ pub async fn analyze_file_style(
         file_path: file_path.to_string(),
         error: None,
     }
+}
+
+// ── Static fallback: language-aware pattern detection ────────────────────────
+//
+// Runs when git history is shallow. For VB.NET files we look for the
+// OciusX-style patterns a reader would expect the style guide to call
+// out — `Optional db As <Context> = Nothing`, `Using db …`, `Is Nothing`
+// guards, Module vs Class declaration, Handles-clause discipline, etc.
+// For C# / Rust / other we emit a generic pass. Every detector returns a
+// single bullet; detectors that don't fire contribute nothing.
+
+/// Entry point — dispatches on file extension.
+pub fn static_analyze_file_style(content: &str, file_path: &str) -> Vec<String> {
+    let lower = file_path.to_ascii_lowercase();
+    if lower.ends_with(".vb") {
+        static_analyze_vb(content)
+    } else if lower.ends_with(".cs") {
+        static_analyze_cs(content)
+    } else {
+        static_analyze_generic(content)
+    }
+}
+
+fn static_analyze_vb(content: &str) -> Vec<String> {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    static METHOD_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Sub|Function)\s+(\w+)\s*\(")
+            .ok()
+    });
+    static OPTIONAL_CONTEXT_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r#"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?(\w+)\s+As\s+(\w+(?:DataContext|Context|Db))\s*=\s*Nothing"#)
+            .ok()
+    });
+    static USING_CONTEXT_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(
+            r#"(?im)^\s*Using\s+\w+(?:\s+As\s+(?:New\s+)?\w+|\s*=\s*(?:If\(.+?,\s*New\s+\w+)?)"#,
+        )
+        .ok()
+    });
+    static IS_NOTHING_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?i)\bIf\s+\w[\w.]*\s+Is\s+Nothing\b").ok());
+    static ON_ERROR_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)^\s*On\s+Error\s+Resume\s+Next\b").ok());
+    static TRY_CATCH_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)^\s*Try\s*$|^\s*Catch\b").ok());
+    static MODULE_DECL_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+)?Module\s+(\w+)").ok());
+    static CLASS_DECL_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+|Partial\s+)*Class\s+(\w+)").ok()
+    });
+    static HANDLES_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)\bHandles\s+\w[\w.]*(?:\s*,\s*\w[\w.]*)*").ok());
+    static SAFEREDIRECT_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)SafeRedirect\s*\([^\)]*\)\s*\n?\s*Return\b").ok());
+    static XML_DOC_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?m)^\s*'''").ok());
+    static IMPORTS_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)^\s*Imports\s+([\w.]+)").ok());
+
+    let mut bullets = Vec::new();
+
+    // Method naming convention (PascalCase / camelCase / other).
+    if let Some(re) = METHOD_RE.as_ref() {
+        let mut pascal = 0u32;
+        let mut camel = 0u32;
+        let mut other = 0u32;
+        let mut samples: Vec<String> = Vec::new();
+        for cap in re.captures_iter(content).take(200) {
+            if let Some(m) = cap.get(1) {
+                let name = m.as_str();
+                let first = name.chars().next().unwrap_or('_');
+                if first.is_ascii_uppercase() {
+                    pascal += 1;
+                } else if first.is_ascii_lowercase() {
+                    camel += 1;
+                } else {
+                    other += 1;
+                }
+                if samples.len() < 3 {
+                    samples.push(name.to_string());
+                }
+            }
+        }
+        let total = pascal + camel + other;
+        if total >= 3 {
+            let (conv, count) = if pascal >= camel.max(other) {
+                ("PascalCase", pascal)
+            } else if camel >= pascal.max(other) {
+                ("camelCase", camel)
+            } else {
+                ("mixed", other)
+            };
+            bullets.push(format!(
+                "Method naming: **{conv}** ({count}/{total} methods). Examples: {}",
+                samples.join(", ")
+            ));
+        }
+    }
+
+    // `Optional db As <DataContext> = Nothing` context-injection pattern.
+    if let Some(re) = OPTIONAL_CONTEXT_RE.as_ref() {
+        let mut hits: Vec<(String, String)> = Vec::new();
+        for cap in re.captures_iter(content).take(20) {
+            if let (Some(n), Some(t)) = (cap.get(1), cap.get(2)) {
+                hits.push((n.as_str().into(), t.as_str().into()));
+            }
+        }
+        if !hits.is_empty() {
+            let (param, ctx) = &hits[0];
+            bullets.push(format!(
+                "Data-context injection: `Optional {param} As {ctx} = Nothing` — \
+                 seen in {} method(s). New methods should follow the same shape.",
+                hits.len()
+            ));
+        }
+    }
+
+    // Using-block discipline.
+    if let Some(re) = USING_CONTEXT_RE.as_ref() {
+        let using_count = re.find_iter(content).count();
+        if using_count >= 2 {
+            bullets.push(format!(
+                "`Using` block for context ownership (seen {using_count} times). \
+                 Never declare a bare `Dim db As New …Context` without a `Using`."
+            ));
+        }
+    }
+
+    // `Is Nothing` guard before LINQ access.
+    if let Some(re) = IS_NOTHING_RE.as_ref() {
+        let n = re.find_iter(content).count();
+        if n >= 3 {
+            bullets.push(format!(
+                "Guard pattern: `If x Is Nothing Then …` (seen {n} times) — always \
+                 validate nullable references before touching them."
+            ));
+        }
+    }
+
+    // Error-handling: On Error Resume Next vs Try/Catch.
+    let on_error = ON_ERROR_RE
+        .as_ref()
+        .map(|re| re.find_iter(content).count())
+        .unwrap_or(0);
+    let try_catch = TRY_CATCH_RE
+        .as_ref()
+        .map(|re| re.find_iter(content).count())
+        .unwrap_or(0);
+    if try_catch > 0 && on_error == 0 {
+        bullets.push(format!(
+            "Error handling: **`Try/Catch` only** ({try_catch} occurrences). \
+             Do NOT introduce `On Error Resume Next` — keep errors explicit."
+        ));
+    } else if on_error > 0 {
+        bullets.push(format!(
+            "Error handling: legacy `On Error Resume Next` present ({on_error}). \
+             Flag as risk — prefer migrating to `Try/Catch`."
+        ));
+    }
+
+    // Module vs Class declaration style.
+    let has_module = MODULE_DECL_RE
+        .as_ref()
+        .and_then(|re| re.captures(content))
+        .and_then(|cap| cap.get(1).map(|m| m.as_str().to_string()));
+    let has_class = CLASS_DECL_RE
+        .as_ref()
+        .is_some_and(|re| re.is_match(content));
+    if let Some(name) = has_module {
+        bullets.push(format!(
+            "Declaration style: **`Module {name}`** (shared helpers, no instance state)."
+        ));
+    } else if has_class {
+        bullets.push("Declaration style: `Class` (instance state or inheritance)".into());
+    }
+
+    // `Handles` clauses — event wiring style.
+    if let Some(re) = HANDLES_RE.as_ref() {
+        let n = re.find_iter(content).count();
+        if n >= 2 {
+            bullets.push(format!(
+                "Event wiring: `Handles` clauses ({n} occurrences) — prefer attaching \
+                 handlers via `Handles` over `AddHandler` for this file's conventions."
+            ));
+        }
+    }
+
+    // `SafeRedirect(...) : Return` mandatory pair (OciusX convention).
+    if let Some(re) = SAFEREDIRECT_RE.as_ref()
+        && re.is_match(content)
+    {
+        bullets.push(
+            "`SafeRedirect(...)` MUST be followed by `Return` on the next line — \
+             the redirect doesn't short-circuit on its own."
+                .into(),
+        );
+    }
+
+    // XML-doc vs inline comment style.
+    if let Some(re) = XML_DOC_RE.as_ref() {
+        let doc_lines = re.find_iter(content).count();
+        if doc_lines >= 3 {
+            bullets.push(format!(
+                "Documentation: XML doc comments (`'''`) on public API — {doc_lines} lines. \
+                 Follow the same shape for new public methods."
+            ));
+        }
+    }
+
+    // Imports convention — top-N most common namespaces.
+    if let Some(re) = IMPORTS_RE.as_ref() {
+        let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for cap in re.captures_iter(content).take(100) {
+            if let Some(m) = cap.get(1) {
+                *counts.entry(m.as_str().to_string()).or_insert(0) += 1;
+            }
+        }
+        if counts.len() >= 3 {
+            let mut pairs: Vec<(String, usize)> = counts.into_iter().collect();
+            pairs.sort_by(|a, b| b.1.cmp(&a.1));
+            let top: Vec<String> = pairs.iter().take(4).map(|(n, _)| n.clone()).collect();
+            bullets.push(format!(
+                "Imports: top-level `Imports` directives — {}",
+                top.join(", ")
+            ));
+        }
+    }
+
+    bullets
+}
+
+fn static_analyze_cs(content: &str) -> Vec<String> {
+    // C# pass is intentionally lighter — mimicry's AST detectors cover
+    // most of the C# shape already. Extend here if OciusX-like C# codebases
+    // grow their own conventions worth calling out.
+    let mut bullets = Vec::new();
+    if content.contains("using (") || content.contains("using var ") {
+        bullets.push(
+            "Resource ownership: `using` statements for IDisposable handles \
+             (keep the pattern for new code)."
+                .into(),
+        );
+    }
+    if content.contains("async Task") || content.contains("async ValueTask") {
+        bullets.push("Async style: `async Task` / `async ValueTask` methods present.".into());
+    }
+    bullets
+}
+
+fn static_analyze_generic(content: &str) -> Vec<String> {
+    // Last-resort: check for trailing whitespace, tab-vs-space preferences
+    // that mimicry's `detect_indent` may have missed when diffs were empty.
+    let mut bullets = Vec::new();
+    let tab_lines = content.lines().filter(|l| l.starts_with('\t')).count();
+    let space_lines = content
+        .lines()
+        .filter(|l| l.starts_with("    ") || l.starts_with("  "))
+        .count();
+    if tab_lines > space_lines * 2 {
+        bullets.push("Indentation: tabs (keep consistent).".into());
+    } else if space_lines > tab_lines * 2 {
+        bullets.push("Indentation: spaces (keep consistent).".into());
+    }
+    bullets
 }
 
 /// Prompt template from v1 dreaming.py STYLE_ANALYSIS_PROMPT.
@@ -678,4 +987,191 @@ fn gather_boundary_data(
         file_state_keys,
         file_table_refs,
     })
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::static_analyze_file_style;
+
+    const OCIUSX_VB_SAMPLE: &str = r#"
+Imports System
+Imports System.Web
+Imports System.Linq
+
+Module sharedfunc
+    ''' <summary>
+    ''' Redirects and short-circuits the calling method.
+    ''' </summary>
+    Public Sub SafeRedirect(url As String)
+        HttpContext.Current.Response.Redirect(url)
+    End Sub
+
+    Public Function GetValidFileName(name As String) As String
+        If name Is Nothing Then
+            Return String.Empty
+        End If
+        Return name.Trim()
+    End Function
+
+    Public Function GetUser(id As Integer, Optional db As iFaltDataContext = Nothing) As Object
+        Using ctx = If(db, New iFaltDataContext())
+            Dim row = ctx.Users.FirstOrDefault(Function(u) u.Id = id)
+            If row Is Nothing Then
+                Return Nothing
+            End If
+            Return row
+        End Using
+    End Function
+
+    Public Function SaveUser(user As Object, Optional db As iFaltDataContext = Nothing) As Boolean
+        Using ctx = If(db, New iFaltDataContext())
+            Try
+                ctx.SubmitChanges()
+                Return True
+            Catch ex As Exception
+                Return False
+            End Try
+        End Using
+    End Function
+
+    Public Sub Redirect(url As String)
+        SafeRedirect(url)
+        Return
+    End Sub
+
+    Public Sub TranslateUnit(v As Double)
+        If v Is Nothing Then
+            Return
+        End If
+    End Sub
+End Module
+"#;
+
+    #[test]
+    fn vb_static_analyzer_detects_multiple_patterns() {
+        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
+        // Sanity: we get at least 5 distinct rule bullets on the OciusX shape,
+        // covering naming + context injection + Using + Is Nothing + Module.
+        assert!(
+            bullets.len() >= 5,
+            "expected ≥5 bullets, got {}: {bullets:#?}",
+            bullets.len()
+        );
+
+        let joined = bullets.join(" ");
+        assert!(
+            joined.contains("PascalCase"),
+            "method naming convention must be detected (PascalCase), got: {joined}"
+        );
+        assert!(
+            joined.contains("Optional") && joined.contains("iFaltDataContext"),
+            "optional-context-injection pattern must be called out"
+        );
+        assert!(
+            joined.contains("Using"),
+            "Using-block discipline must be called out"
+        );
+        assert!(
+            joined.contains("Is Nothing"),
+            "Is Nothing guard must be called out"
+        );
+        assert!(
+            joined.contains("Module sharedfunc"),
+            "declaration style must cite `Module sharedfunc`, got: {joined}"
+        );
+    }
+
+    #[test]
+    fn vb_static_analyzer_flags_safe_redirect_return_pair() {
+        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
+        assert!(
+            bullets
+                .iter()
+                .any(|b| b.contains("SafeRedirect") && b.contains("Return")),
+            "SafeRedirect+Return pair rule must fire, got: {bullets:#?}"
+        );
+    }
+
+    #[test]
+    fn vb_static_analyzer_prefers_try_catch_when_no_on_error() {
+        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
+        // The "Try/Catch only" bullet describes the current style AND
+        // advises against introducing `On Error Resume Next`, so both
+        // phrases appear in the same bullet. We only care that:
+        //   - the `Try/Catch only` rule fired, and
+        //   - the legacy `On Error Resume Next present` risk bullet did NOT fire.
+        assert!(
+            bullets.iter().any(|b| b.contains("`Try/Catch` only")),
+            "Try/Catch-only rule must fire, got: {bullets:#?}"
+        );
+        assert!(
+            !bullets
+                .iter()
+                .any(|b| b.contains("On Error Resume Next present")),
+            "legacy On Error risk bullet must NOT fire for clean Try/Catch code"
+        );
+    }
+
+    #[test]
+    fn vb_static_analyzer_flags_legacy_on_error() {
+        let legacy = r#"
+Module Legacy
+    Public Sub Do()
+        On Error Resume Next
+        DoStuff()
+    End Sub
+End Module
+"#;
+        let bullets = static_analyze_file_style(legacy, "legacy.vb");
+        assert!(
+            bullets
+                .iter()
+                .any(|b| b.contains("On Error Resume Next") && b.contains("risk")),
+            "legacy On Error must be flagged as risk, got: {bullets:#?}"
+        );
+    }
+
+    #[test]
+    fn cs_static_analyzer_emits_generic_bullets() {
+        let cs = r#"
+using System;
+public class Foo {
+    public async Task Bar() {
+        using (var db = new Context()) {
+            await db.SaveChangesAsync();
+        }
+    }
+}
+"#;
+        let bullets = static_analyze_file_style(cs, "Foo.cs");
+        assert!(
+            bullets.iter().any(|b| b.contains("using")),
+            "C# using-pattern bullet expected, got: {bullets:#?}"
+        );
+        assert!(
+            bullets.iter().any(|b| b.contains("async")),
+            "C# async-pattern bullet expected"
+        );
+    }
+
+    #[test]
+    fn generic_static_analyzer_detects_indent_style() {
+        let tabbed = "\tfn a() {\n\t\tlet x = 1;\n\t}\n";
+        let bullets = static_analyze_file_style(tabbed, "unknown.xyz");
+        assert!(
+            bullets.iter().any(|b| b.contains("tabs")),
+            "tab indentation must be detected in generic fallback"
+        );
+    }
+
+    #[test]
+    fn vb_static_analyzer_returns_empty_on_tiny_file() {
+        let tiny = "Module X\nEnd Module\n";
+        let bullets = static_analyze_file_style(tiny, "x.vb");
+        // Module declaration fires but nothing else — that's fine and
+        // prevents the caller from claiming rich style on trivial files.
+        assert!(bullets.len() <= 2);
+    }
 }
