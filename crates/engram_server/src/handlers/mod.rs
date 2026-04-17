@@ -4,6 +4,7 @@ pub mod git_tools;
 pub mod graph_tools;
 pub mod migration_tools;
 pub mod project_tools;
+pub mod review_tools;
 pub mod search_tools;
 
 pub mod runtime_observation_tools;

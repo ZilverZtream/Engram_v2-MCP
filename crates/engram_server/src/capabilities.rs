@@ -198,6 +198,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "pre_commit_review",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "get_instrumentation_pack",
         status: CapabilityStatus::Implemented,
     },

@@ -36,6 +36,7 @@ reqwest.workspace = true
 dashmap.workspace = true
 redb.workspace = true
 futures.workspace = true
+async-trait.workspace = true
 
 [build-dependencies]
 blake3 = "1"
