@@ -2378,6 +2378,12 @@ fn default_min_fix_rate() -> f32 {
 fn default_token_overlap() -> f32 {
     0.4
 }
+fn default_promote_fix_rate() -> f32 {
+    0.7
+}
+fn default_promote_min_prs() -> usize {
+    3
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -2432,6 +2438,19 @@ pub struct IngestCodeReviewHistoryRequest {
     /// Off by default — the deterministic path works fine without it.
     #[serde(default)]
     pub use_llm_for_ambiguous: bool,
+    /// Minimum fix rate required for a cluster to auto-promote to a
+    /// `cr_*` repo rule (injected into chunk reads for files matching
+    /// the cluster's file pattern). Default 0.7. Lower to 0.5 to be
+    /// more permissive; raise to 0.9 to require near-unanimous agreement.
+    #[serde(default = "default_promote_fix_rate")]
+    pub promote_min_fix_rate: f32,
+    /// Minimum number of distinct PRs a cluster must span before it
+    /// auto-promotes to a `cr_*` repo rule. Default 3. Drop to 1 to
+    /// treat every clean rule as a repo rule; raise to 5+ to require
+    /// "pattern seen repeatedly across the team's work" before
+    /// promotion.
+    #[serde(default = "default_promote_min_prs")]
+    pub promote_min_prs: usize,
 }
 
 // ─── Pre-commit review ───────────────────────────────────────────────────────

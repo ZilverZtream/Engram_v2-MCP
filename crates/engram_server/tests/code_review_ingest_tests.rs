@@ -337,6 +337,94 @@ async fn suppression_is_scoped_to_wontfix_file_family_not_language() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn promote_min_prs_of_one_promotes_every_high_fix_rate_cluster() {
+    // Default promote_min_prs=3 rejects single-PR clusters. Dropping
+    // to 1 should promote every cluster whose fix_rate ≥ threshold —
+    // useful on small projects where even a single CodeRabbit finding
+    // is signal worth encoding as a repo rule.
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+
+    let body = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
+        **Always call `.Commit()` after `BeginTransaction()`.**\n\n\
+        Leaving `BeginTransaction` uncommitted leaks connections on `DbContext` disposal.\n\n\
+        ✅ Addressed in commits aaa1111";
+    let fixture = vec![mk_record(100, "fixed", "/src/Orders.cs", "major", body)];
+    let path = write_fixture_jsonl(&tmp, &fixture);
+
+    let s = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            promote_repo_rule_min_prs: 1,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        s.repo_rules_promoted, 1,
+        "promote_min_prs=1 must promote the single-PR cluster"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn promote_min_fix_rate_controls_strictness() {
+    // With 1 fixed + 1 wontFix the cluster's fix_rate is 0.5.
+    // promote_min_fix_rate=0.4 → promotes. =0.6 → does not.
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+
+    let fixed_body = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
+        **Guard the `executeReader()` call site against null `DbCommand`.**\n\n\
+        `_sharedCommand.executeReader()` can throw NullReferenceException when the pool is drained.\n\n\
+        ✅ Addressed in commits bbb2222";
+    let wontfix_body = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
+        **Guard the `executeReader()` call site against null `DbCommand`.**\n\n\
+        `_sharedCommand.executeReader()` can throw NullReferenceException when the pool is drained.";
+    let fixture = vec![
+        mk_record(200, "fixed", "/src/A.cs", "major", fixed_body),
+        mk_record(201, "wontFix", "/src/B.cs", "major", wontfix_body),
+    ];
+    let path = write_fixture_jsonl(&tmp, &fixture);
+
+    // Permissive: 0.4 threshold, 1-PR minimum → 0.5 fix_rate promotes.
+    let s_permissive = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path: path.clone() },
+            promote_repo_rule_fix_rate: 0.4,
+            promote_repo_rule_min_prs: 1,
+            min_fix_rate: 0.0, // don't filter positive cluster out before promotion
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(s_permissive.repo_rules_promoted, 1);
+
+    // Strict: bump to 0.6 and force_full_rescan to re-score with new
+    // thresholds → 0.5 fix_rate does NOT promote.
+    let s_strict = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            promote_repo_rule_fix_rate: 0.6,
+            promote_repo_rule_min_prs: 1,
+            min_fix_rate: 0.0,
+            force_full_rescan: true,
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(s_strict.repo_rules_promoted, 0);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn jsonl_ingest_drops_clusters_below_min_fix_rate() {
     let (tmp, state) = build_state();
     let project_id = register_project(&state, &tmp).await;

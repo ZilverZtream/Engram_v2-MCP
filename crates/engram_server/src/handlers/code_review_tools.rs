@@ -72,6 +72,12 @@ impl Engram {
             token_overlap_threshold: req.token_overlap_threshold.clamp(0.1, 0.95),
             force_full_rescan: req.force_full_rescan,
             use_llm_for_ambiguous: req.use_llm_for_ambiguous,
+            // The two auto-promotion knobs — lets callers tune from the
+            // default (0.7, 3) without recompiling. Low end is
+            // permissive (promote a lot of rules); high end is strict
+            // (only promote patterns the team has agreed on many times).
+            promote_repo_rule_fix_rate: req.promote_min_fix_rate.clamp(0.0, 1.0),
+            promote_repo_rule_min_prs: req.promote_min_prs.max(1),
             ..Default::default()
         };
 
