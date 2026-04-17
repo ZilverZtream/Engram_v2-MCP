@@ -422,6 +422,20 @@ impl Engram {
         self.handle_anti_pattern_guard(params.0).await
     }
 
+    #[tool(
+        description = "Pre-commit review — runs ten graph-backed gates (immune, blast-radius, \
+                       style, temporal, state, audit, anti-pattern, new-file, test-coverage, \
+                       secret-leakage) over a unified diff and returns severity-ranked, \
+                       evidence-backed findings. Accepts a raw diff, `staged`, `unstaged`, \
+                       `head`, or a `.patch` path. No LLM calls."
+    )]
+    pub async fn pre_commit_review(
+        &self,
+        params: Parameters<PreCommitReviewRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_pre_commit_review(params.0).await
+    }
+
     #[tool(description = "Generate instrumentation pack.")]
     pub async fn get_instrumentation_pack(
         &self,

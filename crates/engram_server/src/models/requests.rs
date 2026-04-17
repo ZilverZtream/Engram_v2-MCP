@@ -2367,6 +2367,51 @@ pub struct ProduceClaudeMdRequest {
     pub max_root_lines: usize,
 }
 
+// ─── Pre-commit review ───────────────────────────────────────────────────────
+
+fn default_diff_source() -> String {
+    "staged".into()
+}
+fn default_max_findings() -> usize {
+    30
+}
+fn default_min_severity() -> String {
+    "style".into()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PreCommitReviewRequest {
+    pub project_id: String,
+    /// The diff to review. Accepts:
+    /// - A raw unified-diff string (`git diff` output)
+    /// - `"staged"` — runs the `git diff --staged` equivalent via git2
+    /// - `"unstaged"` — runs the working-tree diff via git2
+    /// - `"head"` — runs the equivalent of `git diff HEAD~1`
+    /// - A path ending in `.patch` or `.diff` — reads from disk
+    ///
+    /// Default: `"staged"`.
+    #[serde(default = "default_diff_source")]
+    pub diff: String,
+    /// Maximum findings to return. Default 30.
+    #[serde(default = "default_max_findings")]
+    pub max_findings: usize,
+    /// Minimum severity to include (`"critical"`, `"warning"`, `"info"`,
+    /// `"style"`). Default `"style"` (include everything).
+    #[serde(default = "default_min_severity")]
+    pub min_severity: String,
+    /// Skip specific gates by name — e.g. `["temporal", "audit"]`. Gate
+    /// names: `immune`, `blast_radius`, `style`, `temporal`, `state`,
+    /// `audit`, `antipattern`, `new_file`, `test_coverage`,
+    /// `secret_leakage`.
+    #[serde(default)]
+    pub skip_gates: Vec<String>,
+    /// Return the structured JSON payload instead of rendered markdown.
+    /// CI integrations want `true`; humans want `false`. Default `false`.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
 #[cfg(test)]
 mod unknown_field_tests {
     use super::*;
