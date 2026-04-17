@@ -214,6 +214,42 @@ pub fn compute_blast_radius(
             .insert(source_id.clone());
     }
 
+    // 3b. Transitive aggregation for file-level targets.
+    //
+    // A raw `file:<path>` node typically carries only a handful of direct
+    // edges (a few `Contains` outgoing, a codebehind link, maybe an
+    // `Imports`). All the real "what breaks when I change this file" mass
+    // lives on the symbols the file contains. Without this pass, a file
+    // with 500 callers of its internal functions would report 0 incoming,
+    // which is how the regression manifests on large projects.
+    //
+    // So: if the target is a file node, expand the edge collection to
+    // include every edge whose endpoint is a symbol the file `Contains`.
+    // One `list_edges` scan is cheaper than `contained × EdgeKind::ALL`
+    // `neighbors` calls, especially on files with hundreds of symbols.
+    if target_id.starts_with("file:") {
+        let contained_symbols: HashSet<String> = graph
+            .neighbors(project_id, EdgeKind::Contains, target_id, 10_000)?
+            .into_iter()
+            .map(|(id, _)| id)
+            .collect();
+
+        if !contained_symbols.is_empty() {
+            for edge in graph.list_edges(project_id, None)? {
+                if contained_symbols.contains(&edge.source_id) {
+                    *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
+                }
+                if contained_symbols.contains(&edge.target_id) {
+                    *in_counts.entry(edge.edge_kind.clone()).or_default() += 1;
+                    in_sources_by_kind
+                        .entry(edge.edge_kind.clone())
+                        .or_default()
+                        .insert(edge.source_id.clone());
+                }
+            }
+        }
+    }
+
     // 4. Compute sub-scores
     // Handles/event complexity: incoming Dependency + Contains edges → event wiring complexity
     let handles_count = in_counts.get(&EdgeKind::Dependency).copied().unwrap_or(0)
@@ -1401,6 +1437,156 @@ EndProject
             "hub with 150 incoming must out-score isolated leaf; hub={} leaf={}",
             hub_report.migration_risk,
             leaf_report.migration_risk
+        );
+    }
+
+    // ── File-level transitive aggregation ───────────────────────────────────
+    //
+    // Regression guard. File nodes themselves hold only a few direct edges
+    // (Contains to their symbols). The real blast radius of touching a file
+    // comes from the functions/classes INSIDE the file. Before this was
+    // added, `compute_blast_radius("file:foo.vb")` returned 0 incoming and
+    // 1 outgoing (the Contains edge) even when 732 other files' symbols
+    // depended on foo.vb's contents. The function must now follow Contains
+    // edges from the file to its symbols and aggregate every edge touching
+    // any contained symbol.
+
+    fn make_sym_node(node_id: &str) -> engram_graph::Node {
+        engram_graph::Node {
+            node_id: node_id.to_string(),
+            node_type: "function".to_string(),
+            name: node_id.to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new("test.vb"),
+            start_line: 0,
+            end_line: 0,
+            generation: 1,
+            metadata: None,
+        }
+    }
+
+    fn make_typed_edge(source: &str, target: &str, kind: EdgeKind) -> engram_graph::Edge {
+        engram_graph::Edge {
+            source_id: source.to_string(),
+            target_id: target.to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            edge_kind: kind,
+            weight: 1,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 0,
+        }
+    }
+
+    /// File target must aggregate edges from/to its contained symbols.
+    /// Without transitive aggregation this test returns 0 incoming.
+    #[test]
+    fn compute_blast_radius_file_target_aggregates_contained_symbol_edges() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let file_id = "file:test.vb";
+
+        // The file and 5 functions it contains.
+        let mut nodes = vec![make_file_node(file_id)];
+        let contained: Vec<String> = (0..5)
+            .map(|i| format!("sym:function:test.vb:Inner{i}:{}", i * 10))
+            .collect();
+        for sid in &contained {
+            nodes.push(make_sym_node(sid));
+        }
+
+        // 10 functions in other files, each calling a contained symbol.
+        let callers: Vec<String> = (0..10)
+            .map(|i| format!("sym:function:other{i}.vb:Caller:0"))
+            .collect();
+        for cid in &callers {
+            nodes.push(make_sym_node(cid));
+        }
+        store.upsert_nodes(project, &nodes).expect("upsert nodes");
+
+        // Edges: file Contains each inner symbol; each caller Calls one of
+        // the inner symbols (round-robin). Also add a direct file→file
+        // Dependency so the file has at least one direct outgoing kind
+        // distinct from Contains.
+        let mut edges = Vec::new();
+        for sid in &contained {
+            edges.push(make_typed_edge(file_id, sid, EdgeKind::Contains));
+        }
+        for (i, caller) in callers.iter().enumerate() {
+            let callee = &contained[i % contained.len()];
+            edges.push(make_typed_edge(caller, callee, EdgeKind::Dependency));
+        }
+        store.upsert_edges(project, &edges).expect("upsert edges");
+
+        let report = compute_blast_radius(&store, project, file_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        assert!(
+            report.total_incoming >= 10,
+            "file target must aggregate 10 incoming Dependency edges through its \
+             contained symbols; got total_incoming={} (breakdown: {:?})",
+            report.total_incoming,
+            report
+        );
+        // 5 Contains edges from file → symbols (direct outgoing).
+        assert!(
+            report.total_outgoing >= 5,
+            "file target must count its 5 direct Contains outgoing; got {}",
+            report.total_outgoing
+        );
+        // Dependency density should now be non-trivial for a file hub.
+        assert!(
+            report.complexity_breakdown.dependency_density_score > 0.0,
+            "aggregated incoming → dependency density > 0; got {}",
+            report.complexity_breakdown.dependency_density_score
+        );
+    }
+
+    /// Symbol-level queries must be unaffected by the transitive pass —
+    /// the `file:` prefix guard is what distinguishes the two paths.
+    #[test]
+    fn compute_blast_radius_symbol_target_does_not_aggregate() {
+        let (_tmp, store) = tmp_graph();
+        let project = "proj";
+        let sym_id = "sym:function:test.vb:Target:10";
+
+        // Seed: symbol with 3 direct incoming Dependency edges, plus a file
+        // containing the target — to prove the file Contains edge does not
+        // accidentally pull extra edges into a symbol-level query.
+        store
+            .upsert_nodes(
+                project,
+                &[
+                    make_sym_node(sym_id),
+                    make_file_node("file:test.vb"),
+                    make_sym_node("sym:function:other.vb:A:0"),
+                    make_sym_node("sym:function:other.vb:B:0"),
+                    make_sym_node("sym:function:other.vb:C:0"),
+                ],
+            )
+            .expect("upsert nodes");
+        store
+            .upsert_edges(
+                project,
+                &[
+                    make_typed_edge("file:test.vb", sym_id, EdgeKind::Contains),
+                    make_typed_edge("sym:function:other.vb:A:0", sym_id, EdgeKind::Dependency),
+                    make_typed_edge("sym:function:other.vb:B:0", sym_id, EdgeKind::Dependency),
+                    make_typed_edge("sym:function:other.vb:C:0", sym_id, EdgeKind::Dependency),
+                ],
+            )
+            .expect("upsert edges");
+
+        let report = compute_blast_radius(&store, project, sym_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        // 3 Dependency edges + 1 Contains edge = 4. The transitive pass
+        // must NOT fire for a `sym:` target.
+        assert_eq!(
+            report.total_incoming, 4,
+            "symbol target must count only direct edges (3 Dependency + 1 Contains)"
         );
     }
 }
