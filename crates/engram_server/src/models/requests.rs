@@ -2367,6 +2367,73 @@ pub struct ProduceClaudeMdRequest {
     pub max_root_lines: usize,
 }
 
+// ─── Code-review history ingestion ──────────────────────────────────────────
+
+fn default_code_review_source() -> String {
+    "json_file".into()
+}
+fn default_min_fix_rate() -> f32 {
+    0.5
+}
+fn default_token_overlap() -> f32 {
+    0.4
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IngestCodeReviewHistoryRequest {
+    pub project_id: String,
+    /// Source type: `"json_file"` (default) for a pre-scraped JSONL
+    /// file, or `"azure_devops"` for live fetch via PAT.
+    #[serde(default = "default_code_review_source")]
+    pub source: String,
+    /// For `json_file`: absolute or project-relative path to the JSONL
+    /// file produced by the reference scraper. Ignored for other
+    /// sources.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// For `azure_devops`: Personal Access Token. Never logged, never
+    /// persisted to the registry — used only to drive the live fetch
+    /// for this request.
+    #[serde(default)]
+    pub pat_token: Option<String>,
+    /// Azure DevOps organisation name (live fetch only).
+    #[serde(default)]
+    pub org: Option<String>,
+    /// Azure DevOps project name (live fetch only).
+    #[serde(default)]
+    pub project: Option<String>,
+    /// Azure DevOps repo name (live fetch only).
+    #[serde(default)]
+    pub repo: Option<String>,
+    /// Optional cap on the number of PRs fetched (newest-first).
+    #[serde(default)]
+    pub max_prs: Option<usize>,
+    /// Minimum fix rate (fixed / (fixed + wontFix)) for a cluster to
+    /// be indexed as a positive anti-pattern. WontFix clusters are
+    /// always indexed into the suppression namespace regardless of
+    /// this value. Default 0.5.
+    #[serde(default = "default_min_fix_rate")]
+    pub min_fix_rate: f32,
+    /// Token overlap threshold for Jaccard clustering. Lower =
+    /// fewer, larger clusters. Default 0.4.
+    #[serde(default = "default_token_overlap")]
+    pub token_overlap_threshold: f32,
+    /// Force a full rescan — ignore the registry's last_pr_id marker.
+    /// Use when you've rerun the scraper with a different filter and
+    /// want to rebuild the index from scratch.
+    #[serde(default)]
+    pub force_full_rescan: bool,
+    /// When true, classify ambiguous `closed` threads (resolved
+    /// manually, no `✅ Addressed in commits` marker) via the
+    /// configured `llm_backend`. Results are cached per-finding under
+    /// `cr_llm:<hash>` in the registry so the classifier spends
+    /// tokens at most once per unique finding across all runs.
+    /// Off by default — the deterministic path works fine without it.
+    #[serde(default)]
+    pub use_llm_for_ambiguous: bool,
+}
+
 // ─── Pre-commit review ───────────────────────────────────────────────────────
 
 fn default_diff_source() -> String {

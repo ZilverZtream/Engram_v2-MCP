@@ -436,6 +436,23 @@ impl Engram {
         self.handle_pre_commit_review(params.0).await
     }
 
+    #[tool(
+        description = "Ingest code-review history (CodeRabbit via Azure DevOps live fetch or \
+                       pre-scraped JSONL) into Engram's anti-pattern index. Parses each review \
+                       comment, clusters duplicates by token-overlap Jaccard similarity, and \
+                       writes three sinks: (1) positive rules to the antipattern namespace, \
+                       (2) wontFix rules to a file-scoped suppression namespace, (3) graph \
+                       review_pattern nodes with AntiPattern edges to every flagged file. \
+                       High-confidence rules auto-promote to repo rules. Incremental across \
+                       runs via a per-source last_pr_id marker."
+    )]
+    pub async fn ingest_code_review_history(
+        &self,
+        params: Parameters<IngestCodeReviewHistoryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_code_review_history(params.0).await
+    }
+
     #[tool(description = "Generate instrumentation pack.")]
     pub async fn get_instrumentation_pack(
         &self,
