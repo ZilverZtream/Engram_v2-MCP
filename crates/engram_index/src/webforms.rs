@@ -369,10 +369,22 @@ pub fn extract_webforms(
         return (symbols, edges);
     };
 
-    // Single combined regex for all 22 event attributes — compiled once.
+    // Single combined regex for every recognised event attribute —
+    // compiled once.
+    //
+    // The second group of alternatives (OnSelecting / OnInserting /
+    // OnUpdating / OnDeleting + their past-tense counterparts) covers
+    // data-source controls (LinqDataSource, ObjectDataSource,
+    // SqlDataSource, EntityDataSource). These are the events that
+    // declarative-binding pages use to hook codebehind handlers —
+    // without them in the regex, `<asp:LinqDataSource
+    // OnSelecting="linqSource_Selecting" />` emitted no `event_wiring`
+    // edge and `trace_ui_event` on a GridView with DataSourceID
+    // binding could not reach the handler even though every other
+    // piece of the chain existed.
     let Some(event_attr_re) = get_compiled_regex(
         &EVENT_ATTR_RE,
-        r#"(?i)\b(OnClick|OnCommand|OnTextChanged|OnSelectedIndexChanged|OnCheckedChanged|OnValueChanged|OnLoad|OnPreRender|OnInit|OnDataBound|OnRowCommand|OnRowEditing|OnRowUpdating|OnRowDeleting|OnRowCancelingEdit|OnPageIndexChanging|OnSorting|OnItemCommand|OnItemDataBound|OnServerClick|OnServerChange|OnServerValidate)\s*=\s*"([^"]+)""#,
+        r#"(?i)\b(OnClick|OnCommand|OnTextChanged|OnSelectedIndexChanged|OnCheckedChanged|OnValueChanged|OnLoad|OnPreRender|OnInit|OnDataBound|OnRowCommand|OnRowEditing|OnRowUpdating|OnRowDeleting|OnRowCancelingEdit|OnPageIndexChanging|OnSorting|OnItemCommand|OnItemDataBound|OnServerClick|OnServerChange|OnServerValidate|OnSelecting|OnInserting|OnUpdating|OnDeleting|OnSelected|OnInserted|OnUpdated|OnDeleted|OnFiltering|OnObjectCreating|OnObjectCreated|OnObjectDisposing)\s*=\s*"([^"]+)""#,
         "webforms_event_attr",
     ) else {
         return (symbols, edges);
@@ -2116,6 +2128,71 @@ mod tests {
 
         let changed = edges.iter().find(|e| e.source_name == "ddlStatus").unwrap();
         assert_eq!(changed.target_name, "ddlStatus_Changed");
+    }
+
+    /// Regression guard: a `<asp:LinqDataSource OnSelecting="…" />`
+    /// (and its ObjectDataSource / SqlDataSource kin) MUST emit an
+    /// `event_wiring` edge from the data-source control to the handler
+    /// function. Before this was added, the event-attribute regex
+    /// omitted the data-source events (`OnSelecting`, `OnInserting`,
+    /// `OnUpdating`, `OnDeleting`), so `trace_ui_event` on a GridView
+    /// with declarative binding could not cross from the data source
+    /// to the codebehind handler.
+    #[test]
+    fn test_datasource_events_emit_event_wiring_edges() {
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("permits.aspx");
+        let source = r#"
+<%@ Page Inherits="App.Permits" %>
+<asp:GridView ID="gvMain" runat="server" DataSourceID="linqSource" />
+<asp:LinqDataSource ID="linqSource" runat="server"
+    OnSelecting="linqSource_Selecting"
+    OnInserting="linqSource_Inserting"
+    OnUpdating="linqSource_Updating"
+    OnDeleting="linqSource_Deleting" />
+<asp:ObjectDataSource ID="odsOrders" runat="server"
+    OnSelected="odsOrders_Selected"
+    OnInserted="odsOrders_Inserted" />
+"#;
+        let (_, edges) = extract_webforms(root, &rel, source);
+
+        let find_event = |source_id: &str, event: &str, target: &str| {
+            edges.iter().any(|e| {
+                e.kind == "event_wiring"
+                    && e.source_name == source_id
+                    && e.target_name == target
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("event"))
+                        .map(|s| s.as_str())
+                        == Some(event)
+            })
+        };
+
+        // LinqDataSource — all four CRUD events.
+        assert!(find_event(
+            "linqSource",
+            "OnSelecting",
+            "linqSource_Selecting"
+        ));
+        assert!(find_event(
+            "linqSource",
+            "OnInserting",
+            "linqSource_Inserting"
+        ));
+        assert!(find_event(
+            "linqSource",
+            "OnUpdating",
+            "linqSource_Updating"
+        ));
+        assert!(find_event(
+            "linqSource",
+            "OnDeleting",
+            "linqSource_Deleting"
+        ));
+        // ObjectDataSource — past-tense variants.
+        assert!(find_event("odsOrders", "OnSelected", "odsOrders_Selected"));
+        assert!(find_event("odsOrders", "OnInserted", "odsOrders_Inserted"));
     }
 
     /// Regression guard: `DataSourceID` must emit a `data_binding` edge
