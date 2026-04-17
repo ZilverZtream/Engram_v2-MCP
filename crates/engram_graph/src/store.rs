@@ -1576,10 +1576,30 @@ impl GraphStore {
                 continue;
             }
 
-            // If we hit a SQL node, reconstruct and record the path.
+            // If we hit a SQL / database terminal node, reconstruct and
+            // record the path. Besides `sql:` (inline SQL text) and the
+            // legacy `inline_sql` / `stored_proc` node types, we also
+            // terminate at:
+            //   - `db_table` / `db_column` node types (emitted by the
+            //     WebForms + DDL extractors when a control binds to a
+            //     specific database table or column), and
+            //   - `table:…` / `column:…` node-id prefixes (the
+            //     canonical ID format for those same nodes — see
+            //     `engram_core::ids::NodeId::table` / `::column`).
+            //
+            // Pages with `DataSourceID` binding on a GridView often
+            // reach a `binding_field → ReadsColumn → column:…` chain
+            // that is a perfectly valid evidence terminus for blast
+            // radius and migration dossiers; without these endpoints
+            // the BFS ran past them and exhausted `max_hops` without
+            // recording a path.
             if node.node_id.starts_with("sql:")
+                || node.node_id.starts_with("table:")
+                || node.node_id.starts_with("column:")
                 || node.node_type == "inline_sql"
                 || node.node_type == "stored_proc"
+                || node.node_type == "db_table"
+                || node.node_type == "db_column"
             {
                 id_paths.push(bfs_reconstruct_path(&entries, entry_idx));
                 if id_paths.len() >= max_paths {
@@ -1633,6 +1653,12 @@ impl GraphStore {
                 EdgeKind::StoredProcReadsTable,
                 EdgeKind::StoredProcWritesTable,
                 EdgeKind::ReadsColumn,
+                // `HasColumn` lets the BFS cross from a column to its
+                // owning table, useful when a path terminates at a
+                // column but the consumer wants the surrounding table
+                // as context (e.g. migration dossiers listing every
+                // table a page reads).
+                EdgeKind::HasColumn,
             ];
             for k in kinds {
                 let out = self.neighbors(project_id, k, &curr_id, 100)?;
@@ -2517,5 +2543,129 @@ mod tests {
             ids.iter().any(|id| id == &"control:p.aspx:ds"),
             "path must cross the LinqDataSource hop"
         );
+    }
+
+    /// Regression guard for the OciusX shape where a GridView's
+    /// `DataSourceID` binding ends at a database column via
+    /// `binding_field → ReadsColumn → column:…`. The BFS used to
+    /// terminate only at `sql:` / `inline_sql` / `stored_proc` nodes
+    /// and walked right past `db_column` endpoints, exhausting the
+    /// hop budget and returning zero paths on real pages that
+    /// actually had a complete, correct evidence chain.
+    #[test]
+    fn find_ui_paths_terminates_at_db_column() {
+        let store = test_store();
+        let project = "p_col";
+
+        let nodes = [
+            test_node("control:p.aspx:gv", "control", "gv", "p.aspx"),
+            test_node(
+                "binding_field:p.aspx:colA",
+                "binding_field",
+                "colA",
+                "p.aspx",
+            ),
+            test_node("column:myTable:colA", "db_column", "colA", "myTable"),
+        ];
+        store.upsert_nodes(project, &nodes).expect("upsert nodes");
+
+        fn edge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
+            Edge {
+                source_id: src.into(),
+                target_id: tgt.into(),
+                namespace: "memory".into(),
+                language: "vb".into(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+        store
+            .upsert_edges(
+                project,
+                &[
+                    edge(
+                        "control:p.aspx:gv",
+                        "binding_field:p.aspx:colA",
+                        EdgeKind::DataBinding,
+                    ),
+                    edge(
+                        "binding_field:p.aspx:colA",
+                        "column:myTable:colA",
+                        EdgeKind::ReadsColumn,
+                    ),
+                ],
+            )
+            .expect("upsert edges");
+
+        let paths = store
+            .find_ui_paths(project, "control:p.aspx:gv", 6, 5)
+            .expect("find_ui_paths");
+        assert!(
+            !paths.is_empty(),
+            "BFS must terminate at a db_column endpoint — this is the OciusX shape"
+        );
+        let first = &paths[0];
+        assert!(
+            first.iter().any(|n| n.node_type == "db_column"),
+            "path must contain the db_column terminal node"
+        );
+        assert!(
+            first
+                .iter()
+                .any(|n| n.node_id.starts_with("column:")),
+            "path must contain a column:... node id"
+        );
+    }
+
+    /// Same shape for `db_table` terminals — e.g. a direct
+    /// `QueriesTable` edge from a handler to a table node.
+    #[test]
+    fn find_ui_paths_terminates_at_db_table() {
+        let store = test_store();
+        let project = "p_tbl";
+
+        let nodes = [
+            test_node(
+                "sym:function:p.aspx.vb:handler:10",
+                "function",
+                "handler",
+                "p.aspx.vb",
+            ),
+            test_node("table:orders", "db_table", "orders", "schema"),
+        ];
+        store.upsert_nodes(project, &nodes).expect("upsert nodes");
+
+        fn edge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
+            Edge {
+                source_id: src.into(),
+                target_id: tgt.into(),
+                namespace: "memory".into(),
+                language: "vb".into(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+        store
+            .upsert_edges(
+                project,
+                &[edge(
+                    "sym:function:p.aspx.vb:handler:10",
+                    "table:orders",
+                    EdgeKind::QueriesTable,
+                )],
+            )
+            .expect("upsert edges");
+
+        let paths = store
+            .find_ui_paths(project, "sym:function:p.aspx.vb:handler:10", 4, 5)
+            .expect("find_ui_paths");
+        assert!(!paths.is_empty());
+        assert!(paths[0].iter().any(|n| n.node_type == "db_table"));
     }
 }

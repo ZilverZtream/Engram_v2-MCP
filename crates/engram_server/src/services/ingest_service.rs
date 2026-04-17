@@ -517,7 +517,8 @@ pub async fn process_ingest_stats(
             }
         }
 
-        let edge_kind = match edge.kind.as_str() {
+        let raw_kind = edge.kind.as_str();
+        let edge_kind = match raw_kind {
             "contains" | "cb_defines" | "inherits" | "codebehind_file" | "codebehind_class" => {
                 engram_graph::EdgeKind::Contains
             }
@@ -551,6 +552,23 @@ pub async fn process_ingest_stats(
             "injects_script" => engram_graph::EdgeKind::InjectsScript,
             _ => engram_graph::EdgeKind::Dependency,
         };
+
+        // Diagnostic: log the raw-kind → graph-kind mapping for the
+        // `event_wiring` family so we can see exactly which source/target
+        // IDs land as Dependency edges. This was requested to diagnose
+        // why `trace_ui_event` from `control:…:linqSource` returned zero
+        // outgoing Dependency edges on OciusX despite the extractor
+        // emitting 1571 `event_wiring` edges — a log here makes the
+        // resolved node-id shape visible without requiring a custom
+        // graph dump.
+        if raw_kind == "event_wiring" {
+            tracing::debug!(
+                raw_kind = raw_kind,
+                source_id = %source_id,
+                target_id = %target_id,
+                "event_wiring → Dependency: ingest-side id mapping"
+            );
+        }
 
         edges.push(engram_graph::Edge {
             source_id,

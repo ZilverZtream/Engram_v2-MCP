@@ -2169,6 +2169,29 @@ mod tests {
             })
         };
 
+        // Source / target kinds must be set so the ingest layer
+        // resolves source_id to `control:<page>:<ctrl_id>` rather than
+        // falling through to the generic symbol branch. If the source
+        // kind isn't "control", `NodeId::control` isn't called and the
+        // edge lands with a non-matching source_id — exactly the
+        // shape that made `traverse_graph(control:…:linqSource,
+        // dependency)` return zero on OciusX.
+        let ls_first = edges
+            .iter()
+            .find(|e| e.kind == "event_wiring" && e.source_name == "linqSource")
+            .expect("linqSource event_wiring edge present");
+        assert_eq!(
+            ls_first.source_kind, "control",
+            "LinqDataSource event_wiring must carry source_kind=\"control\" so ingest routes \
+             through NodeId::control; got {}",
+            ls_first.source_kind
+        );
+        assert_eq!(
+            ls_first.target_kind.as_deref(),
+            Some("function"),
+            "handler target must carry target_kind=\"function\" so ingest resolves to a sym:…"
+        );
+
         // LinqDataSource — all four CRUD events.
         assert!(find_event(
             "linqSource",
