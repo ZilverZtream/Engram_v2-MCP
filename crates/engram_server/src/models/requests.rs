@@ -2332,6 +2332,41 @@ pub struct CheckEditSafetyRequest {
     pub output_json: bool,
 }
 
+// ── produce_claude_md ──────────────────────────────────────────────────────
+
+fn default_max_root_lines() -> usize {
+    60
+}
+
+/// Generate `CLAUDE.md` (+ optional `AGENTS.md`) and a `.claude/rules/`
+/// directory from the project's indexed graph. Language-agnostic —
+/// sections are driven entirely by what the graph contains.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProduceClaudeMdRequest {
+    pub project_id: String,
+    /// Merge engram-derived rules with any existing
+    /// `CLAUDE.md` / `AGENTS.md` at the project root. Human-authored
+    /// rules take priority on conflicts; engram attaches quantitative
+    /// evidence rather than duplicating. Default: true.
+    #[serde(default = "default_true")]
+    pub merge_existing: bool,
+    /// Also generate `AGENTS.md` for cross-tool interoperability
+    /// (Codex / Copilot / Cursor). Default: false.
+    #[serde(default)]
+    pub generate_agents_md: bool,
+    /// Write files to the project directory. Creates
+    /// `<project_dir>/CLAUDE.md` and `<project_dir>/.claude/rules/*`.
+    /// When false, all generated content is returned as the tool's
+    /// response text. Default: false.
+    #[serde(default)]
+    pub write_to_disk: bool,
+    /// Maximum lines for the root `CLAUDE.md`. Default: 60 (the
+    /// attention-budget sweet spot). Hard floor: 20. Hard cap: 300.
+    #[serde(default = "default_max_root_lines")]
+    pub max_root_lines: usize,
+}
+
 #[cfg(test)]
 mod unknown_field_tests {
     use super::*;

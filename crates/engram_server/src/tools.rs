@@ -330,6 +330,18 @@ impl Engram {
         self.handle_get_codebase_overview(params.0).await
     }
 
+    #[tool(
+        description = "Generate CLAUDE.md + .claude/rules/*.md (and optional AGENTS.md) from \
+                       the project's indexed graph. Language-agnostic: sections are driven by \
+                       what the graph actually contains. Fully deterministic, no LLM calls."
+    )]
+    pub async fn produce_claude_md(
+        &self,
+        params: Parameters<crate::models::ProduceClaudeMdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_produce_claude_md(params.0).await
+    }
+
     #[tool(description = "Find all references to a symbol.")]
     pub async fn find_symbol_references(
         &self,
