@@ -6738,6 +6738,7 @@ namespace WebForms {{
         max_files: 200,
         output_json: true,
         use_llm: false,
+        llm_max_pages: 0,
     };
     let res = engram
         .handle_analyze_full_project_migration(req)

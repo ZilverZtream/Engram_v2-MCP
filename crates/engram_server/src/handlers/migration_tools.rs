@@ -1329,6 +1329,41 @@ impl Engram {
             master_files,
         };
 
+        // If `use_llm` is set we need to keep file contents around AFTER
+        // `analyze_full_project` consumes the bundle, so the async LLM
+        // enhancement pass has markup + codebehind to feed into prompts.
+        // Building the HashMap here rather than inside the enhancement
+        // pass also means we don't re-read files from disk.
+        let llm_file_contents: Option<std::collections::HashMap<String, String>> =
+            if req.use_llm && req.llm_max_pages > 0 {
+                let mut map = std::collections::HashMap::with_capacity(
+                    bundle.markup_files.len() + bundle.code_files.len(),
+                );
+                for fc in &bundle.markup_files {
+                    map.insert(fc.file_path.clone(), fc.markup_content.clone());
+                    if let Some(ref cb) = fc.codebehind_content {
+                        // Store codebehind under the conventional sibling path
+                        // when the page is .aspx so the enhancement pass can
+                        // find it even if `codebehind_file` wasn't populated.
+                        let cb_key = if fc.file_path.ends_with(".aspx")
+                            || fc.file_path.ends_with(".ascx")
+                            || fc.file_path.ends_with(".master")
+                        {
+                            format!("{}.vb", fc.file_path)
+                        } else {
+                            fc.file_path.clone()
+                        };
+                        map.insert(cb_key, cb.clone());
+                    }
+                }
+                for (path, content) in &bundle.code_files {
+                    map.entry(path.clone()).or_insert_with(|| content.clone());
+                }
+                Some(map)
+            } else {
+                None
+            };
+
         // MIG1-D3C1: create a cancel token and register it in state.cancellation_tokens
         // so the caller can fire handle_cancel_job(migration_job_id) to cooperatively
         // abort the migration at any phase-boundary check.
@@ -1356,7 +1391,31 @@ impl Engram {
             let mut tokens = self.state.cancellation_tokens.write().await;
             tokens.remove(&migration_job_id);
         }
-        let report = report_result.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let mut report =
+            report_result.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // ── Async LLM enhancement pass (per-page dossiers) ─────────────
+        // Gated on `use_llm`. Selects top-N pages by complexity score,
+        // calls DreamingEngine for each, merges narrative fields back
+        // into the dossiers, and re-renders the markdown so the tag +
+        // narrative sections appear in the final output.
+        if let Some(file_contents) = llm_file_contents {
+            let llm_max_pages = req.llm_max_pages;
+            let dreaming = self.state.dreaming.clone();
+            let enhanced = full_mig::enhance_page_dossiers_with_llm(
+                &mut report,
+                &dreaming,
+                &file_contents,
+                llm_max_pages,
+                /* max_concurrent */ 4,
+            )
+            .await;
+            if enhanced > 0 {
+                // Re-render markdown so the `— LLM-enhanced` tag and the
+                // narrative blocks actually land in the output.
+                full_mig::rerender_markdown_after_llm(&mut report);
+            }
+        }
 
         // MIG1: explicitly surface partial-failure state.  Callers (and operators)
         // must be able to distinguish a complete report from a degraded one without

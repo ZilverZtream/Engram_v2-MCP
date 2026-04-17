@@ -1792,6 +1792,10 @@ fn default_max_files() -> usize {
     200
 }
 
+fn default_llm_max_pages() -> usize {
+    50
+}
+
 /// Analyze an entire project for migration in one call.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -1806,12 +1810,23 @@ pub struct AnalyzeFullProjectMigrationRequest {
     /// Return JSON output instead of markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
-    /// Use LLM to enhance business logic analysis (async post-processing). Default: false.
-    /// When true and an LLM backend is configured, the deterministic business logic
-    /// summaries are upgraded with LLM-powered step-by-step explanations and validated
-    /// against static analysis for confidence scoring.
+    /// Use the configured LLM backend to enhance per-page dossiers with a
+    /// narrative business purpose and migration-specific Blazor guidance.
+    /// Also enables the existing business-logic enhancement pass for
+    /// code-file method summaries. Default: false.
+    ///
+    /// With this flag set, the top `llm_max_pages` pages (by deterministic
+    /// complexity score, then by blast radius as tiebreaker) receive an
+    /// async LLM call each. Lower-complexity pages keep the deterministic
+    /// analysis only, which keeps token cost bounded.
     #[serde(default)]
     pub use_llm: bool,
+    /// Maximum number of page dossiers to enhance with the LLM. Ignored
+    /// unless `use_llm: true`. The top N pages by deterministic complexity
+    /// score receive one LLM call each; the rest stay deterministic-only.
+    /// Default: 50.
+    #[serde(default = "default_llm_max_pages")]
+    pub llm_max_pages: usize,
 }
 
 // ── Phase 36: Business Logic Comprehension ───────────────────────────────────

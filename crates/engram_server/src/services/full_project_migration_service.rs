@@ -1666,6 +1666,462 @@ pub fn analyze_full_project(
     })
 }
 
+// ── Per-page LLM Enhancement ─────────────────────────────────────────────────
+
+/// Numeric complexity ranking for a dossier — higher means "more worth
+/// spending an LLM call on". Extracted from `estimated_complexity` (whose
+/// prefix is `Low (score N)` / `Medium (score N)` / `High (score N)`) with
+/// blast-radius score as the tiebreaker. Pure function, deterministic.
+fn dossier_llm_priority(d: &MigrationDossier) -> (u32, u8) {
+    // `estimated_complexity` looks like `High (score 28): …`. Pull out the
+    // integer if we can, otherwise fall back to band prefix → weight so a
+    // Medium always outranks a Low.
+    let complexity_score: u32 = (|| {
+        let paren_open = d.estimated_complexity.find('(')?;
+        let paren_close = d.estimated_complexity[paren_open..].find(')')?;
+        let inside = &d.estimated_complexity[paren_open + 1..paren_open + paren_close];
+        inside
+            .split_whitespace()
+            .filter_map(|tok| tok.parse::<u32>().ok())
+            .next()
+    })()
+    .unwrap_or_else(|| {
+        if d.estimated_complexity.starts_with("Critical") {
+            30
+        } else if d.estimated_complexity.starts_with("High") {
+            20
+        } else if d.estimated_complexity.starts_with("Medium") {
+            10
+        } else {
+            0
+        }
+    });
+    (complexity_score, d.blast_radius_score)
+}
+
+/// Select the top-`max_pages` dossiers by LLM priority.
+///
+/// Ties are broken by `blast_radius_score`, then by `file_path` so the
+/// result is deterministic even when several pages share complexity and
+/// blast radius — important because the same report run twice must
+/// enhance the same pages (otherwise the set of LLM-enhanced dossiers
+/// would flutter between invocations).
+fn select_dossiers_for_llm<'a>(
+    dossiers: &'a [MigrationDossier],
+    max_pages: usize,
+) -> Vec<&'a MigrationDossier> {
+    if max_pages == 0 || dossiers.is_empty() {
+        return Vec::new();
+    }
+    let mut refs: Vec<&MigrationDossier> = dossiers.iter().collect();
+    refs.sort_by(|a, b| {
+        let pa = dossier_llm_priority(a);
+        let pb = dossier_llm_priority(b);
+        pb.0.cmp(&pa.0)
+            .then(pb.1.cmp(&pa.1))
+            .then(a.file_path.cmp(&b.file_path))
+    });
+    refs.truncate(max_pages);
+    refs
+}
+
+/// Parse the LLM response for a per-page dossier.
+///
+/// The prompt asks the model to emit two labelled blocks:
+///
+///   BUSINESS_PURPOSE: <2–3 sentences>
+///   MIGRATION_NOTES:  <risks + Blazor component recommendations>
+///
+/// We accept either label on its own line and tolerate minor casing /
+/// punctuation drift. Empty / missing blocks become `None` so the
+/// deterministic dossier is shown instead of an empty "LLM-enhanced"
+/// heading.
+fn parse_page_llm_response(raw: &str) -> (Option<String>, Option<String>) {
+    fn extract_block(text: &str, label: &str) -> Option<String> {
+        let lower = text.to_ascii_lowercase();
+        let needle = label.to_ascii_lowercase();
+        let start = lower.find(&needle)?;
+        let after_label = &text[start + needle.len()..];
+        // Drop the `:` / whitespace that usually follows the label.
+        let after_label = after_label.trim_start_matches(|c: char| matches!(c, ':' | ' ' | '\t'));
+        // Stop at the next label-like line so the two blocks don't bleed.
+        let stop = after_label
+            .find("\nBUSINESS_PURPOSE")
+            .or_else(|| after_label.find("\nMIGRATION_NOTES"))
+            .or_else(|| after_label.find("\nBusiness Purpose"))
+            .or_else(|| after_label.find("\nMigration Notes"));
+        let body = match stop {
+            Some(i) => &after_label[..i],
+            None => after_label,
+        };
+        let body = body.trim();
+        if body.is_empty() {
+            None
+        } else {
+            Some(body.to_string())
+        }
+    }
+    let business =
+        extract_block(raw, "BUSINESS_PURPOSE").or_else(|| extract_block(raw, "Business Purpose"));
+    let notes =
+        extract_block(raw, "MIGRATION_NOTES").or_else(|| extract_block(raw, "Migration Notes"));
+    (business, notes)
+}
+
+/// Compose a focused prompt for the per-page LLM call.
+///
+/// We DO NOT dump the whole markup + codebehind — that's expensive and
+/// noisy. Instead we feed the model the deterministic context the
+/// analyzer already computed (inherits class, lifecycle events, tables,
+/// SQL, ViewState, risk factors), truncated samples of the actual
+/// markup/codebehind, and a tightly-specified output format so the model
+/// produces useful, structured text rather than generic boilerplate.
+fn build_page_llm_prompt(
+    d: &MigrationDossier,
+    markup: &str,
+    codebehind: Option<&str>,
+    target_stack: &str,
+) -> String {
+    const MARKUP_LIMIT: usize = 4_000;
+    const CODEBEHIND_LIMIT: usize = 6_000;
+
+    fn truncate(s: &str, n: usize) -> String {
+        if s.len() <= n {
+            s.to_string()
+        } else {
+            let mut end = n;
+            while !s.is_char_boundary(end) && end > 0 {
+                end -= 1;
+            }
+            format!("{}\n...<truncated {} bytes>...\n", &s[..end], s.len() - end)
+        }
+    }
+
+    let tables = if d.tables_touched.is_empty() {
+        "(none detected)".to_string()
+    } else {
+        d.tables_touched.join(", ")
+    };
+    let user_controls = if d.user_controls.is_empty() {
+        "(none)".to_string()
+    } else {
+        d.user_controls
+            .iter()
+            .map(|uc| uc.control_path.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let lifecycle = {
+        let lc = &d.lifecycle_summary;
+        if lc.lifecycle_event_count == 0 && lc.control_event_count == 0 {
+            "(no explicit lifecycle handlers)".to_string()
+        } else {
+            format!(
+                "{} lifecycle event(s), {} control event(s){}{}",
+                lc.lifecycle_event_count,
+                lc.control_event_count,
+                if lc.has_ispostback_logic {
+                    " (IsPostBack branching)"
+                } else {
+                    ""
+                },
+                if lc.events.is_empty() {
+                    String::new()
+                } else {
+                    format!(" — {}", lc.events.join(", "))
+                },
+            )
+        }
+    };
+    let viewstate = {
+        let vs = &d.viewstate_summary;
+        if vs.total_state_fields == 0 {
+            "(none)".to_string()
+        } else {
+            format!(
+                "{} explicit keys, {} implicit control state(s)",
+                vs.explicit_keys, vs.implicit_controls
+            )
+        }
+    };
+    let ajax = {
+        let aj = &d.ajax_summary;
+        if aj.update_panel_count == 0 && !aj.has_script_manager {
+            "(no AJAX partial-render)".to_string()
+        } else {
+            format!(
+                "{} UpdatePanel(s), {} timer(s), ScriptManager: {}",
+                aj.update_panel_count, aj.timer_count, aj.has_script_manager
+            )
+        }
+    };
+    let auth = {
+        let au = &d.auth_summary;
+        if !au.has_auth_rules && au.auth_check_count == 0 && au.session_auth_count == 0 {
+            "(no auth gating detected)".to_string()
+        } else {
+            let mut parts = Vec::new();
+            if !au.required_roles.is_empty() {
+                parts.push(format!("roles [{}]", au.required_roles.join(", ")));
+            }
+            if au.auth_check_count > 0 {
+                parts.push(format!("{} code-level check(s)", au.auth_check_count));
+            }
+            if au.session_auth_count > 0 {
+                parts.push(format!(
+                    "{} session-based auth pattern(s)",
+                    au.session_auth_count
+                ));
+            }
+            parts.join("; ")
+        }
+    };
+    let risks = if d.risk_factors.is_empty() {
+        "(none)".to_string()
+    } else {
+        d.risk_factors.join("; ")
+    };
+    let cb_block = match codebehind {
+        Some(cb) => format!(
+            "\n## CODEBEHIND ({bytes} bytes, truncated to {cap}):\n```\n{snippet}\n```\n",
+            bytes = cb.len(),
+            cap = CODEBEHIND_LIMIT,
+            snippet = truncate(cb, CODEBEHIND_LIMIT),
+        ),
+        None => "\n## CODEBEHIND: (none detected)\n".to_string(),
+    };
+
+    format!(
+        "You are analyzing a legacy ASP.NET WebForms page for migration to {stack}.\n\
+         Produce a tight, concrete analysis — no fluff, no restating the static facts.\n\
+         \n\
+         # Page: {file_path}\n\
+         \n\
+         ## Deterministic analysis (do NOT repeat these verbatim; use them as context):\n\
+         - Inherits class: {inherits}\n\
+         - Master page: {master}\n\
+         - User controls: {user_controls}\n\
+         - Tables touched: {tables}\n\
+         - Lifecycle: {lifecycle}\n\
+         - ViewState: {viewstate}\n\
+         - AJAX: {ajax}\n\
+         - Auth: {auth}\n\
+         - Risk factors (deterministic): {risks}\n\
+         - Blast-radius score: {br}/10\n\
+         \n\
+         ## MARKUP ({markup_bytes} bytes, truncated to {markup_cap}):\n\
+         ```\n{markup_snippet}\n```\n\
+         {cb_block}\n\
+         \n\
+         # Required output — two labelled blocks, exactly these labels, nothing else before them:\n\
+         \n\
+         BUSINESS_PURPOSE: 2 to 3 sentences in plain prose describing what this page \
+         does from a user/workflow perspective — what user action triggers it, what data \
+         it reads or mutates, what decision or side effect it produces. Do NOT restate \
+         the deterministic facts above. Use present tense.\n\
+         \n\
+         MIGRATION_NOTES: 3 to 6 bullet points covering (a) migration risks specific to \
+         THIS page that the deterministic analysis above does NOT already capture, and \
+         (b) concrete {stack} component structure recommendations — name the components \
+         you would create, describe their responsibility boundaries, and note any \
+         shared state or service extraction. Skip bullets that would just repeat the \
+         deterministic risks. Use '-' markers.\n\
+         \n\
+         Do not include any text outside these two blocks.\n",
+        stack = target_stack,
+        file_path = d.file_path,
+        inherits = d.inherits_class.as_deref().unwrap_or("(none detected)"),
+        master = d.master_page.as_deref().unwrap_or("(none)"),
+        user_controls = user_controls,
+        tables = tables,
+        lifecycle = lifecycle,
+        viewstate = viewstate,
+        ajax = ajax,
+        auth = auth,
+        risks = risks,
+        br = d.blast_radius_score,
+        markup_bytes = markup.len(),
+        markup_cap = MARKUP_LIMIT,
+        markup_snippet = truncate(markup, MARKUP_LIMIT),
+        cb_block = cb_block,
+    )
+}
+
+/// Result of a single per-page LLM call.
+#[derive(Debug, Clone, Default)]
+pub struct PageLlmEnhancement {
+    pub file_path: String,
+    pub business_purpose: Option<String>,
+    pub migration_notes: Option<String>,
+}
+
+/// For each selected dossier (top-`max_pages` by complexity), call the
+/// LLM with a structured prompt and merge the parsed response back into
+/// the corresponding `MigrationDossier`.
+///
+/// Bounded concurrency via `max_concurrent` so we don't flood the
+/// OpenRouter pipe. Empty / failed responses are logged and silently
+/// skipped — the deterministic dossier is then shown as-is.
+pub async fn enhance_page_dossiers_with_llm(
+    report: &mut FullProjectMigrationReport,
+    dreaming: &engram_ml::DreamingEngine,
+    file_contents: &std::collections::HashMap<String, String>,
+    max_pages: usize,
+    max_concurrent: usize,
+) -> usize {
+    if max_pages == 0 || report.page_dossiers.is_empty() {
+        return 0;
+    }
+
+    // Snapshot the selected file paths so we don't need to hold a borrow
+    // on `report.page_dossiers` while we async-dispatch.
+    let selected: Vec<String> = select_dossiers_for_llm(&report.page_dossiers, max_pages)
+        .into_iter()
+        .map(|d| d.file_path.clone())
+        .collect();
+
+    if selected.is_empty() {
+        return 0;
+    }
+
+    tracing::info!(
+        project_id = %report.project_id,
+        selected_pages = selected.len(),
+        max_pages = max_pages,
+        "enhance_page_dossiers_with_llm: selected top-N pages by complexity"
+    );
+
+    let dreaming = Arc::new(dreaming.clone());
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(max_concurrent.max(1)));
+    let target_stack = report.target_stack.clone();
+
+    let mut handles = Vec::with_capacity(selected.len());
+
+    for file_path in selected {
+        // Resolve the dossier + contents for this page.
+        let Some(dossier) = report
+            .page_dossiers
+            .iter()
+            .find(|d| d.file_path == file_path)
+        else {
+            continue;
+        };
+        let dossier_clone = dossier.clone();
+        let markup = file_contents.get(&file_path).cloned().unwrap_or_default();
+        let cb = dossier
+            .codebehind_file
+            .as_deref()
+            .and_then(|cb| file_contents.get(cb).cloned())
+            .or_else(|| {
+                // Fallback to the conventional sibling for .aspx pages.
+                if file_path.ends_with(".aspx") {
+                    file_contents
+                        .get(&format!("{file_path}.vb"))
+                        .or_else(|| file_contents.get(&format!("{file_path}.cs")))
+                        .cloned()
+                } else {
+                    None
+                }
+            });
+
+        if markup.is_empty() && cb.as_deref().map(str::is_empty).unwrap_or(true) {
+            tracing::debug!(
+                file = %file_path,
+                "enhance_page_dossiers_with_llm: skipped — no content available"
+            );
+            continue;
+        }
+
+        let sem = semaphore.clone();
+        let dream = dreaming.clone();
+        let ts = target_stack.clone();
+
+        handles.push(tokio::spawn(async move {
+            let _permit = match sem.acquire_owned().await {
+                Ok(p) => p,
+                Err(_) => {
+                    // Semaphore closed during shutdown.
+                    return PageLlmEnhancement {
+                        file_path: dossier_clone.file_path.clone(),
+                        ..Default::default()
+                    };
+                }
+            };
+            let prompt = build_page_llm_prompt(&dossier_clone, &markup, cb.as_deref(), &ts);
+            let raw = match dream
+                .generate_text(&prompt, 1024, std::time::Duration::from_secs(120))
+                .await
+            {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::warn!(
+                        file = %dossier_clone.file_path,
+                        error = %e,
+                        "enhance_page_dossiers_with_llm: LLM call failed"
+                    );
+                    String::new()
+                }
+            };
+            let (business, notes) = if raw.is_empty() {
+                (None, None)
+            } else {
+                parse_page_llm_response(&raw)
+            };
+            if business.is_some() || notes.is_some() {
+                tracing::info!(
+                    file = %dossier_clone.file_path,
+                    business_purpose_len = business.as_deref().map_or(0, str::len),
+                    migration_notes_len = notes.as_deref().map_or(0, str::len),
+                    "dossier LLM enhancement complete"
+                );
+            } else if !raw.is_empty() {
+                tracing::warn!(
+                    file = %dossier_clone.file_path,
+                    raw_len = raw.len(),
+                    "enhance_page_dossiers_with_llm: LLM returned content but no \
+                     BUSINESS_PURPOSE / MIGRATION_NOTES blocks could be parsed"
+                );
+            }
+            PageLlmEnhancement {
+                file_path: dossier_clone.file_path,
+                business_purpose: business,
+                migration_notes: notes,
+            }
+        }));
+    }
+
+    let mut enhanced = 0usize;
+    for handle in handles {
+        match handle.await {
+            Ok(res) => {
+                if res.business_purpose.is_none() && res.migration_notes.is_none() {
+                    continue;
+                }
+                if let Some(d) = report
+                    .page_dossiers
+                    .iter_mut()
+                    .find(|d| d.file_path == res.file_path)
+                {
+                    d.llm_business_purpose = res.business_purpose;
+                    d.llm_migration_notes = res.migration_notes;
+                    enhanced += 1;
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "enhance_page_dossiers_with_llm: task panicked");
+            }
+        }
+    }
+
+    tracing::info!(
+        project_id = %report.project_id,
+        enhanced = enhanced,
+        "enhance_page_dossiers_with_llm: merged LLM enhancements into dossiers"
+    );
+
+    enhanced
+}
+
 // ── Ticket 37.1: Async LLM Enhancement Pass ──────────────────────────────────
 
 /// Upgrade deterministic business logic summaries with LLM-powered analysis.
@@ -1805,7 +2261,16 @@ pub async fn enhance_report_with_llm(
     report.business_logic.methods_analyzed = total_analyzed;
     report.business_logic.llm_failures = total_failures;
 
-    // Re-render the markdown with upgraded data
+    rerender_markdown_after_llm(report);
+}
+
+/// Re-render `report.markdown_report` from the current struct state.
+///
+/// Callers invoke this after any async post-processing that mutates
+/// `report.page_dossiers` or `report.business_logic` so the markdown
+/// output reflects the upgraded data — notably the per-page LLM
+/// enhancement pass and the business-logic method enhancement pass.
+pub fn rerender_markdown_after_llm(report: &mut FullProjectMigrationReport) {
     let wave_lookup: BTreeMap<String, u32> = {
         let mut wl = BTreeMap::new();
         for wave in &report.migration_order.waves {
@@ -7405,10 +7870,19 @@ fn render_markdown(
     for d in dossiers {
         let wave_num = wave_lookup.get(&d.file_path).copied().unwrap_or(0);
 
+        let llm_tag = if d.llm_business_purpose.is_some() || d.llm_migration_notes.is_some() {
+            " — LLM-enhanced"
+        } else {
+            ""
+        };
         md.push_str(&format!(
-            "### {} (Wave {}, {}, Risk {}/10)\n\n",
-            d.file_path, wave_num, d.estimated_complexity, d.blast_radius_score
+            "### {} (Wave {}, {}, Risk {}/10){}\n\n",
+            d.file_path, wave_num, d.estimated_complexity, d.blast_radius_score, llm_tag
         ));
+
+        if let Some(ref bp) = d.llm_business_purpose {
+            md.push_str(&format!("**Business purpose**: {bp}\n\n"));
+        }
 
         if let Some(ref cls) = d.inherits_class {
             md.push_str(&format!("**Class**: `{cls}`\n"));
@@ -7699,6 +8173,30 @@ fn render_markdown(
             md.push_str("**Migration steps**:\n");
             for (i, step) in d.migration_steps.iter().enumerate() {
                 md.push_str(&format!("  {}. {step}\n", i + 1));
+            }
+        }
+
+        // LLM-generated migration notes (risks + Blazor component guidance
+        // that the deterministic analysis doesn't already capture). Only
+        // present when `use_llm: true` and this page was within the
+        // `llm_max_pages` cap.
+        if let Some(ref notes) = d.llm_migration_notes {
+            md.push_str("\n**Migration notes (LLM)**:\n");
+            for line in notes.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                // Honour any bullet formatting the model already produced;
+                // otherwise wrap each line in a `-` bullet.
+                if trimmed.starts_with('-')
+                    || trimmed.starts_with('*')
+                    || trimmed.starts_with(|c: char| c.is_ascii_digit())
+                {
+                    md.push_str(&format!("{trimmed}\n"));
+                } else {
+                    md.push_str(&format!("- {trimmed}\n"));
+                }
             }
         }
 
@@ -10638,6 +11136,162 @@ mod tests {
         ));
     }
 
+    // ── Per-page LLM enhancement: selection + parsing ──────────────────────
+
+    fn dossier_with(file_path: &str, complexity: &str, blast_radius: u8) -> MigrationDossier {
+        make_test_dossier(file_path, vec![], blast_radius)
+            .tap_set(|d| d.estimated_complexity = complexity.to_string())
+    }
+
+    trait Tap {
+        fn tap_set<F: FnOnce(&mut Self)>(self, f: F) -> Self;
+    }
+    impl<T> Tap for T {
+        fn tap_set<F: FnOnce(&mut Self)>(mut self, f: F) -> Self {
+            f(&mut self);
+            self
+        }
+    }
+
+    #[test]
+    fn dossier_llm_priority_extracts_parenthetical_score() {
+        let d = dossier_with("p.aspx", "High (score 28): hairy", 7);
+        assert_eq!(dossier_llm_priority(&d), (28, 7));
+    }
+
+    #[test]
+    fn dossier_llm_priority_falls_back_to_band_weight_when_no_score() {
+        let d = dossier_with("p.aspx", "Medium: moderate effort", 4);
+        let (score, br) = dossier_llm_priority(&d);
+        assert_eq!(score, 10, "Medium band without numeric score → weight 10");
+        assert_eq!(br, 4);
+    }
+
+    #[test]
+    fn select_dossiers_for_llm_picks_highest_complexity_and_is_deterministic() {
+        let dossiers = vec![
+            dossier_with("a.aspx", "Low (score 5): trivial", 1),
+            dossier_with("b.aspx", "High (score 28): very hairy", 7),
+            dossier_with("c.aspx", "Medium (score 12): moderate", 4),
+            dossier_with("d.aspx", "High (score 28): also hairy", 6),
+            dossier_with("e.aspx", "Low (score 4)", 1),
+        ];
+        let picked = select_dossiers_for_llm(&dossiers, 3);
+        let paths: Vec<&str> = picked.iter().map(|d| d.file_path.as_str()).collect();
+        // Both 28-score pages come first, tie-broken by blast radius desc.
+        // d.aspx: 28 + br 6; b.aspx: 28 + br 7 → b first, d second.
+        // c.aspx (12) rounds out the top 3.
+        assert_eq!(paths, vec!["b.aspx", "d.aspx", "c.aspx"]);
+    }
+
+    #[test]
+    fn select_dossiers_for_llm_zero_cap_returns_empty() {
+        let dossiers = vec![dossier_with("a.aspx", "High (score 20)", 5)];
+        assert!(select_dossiers_for_llm(&dossiers, 0).is_empty());
+    }
+
+    #[test]
+    fn select_dossiers_for_llm_tie_broken_by_path_when_all_else_equal() {
+        // Same complexity, same blast radius → alphabetical file_path wins
+        // so the set of enhanced pages is reproducible run-to-run.
+        let dossiers = vec![
+            dossier_with("zeta.aspx", "High (score 20)", 5),
+            dossier_with("alpha.aspx", "High (score 20)", 5),
+            dossier_with("mu.aspx", "High (score 20)", 5),
+        ];
+        let picked = select_dossiers_for_llm(&dossiers, 2);
+        let paths: Vec<&str> = picked.iter().map(|d| d.file_path.as_str()).collect();
+        assert_eq!(paths, vec!["alpha.aspx", "mu.aspx"]);
+    }
+
+    #[test]
+    fn parse_page_llm_response_extracts_both_blocks() {
+        let raw = "BUSINESS_PURPOSE: Handles the user password-reset flow. \
+                   Loads the reset token from the URL and verifies it against the \
+                   Users table, then prompts for a new password.\n\
+                   \n\
+                   MIGRATION_NOTES:\n\
+                   - Replace the HttpContext session token handshake with a \
+                   scoped DI service.\n\
+                   - Introduce a PasswordResetForm.razor Blazor component \
+                   owning the token + password fields.";
+        let (bp, notes) = parse_page_llm_response(raw);
+        let bp = bp.expect("business purpose parsed");
+        assert!(bp.starts_with("Handles the user password-reset flow"));
+        let notes = notes.expect("migration notes parsed");
+        assert!(notes.contains("PasswordResetForm.razor"));
+        // Blocks must not bleed into each other.
+        assert!(!bp.contains("MIGRATION_NOTES"));
+        assert!(!notes.contains("BUSINESS_PURPOSE"));
+    }
+
+    #[test]
+    fn parse_page_llm_response_tolerates_human_case_labels() {
+        let raw = "Business Purpose: Seeds the dashboard chart widgets.\n\n\
+                   Migration Notes:\n- Move chart rendering to a BlazorCharts component.";
+        let (bp, notes) = parse_page_llm_response(raw);
+        assert!(bp.is_some());
+        assert!(notes.is_some());
+    }
+
+    #[test]
+    fn parse_page_llm_response_empty_when_labels_missing() {
+        let raw = "The model produced free-form prose without labels.";
+        let (bp, notes) = parse_page_llm_response(raw);
+        assert!(bp.is_none());
+        assert!(notes.is_none());
+    }
+
+    #[test]
+    fn build_page_llm_prompt_inlines_deterministic_facts() {
+        let mut d = make_test_dossier("Site/Widgets.aspx", vec!["Users", "Orders"], 6);
+        d.inherits_class = Some("App.Widgets.WidgetsPage".into());
+        d.risk_factors = vec!["Heavy ViewState".into()];
+        let prompt = build_page_llm_prompt(
+            &d,
+            "<html>…</html>",
+            Some("Public Class Foo\nEnd Class"),
+            "blazor",
+        );
+        // Target stack appears in the header AND in the output-format section.
+        assert_eq!(prompt.matches("blazor").count() >= 2, true);
+        assert!(prompt.contains("App.Widgets.WidgetsPage"));
+        assert!(prompt.contains("Users, Orders"));
+        assert!(prompt.contains("Heavy ViewState"));
+        assert!(prompt.contains("BUSINESS_PURPOSE:"));
+        assert!(prompt.contains("MIGRATION_NOTES:"));
+    }
+
+    #[test]
+    fn build_page_llm_prompt_truncates_large_codebehind() {
+        let d = make_test_dossier("Site/Big.aspx", vec![], 3);
+        let huge = "x".repeat(20_000);
+        let prompt = build_page_llm_prompt(&d, "<html></html>", Some(&huge), "blazor");
+        assert!(prompt.contains("<truncated"));
+        // But the marker region must still include the codebehind block header.
+        assert!(prompt.contains("## CODEBEHIND"));
+    }
+
+    #[test]
+    fn dossier_llm_priority_is_stable_for_typical_complexity_strings() {
+        // The strings produced by `estimate_complexity_for_dossier` all
+        // look like "Band (score N): …". Spot-check a handful.
+        let cases = [
+            ("Low (score 3): straightforward migration", 3u32),
+            ("Medium (score 12): moderate effort — address state", 12),
+            (
+                "High (score 26): significant effort — plan multiple sprints",
+                26,
+            ),
+            ("Critical (score 45): rip-and-replace territory", 45),
+        ];
+        for (s, expected) in cases {
+            let d = dossier_with("p.aspx", s, 5);
+            let (score, _) = dossier_llm_priority(&d);
+            assert_eq!(score, expected, "failed on complexity string {s:?}");
+        }
+    }
+
     #[test]
     fn vb_translation_flags_detect_module() {
         let vb_code = r#"
@@ -10832,6 +11486,8 @@ Dim conn As String = GetConnectionForTenant(tenantId)
             scaffold_preview: None,
             migration_steps: vec![],
             estimated_complexity: "Medium".to_string(),
+            llm_business_purpose: None,
+            llm_migration_notes: None,
         }
     }
 
