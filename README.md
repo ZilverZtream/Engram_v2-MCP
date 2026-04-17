@@ -139,7 +139,7 @@ Ten deterministic gates over a unified diff with severity-ranked output, stable 
 End-to-end migration tooling: control mapping catalog (WebForms → Blazor / React / Angular), scaffold generation with real business logic pulled from graph edges, database strategy advisor, state migration recommendations, characterization test generation, strangler-fig infrastructure (YARP + feature flags + Polly), runtime instrumentation code, topologically-ordered migration waves, and `analyze_full_project_migration` — a single call that reads the whole project and returns a comprehensive report with cross-cutting summary.
 
 ### Safety & autonomous decisions
-Autonomous Decision Protocol: 8-gate mandatory pipeline for automated edits (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern clearance, runtime evidence, evidence sufficiency). Three verdicts: `allow` / `deny` / `abstain`. Four-phase progressive rollout (`shadow` → `advisory` → `guarded` → `autonomous`) with emergency kill-switch. Immutable JSON audit reports.
+Autonomous Decision Protocol: 8-gate mandatory pipeline for automated edits (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern clearance, runtime evidence, evidence sufficiency). Three verdicts: `allow` / `deny` / `abstain`. Progressive rollout — `shadow` → `advisory` → `guarded` → `autonomous` — with an emergency kill-switch. Immutable JSON audit reports.
 
 ### Memory bank & repo rules
 Per-project persistent notes the agent can read and write across sessions. File-pattern-matched rules automatically injected into chunk retrieval (e.g., "files matching `*Repository.cs` must use `IUnitOfWork`").
@@ -420,7 +420,7 @@ engram_server/   MCP server (rmcp), tool handlers, background actors
 | Full-text index | Tantivy | Namespaced search (code, history, antipatterns) |
 | Vector index | LanceDB | Semantic embeddings, optional |
 | DocStore | Redb | File fingerprints, chunk-to-file mapping |
-| Checkpoints | Redb | Crash-safe job phase tracking |
+| Checkpoints | Redb | Crash-safe job stage tracking |
 | Migration progress | Redb | Per-file migration status |
 
 **Background actors**
