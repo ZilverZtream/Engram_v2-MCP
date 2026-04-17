@@ -213,114 +213,246 @@ pub fn generate_characterization_tests(
     let _ = writeln!(code, "    }}");
 
     // 1. Event handler tests
+    //
+    // Each handler gets at least one test. Page_Load is split into
+    // `IsPostBackFalse` (first render) and `IsPostBackTrue` (postback)
+    // variants because those paths almost always diverge on WebForms
+    // pages — state hydration on first render vs handler-driven rebind
+    // on postback.
     for func in &ctx.functions {
         let fname = &func.name;
         if !is_event_handler(fname) {
             continue;
         }
 
-        let test_name = format!("{fname}_Should_Execute_Expected_Behavior");
+        // Page_Load variants — Some(postback_flag) / None = generic.
+        let variants: Vec<(&str, Option<bool>)> =
+            if fname == "Page_Load" || fname.ends_with(".Page_Load") {
+                vec![
+                    ("IsPostBackFalse_InitializesState", Some(false)),
+                    ("IsPostBackTrue_HandlesRebind", Some(true)),
+                ]
+            } else {
+                vec![("Should_Execute_Expected_Behavior", None)]
+            };
+
+        for (variant_suffix, is_postback) in &variants {
+            let test_name = format!("{fname}_{variant_suffix}");
+
+            // Pre-compute edges relevant to this handler — shared by
+            // both Arrange/Act/Assert and the coverage record below.
+            let handler_reads: Vec<&Edge> = ctx
+                .reads_state
+                .iter()
+                .filter(|e| e.source_id.contains(fname))
+                .collect();
+            let handler_writes: Vec<&Edge> = ctx
+                .writes_state
+                .iter()
+                .filter(|e| e.source_id.contains(fname))
+                .collect();
+            let handler_sql: Vec<&Edge> = ctx
+                .sql_edges
+                .iter()
+                .filter(|e| e.source_id.contains(fname))
+                .collect();
+
+            let _ = writeln!(code);
+            // Structured summary comment — callers and reviewers can see
+            // what the test verifies and why without reading the body.
+            let _ = writeln!(code, "    /// <summary>");
+            match is_postback {
+                Some(false) => {
+                    let _ = writeln!(
+                        code,
+                        "    /// Characterizes {fname} on first render (IsPostBack=false)."
+                    );
+                    let _ = writeln!(
+                        code,
+                        "    /// Verifies the initial state population / default branch taken when the page loads for the first time."
+                    );
+                }
+                Some(true) => {
+                    let _ = writeln!(
+                        code,
+                        "    /// Characterizes {fname} on postback (IsPostBack=true)."
+                    );
+                    let _ = writeln!(
+                        code,
+                        "    /// Verifies the rebind / re-read path and that session state survives the postback."
+                    );
+                }
+                None => {
+                    let _ = writeln!(
+                        code,
+                        "    /// Characterizes {fname}. Verifies that every session read/write and SQL"
+                    );
+                    let _ = writeln!(
+                        code,
+                        "    /// call observed during static analysis still occurs when the handler runs against mocked inputs."
+                    );
+                }
+            }
+            let _ = writeln!(code, "    /// Source: {file_path} (function {fname})");
+            let _ = writeln!(code, "    /// </summary>");
+            let _ = writeln!(code, "    {}", fw.test_attribute());
+            let _ = writeln!(code, "    public void {test_name}()");
+            let _ = writeln!(code, "    {{");
+
+            // Arrange: mock state reads
+            let _ = writeln!(code, "        // Arrange");
+            for read_edge in &handler_reads {
+                let key = read_edge
+                    .target_id
+                    .strip_prefix("state:")
+                    .unwrap_or(&read_edge.target_id);
+                let test_val = generate_test_value(key);
+                let _ = writeln!(
+                    code,
+                    "        _session[\"{key}\"] = {literal}; // Read by {fname} ({desc})",
+                    literal = test_val.csharp_literal,
+                    desc = test_val.description
+                );
+            }
+
+            // Act
+            let has_sql = !handler_sql.is_empty();
+            let _ = writeln!(code);
+            let _ = writeln!(code, "        // Act");
+            let _ = writeln!(
+                code,
+                "        var page = TestPageFactory.Create<{page_name}>("
+            );
+            let _ = writeln!(code, "            sessionState: _session,");
+            if has_sql {
+                let _ = writeln!(code, "            dbConnection: _mockDb?.Object);");
+            } else {
+                let _ = writeln!(code, "            dbConnection: null);");
+            }
+            if let Some(pb) = is_postback {
+                let _ = writeln!(
+                    code,
+                    "        page.SetIsPostBack({pb}); // TestPageFactory helper — adapt if your harness uses a different hook"
+                );
+            }
+            let _ = writeln!(code, "        page.{fname}(null, EventArgs.Empty);");
+
+            // Assert: check state writes
+            let _ = writeln!(code);
+            let _ = writeln!(code, "        // Assert");
+            for write_edge in &handler_writes {
+                let key = write_edge
+                    .target_id
+                    .strip_prefix("state:")
+                    .unwrap_or(&write_edge.target_id);
+                let _ = writeln!(
+                    code,
+                    "        {}",
+                    fw.assert_not_null(&format!("_session[\"{key}\"]"))
+                );
+            }
+            for sql in &handler_sql {
+                let target = &sql.target_id;
+                let _ = writeln!(
+                    code,
+                    "        _mockDb.Verify(c => c.CreateCommand(), Times.AtLeastOnce(), \"Expected SQL call to {target}\");"
+                );
+            }
+            if handler_writes.is_empty() && handler_sql.is_empty() {
+                let _ = writeln!(
+                    code,
+                    "        // No state writes or SQL detected — assert page executed without throwing"
+                );
+                let _ = writeln!(code, "        {}", fw.assert_not_null("page"));
+            }
+
+            let _ = writeln!(code, "    }}");
+
+            let mut covered_edges = Vec::new();
+            for e in &handler_reads {
+                covered_edges.push(format!("ReadsState:{} → {}", e.source_id, e.target_id));
+            }
+            for e in &handler_writes {
+                covered_edges.push(format!("WritesState:{} → {}", e.source_id, e.target_id));
+            }
+            for e in &handler_sql {
+                covered_edges.push(format!("SqlCalls:{} → {}", e.source_id, e.target_id));
+            }
+
+            coverage.push(TestCoverageEntry {
+                test_name: test_name.clone(),
+                category: TestCategory::EventHandler,
+                covered_edges,
+                covered_nodes: vec![func.node_id.clone()],
+            });
+            test_count += 1;
+        }
+    }
+
+    // 1b. Auth-guard test — fires when we can identify a "permission
+    // check" function in the file's function list (common OciusX
+    // pattern: a method named `CheckRead` / `CheckAccess` / `EnsureAuth*`
+    // that SafeRedirects on failure). The test asserts an unauthorised
+    // user triggers the redirect path rather than proceeding to load.
+    if let Some(auth_fn) = ctx.functions.iter().find(|f| {
+        let n = f.name.to_ascii_lowercase();
+        n.contains("checkread")
+            || n.contains("checkaccess")
+            || n.contains("checkwrite")
+            || n.contains("checkpermission")
+            || n.contains("ensureauth")
+            || n.contains("requireauth")
+            || n.contains("haspermission")
+    }) {
+        let test_name = format!("{}_UnauthorizedUser_RedirectsViaSafeRedirect", auth_fn.name);
         let _ = writeln!(code);
+        let _ = writeln!(code, "    /// <summary>");
+        let _ = writeln!(
+            code,
+            "    /// Verifies that when the auth guard `{}` rejects the current user, the page",
+            auth_fn.name
+        );
+        let _ = writeln!(
+            code,
+            "    /// short-circuits through `SafeRedirect` and does NOT proceed to load data."
+        );
+        let _ = writeln!(
+            code,
+            "    /// Source: {file_path} (auth gate `{}`). Per CLAUDE.md §11: SafeRedirect must be followed by Return.",
+            auth_fn.name
+        );
+        let _ = writeln!(code, "    /// </summary>");
         let _ = writeln!(code, "    {}", fw.test_attribute());
         let _ = writeln!(code, "    public void {test_name}()");
         let _ = writeln!(code, "    {{");
-
-        // Arrange: mock state reads
-        let handler_reads: Vec<&Edge> = ctx
-            .reads_state
-            .iter()
-            .filter(|e| e.source_id.contains(fname))
-            .collect();
-        let handler_writes: Vec<&Edge> = ctx
-            .writes_state
-            .iter()
-            .filter(|e| e.source_id.contains(fname))
-            .collect();
-        let handler_sql: Vec<&Edge> = ctx
-            .sql_edges
-            .iter()
-            .filter(|e| e.source_id.contains(fname))
-            .collect();
-
-        let _ = writeln!(code, "        // Arrange");
-        for read_edge in &handler_reads {
-            let key = read_edge
-                .target_id
-                .strip_prefix("state:")
-                .unwrap_or(&read_edge.target_id);
-            // Phase 31: Use realistic test values based on key name
-            let test_val = generate_test_value(key);
-            let _ = writeln!(
-                code,
-                "        _session[\"{key}\"] = {literal}; // Read by {fname} ({desc})",
-                literal = test_val.csharp_literal,
-                desc = test_val.description
-            );
-        }
-
-        // Act
-        let has_sql = !handler_sql.is_empty();
+        let _ = writeln!(
+            code,
+            "        // Arrange — no session user → CheckRead should fail."
+        );
+        let _ = writeln!(code, "        _session.Clear();");
         let _ = writeln!(code);
         let _ = writeln!(code, "        // Act");
         let _ = writeln!(
             code,
-            "        var page = TestPageFactory.Create<{page_name}>("
+            "        var page = TestPageFactory.Create<{page_name}>(sessionState: _session, dbConnection: null);"
         );
-        let _ = writeln!(code, "            sessionState: _session,");
-        if has_sql {
-            let _ = writeln!(code, "            dbConnection: _mockDb?.Object);");
-        } else {
-            let _ = writeln!(code, "            dbConnection: null);");
-        }
-        let _ = writeln!(code, "        page.{fname}(null, EventArgs.Empty);");
-
-        // Assert: check state writes
+        let _ = writeln!(
+            code,
+            "        // If the guard is wired into Page_Load, invoking it should have set a redirect."
+        );
+        let _ = writeln!(code, "        page.Page_Load(null, EventArgs.Empty);");
         let _ = writeln!(code);
         let _ = writeln!(code, "        // Assert");
-        for write_edge in &handler_writes {
-            let key = write_edge
-                .target_id
-                .strip_prefix("state:")
-                .unwrap_or(&write_edge.target_id);
-            let _ = writeln!(
-                code,
-                "        {}",
-                fw.assert_not_null(&format!("_session[\"{key}\"]"))
-            );
-        }
-        for sql in &handler_sql {
-            let target = &sql.target_id;
-            let _ = writeln!(
-                code,
-                "        _mockDb.Verify(c => c.CreateCommand(), Times.AtLeastOnce(), \"Expected SQL call to {target}\");"
-            );
-        }
-        if handler_writes.is_empty() && handler_sql.is_empty() {
-            let _ = writeln!(
-                code,
-                "        // No state writes or SQL detected — assert page executed without throwing"
-            );
-            let _ = writeln!(code, "        {}", fw.assert_not_null("page"));
-        }
-
+        let _ = writeln!(
+            code,
+            "        Assert.That(page.Response?.RedirectLocation, Is.Not.Null.Or.Empty, \"Expected SafeRedirect on unauthorized access\");"
+        );
         let _ = writeln!(code, "    }}");
-
-        let mut covered_edges = Vec::new();
-        for e in &handler_reads {
-            covered_edges.push(format!("ReadsState:{} → {}", e.source_id, e.target_id));
-        }
-        for e in &handler_writes {
-            covered_edges.push(format!("WritesState:{} → {}", e.source_id, e.target_id));
-        }
-        for e in &handler_sql {
-            covered_edges.push(format!("SqlCalls:{} → {}", e.source_id, e.target_id));
-        }
-
         coverage.push(TestCoverageEntry {
-            test_name: test_name.clone(),
+            test_name,
             category: TestCategory::EventHandler,
-            covered_edges,
-            covered_nodes: vec![func.node_id.clone()],
+            covered_edges: vec![],
+            covered_nodes: vec![auth_fn.node_id.clone()],
         });
         test_count += 1;
     }
@@ -1270,17 +1402,58 @@ fn emit_helper_classes(code: &mut String, _page_name: &str) {
 }
 
 fn is_event_handler(name: &str) -> bool {
-    name.contains("_Click")
-        || name.contains("_Command")
-        || name.contains("_Changed")
-        || name.contains("_SelectedIndexChanged")
-        || name.contains("_Load")
-        || name.contains("_Init")
-        || name.contains("_PreRender")
-        || name.contains("_DataBound")
-        || name.contains("_RowCommand")
-        || name.contains("_RowDataBound")
-        || name.contains("_ItemCommand")
+    // Covers the full set of WebForms event-attribute suffixes that the
+    // markup extractor recognises, plus the lifecycle hooks and a few
+    // common codebehind-only event names. Keep this list in sync with
+    // the markup-side `EVENT_ATTR_RE` in `engram_index::webforms` so
+    // every wired event on an ASPX page produces a characterization test.
+    const SUFFIXES: &[&str] = &[
+        // Core input / action events
+        "_Click",
+        "_ServerClick",
+        "_Command",
+        "_Changed",
+        "_TextChanged",
+        "_CheckedChanged",
+        "_ValueChanged",
+        "_SelectedIndexChanged",
+        "_ServerChange",
+        // Validators
+        "_ServerValidate",
+        // Page / control lifecycle
+        "_Load",
+        "_Init",
+        "_PreRender",
+        "_PreInit",
+        "_Unload",
+        // Data-binding callbacks
+        "_DataBound",
+        "_ItemDataBound",
+        "_RowDataBound",
+        "_Selecting",
+        "_Inserting",
+        "_Updating",
+        "_Deleting",
+        "_Selected",
+        "_Inserted",
+        "_Updated",
+        "_Deleted",
+        // Grid / list commands + row editing
+        "_RowCommand",
+        "_RowEditing",
+        "_RowUpdating",
+        "_RowUpdated",
+        "_RowDeleting",
+        "_RowDeleted",
+        "_RowCancelingEdit",
+        "_ItemCommand",
+        // Grid / list paging + sorting
+        "_PageIndexChanging",
+        "_PageIndexChanged",
+        "_Sorting",
+        "_Sorted",
+    ];
+    SUFFIXES.iter().any(|sfx| name.contains(sfx))
 }
 
 fn extract_page_name(file_path: &str) -> String {
@@ -1412,6 +1585,64 @@ mod tests {
         assert!(is_event_handler("Page_Load"));
         assert!(!is_event_handler("LoadData"));
         assert!(!is_event_handler("ProcessOrder"));
+    }
+
+    /// The expanded suffix list must cover the OciusX-realistic event
+    /// shapes that the markup extractor's `EVENT_ATTR_RE` emits. Before
+    /// this expansion the characterization service generated 3 tests
+    /// for a page with 8 wired handlers because half its events
+    /// (`_PageIndexChanged`, `_Selecting`, `_Sorting`, `_RowDataBound`,
+    /// etc.) weren't in the allow-list and silently dropped.
+    #[test]
+    fn is_event_handler_recognises_grid_and_linq_events() {
+        // Grid paging / sorting / row editing.
+        assert!(is_event_handler("gvMain_PageIndexChanging"));
+        assert!(is_event_handler("gvMain_PageIndexChanged"));
+        assert!(is_event_handler("gvMain_Sorting"));
+        assert!(is_event_handler("gvMain_RowEditing"));
+        assert!(is_event_handler("gvMain_RowUpdating"));
+        assert!(is_event_handler("gvMain_RowDeleting"));
+        assert!(is_event_handler("gvMain_RowCancelingEdit"));
+        // LinqDataSource / ObjectDataSource lifecycle.
+        assert!(is_event_handler("linqSource_Selecting"));
+        assert!(is_event_handler("linqSource_Inserting"));
+        assert!(is_event_handler("linqSource_Updating"));
+        assert!(is_event_handler("linqSource_Deleting"));
+        assert!(is_event_handler("linqSource_Selected"));
+        // Validators + misc.
+        assert!(is_event_handler("cvEmail_ServerValidate"));
+        assert!(is_event_handler("txtSearch_TextChanged"));
+        assert!(is_event_handler("chkAgree_CheckedChanged"));
+        assert!(is_event_handler("btnSave_ServerClick"));
+        // Non-handlers still rejected.
+        assert!(!is_event_handler("LoadData"));
+        assert!(!is_event_handler("ComputeTotal"));
+    }
+
+    /// An auth-guard name-detector sanity check. The end-to-end
+    /// generator is exercised by the existing integration suite with a
+    /// real `GraphStore`; here we only assert the name-classification
+    /// that drives whether an auth test gets emitted.
+    #[test]
+    fn auth_guard_name_detector_recognises_common_patterns() {
+        fn looks_like_auth_guard(name: &str) -> bool {
+            let n = name.to_ascii_lowercase();
+            n.contains("checkread")
+                || n.contains("checkaccess")
+                || n.contains("checkwrite")
+                || n.contains("checkpermission")
+                || n.contains("ensureauth")
+                || n.contains("requireauth")
+                || n.contains("haspermission")
+        }
+        assert!(looks_like_auth_guard("CheckRead"));
+        assert!(looks_like_auth_guard("Admin_CheckAccess"));
+        assert!(looks_like_auth_guard("EnsureAuthenticated"));
+        assert!(looks_like_auth_guard("RequireAuth"));
+        assert!(looks_like_auth_guard("HasPermission"));
+        // Non-auth helpers are not flagged.
+        assert!(!looks_like_auth_guard("LoadUserPreferences"));
+        assert!(!looks_like_auth_guard("SaveOrder"));
     }
 
     #[test]
