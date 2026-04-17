@@ -891,41 +891,191 @@ fn interaction_penalty(gate_results: &[GateResult]) -> f64 {
 // ── Formatting ───────────────────────────────────────────────────────────────
 
 /// Format an ADP decision as human-readable text.
+/// Recommended follow-up action for a failed gate. Keyed by the gate_name
+/// produced by the pipeline; unknown gates fall back to a generic hint.
+///
+/// Intentionally kept here (not in a .md doc) so the recommendation lives
+/// next to the gate-producer code that knows what the gate means.
+fn recommendation_for_gate(gate_name: &str) -> &'static str {
+    match gate_name {
+        "blast_radius" | "blast_radius_threshold" => {
+            "Scope the change to a specific method rather than the whole file, \
+             or run `compute_blast_radius` / `impact_analysis` for the dependency list"
+        }
+        "evidence_sufficiency" | "runtime_evidence" => {
+            "Run `generate_characterization_tests` to establish baseline behavior \
+             before changing, or `generate_instrumentation_code` to gather runtime evidence"
+        }
+        "anti_pattern" | "anti_pattern_check" => {
+            "Run `immune_check` with the proposed snippet to see specific \
+             anti-pattern matches and their source commits"
+        }
+        "safety_policy" | "safety_policy_check" => {
+            "Review CLAUDE.md conventions for this project and confirm the \
+             change complies with the stated safety policy"
+        }
+        "extraction_confidence" => {
+            "Run `get_extraction_confidence` for a signal-by-signal breakdown \
+             of the confidence score and remediation guidance"
+        }
+        "trace_certainty" | "trace_confidence" => {
+            "Run `trace_ui_event` or `trace_data_flow` against the target \
+             symbol to get richer provenance before committing"
+        }
+        "retrieval_quality" => {
+            "Re-run `search_memory` with `use_mmr: true` or adjust path \
+             filters to surface higher-quality retrieval evidence"
+        }
+        "kill_switch" => {
+            "Deactivate the ADP kill-switch in configuration to resume \
+             autonomous decisioning"
+        }
+        _ => {
+            "Investigate this gate's evidence below, or run \
+             `get_gate_diagnostics` for a detailed breakdown"
+        }
+    }
+}
+
+/// Inspect the `reasons` of an `apply_rollout_policy`-modified decision
+/// and detect whether the current verdict is an override of a stricter
+/// underlying verdict. Returns `Some((phase_label, original_verdict))`
+/// when the override is present, `None` otherwise.
+fn detect_rollout_override(reasons: &[String]) -> Option<(&'static str, String)> {
+    for r in reasons {
+        if let Some(rest) = r.strip_prefix("[SHADOW] Original verdict was '") {
+            if let Some(end) = rest.find('\'') {
+                return Some(("shadow", rest[..end].to_string()));
+            }
+        }
+        if let Some(rest) = r.strip_prefix("[ADVISORY] Original verdict was '") {
+            if let Some(end) = rest.find('\'') {
+                return Some(("advisory", rest[..end].to_string()));
+            }
+        }
+    }
+    None
+}
+
 pub fn format_decision(decision: &AdpDecision) -> String {
     let mut out = String::with_capacity(2048);
+    let rollout = detect_rollout_override(&decision.reasons);
 
-    out.push_str(&format!(
-        "# Autonomous Decision Gate Result\n\n\
-         **Verdict:** {}\n\
-         **Confidence:** {:.2}\n\n",
-        decision.verdict, decision.confidence
-    ));
+    // ── Header — shadow-deny / advisory-deny lead with a loud warning
+    //             so callers cannot skim past the override qualifier.
+    match &rollout {
+        Some((phase, orig)) if orig == "deny" || orig == "abstain" => {
+            let (icon, phase_human) = match *phase {
+                "shadow" => ("⚠️ SHADOW DENY", "shadow"),
+                "advisory" => ("⚠️ ADVISORY DENY", "advisory"),
+                _ => ("⚠️ OVERRIDE", *phase),
+            };
+            let failed = decision.failed_gates.len();
+            let total = decision.gate_results.len();
+            let passed = total.saturating_sub(failed);
+            out.push_str(&format!(
+                "# {icon} — This change WOULD be blocked in production mode.\n\n\
+                 **Original verdict:** {orig}  \n\
+                 **Rollout phase:** {phase_human}  \n\
+                 **Confidence:** {:.2}  \n\
+                 **Failed gates:** {failed} of {total}  \n\
+                 **Passing gates:** {passed} of {total}\n\n",
+                decision.confidence,
+            ));
+        }
+        _ => {
+            out.push_str(&format!(
+                "# Autonomous Decision Gate Result\n\n\
+                 **Verdict:** {}\n\
+                 **Confidence:** {:.2}\n\n",
+                decision.verdict, decision.confidence
+            ));
+        }
+    }
 
-    if !decision.reasons.is_empty() {
+    // ── Failed gates (prominent when present) ───────────────────────────
+    if !decision.failed_gates.is_empty() {
+        // Build a quick gate-name → GateResult map so we can cite
+        // per-gate confidence + detail inline with the recommendation.
+        use std::collections::HashMap;
+        let by_name: HashMap<&str, &GateResult> = decision
+            .gate_results
+            .iter()
+            .map(|g| (g.gate_name.as_str(), g))
+            .collect();
+
+        out.push_str(&format!(
+            "## Failed gates ({})\n",
+            decision.failed_gates.len()
+        ));
+        for (i, g) in decision.failed_gates.iter().enumerate() {
+            let detail = by_name
+                .get(g.as_str())
+                .map(|gr| gr.detail.as_str())
+                .unwrap_or("(no detail)");
+            let conf = by_name.get(g.as_str()).map(|gr| gr.confidence).unwrap_or(0.0);
+            out.push_str(&format!(
+                "{}. **`{}`** (confidence {:.2}) — {}\n",
+                i + 1,
+                g,
+                conf,
+                detail
+            ));
+            out.push_str(&format!("   _Recommended:_ {}\n", recommendation_for_gate(g)));
+        }
+        out.push('\n');
+    }
+
+    // ── Passing gates (de-emphasised summary) ───────────────────────────
+    let passing: Vec<&str> = decision
+        .gate_results
+        .iter()
+        .filter(|g| !g.skipped && g.passed)
+        .map(|g| g.gate_name.as_str())
+        .collect();
+    if !passing.is_empty() {
+        out.push_str(&format!(
+            "## Passing gates ({} of {})\n",
+            passing.len(),
+            decision.gate_results.len()
+        ));
+        out.push_str(&format!(
+            "✓ {}\n\n",
+            passing
+                .iter()
+                .map(|n| format!("`{n}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    // ── Reasons (minus the structured `[SHADOW]` / `[ADVISORY]` markers,
+    //             which the header already surfaced) ────────────────────
+    let plain_reasons: Vec<&String> = decision
+        .reasons
+        .iter()
+        .filter(|r| !r.starts_with("[SHADOW]") && !r.starts_with("[ADVISORY]"))
+        .collect();
+    if !plain_reasons.is_empty() {
         out.push_str("## Reasons\n");
-        for r in &decision.reasons {
+        for r in plain_reasons {
             out.push_str(&format!("- {}\n", r));
         }
         out.push('\n');
     }
 
-    if !decision.failed_gates.is_empty() {
-        out.push_str("## Failed Gates\n");
-        for g in &decision.failed_gates {
-            out.push_str(&format!("- `{}`\n", g));
-        }
-        out.push('\n');
-    }
-
     if !decision.required_followups.is_empty() {
-        out.push_str("## Required Follow-ups\n");
+        out.push_str("## Required follow-ups\n");
         for f in &decision.required_followups {
             out.push_str(&format!("- {}\n", f));
         }
         out.push('\n');
     }
 
-    out.push_str("## Gate Details\n");
+    // ── Full gate detail block kept for audit — useful when the failed
+    //    gates' recommendations aren't enough and the caller wants the
+    //    full evidence picture. ───────────────────────────────────────
+    out.push_str("## Gate details\n");
     for g in &decision.gate_results {
         let status = if g.skipped {
             "SKIP"
@@ -937,6 +1087,16 @@ pub fn format_decision(decision: &AdpDecision) -> String {
         out.push_str(&format!(
             "- [{}] **{}** (confidence: {:.2}): {}\n",
             status, g.gate_name, g.confidence, g.detail
+        ));
+    }
+
+    // Footer: current rollout phase + current verdict (helpful when the
+    // reader pastes only the body into a ticket or Slack message).
+    if let Some((phase, orig)) = rollout {
+        out.push_str(&format!(
+            "\n_Current rollout phase: **{phase}** — original verdict '{orig}' \
+             was overridden to '{}'. Denials are logged for calibration._\n",
+            decision.verdict
         ));
     }
 
@@ -1624,9 +1784,113 @@ mod tests {
         let input = make_default_input();
         let decision = evaluate_gates(&input);
         let text = format_decision(&decision);
+        // Non-shadow / non-advisory output keeps the original header.
         assert!(text.contains("Autonomous Decision Gate Result"));
         assert!(text.contains("Verdict:"));
-        assert!(text.contains("Gate Details"));
+        // Header for the gate-by-gate audit block (case insensitive).
+        assert!(
+            text.to_lowercase().contains("gate details"),
+            "output must include a 'Gate details' section"
+        );
+    }
+
+    /// Shadow override must lead with a prominent SHADOW DENY warning
+    /// rather than "Verdict: allow". This is the T5 regression — the
+    /// old format buried the qualifier and a skimming reader could
+    /// miss the override.
+    #[test]
+    fn format_shadow_deny_leads_with_warning() {
+        let mut input = make_default_input();
+        // Force a deny verdict (high blast radius threshold breach).
+        input.blast_radius_risk = Some(9);
+        input.risk_profile = RiskProfile::High;
+        let inner = evaluate_gates(&input);
+        let overridden = apply_rollout_policy(&inner, RolloutPhase::Shadow, false);
+        assert_eq!(
+            overridden.verdict,
+            AdpVerdict::Allow,
+            "shadow phase must override to Allow"
+        );
+        let text = format_decision(&overridden);
+        // The header leads with the warning — no "Verdict: allow" opener.
+        let first_80: String = text.chars().take(80).collect();
+        assert!(
+            first_80.contains("SHADOW DENY"),
+            "output must lead with SHADOW DENY, got first 80 chars: {first_80:?}"
+        );
+        assert!(
+            !first_80.contains("**Verdict:** allow"),
+            "shadow header must not lead with 'Verdict: allow'"
+        );
+        // The body must surface the passing / failed gate counts.
+        assert!(text.contains("Failed gates"));
+        // Footer records the rollout phase.
+        assert!(text.to_lowercase().contains("rollout phase"));
+    }
+
+    /// Advisory override works the same shape as shadow — different label
+    /// but same prominence.
+    #[test]
+    fn format_advisory_deny_leads_with_warning() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.risk_profile = RiskProfile::High;
+        let inner = evaluate_gates(&input);
+        let overridden = apply_rollout_policy(&inner, RolloutPhase::Advisory, false);
+        assert_eq!(overridden.verdict, AdpVerdict::Allow);
+        let text = format_decision(&overridden);
+        assert!(text.contains("ADVISORY DENY"));
+    }
+
+    /// A genuine Allow (no override) must NOT show the shadow warning.
+    #[test]
+    fn format_allow_without_override_uses_plain_header() {
+        let input = make_default_input();
+        let decision = evaluate_gates(&input);
+        let text = format_decision(&decision);
+        assert!(!text.contains("SHADOW DENY"));
+        assert!(!text.contains("ADVISORY DENY"));
+        assert!(text.contains("Autonomous Decision Gate Result"));
+    }
+
+    /// Per-gate recommendations must appear under each failed gate.
+    #[test]
+    fn format_failed_gates_include_recommendations() {
+        let mut input = make_default_input();
+        input.blast_radius_risk = Some(9);
+        input.risk_profile = RiskProfile::High;
+        let decision = evaluate_gates(&input);
+        let text = format_decision(&decision);
+        if decision
+            .failed_gates
+            .iter()
+            .any(|g| g.contains("blast_radius"))
+        {
+            assert!(
+                text.contains("_Recommended:_"),
+                "each failed gate must have a Recommended: line"
+            );
+            assert!(
+                text.contains("`compute_blast_radius`") || text.contains("`impact_analysis`"),
+                "blast_radius recommendation must cite compute_blast_radius / impact_analysis"
+            );
+        }
+    }
+
+    #[test]
+    fn recommendation_for_gate_covers_known_names_and_falls_back() {
+        // Known gate names produce targeted advice.
+        assert!(recommendation_for_gate("blast_radius").contains("compute_blast_radius"));
+        assert!(recommendation_for_gate("evidence_sufficiency").contains("characterization_tests"));
+        assert!(recommendation_for_gate("anti_pattern").contains("immune_check"));
+        assert!(recommendation_for_gate("safety_policy").contains("CLAUDE.md"));
+        assert!(recommendation_for_gate("extraction_confidence").contains("get_extraction_confidence"));
+        // Unknown gate names fall back to the generic hint.
+        let fallback = recommendation_for_gate("totally_unknown_gate");
+        assert!(
+            fallback.contains("Investigate"),
+            "unknown gate must fall back to generic hint, got: {fallback}"
+        );
     }
 
     #[test]
