@@ -1532,6 +1532,18 @@ fn secret_patterns() -> &'static [SecretPattern] {
             ("GitHub Personal Access Token", r"\bghp_[0-9A-Za-z]{36}\b"),
             ("GitHub OAuth Token", r"\bgho_[0-9A-Za-z]{36}\b"),
             ("GitHub App Token", r"\bghs_[0-9A-Za-z]{36}\b"),
+            // OpenAI — classic (`sk-…`) and project (`sk-proj-…`) keys.
+            // Length threshold is generous enough to match short test /
+            // rotation fixtures that still reveal the key shape.
+            (
+                "OpenAI API Key",
+                r"\bsk-(?:proj-)?[A-Za-z0-9_\-]{12,}\b",
+            ),
+            // Anthropic
+            (
+                "Anthropic API Key",
+                r"\bsk-ant-[A-Za-z0-9_\-]{20,}\b",
+            ),
             // Slack
             ("Slack Bot Token", r"\bxoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+\b"),
             ("Slack User Token", r"\bxoxp-[0-9]+-[0-9]+-[0-9]+-[A-Za-z0-9]+\b"),
@@ -1548,10 +1560,15 @@ fn secret_patterns() -> &'static [SecretPattern] {
                 "Private Key PEM",
                 r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----",
             ),
-            // Generic high-entropy secret assignments (password/secret/token/api_key)
+            // Generic high-entropy secret assignments. Matches the
+            // assignment shape across languages — including VB's
+            // `Const API_KEY As String = "…"` form where `As <Type>`
+            // sits between the identifier and `=`. The `[^"'\n]{0,40}`
+            // gap accepts type annotations / qualifiers while still
+            // anchoring on a quoted 12+ character value.
             (
                 "Hardcoded credential assignment",
-                r#"(?i)(?:password|passwd|secret|token|api[_\-]?key|auth[_\-]?key)\s*[:=]\s*["'][A-Za-z0-9_!@#$%\^&*\-+/=]{12,}["']"#,
+                r#"(?i)(?:password|passwd|secret|token|api[_\-]?key|auth[_\-]?key)\b[^"'\n]{0,40}[:=]\s*["'][A-Za-z0-9_!@#$%\^&*\-+/=]{12,}["']"#,
             ),
             // ADO.NET / JDBC connection strings with `Password=` or `Pwd=`.
             (
@@ -1699,6 +1716,39 @@ mod tests {
     fn secret_scanner_ignores_short_strings() {
         let hits = scan_for_secrets("let x = \"short\";");
         assert!(hits.is_empty(), "should not fire on short strings: {hits:?}");
+    }
+
+    #[test]
+    fn secret_scanner_detects_openai_project_key() {
+        let code = r#"const key = "sk-proj-abc123def456";"#;
+        let hits = scan_for_secrets(code);
+        assert!(
+            hits.iter().any(|(n, _)| n.contains("OpenAI")),
+            "expected OpenAI key detected, got {hits:?}"
+        );
+    }
+
+    #[test]
+    fn secret_scanner_detects_vb_const_api_key() {
+        // VB / C# often write `Const API_KEY As String = "…"`. The
+        // credential-assignment pattern must tolerate the `As Type`
+        // gap between the identifier and `=`.
+        let code = r#"    Private Const API_KEY As String = "sk-proj-abc123def456""#;
+        let hits = scan_for_secrets(code);
+        assert!(
+            !hits.is_empty(),
+            "expected at least one hit on VB `Const API_KEY As String = …`, got {hits:?}"
+        );
+    }
+
+    #[test]
+    fn secret_scanner_detects_anthropic_key() {
+        let code = r#"export const k = "sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWX";"#;
+        let hits = scan_for_secrets(code);
+        assert!(
+            hits.iter().any(|(n, _)| n.contains("Anthropic")),
+            "expected Anthropic key detected, got {hits:?}"
+        );
     }
 
     #[test]
