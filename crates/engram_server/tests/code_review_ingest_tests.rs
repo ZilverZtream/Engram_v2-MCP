@@ -253,6 +253,90 @@ async fn jsonl_ingest_force_full_rescan_ignores_marker() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn suppression_is_scoped_to_wontfix_file_family_not_language() {
+    // Cluster has 3 members total:
+    //   - 2 fixed (in /Site/export/*.vb)      → positive cluster lives at that dir
+    //   - 1 wontFix (in /Site/ts/qty/*.ts)    → suppression cluster MUST be scoped
+    //                                             to /site/ts/qty/, not */**.ts
+    //
+    // The wontFix is in a different language from the fixed members,
+    // so they won't cluster together at all — but the invariant still
+    // holds: the suppression cluster inherits its file patterns from
+    // the wontFix member only, never from the positive partition.
+    let (tmp, state) = build_state();
+    let project_id = register_project(&state, &tmp).await;
+
+    let body_fix = "_⚠️ Potential issue_ | _🟠 Major_\n\n\
+        **Avoid calling `SubmitChanges()` without audit log.**\n\n\
+        `SubmitChanges()` on `DataContext` must be preceded by `handelselogg.Create()`.\n\n\
+        ✅ Addressed in commits abc1234";
+    let body_wontfix = "_⚠️ Potential issue_ | _🟡 Minor_\n\n\
+        **Consider null-checking `gQtyManager.validate()`.**\n\n\
+        The `gQtyManager.validate()` call on `window` may throw if globals aren't ready.";
+
+    let fixture = vec![
+        mk_record(10, "fixed", "/Site/export/Orders.vb", "major", body_fix),
+        mk_record(11, "fixed", "/Site/export/Orders.vb", "major", body_fix),
+        mk_record(
+            12,
+            "wontFix",
+            "/Site/ts/qty/qtyManager.ts",
+            "minor",
+            body_wontfix,
+        ),
+    ];
+    let path = write_fixture_jsonl(&tmp, &fixture);
+
+    let stats = ingest_code_review_history(
+        &state,
+        &project_id,
+        IngestConfig {
+            source: IngestSource::JsonlFile { path },
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+    // Two clusters (different languages), one doc each.
+    assert_eq!(stats.clusters_produced, 1, "positive VB cluster");
+    assert_eq!(stats.suppression_clusters, 1, "suppression TS cluster");
+
+    // The suppression cluster's graph node must have a file_pattern
+    // that targets the qtyManager.ts family — not every *.ts in the
+    // repo. We read the review_pattern nodes back from the graph and
+    // inspect their metadata.
+    let graph = state.graph.clone();
+    let pid = project_id.clone();
+    let supp_nodes = tokio::task::spawn_blocking(move || {
+        graph.query_nodes(&pid, Some("review_pattern"), None, None, 100)
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    // Find the suppression one (node_id starts with review_suppression:).
+    let supp = supp_nodes
+        .iter()
+        .find(|n| n.node_id.starts_with("review_suppression:"))
+        .expect("expected one suppression node");
+    let meta = supp
+        .metadata
+        .as_ref()
+        .expect("metadata present")
+        .to_string();
+    assert!(
+        meta.contains("/site/ts/qty"),
+        "suppression file pattern must be scoped to qtyManager family, got: {meta}"
+    );
+    // And critically, it must NOT contain the fixed-cluster's file
+    // path (/Site/export/Orders.vb) — that would mean the suppression
+    // bled across into the positive partition's files.
+    assert!(
+        !meta.contains("orders.vb"),
+        "suppression must NOT inherit file patterns from positive members: {meta}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn jsonl_ingest_drops_clusters_below_min_fix_rate() {
     let (tmp, state) = build_state();
     let project_id = register_project(&state, &tmp).await;
