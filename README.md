@@ -1,186 +1,181 @@
-# Engram MCP v2
+# Engram MCP
 
-A production-grade **Model Context Protocol (MCP) server** written in Rust that gives AI agents deep, structured understanding of codebases. Engram combines full-text search, semantic vector search, knowledge graphs, git intelligence, and cognitive reasoning into a unified tool suite for LLM-powered development workflows.
+**A graph-aware safety net for AI coding agents.**
 
-## What It Does
+Engram is a production-grade [Model Context Protocol](https://modelcontextprotocol.io) server, written in Rust, that gives AI agents deep structural understanding of real codebases — not just what the code says, but how its parts relate, how they have changed together over time, and what has broken before.
 
-Engram connects your AI agent (Claude, etc.) to one or more local code repositories. Once a project is indexed, the agent can search code semantically, traverse dependency graphs, detect temporal coupling in git history, analyze coding style, flag anti-patterns from reverted commits, and reason about database schemas and UI event paths — all without reading raw files directly.
+Connect Engram once and any MCP-capable agent (Claude Desktop, Claude Code, Codex, your own SDK client) gains an evidence-backed picture of the project: a typed knowledge graph, full-text and semantic search, git temporal intelligence, an immune system built from reverted commits, per-file coding conventions, and a ten-gate pre-commit review that blocks destructive edits with receipts.
 
-The server communicates over **STDIO** using the MCP protocol and is designed to run as a sidecar alongside your AI client.
-
----
-
-## Features
-
-### Hybrid Search
-- **Full-text search** via Tantivy with camelCase/snake_case tokenization
-- **Semantic vector search** via LanceDB with configurable embedding backends (local trigram projection, Ollama, OpenAI)
-- **Reciprocal Rank Fusion (RRF)** combining FTS and vector rankings
-- **Maximal Marginal Relevance (MMR)** for result diversity
-- Namespace-aware search across code, notes, git history, and anti-pattern indexes
-
-### Knowledge Graph
-- Builds a typed property graph of your codebase using Tree-sitter AST parsing
-- 33 edge kinds: `CoOccurrence`, `TemporalCoupling`, `Insight`, `Dependency`, `AntiPattern`, `Contains`, `Imports`, `SqlCalls`, `HasColumn`, `ForeignKey`, `QueriesTable`, `ReadsState`, `WritesState`, `DataBinding`, `RegistersControl`, `IncludesFile`, `UnresolvedStateRead`, `UnresolvedStateWrite`, `ExposesWebService`, `ExposesHttpHandler`, `ExposesWcfService`, `ContainsUi`, `UiLayoutNeighbor`, `ReadsColumn`, `RegistersModule`, `RegistersHandler`, `ManipulatesDom`, `TriggersPostback`, `ApiCall`, `ParameterBinding`, `SpatialCall`, `StateAffinity`, `InjectsScript`
-- Node types: `function`, `class`, `interface`, `file`, `db_table`, `db_column`, `global_state`, `control`, `ui_container`, `control_layout`, `web_service`, `http_handler`, `wcf_service`, `application`, `http_module`, `route_handler`, `app_setting`, `connection_string`, `binding_field`, `insight`, `memory_bank_section`
-- O(degree) adjacency lookups via Redb-backed composite-key adjacency lists (bincode serialization)
-- PageRank scoring for codebase overview ranking
-- Per-type and per-kind aggregation for architectural analysis
-
-### Git Intelligence
-- Indexes full commit history and diffs
-- Detects **temporal coupling** — files that change together frequently, revealing hidden dependencies
-- **Immune system**: harvests reverted commits and indexes their content as anti-patterns; new code submissions are scored against this history
-- Supports both `git2`-backed repos and zip snapshot archives (for repos without git)
-
-### Cognitive Features
-- **REM Dreaming**: clusters search co-occurrence patterns into insight nodes that surface non-obvious relationships
-- **Style mimicry**: analyzes recent diffs for a file and generates a style guide (naming, indentation, patterns) suitable for injection into LLM prompts
-- **Impact analysis**: multi-hop graph traversal to estimate what breaks when a file or symbol changes
-- **Anti-pattern guard**: scores a code draft against the immune index with remediation suggestions
-
-### Language Support
-Tree-sitter parsers for: **Rust, Python, Go, Java, C#, TypeScript, JavaScript, C, C++, VB.NET**
-
-Special handling for **ASP.NET WebForms** (ASPX, ASCX, Master pages): control ID extraction, event wiring, code-behind `Inherits` tracing, UI-to-SQL path tracing.
-
-Special handling for **Classic ASP** (.asp): COM object detection, ADO connection/recordset, Session/Application/Request/Response access, inline SQL, Server.Transfer, Response.Redirect, SSI include files.
-
-### Database Analysis
-- SQL DDL extraction (tables, columns, foreign keys)
-- Cross-references SQL identifiers to application code
-- `get_table_schema` returns columns, FK relationships, and every code location that references the table
-- `trace_state_usage` tracks readers and writers of global state (Session, ViewState, Application, Cache)
-
-### Memory Bank & Repo Rules
-- Per-project **memory bank**: structured notes the agent writes and reads across sessions (architectural decisions, constraints, known issues)
-- **Repo rules**: file-pattern-matched constraints injected into chunk retrieval (e.g., "all files matching `*Repository.cs` must use the Unit of Work pattern")
-
-### Autonomous Decision Protocol (ADP)
-- **Mandatory gate pipeline** for auto-applied changes: 8 ordered verification gates that must all pass before an agent can modify code autonomously
-- Gates: extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, evidence sufficiency
-- Three verdicts: `allow` (all gates pass), `deny` (hard failure), `abstain` (insufficient evidence — agent must gather more data)
-- Machine-readable output with per-gate results, failed gate IDs, and required follow-up actions
-- Configurable thresholds: `adp_min_extraction_confidence`, `adp_max_blast_radius`, safety thresholds
-- Trace ambiguity scoring: `trace_ui_event` emits fallback candidate metadata and confidence penalties when control lookup is ambiguous
-- **Trace provenance**: structured provenance block in `trace_ui_event` with unresolved candidates, per-hop evidence, follow-up probes, and disambiguation guidance
-- **Rollout policy engine**: four-phase rollout (shadow → advisory → guarded → autonomous) with emergency kill-switch that forces all verdicts to `deny`
-- **JSON decision reports**: immutable per-verdict audit reports with gate-by-gate evidence, config snapshots, and input replay data via `build_decision_report()`
-- **Deterministic ADP replay**: `replay_from_scenario()` and batch `run_corpus()` with confusion matrix calibration (false-allow rate ≤ 1%)
-
-### Incremental Indexing & Watching
-- Blake3 file fingerprinting for change detection; unchanged files are copy-forwarded without re-parsing
-- Generation-based append-only model: queries always filter to the active generation
-- Optional **file watcher** that triggers incremental re-index on directory changes
+- **Deterministic by default.** Core tools — graph traversal, search, temporal coupling, pre-commit review, immune checks, secret scanning — do not call an LLM. You can run Engram entirely offline.
+- **Language-aware.** Tree-sitter parsers for Rust, Python, Go, Java, C, C++, C#, VB.NET, TypeScript, JavaScript, plus first-class handling for ASP.NET WebForms (ASPX / ASCX / Master) and Classic ASP.
+- **Per-project, per-agent.** Each project lives in its own index; each query is scoped by `project_id`. No cross-project leakage.
+- **Append-only and crash-safe.** Generation-based indexing, Blake3 fingerprints, Redb-backed durable checkpoints, integrity sentinels with auto-repair.
 
 ---
 
-## Architecture
+## Why Engram exists
+
+LLM coding agents without codebase context are dangerous: they hallucinate APIs, miss cross-file dependencies, re-introduce patterns that were reverted last quarter, and silently break shared state.
+
+Reading raw files into the prompt doesn't fix it. A 500k-line project doesn't fit. Even if it did, the agent can't see git history, can't see blast radius, can't see which files always change together, can't see the `DeleteAllOnSubmit` that was reverted three months ago because it bypassed multi-tenant scoping.
+
+Engram solves this by **building and persisting** the context an agent needs:
+
+| Problem | How Engram solves it |
+|---|---|
+| Agent invents method signatures | Typed graph of every function, class, and call edge — queried by name or FQN |
+| Agent touches a high-blast-radius file | `compute_blast_radius` returns a 1-10 score with incoming / outgoing / downstream counts |
+| Agent re-introduces a reverted pattern | Immune system indexes every reverted diff as an anti-pattern; `immune_check` scores new code against it |
+| Agent changes a file but not its coupled partner | Temporal coupling tracks files that change together in git history |
+| Agent ships a regression | `pre_commit_review` runs 10 deterministic gates over the staged diff before commit |
+| Agent gets lost in a 5000-file legacy codebase | `get_codebase_overview`, `generate_migration_blueprint`, `analyze_full_project_migration` |
+
+---
+
+## Flagship feature — `pre_commit_review`
+
+Ten deterministic gates run over a unified diff (raw text, `staged`, `unstaged`, `head`, or a `.patch` path) and emit severity-ranked findings with concrete evidence and fix suggestions. No LLM calls. Typical run: < 2 seconds.
+
+| Gate | What it catches |
+|---|---|
+| `immune` | Modifications to files flagged by prior reverts — CRITICAL when paired with destructive patterns |
+| `blast_radius` | High-impact files where a change ripples outward |
+| `style` | Per-file convention violations (naming, Using blocks, Try/Catch, SafeRedirect, etc.) detected from the file's existing code |
+| `temporal` | Strongly-coupled files that change together in history but aren't in the diff |
+| `state` | Session / ViewState / Application / Cache keys touched by the diff, with their other readers and writers |
+| `audit` | Database mutations missing the project's established audit-log convention |
+| `antipattern` | Added code that resembles indexed anti-patterns (reverted diffs) via hybrid search |
+| `new_file` | New files that break the folder's extension / prefix conventions; ASPX pages without codebehind |
+| `test_coverage` | Non-test files changed without their coupled test file |
+| `secret_leakage` | Hardcoded AWS / GitHub / OpenAI / Anthropic / JWT / connection-string secrets — redacted in output |
+
+Every finding includes: a stable ID (for CI run-to-run tracking), specific line numbers, diff-context snippets, evidence lines (graph data, revert hashes, coupling weights, convention statistics), an actionable fix suggestion, and a `Next` tool recommendation for agents that want to dig deeper.
+
+Output is either rendered markdown with a single 🟢 / 🟡 / 🔴 verdict badge, or a stable JSON payload (`output_json: true`) for CI pipelines.
+
+**Real output on a dangerous diff:**
+
+```markdown
+# Pre-Commit Review — 🔴 RED — do not merge as-is
+
+**Findings**: 27 total (2 critical · 2 warning · 22 info · 1 style)
+**Files analysed**: 1 | **Gates run**: 10/10 | **Time**: 1975ms
+
+## 🔴 CRITICAL (2)
+
+### 7 gates flagged this file
+**File**: `Site/App_Code/fbinstplan/code/fiberjobb.vb`
+**Gate**: `corroboration`
+**Evidence**: gates = antipattern, audit, blast_radius, immune, style, temporal, test_coverage
+**Fix**: Investigate findings on this file first — agreement across gates is a strong
+signal the change deserves extra scrutiny.
+
+### Destructive code on immune-flagged file
+**File**: `Site/App_Code/fbinstplan/code/fiberjobb.vb`
+**Gate**: `immune`
+**Evidence**:
+- immune_rule_ids = immune_f7766bb1…
+- destructive_patterns = DeleteAllOnSubmit
+- revert_hashes = f7766bb1
+**Fix**: Run immune_check before committing. The immune flag exists specifically to
+prevent this pattern — either prove the operation is scoped (multitenant WHERE,
+transaction, explicit test) or rethink the change.
+**Next**: `immune_check(project_id="…", file_path="Site/App_Code/fbinstplan/code/fiberjobb.vb")`
+
+## 🟡 WARNING (2)
+
+### High-blast-radius file modified
+**File**: `Site/App_Code/fbinstplan/code/fiberjobb.vb`
+**Evidence**: migration_risk = 7/10 (High), total_incoming = 1043, total_downstream = 1960
+
+### Destructive patterns detected in added code
+**Evidence**: destructive_patterns = DeleteAllOnSubmit
+```
+
+---
+
+## What Engram builds from your code
+
+Indexing a project produces five layered data stores, all persistent on disk:
 
 ```
-engram_core/     Core types, config, security boundary, Redb registry
-engram_index/    Tantivy FTS + LanceDB vectors + DocStore + hybrid search
-engram_graph/    Redb-backed graph store + BFS/PageRank algorithms
-engram_git/      libgit2 walker, temporal coupling, revert detection
-engram_ml/       Dreaming engine, embedders, style mimicry, immune system
-engram_server/   MCP server (rmcp), tool handlers, background actors
+┌─────────────────────────────────────────────────────────┐
+│  Full-text index (Tantivy)                              │
+│    camelCase / snake_case tokenisation · namespace-aware│
+├─────────────────────────────────────────────────────────┤
+│  Vector index (LanceDB)                                 │
+│    local trigram · Ollama · OpenAI — RRF + MMR fusion   │
+├─────────────────────────────────────────────────────────┤
+│  Knowledge graph (Redb)                                 │
+│    ~40 edge kinds · O(degree) adjacency · PageRank      │
+├─────────────────────────────────────────────────────────┤
+│  Git intelligence (libgit2)                             │
+│    commit graph · revert detection · temporal coupling  │
+├─────────────────────────────────────────────────────────┤
+│  Registry (Redb)                                        │
+│    projects · jobs · memory bank · repo rules · meta    │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**Storage layers:**
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Registry | Redb | Projects, jobs, memory bank, repo rules, metadata |
-| Graph | Redb | Nodes, edges, adjacency lists |
-| Full-text index | Tantivy | Namespaced search (code, history, anti-patterns) |
-| Vector index | LanceDB | Semantic embeddings |
-| DocStore | Redb | File fingerprints, chunk-to-file mapping |
-
-**Background actors:**
-- **Dreamer** — co-occurrence clustering → insight generation
-- **Immune Actor** — git revert harvesting → anti-pattern indexing
-- **Watcher** — directory monitoring → incremental re-index
-- **GC Scheduler** — orphaned job cleanup
-- **Integrity Sentinel** — periodic cross-store consistency checks with auto-repair
-
-### Enterprise Features (Phase 23)
-
-- **Observability**: Lock-free metrics (counters, gauges, histograms) for job latency, queue depth, index drift, cardinality, repair outcomes, memory pressure, checkpoint recovery, extraction confidence, and safety decisions
-- **Memory Budget & Backpressure**: Per-subsystem memory tracking (Tantivy, LanceDB, Graph, DocStore, ParseBuffer), soft/hard limits with CAS-based allocation, backpressure rejection for OOM prevention
-- **Crash-safe Job Orchestration**: Redb-backed durable checkpoints with phase tracking (Scanning→Parsing→TantivyIndexing→VectorIndexing→GraphBuilding→PostProcessing), idempotency keys, and resume-from-failure
-- **Data Integrity Sentinels**: Cross-store consistency verification (Tantivy vs LanceDB vs Graph vs Docstore doc counts), mismatch detection with 5% tolerance, configurable auto-repair, periodic background checker
-- **Retrieval Production Gates**: NDCG@10, Recall@10, MRR benchmarking against known-relevant query sets; configurable pass/fail thresholds for search quality gating
-- **WebForms Confidence Scoring**: Signal-weighted scoring for event wiring (5 signals), SQL trace (5 signals), and control binding (4 signals) extractions, with High/Medium/Low band classification
-- **Safety Rails**: Policy engine blocking high-risk refactors based on impact confidence, test coverage, anti-pattern clearance, blast radius, global state safety, and database safety checks
-- **Migration Execution Workflow**: Wave-ordered migration plans with topological sort, seam identification, contract test templates, compatibility adapter patterns, and per-wave rollback playbooks
-- **Complete Revert Pipeline**: `analyze_reverts` promoted to Implemented with LLM-powered descriptive anti-pattern rules, graph edge creation, and metrics recording
-- **Deterministic Reproducibility**: Golden-repo fixture tests verifying stable chunk IDs, graph edges, and search results across clean vs incremental indexing
-
-### Gold Standard Hardening (Phase 27)
-
-- **Benchmark Schemas**: Versioned `BenchmarkPack`, `AdpCorpus`, `TraceScenarioLibrary`, and `DriftReport` types with per-class thresholds and regression detection
-- **ADP Replay & Calibration**: Deterministic scenario replay with `AdpConfusionMatrix` for false-allow/false-deny calibration, 7-scenario safety corpus with ≤ 1% false-allow assertion
-- **Runtime Evidence Schemas**: Normalized `RuntimeEvent` format for control interactions, SQL execution, state mutations, and routes, with batch validation and reconciliation
-- **Trace Provenance**: Enhanced `trace_ui_event` with structured provenance blocks, unresolved candidates, per-hop evidence, confidence penalties, and follow-up probes
-- **WebForms Mutation Tests**: 12 mutation tests validating extraction robustness against renamed handlers, duplicate IDs, malformed directives, and edge cases
-- **Integrity Canary Tests**: 9 canary tests with synthetic drift injection for Tantivy, docstore, and vector store orphan detection
-- **Rollout Policy Engine**: Four-phase progressive rollout (shadow → advisory → guarded → autonomous) with emergency kill-switch
-- **JSON Audit Reports**: Immutable `AdpDecisionReport` with gate-by-gate evidence, config snapshots, and input replay data
-- **Benchmark CI**: GitHub Actions workflow running benchmark, ADP corpus, mutation, and reproducibility tests with 90-day artifact retention
-
-### End-to-End Migration Engine (Phase 30 + 30a Hardening)
-
-- **Control Mapping Catalog**: 50-entry WebForms → modern UI control mapping with Blazor, React, and Angular targets, accessibility attributes, data binding patterns, and event equivalents
-- **Migration Scaffold Generator**: Produces full component code for Blazor/React/Angular with real business logic from graph edges (SQL→repository calls, state→get/set, navigation→routing), async/await conversion guidance, repository interfaces, DTOs, and test scaffolds
-- **Database Strategy Advisor**: Classifies data access patterns (inline SQL, stored proc, DataSet, DataReader, Entity Framework, LINQ-to-SQL), generates repository interfaces, and scores SQL injection risk
-- **Runtime Instrumentation Pipeline**: Generates injectable C# and VB.NET HttpModule code for runtime tracing (routes, session, SQL, postbacks, errors) with web.config entries, auto-generated `InstrumentedSessionStateWrapper` (IHttpSessionState) and `InstrumentedDbCommand` (DbCommand with timing), plus reconciliation of static graph paths against runtime evidence
-- **State Migration Advisor**: Per-key state migration recommendations (Session, ViewState, Application, Cache, Cookie, QueryString, HiddenField) with access pattern analysis, ViewState lifecycle classification, and affinity grouping
-- **Characterization Test Generator**: Produces executable NUnit/xUnit/MSTest test classes with TestPageFactory, MockHttpSession, TestDbFactory, MockResponseRecorder helper infrastructure covering event handlers, data flows, state transitions, navigation, and API contracts
-- **Strangler Fig Infrastructure Generator**: Complete incremental cutover infrastructure — YARP reverse proxy configuration, Microsoft.FeatureManagement per-page feature flags, routing middleware with percentage-based rollout and sticky session affinity, migration health check endpoint, Program.cs registration with Polly circuit breaker/retry, and CorrelationId middleware for cross-boundary tracing
-- **VB.NET Deep Extraction**: Nested With block stack, On Error GoTo label resolution (two-pass), CreateObject return value propagation with alias tracking, late-bound method call detection, My. namespace, ReDim Preserve
-- **GIS Deep Extraction**: 30+ Google Maps classes (Places, StreetView, Heatmap, KML, Directions, DistanceMatrix, Elevation, Geometry), 80+ Esri/ArcGIS ES module classes (widgets, tasks, renderers, geometry, portal, auth, 3D), migration complexity assessment
-- **Classic ASP Extractor**: 7 detection categories (COM objects, ADO, state access, SQL, navigation, includes, inline functions) with 31 tests
-- **Report Extractor**: SSRS (.rdlc/.rdl) and Crystal Reports detection with parameter, dataset, subreport, and table reference extraction
-- **Windows Service Detection**: ServiceBase/TopShelf/BackgroundService pattern recognition in graph topology
-
-### Migration Workflow Engine (Phase 31)
-
-- **Per-File Analysis Primitives**: 6 tools for deep per-file analysis — validation mapping (WebForms → DataAnnotation/FluentValidation), auth config (Forms/Windows/code-level patterns), page lifecycle mapping (Page_Init → OnInitialized), ViewState dependency extraction, UpdatePanel/AJAX region mapping, and entry-to-sink data flow tracing
-- **Migration Dossier**: Orchestrates all per-file analysis services into a single comprehensive dossier with lifecycle events, ViewState keys, AJAX regions, validators, auth patterns, blast radius, and scaffold preview
-- **Coverage Checker**: Compares original legacy page against modern migrated code to identify gaps across 6 categories (lifecycle, data binding, validation, state, navigation, auth)
-- **Progress Tracker**: Standalone Redb-backed migration status database tracking per-file status (not_started/in_progress/done/blocked) with blocking dependency chains
-- **Migration Wave Planner**: Kahn's algorithm topological sort producing parallelizable migration waves with cycle detection and bottleneck identification
-- **Full Project Analysis** (`analyze_full_project_migration`): The single-call "give me everything" tool — reads all markup + code-behind files concurrently, orchestrates migration order, state migration, auth config, data access classification, and per-file dossiers in one call. Produces a `FullProjectMigrationReport` with cross-cutting summary (shared SQL tables, shared state keys, shared user controls, risk distribution) and a comprehensive rendered markdown report
-
-### Last-Mile Accuracy (Phase 35)
-
-- **VB Translation Traps**: Module-level detection, ByRef semantics, implicit conversions, Nothing vs null, On Error Resume Next patterns, optional parameter handling, late binding, With blocks, ReDim Preserve
-- **jQuery Inventory**: Comprehensive jQuery/jQuery UI widget detection, AJAX call tracing, event handler extraction, plugin identification, selector pattern analysis
-- **Inherited Effects**: Base class method analysis, inheritance chain traversal, virtual/override pattern detection, shared code-behind analysis
-- **Cross-Layer AJAX Tracing**: End-to-end tracing from jQuery `$.ajax()` through WebMethod/PageMethod/ASMX endpoints to SQL operations with data contract extraction
-
-### LLM-Powered Business Logic Comprehension (Phase 36)
-
-- **Business Logic Analysis** (`analyze_business_logic`): LLM-powered method-level analysis via local Ollama (Qwen 2.5 Coder 14B) producing structured summaries: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM available. Content-hash caching prevents re-analysis of unchanged methods
-- **Business Logic Query** (`query_business_logic`): Semantic search over previously analyzed business logic summaries stored in DocStore
-- **Report Integration**: Business logic summaries embedded in full migration report with per-file class-level purpose and method-level detail tables
-
-### Intelligence Amplification (Phase 37)
-
-- **Async LLM Enhancement Pass**: Optional `use_llm: true` flag on `analyze_full_project_migration` upgrades deterministic business logic summaries with LLM-powered step-by-step analysis as an async post-processing step
-- **LLM Validation Gate**: Cross-validates LLM output against deterministic static analysis effects — checks 9 categories (SQL, Session, Redirect, ViewState, Cache, Application, Cookie, Email, File I/O) for missed effects, detects hallucinated table references, and assigns High/Medium/Low confidence scores
-- **Stored Procedure Deep Analysis**: Deterministic SP business logic summaries (purpose, parameters, tables read/written, side effects), SP→SP call chain detection with cycle detection, trigger detection (AFTER/INSTEAD OF/FOR with event types)
-- **Database Schema Ingestion**: Parses CREATE TABLE/VIEW statements with balanced parenthesis handling, extracts columns (type, nullable, default, computed), primary keys, foreign keys (with ON DELETE/UPDATE actions), CHECK constraints, and cross-references schema against code-level table references
-- **Session Workflow Reconstruction**: Synthesizes WritesState/ReadsState graph edges into per-key workflow narratives with scope detection (Session/Application/Cache/ViewState/Cookie), flow pattern classification (Linear/Branching/Accumulation/MissingWriter/MissingReader/ComplexWorkflow/SinglePage), and cross-page chain counting
-- **Confidence Dashboard**: Migration Intelligence Confidence matrix covering 6 dimensions (Code Structure, Business Logic, Database, Session Workflows, Data Access, External Integrations) with per-dimension coverage metrics and confidence badges
+The graph tracks **code structure** (`Calls`, `Contains`, `Imports`, `Dependency`), **data access** (`QueriesTable`, `HasColumn`, `ForeignKey`, `CallsStoredProcedure`, `StoredProcReadsTable`), **state flow** (`ReadsState`, `WritesState`, `StateAffinity`), **UI wiring** (`ContainsUi`, `DataBinding`, `TriggersPostback`, `ManipulatesDom`, `FillsRegion`), **web surface** (`ExposesWebService`, `ExposesHttpHandler`, `ExposesWcfService`), **change coupling** (`TemporalCoupling`, `CoOccurrence`), **reverts** (`AntiPattern`), and **runtime evidence** (`ObservedRuntimeControl`, `ObservedRuntimeSql`) — among others.
 
 ---
 
-## Installation
+## Capabilities at a glance
+
+### Search
+Hybrid FTS + vector with Reciprocal Rank Fusion, Maximal Marginal Relevance diversity, namespace filtering, path and language filters, and content preview. Standalone vector search with 3x oversampling. Multi-language structured stacktrace parser. Graph-aware search that expands hits along configurable edge kinds.
+
+### Knowledge graph
+Query nodes by type / name / file. Find incoming or outgoing edges. Multi-hop BFS traversal. Impact analysis. Compute blast radius with seam-candidate identification. Detect structural design patterns (Repository, Factory, Singleton, Observer…).
+
+### Git & temporal intelligence
+Index commit history. Detect temporal coupling. Harvest reverted commits into the anti-pattern index. Search commit messages and diffs. Track repeated-pattern reverts as `immune_*` repo rules tied to the reverting commit hash.
+
+### Code review (`pre_commit_review`)
+Ten deterministic gates over a unified diff with severity-ranked output, stable finding IDs, cross-gate corroboration, auto-tuned temporal thresholds, secret redaction, and a single verdict badge. Markdown or JSON.
+
+### Modernization engine (ASP.NET WebForms / Classic ASP)
+End-to-end migration tooling: control mapping catalog (WebForms → Blazor / React / Angular), scaffold generation with real business logic pulled from graph edges, database strategy advisor, state migration recommendations, characterization test generation, strangler-fig infrastructure (YARP + feature flags + Polly), runtime instrumentation code, topologically-ordered migration waves, and `analyze_full_project_migration` — a single call that reads the whole project and returns a comprehensive report with cross-cutting summary.
+
+### Safety & autonomous decisions
+Autonomous Decision Protocol: 8-gate mandatory pipeline for automated edits (extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern clearance, runtime evidence, evidence sufficiency). Three verdicts: `allow` / `deny` / `abstain`. Four-phase progressive rollout (`shadow` → `advisory` → `guarded` → `autonomous`) with emergency kill-switch. Immutable JSON audit reports.
+
+### Memory bank & repo rules
+Per-project persistent notes the agent can read and write across sessions. File-pattern-matched rules automatically injected into chunk retrieval (e.g., "files matching `*Repository.cs` must use `IUnitOfWork`").
+
+### Observability & integrity
+Lock-free metrics (job latency, queue depth, index drift, memory pressure, checkpoint recovery, extraction confidence, safety decisions). Cross-store integrity sentinels with 5% tolerance and auto-repair. Crash-safe job orchestration with resume-from-failure. Retrieval quality benchmarking (NDCG@10, Recall@10, MRR) with configurable pass/fail thresholds.
+
+### Cognitive features (LLM-optional)
+REM Dreaming — clusters co-occurrence patterns into Insight nodes. Style mimicry — per-file coding conventions extracted from the file's current state. Business logic comprehension — local-Ollama method-level analysis with deterministic fallback, validation gate, and hallucination detection.
+
+---
+
+## Languages & ecosystems
+
+| Language / stack | Parser | Extra capabilities |
+|---|---|---|
+| Rust, Python, Go, Java, C, C++ | Tree-sitter | AST extraction, call graphs, imports |
+| TypeScript, JavaScript (+ JSX / TSX) | Tree-sitter | Framework signal detection (React / Vue / Angular / RxJS / Node / Express / Jest), jQuery inventory, cross-layer AJAX tracing, transpiled-TS fingerprinting |
+| C# | Tree-sitter | LINQ / async / records / pattern matching detection, ASP.NET WebForms codebehind tracing |
+| VB.NET | Tree-sitter | Handles clauses, WithEvents, On Error resolution, Module vs Class style, Optional-context-injection convention, SafeRedirect pattern, ReDim Preserve |
+| ASP.NET WebForms (ASPX, ASCX, Master) | Custom | Control ID extraction, event wiring, master-page FillsRegion, UpdatePanel regions, ViewState lifecycle, deep layout extraction |
+| Classic ASP (.asp) | Custom | COM objects, ADO connection/recordset, Session/Application/Request/Response, SSI includes, Server.Transfer |
+| SQL (T-SQL) | Custom | CREATE TABLE/VIEW/PROCEDURE parsing, column / PK / FK / CHECK extraction, stored-procedure call chains, trigger detection |
+| Google Maps / Esri ArcGIS JS | Custom | 80+ widget classes, migration complexity assessment |
+| SSRS (.rdlc / .rdl), Crystal Reports | Custom | Parameter, dataset, subreport, table-reference extraction |
+
+Unknown extensions fall through to a generic text chunker + full-text indexing path.
+
+---
+
+## Quick start
 
 ### Prerequisites
 - Rust 1.81+ (edition 2024)
 - On Linux/macOS: `libgit2` and `cmake` development packages
-- Optional: [Ollama](https://ollama.ai) for local LLM/embedding backends
+- Optional: [Ollama](https://ollama.ai) for local LLM / embedding backends
 
 ### Build
 
@@ -190,103 +185,47 @@ cd engram-mcp-v2
 cargo build --release
 ```
 
-The compiled binary is at `target/release/engram_server`.
+Binary lands at `target/release/engram_server`.
 
----
+### Configure
 
-## Configuration
-
-Create a YAML config file (default path: `engram_mcp.yaml`):
+Minimal `engram_mcp.yaml`:
 
 ```yaml
-# Required
-allowed_roots:                        # Directories the server is permitted to index
+allowed_roots:
   - /home/user/projects
-  - /home/user/work
+data_dir: /home/user/.engram-data
 
-data_dir: /home/user/.engram-data     # Where all persistent data is stored
-
-# Embedding backend (default: "local")
-embedding_backend: local              # "local" | "ollama" | "openai"
-embedding_model: nomic-embed-text     # Model name (for ollama/openai)
-ollama_url: http://localhost:11434
-openai_api_key: sk-...
-openai_api_base: https://api.openai.com/v1   # Optional custom base
-
-# LLM backend for cognitive features (default: "none")
-llm_backend: none                     # "none" | "ollama" | "openai" | "openrouter"
-llm_provider: openrouter              # Optional override: "openai" | "openrouter"
-llm_model: llama3.2                   # e.g. gpt-4o-mini, llama3.2, openai/gpt-4o-mini
-llm_ollama_url: http://localhost:11434
-llm_openai_api_key: sk-...
-llm_openai_api_base: https://api.openai.com/v1
-llm_http_referer: https://your-app.example
-llm_x_title: Engram MCP
-llm_extra_headers:                    # Optional additional OpenAI-compatible headers
-  x-trace-id: migration-audit
-  x-team: modernization
-
-# Optional limits
-max_project_files: 100000
-max_project_bytes: 5368709120         # 5 GB
-max_chunks_per_file: 2000
-max_concurrent_jobs: 2
-max_commits_per_watch: 50
-
-# Safety & Autonomous Decision Protocol (ADP)
-safety_policy_enabled: true           # Enable safety gates for automated edits
-safety_min_confidence: 0.7            # Minimum impact confidence to allow edits
-safety_min_coverage: 0.6              # Minimum test coverage to allow edits
-adp_enabled: true                     # Enable mandatory ADP gate pipeline
-adp_min_extraction_confidence: 0.5    # Minimum extraction confidence for ADP
-adp_max_blast_radius: 6               # Max blast radius score (1-10) for auto-apply
-adp_rollout_phase: shadow             # Rollout phase: shadow|advisory|guarded|autonomous
-adp_kill_switch: false                # Emergency kill-switch — forces all ADP verdicts to Deny
+embedding_backend: local       # "local" | "ollama" | "openai"
 ```
 
-Set the config path via environment variable:
+Point the server at it via environment variable:
 
 ```bash
 export ENGRAM_CONFIG_PATH=/path/to/engram_mcp.yaml
+./target/release/engram_server
 ```
+
+The server runs over **STDIO**. All stdout is reserved for MCP protocol messages; logs go to stderr. Enable debug logs with `RUST_LOG=debug`.
 
 ---
 
-## Running the Server
+## MCP client setup
 
-```bash
-# Development
-ENGRAM_CONFIG_PATH=./engram_mcp.yaml cargo run -p engram_server
-
-# Production (built binary)
-ENGRAM_CONFIG_PATH=/etc/engram/config.yaml ./target/release/engram_server
-
-# With debug logging
-RUST_LOG=debug ENGRAM_CONFIG_PATH=./engram_mcp.yaml cargo run -p engram_server
-```
-
-The server runs over **STDIO**. Do not print anything to stdout from your application — all stdout is reserved for MCP protocol messages. Logs go to stderr.
-
----
-
-## MCP Client Setup
-
-### Claude Desktop (`claude_desktop_config.json`)
+### Claude Desktop
 
 ```json
 {
   "mcpServers": {
     "engram": {
       "command": "/path/to/engram_server",
-      "env": {
-        "ENGRAM_CONFIG_PATH": "/path/to/engram_mcp.yaml"
-      }
+      "env": { "ENGRAM_CONFIG_PATH": "/path/to/engram_mcp.yaml" }
     }
   }
 }
 ```
 
-### Claude Code (`.mcp.json`)
+### Claude Code
 
 ```json
 {
@@ -294,275 +233,314 @@ The server runs over **STDIO**. Do not print anything to stdout from your applic
     "engram": {
       "type": "stdio",
       "command": "/path/to/engram_server",
-      "env": {
-        "ENGRAM_CONFIG_PATH": "/path/to/engram_mcp.yaml"
-      }
+      "env": { "ENGRAM_CONFIG_PATH": "/path/to/engram_mcp.yaml" }
     }
   }
 }
 ```
 
----
+### First session
 
-## Tool Reference
+Paste into your agent:
 
-### Project Lifecycle
-
-| Tool | Description |
-|------|-------------|
-| `index_project` | Index a local directory. Parameters: `directory`, `project_name`, `project_type`, `wait`, `dedupe_by_directory` |
-| `update_project` | Incremental re-index of changed files. Parameters: `project_id`, `wait`, `max_commits`, `index_antipatterns` |
-| `list_projects` | List all indexed projects |
-| `project_info` | Detailed project metadata |
-| `project_health` | Comprehensive health check: per-namespace doc counts, graph/vector stats, disk usage, language/symbol breakdown, integrity warnings with actionable repair suggestions |
-| `delete_project` | Delete a project and all its stored data |
-| `repair_project` | Targeted index repair with scoped rebuild (`full`, `graph_only`, `tantivy_only`, `vector_only`), optional full wipe-and-reindex |
-
-### Search
-
-| Tool | Description |
-|------|-------------|
-| `search_memory` | Hybrid FTS + vector search. Parameters: `query`, `project_id`, `namespace`, `max_results`, `use_mmr`, `fts_mode`, `include_content`, `max_content_chars_per_result`, language/path filters |
-| `vector_search` | Standalone pure vector (semantic) search with 3x oversampling, configurable timeout, MMR reranking, path/language filters, and content preview |
-| `get_chunk` | Fetch full content for a specific chunk by ID, with optional repo rule injection |
-| `graph_search` | Hybrid text + graph symbol name matching with multi-edge neighbor expansion, configurable FTS modes (strict/loose/regex), MMR diversity, content preview, and edge-kind-filtered expansion |
-| `find_symbol_references` | All-edge-kind graph lookup with FQN suffix matching, incoming/outgoing grouping by edge kind, configurable limits, edge kind and file scope filters, lexical fallback |
-| `get_codebase_overview` | Language breakdown, symbol-type aggregation, edge-kind distribution, architectural layers, PageRank, DB tables, state keys, temporal couplings, dead code detection, test coverage stats |
-| `analyze_error_stack` | Multi-language structured stacktrace parser (Python, .NET, Java, Node.js, Rust, Go, PHP, Ruby, ASP.NET) with frame-boosted search and graph centrality |
-
-### Knowledge Graph
-
-| Tool | Description |
-|------|-------------|
-| `query_graph_nodes` | Query nodes by type, name pattern, or file path |
-| `find_references` | Find incoming or outgoing edges from a node |
-| `traverse_graph` | Multi-hop BFS traversal from a start node |
-| `impact_analysis` | Estimate what breaks if a file or symbol changes |
-
-### Git & Temporal Analysis
-
-| Tool | Description |
-|------|-------------|
-| `index_git_history` | Index commit history for temporal coupling + anti-patterns |
-| `ingest_zip_history` | Ingest a folder of zip snapshots as pseudo git history |
-| `search_history` | Search commit messages and diffs with structured metadata extraction, configurable FTS modes, MMR, path exclusions, and content preview |
-| `analyze_temporal_couplings` | Detect files that frequently change together |
-| `analyze_reverts` | Detect reverted commits, generate LLM-powered descriptive anti-pattern rules, and index reverted diffs |
-
-### Cognitive Features
-
-| Tool | Description |
-|------|-------------|
-| `vector_search` | Standalone semantic vector search with configurable top-k, 3x oversampling, MMR reranking, path/language filters, and per-query timeout |
-| `dream_project` | Cluster co-occurrence patterns and generate insight nodes. Configurable clustering params (min_edge_weight, min_cluster_size, max_clusters), per-call timeout, config-driven defaults |
-| `trigger_rem_cycle` | Alias for `dream_project` with the same configurable parameters |
-| `analyze_file_coding_style` | Analyze a file's git history and produce a style guide |
-| `immune_check` | Hybrid FTS + vector search against the anti-pattern index with configurable thresholds, structured verdict/severity/confidence output, and empty-index detection |
-| `anti_pattern_guard` | Score code against anti-patterns with regex-based revert commit extraction, hybrid search, single-fetch content retrieval, and structured remediation guidance |
-| `suggest_migration_boundaries` | LLM + deterministic migration boundary suggestion using iterative union-find with rank heuristic, cross-cluster dependency analysis, shared data ownership detection, configurable timeout, and JSON output option |
-| `generate_migration_blueprint` | BFS context compilation from an entry node into a 9-section Markdown dossier or structured JSON, with configurable depth and edge kind filters |
-
-### Knowledge Graph (Advanced)
-
-| Tool | Description |
-|------|-------------|
-| `ast_dependency_graph` | BFS graph traversal from an entry node with configurable direction (outgoing/incoming/both), compile-time edge filtering (Dependency+Imports+Contains), depth up to 12 hops, and JSON or text tree output |
-| `compute_blast_radius` | Multi-hop impact estimation from a node or file: propagates through graph edges to rank affected symbols by reachability and edge-weight, returns a scored blast surface with per-node risk tier |
-| `detect_design_patterns` | Structural pattern detection across the graph (Repository, Factory, Singleton, Observer, etc.) using node-type and edge-kind fingerprints, with confidence scores and file-level attribution |
-
-### Index Maintenance
-
-| Tool | Description |
-|------|-------------|
-| `incremental_indexing_gc` | Manual GC trigger with pre/post delta reporting for graph nodes, edges, tantivy docs, and lance vectors; optional vector compaction |
-| `dedicated_antipattern_index` | Manage the antipattern namespace: `stats` (doc count + repo rules), `list` (browse), `search` (hybrid search with content preview), `clear` (purge namespace) |
-
-### Database & Schema
-
-| Tool | Description |
-|------|-------------|
-| `get_table_schema` | DDL, columns, FK relationships, and code references for a table |
-| `trace_state_usage` | Trace readers/writers of global state (Session, ViewState, Application, Cache) |
-| `trace_ui_event` | Trace a path from ASPX page + control ID to SQL |
-| `trace_ui_action` | Trace a UI action to code-behind handler and call chain |
-| `get_instrumentation_pack` | Generate a minimal instrumentation snippet for legacy .NET apps |
-
-### Memory Bank
-
-| Tool | Description |
-|------|-------------|
-| `update_memory_bank` | Create or update a named memory bank section |
-| `list_memory_bank` | List all memory bank sections for a project |
-| `read_memory_bank` | Read a specific section |
-| `delete_memory_bank` | Delete a section |
-
-### Repo Rules
-
-| Tool | Description |
-|------|-------------|
-| `add_repo_rule` | Add a file-pattern-matched rule injected into chunk reads |
-| `list_repo_rules` | List all rules for a project |
-| `delete_repo_rule` | Delete a rule |
-
-### Project Watching
-
-| Tool | Description |
-|------|-------------|
-| `watch_project` | Enable directory watching for automatic re-index on changes |
-| `unwatch_project` | Disable watching |
-
-### Observability & Operations
-
-| Tool | Description |
-|------|-------------|
-| `get_metrics` | Server-wide metrics snapshot: job latencies, queue depths, index drift, cardinality, repair outcomes, memory, checkpoints, confidence scoring, safety. JSON or human-readable output |
-| `check_integrity` | Cross-store consistency check for a project (Tantivy, LanceDB, Graph, Docstore). Detects mismatches, optionally auto-repairs |
-| `get_memory_budget` | Current memory budget status: usage, limits, per-subsystem breakdown, pressure state |
-| `get_checkpoint_status` | Crash-recovery checkpoint status for jobs. Shows resumable jobs, phase, and progress |
-| `evaluate_safety` | Safety policy evaluation for a proposed automated edit. Returns go/no-go with risk level, checks, and mitigations |
-| `benchmark_retrieval` | NDCG@10, Recall@10, MRR benchmarking against known-relevant queries. Gates vector_search for production readiness |
-| `get_extraction_confidence` | Score WebForms extraction confidence (event wiring, SQL trace, control binding) with signal-weighted breakdown |
-| `generate_migration_plan` | Executable migration plan with dependency-ordered waves, seams, contract tests, adapters, and rollback playbooks |
-| `autonomous_decision_gate` | Mandatory 8-gate verification pipeline for autonomous code changes. Runs extraction confidence, trace certainty, safety policy, retrieval quality, blast radius, anti-pattern, runtime evidence, and evidence sufficiency gates. Returns allow/deny/abstain verdict with machine-readable failed gate IDs and required follow-ups |
-| `generate_migration_scaffold` | Generate Blazor/React/Angular component skeletons from a legacy WebForms file's graph context, with repository interfaces, DTOs, and test scaffolds |
-| `generate_instrumentation_code` | Produce injectable C# and VB.NET HttpModule instrumentation code for runtime tracing, with web.config entries |
-| `reconcile_runtime_evidence` | Compare static graph paths (SQL calls, state access, dependencies, postbacks) against a runtime evidence batch and produce confirmed/contradicted/inconclusive report |
-| `suggest_state_migration` | Analyze state usage (Session, ViewState, Application, Cache, Cookie, QueryString) and produce per-key migration recommendations with ViewState lifecycle report |
-| `generate_characterization_tests` | Generate NUnit/xUnit/MSTest characterization test classes covering event handlers, data flows, state transitions, navigation, and API contracts |
-| `generate_strangler_fig_config` | Generate complete strangler fig migration infrastructure: YARP reverse proxy, feature flags, routing middleware with rollout and sticky sessions, health check, Program.cs with Polly resilience |
-
-### Migration Workflow (Phase 31)
-
-| Tool | Description |
-|------|-------------|
-| `map_validation_controls` | Map WebForms validators to DataAnnotation/FluentValidation equivalents with validation group analysis |
-| `map_auth_config` | Analyze web.config auth mode (Forms/Windows/None), location rules, membership/role providers, and code-level auth patterns |
-| `map_page_lifecycle` | Map Page lifecycle events to modern framework equivalents, detect IsPostBack branching, identify implicit behaviors |
-| `analyze_viewstate_deps` | Extract explicit/implicit ViewState usage, recommend modern state types per field |
-| `map_ajax_regions` | Inventory UpdatePanel/ScriptManager regions, map triggers, suggest component decomposition |
-| `trace_data_flow` | Trace data flow from entry point to sinks (SQL, state, response) with cross-file dependency detection |
-| `get_migration_dossier` | Build a comprehensive per-file migration dossier orchestrating all analysis sub-services |
-| `check_migration_coverage` | Compare original page vs modern code to find migration gaps across 6 categories |
-| `update_migration_status` | Track per-file migration status (not_started/in_progress/done/blocked) with blocking dependencies |
-| `get_migration_progress` | Retrieve overall migration progress for a project |
-| `suggest_migration_order` | Topological sort via Kahn's algorithm producing parallelizable waves with cycle detection |
-| `analyze_full_project_migration` | **One-call full project analysis**: reads all markup + code-behind files, orchestrates migration order, state, auth, data access, and per-file dossiers into a single comprehensive report with cross-cutting summary. Optional `use_llm=true` enables async LLM-powered business logic enhancement with validation gate |
-| `analyze_business_logic` | LLM-powered method-level business logic analysis via Ollama with structured output (PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS). Deterministic fallback when no LLM. Content-hash caching. Supports method/file/project scope |
-| `query_business_logic` | Semantic search over analyzed business logic summaries in the DocStore |
-
-### Utilities
-
-| Tool | Description |
-|------|-------------|
-| `export_capture_pack` | Export a comprehensive zip for offline agentic usage |
-| `ingest_instrumentation_logs` | Ingest runtime logs from a legacy .NET app |
-| `get_job_status` | Get status and progress of a background job |
-| `list_jobs` | List all jobs, optionally filtered by project |
-| `cancel_job` | Cancel a running background job |
-
----
-
-## Project Types
-
-Engram uses the `project_type` parameter to select appropriate file extensions and parsers.
-
-| Type String | Languages | Extra Extensions |
-|-------------|-----------|-----------------|
-| `rust` (default for Rust) | Rust | `rs, toml` |
-| `python` | Python | `py, ipynb` |
-| `typescript` | TypeScript/JavaScript | `ts, tsx, js, jsx` |
-| `java` | Java | `java, xml, gradle` |
-| `go` | Go | `go, mod` |
-| `dotnetwebformscs` | C# ASP.NET WebForms | `cs, aspx, ascx, master, config, xml, sln, csproj, sql, rdlc` |
-| `dotnetwebformsvb` | VB.NET ASP.NET WebForms | `vb, aspx, ascx, master, config, xml, sln, vbproj, sql, rdlc` |
-
-Any unrecognized type falls back to a broad default set covering most common source and config file extensions.
-
----
-
-## How to Prompt Your LLM to Use Engram
-
-Once the MCP server is connected, use natural language. Example prompts:
-
-**Initial indexing:**
 ```
 Index /home/user/myapp as project "myapp" (project_type: dotnetwebformscs).
-Wait for indexing to complete.
+Wait for indexing to complete. Then give me a codebase overview.
 ```
 
-**Codebase orientation:**
-```
-Give me a codebase overview for project "myapp". Then search for "authentication"
-and show me the top 5 results with content.
-```
+Then, after any set of staged changes:
 
-**Impact analysis:**
 ```
-I'm about to refactor UserRepository.cs. Run impact_analysis to find everything
-that could break, then traverse the graph 3 hops from UserRepository to show
-its full dependency surface.
-```
-
-**Temporal coupling:**
-```
-Analyze temporal couplings for OrderService.cs in project "myapp".
-Inject any discovered coupling edges into the graph.
-Which files should I consider changing together with it?
-```
-
-**Style mimicry:**
-```
-Before I write new code for AuthService.cs, analyze its coding style
-from git history and give me the style guide to follow.
-```
-
-**Anti-pattern guard:**
-```
-Here is a code snippet I'm about to commit. Run immune_check against
-project "myapp" to see if it matches any previously reverted code:
-
-[paste code here]
-```
-
-**Database tracing (WebForms):**
-```
-Trace the full call path from the btnSave_Click event on Default.aspx
-through to any SQL queries it touches.
-```
-
-**Memory bank (persistent notes):**
-```
-Update the memory bank for project "myapp", section "architecture",
-with: "All database access must go through the Repository layer.
-Direct DataContext calls in controllers are not allowed."
-```
-
-**REM dreaming:**
-```
-Run a dream cycle on project "myapp" and summarize any insights generated.
-Then query the graph for new Insight nodes.
-```
-
-**Git history search:**
-```
-Search git history in project "myapp" for commits mentioning "fix deadlock"
-between 2024-01-01 and 2024-12-31.
-```
-
-**Repo rules:**
-```
-Add a repo rule to project "myapp": any file matching "*Service.cs" must
-not directly instantiate DbContext — use the injected IUnitOfWork instead.
+Run pre_commit_review on the staged diff for project "myapp".
 ```
 
 ---
 
-## Security Model
+## Tool catalog
 
-- **Path confinement**: All file access is validated against `allowed_roots`. Any path that escapes the allowed roots is rejected, including symlinks and path traversal sequences.
-- **Project ID validation**: Project IDs are restricted to `[a-zA-Z0-9_-]` to prevent injection.
-- **Single-writer semantics**: Per-project mutexes serialize concurrent index updates.
-- **No shell execution**: The server never spawns shell commands; all git operations use libgit2 directly.
+**~100 MCP tools** organised by concern. Full parameter reference in [`docs/TOOL_CONTRACT.md`](docs/TOOL_CONTRACT.md).
+
+<details>
+<summary><b>Project lifecycle</b> — index, update, list, info, health, repair, delete, watch</summary>
+
+| Tool | Purpose |
+|---|---|
+| `index_project` | Initial indexing of a local directory |
+| `update_project` | Incremental re-index of changed files |
+| `list_projects` · `project_info` · `project_health` | Inspection |
+| `repair_project` | Targeted index repair (`full` / `graph_only` / `tantivy_only` / `vector_only`) |
+| `delete_project` | Delete a project and its stored data |
+| `watch_project` · `unwatch_project` | Automatic re-index on filesystem changes |
+</details>
+
+<details>
+<summary><b>Search</b> — hybrid, vector, graph, symbol, error-stack</summary>
+
+| Tool | Purpose |
+|---|---|
+| `search_memory` | Hybrid FTS + vector with RRF, MMR, filters |
+| `vector_search` | Pure semantic vector search with oversampling + MMR |
+| `get_chunk` | Fetch content for a chunk ID |
+| `graph_search` | Hybrid text + symbol match with edge-expansion |
+| `find_symbol_references` | Incoming / outgoing edges for a symbol across all edge kinds |
+| `get_codebase_overview` | Languages, symbols, edge-kind distribution, PageRank, DB tables, state keys, temporal couplings, dead code |
+| `analyze_error_stack` | Multi-language structured stacktrace parser with frame-boosted search |
+</details>
+
+<details>
+<summary><b>Knowledge graph</b> — query, traverse, impact, blast radius, patterns</summary>
+
+| Tool | Purpose |
+|---|---|
+| `query_graph_nodes` · `find_references` · `traverse_graph` | Core graph ops |
+| `impact_analysis` | Estimate what breaks if a file or symbol changes |
+| `ast_dependency_graph` | BFS with edge-kind filters, up to 12 hops, tree or JSON output |
+| `compute_blast_radius` | 1-10 risk score with seam candidates and per-node risk tier |
+| `detect_design_patterns` | Structural pattern detection (Repository, Factory, Singleton…) |
+</details>
+
+<details>
+<summary><b>Git & temporal intelligence</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `index_git_history` · `ingest_zip_history` | Commit history indexing |
+| `search_history` | Search commit messages / diffs with structured metadata |
+| `analyze_temporal_couplings` | Files that frequently change together |
+| `analyze_reverts` | Detect reverts, generate anti-pattern rules, index reverted diffs |
+</details>
+
+<details>
+<summary><b>Review & safety</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `pre_commit_review` | Ten-gate deterministic diff review with verdict badge and CI-stable finding IDs |
+| `immune_check` | Score code against the anti-pattern index (hybrid FTS + vector, configurable thresholds) |
+| `anti_pattern_guard` | Pattern matching with revert-commit extraction and remediation guidance |
+| `autonomous_decision_gate` | 8-gate mandatory pipeline for automated edits; returns `allow` / `deny` / `abstain` |
+| `evaluate_safety` | Safety policy check for a proposed edit |
+| `check_edit_safety` | Per-method green / yellow / red verdict |
+</details>
+
+<details>
+<summary><b>Database & schema</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `get_table_schema` | DDL, columns, FK relationships, code references |
+| `trace_state_usage` | Readers / writers of Session / ViewState / Application / Cache |
+| `trace_ui_event` · `trace_ui_action` | ASPX page → control → code-behind → SQL tracing |
+| `get_instrumentation_pack` · `generate_instrumentation_code` | Runtime tracing code generation |
+| `get_sp_details` · `list_triggers` | Stored procedure deep analysis, trigger detection |
+</details>
+
+<details>
+<summary><b>Migration (ASP.NET WebForms → modern)</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `analyze_full_project_migration` | One-call full-project analysis producing a comprehensive report |
+| `generate_migration_blueprint` | BFS context compiled into a 9-section migration dossier |
+| `generate_migration_plan` | Dependency-ordered waves with seams, contract tests, adapters, rollback playbooks |
+| `generate_migration_scaffold` | Blazor / React / Angular component generation with real business logic |
+| `generate_strangler_fig_config` | YARP reverse proxy + feature flags + Polly resilience |
+| `generate_characterization_tests` | NUnit / xUnit / MSTest characterization tests |
+| `suggest_state_migration` · `suggest_migration_order` | Per-key state advice; Kahn-sorted migration waves |
+| `map_validation_controls` · `map_auth_config` · `map_page_lifecycle` · `map_ajax_regions` | Per-concern migration mapping |
+| `analyze_viewstate_deps` · `trace_data_flow` · `get_migration_dossier` · `check_migration_coverage` | Deep per-file analysis |
+| `update_migration_status` · `get_migration_progress` | Standalone Redb-backed migration tracker |
+</details>
+
+<details>
+<summary><b>Cognitive & reasoning</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `dream_project` · `trigger_rem_cycle` | Cluster co-occurrence into Insight nodes |
+| `analyze_file_coding_style` | Per-file convention extraction from git history |
+| `analyze_business_logic` · `query_business_logic` | LLM-powered method-level analysis with validation gate |
+| `suggest_migration_boundaries` | LLM + deterministic boundary suggestion with cross-cluster dependency analysis |
+</details>
+
+<details>
+<summary><b>Access layer (per-method)</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `get_method_info` · `get_full_method_body` · `get_method_edit_context` | Precise method context retrieval |
+| `get_page_context` · `prepare_implementation_context` | ASPX page / implementation context |
+| `validate_generated_code` · `validate_sql_fragment` | Pre-commit code and SQL validation |
+| `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
+</details>
+
+<details>
+<summary><b>Memory bank & repo rules</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `update_memory_bank` · `list_memory_bank` · `read_memory_bank` · `delete_memory_bank` | Persistent agent notes |
+| `add_repo_rule` · `list_repo_rules` · `delete_repo_rule` | File-pattern-matched rules injected into chunk reads |
+</details>
+
+<details>
+<summary><b>Observability & operations</b></summary>
+
+| Tool | Purpose |
+|---|---|
+| `get_metrics` | Server-wide metrics (job latency, queue depth, drift, memory, safety…) |
+| `check_integrity` | Cross-store consistency check with optional auto-repair |
+| `get_memory_budget` · `get_checkpoint_status` | Resource and recovery status |
+| `benchmark_retrieval` | NDCG@10 / Recall@10 / MRR retrieval quality gate |
+| `get_extraction_confidence` | Signal-weighted extraction confidence scoring |
+| `incremental_indexing_gc` · `dedicated_antipattern_index` | Index hygiene |
+| `get_job_status` · `list_jobs` · `cancel_job` | Background job control |
+| `export_capture_pack` | Export a zip for offline agentic usage |
+</details>
+
+---
+
+## Architecture
+
+```
+engram_core/     Core types, config, security boundary, Redb registry
+engram_index/    Tantivy FTS + LanceDB vectors + DocStore + hybrid search
+engram_graph/    Redb-backed graph store + BFS / PageRank algorithms
+engram_git/      libgit2 walker, temporal coupling, revert detection
+engram_ml/       Dreaming engine, embedders, style mimicry, immune system
+engram_server/   MCP server (rmcp), tool handlers, background actors
+```
+
+**Storage layers**
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Registry | Redb | Projects, jobs, memory bank, repo rules, metadata |
+| Graph | Redb | Nodes, edges, composite-key adjacency lists, bincode |
+| Full-text index | Tantivy | Namespaced search (code, history, antipatterns) |
+| Vector index | LanceDB | Semantic embeddings, optional |
+| DocStore | Redb | File fingerprints, chunk-to-file mapping |
+| Checkpoints | Redb | Crash-safe job phase tracking |
+| Migration progress | Redb | Per-file migration status |
+
+**Background actors**
+
+- **Dreamer** — co-occurrence clustering → Insight generation
+- **Immune actor** — git revert harvesting → anti-pattern indexing
+- **Watcher** — directory monitoring → incremental re-index
+- **GC scheduler** — orphaned job cleanup
+- **Integrity sentinel** — cross-store consistency checks with configurable auto-repair
+- **Memory budget watcher** — per-subsystem soft/hard limits with CAS allocation and backpressure
+
+---
+
+## Configuration reference
+
+Full YAML:
+
+```yaml
+# Required
+allowed_roots:
+  - /home/user/projects
+data_dir: /home/user/.engram-data
+
+# Embedding backend
+embedding_backend: local              # "local" | "ollama" | "openai"
+embedding_model: nomic-embed-text
+ollama_url: http://localhost:11434
+openai_api_key: sk-...
+openai_api_base: https://api.openai.com/v1
+
+# LLM backend for cognitive features (optional — everything except `dream`,
+# `analyze_business_logic`, `suggest_migration_boundaries` works without it)
+llm_backend: none                     # "none" | "ollama" | "openai" | "openrouter"
+llm_provider: openrouter
+llm_model: llama3.2
+llm_ollama_url: http://localhost:11434
+llm_openai_api_key: sk-...
+llm_http_referer: https://your-app.example
+
+# Limits
+max_project_files: 100000
+max_project_bytes: 5368709120         # 5 GiB
+max_chunks_per_file: 2000
+max_concurrent_jobs: 2
+max_commits_per_watch: 50
+
+# Safety & ADP
+safety_policy_enabled: true
+safety_min_confidence: 0.7
+safety_min_coverage: 0.6
+adp_enabled: true
+adp_min_extraction_confidence: 0.5
+adp_max_blast_radius: 6
+adp_rollout_phase: shadow             # shadow | advisory | guarded | autonomous
+adp_kill_switch: false                # emergency kill-switch → forces every verdict to deny
+```
+
+### Project types
+
+| Type string | Languages | Key extra extensions |
+|---|---|---|
+| `rust` | Rust | `rs, toml` |
+| `python` | Python | `py, ipynb` |
+| `typescript` | TS / JS | `ts, tsx, js, jsx` |
+| `java` | Java | `java, xml, gradle` |
+| `go` | Go | `go, mod` |
+| `dotnetwebformscs` | C# ASP.NET WebForms | `cs, aspx, ascx, master, config, sln, csproj, sql, rdlc` |
+| `dotnetwebformsvb` | VB.NET ASP.NET WebForms | `vb, aspx, ascx, master, config, sln, vbproj, sql, rdlc` |
+
+Any unknown type falls back to a broad default covering common source + config extensions.
+
+---
+
+## Example agent prompts
+
+**Orientation**
+```
+Give me a codebase overview for project "myapp". Then run pre_commit_review on
+the staged diff.
+```
+
+**Safe refactor**
+```
+Before I refactor UserRepository.cs in project "myapp":
+1. Run impact_analysis for this file
+2. Run compute_blast_radius
+3. Find all temporal couplings so I know which files to change together
+4. Show me the top 5 reverted commits that touched this file
+```
+
+**Pre-commit review**
+```
+Run pre_commit_review on the unstaged diff for project "myapp" with
+output_json: true, then summarise the CRITICAL and WARNING findings.
+```
+
+**Legacy modernization**
+```
+Run analyze_full_project_migration on project "myapp-legacy".
+Share the cross-cutting summary and the top 3 files by migration risk.
+```
+
+**Anti-pattern guard**
+```
+Here's code I'm about to commit. Run immune_check on it against project "myapp"
+with file_path="Site/App_Code/dal/orders.vb":
+
+[paste code]
+```
+
+---
+
+## Security model
+
+- **Path confinement.** All file access is validated against `allowed_roots`. Paths that escape via symlinks, `..`, or canonicalisation tricks are rejected.
+- **Project ID validation.** Restricted to `[A-Za-z0-9_-]{1,128}` at the handler boundary.
+- **Single-writer semantics.** Per-project mutexes serialise concurrent index updates.
+- **No shell execution.** Every git operation uses libgit2 directly; no subprocess is spawned.
+- **Redacted secrets in output.** `pre_commit_review` fingerprints matched secrets — the raw value is never echoed back in findings.
+- **Fail-closed on integrity.** The FTS watcher is fail-closed (no silent downgrades); integrity sentinels detect cross-store drift and can auto-repair.
 
 ---
 
@@ -580,13 +558,10 @@ not directly instantiate DbContext — use the injected IUnitOfWork instead.
 
 ## License
 
-This project is licensed under the **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`).
+This project is licensed under **PolyForm Noncommercial License 1.0.0** (`PolyForm-Noncommercial-1.0.0`).
 
-- Noncommercial use (personal, hobby, learning, research, and other permitted noncommercial purposes) is allowed under PolyForm Noncommercial 1.0.0.
-- Commercial, business, or for-profit use is not allowed without a separate written commercial license.
-- If a company wants to use this code (including internal business use, product development, SaaS, services, or other revenue-generating work), it must obtain a commercial license.
-- Commercial licensing inquiries: `<YOUR_EMAIL_OR_CONTACT_URL>`
-
-Previous releases may remain under their original license terms. This licensing change applies from this release/version forward.
+- Noncommercial use — personal, hobby, learning, research — is allowed under PolyForm Noncommercial 1.0.0.
+- Commercial, business, or for-profit use requires a separate written commercial license.
+- A company using this code — internally, in product development, SaaS, services, or any revenue-generating work — must obtain a commercial license.
 
 See [`LICENSE`](LICENSE) for the full terms and [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md) for the commercial-use notice.
