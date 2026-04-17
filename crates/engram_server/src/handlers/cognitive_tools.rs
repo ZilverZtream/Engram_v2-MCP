@@ -11,11 +11,12 @@ use crate::state::AppEvent;
 use crate::tools::Engram;
 use crate::utils::now_ms;
 use engram_core::safe_join;
-use engram_graph::store::ResolveResult;
 use engram_graph::EdgeKind;
+use engram_graph::store::ResolveResult;
 use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
+use std::fmt::Write;
 use std::path::PathBuf;
 
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
@@ -2660,6 +2661,316 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
+    /// Generate `CLAUDE.md` + `.claude/rules/*.md` from the project's
+    /// indexed graph. Language-agnostic: every section is driven by what
+    /// the graph actually contains, so a Rust CLI gets language
+    /// conventions + danger zones while a WebForms project gets the
+    /// full treatment (state, db, auth, frontend).
+    pub async fn handle_produce_claude_md(
+        &self,
+        req: crate::models::ProduceClaudeMdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        use crate::services::produce_claude_md_service as svc;
+
+        validate_project_id(&req.project_id)?;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
+
+        // ── 1. Language breakdown ────────────────────────────────────
+        let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
+        let total_files: usize = lang_counts.values().copied().sum();
+        let mut languages: Vec<svc::LanguageShare> = lang_counts
+            .iter()
+            .map(|(k, v)| svc::LanguageShare {
+                language: k.clone(),
+                file_count: *v,
+                share_percent: if total_files == 0 {
+                    0.0
+                } else {
+                    (*v as f32 / total_files as f32) * 100.0
+                },
+            })
+            .collect();
+        languages.sort_by(|a, b| b.file_count.cmp(&a.file_count));
+
+        // ── 2. Role description (auto from languages + framework hint) ──
+        let role = build_role_description(&languages, &graph, &pid);
+
+        // ── 3. Repo rules (immune + anti-pattern) → critical rules ────
+        let registry = self.state.registry.clone();
+        let pid_clone = pid.clone();
+        let repo_rules = tokio::task::spawn_blocking(move || registry.list_repo_rules(&pid_clone))
+            .await
+            .ok()
+            .and_then(|r| r.ok())
+            .unwrap_or_default();
+        let mut critical_rules: Vec<svc::CriticalRule> = repo_rules
+            .iter()
+            .map(|r| {
+                let source = if r.rule_id.starts_with("immune_") {
+                    svc::RuleSource::Immune
+                } else {
+                    svc::RuleSource::RepoRule
+                };
+                svc::CriticalRule {
+                    text: rule_text_from_repo_rule(r),
+                    evidence: Some(format!("({})", r.rule_id)),
+                    source,
+                }
+            })
+            .collect();
+        // Stable order: immune rules first, then others.
+        critical_rules.sort_by_key(|r| match r.source {
+            svc::RuleSource::Immune => 0,
+            svc::RuleSource::RepoRule => 1,
+            svc::RuleSource::Existing => 2,
+        });
+
+        // ── 4. Existing CLAUDE.md — merge priority ────────────────────
+        let existing_md = if req.merge_existing {
+            read_claude_md_if_any(&rec.directory)
+        } else {
+            None
+        };
+        if let Some(ref md) = existing_md {
+            let existing_rules = svc::extract_critical_rules_from_existing(md);
+            critical_rules = svc::merge_with_existing(critical_rules, existing_rules);
+        }
+
+        // ── 5. Top PageRank nodes → danger zones ──────────────────────
+        let pid_for_pr = pid.clone();
+        let graph_for_pr = graph.clone();
+        let top_file_ids: Vec<String> = tokio::task::spawn_blocking(move || {
+            engram_graph::analysis::compute_pagerank(&graph_for_pr, &pid_for_pr, active_gen)
+                .ok()
+                .map(|m| {
+                    let mut pairs: Vec<(String, f32)> = m.pagerank.into_iter().collect();
+                    pairs
+                        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                    pairs
+                        .into_iter()
+                        .filter(|(id, _)| id.starts_with("file:"))
+                        .take(10)
+                        .map(|(id, _)| id)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        let mut danger_zones: Vec<svc::DangerZone> = Vec::new();
+        for file_id in &top_file_ids {
+            let g = graph.clone();
+            let p = pid.clone();
+            let t = file_id.clone();
+            if let Ok(Ok(report)) = tokio::task::spawn_blocking(move || {
+                crate::services::blast_radius_service::compute_blast_radius(
+                    &g, &p, &t, active_gen, false,
+                )
+            })
+            .await
+            {
+                if report.migration_risk >= 4 {
+                    let path = file_id.strip_prefix("file:").unwrap_or(file_id).to_string();
+                    danger_zones.push(svc::DangerZone {
+                        file_path: path,
+                        risk_score: report.migration_risk,
+                        risk_band: report.risk_band.to_string(),
+                        total_downstream: report.total_downstream,
+                        reasons: reasons_from_breakdown(&report.complexity_breakdown),
+                    });
+                }
+            }
+        }
+        danger_zones.sort_by(|a, b| {
+            b.risk_score
+                .cmp(&a.risk_score)
+                .then(b.total_downstream.cmp(&a.total_downstream))
+        });
+        danger_zones.truncate(10);
+
+        // ── 6. Static coding style per language (top-5% share) ────────
+        let mut per_language_rules: Vec<svc::LanguageRules> = Vec::new();
+        for lang in &languages {
+            if lang.share_percent < 5.0 {
+                continue;
+            }
+            let bullets =
+                gather_language_style(&graph, &pid, &rec.directory, &lang.language, active_gen, 3)
+                    .await;
+            if bullets.bullets.is_empty() {
+                continue;
+            }
+            per_language_rules.push(svc::LanguageRules {
+                language: lang.language.clone(),
+                glob: svc::language_to_globs(&lang.language),
+                bullets: bullets.bullets,
+                sample_files: bullets.sample_files,
+            });
+        }
+
+        // ── 7. Session workflow summary (only if state nodes exist) ───
+        let state_summary = {
+            let g = graph.clone();
+            let p = pid.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                crate::services::session_workflow_service::reconstruct_session_workflows(&g, &p)
+            })
+            .await
+            .ok();
+            report.filter(|r| r.total_keys > 0).map(|r| {
+                use crate::services::session_workflow_service::StateScope;
+                let mut session = 0;
+                let mut viewstate = 0;
+                let mut application = 0;
+                for f in &r.workflows {
+                    match f.scope {
+                        StateScope::Session => session += 1,
+                        StateScope::ViewState => viewstate += 1,
+                        StateScope::Application => application += 1,
+                        _ => {}
+                    }
+                }
+                let mut by_fanin: Vec<(String, usize)> = r
+                    .workflows
+                    .iter()
+                    .map(|f| (f.key.clone(), f.writers.len() + f.readers.len()))
+                    .collect();
+                by_fanin.sort_by(|a, b| b.1.cmp(&a.1));
+                by_fanin.truncate(5);
+                svc::StateSummary {
+                    total_state_keys: r.total_keys,
+                    session_keys: session,
+                    viewstate_keys: viewstate,
+                    application_keys: application,
+                    cross_page_chains: r.cross_page_chains,
+                    top_keys: by_fanin,
+                }
+            })
+        };
+
+        // ── 8. Database summary (only if db_table nodes exist) ────────
+        let db_summary = {
+            let g = graph.clone();
+            let p = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                let tables = g
+                    .query_nodes(&p, Some("db_table"), None, None, 500)
+                    .unwrap_or_default();
+                if tables.is_empty() {
+                    return None;
+                }
+                let mut with_refs: Vec<(String, usize)> = tables
+                    .iter()
+                    .map(|t| {
+                        let refs = g
+                            .find_incoming_edges_with_kind(&p, None, &t.node_id, 500)
+                            .map(|v| v.len())
+                            .unwrap_or(0);
+                        (t.name.clone(), refs)
+                    })
+                    .collect();
+                with_refs.sort_by(|a, b| b.1.cmp(&a.1));
+                let top_tables = with_refs.iter().take(5).cloned().collect();
+                Some(svc::DbSummary {
+                    table_count: tables.len(),
+                    top_tables,
+                })
+            })
+            .await
+            .ok()
+            .flatten()
+        };
+
+        // ── 9. Build the snapshot ─────────────────────────────────────
+        let project_name = project_name_from_dir(&rec.directory);
+        let snapshot = svc::ProjectSnapshot {
+            project_name,
+            role_description: role,
+            languages,
+            build_commands: detect_build_commands(&rec.directory),
+            danger_zones,
+            critical_rules,
+            per_language_rules,
+            state_summary,
+            db_summary,
+            co_change_pairs: Vec::new(),
+            auth_summary: None,
+            frontend_warnings: Vec::new(),
+            existing_claude_md: existing_md.clone(),
+        };
+
+        // ── 10. Render ────────────────────────────────────────────────
+        let root_md = svc::render_root_claude_md(&snapshot, req.max_root_lines);
+        let rule_files = svc::render_rule_files(&snapshot);
+        let agents_md = if req.generate_agents_md {
+            Some(svc::render_agents_md(&snapshot, req.max_root_lines.max(80)))
+        } else {
+            None
+        };
+
+        // ── 11. Optional disk write ───────────────────────────────────
+        let mut written: Vec<String> = Vec::new();
+        if req.write_to_disk {
+            use engram_core::safe_join;
+            let project_dir = std::path::PathBuf::from(&rec.directory);
+            let root_path = safe_join(&project_dir, "CLAUDE.md")
+                .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+            std::fs::write(&root_path, &root_md)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            written.push("CLAUDE.md".into());
+
+            let rules_dir = safe_join(&project_dir, ".claude/rules")
+                .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+            std::fs::create_dir_all(&rules_dir)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            for f in &rule_files {
+                let path = safe_join(&project_dir, &format!(".claude/rules/{}", f.filename))
+                    .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                std::fs::write(&path, &f.content)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                written.push(format!(".claude/rules/{}", f.filename));
+            }
+            if let Some(ref agents) = agents_md {
+                let path = safe_join(&project_dir, "AGENTS.md")
+                    .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                std::fs::write(&path, agents)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                written.push("AGENTS.md".into());
+            }
+        }
+
+        // ── 12. Build response ────────────────────────────────────────
+        let mut output = String::with_capacity(8192);
+        if !written.is_empty() {
+            output.push_str("# Written files\n\n");
+            for w in &written {
+                let _ = writeln!(output, "- {w}");
+            }
+            output.push('\n');
+        }
+        let root_lines = root_md.lines().count();
+        let _ = writeln!(output, "# CLAUDE.md ({root_lines} lines)\n\n{root_md}\n");
+        for f in &rule_files {
+            let lines = f.content.lines().count();
+            let _ = writeln!(
+                output,
+                "# .claude/rules/{} ({} lines)\n\n{}\n",
+                f.filename, lines, f.content
+            );
+        }
+        if let Some(ref agents) = agents_md {
+            let lines = agents.lines().count();
+            let _ = writeln!(output, "# AGENTS.md ({lines} lines)\n\n{agents}\n");
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(output)]))
+    }
+
     pub async fn handle_detect_design_patterns(
         &self,
         req: DetectDesignPatternsRequest,
@@ -3321,6 +3632,258 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
+    }
+}
+
+// ── produce_claude_md helpers ────────────────────────────────────────────────
+
+/// Derive a one-line role description from the language breakdown, with
+/// simple framework hints based on what the graph contains. Intentionally
+/// generic — no project-specific assumptions.
+fn build_role_description(
+    languages: &[crate::services::produce_claude_md_service::LanguageShare],
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+) -> String {
+    use crate::services::produce_claude_md_service::language_display;
+
+    if languages.is_empty() {
+        return "Indexed project.".into();
+    }
+    let names: Vec<&str> = languages
+        .iter()
+        .take(3)
+        .map(|l| language_display(&l.language))
+        .collect();
+    let lang_phrase = names.join(" + ");
+
+    // Framework hint: peek at node_type counts.
+    let counts = graph.count_nodes_by_type(project_id).unwrap_or_default();
+    let has_pages = counts.get("page").copied().unwrap_or(0) > 0;
+    let has_controls = counts.get("control").copied().unwrap_or(0) > 0;
+    let has_tables = counts.get("db_table").copied().unwrap_or(0) > 0;
+
+    let mut hint = String::new();
+    if has_pages && has_controls {
+        hint.push_str(" ASP.NET WebForms");
+    } else if counts.get("web_service").copied().unwrap_or(0) > 0 {
+        hint.push_str(" Web services");
+    }
+    if has_tables {
+        hint.push_str(if hint.is_empty() {
+            " SQL-backed"
+        } else {
+            " + SQL"
+        });
+    }
+
+    format!("{lang_phrase} project.{hint}").trim().to_string()
+}
+
+/// Turn a [`engram_core::registry::RepoRule`] into a short rule text.
+/// Prefers `rule_text` when present; falls back to a descriptive line
+/// derived from the rule id / file pattern.
+fn rule_text_from_repo_rule(r: &engram_core::registry::RepoRule) -> String {
+    let clean = r.rule_text.trim();
+    if !clean.is_empty() {
+        return clean.to_string();
+    }
+    if r.rule_id.starts_with("immune_") {
+        return format!(
+            "File `{}` is immune-flagged. Run `immune_check` before editing.",
+            r.file_pattern
+        );
+    }
+    format!(
+        "Repo rule `{}` applies to `{}` — review before editing.",
+        r.rule_id, r.file_pattern
+    )
+}
+
+/// Convert a blast-radius complexity breakdown into a short list of
+/// "reasons" phrases for the danger-zones line. Only strong signals
+/// (score ≥ 5.0) are surfaced.
+fn reasons_from_breakdown(
+    bd: &crate::services::blast_radius_service::ComplexityBreakdown,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    if bd.dependency_density_score >= 5.0 {
+        out.push(format!(
+            "hub ({:.0}/10 dependency)",
+            bd.dependency_density_score
+        ));
+    }
+    if bd.state_coupling_score >= 5.0 {
+        out.push(format!("state ({:.0}/10)", bd.state_coupling_score));
+    }
+    if bd.sql_concat_score >= 5.0 {
+        out.push(format!("SQL ({:.0}/10)", bd.sql_concat_score));
+    }
+    if bd.handles_clause_score >= 5.0 {
+        out.push(format!("events ({:.0}/10)", bd.handles_clause_score));
+    }
+    if bd.gis_coupling_score >= 5.0 {
+        out.push(format!("GIS ({:.0}/10)", bd.gis_coupling_score));
+    }
+    if bd.script_injection_score >= 5.0 {
+        out.push(format!(
+            "script-inject ({:.0}/10)",
+            bd.script_injection_score
+        ));
+    }
+    out
+}
+
+/// Read `CLAUDE.md` (or `claude.md`) from the project root if present.
+fn read_claude_md_if_any(project_dir: &str) -> Option<String> {
+    let dir = std::path::Path::new(project_dir);
+    for candidate in &["CLAUDE.md", "claude.md", "CLAUDE.MD"] {
+        if let Ok(full) = safe_join(dir, candidate) {
+            if let Ok(text) = std::fs::read_to_string(&full) {
+                return Some(text);
+            }
+        }
+    }
+    None
+}
+
+/// Inspect the project directory for well-known build/test command
+/// conventions. Each entry is emitted as a single line in the
+/// `<build>` block. Returns empty when nothing is detected — we never
+/// guess.
+fn detect_build_commands(project_dir: &str) -> Vec<String> {
+    let dir = std::path::Path::new(project_dir);
+    let has = |name: &str| dir.join(name).exists();
+    let mut cmds = Vec::new();
+    if has("Cargo.toml") {
+        cmds.push("cargo build --release --workspace".into());
+        cmds.push("cargo test --workspace".into());
+    } else if has("package.json") {
+        cmds.push("npm install".into());
+        cmds.push("npm test".into());
+    } else if has("pyproject.toml") || has("requirements.txt") {
+        cmds.push("pip install -r requirements.txt  # or: pip install -e .".into());
+        cmds.push("pytest".into());
+    } else if has("pom.xml") {
+        cmds.push("mvn package".into());
+        cmds.push("mvn test".into());
+    } else if has("build.gradle") || has("build.gradle.kts") {
+        cmds.push("./gradlew build".into());
+        cmds.push("./gradlew test".into());
+    } else if has("go.mod") {
+        cmds.push("go build ./...".into());
+        cmds.push("go test ./...".into());
+    } else if std::fs::read_dir(dir)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .to_lowercase()
+                .ends_with(".sln")
+        })
+    {
+        cmds.push("msbuild  # or: dotnet build".into());
+    }
+    cmds
+}
+
+/// Derive a display-friendly project name from the project directory.
+fn project_name_from_dir(project_dir: &str) -> String {
+    std::path::Path::new(project_dir)
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Project".into())
+}
+
+/// Result of per-language style gathering.
+struct LanguageStyleBundle {
+    bullets: Vec<String>,
+    sample_files: Vec<String>,
+}
+
+/// Pick the top-N most central files in a given language (by PageRank)
+/// and run `static_analyze_file_style` on each. Dedup bullets across
+/// samples so the rule file isn't a repetitive dump.
+async fn gather_language_style(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    project_dir: &str,
+    language: &str,
+    active_gen: u64,
+    sample_count: usize,
+) -> LanguageStyleBundle {
+    use crate::services::cognitive_service::static_analyze_file_style;
+
+    let graph_c = graph.clone();
+    let pid_c = project_id.to_string();
+    let lang_c = language.to_string();
+    let top_files: Vec<engram_graph::Node> = match tokio::task::spawn_blocking(move || {
+        let file_nodes = graph_c
+            .query_nodes(&pid_c, Some("file"), None, None, 5000)
+            .unwrap_or_default();
+        let by_lang: Vec<engram_graph::Node> = file_nodes
+            .into_iter()
+            .filter(|n| n.language.eq_ignore_ascii_case(&lang_c))
+            .collect();
+        if by_lang.is_empty() {
+            return Vec::new();
+        }
+        let pr = engram_graph::analysis::compute_pagerank(&graph_c, &pid_c, active_gen).ok();
+        let mut ranked: Vec<(engram_graph::Node, f32)> = by_lang
+            .into_iter()
+            .map(|n| {
+                let r = pr
+                    .as_ref()
+                    .and_then(|m| m.pagerank.get(&n.node_id).copied())
+                    .unwrap_or(0.0);
+                (n, r)
+            })
+            .collect();
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        ranked
+            .into_iter()
+            .take(sample_count)
+            .map(|(n, _)| n)
+            .collect()
+    })
+    .await
+    {
+        Ok(v) => v,
+        Err(_) => Vec::new(),
+    };
+
+    let mut all_bullets: Vec<String> = Vec::new();
+    let mut sample_files: Vec<String> = Vec::new();
+    for n in top_files {
+        let path = n.file_path.as_str().to_string();
+        let dir = std::path::PathBuf::from(project_dir);
+        let path_clone = path.clone();
+        let content: Option<String> =
+            tokio::task::spawn_blocking(move || match safe_join(&dir, &path_clone) {
+                Ok(full) => std::fs::read_to_string(full).ok(),
+                Err(_) => None,
+            })
+            .await
+            .ok()
+            .flatten();
+        let Some(content) = content else {
+            continue;
+        };
+        sample_files.push(path.clone());
+        for b in static_analyze_file_style(&content, &path) {
+            if !all_bullets.iter().any(|existing| existing == &b) {
+                all_bullets.push(b);
+            }
+        }
+    }
+
+    LanguageStyleBundle {
+        bullets: all_bullets,
+        sample_files,
     }
 }
 

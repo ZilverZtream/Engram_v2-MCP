@@ -154,6 +154,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "produce_claude_md",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "find_symbol_references",
         status: CapabilityStatus::Implemented,
     },
