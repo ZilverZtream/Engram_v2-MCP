@@ -4841,6 +4841,38 @@ fn build_modern_route_equivalent(pattern: &str, target: &str, action_type: &str)
 
 // ── Gap 6: VB.NET → C# translation flags ───────────────────────────────────
 
+/// True iff a `VbTranslationFlag` extracted from file `flag_path` belongs
+/// in the dossier for a page at `page_path` with optional detected
+/// `codebehind`. Accepts:
+///   - the page file itself
+///   - the page's detected codebehind (when non-empty)
+///   - the conventional `<page>.vb` / `<page>.cs` sibling for an `.aspx`
+///     page that did not resolve a codebehind (e.g. the page inherits
+///     `System.Web.UI.Page` directly)
+///
+/// Rejects everything else. The prior version allowed
+/// `flag_path.contains(codebehind.unwrap_or(""))` which silently matched
+/// *every* file in the project whenever `codebehind` was `None`, so the
+/// first page dossier on a project with unresolved codebehinds dumped
+/// the entire project-wide flag list into one page's section.
+fn flag_belongs_to_page(flag_path: &str, page_path: &str, codebehind: Option<&str>) -> bool {
+    if flag_path == page_path {
+        return true;
+    }
+    if let Some(cb) = codebehind
+        && !cb.is_empty()
+        && flag_path == cb
+    {
+        return true;
+    }
+    if page_path.ends_with(".aspx")
+        && (flag_path == format!("{}.vb", page_path) || flag_path == format!("{}.cs", page_path))
+    {
+        return true;
+    }
+    false
+}
+
 fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationReport {
     static OPTIONAL_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(r"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?\w+\s+As\s+").expect("valid regex")
@@ -7606,16 +7638,22 @@ fn render_markdown(
         }
 
         // Phase 33: VB translation flags per page (Gap 6)
+        //
+        // Scope the flags to the page itself, its explicit codebehind (when
+        // the dossier builder detected one), and the conventional
+        // `.aspx.vb` / `.aspx.cs` sibling. Previously this filter contained
+        // `f.file_path.contains(cb)` where `cb` came from
+        // `d.codebehind_file.as_deref().unwrap_or("")` — with no codebehind
+        // detected, `cb` was the empty string and `.contains("")` is always
+        // true, so the first dossier on pages without a detected codebehind
+        // (e.g. OciusX `Site/AuthCallback.aspx`) dumped the project-wide
+        // flag list (~50 KB) into a single page's section.
         if vb_trans.is_vb_project {
             let page_flags: Vec<&VbTranslationFlag> = vb_trans
                 .translation_flags
                 .iter()
                 .filter(|f| {
-                    let cb = d.codebehind_file.as_deref().unwrap_or("");
-                    f.file_path == d.file_path
-                        || f.file_path.contains(cb)
-                        || (d.file_path.ends_with(".aspx")
-                            && f.file_path == format!("{}.vb", d.file_path))
+                    flag_belongs_to_page(&f.file_path, &d.file_path, d.codebehind_file.as_deref())
                 })
                 .collect();
             if !page_flags.is_empty() {
@@ -10495,6 +10533,109 @@ mod tests {
         assert_eq!(cross.total_cache_keys, 0);
         assert!(cross.has_email);
         assert!(cross.has_background_jobs);
+    }
+
+    // ── flag_belongs_to_page: per-dossier VB flag scoping ───────────────────
+    //
+    // Regression guard: before this helper, the filter used
+    // `flag_path.contains(codebehind.unwrap_or(""))`. When the dossier had
+    // no detected codebehind the filter degenerated to `.contains("")`
+    // which is always true, so the first page without a codebehind dumped
+    // the project-wide VB flag list (~50 KB on OciusX) into a single
+    // dossier's section.
+
+    #[test]
+    fn flag_belongs_to_page_accepts_exact_page() {
+        assert!(flag_belongs_to_page(
+            "Site/AuthCallback.aspx",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+    }
+
+    #[test]
+    fn flag_belongs_to_page_accepts_detected_codebehind() {
+        assert!(flag_belongs_to_page(
+            "Site/AuthCallback.aspx.vb",
+            "Site/AuthCallback.aspx",
+            Some("Site/AuthCallback.aspx.vb"),
+        ));
+    }
+
+    #[test]
+    fn flag_belongs_to_page_accepts_conventional_aspx_sibling_without_codebehind() {
+        // Page inherits `System.Web.UI.Page` directly — dossier builder
+        // sets `codebehind_file = None` — the conventional `.aspx.vb`
+        // sibling still belongs to this page.
+        assert!(flag_belongs_to_page(
+            "Site/AuthCallback.aspx.vb",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+        assert!(flag_belongs_to_page(
+            "Site/AuthCallback.aspx.cs",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+    }
+
+    #[test]
+    fn flag_belongs_to_page_rejects_unrelated_files_when_codebehind_is_none() {
+        // THE regression guard: codebehind None must not open the gate.
+        assert!(!flag_belongs_to_page(
+            "Site/Other.aspx.vb",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+        assert!(!flag_belongs_to_page(
+            "App_Code/shared/Helpers.vb",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+        assert!(!flag_belongs_to_page(
+            "Site/permits/permits.aspx.vb",
+            "Site/AuthCallback.aspx",
+            None
+        ));
+        // Empty-string codebehind must behave the same as None.
+        assert!(!flag_belongs_to_page(
+            "App_Code/shared/Helpers.vb",
+            "Site/AuthCallback.aspx",
+            Some(""),
+        ));
+    }
+
+    #[test]
+    fn flag_belongs_to_page_rejects_unrelated_files_with_codebehind() {
+        assert!(!flag_belongs_to_page(
+            "App_Code/shared/Helpers.vb",
+            "Site/AuthCallback.aspx",
+            Some("Site/AuthCallback.aspx.vb"),
+        ));
+        // And must not accept a file that merely *contains* the
+        // codebehind path as a substring.
+        assert!(!flag_belongs_to_page(
+            "Other/Site/AuthCallback.aspx.vb",
+            "Site/AuthCallback.aspx",
+            Some("AuthCallback.aspx.vb"),
+        ));
+    }
+
+    #[test]
+    fn flag_belongs_to_page_non_aspx_page_does_not_fall_back_to_sibling() {
+        // For an .ascx / .master page we don't blindly accept
+        // `<page>.vb` — only explicit codebehind detection counts.
+        assert!(!flag_belongs_to_page(
+            "Controls/MyControl.ascx.vb",
+            "Controls/MyControl.ascx",
+            None,
+        ));
+        // But if the dossier detected the codebehind, it's accepted.
+        assert!(flag_belongs_to_page(
+            "Controls/MyControl.ascx.vb",
+            "Controls/MyControl.ascx",
+            Some("Controls/MyControl.ascx.vb"),
+        ));
     }
 
     #[test]
