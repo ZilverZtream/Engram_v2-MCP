@@ -1190,11 +1190,55 @@ fn collect_test_context(
     project_id: &str,
     file_path: &str,
 ) -> anyhow::Result<TestGenContext> {
-    let all_fns = graph.query_nodes(project_id, Some("function"), None, None, 5000)?;
+    // Push the `file_path` filter into the graph query so we don't
+    // over-fetch — `query_nodes` does case-insensitive slash-normalised
+    // substring matching (see `contains_case_insensitive_path`), which
+    // tolerates Windows-style `\` in the caller's input and avoids
+    // capping out at the 5000-node limit on large projects (OciusX has
+    // ~24k function nodes, so the old `query_nodes(None, None, None,
+    // 5000)` silently discarded ~78% of them).
+    let all_fns = graph.query_nodes(project_id, Some("function"), None, Some(file_path), 10_000)?;
+
+    // Second pass: tighten the match to an exact-path comparison with
+    // slash + case normalisation so two unrelated files that happen to
+    // share a common suffix don't bleed together. A file stored as
+    // `Site/App_Code/foo.vb` must match both `Site/App_Code/foo.vb` and
+    // `Site\App_Code\foo.vb` supplied by the caller, but must NOT match
+    // `Other/App_Code/foo.vb`.
+    let input_fp = file_path.replace('\\', "/").to_ascii_lowercase();
+    let all_fns_count = all_fns.len();
     let functions: Vec<Node> = all_fns
-        .into_iter()
-        .filter(|n| n.file_path.as_str() == file_path)
+        .iter()
+        .filter(|n| {
+            let node_fp = n.file_path.as_str().replace('\\', "/").to_ascii_lowercase();
+            node_fp == input_fp
+                || node_fp.ends_with(&format!("/{input_fp}"))
+                || input_fp.ends_with(&format!("/{node_fp}"))
+        })
+        .cloned()
         .collect();
+
+    tracing::info!(
+        project_id = %project_id,
+        file_path = %file_path,
+        all_fns = all_fns_count,
+        matched_fns = functions.len(),
+        "generate_characterization_tests: collected function nodes for file"
+    );
+    if functions.is_empty() && all_fns_count > 0 {
+        let samples: Vec<&str> = all_fns
+            .iter()
+            .take(5)
+            .map(|n| n.file_path.as_str())
+            .collect();
+        tracing::warn!(
+            project_id = %project_id,
+            file_path = %file_path,
+            sample_node_paths = ?samples,
+            "generate_characterization_tests: 0 functions matched the target file_path — \
+             check path-casing / prefix mismatch between the caller and the indexed paths"
+        );
+    }
 
     let filter = |edges: Vec<Edge>| -> Vec<Edge> {
         edges
