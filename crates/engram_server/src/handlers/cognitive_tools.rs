@@ -21,6 +21,98 @@ use std::path::PathBuf;
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
 
+/// True iff `file_pattern` (from a `RepoRule`) matches `target_path`. The
+/// supported forms mirror what `inject_repo_rules` understands: exact
+/// equality, globs with `*` / `?`, and plain substring for short patterns
+/// without metacharacters. Slash direction is normalised so Windows
+/// callers don't get tripped up by backslashes.
+fn immune_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
+    if file_pattern.is_empty() {
+        return false;
+    }
+    let pat = file_pattern.replace('\\', "/").to_lowercase();
+    let path = target_path.replace('\\', "/").to_lowercase();
+    if pat == path {
+        return true;
+    }
+    if pat.contains('*') || pat.contains('?') {
+        // Minimal glob → regex: escape everything except `*` and `?`.
+        let mut re = String::with_capacity(pat.len() + 8);
+        re.push('^');
+        for c in pat.chars() {
+            match c {
+                '*' => re.push_str(".*"),
+                '?' => re.push('.'),
+                '.' | '+' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '^' | '$' | '\\' => {
+                    re.push('\\');
+                    re.push(c);
+                }
+                _ => re.push(c),
+            }
+        }
+        re.push('$');
+        if let Ok(compiled) = regex::Regex::new(&re) {
+            return compiled.is_match(&path);
+        }
+        return false;
+    }
+    // Fall back to substring for bare non-glob patterns.
+    path.contains(&pat)
+}
+
+/// Scan a snippet for deterministically-dangerous operations. Returns a
+/// sorted, de-duplicated list of pattern names that fired — used for both
+/// verdict escalation and human-readable output.
+///
+/// The list is intentionally conservative: every matcher here is a
+/// pattern that is rarely benign on a DAL / DDL surface. False-positive
+/// tolerance is low because firing this list only proposes a verdict
+/// floor — the full ladder still consults similarity and match counts.
+fn detect_destructive_patterns(code: &str) -> Vec<String> {
+    use std::sync::LazyLock;
+    // (name, pattern) — names flow through to the output, patterns are
+    // compiled once.
+    static PATTERNS: LazyLock<Vec<(&'static str, regex::Regex)>> = LazyLock::new(|| {
+        let raw: &[(&str, &str)] = &[
+            // LINQ-to-SQL bulk helpers.
+            ("DeleteAllOnSubmit", r"(?i)\bDeleteAllOnSubmit\s*\("),
+            ("InsertAllOnSubmit", r"(?i)\bInsertAllOnSubmit\s*\("),
+            // EF Core bulk helpers.
+            ("RemoveRange", r"(?i)\bRemoveRange\s*\("),
+            ("ExecuteDelete", r"(?i)\bExecuteDelete\s*\("),
+            // Raw SQL DDL and bulk mutations. `\b` on both sides keeps
+            // these from firing on `TRUNCATED_COLUMN_NAME` identifiers.
+            ("DROP TABLE", r"(?i)\bDROP\s+TABLE\b"),
+            ("TRUNCATE TABLE", r"(?i)\bTRUNCATE\s+TABLE\b"),
+            // DELETE FROM — any occurrence is suspicious on a DAL file.
+            // Deliberately broad: a false positive only proposes an
+            // escalation floor, it never blocks on its own. Refining
+            // this into "DELETE without WHERE" needs a real SQL parser
+            // and is not worth the complexity at this stage.
+            ("DELETE FROM", r"(?i)\bDELETE\s+FROM\s+[\[\]\w.]+"),
+            // Raw SQL passed through ADO.NET / Dapper / EF execution.
+            // When `ExecuteNonQuery` / `ExecuteSql` / `Execute` appears
+            // ANYWHERE in the same snippet as a `DELETE` / `DROP` /
+            // `TRUNCATE` literal, that's the textbook shape we flag.
+            (
+                "ExecuteNonQuery + destructive SQL",
+                r#"(?is)\bExecute(?:NonQuery|Sql|SqlRaw|SqlInterpolated)\b[\s\S]*?\b(?:DELETE|DROP|TRUNCATE)\b|\b(?:DELETE|DROP|TRUNCATE)\b[\s\S]*?\bExecute(?:NonQuery|Sql|SqlRaw|SqlInterpolated)\b"#,
+            ),
+        ];
+        raw.iter()
+            .filter_map(|(name, pat)| regex::Regex::new(pat).ok().map(|re| (*name, re)))
+            .collect()
+    });
+    let mut hits: Vec<String> = PATTERNS
+        .iter()
+        .filter(|(_, re)| re.is_match(code))
+        .map(|(name, _)| name.to_string())
+        .collect();
+    hits.sort();
+    hits.dedup();
+    hits
+}
+
 fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node]) -> String {
     let details = candidates
         .iter()
@@ -1699,12 +1791,51 @@ impl Engram {
             .and_then(|s| s.parse::<f32>().ok())
             .unwrap_or(0.6); // Default fallback
 
+        // ── Repo-rule cross-reference ───────────────────────────────────────
+        //
+        // When the caller supplied a `file_path`, check which active repo
+        // rules match it. `immune_*`-prefixed rules represent files that
+        // were explicitly flagged (typically from a reverted commit); code
+        // touching those files gets elevated scrutiny regardless of raw
+        // similarity score. A CLEAN verdict on a snippet that deletes rows
+        // from a previously-reverted DAL file is a false negative that
+        // turns the tool into noise.
+        let (is_immune_flagged, immune_rule_ids) = if let Some(ref fp) = req.file_path {
+            let rules = self
+                .state
+                .registry
+                .list_repo_rules(&req.project_id)
+                .unwrap_or_default();
+            let mut matched: Vec<String> = Vec::new();
+            for rule in rules {
+                if !rule.rule_id.starts_with("immune_") {
+                    continue;
+                }
+                if immune_rule_matches_path(&rule.file_pattern, fp) {
+                    matched.push(rule.rule_id);
+                }
+            }
+            (!matched.is_empty(), matched)
+        } else {
+            (false, Vec::new())
+        };
+
+        // ── Destructive-pattern detection ───────────────────────────────────
+        //
+        // Non-LLM, deterministic scan for operations that are reliably
+        // dangerous on a data-access file: bulk deletes, DROP / TRUNCATE,
+        // mass-mutation LINQ helpers, `ExecuteNonQuery` with a DELETE /
+        // DROP / TRUNCATE literal. When the snippet matches at least one
+        // of these AND the target file is immune-flagged, we force at
+        // least WARN even if similarity scores are low.
+        let destructive_hits = detect_destructive_patterns(&req.code);
+
+        let match_count = hits.len();
+        let mut highest_score = 0.0;
         let mut out = format!(
             "# Immune Check Result\n\n**Matches Found**: {}\n\n",
-            hits.len()
+            match_count
         );
-
-        let mut highest_score = 0.0;
         for (i, hit) in hits.iter().enumerate() {
             if hit.score > highest_score {
                 highest_score = hit.score;
@@ -1718,13 +1849,75 @@ impl Engram {
             ));
         }
 
-        let status = if highest_score > 0.8 {
-            "🔴 BLOCKED"
+        // ── Verdict ladder ──────────────────────────────────────────────────
+        //
+        // Rank is monotonic: 0 = CLEAN, 1 = WARNING, 2 = BLOCKED. Every
+        // signal proposes a floor, and the final verdict is the max of all
+        // floors. That way similarity, match-count, repo-rule, and
+        // destructive-pattern signals compose additively rather than
+        // letting a low raw score silently override everything else.
+        let mut verdict_rank: u8 = if highest_score > 0.8 {
+            2
         } else if highest_score > warn_t {
-            "🟡 WARNING"
+            1
         } else {
-            "🟢 CLEAN"
+            0
         };
+
+        // Match-count escalation: 3+ matches → WARN (compounding).
+        const MATCH_COUNT_WARN_THRESHOLD: usize = 3;
+        let match_count_warn = match_count >= MATCH_COUNT_WARN_THRESHOLD;
+        if match_count_warn {
+            verdict_rank = verdict_rank.max(1);
+        }
+
+        // Immune + any signal at all → WARN.
+        let immune_any_signal =
+            is_immune_flagged && (match_count > 0 || !destructive_hits.is_empty());
+        if immune_any_signal {
+            verdict_rank = verdict_rank.max(1);
+        }
+
+        // Immune + destructive + a match → BLOCKED. A revert-flagged file
+        // with destructive code AND anti-pattern evidence is textbook
+        // "do not apply".
+        if is_immune_flagged && !destructive_hits.is_empty() && match_count > 0 {
+            verdict_rank = verdict_rank.max(2);
+        }
+
+        let status = match verdict_rank {
+            2 => "🔴 BLOCKED",
+            1 => "🟡 WARNING",
+            _ => "🟢 CLEAN",
+        };
+
+        // Surface the escalation reasoning so callers see WHY the verdict
+        // landed where it did, not just the bare label.
+        if is_immune_flagged || match_count_warn || !destructive_hits.is_empty() {
+            out.push_str("## Escalation Signals\n\n");
+            out.push_str(&format!(
+                "- highest similarity score: {:.3} (warn threshold: {:.3})\n",
+                highest_score, warn_t
+            ));
+            out.push_str(&format!(
+                "- match count: {} (warn threshold: {})\n",
+                match_count, MATCH_COUNT_WARN_THRESHOLD
+            ));
+            if is_immune_flagged {
+                out.push_str(&format!(
+                    "- target file `{}` is immune-flagged by: {}\n",
+                    req.file_path.as_deref().unwrap_or(""),
+                    immune_rule_ids.join(", ")
+                ));
+            }
+            if !destructive_hits.is_empty() {
+                out.push_str(&format!(
+                    "- destructive patterns detected: {}\n",
+                    destructive_hits.join(", ")
+                ));
+            }
+            out.push('\n');
+        }
 
         out.push_str(&format!("## Final Status: {}\n", status));
         Ok(CallToolResult::success(vec![Content::text(out)]))
@@ -2860,5 +3053,125 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{detect_destructive_patterns, immune_rule_matches_path};
+
+    // ── immune_rule_matches_path ─────────────────────────────────────────
+
+    #[test]
+    fn immune_rule_matches_exact_path() {
+        assert!(immune_rule_matches_path(
+            "Site/App_Code/fiberjobb.vb",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+    }
+
+    #[test]
+    fn immune_rule_matches_path_ignores_slash_direction() {
+        // The rule might have been stored with Windows backslashes but the
+        // target path carries forward slashes (or vice versa).
+        assert!(immune_rule_matches_path(
+            "Site\\App_Code\\fiberjobb.vb",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+    }
+
+    #[test]
+    fn immune_rule_matches_path_is_case_insensitive() {
+        assert!(immune_rule_matches_path(
+            "site/app_code/fiberjobb.vb",
+            "Site/App_Code/FiberJobb.vb"
+        ));
+    }
+
+    #[test]
+    fn immune_rule_matches_glob_star() {
+        assert!(immune_rule_matches_path(
+            "Site/App_Code/*.vb",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+        assert!(immune_rule_matches_path(
+            "**/fiberjobb.vb",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+        assert!(!immune_rule_matches_path(
+            "Site/App_Code/*.cs",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+    }
+
+    #[test]
+    fn immune_rule_matches_plain_substring_without_globs() {
+        // Bare patterns without metacharacters fall back to substring match
+        // so a rule keyed on `fiberjobb.vb` catches the file regardless of
+        // which directory the caller passes.
+        assert!(immune_rule_matches_path(
+            "fiberjobb.vb",
+            "Site/App_Code/fiberjobb.vb"
+        ));
+    }
+
+    #[test]
+    fn immune_rule_empty_pattern_never_matches() {
+        assert!(!immune_rule_matches_path("", "anything.vb"));
+    }
+
+    // ── detect_destructive_patterns ──────────────────────────────────────
+
+    #[test]
+    fn detect_destructive_flags_linq_bulk_delete() {
+        let hits = detect_destructive_patterns(
+            "db.fj_fiberjobb.DeleteAllOnSubmit(db.fj_fiberjobb.Where(x => x.active))",
+        );
+        assert!(hits.iter().any(|h| h == "DeleteAllOnSubmit"));
+    }
+
+    #[test]
+    fn detect_destructive_flags_drop_and_truncate() {
+        let hits = detect_destructive_patterns(
+            "BEGIN TRANSACTION\nDROP TABLE audit_log\nTRUNCATE TABLE staging\nCOMMIT",
+        );
+        assert!(hits.iter().any(|h| h == "DROP TABLE"));
+        assert!(hits.iter().any(|h| h == "TRUNCATE TABLE"));
+    }
+
+    #[test]
+    fn detect_destructive_flags_execute_nonquery_with_delete() {
+        let hits = detect_destructive_patterns(
+            "var cmd = new SqlCommand(\"DELETE FROM orders\", conn); cmd.ExecuteNonQuery();",
+        );
+        // At least one destructive signal must fire — the regex family
+        // catches either the unbounded DELETE or the ExecuteNonQuery+DELETE
+        // combo, depending on spacing.
+        assert!(
+            !hits.is_empty(),
+            "destructive regex family must match ExecuteNonQuery with DELETE literal, got: {hits:?}"
+        );
+    }
+
+    #[test]
+    fn detect_destructive_ignores_benign_snippets() {
+        let hits = detect_destructive_patterns(
+            "Public Function GetUser(id As Integer) As User\n  Return db.Users.FirstOrDefault(Function(u) u.Id = id)\nEnd Function",
+        );
+        assert!(
+            hits.is_empty(),
+            "benign read-only snippet must not trigger destructive flags, got: {hits:?}"
+        );
+    }
+
+    #[test]
+    fn detect_destructive_does_not_false_fire_on_identifier_substrings() {
+        // `DROPPED_COLUMN_NAME` used as an identifier must not fire the
+        // `DROP TABLE` pattern — `\b` boundaries guard against this.
+        let hits = detect_destructive_patterns("Dim DROPPED_COLUMN_NAME As String = \"a\"");
+        assert!(
+            !hits.iter().any(|h| h == "DROP TABLE"),
+            "DROPPED_COLUMN_NAME identifier must not trigger DROP TABLE, got: {hits:?}"
+        );
     }
 }

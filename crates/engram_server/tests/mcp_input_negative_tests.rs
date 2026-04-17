@@ -345,6 +345,7 @@ fn mcp_neg_immune_check_sanitized_top_k_clamps_correctly() {
     let make_req = |top_k: usize| ImmuneCheckRequest {
         project_id: "proj".into(),
         code: "fn foo() {}".into(),
+        file_path: None,
         top_k,
         use_vector: false,
         include_content: false,

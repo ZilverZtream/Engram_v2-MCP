@@ -822,6 +822,14 @@ pub struct ImmuneCheckRequest {
     pub project_id: String,
     /// Code snippet to check against the anti-pattern index.
     pub code: String,
+    /// Optional target file path the snippet would be applied to. When
+    /// supplied, the check cross-references active `immune_*` repo rules
+    /// whose `file_pattern` matches this path and escalates the verdict
+    /// accordingly — a snippet that touches a previously-reverted file
+    /// AND contains destructive patterns is never CLEAN regardless of
+    /// raw similarity score.
+    #[serde(default)]
+    pub file_path: Option<String>,
     /// Number of results to consider (default 10, max 200).
     #[serde(default = "default_top_k")]
     pub top_k: usize,
