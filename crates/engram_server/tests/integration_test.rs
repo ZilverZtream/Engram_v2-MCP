@@ -2779,6 +2779,7 @@ async fn test_immune_system_end_to_end() {
         .immune_check(Parameters(engram_server::ImmuneCheckRequest {
             project_id: project_id.to_string(),
             code: draft_code.into(),
+            file_path: None,
             top_k: 1,
             use_vector: false,
             include_content: false,
