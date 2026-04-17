@@ -359,14 +359,16 @@ fn enforce_root_budget(text: String, max_lines: usize) -> String {
 
 /// Remove the `<tag>`…`</tag>` block (inclusive of the tags + trailing
 /// blank line) from `text`. No-op if the tag isn't present.
+///
+/// `tag` is expected to be the literal opening form including angle
+/// brackets (e.g. `"<engram>"`). The closing tag is derived by
+/// stripping the brackets and wrapping in `</…>`.
 fn strip_section(text: &str, tag: &str) -> String {
     let open = format!("{tag}\n");
-    let open_alt = format!("{tag}>\n"); // handles `<engram>`
     let close_name = tag.trim_start_matches('<').trim_end_matches('>');
     let close = format!("</{close_name}>\n");
 
-    let start = text.find(&open).or_else(|| text.find(&open_alt));
-    let Some(start) = start else {
+    let Some(start) = text.find(&open) else {
         return text.to_string();
     };
     let close_start = match text[start..].find(&close) {
@@ -1130,5 +1132,68 @@ mod tests {
             !md.contains("<engram>"),
             "AGENTS.md must not include the Claude-specific engram block"
         );
+    }
+
+    // ── strip_section ──
+    //
+    // Regression guard for an earlier version that carried a second
+    // `format!("{tag}>\n")` fallback — which produced garbage like
+    // `<engram>>\n` and was dead code. These tests pin the current
+    // contract: `tag` already includes its angle brackets, and the
+    // helper is plain string surgery over that.
+
+    #[test]
+    fn strip_section_removes_block_and_trailing_blank() {
+        let text = "# Header\n\n<engram>\nbody\n</engram>\n\ntail\n";
+        let out = strip_section(text, "<engram>");
+        assert_eq!(out, "# Header\n\ntail\n");
+    }
+
+    #[test]
+    fn strip_section_no_op_when_tag_missing() {
+        let text = "# Header\n\nnothing to strip\n";
+        assert_eq!(strip_section(text, "<engram>"), text);
+    }
+
+    #[test]
+    fn strip_section_no_op_when_close_tag_missing() {
+        let text = "# Header\n\n<engram>\nbody\nno closing tag\n";
+        assert_eq!(strip_section(text, "<engram>"), text);
+    }
+
+    #[test]
+    fn enforce_root_budget_drops_lowest_priority_first() {
+        let snap = ProjectSnapshot {
+            project_name: "P".into(),
+            role_description: "desc".into(),
+            danger_zones: vec![zone("a.rs", 8, "High", 100, &[])],
+            build_commands: vec!["cargo build".into()],
+            critical_rules: vec![CriticalRule {
+                text: "critical".into(),
+                evidence: None,
+                source: RuleSource::RepoRule,
+            }],
+            per_language_rules: vec![LanguageRules {
+                language: "rust".into(),
+                glob: "**/*.rs".into(),
+                bullets: vec!["x".into()],
+                sample_files: vec![],
+            }],
+            ..Default::default()
+        };
+        let full = render_root_claude_md(&snap, 300);
+        let full_lines = full.lines().count();
+        assert!(
+            full_lines > 20,
+            "expected a chunky render, got {full_lines}"
+        );
+
+        // Squeeze hard — `<engram>` drops first, `<critical_rules>` never does.
+        let tight = render_root_claude_md(&snap, full_lines.saturating_sub(3));
+        assert!(
+            !tight.contains("<engram>"),
+            "over-budget render must drop <engram> first, got:\n{tight}"
+        );
+        assert!(tight.contains("<critical_rules>"));
     }
 }

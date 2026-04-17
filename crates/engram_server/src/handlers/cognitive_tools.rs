@@ -2740,42 +2740,84 @@ impl Engram {
             critical_rules = svc::merge_with_existing(critical_rules, existing_rules);
         }
 
-        // ── 5. Top PageRank nodes → danger zones ──────────────────────
-        let pid_for_pr = pid.clone();
-        let graph_for_pr = graph.clone();
-        let top_file_ids: Vec<String> = tokio::task::spawn_blocking(move || {
-            engram_graph::analysis::compute_pagerank(&graph_for_pr, &pid_for_pr, active_gen)
-                .ok()
-                .map(|m| {
-                    let mut pairs: Vec<(String, f32)> = m.pagerank.into_iter().collect();
-                    pairs
-                        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-                    pairs
-                        .into_iter()
-                        .filter(|(id, _)| id.starts_with("file:"))
-                        .take(10)
-                        .map(|(id, _)| id)
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default()
+        // ── 5a. Compute PageRank + fetch file nodes ONCE ──────────────
+        //
+        // PageRank is the expensive part of this tool (iterative matrix
+        // op over the full graph). Both the danger-zones pass and the
+        // per-language style pass need a centrality ranking; compute
+        // once, pass the HashMap by reference to both.
+        //
+        // Same story for the file-node list: one `query_nodes` scan
+        // covers every language, we filter in-memory per language.
+        let graph_for_prep = graph.clone();
+        let pid_for_prep = pid.clone();
+        let (pagerank_map, file_nodes): (
+            std::collections::HashMap<String, f32>,
+            Vec<engram_graph::Node>,
+        ) = tokio::task::spawn_blocking(move || {
+            let pr = engram_graph::analysis::compute_pagerank(
+                &graph_for_prep,
+                &pid_for_prep,
+                active_gen,
+            )
+            .ok()
+            .map(|m| m.pagerank)
+            .unwrap_or_default();
+            let files = graph_for_prep
+                .query_nodes(&pid_for_prep, Some("file"), None, None, 5000)
+                .unwrap_or_default();
+            (pr, files)
         })
         .await
         .unwrap_or_default();
 
-        let mut danger_zones: Vec<svc::DangerZone> = Vec::new();
-        for file_id in &top_file_ids {
-            let g = graph.clone();
-            let p = pid.clone();
-            let t = file_id.clone();
-            if let Ok(Ok(report)) = tokio::task::spawn_blocking(move || {
-                crate::services::blast_radius_service::compute_blast_radius(
-                    &g, &p, &t, active_gen, false,
-                )
+        // ── 5b. Top-10 file nodes by PageRank → candidates for blast radius.
+        let top_file_ids: Vec<String> = {
+            let mut pairs: Vec<(&String, &f32)> = pagerank_map
+                .iter()
+                .filter(|(id, _)| id.starts_with("file:"))
+                .collect();
+            pairs.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+            pairs
+                .into_iter()
+                .take(10)
+                .map(|(id, _)| id.clone())
+                .collect()
+        };
+
+        // ── 5c. Run all blast-radius calls in parallel. ───────────────
+        //
+        // Each `compute_blast_radius` does heavy work (per-kind
+        // `neighbors` calls + `list_edges` scan for file targets +
+        // internal PageRank). Sequentially on OciusX-scale graphs
+        // this was ~3s; spawn_blocking'd concurrently we bottleneck on
+        // the tokio blocking threadpool instead and land around
+        // ~500ms for the same 10 calls.
+        let blast_handles: Vec<_> = top_file_ids
+            .iter()
+            .map(|file_id| {
+                let g = graph.clone();
+                let p = pid.clone();
+                let t = file_id.clone();
+                tokio::task::spawn_blocking(move || {
+                    (
+                        t.clone(),
+                        crate::services::blast_radius_service::compute_blast_radius(
+                            &g, &p, &t, active_gen, false,
+                        ),
+                    )
+                })
             })
-            .await
-            {
+            .collect();
+
+        let mut danger_zones: Vec<svc::DangerZone> = Vec::new();
+        for handle in blast_handles {
+            if let Ok((file_id, Ok(report))) = handle.await {
                 if report.migration_risk >= 4 {
-                    let path = file_id.strip_prefix("file:").unwrap_or(file_id).to_string();
+                    let path = file_id
+                        .strip_prefix("file:")
+                        .unwrap_or(&file_id)
+                        .to_string();
                     danger_zones.push(svc::DangerZone {
                         file_path: path,
                         risk_score: report.migration_risk,
@@ -2794,14 +2836,23 @@ impl Engram {
         danger_zones.truncate(10);
 
         // ── 6. Static coding style per language (top-5% share) ────────
+        //
+        // Reuses the precomputed `pagerank_map` + `file_nodes` so the
+        // per-language gather is an in-memory filter + rank, not a
+        // fresh graph scan.
         let mut per_language_rules: Vec<svc::LanguageRules> = Vec::new();
         for lang in &languages {
             if lang.share_percent < 5.0 {
                 continue;
             }
-            let bullets =
-                gather_language_style(&graph, &pid, &rec.directory, &lang.language, active_gen, 3)
-                    .await;
+            let bullets = gather_language_style(
+                &file_nodes,
+                &pagerank_map,
+                &rec.directory,
+                &lang.language,
+                3,
+            )
+            .await;
             if bullets.bullets.is_empty() {
                 continue;
             }
@@ -3805,72 +3856,66 @@ struct LanguageStyleBundle {
     sample_files: Vec<String>,
 }
 
-/// Pick the top-N most central files in a given language (by PageRank)
-/// and run `static_analyze_file_style` on each. Dedup bullets across
-/// samples so the rule file isn't a repetitive dump.
+/// Pick the top-N most central files in a given language (by
+/// precomputed PageRank) and run `static_analyze_file_style` on each.
+/// Dedup bullets across samples so the rule file isn't a repetitive
+/// dump.
+///
+/// Both `file_nodes` and `pagerank_map` are precomputed once at the
+/// top of the handler and shared across every language, so this
+/// function performs no graph queries — just an in-memory filter +
+/// rank + N file reads. File reads are issued concurrently via
+/// `spawn_blocking` + `join_all` so the total time for, say, three
+/// sample files is bounded by the slowest single read rather than
+/// the sum.
 async fn gather_language_style(
-    graph: &engram_graph::GraphStore,
-    project_id: &str,
+    file_nodes: &[engram_graph::Node],
+    pagerank_map: &std::collections::HashMap<String, f32>,
     project_dir: &str,
     language: &str,
-    active_gen: u64,
     sample_count: usize,
 ) -> LanguageStyleBundle {
     use crate::services::cognitive_service::static_analyze_file_style;
 
-    let graph_c = graph.clone();
-    let pid_c = project_id.to_string();
-    let lang_c = language.to_string();
-    let top_files: Vec<engram_graph::Node> = match tokio::task::spawn_blocking(move || {
-        let file_nodes = graph_c
-            .query_nodes(&pid_c, Some("file"), None, None, 5000)
-            .unwrap_or_default();
-        let by_lang: Vec<engram_graph::Node> = file_nodes
-            .into_iter()
-            .filter(|n| n.language.eq_ignore_ascii_case(&lang_c))
-            .collect();
-        if by_lang.is_empty() {
-            return Vec::new();
-        }
-        let pr = engram_graph::analysis::compute_pagerank(&graph_c, &pid_c, active_gen).ok();
-        let mut ranked: Vec<(engram_graph::Node, f32)> = by_lang
-            .into_iter()
-            .map(|n| {
-                let r = pr
-                    .as_ref()
-                    .and_then(|m| m.pagerank.get(&n.node_id).copied())
-                    .unwrap_or(0.0);
-                (n, r)
+    // In-memory filter + rank. No graph round-trip.
+    let mut ranked: Vec<(&engram_graph::Node, f32)> = file_nodes
+        .iter()
+        .filter(|n| n.language.eq_ignore_ascii_case(language))
+        .map(|n| {
+            let r = pagerank_map.get(&n.node_id).copied().unwrap_or(0.0);
+            (n, r)
+        })
+        .collect();
+    if ranked.is_empty() {
+        return LanguageStyleBundle {
+            bullets: Vec::new(),
+            sample_files: Vec::new(),
+        };
+    }
+    ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    ranked.truncate(sample_count);
+
+    // Read the sample files concurrently.
+    let read_handles: Vec<_> = ranked
+        .iter()
+        .map(|(n, _)| {
+            let path = n.file_path.as_str().to_string();
+            let dir = std::path::PathBuf::from(project_dir);
+            let path_for_read = path.clone();
+            tokio::task::spawn_blocking(move || {
+                let content = match safe_join(&dir, &path_for_read) {
+                    Ok(full) => std::fs::read_to_string(full).ok(),
+                    Err(_) => None,
+                };
+                (path, content)
             })
-            .collect();
-        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        ranked
-            .into_iter()
-            .take(sample_count)
-            .map(|(n, _)| n)
-            .collect()
-    })
-    .await
-    {
-        Ok(v) => v,
-        Err(_) => Vec::new(),
-    };
+        })
+        .collect();
 
     let mut all_bullets: Vec<String> = Vec::new();
     let mut sample_files: Vec<String> = Vec::new();
-    for n in top_files {
-        let path = n.file_path.as_str().to_string();
-        let dir = std::path::PathBuf::from(project_dir);
-        let path_clone = path.clone();
-        let content: Option<String> =
-            tokio::task::spawn_blocking(move || match safe_join(&dir, &path_clone) {
-                Ok(full) => std::fs::read_to_string(full).ok(),
-                Err(_) => None,
-            })
-            .await
-            .ok()
-            .flatten();
-        let Some(content) = content else {
+    for handle in read_handles {
+        let Ok((path, Some(content))) = handle.await else {
             continue;
         };
         sample_files.push(path.clone());
