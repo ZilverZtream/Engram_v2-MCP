@@ -65,6 +65,12 @@ static DS_UPDATE_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 static DS_DELETE_METHOD_RE: OnceLock<Regex> = OnceLock::new();
 static DS_TYPE_NAME_RE: OnceLock<Regex> = OnceLock::new();
 
+/// `DataSourceID="ctrlId"` on any data-consuming control (GridView,
+/// DropDownList, Repeater, …). Drives the `data_binding` edge that ties
+/// the consumer control to its backing data-source control so graph
+/// traversals can reach SQL from a grid.
+static DATASOURCE_ID_RE: OnceLock<Regex> = OnceLock::new();
+
 /// Server-Side Include directive: `<!--#include virtual="..." -->` or `<!--#include file="..." -->`
 static SSI_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -372,6 +378,17 @@ pub fn extract_webforms(
         return (symbols, edges);
     };
 
+    // `DataSourceID="ctrlId"` — declarative binding from a data consumer
+    // (GridView / DropDownList / Repeater / …) to its backing data source
+    // control (SqlDataSource / ObjectDataSource / LinqDataSource / …).
+    let Some(datasource_id_re) = get_compiled_regex(
+        &DATASOURCE_ID_RE,
+        r#"(?i)\bDataSourceID\s*=\s*"([^"]+)""#,
+        "webforms_datasource_id",
+    ) else {
+        return (symbols, edges);
+    };
+
     let extract_controls = |tag_attrs: &str,
                             tag_line: u32,
                             inherits_fqn: Option<&str>|
@@ -412,6 +429,34 @@ pub fn extract_webforms(
                     kind: "event_wiring".to_string(),
                     metadata: if meta.is_empty() { None } else { Some(meta) },
                 });
+            }
+
+            // `DataSourceID="ctrlId"` → `data_binding` edge from the
+            // consumer control to its data-source control. Without this
+            // edge, trace_ui_event on a GridView with declarative
+            // binding (the common OciusX shape — LinqDataSource /
+            // ObjectDataSource / SqlDataSource wired purely through
+            // markup) cannot cross from the grid to the data source,
+            // so it never reaches the codebehind handler or SQL table.
+            if let Some(dcap) = datasource_id_re.captures(tag_attrs) {
+                let ds_id = dcap[1].trim().to_string();
+                if !ds_id.is_empty() && ds_id != ctrl_id {
+                    let mut meta = HashMap::new();
+                    meta.insert("binding".into(), "DataSourceID".into());
+                    meta.insert("source_control".into(), ctrl_id.clone());
+                    meta.insert("target_control".into(), ds_id.clone());
+                    e.push(ExtractedEdge {
+                        source_name: ctrl_id.clone(),
+                        source_kind: "control".to_string(),
+                        source_start_line: tag_line,
+                        source_language: "aspx".to_string(),
+                        target_name: ds_id,
+                        target_kind: Some("control".to_string()),
+                        target_start_line: None,
+                        kind: "data_binding".to_string(),
+                        metadata: Some(meta),
+                    });
+                }
             }
         }
         (s, e)
@@ -2071,6 +2116,53 @@ mod tests {
 
         let changed = edges.iter().find(|e| e.source_name == "ddlStatus").unwrap();
         assert_eq!(changed.target_name, "ddlStatus_Changed");
+    }
+
+    /// Regression guard: `DataSourceID` must emit a `data_binding` edge
+    /// from the consumer control to the named data-source control.
+    /// Without it, `trace_ui_event` on a `GridView` cannot reach the
+    /// codebehind (the whole point of declarative binding).
+    #[test]
+    fn test_datasource_id_emits_data_binding_edge() {
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("permits.aspx");
+        let source = r#"
+<%@ Page Inherits="App.Permits" %>
+<asp:GridView ID="gvMain" runat="server" DataSourceID="linqSource" />
+<asp:LinqDataSource ID="linqSource" runat="server" OnSelecting="linqSource_Selecting" />
+"#;
+        let (_, edges) = extract_webforms(root, &rel, source);
+        let bind = edges
+            .iter()
+            .find(|e| {
+                e.kind == "data_binding"
+                    && e.source_name == "gvMain"
+                    && e.target_name == "linqSource"
+            })
+            .expect("GridView → LinqDataSource data_binding edge must be emitted");
+        assert_eq!(bind.source_kind, "control");
+        assert_eq!(bind.target_kind.as_deref(), Some("control"));
+        let meta = bind.metadata.as_ref().expect("metadata present");
+        assert_eq!(
+            meta.get("binding").map(|s| s.as_str()),
+            Some("DataSourceID")
+        );
+    }
+
+    /// Self-referential `DataSourceID` (same ID as the control) must not
+    /// emit a self-loop.
+    #[test]
+    fn test_datasource_id_no_self_loop() {
+        let root = Path::new("C:/repo");
+        let rel = RelPath::new("bad.aspx");
+        let source = r#"<asp:GridView ID="g" runat="server" DataSourceID="g" />"#;
+        let (_, edges) = extract_webforms(root, &rel, source);
+        assert!(
+            !edges
+                .iter()
+                .any(|e| e.kind == "data_binding" && e.source_name == "g" && e.target_name == "g"),
+            "self-referential DataSourceID must not emit a loop"
+        );
     }
 
     #[test]

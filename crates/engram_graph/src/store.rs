@@ -1602,7 +1602,38 @@ impl GraphStore {
             best_depth.insert(curr_id.clone(), depth);
 
             let mut neighbors = Vec::new();
-            let kinds = [EdgeKind::Dependency, EdgeKind::Contains, EdgeKind::SqlCalls];
+            // UI → SQL traversal edge set.
+            //
+            // `Dependency` covers generic symbol↔symbol links (and also
+            // absorbs unknown string-kinds from extractors via the
+            // ingest-side fallback, e.g. `event_wiring` → Dependency).
+            //
+            // `Contains` covers page → control, class → method.
+            //
+            // `DataBinding` is what ties a GridView (or any consumer) to
+            // its `DataSourceID` control and what ties a data-binding
+            // `<%# Eval("col") %>` to a `binding_field:col`. Without
+            // this kind the trace cannot cross the declarative-binding
+            // boundary from a grid to its data source.
+            //
+            // `Calls`, `QueriesTable`, `SqlCalls`, `StoredProcReadsTable`,
+            // `StoredProcWritesTable`, and `CallsStoredProcedure` fill
+            // out the method-to-SQL path: a handler `Calls` a helper
+            // which `QueriesTable` / `SqlCalls` / `CallsStoredProcedure`
+            // reaches the terminal SQL or stored-proc node. `ReadsColumn`
+            // is included so column-level endpoints aren't stranded.
+            let kinds = [
+                EdgeKind::Dependency,
+                EdgeKind::Contains,
+                EdgeKind::DataBinding,
+                EdgeKind::Calls,
+                EdgeKind::SqlCalls,
+                EdgeKind::QueriesTable,
+                EdgeKind::CallsStoredProcedure,
+                EdgeKind::StoredProcReadsTable,
+                EdgeKind::StoredProcWritesTable,
+                EdgeKind::ReadsColumn,
+            ];
             for k in kinds {
                 let out = self.neighbors(project_id, k, &curr_id, 100)?;
                 neighbors.extend(out.into_iter().map(|(id, _)| id));
@@ -2396,5 +2427,95 @@ mod tests {
             .resolve_symbol(project, "Missing.Symbol", Some("function"), None)
             .unwrap();
         assert!(matches!(resolved, ResolveResult::NotFound));
+    }
+
+    /// Regression guard for `trace_ui_event` on a page with declarative
+    /// data binding: a `GridView` → `LinqDataSource` (DataBinding) →
+    /// handler function (Dependency / event_wiring) → SQL must be
+    /// reachable via `find_ui_paths`. Before the traversal edge set was
+    /// expanded, the BFS only followed `[Dependency, Contains, SqlCalls]`
+    /// and could not cross the `DataBinding` hop, so the grid returned
+    /// no paths despite the graph having every intermediate edge.
+    #[test]
+    fn find_ui_paths_traverses_data_binding_and_calls_to_sql() {
+        let store = test_store();
+        let project = "p_ui";
+
+        // Node chain: control:gv → control:ds → function:handler → sql:query
+        let nodes = [
+            test_node("control:p.aspx:gv", "control", "gv", "p.aspx"),
+            test_node("control:p.aspx:ds", "control", "ds", "p.aspx"),
+            test_node(
+                "sym:function:p.aspx.vb:handler:10",
+                "function",
+                "handler",
+                "p.aspx.vb",
+            ),
+            test_node("sql:select:q", "inline_sql", "q", "p.aspx.vb"),
+        ];
+        store
+            .upsert_nodes(project, &nodes)
+            .expect("upsert test nodes");
+
+        fn edge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
+            Edge {
+                source_id: src.into(),
+                target_id: tgt.into(),
+                namespace: "memory".into(),
+                language: "vb".into(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+        store
+            .upsert_edges(
+                project,
+                &[
+                    // GridView → LinqDataSource via DataSourceID.
+                    edge(
+                        "control:p.aspx:gv",
+                        "control:p.aspx:ds",
+                        EdgeKind::DataBinding,
+                    ),
+                    // LinqDataSource → OnSelecting handler (extractor emits
+                    // the string kind `event_wiring` which ingest maps to
+                    // `Dependency` — the fallback arm).
+                    edge(
+                        "control:p.aspx:ds",
+                        "sym:function:p.aspx.vb:handler:10",
+                        EdgeKind::Dependency,
+                    ),
+                    // Handler queries a SQL endpoint.
+                    edge(
+                        "sym:function:p.aspx.vb:handler:10",
+                        "sql:select:q",
+                        EdgeKind::SqlCalls,
+                    ),
+                ],
+            )
+            .expect("upsert test edges");
+
+        let paths = store
+            .find_ui_paths(project, "control:p.aspx:gv", 6, 5)
+            .expect("find_ui_paths must succeed");
+        assert!(
+            !paths.is_empty(),
+            "trace_ui_event must find at least one path through \
+             DataBinding + Dependency + SqlCalls"
+        );
+        let first = &paths[0];
+        let ids: Vec<&str> = first.iter().map(|n| n.node_id.as_str()).collect();
+        assert_eq!(ids.first().copied(), Some("control:p.aspx:gv"));
+        assert!(
+            ids.iter().any(|id| id.starts_with("sql:")),
+            "path must terminate at a SQL node"
+        );
+        assert!(
+            ids.iter().any(|id| id == &"control:p.aspx:ds"),
+            "path must cross the LinqDataSource hop"
+        );
     }
 }
