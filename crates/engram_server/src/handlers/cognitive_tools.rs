@@ -264,9 +264,65 @@ impl Engram {
             );
 
             let capped_limit = req.limit.clamp(1, 1000);
-            let incoming = graph
+            let mut incoming = graph
                 .find_incoming_edges_with_kind(&req.project_id, None, &target_id, capped_limit)
                 .map_err(|e| e.to_string())?;
+
+            // File-level transitive aggregation — mirrors what
+            // `compute_blast_radius` does in `blast_radius_service.rs`.
+            // A raw `file:…` node carries almost no direct incoming
+            // edges on a typical project; every real dependent lands
+            // on the symbols inside the file via `Contains`. Without
+            // this pass, `impact_analysis` on a shared utility file
+            // (e.g. `Site/App_Code/shared-code/sharedfunc.vb` on
+            // OciusX — 1000+ real dependents) returned zero.
+            if target_id.starts_with("file:") {
+                let contained: std::collections::HashSet<String> = graph
+                    .neighbors(
+                        &req.project_id,
+                        engram_graph::EdgeKind::Contains,
+                        &target_id,
+                        10_000,
+                    )
+                    .map_err(|e| e.to_string())?
+                    .into_iter()
+                    .map(|(id, _)| id)
+                    .collect();
+
+                if !contained.is_empty() {
+                    let all_edges = graph
+                        .list_edges(&req.project_id, None)
+                        .map_err(|e| e.to_string())?;
+                    let scanned = all_edges.len();
+                    let mut added = 0usize;
+                    for edge in all_edges {
+                        if contained.contains(&edge.target_id)
+                            && edge.source_id != target_id
+                            // Do not re-include file→symbol Contains
+                            // edges as "dependents" of the file — those
+                            // are the structural parent relationship
+                            // the BFS already used to resolve
+                            // `contained`.
+                            && !(contained.contains(&edge.source_id)
+                                && edge.edge_kind == engram_graph::EdgeKind::Contains)
+                        {
+                            incoming.push((edge.source_id, edge.edge_kind, edge.weight));
+                            added += 1;
+                            if incoming.len() >= capped_limit {
+                                break;
+                            }
+                        }
+                    }
+                    tracing::info!(
+                        project_id = %req.project_id,
+                        target_id = %target_id,
+                        contained_symbols = contained.len(),
+                        edges_scanned = scanned,
+                        transitive_added = added,
+                        "impact_analysis: file-level transitive aggregation"
+                    );
+                }
+            }
 
             if incoming.is_empty() {
                 return Ok(format!("No dependent nodes found for {target_id}."));
@@ -1555,10 +1611,12 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "AJAX regions for {}",
-            result.file_path
-        ))]))
+        // Before: the handler returned a bare `"AJAX regions for <path>"`
+        // string and discarded the entire `AjaxRegionMap` struct, so
+        // callers got nothing useful out of the tool. Render the full
+        // structured inventory via the service's existing formatter.
+        let rendered = crate::services::ajax_region_service::format_ajax_region_map(&result);
+        Ok(CallToolResult::success(vec![Content::text(rendered)]))
     }
 
     pub async fn handle_analyze_business_logic(
@@ -2184,7 +2242,7 @@ impl Engram {
             // Direction enum: exhaustive match — no silent fallback possible.
             let graph_direction = direction.as_str();
 
-            let traversal = graph
+            let mut traversal = graph
                 .traverse(
                     &project_id,
                     &entry_node_id,
@@ -2193,6 +2251,44 @@ impl Engram {
                     graph_direction,
                 )
                 .map_err(|e| e.to_string())?;
+
+            // Fallback: when the ADJ_OUT-driven traversal returns only
+            // the root node, scan the raw EDGES table for any edge
+            // sourced at `entry_node_id` and surface its targets as
+            // depth-1 neighbours. This catches the case where an edge
+            // lives in EDGES but isn't indexed into ADJ_OUT — a class
+            // of bug we've seen for Contains and event_wiring edges
+            // on specific node shapes — and also helps for VB LINQ
+            // method chains that the extractor records as raw edges
+            // without going through the full adjacency pipeline.
+            //
+            // Only fires for outgoing / both directions; "in" is not
+            // affected because the incoming traversal uses ADJ_IN.
+            let mut fallback_used = false;
+            if traversal.len() <= 1 && (graph_direction == "out" || graph_direction == "both") {
+                let direct_targets: Vec<engram_graph::Node> = graph
+                    .list_edges(&project_id, None)
+                    .map_err(|e| e.to_string())?
+                    .into_iter()
+                    .filter(|e| e.source_id == entry_node_id)
+                    .filter_map(|e| {
+                        graph
+                            .get_node(&project_id, &e.target_id)
+                            .ok()
+                            .flatten()
+                    })
+                    .collect();
+                if !direct_targets.is_empty() {
+                    fallback_used = true;
+                    for n in direct_targets {
+                        // De-dup against the root in case some edge
+                        // points back to the entry itself.
+                        if n.node_id != entry_node_id {
+                            traversal.push((n, 1));
+                        }
+                    }
+                }
+            }
 
             if output_json {
                 let nodes_json: Vec<serde_json::Value> = traversal
@@ -2214,10 +2310,12 @@ impl Engram {
                     "compile_time_only": compile_time_only,
                     "nodes": nodes_json,
                     "total_nodes": traversal.len(),
+                    "fallback_used": fallback_used,
                 }))
                 .map_err(|e| e.to_string())
             } else {
                 let mut tree = format!("# AST Dependency Tree: {}\n\n", entry_node_id);
+                let traversal_len = traversal.len();
                 for (node, depth) in traversal {
                     let indent = "  ".repeat(depth);
                     tree.push_str(&format!(
@@ -2226,6 +2324,27 @@ impl Engram {
                         node.node_type,
                         node.file_path.as_str()
                     ));
+                }
+                if fallback_used {
+                    tree.push_str(
+                        "\n_Note: depth-1 neighbours below the root came from a raw-EDGES \
+                         fallback scan because the ADJ_OUT-indexed traversal returned only \
+                         the root. These edges exist in EDGES but aren't populated in \
+                         ADJ_OUT — typically because they were written by an extractor \
+                         path that doesn't maintain the adjacency index._\n",
+                    );
+                } else if traversal_len <= 1 {
+                    tree.push_str(
+                        "\n⚠️ No outgoing dependencies found. This may indicate:\n  \
+                         - VB.NET LINQ method chains are not fully resolved to graph edges\n  \
+                         - The symbol genuinely has no outgoing dependencies in this direction\n\
+                         \n\
+                         Try alternative tools:\n  \
+                         - `trace_data_flow` for deeper data-access tracing\n  \
+                         - `find_symbol_references` (or `direction: \"in\"` here) for \
+                         incoming references\n  \
+                         - `get_method_info` to inspect the symbol's body directly\n",
+                    );
                 }
                 Ok(tree)
             }

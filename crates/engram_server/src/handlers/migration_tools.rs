@@ -647,10 +647,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Dossier for {}",
-            result.file_path
-        ))]))
+        // Before: the handler returned a bare `"Dossier for <path>"`
+        // string and discarded the entire `MigrationDossier` struct.
+        // Render the full structured dossier via the service's
+        // existing formatter so callers get lifecycle events,
+        // ViewState keys, AJAX regions, validators, auth patterns,
+        // blast radius, scaffold preview, and migration steps.
+        let rendered = crate::services::dossier_service::format_migration_dossier(&result);
+        Ok(CallToolResult::success(vec![Content::text(rendered)]))
     }
 
     pub async fn handle_check_migration_coverage(
