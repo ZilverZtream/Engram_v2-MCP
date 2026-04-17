@@ -56,12 +56,40 @@ pub enum RuleSource {
     /// represent files that were flagged by the immune system from a
     /// reverted commit.
     Immune,
-    /// Repo rule not prefixed `immune_`. Generic anti-pattern guidance.
+    /// Extracted from a repo rule whose id starts with `cr_` — an
+    /// auto-promoted CodeRabbit pattern (cluster with fix_rate ≥
+    /// threshold across ≥ N PRs). Distinct from `RepoRule` so the
+    /// agent can weight "this is what reviewers actually caught" vs
+    /// "this is a manually-added repo rule".
+    CodeRabbit,
+    /// Repo rule not prefixed `immune_` or `cr_`. Generic anti-pattern
+    /// guidance added by the user.
     RepoRule,
     /// Copied verbatim from the existing CLAUDE.md the user already
     /// authored. Human rules take priority over engram-derived ones on
     /// conflicts.
     Existing,
+}
+
+/// A CodeRabbit cluster surfaced from a `review_pattern` graph node.
+/// Used for the per-language rule file render — the top-K clusters
+/// per language are embedded so the agent sees team-learned patterns
+/// even when the cluster didn't clear the repo-rule auto-promotion
+/// threshold.
+#[derive(Debug, Clone)]
+pub struct CodeRabbitRule {
+    /// The cluster's canonical rule text (bold title from the first
+    /// member's CodeRabbit comment).
+    pub rule_text: String,
+    /// Fix rate across fixed / wontFix members. 0.0-1.0.
+    pub fix_rate: f32,
+    /// Number of distinct PRs the pattern appeared in.
+    pub pr_count: usize,
+    /// Optional commit sha from `✅ Addressed in commits`.
+    pub fix_commit: Option<String>,
+    /// Composite score used for sort order within a language bucket.
+    /// Higher = more confident + more frequently seen.
+    pub composite_score: f32,
 }
 
 /// Per-language coding conventions detected via
@@ -127,6 +155,12 @@ pub struct ProjectSnapshot {
     pub auth_summary: Option<AuthSummary>,
     pub frontend_warnings: Vec<String>,
     pub existing_claude_md: Option<String>,
+    /// CodeRabbit review-pattern clusters indexed by language.
+    /// Populated from `review_pattern` graph nodes (kind=pattern) with
+    /// their metadata JSON parsed back out. Only the top-K per
+    /// language are actually rendered — the full list is kept so the
+    /// renderer has ranking freedom.
+    pub coderabbit_rules_by_language: std::collections::HashMap<String, Vec<CodeRabbitRule>>,
 }
 
 // ── Language → glob mapping ──────────────────────────────────────────────────
@@ -236,16 +270,22 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
     }
 
     // <critical_rules> — highest-priority section, never dropped.
+    // Each rule is tagged with a provenance marker so the agent can
+    // tell apart immune flags (past reverts), CodeRabbit patterns
+    // (team-learned), plain repo rules, and rules the user preserved
+    // from an existing CLAUDE.md. The tag precedes the text so it's
+    // visible even when the line is truncated.
     if !snapshot.critical_rules.is_empty() {
         out.push_str("<critical_rules>\n");
         for rule in &snapshot.critical_rules {
             let text = rule.text.trim();
+            let tag = rule_source_tag(&rule.source);
             match &rule.evidence {
                 Some(ev) if !ev.is_empty() => {
-                    let _ = writeln!(out, "- {text} {ev}");
+                    let _ = writeln!(out, "- {tag}{text} {ev}");
                 }
                 _ => {
-                    let _ = writeln!(out, "- {text}");
+                    let _ = writeln!(out, "- {tag}{text}");
                 }
             }
         }
@@ -402,14 +442,56 @@ fn display_name(raw: &str) -> String {
 pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
     let mut files = Vec::new();
 
-    // One conventions file per language that produced bullets.
+    // One conventions file per language that produced bullets. We
+    // also include a file when a language has NO deterministic style
+    // bullets but DOES have CodeRabbit patterns — the team-learned
+    // rules are worth surfacing on their own.
+    let mut emitted_langs: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     for lang in &snapshot.per_language_rules {
-        if lang.bullets.is_empty() {
+        let cr_rules = snapshot
+            .coderabbit_rules_by_language
+            .get(&lang.language)
+            .cloned()
+            .unwrap_or_default();
+        let mut ranked = cr_rules;
+        ranked.sort_by(|a, b| {
+            b.composite_score
+                .partial_cmp(&a.composite_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        if lang.bullets.is_empty() && ranked.is_empty() {
             continue;
         }
         files.push(RuleFile {
             filename: format!("{}-conventions.md", language_slug(&lang.language)),
-            content: render_language_rules(lang),
+            content: render_language_rules_with_cr(lang, &ranked),
+        });
+        emitted_langs.insert(lang.language.clone());
+    }
+
+    // Languages present in coderabbit_rules_by_language but without a
+    // per_language_rules entry still deserve a conventions file — the
+    // CR patterns alone are useful.
+    for (language, cr_rules) in &snapshot.coderabbit_rules_by_language {
+        if emitted_langs.contains(language) || cr_rules.is_empty() {
+            continue;
+        }
+        let synthetic_lang = LanguageRules {
+            language: language.clone(),
+            glob: language_to_globs(language),
+            bullets: Vec::new(),
+            sample_files: Vec::new(),
+        };
+        let mut ranked = cr_rules.clone();
+        ranked.sort_by(|a, b| {
+            b.composite_score
+                .partial_cmp(&a.composite_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        files.push(RuleFile {
+            filename: format!("{}-conventions.md", language_slug(language)),
+            content: render_language_rules_with_cr(&synthetic_lang, &ranked),
         });
     }
 
@@ -448,7 +530,32 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
     files
 }
 
-fn render_language_rules(lang: &LanguageRules) -> String {
+/// Visual marker placed at the start of each critical-rules bullet so
+/// the agent can weight rules by provenance at a glance. The marker
+/// is a short prefix — kept compact so it doesn't eat into the
+/// attention budget of the rule itself.
+fn rule_source_tag(src: &RuleSource) -> &'static str {
+    match src {
+        RuleSource::Immune => "🛡 [immune] ",
+        RuleSource::CodeRabbit => "🐰 [CodeRabbit] ",
+        RuleSource::RepoRule => "",
+        RuleSource::Existing => "",
+    }
+}
+
+/// Top-K limit on CodeRabbit clusters embedded in each language rule
+/// file. Tuned to fit within the attention budget — ~10 rules ≈ 15-20
+/// lines of output including the header. If a project has hundreds of
+/// high-signal clusters per language, only the top by composite score
+/// survive.
+const CODERABBIT_PER_LANGUAGE_CAP: usize = 10;
+
+/// Render a single `LanguageRules` bucket as the `.claude/rules/…md`
+/// content. `cr_rules` is the pre-sorted, language-scoped list of
+/// CodeRabbit patterns to append — empty when the project hasn't
+/// ingested CodeRabbit history or when no pattern matched this
+/// language.
+fn render_language_rules_with_cr(lang: &LanguageRules, cr_rules: &[CodeRabbitRule]) -> String {
     let mut out = String::with_capacity(512);
     let _ = writeln!(out, "---");
     let _ = writeln!(out, "globs: \"{}\"", lang.glob);
@@ -473,6 +580,48 @@ fn render_language_rules(lang: &LanguageRules) -> String {
         }
     }
     out.push_str("</instructions>\n");
+
+    // CodeRabbit patterns section — only when there are any for this
+    // language. Sorted by composite score (fix_rate × log₂(pr_count + 1))
+    // and capped at CODERABBIT_PER_LANGUAGE_CAP so the file stays
+    // readable. We sort here (not only at the call site) so this
+    // renderer is robust regardless of the order its caller supplies.
+    if !cr_rules.is_empty() {
+        let mut ranked: Vec<&CodeRabbitRule> = cr_rules.iter().collect();
+        ranked.sort_by(|a, b| {
+            b.composite_score
+                .partial_cmp(&a.composite_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        out.push('\n');
+        let _ = writeln!(
+            out,
+            "## CodeRabbit patterns (top {})",
+            ranked.len().min(CODERABBIT_PER_LANGUAGE_CAP)
+        );
+        out.push('\n');
+        out.push_str(
+            "Patterns CodeRabbit flagged that the team **fixed across multiple PRs**. \
+             Each line is a class of issue reviewers catch repeatedly in this \
+             language — check the added code against these before proposing.\n\n",
+        );
+        for rule in ranked.iter().take(CODERABBIT_PER_LANGUAGE_CAP) {
+            let sha = rule
+                .fix_commit
+                .as_deref()
+                .map(|s| format!(", fix {s}"))
+                .unwrap_or_default();
+            let _ = writeln!(
+                out,
+                "- **{text}** — {prs} PR{plural}, {rate:.0}% fix rate{sha}",
+                text = rule.rule_text.trim(),
+                prs = rule.pr_count,
+                plural = if rule.pr_count == 1 { "" } else { "s" },
+                rate = rule.fix_rate * 100.0,
+                sha = sha,
+            );
+        }
+    }
     out
 }
 
@@ -1017,12 +1166,133 @@ mod tests {
             bullets: vec!["Methods: PascalCase".into()],
             sample_files: vec!["sharedfunc.vb".into()],
         };
-        let md = render_language_rules(&lang);
+        let md = render_language_rules_with_cr(&lang, &[]);
         assert!(md.contains("globs: \"**/*.vb\""));
         assert!(!md.contains("paths:"), "must use globs: not paths:");
         assert!(md.contains("<instructions>"));
         assert!(md.contains("Methods: PascalCase"));
         assert!(md.contains("sharedfunc.vb"));
+    }
+
+    #[test]
+    fn critical_rules_section_tags_sources_distinctly() {
+        // Root CLAUDE.md must visibly distinguish immune / CodeRabbit
+        // / plain-repo / existing rules so the agent can weight them.
+        let mut snap = minimal_snapshot();
+        snap.critical_rules = vec![
+            CriticalRule {
+                text: "Never DeleteAllOnSubmit without WHERE".into(),
+                evidence: Some("(immune_abc1234)".into()),
+                source: RuleSource::Immune,
+            },
+            CriticalRule {
+                text: "Call handelselogg.Create after SubmitChanges".into(),
+                evidence: Some("(cr_deadbeef)".into()),
+                source: RuleSource::CodeRabbit,
+            },
+            CriticalRule {
+                text: "Use SafeRedirect not Response.Redirect".into(),
+                evidence: None,
+                source: RuleSource::RepoRule,
+            },
+        ];
+        let md = render_root_claude_md(&snap, 60);
+        assert!(
+            md.contains("🛡 [immune]") && md.contains("Never DeleteAllOnSubmit"),
+            "immune tag expected; got:\n{md}"
+        );
+        assert!(
+            md.contains("🐰 [CodeRabbit]") && md.contains("handelselogg"),
+            "CodeRabbit tag expected; got:\n{md}"
+        );
+        // Plain repo rule shouldn't get a tag — spills the attention
+        // budget for the ones that do need one.
+        let untagged_line = md
+            .lines()
+            .find(|l| l.contains("SafeRedirect"))
+            .expect("repo rule line");
+        assert!(
+            !untagged_line.contains('🛡') && !untagged_line.contains('🐰'),
+            "plain repo rule must NOT get a provenance emoji: {untagged_line}"
+        );
+    }
+
+    #[test]
+    fn language_rule_file_embeds_coderabbit_top_k() {
+        let lang = LanguageRules {
+            language: "vbnet".into(),
+            glob: "**/*.vb".into(),
+            bullets: vec!["Methods: PascalCase".into()],
+            sample_files: vec!["sharedfunc.vb".into()],
+        };
+        let cr_rules: Vec<CodeRabbitRule> = (0..15)
+            .map(|i| CodeRabbitRule {
+                rule_text: format!("Rule #{i}"),
+                fix_rate: 0.8,
+                pr_count: 3 + i,
+                fix_commit: Some(format!("abc{i:04}")),
+                composite_score: 0.5 + (i as f32) * 0.01,
+            })
+            .collect();
+        let md = render_language_rules_with_cr(&lang, &cr_rules);
+        assert!(
+            md.contains("## CodeRabbit patterns"),
+            "section header expected; got:\n{md}"
+        );
+        // Cap — only 10 should render even though we passed 15.
+        let bullet_count = md.matches("\n- **Rule #").count();
+        assert_eq!(
+            bullet_count, 10,
+            "top-K cap must limit rendered CR bullets; got {bullet_count}"
+        );
+        // The highest-composite ones survive (14 has composite 0.64,
+        // 0 has 0.50). Rule #14 must appear; Rule #0 must not.
+        assert!(md.contains("Rule #14"), "highest-score rule missing: {md}");
+        assert!(
+            !md.contains("Rule #0 "),
+            "lowest-score rule must have been trimmed: {md}"
+        );
+    }
+
+    #[test]
+    fn language_rule_file_omits_coderabbit_section_when_empty() {
+        let lang = LanguageRules {
+            language: "python".into(),
+            glob: "**/*.py".into(),
+            bullets: vec!["Use snake_case".into()],
+            sample_files: Vec::new(),
+        };
+        let md = render_language_rules_with_cr(&lang, &[]);
+        assert!(
+            !md.contains("CodeRabbit patterns"),
+            "section must be omitted when no CR rules are present: {md}"
+        );
+    }
+
+    #[test]
+    fn coderabbit_only_language_still_gets_a_rule_file() {
+        // A project that has CodeRabbit patterns for C# but no
+        // deterministic style bullets for that language should still
+        // get a csharp-conventions.md file.
+        let mut snap = minimal_snapshot();
+        snap.per_language_rules = Vec::new(); // no deterministic rules
+        snap.coderabbit_rules_by_language.insert(
+            "csharp".into(),
+            vec![CodeRabbitRule {
+                rule_text: "await ConfigureAwait(false) on library calls".into(),
+                fix_rate: 1.0,
+                pr_count: 4,
+                fix_commit: Some("fab1234".into()),
+                composite_score: 0.9,
+            }],
+        );
+        let files = render_rule_files(&snap);
+        let cs_file = files
+            .iter()
+            .find(|f| f.filename == "csharp-conventions.md")
+            .expect("CR-only language must produce a rule file");
+        assert!(cs_file.content.contains("CodeRabbit patterns"));
+        assert!(cs_file.content.contains("ConfigureAwait"));
     }
 
     #[test]

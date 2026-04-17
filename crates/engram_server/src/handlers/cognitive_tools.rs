@@ -2712,6 +2712,8 @@ impl Engram {
             .map(|r| {
                 let source = if r.rule_id.starts_with("immune_") {
                     svc::RuleSource::Immune
+                } else if r.rule_id.starts_with("cr_") {
+                    svc::RuleSource::CodeRabbit
                 } else {
                     svc::RuleSource::RepoRule
                 };
@@ -2722,11 +2724,14 @@ impl Engram {
                 }
             })
             .collect();
-        // Stable order: immune rules first, then others.
+        // Stable order: immune (past reverts = hardest rules) first,
+        // then CodeRabbit (team-learned), then plain repo rules,
+        // then rules migrated from an existing CLAUDE.md.
         critical_rules.sort_by_key(|r| match r.source {
             svc::RuleSource::Immune => 0,
-            svc::RuleSource::RepoRule => 1,
-            svc::RuleSource::Existing => 2,
+            svc::RuleSource::CodeRabbit => 1,
+            svc::RuleSource::RepoRule => 2,
+            svc::RuleSource::Existing => 3,
         });
 
         // ── 4. Existing CLAUDE.md — merge priority ────────────────────
@@ -2937,6 +2942,24 @@ impl Engram {
             .flatten()
         };
 
+        // ── 8b. CodeRabbit review_pattern nodes → per-language map ────
+        // Queries every `review_pattern` node (kind=pattern only;
+        // wontFix/suppression clusters go elsewhere) and buckets them
+        // by language. Metadata is the JSON blob written by
+        // `code_review_ingest_service::cluster_metadata_value`.
+        let coderabbit_rules_by_language = {
+            let graph = self.state.graph.clone();
+            let p = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                graph.query_nodes(&p, Some("review_pattern"), None, None, 5_000)
+            })
+            .await
+            .ok()
+            .and_then(|r| r.ok())
+            .map(|nodes| build_coderabbit_language_map(&nodes))
+            .unwrap_or_default()
+        };
+
         // ── 9. Build the snapshot ─────────────────────────────────────
         let project_name = project_name_from_dir(&rec.directory);
         let snapshot = svc::ProjectSnapshot {
@@ -2953,6 +2976,7 @@ impl Engram {
             auth_summary: None,
             frontend_warnings: Vec::new(),
             existing_claude_md: existing_md.clone(),
+            coderabbit_rules_by_language,
         };
 
         // ── 10. Render ────────────────────────────────────────────────
@@ -3781,6 +3805,76 @@ fn reasons_from_breakdown(
             "script-inject ({:.0}/10)",
             bd.script_injection_score
         ));
+    }
+    out
+}
+
+/// Turn a batch of `review_pattern` graph nodes into the per-language
+/// map that `produce_claude_md` renders. Drops suppression-kind nodes
+/// (wontFix clusters — those feed the antipattern gate's dampener,
+/// not the agent's instructions) and skips anything whose metadata
+/// blob can't be parsed.
+///
+/// Composite score matches `ReviewCluster::confidence`: biased toward
+/// high fix_rate × PR saturation so a rule caught in 1 PR with 100%
+/// fix rate still ranks below a rule caught in 5 PRs with 80% fix
+/// rate. Ties broken by fix_commit presence (explicit `✅` signal).
+fn build_coderabbit_language_map(
+    nodes: &[engram_graph::Node],
+) -> std::collections::HashMap<String, Vec<crate::services::produce_claude_md_service::CodeRabbitRule>> {
+    use crate::services::produce_claude_md_service::CodeRabbitRule;
+
+    let mut out: std::collections::HashMap<String, Vec<CodeRabbitRule>> =
+        std::collections::HashMap::new();
+    for n in nodes {
+        let Some(meta) = n.metadata.as_ref() else {
+            continue;
+        };
+        // Only positive clusters — suppression clusters aren't
+        // guidance, they're anti-guidance and belong in the antipattern
+        // gate's dampener path.
+        let kind = meta.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+        if kind != "pattern" {
+            continue;
+        }
+        let fix_rate = meta
+            .get("fix_rate")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0) as f32;
+        let pr_count = meta
+            .get("pr_ids")
+            .and_then(|v| v.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+        let fix_commit = meta
+            .get("fix_commit")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        // Composite score: fix_rate is the dominant signal, PR count
+        // via log₂(n+1) contributes diminishing returns, fix_commit
+        // presence is a small nudge for explicit `✅ Addressed`
+        // evidence.
+        let pr_term = ((pr_count as f32) + 1.0).log2() / 4.0;
+        let commit_term = if fix_commit.is_some() { 0.05 } else { 0.0 };
+        let composite_score = (fix_rate * 0.75 + pr_term.min(0.25) + commit_term).clamp(0.0, 1.0);
+
+        let rule = CodeRabbitRule {
+            rule_text: n.name.clone(),
+            fix_rate,
+            pr_count,
+            fix_commit,
+            composite_score,
+        };
+        out.entry(n.language.clone()).or_default().push(rule);
+    }
+    // Sort each bucket by composite score desc so the renderer picks
+    // the top-K deterministically.
+    for list in out.values_mut() {
+        list.sort_by(|a, b| {
+            b.composite_score
+                .partial_cmp(&a.composite_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
     out
 }
