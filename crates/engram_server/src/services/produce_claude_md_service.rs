@@ -11,6 +11,7 @@
 //! language conventions + danger zones + co-change pairs, a WebForms
 //! project gets every section.
 
+pub mod llm_curation;
 pub mod rules_pipeline;
 
 use std::fmt::Write;

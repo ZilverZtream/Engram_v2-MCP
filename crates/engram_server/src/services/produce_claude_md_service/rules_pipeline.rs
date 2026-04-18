@@ -185,8 +185,22 @@ fn classify_text(text: &str) -> MetaCategory {
             ],
         ),
         (
+            // Keep audit-log keywords specific enough that they
+            // don't false-match on unrelated logging ("log the
+            // request", "log the error") — those aren't audit
+            // logging. We match on distinctive phrases ("audit log",
+            // "handelselogg", "activity log") instead of bare "log".
             MetaCategory::AuditLog,
-            &["audit log", "handelselogg", "activity log", "logactivity", "missing audit", "log the", "log activity"],
+            &[
+                "audit log",
+                "handelselogg",
+                "activity log",
+                "logactivity",
+                "missing audit",
+                "log activity",
+                "after submitchanges",
+                "audit trail",
+            ],
         ),
         (
             MetaCategory::PermissionCheck,
@@ -242,11 +256,14 @@ fn classify_text(text: &str) -> MetaCategory {
             &[
                 "hardcoded string",
                 "wrong language",
+                "text is in the wrong",
                 "localization",
                 "translation",
                 "resx",
                 "hardcoded english",
                 "jstext",
+                "hardcoded label",
+                "hardcoded text",
             ],
         ),
         (
@@ -281,37 +298,62 @@ fn classify_text(text: &str) -> MetaCategory {
 fn is_noise_rule(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     const NOISE: &[&str] = &[
-        "fix typo",
-        "typo in",
+        // Cosmetic fixes — not durable code-writing guidance.
+        "typo",                 // "fix typo" / "typo in" / "Typo:" — collapsed.
         "rename the ",
         "rename for clarity",
         "stylelint",
+        "modern :not()",
         "duplicate search box",
         "duplicate markup",
         "remove duplicate",
+        "nitpick",
+        "lgtm",
+        // Compile-time errors — the compiler catches these; CLAUDE.md
+        // shouldn't.
         "does not exist – compile-time error",
         "compile-time error",
         "will not compile",
+        // Process hygiene — git / build workflow, not code rules.
         "minified",
         "patch file",
         "malformed header",
         "corrupted",
         "debug=\"true\"",
         "debug = \"true\"",
-        "modern :not()",
-        "lgtm",
-        "nitpick",
-        "text is in the wrong language", // too generic to be actionable
+        // Note: "text is in the wrong language" USED to be on this
+        // list but is now routed to the Localization meta-category
+        // instead — the underlying rule ("use resx, don't hardcode
+        // English") is legitimate and actionable.
     ];
     NOISE.iter().any(|n| lower.contains(n))
+}
+
+/// Extract the short commit SHA from an immune rule id of the form
+/// `immune_<40-hex-chars>` (or `immune_<abc12345>` short form).
+/// Returns the first 8 hex characters after the prefix, or `None`
+/// when the id doesn't follow the standard shape.
+fn parse_revert_hash_from_rule_id(rule_id: &str) -> Option<&str> {
+    let stripped = rule_id.strip_prefix("immune_")?;
+    // Accept anything from 7+ hex chars (short SHA) up to 40 (full).
+    // We only surface the first 8 in the output — enough to disambiguate
+    // in a local clone without bloating the rule line.
+    if stripped.len() >= 7 && stripped.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(&stripped[..stripped.len().min(8)])
+    } else {
+        None
+    }
 }
 
 /// Strip the LLM-rationalisation prefix that the revert-analysis
 /// pipeline injects into immune rule text, leaving just the crisp
 /// prescriptive sentence. Caps length at 150 characters — everything
 /// after that is context that belongs in the cited revert commit,
-/// not CLAUDE.md.
-fn tighten_immune_text(text: &str, file_pattern: &str) -> String {
+/// not CLAUDE.md. Cites the revert hash when available (more
+/// actionable than the file pattern: `git show <hash>` vs grepping
+/// for the file); falls back to the pattern when the rule id is
+/// non-standard.
+fn tighten_immune_text(text: &str, file_pattern: &str, revert_hash: Option<&str>) -> String {
     const PREFIXES: &[&str] = &[
         "this pattern should be avoided because ",
         "this pattern should be avoided ",
@@ -339,12 +381,24 @@ fn tighten_immune_text(text: &str, file_pattern: &str) -> String {
             break;
         }
     }
-    // Hard cap at 150 chars including the file-pattern suffix.
-    let suffix = format!(" (immune: {file_pattern})");
+    // Capitalise the first letter so the imperative reads cleanly
+    // after the prefix strip removed the preceding "because ".
+    if let Some(first) = stripped.chars().next() {
+        if first.is_ascii_lowercase() {
+            stripped = format!("{}{}", first.to_ascii_uppercase(), &stripped[first.len_utf8()..]);
+        }
+    }
+    // Build the citation suffix. Revert hash wins — it's the single
+    // most useful pointer because `git show <hash>` surfaces the
+    // whole story (message + diff + author + date). Fall back to
+    // the file pattern when the hash is absent.
+    let suffix = match revert_hash {
+        Some(sha) => format!(" (revert {sha})"),
+        None => format!(" (immune: {file_pattern})"),
+    };
     let max_body = 150usize.saturating_sub(suffix.len()).max(30);
     if stripped.len() > max_body {
         stripped.truncate(max_body);
-        // Don't break a word mid-character.
         while !stripped.is_empty() && !stripped.is_char_boundary(stripped.len()) {
             stripped.pop();
         }
@@ -550,13 +604,21 @@ fn meta_cluster(raw: Vec<RawRule>) -> (Vec<(MetaCategory, Aggregated)>, Vec<RawR
 
 /// Translate an immune repo-rule's raw text into its rendered form.
 /// Called by the handler for every repo_rule whose id starts with
-/// `immune_`. Returns `None` if the rule is noise and should be
-/// dropped entirely.
-pub fn render_immune_rule_text(raw_text: &str, file_pattern: &str) -> Option<String> {
+/// `immune_`. Takes the full rule_id (not just the text) so we can
+/// extract the revert hash for the citation footer — a `git show
+/// <hash>` invocation is far more useful than "see file X" for a
+/// human auditor. Returns `None` if the rule is noise and should
+/// be dropped entirely.
+pub fn render_immune_rule_text(
+    raw_text: &str,
+    rule_id: &str,
+    file_pattern: &str,
+) -> Option<String> {
     if is_noise_rule(raw_text) {
         return None;
     }
-    Some(tighten_immune_text(raw_text, file_pattern))
+    let revert_hash = parse_revert_hash_from_rule_id(rule_id);
+    Some(tighten_immune_text(raw_text, file_pattern, revert_hash))
 }
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
@@ -579,6 +641,7 @@ mod tests {
     #[test]
     fn noise_filter_drops_typos_and_stylelint() {
         assert!(is_noise_rule("Fix typo in comment."));
+        assert!(is_noise_rule("Typo in variable name."));
         assert!(is_noise_rule("Stylelint: use modern :not() list notation."));
         assert!(is_noise_rule("Remove duplicate search box markup."));
         assert!(is_noise_rule(
@@ -728,7 +791,7 @@ mod tests {
     #[test]
     fn tighten_immune_text_strips_llm_rationalisation() {
         let raw = "This pattern should be avoided because it attempts to delete a database entity after already fetching it, which can cause race conditions and orphaned data if the record changes between the fetch and delete. Instead, developers should perform the delete as a single atomic operation using the primary key within the same database transaction.";
-        let out = tighten_immune_text(raw, "Site/App_Code/dal/fiberjobb.vb");
+        let out = tighten_immune_text(raw, "Site/App_Code/dal/fiberjobb.vb", None);
         assert!(
             out.len() <= 200,
             "immune rule must be capped, got {} chars: {out}",
@@ -740,40 +803,118 @@ mod tests {
         );
         assert!(
             out.contains("immune: Site/App_Code/dal/fiberjobb.vb"),
-            "file pattern must be cited: {out}"
+            "file pattern must be cited when no revert hash is provided: {out}"
         );
+    }
+
+    #[test]
+    fn tighten_immune_text_prefers_revert_hash_when_available() {
+        // Revert hash wins over file pattern because `git show <hash>`
+        // surfaces the whole history of the rollback decision.
+        let raw = "This pattern should be avoided because it attempts to delete rows unsafely. Instead, developers should scope the delete.";
+        let out = tighten_immune_text(raw, "Site/foo.vb", Some("8133c133"));
+        assert!(
+            out.contains("(revert 8133c133)"),
+            "must cite revert hash when provided: {out}"
+        );
+        assert!(
+            !out.contains("immune: Site/foo.vb"),
+            "must NOT fall back to file pattern when revert hash available: {out}"
+        );
+    }
+
+    #[test]
+    fn tighten_immune_text_capitalises_first_letter_after_prefix_strip() {
+        let raw = "This pattern should be avoided because it attempts to delete rows unsafely. Instead, scope the delete by PK in one tx.";
+        let out = tighten_immune_text(raw, "f.vb", None);
+        // After stripping the "because" prefix and keeping the
+        // "Instead" half, the first letter should read as an
+        // imperative sentence — capitalised.
+        assert!(
+            out.chars().next().is_some_and(|c| c.is_ascii_uppercase()),
+            "first letter must be capitalised for imperative tone: {out}"
+        );
+    }
+
+    #[test]
+    fn parse_revert_hash_extracts_first_8_chars() {
+        assert_eq!(
+            parse_revert_hash_from_rule_id("immune_8133c133abc123def4567890abcdef1234567890"),
+            Some("8133c133")
+        );
+        assert_eq!(
+            parse_revert_hash_from_rule_id("immune_abc1234"),
+            Some("abc1234")
+        );
+        assert_eq!(parse_revert_hash_from_rule_id("cr_abc12345"), None);
+        assert_eq!(parse_revert_hash_from_rule_id("immune_NOTHEX"), None);
+        assert_eq!(parse_revert_hash_from_rule_id("immune_"), None);
     }
 
     #[test]
     fn render_immune_drops_process_hygiene_noise() {
         let raw = "This diff shows a minified JavaScript file being directly modified, which should be avoided because minified code is not meant for human editing.";
         assert!(
-            render_immune_rule_text(raw, "Site/foo.min.js").is_none(),
+            render_immune_rule_text(raw, "immune_abc12345", "Site/foo.min.js").is_none(),
             "minified-edit immune rule must be filtered as noise"
         );
         let raw = "The diff shows a file being added with duplicate, malformed header lines.";
         assert!(
-            render_immune_rule_text(raw, "Site/foo.vb").is_none()
+            render_immune_rule_text(raw, "immune_def67890", "Site/foo.vb").is_none()
+        );
+    }
+
+    #[test]
+    fn wrong_language_rule_routes_to_localization_not_noise() {
+        // Regression guard — "Text is in the wrong language" USED
+        // to be on the noise list but was a legitimate localisation
+        // rule. It must now fall through to the Localization
+        // category and emit the canonical "no hardcoded English"
+        // label.
+        assert!(
+            !is_noise_rule("Text is in the wrong language"),
+            "wrong-language rule must not be filtered as noise"
+        );
+        assert_eq!(
+            classify_text("Text is in the wrong language"),
+            MetaCategory::Localization
         );
     }
 
     #[test]
     fn categories_render_in_severity_order() {
-        // Data correctness / security categories rank above
-        // ergonomics. Build a cluster set spanning multiple
-        // categories and assert the sort.
+        // Data-correctness / security categories outrank ergonomics.
+        // Build a cluster set spanning three categories and assert
+        // the severity-driven sort: null-guard (rank 1), permission
+        // check (rank 1) come before localization (rank 4).
         let raw = vec![
             mk_raw("cr_loc", "Text is in the wrong language, use resx.", 3, 1.0, RuleSource::CodeRabbit),
             mk_raw("cr_null", "Guard against null DOM element.", 5, 1.0, RuleSource::CodeRabbit),
             mk_raw("cr_perm", "Permission check missing on api controller.", 4, 1.0, RuleSource::CodeRabbit),
         ];
         let out = run_pipeline(raw, RenderThreshold::default());
-        // The localization rule gets noise-filtered ("text is in
-        // the wrong language" is in the stop-phrase list), leaving
-        // just null-guard and permission. Both rank 1 so order is
-        // stable but they both pass.
-        assert!(out.root_rules.iter().any(|r| r.text.contains("Null-guard")));
-        assert!(out.root_rules.iter().any(|r| r.text.contains("permission check")));
+        // All three should now survive because Localization is no
+        // longer in the noise list.
+        assert!(
+            out.root_rules.iter().any(|r| r.text.contains("Null-guard")),
+            "null-guard rule expected: {:#?}",
+            out.root_rules
+        );
+        assert!(
+            out.root_rules.iter().any(|r| r.text.contains("permission check")),
+            "permission-check rule expected: {:#?}",
+            out.root_rules
+        );
+        assert!(
+            out.root_rules.iter().any(|r| r.text.contains("hardcoded English")),
+            "localization rule expected (regression guard): {:#?}",
+            out.root_rules
+        );
+        // Sort order: severity-1 categories must appear before the
+        // severity-4 localization entry.
+        let null_idx = out.root_rules.iter().position(|r| r.text.contains("Null-guard")).unwrap();
+        let loc_idx = out.root_rules.iter().position(|r| r.text.contains("hardcoded English")).unwrap();
+        assert!(null_idx < loc_idx, "data-correctness rank must come before ergonomic rank");
     }
 
     #[test]
