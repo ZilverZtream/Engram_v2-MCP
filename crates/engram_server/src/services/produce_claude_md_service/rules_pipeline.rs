@@ -493,6 +493,7 @@ pub fn run_pipeline(raw: Vec<RawRule>, threshold: RenderThreshold) -> PipelineOu
         let critical = CriticalRule {
             text: r.rule_text.clone(),
             evidence: Some(format!("({})", r.rule_id)),
+            confidence: super::confidence_from_source(&r.source, r.fix_rate, r.pr_count),
             source: r.source,
         };
         if passes {
@@ -560,10 +561,19 @@ impl Aggregated {
             self.total_prs,
             self.max_fix_rate * 100.0
         );
+        // Aggregated meta-clusters use the max fix rate and summed PR
+        // count — feed those into the same confidence tiering as single
+        // rules so a well-supported meta-cluster can reach Hard.
+        let confidence = super::confidence_from_source(
+            &RuleSource::CodeRabbit,
+            Some(self.max_fix_rate),
+            Some(self.total_prs),
+        );
         CriticalRule {
             text: category.label().to_string(),
             evidence: Some(evidence),
             source: RuleSource::CodeRabbit,
+            confidence,
         }
     }
 }

@@ -51,6 +51,69 @@ pub struct CriticalRule {
     pub evidence: Option<String>,
     /// Source provenance so we can dedupe against existing CLAUDE.md.
     pub source: RuleSource,
+    /// Confidence tier — drives which subsection the rule renders into.
+    /// `Hard` rules are live invariants (incidents, reverts, security);
+    /// `Strong` rules are high-enforcement team conventions; `Observed`
+    /// rules are pattern reports the agent should weight as hints rather
+    /// than law. Reader: the agent now treats Hard ≫ Strong ≫ Observed.
+    pub confidence: RuleConfidence,
+}
+
+/// Three-tier confidence rating for a critical rule. Rendered as three
+/// separate subsections inside `<critical_rules>` so the agent can
+/// weight rules by evidence strength instead of treating every bullet
+/// as equally binding. This addresses the ChatGPT review feedback that
+/// mixed-strength bullets caused the agent to treat soft heuristics
+/// like hard law.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RuleConfidence {
+    /// Production incident, revert-grade, or security invariant.
+    /// Examples: "never use CheckIsUserInRole in multitenant API paths
+    /// — caused cross-tenant data leak in revert b4f76e01f".
+    Hard,
+    /// Strong team preference, demonstrated by high enforcement on
+    /// review (e.g. CodeRabbit fix_rate ≥ 0.80 AND prs ≥ 5).
+    Strong,
+    /// Pattern observation with lower signal. The reader treats these
+    /// as "check me before writing code that looks like this" — not
+    /// "the build breaks if you do this". Default: we don't want a
+    /// rule whose confidence wasn't set to accidentally render as
+    /// Hard, so `Observed` is the "I wasn't told" tier.
+    #[default]
+    Observed,
+}
+
+/// Derive the confidence tier from a rule's source and (for CodeRabbit
+/// rules) its empirical stats. Immune rules always rank Hard because
+/// they represent behaviour the team actively reverted in production.
+pub fn confidence_from_source(
+    source: &RuleSource,
+    fix_rate: Option<f32>,
+    pr_count: Option<usize>,
+) -> RuleConfidence {
+    match source {
+        // Live revert or production incident — Hard.
+        RuleSource::Immune => RuleConfidence::Hard,
+        // Manual repo rules were added with deliberation — treat as
+        // Strong (not Hard, because the user might have been wrong).
+        RuleSource::RepoRule => RuleConfidence::Strong,
+        // Rules copied from an existing CLAUDE.md are hand-authored by
+        // the user themselves; assume Strong. Evidence attached later
+        // may upgrade to Hard via caller intervention.
+        RuleSource::Existing => RuleConfidence::Strong,
+        // CodeRabbit confidence scales with empirical enforcement.
+        RuleSource::CodeRabbit => {
+            let fr = fix_rate.unwrap_or(0.0);
+            let prs = pr_count.unwrap_or(0);
+            if fr >= 0.90 && prs >= 10 {
+                RuleConfidence::Hard
+            } else if fr >= 0.80 && prs >= 5 {
+                RuleConfidence::Strong
+            } else {
+                RuleConfidence::Observed
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -273,25 +336,31 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
     }
 
     // <critical_rules> — highest-priority section, never dropped.
-    // Each rule is tagged with a provenance marker so the agent can
-    // tell apart immune flags (past reverts), CodeRabbit patterns
-    // (team-learned), plain repo rules, and rules the user preserved
-    // from an existing CLAUDE.md. The tag precedes the text so it's
-    // visible even when the line is truncated.
+    // Rules are now bucketed by confidence tier so the agent can weight
+    // hard invariants above team preferences above observed patterns:
+    //   🛡 Hard         — live incidents, reverts, security invariants
+    //   ⚠️ Strong       — team conventions enforced on review
+    //   📊 Observed     — lower-signal review observations (advisory)
+    // Each rule keeps its provenance tag (🛡 [immune] / 🐰 [CodeRabbit])
+    // so the agent can also see where the rule came from.
     if !snapshot.critical_rules.is_empty() {
         out.push_str("<critical_rules>\n");
-        for rule in &snapshot.critical_rules {
-            let text = rule.text.trim();
-            let tag = rule_source_tag(&rule.source);
-            match &rule.evidence {
-                Some(ev) if !ev.is_empty() => {
-                    let _ = writeln!(out, "- {tag}{text} {ev}");
-                }
-                _ => {
-                    let _ = writeln!(out, "- {tag}{text}");
-                }
-            }
-        }
+        let (hard, strong, observed) = partition_rules_by_confidence(&snapshot.critical_rules);
+        render_rule_bucket(
+            &mut out,
+            "🛡 Hard rules — live incidents, reverts, security invariants",
+            &hard,
+        );
+        render_rule_bucket(
+            &mut out,
+            "⚠️ Strong conventions — team-enforced on review",
+            &strong,
+        );
+        render_rule_bucket(
+            &mut out,
+            "📊 Observed patterns — common reviewer feedback (advisory)",
+            &observed,
+        );
         out.push_str("</critical_rules>\n\n");
     }
 
@@ -543,6 +612,47 @@ fn rule_source_tag(src: &RuleSource) -> &'static str {
         RuleSource::CodeRabbit => "🐰 [CodeRabbit] ",
         RuleSource::RepoRule => "",
         RuleSource::Existing => "",
+    }
+}
+
+/// Split a flat critical-rules vector into `(hard, strong, observed)`
+/// buckets. Preserves the caller's sort order within each bucket so
+/// the render output is stable.
+fn partition_rules_by_confidence(
+    rules: &[CriticalRule],
+) -> (Vec<&CriticalRule>, Vec<&CriticalRule>, Vec<&CriticalRule>) {
+    let mut hard = Vec::new();
+    let mut strong = Vec::new();
+    let mut observed = Vec::new();
+    for r in rules {
+        match r.confidence {
+            RuleConfidence::Hard => hard.push(r),
+            RuleConfidence::Strong => strong.push(r),
+            RuleConfidence::Observed => observed.push(r),
+        }
+    }
+    (hard, strong, observed)
+}
+
+/// Render one confidence-tier subsection into `<critical_rules>`.
+/// Skipped entirely when the bucket is empty — no stray headings with
+/// no bullets underneath.
+fn render_rule_bucket(out: &mut String, heading: &str, bucket: &[&CriticalRule]) {
+    if bucket.is_empty() {
+        return;
+    }
+    let _ = writeln!(out, "\n### {heading}\n");
+    for rule in bucket {
+        let text = rule.text.trim();
+        let tag = rule_source_tag(&rule.source);
+        match &rule.evidence {
+            Some(ev) if !ev.is_empty() => {
+                let _ = writeln!(out, "- {tag}{text} {ev}");
+            }
+            _ => {
+                let _ = writeln!(out, "- {tag}{text}");
+            }
+        }
     }
 }
 
@@ -870,10 +980,19 @@ pub fn extract_critical_rules_from_existing(md: &str) -> Vec<CriticalRule> {
         if let Some(end) = after.find("</critical_rules>") {
             for line in after[..end].lines() {
                 if let Some(rule) = extract_bullet(line) {
+                    // Skip engram-generated rules from a prior run —
+                    // otherwise they get re-promoted into the next run
+                    // and the critical_rules section bloats over time.
+                    // The pipeline will re-generate them from source
+                    // data this run.
+                    if is_engram_generated_rule(&rule) {
+                        continue;
+                    }
                     out.push(CriticalRule {
                         text: rule,
                         evidence: None,
                         source: RuleSource::Existing,
+                        confidence: Default::default(),
                     });
                 }
             }
@@ -899,14 +1018,40 @@ pub fn extract_critical_rules_from_existing(md: &str) -> Vec<CriticalRule> {
             continue;
         }
         if let Some(rule) = extract_bullet(line) {
+            if is_engram_generated_rule(&rule) {
+                continue;
+            }
             out.push(CriticalRule {
                 text: rule,
                 evidence: None,
                 source: RuleSource::Existing,
+                confidence: Default::default(),
             });
         }
     }
     out
+}
+
+/// True when a rule's text carries the unmistakable fingerprint of a
+/// previous engram run — the `[LLM-curated from …]` suffix, a `cr_…`
+/// or `immune_…` id in parens, the canonical "CodeRabbit pattern, N
+/// PRs, M% fix rate" footer, or the section-heading emojis we emit.
+/// Used by `extract_critical_rules_from_existing` to drop stale rows
+/// so the next run doesn't accumulate layers of self-ingestion.
+fn is_engram_generated_rule(text: &str) -> bool {
+    let t = text.trim();
+    // Strip the common source tag prefix so the markers fire on the
+    // payload regardless of the leading "🛡 [immune]" / "🐰 [CodeRabbit]".
+    let body = t
+        .trim_start_matches("🛡 [immune] ")
+        .trim_start_matches("🐰 [CodeRabbit] ")
+        .trim_start_matches("🛡 ")
+        .trim_start_matches("🐰 ");
+    body.contains("[LLM-curated from")
+        || body.contains("CodeRabbit pattern,")
+        || body.contains("(cr_")
+        || body.contains("(immune_")
+        || body.starts_with("AVOID (reverted in")
 }
 
 fn extract_bullet(line: &str) -> Option<String> {
@@ -1204,6 +1349,116 @@ pub fn merge_with_existing(
 mod tests {
     use super::*;
 
+    fn rule(text: &str, source: RuleSource, confidence: RuleConfidence) -> CriticalRule {
+        CriticalRule {
+            text: text.into(),
+            evidence: None,
+            source,
+            confidence,
+        }
+    }
+
+    #[test]
+    fn confidence_tier_rendering_buckets_rules_with_subheadings() {
+        // Covers ChatGPT review item #1: mixed-strength bullets were
+        // blended into one flat list. This test pins the new behaviour:
+        // three clearly-separated subsections with the strongest-rule
+        // heading first, and empty-bucket headings are omitted.
+        let snapshot = ProjectSnapshot {
+            project_name: "Demo".into(),
+            role_description: "Rust test.".into(),
+            critical_rules: vec![
+                rule("Observed-tier note", RuleSource::CodeRabbit, RuleConfidence::Observed),
+                rule("Hard-tier invariant", RuleSource::Immune, RuleConfidence::Hard),
+                rule("Strong-tier convention", RuleSource::CodeRabbit, RuleConfidence::Strong),
+            ],
+            ..Default::default()
+        };
+        let rendered = render_root_claude_md(&snapshot, 200);
+        let hard_idx = rendered.find("🛡 Hard rules").expect("hard heading");
+        let strong_idx = rendered.find("⚠️ Strong conventions").expect("strong heading");
+        let observed_idx = rendered.find("📊 Observed patterns").expect("observed heading");
+        assert!(hard_idx < strong_idx, "Hard must render before Strong");
+        assert!(strong_idx < observed_idx, "Strong must render before Observed");
+        assert!(rendered.contains("Hard-tier invariant"));
+        assert!(rendered.contains("Strong-tier convention"));
+        assert!(rendered.contains("Observed-tier note"));
+    }
+
+    #[test]
+    fn confidence_tier_rendering_omits_empty_buckets() {
+        // A project with only Hard rules should get only the Hard
+        // heading — not two empty placeholder sub-headings underneath.
+        let snapshot = ProjectSnapshot {
+            project_name: "Demo".into(),
+            role_description: "Rust test.".into(),
+            critical_rules: vec![rule(
+                "Only hard rule",
+                RuleSource::Immune,
+                RuleConfidence::Hard,
+            )],
+            ..Default::default()
+        };
+        let rendered = render_root_claude_md(&snapshot, 200);
+        assert!(rendered.contains("🛡 Hard rules"));
+        assert!(!rendered.contains("⚠️ Strong"));
+        assert!(!rendered.contains("📊 Observed"));
+    }
+
+    #[test]
+    fn confidence_from_source_tiers_immune_as_hard() {
+        // Immune rules always tier as Hard regardless of stats: they
+        // come from real production reverts.
+        assert_eq!(
+            confidence_from_source(&RuleSource::Immune, None, None),
+            RuleConfidence::Hard
+        );
+    }
+
+    #[test]
+    fn confidence_from_source_tiers_coderabbit_by_stats() {
+        // Very strong empirical signal -> Hard.
+        assert_eq!(
+            confidence_from_source(&RuleSource::CodeRabbit, Some(0.95), Some(15)),
+            RuleConfidence::Hard
+        );
+        // Solid but not Hard -> Strong.
+        assert_eq!(
+            confidence_from_source(&RuleSource::CodeRabbit, Some(0.85), Some(6)),
+            RuleConfidence::Strong
+        );
+        // Weak signal -> Observed.
+        assert_eq!(
+            confidence_from_source(&RuleSource::CodeRabbit, Some(0.50), Some(2)),
+            RuleConfidence::Observed
+        );
+    }
+
+    #[test]
+    fn extract_critical_rules_skips_engram_generated_bullets() {
+        // Regression guard for the bloat ChatGPT flagged: on a rerun,
+        // the engram-generated bullets in the existing CLAUDE.md must
+        // NOT be re-ingested as "existing user rules" and spliced back
+        // into the next run's output. A single rule with the
+        // tell-tale `cr_…` id stays out; a handwritten bullet survives.
+        let md = "\
+<critical_rules>
+- Always null-guard the result of GetAll(). (cr_abc12345)
+- 🛡 [immune] Never fetch-then-delete. (immune_deadbeef)
+- Custom team convention written by a human.
+- 🐰 [CodeRabbit] Null-guard rule aggregated — CodeRabbit pattern, 5 PRs, 80% fix rate
+</critical_rules>
+";
+        let rules = extract_critical_rules_from_existing(md);
+        let texts: Vec<&str> = rules.iter().map(|r| r.text.as_str()).collect();
+        assert_eq!(
+            texts,
+            vec!["Custom team convention written by a human."],
+            "only the handwritten bullet should survive re-ingestion; got {:?}",
+            texts
+        );
+    }
+
     fn zone(path: &str, risk: u8, band: &str, downstream: usize, reasons: &[&str]) -> DangerZone {
         DangerZone {
             file_path: path.into(),
@@ -1303,6 +1558,7 @@ mod tests {
                 text: "Rule A.".into(),
                 evidence: Some("(evidence)".into()),
                 source: RuleSource::Immune,
+                confidence: Default::default(),
             }],
             danger_zones: vec![zone("a.vb", 7, "High", 100, &[])],
             ..Default::default()
@@ -1327,6 +1583,7 @@ mod tests {
                 text: format!("Rule #{i} is important."),
                 evidence: None,
                 source: RuleSource::RepoRule,
+                confidence: Default::default(),
             })
             .collect();
         snap.danger_zones = (0..40)
@@ -1555,16 +1812,19 @@ Read docs/internal.md first.
                 text: "Never DeleteAllOnSubmit without WHERE".into(),
                 evidence: Some("(immune_abc1234)".into()),
                 source: RuleSource::Immune,
+                confidence: Default::default(),
             },
             CriticalRule {
                 text: "Call handelselogg.Create after SubmitChanges".into(),
                 evidence: Some("(cr_deadbeef)".into()),
                 source: RuleSource::CodeRabbit,
+                confidence: Default::default(),
             },
             CriticalRule {
                 text: "Use SafeRedirect not Response.Redirect".into(),
                 evidence: None,
                 source: RuleSource::RepoRule,
+                confidence: Default::default(),
             },
         ];
         let md = render_root_claude_md(&snap, 60);
@@ -1727,11 +1987,13 @@ Read docs/internal.md first.
             text: "SafeRedirect must be followed by Return.".into(),
             evidence: Some("(168 callers, blast radius 4/10)".into()),
             source: RuleSource::RepoRule,
+            confidence: Default::default(),
         }];
         let existing = vec![CriticalRule {
             text: "SafeRedirect must be followed by Return".into(), // no period
             evidence: None,
             source: RuleSource::Existing,
+            confidence: Default::default(),
         }];
         let merged = merge_with_existing(engram, existing);
         assert_eq!(merged.len(), 1, "duplicate rule must be deduped");
@@ -1749,11 +2011,13 @@ Read docs/internal.md first.
             text: "Rule Only From Engram.".into(),
             evidence: None,
             source: RuleSource::Immune,
+            confidence: Default::default(),
         }];
         let existing = vec![CriticalRule {
             text: "Human-only rule.".into(),
             evidence: None,
             source: RuleSource::Existing,
+            confidence: Default::default(),
         }];
         let merged = merge_with_existing(engram, existing);
         assert_eq!(merged.len(), 2);
@@ -1813,6 +2077,7 @@ Read docs/internal.md first.
                 text: "critical".into(),
                 evidence: None,
                 source: RuleSource::RepoRule,
+                confidence: Default::default(),
             }],
             per_language_rules: vec![LanguageRules {
                 language: "rust".into(),
