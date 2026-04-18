@@ -2359,12 +2359,53 @@ pub struct ProduceClaudeMdRequest {
     /// `<project_dir>/CLAUDE.md` and `<project_dir>/.claude/rules/*`.
     /// When false, all generated content is returned as the tool's
     /// response text. Default: false.
+    ///
+    /// **Safety:** when an existing `CLAUDE.md` is found at the
+    /// project root, this tool will NEVER overwrite it unless
+    /// `overwrite_existing=true` is also set. By default the engram
+    /// output is diverted to `CLAUDE.engram.md` so your hand-authored
+    /// content is never clobbered.
     #[serde(default)]
     pub write_to_disk: bool,
     /// Maximum lines for the root `CLAUDE.md`. Default: 60 (the
     /// attention-budget sweet spot). Hard floor: 20. Hard cap: 300.
     #[serde(default = "default_max_root_lines")]
     pub max_root_lines: usize,
+    /// Opt in to overwriting an existing `CLAUDE.md` at the project
+    /// root. When false (default), a pre-existing CLAUDE.md is left
+    /// untouched and the engram output is diverted to
+    /// `CLAUDE.engram.md` instead. When true, the existing file is
+    /// backed up to `CLAUDE.md.<unix_ts>.bak` BEFORE the overwrite,
+    /// so the clobber is always recoverable.
+    #[serde(default)]
+    pub overwrite_existing: bool,
+    /// How to combine the engram-generated output with the existing
+    /// `CLAUDE.md`, when `overwrite_existing=true` AND a CLAUDE.md is
+    /// present. Options:
+    ///
+    /// - `"splice"` (default) — preserve every byte of the existing
+    ///   file; if the `<!-- engram:begin --> ... <!-- engram:end -->`
+    ///   markers are present, replace their content with the new
+    ///   engram block; otherwise append the engram block at the end.
+    ///   Safe but may leave redundancy (engram critical-rules +
+    ///   existing critical-rules both present).
+    ///
+    /// - `"optimize"` — section-level rewrite. Headings that engram
+    ///   owns (Critical rules, Danger zones, language conventions)
+    ///   are replaced with the fresh engram output. Headings that
+    ///   engram does NOT own (domain context, architecture
+    ///   decisions, onboarding) are preserved verbatim. Produces a
+    ///   tighter CLAUDE.md without losing unique human insight.
+    ///
+    /// - `"replace"` — full overwrite with the engram-generated
+    ///   content. Back-up still runs first (recoverable), but the
+    ///   new file contains only engram output.
+    #[serde(default = "default_merge_mode")]
+    pub merge_mode: String,
+}
+
+fn default_merge_mode() -> String {
+    "splice".into()
 }
 
 // ─── Code-review history ingestion ──────────────────────────────────────────

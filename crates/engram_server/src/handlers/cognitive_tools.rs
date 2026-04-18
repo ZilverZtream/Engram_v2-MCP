@@ -2989,15 +2989,124 @@ impl Engram {
         };
 
         // ── 11. Optional disk write ───────────────────────────────────
+        //
+        // Safety contract for the CLAUDE.md write path:
+        //
+        //  1. If CLAUDE.md does NOT exist → write engram output
+        //     directly. Normal case.
+        //
+        //  2. If CLAUDE.md exists AND the caller set
+        //     `overwrite_existing: false` (default) → NEVER touch
+        //     the existing file. Engram output is diverted to
+        //     `CLAUDE.engram.md` so the caller can inspect it
+        //     without any risk of clobbering hand-authored content.
+        //
+        //  3. If CLAUDE.md exists AND `overwrite_existing: true` AND
+        //     `merge_existing: true` → splice the new engram block
+        //     into the existing file between
+        //     `<!-- engram:begin --> ... <!-- engram:end -->`
+        //     markers, preserving every other byte. Back up the
+        //     pre-write state to `CLAUDE.md.<unix_ts>.bak` first.
+        //
+        //  4. If CLAUDE.md exists AND `overwrite_existing: true` AND
+        //     `merge_existing: false` → full overwrite, but still
+        //     back up to `CLAUDE.md.<unix_ts>.bak` first.
+        //
+        // This makes the DATA-LOSS case (overwrite a hand-authored
+        // CLAUDE.md without any backup) structurally impossible
+        // without the caller explicitly opting into `overwrite_existing`.
         let mut written: Vec<String> = Vec::new();
+        let mut notes: Vec<String> = Vec::new();
         if req.write_to_disk {
             use engram_core::safe_join;
             let project_dir = std::path::PathBuf::from(&rec.directory);
             let root_path = safe_join(&project_dir, "CLAUDE.md")
                 .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-            std::fs::write(&root_path, &root_md)
+            let root_exists = root_path.exists();
+
+            // The file we will actually write to depends on safety
+            // layer 1 (divert) vs layers 3/4 (overwrite).
+            let (final_path, final_content) = if !root_exists {
+                // Case 1: nothing there → direct write.
+                (root_path.clone(), root_md.clone())
+            } else if !req.overwrite_existing {
+                // Case 2: divert. Never clobber a hand-authored
+                // CLAUDE.md without explicit consent.
+                let divert = safe_join(&project_dir, "CLAUDE.engram.md")
+                    .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                notes.push(
+                    "Existing CLAUDE.md was left UNTOUCHED — engram output was written to \
+                     CLAUDE.engram.md instead. Pass `overwrite_existing: true` to merge or \
+                     replace it."
+                        .into(),
+                );
+                (divert, root_md.clone())
+            } else {
+                // Case 3/4: explicit overwrite — always back up
+                // first, then apply the requested merge mode.
+                let existing = std::fs::read_to_string(&root_path)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                let ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let backup_name = format!("CLAUDE.md.{ts}.bak");
+                let backup_path = safe_join(&project_dir, &backup_name)
+                    .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                std::fs::write(&backup_path, &existing)
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                written.push(backup_name.clone());
+                notes.push(format!(
+                    "Existing CLAUDE.md was backed up to `{backup_name}` before any write."
+                ));
+                let mode = req.merge_mode.as_str();
+                let new_content = match mode {
+                    // Full replace — user asked for it; backup still ran.
+                    "replace" => root_md.clone(),
+                    // Optimize rewrite — section-level classification
+                    // replaces engram-owned sections with fresh output
+                    // and preserves domain-specific human content.
+                    "optimize" => {
+                        let (rewritten, report) =
+                            svc::optimize_rewrite(&existing, &root_md);
+                        notes.push(format!(
+                            "Optimize rewrite: {original} → {rewritten} lines \
+                             (replaced {replaced}, preserved {preserved} section(s))",
+                            original = report.original_line_count,
+                            rewritten = report.rewritten_line_count,
+                            replaced = report.replaced_sections.len(),
+                            preserved = report.preserved_sections.len(),
+                        ));
+                        if !report.preserved_sections.is_empty() {
+                            notes.push(format!(
+                                "Preserved human sections: {}",
+                                report.preserved_sections.join(", ")
+                            ));
+                        }
+                        if !report.replaced_sections.is_empty() {
+                            notes.push(format!(
+                                "Engram-owned sections replaced: {}",
+                                report.replaced_sections.join(", ")
+                            ));
+                        }
+                        rewritten
+                    }
+                    // Splice (default) — preserve everything, replace
+                    // only the engram-markered block, or append if
+                    // markers are absent. Conservative.
+                    _ => svc::splice_engram_section(&existing, &root_md),
+                };
+                (root_path.clone(), new_content)
+            };
+
+            std::fs::write(&final_path, &final_content)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            written.push("CLAUDE.md".into());
+            written.push(
+                final_path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| "CLAUDE.md".into()),
+            );
 
             let rules_dir = safe_join(&project_dir, ".claude/rules")
                 .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
@@ -3013,9 +3122,49 @@ impl Engram {
             if let Some(ref agents) = agents_md {
                 let path = safe_join(&project_dir, "AGENTS.md")
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
-                std::fs::write(&path, agents)
+                // AGENTS.md gets the same treatment — if present and
+                // overwrite_existing=false, divert to AGENTS.engram.md.
+                // Always back up on overwrite.
+                let agents_exists = path.exists();
+                let (a_path, a_content) = if !agents_exists {
+                    (path.clone(), agents.clone())
+                } else if !req.overwrite_existing {
+                    let divert = safe_join(&project_dir, "AGENTS.engram.md")
+                        .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                    notes.push(
+                        "Existing AGENTS.md was left untouched — engram output diverted to \
+                         AGENTS.engram.md."
+                            .into(),
+                    );
+                    (divert, agents.clone())
+                } else {
+                    let existing = std::fs::read_to_string(&path)
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    let ts = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    let backup_name = format!("AGENTS.md.{ts}.bak");
+                    let backup_path = safe_join(&project_dir, &backup_name)
+                        .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                    std::fs::write(&backup_path, &existing)
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                    written.push(backup_name);
+                    let new_content = if req.merge_existing {
+                        svc::splice_engram_section(&existing, agents)
+                    } else {
+                        agents.clone()
+                    };
+                    (path.clone(), new_content)
+                };
+                std::fs::write(&a_path, &a_content)
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-                written.push("AGENTS.md".into());
+                written.push(
+                    a_path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| "AGENTS.md".into()),
+                );
             }
         }
 
@@ -3025,6 +3174,13 @@ impl Engram {
             output.push_str("# Written files\n\n");
             for w in &written {
                 let _ = writeln!(output, "- {w}");
+            }
+            output.push('\n');
+        }
+        if !notes.is_empty() {
+            output.push_str("# Write-path notes\n\n");
+            for n in &notes {
+                let _ = writeln!(output, "- {n}");
             }
             output.push('\n');
         }
