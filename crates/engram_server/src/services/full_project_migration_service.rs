@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use engram_graph::{EdgeKind, GraphStore};
+use engram_graph::GraphStore;
 use tokio_util::sync::CancellationToken;
 
 // MIG1/D2: typed partial-failure surface.
@@ -18,11 +18,11 @@ thread_local! {
     static MIG_DEGRADED: RefCell<Vec<String>> = RefCell::new(Vec::new());
 }
 #[inline]
-fn record_mig_degraded(context: &'static str) {
+pub(super) fn record_mig_degraded(context: &'static str) {
     MIG_DEGRADED.with(|v| v.borrow_mut().push(context.to_string()));
 }
 #[inline]
-fn take_mig_degraded() -> Vec<String> {
+pub(super) fn take_mig_degraded() -> Vec<String> {
     MIG_DEGRADED.with(|v| std::mem::take(&mut *v.borrow_mut()))
 }
 
@@ -30,7 +30,7 @@ fn take_mig_degraded() -> Vec<String> {
 /// while logging a warning AND recording the failure context so the final report can
 /// carry an explicit `degraded_sections` list and `report_is_complete = false` flag.
 #[inline]
-fn edges_or_warn(
+pub(super) fn edges_or_warn(
     result: anyhow::Result<Vec<engram_graph::Edge>>,
     context: &'static str,
 ) -> Vec<engram_graph::Edge> {
@@ -43,7 +43,7 @@ fn edges_or_warn(
 
 /// MIG1: same pattern for node-list graph queries.
 #[inline]
-fn nodes_or_warn(
+pub(super) fn nodes_or_warn(
     result: anyhow::Result<Vec<engram_graph::Node>>,
     context: &'static str,
 ) -> Vec<engram_graph::Node> {
@@ -59,7 +59,6 @@ use super::auth_config_service::AuthConfigMap;
 use super::db_strategy_service::{self, FileDataAccessProfile};
 use super::dossier_service::{self, MigrationDossier};
 use super::migration_order_service::{self, MigrationOrderPlan};
-use super::pattern_detection_service;
 use super::state_migration_service::{self, StateMigrationReport};
 
 // Data model (every `pub struct` / `pub enum` for the report) lives
@@ -70,8 +69,16 @@ use super::state_migration_service::{self, StateMigrationReport};
 pub mod model;
 pub use model::*;
 
+mod analyzers;
+
+// Preserve the public shim paths for external callers:
+//   `full_project_migration_service::classify_method_kind_pub(...)`
+//   `full_project_migration_service::build_sp_catalog_public(...)`
+pub use analyzers::methods::classify_method_kind_pub;
+pub use analyzers::sp_catalog::build_sp_catalog_public;
+
 /// (parent_class, file_path, methods, state_writes, base_calls) per class.
-type ClassInfo = (String, String, Vec<String>, Vec<String>, Vec<String>);
+pub(super) type ClassInfo = (String, String, Vec<String>, Vec<String>, Vec<String>);
 
 // ── Main entry point ──────────────────────────────────────────────────────────
 
@@ -260,7 +267,7 @@ pub fn analyze_full_project(
     // ── 3. Phase 32 analyses ─────────────────────────────────────────────
 
     let web_config_inv = web_config_content
-        .map(|wc| extract_webconfig_inventory(wc, &code_refs))
+        .map(|wc| analyzers::web_config::extract_webconfig_inventory(wc, &code_refs))
         .unwrap_or_else(|| WebConfigInventory {
             app_settings: vec![],
             connection_strings: vec![],
@@ -276,7 +283,7 @@ pub fn analyze_full_project(
         .global_asax
         .as_ref()
         .map(|ga| {
-            extract_global_asax_info(
+            analyzers::global_asax::extract_global_asax_info(
                 &ga.markup_content,
                 ga.codebehind_content.as_deref().unwrap_or(""),
             )
@@ -289,40 +296,40 @@ pub fn analyze_full_project(
             modern_mapping: vec![],
         });
 
-    let service_endpoints = build_service_endpoint_summary(graph, project_id);
+    let service_endpoints = analyzers::endpoints::build_service_endpoint_summary(graph, project_id);
 
-    let anti_patterns = build_anti_pattern_summary(graph, project_id);
+    let anti_patterns = analyzers::anti_patterns::build_anti_pattern_summary(graph, project_id);
 
-    let js_analysis = build_js_analysis(
+    let js_analysis = analyzers::js::build_js_analysis(
         graph,
         project_id,
         &bundle.markup_files,
         &bundle.script_files,
     );
 
-    let gis_analysis = build_gis_analysis(graph, project_id, target_stack);
+    let gis_analysis = analyzers::gis::build_gis_analysis(graph, project_id, target_stack);
 
-    let classic_asp = build_classic_asp_summary(graph, project_id, &bundle.classic_asp_files);
+    let classic_asp = analyzers::classic_asp::build_classic_asp_summary(graph, project_id, &bundle.classic_asp_files);
 
-    let reports = build_report_summary(graph, project_id, &bundle.report_files);
+    let reports = analyzers::reports::build_report_summary(graph, project_id, &bundle.report_files);
 
     // ── 3b. Phase 33 analyses ──────────────────────────────────────────────
 
     // Gap 1: Code-behind method inventory
-    let method_inventories = build_method_inventories(graph, project_id, capped);
+    let method_inventories = analyzers::methods::build_method_inventories(graph, project_id, capped);
 
     // Gap 2: Third-party control detection
-    let third_party_controls = build_third_party_control_summary(&bundle.markup_files);
+    let third_party_controls = analyzers::third_party::build_third_party_control_summary(&bundle.markup_files);
 
     // Gap 3: Dependency inventory
-    let dependency_inventory = build_dependency_inventory(&bundle.project_references);
+    let dependency_inventory = analyzers::dependencies::build_dependency_inventory(&bundle.project_references);
 
     // Gap 4: Caching inventory
     let caching_inventory =
-        build_caching_inventory(&bundle.markup_files, &code_refs, &bundle.code_files);
+        analyzers::caching::build_caching_inventory(&bundle.markup_files, &code_refs, &bundle.code_files);
 
     // Gap 5: URL routing
-    let url_routing = extract_url_routing(
+    let url_routing = analyzers::routing::extract_url_routing(
         web_config_content,
         bundle
             .global_asax
@@ -333,10 +340,10 @@ pub fn analyze_full_project(
     );
 
     // Gap 6: VB.NET translation flags
-    let vb_translation = analyze_vb_translation_flags(&code_refs);
+    let vb_translation = analyzers::vb_translation::analyze_vb_translation_flags(&code_refs);
 
     // Gap 7: Multi-tenancy detection
-    let multi_tenancy = detect_multi_tenancy(
+    let multi_tenancy = analyzers::multi_tenancy::detect_multi_tenancy(
         web_config_content,
         &code_refs,
         bundle
@@ -346,8 +353,8 @@ pub fn analyze_full_project(
     );
 
     // Gap 8: Email + background jobs
-    let email_patterns = detect_email_patterns(&code_refs, web_config_content);
-    let background_jobs = detect_background_job_patterns(
+    let email_patterns = analyzers::email::detect_email_patterns(&code_refs, web_config_content);
+    let background_jobs = analyzers::background_jobs::detect_background_job_patterns(
         &code_refs,
         bundle
             .global_asax
@@ -358,21 +365,21 @@ pub fn analyze_full_project(
     // ── 3c. Phase 34 analyses ─────────────────────────────────────────────
 
     // Ticket 1: Stored procedure catalog
-    let sp_catalog = build_sp_catalog(&bundle.sql_files, &code_refs);
+    let sp_catalog = analyzers::sp_catalog::build_sp_catalog(&bundle.sql_files, &code_refs);
 
     // Ticket 2: Inheritance chain resolution
-    let inheritance_chains = resolve_inheritance_chains(&code_refs, capped);
+    let inheritance_chains = analyzers::inheritance::resolve_inheritance_chains(&code_refs, capped);
 
     // Ticket 3: packages.config + binding redirects (extend dependency_inventory)
     let mut dependency_inventory = dependency_inventory;
     for (_, content) in &bundle.packages_config_files {
-        let legacy_pkgs = parse_packages_config(content);
+        let legacy_pkgs = analyzers::dependencies::parse_packages_config(content);
         // If we got legacy packages and had 0 NuGet packages from SDK-style, use these
         if !legacy_pkgs.is_empty() {
             if dependency_inventory.total_packages == 0 {
                 // Convert legacy to NuGet info for unified reporting
                 for lp in &legacy_pkgs {
-                    let (repl, ver, notes, cat) = lookup_modern_replacement(&lp.package_id);
+                    let (repl, ver, notes, cat) = analyzers::dependencies::lookup_modern_replacement(&lp.package_id);
                     dependency_inventory.nuget_packages.push(NuGetPackageInfo {
                         name: lp.package_id.clone(),
                         version: Some(lp.version.clone()),
@@ -395,16 +402,16 @@ pub fn analyze_full_project(
             dependency_inventory.legacy_packages.extend(legacy_pkgs);
         }
     }
-    dependency_inventory.binding_redirects = extract_binding_redirects(web_config_content);
+    dependency_inventory.binding_redirects = analyzers::dependencies::extract_binding_redirects(web_config_content);
 
     // Ticket 6a: Config transforms
-    let config_transforms = parse_config_transforms(&bundle.config_transform_files);
+    let config_transforms = analyzers::config_transforms::parse_config_transforms(&bundle.config_transform_files);
 
     // Ticket 6b: Master page region mapping
-    let master_page_regions = build_master_page_region_map(&bundle.master_files, capped);
+    let master_page_regions = analyzers::master_pages::build_master_page_region_map(&bundle.master_files, capped);
 
     // Ticket 6c: Resource file inventory
-    let resource_inventory = build_resource_inventory(&bundle.resx_files);
+    let resource_inventory = analyzers::resources::build_resource_inventory(&bundle.resx_files);
 
     // ── 3d. Phase 35 analyses ─────────────────────────────────────────────
 
@@ -427,11 +434,11 @@ pub fn analyze_full_project(
 
     // Cross-layer AJAX→Handler→Data tracing
     let cross_layer_traces =
-        build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_refs);
+        analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_refs);
 
     // ── 4. Cross-cutting aggregation ──────────────────────────────────────
 
-    let cross_cutting = build_cross_cutting_summary(
+    let cross_cutting = analyzers::cross_cutting::build_cross_cutting_summary(
         &page_dossiers,
         &state_migration,
         &js_analysis,
@@ -1316,201 +1323,6 @@ pub fn rerender_markdown_after_llm(report: &mut FullProjectMigrationReport) {
 
 // ── Cross-cutting aggregation ─────────────────────────────────────────────────
 
-#[allow(clippy::too_many_arguments)]
-fn build_cross_cutting_summary(
-    dossiers: &[MigrationDossier],
-    state_report: &StateMigrationReport,
-    js: &JsAnalysisSummary,
-    gis: &GisAnalysisSummary,
-    ap: &AntiPatternSummary,
-    se: &ServiceEndpointSummary,
-    asp: &ClassicAspSummary,
-    rpt: &ReportSummary,
-    method_inv: &BTreeMap<String, PageMethodInventory>,
-    dep_inv: &DependencyInventory,
-    cache_inv: &CachingInventory,
-    email: &EmailPatternReport,
-    bg_jobs: &BackgroundJobReport,
-    sp_cat: &StoredProcedureCatalog,
-    inherit: &InheritanceChainReport,
-    cfg_transforms: &ConfigTransformReport,
-    res_inv: &ResourceInventory,
-    master_regions: &MasterPageRegionMap,
-    vb_translation: &VbTranslationReport,
-) -> CrossCuttingSummary {
-    let mut complexity_distribution: BTreeMap<String, usize> = BTreeMap::new();
-    let mut risk_distribution: BTreeMap<String, usize> = BTreeMap::new();
-    let mut sql_table_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut control_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut critical_risk_files = Vec::new();
-    let mut total_validators = 0usize;
-    let mut total_update_panels = 0usize;
-    let mut total_lifecycle_events = 0usize;
-    let mut files_with_ispostback = 0usize;
-
-    for d in dossiers {
-        // Complexity distribution
-        *complexity_distribution
-            .entry(d.estimated_complexity.clone())
-            .or_insert(0) += 1;
-
-        // Risk distribution
-        let risk_band = match d.blast_radius_score {
-            0..=3 => "Low",
-            4..=6 => "Medium",
-            7..=8 => "High",
-            _ => "Critical",
-        };
-        *risk_distribution.entry(risk_band.to_string()).or_insert(0) += 1;
-
-        if d.blast_radius_score >= 9 {
-            critical_risk_files.push(d.file_path.clone());
-        }
-
-        // Shared SQL tables
-        for table in &d.tables_touched {
-            sql_table_map
-                .entry(table.clone())
-                .or_default()
-                .push(d.file_path.clone());
-        }
-
-        // Shared user controls
-        for uc in &d.user_controls {
-            control_map
-                .entry(uc.control_path.clone())
-                .or_default()
-                .push(d.file_path.clone());
-        }
-
-        // Validators
-        total_validators +=
-            d.validation_summary.validator_count + d.validation_summary.custom_validator_count;
-
-        // UpdatePanels
-        total_update_panels += d.ajax_summary.update_panel_count;
-
-        // Lifecycle events
-        total_lifecycle_events +=
-            d.lifecycle_summary.lifecycle_event_count + d.lifecycle_summary.control_event_count;
-
-        if d.lifecycle_summary.has_ispostback_logic {
-            files_with_ispostback += 1;
-        }
-    }
-
-    // Shared state keys from project-wide state_migration report
-    let mut state_key_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for rec in &state_report.recommendations {
-        let mut all_files: Vec<String> = rec.readers.clone();
-        all_files.extend(rec.writers.iter().cloned());
-        all_files.sort();
-        all_files.dedup();
-        if !all_files.is_empty() {
-            state_key_map.insert(rec.state_key.clone(), all_files);
-        }
-    }
-
-    // Filter to only items shared by 2+ files
-    let shared_sql_tables = sql_table_map
-        .into_iter()
-        .filter(|(_, files)| files.len() >= 2)
-        .map(|(name, mut used_by)| {
-            used_by.sort();
-            used_by.dedup();
-            SharedItem { name, used_by }
-        })
-        .collect();
-
-    let shared_state_keys = state_key_map
-        .into_iter()
-        .filter(|(_, files)| files.len() >= 2)
-        .map(|(name, used_by)| SharedItem { name, used_by })
-        .collect();
-
-    let shared_user_controls = control_map
-        .into_iter()
-        .filter(|(_, files)| files.len() >= 2)
-        .map(|(name, mut used_by)| {
-            used_by.sort();
-            used_by.dedup();
-            SharedItem { name, used_by }
-        })
-        .collect();
-
-    // Phase 33 method aggregation
-    let mut total_methods = 0usize;
-    let mut total_event_handlers = 0usize;
-    let mut total_web_methods = 0usize;
-    let mut largest_file_by_methods: Option<(String, usize)> = None;
-    for (path, inv) in method_inv {
-        total_methods += inv.total_methods;
-        total_event_handlers += inv.event_handlers;
-        total_web_methods += inv.web_methods;
-        if largest_file_by_methods
-            .as_ref()
-            .is_none_or(|(_, c)| inv.total_methods > *c)
-            && inv.total_methods > 0
-        {
-            largest_file_by_methods = Some((path.clone(), inv.total_methods));
-        }
-    }
-
-    CrossCuttingSummary {
-        total_pages_analyzed: dossiers.len(),
-        complexity_distribution,
-        shared_sql_tables,
-        shared_state_keys,
-        shared_user_controls,
-        risk_distribution,
-        critical_risk_files,
-        total_validators,
-        total_update_panels,
-        total_lifecycle_events,
-        files_with_ispostback,
-        total_script_files: js.total_script_files,
-        legacy_total_js_files: js.total_script_files,
-        total_gis_libraries: gis.libraries_detected.len(),
-        total_anti_patterns: ap.total_anti_patterns,
-        total_service_endpoints: se.total_endpoints,
-        total_classic_asp_files: asp.total_asp_files,
-        total_reports: rpt.total_reports,
-        // Phase 33
-        total_methods,
-        total_event_handlers,
-        total_web_methods,
-        largest_file_by_methods,
-        total_nuget_packages: dep_inv.total_packages,
-        target_framework: dep_inv
-            .target_frameworks
-            .first()
-            .cloned()
-            .unwrap_or_default(),
-        total_cached_pages: cache_inv.total_cached_pages,
-        total_cache_keys: cache_inv.total_cache_keys,
-        has_email: email.has_email,
-        has_background_jobs: bg_jobs.has_background_jobs,
-        // Phase 34 aggregation
-        total_stored_procedures: sp_cat.total_procedures,
-        total_sp_called_from_code: sp_cat.procedures_called_from_code,
-        deepest_inheritance_chain: inherit.deepest_chain_depth,
-        total_base_classes: inherit.base_classes.len(),
-        total_config_environments: cfg_transforms.environments.len(),
-        total_resource_files: res_inv.resource_files.len(),
-        total_resource_languages: res_inv.languages_detected.len(),
-        total_master_page_regions: master_regions.regions.len(),
-        total_legacy_packages: dep_inv.legacy_packages.len(),
-        option_strict_on_files: vb_translation.dynamic_dispatch.option_strict_on_files,
-        option_strict_off_files: vb_translation.dynamic_dispatch.option_strict_off_files,
-        dynamic_dispatch_methods: vb_translation
-            .dynamic_dispatch
-            .methods_with_dynamic_dispatch,
-        dynamic_dispatch_risk_tier: vb_translation
-            .dynamic_dispatch
-            .dynamic_dispatch_risk_tier
-            .clone(),
-    }
-}
 
 // ── Phase 32: Pre-compiled regex statics ──────────────────────────────────────
 // Each function in this section previously compiled between 1 and 19 Regex
@@ -1518,1707 +1330,144 @@ fn build_cross_cutting_summary(
 // exactly once at first use and eliminates all per-call allocation.
 
 // web.config inventory (extract_webconfig_inventory)
-static WC_ADD_KEY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_ADD_KEY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)""#).expect("valid regex")
 });
-static WC_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*(?:providerName\s*=\s*"([^"]*)")?"#).expect("valid regex")
 });
-static WC_HANDLER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_HANDLER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+(?:[^>]*?)verb\s*=\s*"([^"]*)"[^>]*path\s*=\s*"([^"]*)"[^>]*type\s*=\s*"([^"]*)""#).expect("valid regex")
 });
-static WC_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+name\s*=\s*"([^"]+)"[^>]*type\s*=\s*"([^"]*)""#).expect("valid regex")
 });
-static WC_CE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_CE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<customErrors\s+mode\s*=\s*"([^"]+)"(?:[^>]*defaultRedirect\s*=\s*"([^"]*)")?"#)
         .expect("valid regex")
 });
-static WC_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<error\s+statusCode\s*=\s*"([^"]+)"[^>]*redirect\s*=\s*"([^"]*)""#)
         .expect("valid regex")
 });
-static WC_COMP_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_COMP_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"<compilation\s+([^>]*?)/?>"#).expect("valid regex"));
-static WC_TF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_TF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"targetFramework\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static WC_ASM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_ASM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+assembly\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static WC_SS_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_SS_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"<sessionState\s+([^>]*?)/?>"#).expect("valid regex"));
-static WC_MODE_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_MODE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"mode\s*=\s*"([^"]+)""#).expect("valid regex"));
-static WC_TIMEOUT_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_TIMEOUT_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"timeout\s*=\s*"(\d+)""#).expect("valid regex"));
-static WC_COOKIELESS_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_COOKIELESS_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"cookieless\s*=\s*"([^"]+)""#).expect("valid regex"));
-static WC_PROVIDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_PROVIDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"customProvider\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static WC_PAGES_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_PAGES_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"<pages\s+([^>]*?)/?>"#).expect("valid regex"));
-static WC_THEME_RE: std::sync::LazyLock<Regex> =
+pub(super) static WC_THEME_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"theme\s*=\s*"([^"]+)""#).expect("valid regex"));
-static WC_MP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_MP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"masterPageFile\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static WC_NS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_NS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+namespace\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static WC_CTRL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static WC_CTRL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<add\s+tagPrefix\s*=\s*"([^"]+)"[^>]*namespace\s*=\s*"([^"]+)""#)
         .expect("valid regex")
 });
 
 // Global.asax class extractor (extract_global_asax_info)
-static ASAX_CLASS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASAX_CLASS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)(?:Class|Inherits\s*=\s*["'])(\S+?)(?:["']|\s)"#).expect("valid regex")
 });
 
 // JS analysis (build_js_analysis)
-static JS_SCRIPT_SRC_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static JS_SCRIPT_SRC_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<script[^>]+src\s*=\s*["']([^"']+\.js)["']"#).expect("valid regex")
 });
-static JS_INLINE_RE: std::sync::LazyLock<Regex> =
+pub(super) static JS_INLINE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)<script\b[^>]*>").expect("valid regex"));
-static JS_SRC_ATTR_RE: std::sync::LazyLock<Regex> =
+pub(super) static JS_SRC_ATTR_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\bsrc\s*=").expect("valid regex"));
-static JS_JQUERY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static JS_JQUERY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"jquery[.-](\d+\.\d+(?:\.\d+)?)").expect("valid regex")
 });
 
 // Classic ASP summary (build_classic_asp_summary)
-static ASP_CREATE_OBJ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASP_CREATE_OBJ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)Server\.CreateObject\s*\(\s*"([^"]+)""#).expect("valid regex")
 });
-static ASP_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASP_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)(?:\.Execute|\.CommandText|SELECT\s|INSERT\s|UPDATE\s|DELETE\s)")
         .expect("valid regex")
 });
-static ASP_STATE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASP_STATE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)(?:Session|Application|Request\.Cookies|Response\.Cookies)\s*\(")
         .expect("valid regex")
 });
-static ASP_INCLUDE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASP_INCLUDE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<!--\s*#include\s+(?:file|virtual)\s*=\s*"([^"]+)""#).expect("valid regex")
 });
 
 // Report summary (build_report_summary)
-static RPT_DATASET_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RPT_DATASET_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<DataSet\s+Name\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static RPT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RPT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<ReportParameter\s+Name\s*=\s*"([^"]+)""#).expect("valid regex")
 });
-static RPT_SUBREPORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RPT_SUBREPORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<Subreport[^>]*>.*?<ReportName>([^<]+)</ReportName>"#).expect("valid regex")
 });
-static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"<DataSource\s+Name\s*=\s*"([^"]+)""#).expect("valid regex")
 });
 
 // ── Phase 32: Analysis functions ──────────────────────────────────────────────
 
-/// Extract web.config inventory: appSettings, connectionStrings, handlers,
-/// modules, customErrors, compilation, sessionState, pages.
-fn extract_webconfig_inventory(
-    web_config: &str,
-    code_files: &[(&str, &str)],
-) -> WebConfigInventory {
-    // ── appSettings ──
-    let appsettings_section = extract_xml_section(web_config, "appSettings");
-    let mut app_settings: Vec<AppSettingEntry> = Vec::new();
-    for cap in WC_ADD_KEY_RE.captures_iter(&appsettings_section) {
-        let key = cap[1].to_string();
-        let raw_value = &cap[2];
-        let value_preview = mask_sensitive_value(&key, raw_value);
-        let used_by = find_config_references(&key, "AppSettings", code_files);
-        app_settings.push(AppSettingEntry {
-            key,
-            value_preview,
-            used_by,
-        });
-    }
 
-    // ── connectionStrings ──
-    let conn_section = extract_xml_section(web_config, "connectionStrings");
-    let mut connection_strings: Vec<ConnectionStringEntry> = Vec::new();
-    for cap in WC_CONN_RE.captures_iter(&conn_section) {
-        let name = cap[1].to_string();
-        let cs_value = &cap[2];
-        let provider = cap
-            .get(3)
-            .map_or_else(|| infer_provider(cs_value), |m| m.as_str().to_string());
-        let has_integrated_security = cs_value.to_lowercase().contains("integrated security=true")
-            || cs_value.to_lowercase().contains("trusted_connection=true");
-        let used_by = find_config_references(&name, "ConnectionStrings", code_files);
-        connection_strings.push(ConnectionStringEntry {
-            name,
-            provider,
-            has_integrated_security,
-            used_by,
-        });
-    }
 
-    // ── httpHandlers / system.webServer handlers ──
-    let handler_section = extract_xml_section(web_config, "httpHandlers")
-        + &extract_xml_section(web_config, "handlers");
-    let http_handlers: Vec<HandlerRegistration> = WC_HANDLER_RE
-        .captures_iter(&handler_section)
-        .map(|cap| HandlerRegistration {
-            verb: cap[1].to_string(),
-            path: cap[2].to_string(),
-            handler_type: cap[3].to_string(),
-        })
-        .collect();
 
-    // ── httpModules / system.webServer modules ──
-    let module_section = extract_xml_section(web_config, "httpModules")
-        + &extract_xml_section(web_config, "modules");
-    let http_modules: Vec<ModuleRegistration> = WC_MODULE_RE
-        .captures_iter(&module_section)
-        .map(|cap| ModuleRegistration {
-            name: cap[1].to_string(),
-            module_type: cap[2].to_string(),
-        })
-        .collect();
 
-    // ── customErrors ──
-    let custom_errors = {
-        let ce_section = extract_xml_section(web_config, "customErrors");
-        WC_CE_RE.captures(&ce_section).map(|cap| {
-            let redirects: Vec<(String, String)> = WC_ERROR_RE
-                .captures_iter(&ce_section)
-                .map(|ec| (ec[1].to_string(), ec[2].to_string()))
-                .collect();
-            CustomErrorConfig {
-                mode: cap[1].to_string(),
-                default_redirect: cap.get(2).map(|m| m.as_str().to_string()),
-                status_redirects: redirects,
-            }
-        })
-    };
-
-    // ── compilation ──
-    let compilation = {
-        WC_COMP_RE.captures(web_config).map(|cap| {
-            let attrs = &cap[1];
-            let debug = attrs.contains(r#"debug="true""#);
-            let target_framework = WC_TF_RE.captures(attrs).map(|c| c[1].to_string());
-            let comp_section = extract_xml_section(web_config, "compilation");
-            let assemblies: Vec<String> = WC_ASM_RE
-                .captures_iter(&comp_section)
-                .map(|c| c[1].to_string())
-                .collect();
-            CompilationConfig {
-                debug,
-                target_framework,
-                assemblies,
-            }
-        })
-    };
-
-    // ── sessionState ──
-    let session_state = {
-        WC_SS_RE.captures(web_config).map(|cap| {
-            let attrs = &cap[1];
-            SessionStateConfig {
-                mode: WC_MODE_RE
-                    .captures(attrs)
-                    .map_or("InProc".into(), |c| c[1].to_string()),
-                timeout_minutes: WC_TIMEOUT_RE
-                    .captures(attrs)
-                    .and_then(|c| c[1].parse().ok()),
-                cookieless: WC_COOKIELESS_RE.captures(attrs).map(|c| c[1].to_string()),
-                custom_provider: WC_PROVIDER_RE.captures(attrs).map(|c| c[1].to_string()),
-            }
-        })
-    };
-
-    // ── pages ──
-    let pages_config = {
-        WC_PAGES_RE.captures(web_config).map(|cap| {
-            let attrs = &cap[1];
-            let pages_section = extract_xml_section(web_config, "pages");
-            PagesConfig {
-                theme: WC_THEME_RE.captures(attrs).map(|c| c[1].to_string()),
-                master_page_file: WC_MP_RE.captures(attrs).map(|c| c[1].to_string()),
-                namespaces: WC_NS_RE
-                    .captures_iter(&pages_section)
-                    .map(|c| c[1].to_string())
-                    .collect(),
-                controls: WC_CTRL_RE
-                    .captures_iter(&pages_section)
-                    .map(|c| format!("{}:{}", &c[1], &c[2]))
-                    .collect(),
-            }
-        })
-    };
-
-    WebConfigInventory {
-        app_settings,
-        connection_strings,
-        http_handlers,
-        http_modules,
-        custom_errors,
-        compilation,
-        session_state,
-        pages_config,
-    }
-}
-
-/// Helper: extract a named XML section (tag body, non-greedy).
-///
-/// Uses a plain string search instead of compiling a new `Regex` on every call
-/// (this helper is invoked ~10 times per `extract_webconfig_inventory` call).
-/// XML section tag names are always simple ASCII identifiers so case-folding and
-/// string comparison is sufficient.
-fn extract_xml_section(xml: &str, tag: &str) -> String {
-    let xml_lower = xml.to_ascii_lowercase();
-    let tag_lower = tag.to_ascii_lowercase();
-
-    // Find opening tag: `<tag_lower` followed by either `>` or whitespace (attributes)
-    let open_prefix = format!("<{tag_lower}");
-    let Some(open_start) = xml_lower.find(open_prefix.as_str()) else {
-        return String::new();
-    };
-    // Advance past the tag name to the first `>`
-    let Some(open_end_rel) = xml_lower[open_start..].find('>') else {
-        return String::new();
-    };
-    let body_start = open_start + open_end_rel + 1;
-
-    // Find closing tag
-    let close_tag = format!("</{tag_lower}>");
-    let Some(close_start_rel) = xml_lower[body_start..].find(close_tag.as_str()) else {
-        return String::new();
-    };
-    let body_end = body_start + close_start_rel;
-
-    xml[body_start..body_end].to_string()
-}
-
-/// Mask potentially sensitive config values (API keys, passwords, etc.)
-fn mask_sensitive_value(key: &str, value: &str) -> String {
-    let k = key.to_lowercase();
-    let sensitive = k.contains("key")
-        || k.contains("secret")
-        || k.contains("password")
-        || k.contains("token")
-        || k.contains("apikey")
-        || k.contains("connectionstring");
-    if sensitive && value.len() > 6 {
-        format!("{}...", &value[..6])
-    } else if value.len() > 30 {
-        format!("{}...", &value[..30])
-    } else {
-        value.to_string()
-    }
-}
-
-/// Infer ADO.NET provider from connection string content.
-fn infer_provider(cs: &str) -> String {
-    let lower = cs.to_lowercase();
-    if lower.contains("sqloledb") || lower.contains("data source=") {
-        "System.Data.SqlClient".into()
-    } else if lower.contains("mysql") {
-        "MySql.Data.MySqlClient".into()
-    } else if lower.contains("npgsql") {
-        "Npgsql".into()
-    } else if lower.contains("oracle") {
-        "System.Data.OracleClient".into()
-    } else {
-        "System.Data.SqlClient".into()
-    }
-}
-
-/// Find code files that reference a config key via ConfigurationManager.
-fn find_config_references(key: &str, section: &str, code_files: &[(&str, &str)]) -> Vec<String> {
-    let patterns = [
-        format!(r#"ConfigurationManager.{section}["{key}"]"#),
-        format!(r#"WebConfigurationManager.{section}["{key}"]"#),
-        format!(r#"{section}["{key}"]"#),
-    ];
-    let mut found = Vec::new();
-    for &(path, content) in code_files {
-        if patterns.iter().any(|p| content.contains(p.as_str())) {
-            found.push(path.to_string());
-        }
-    }
-    found
-}
 
 // ── Global.asax analysis ──────────────────────────────────────────────────────
 
-fn extract_global_asax_info(markup_content: &str, codebehind_content: &str) -> GlobalAsaxSummary {
-    use regex::Regex;
 
-    let combined = if codebehind_content.is_empty() {
-        markup_content.to_string()
-    } else {
-        codebehind_content.to_string()
-    };
-
-    if combined.trim().is_empty() {
-        return GlobalAsaxSummary {
-            has_global_asax: false,
-            codebehind_class: None,
-            lifecycle_events: vec![],
-            startup_registrations: vec![],
-            modern_mapping: vec![],
-        };
-    }
-
-    // Extract class name
-    let codebehind_class = ASAX_CLASS_RE.captures(&combined).map(|c| c[1].to_string());
-
-    // Event methods to look for
-    let event_names = [
-        ("Application_Start", "Program.cs builder setup + app.Run()"),
-        (
-            "Application_OnStart",
-            "Program.cs builder setup + app.Run()",
-        ),
-        (
-            "Application_End",
-            "IHostApplicationLifetime.ApplicationStopping",
-        ),
-        (
-            "Application_Error",
-            "app.UseExceptionHandler() + ProblemDetails",
-        ),
-        (
-            "Application_OnError",
-            "app.UseExceptionHandler() + ProblemDetails",
-        ),
-        ("Session_Start", "Middleware + ISession configuration"),
-        ("Session_OnStart", "Middleware + ISession configuration"),
-        ("Session_End", "IHostedService background task"),
-        ("Session_OnEnd", "IHostedService background task"),
-        ("Application_BeginRequest", "app.Use() middleware"),
-        (
-            "Application_EndRequest",
-            "app.Use() middleware (response phase)",
-        ),
-        ("Application_AuthenticateRequest", "app.UseAuthentication()"),
-        (
-            "Application_PostAuthenticateRequest",
-            "Custom auth middleware after UseAuthentication",
-        ),
-        ("Application_AuthorizeRequest", "app.UseAuthorization()"),
-        (
-            "Application_AcquireRequestState",
-            "ISession / IDistributedCache middleware",
-        ),
-    ];
-
-    let mut lifecycle_events = Vec::new();
-    for (event_name, modern_equiv) in &event_names {
-        let pattern = format!(
-            r"(?si)(Sub|void|Handles)\s+{}\b(.*?)(?:End\s+Sub|(?=\b(Sub|void|Protected|Private|Public)\b)|\z)",
-            regex::escape(event_name)
-        );
-        if let Ok(re) = Regex::new(&pattern)
-            && let Some(cap) = re.captures(&combined)
-        {
-            let body = cap.get(2).map_or("", |m| m.as_str());
-            let line_count = body.lines().count();
-            let key_actions = extract_key_actions(body);
-            lifecycle_events.push(GlobalLifecycleEvent {
-                event_name: event_name.to_string(),
-                line_count,
-                key_actions,
-                modern_equivalent: modern_equiv.to_string(),
-            });
-        }
-    }
-
-    // Detect startup registrations
-    let mut startup_registrations = Vec::new();
-    let reg_patterns: &[(&str, &str, &str)] = &[
-        (
-            r"RouteConfig\.RegisterRoutes|RouteTable\.Routes",
-            "routing",
-            "app.MapControllerRoute / app.MapBlazorHub",
-        ),
-        (
-            r"BundleConfig\.RegisterBundles|BundleTable\.Bundles",
-            "bundling",
-            "Vite/Webpack or ASP.NET Core bundling",
-        ),
-        (
-            r"AreaRegistration\.RegisterAllAreas",
-            "areas",
-            "app.MapAreaControllerRoute",
-        ),
-        (
-            r"GlobalConfiguration\.Configure|WebApiConfig\.Register",
-            "webapi",
-            "app.MapControllers / Minimal API",
-        ),
-        (
-            r"Container\.Register|kernel\.Bind|builder\.Register|UnityConfig|Ninject|Autofac",
-            "di",
-            "builder.Services (built-in DI)",
-        ),
-        (
-            r"GlobalFilters\.Filters\.Add",
-            "filters",
-            "app.AddControllersWithViews + filter options",
-        ),
-        (
-            r"log4net|NLog|Serilog",
-            "logging",
-            "builder.Logging / Serilog integration",
-        ),
-    ];
-    for &(pattern, reg_type, detail) in reg_patterns {
-        if let Ok(re) = Regex::new(pattern)
-            && re.is_match(&combined)
-        {
-            startup_registrations.push(StartupRegistration {
-                registration_type: reg_type.to_string(),
-                detail: detail.to_string(),
-            });
-        }
-    }
-
-    // Build modern mapping
-    let mut modern_mapping = Vec::new();
-    if !lifecycle_events.is_empty() {
-        modern_mapping.push(ModernMapping {
-            legacy: "Application_Start".into(),
-            modern: "Program.cs service registration + middleware pipeline".into(),
-        });
-        modern_mapping.push(ModernMapping {
-            legacy: "Session_Start / Session_End".into(),
-            modern: "ISession middleware or custom middleware".into(),
-        });
-        modern_mapping.push(ModernMapping {
-            legacy: "Application_Error".into(),
-            modern: "UseExceptionHandler + ProblemDetails".into(),
-        });
-        modern_mapping.push(ModernMapping {
-            legacy: "Application_BeginRequest / EndRequest".into(),
-            modern: "Custom middleware pipeline".into(),
-        });
-    }
-
-    GlobalAsaxSummary {
-        has_global_asax: true,
-        codebehind_class,
-        lifecycle_events,
-        startup_registrations,
-        modern_mapping,
-    }
-}
-
-/// Extract key actions from a method body (routing, bundling, DI, state init, etc.)
-fn extract_key_actions(body: &str) -> Vec<String> {
-    let mut actions = Vec::new();
-    let checks: &[(&str, &str)] = &[
-        ("RouteConfig", "RouteConfig registration"),
-        ("BundleConfig", "BundleConfig registration"),
-        ("AreaRegistration", "Area registration"),
-        ("GlobalConfiguration", "Web API configuration"),
-        ("Container.Register", "DI container registration"),
-        ("kernel.Bind", "DI (Ninject) binding"),
-        ("builder.Register", "DI (Autofac) registration"),
-        ("Application(", "Application state initialization"),
-        ("Session(", "Session state initialization"),
-        ("Response.Redirect", "Redirect on error/event"),
-        ("Server.Transfer", "Server.Transfer"),
-        ("log4net", "Logging (log4net)"),
-        ("NLog", "Logging (NLog)"),
-        ("Serilog", "Logging (Serilog)"),
-        ("Exception", "Exception handling"),
-        ("HttpContext.Current", "HttpContext usage"),
-    ];
-    for &(pattern, action) in checks {
-        if body.contains(pattern) {
-            actions.push(action.to_string());
-        }
-    }
-    actions
-}
 
 // ── Service endpoint summary ──────────────────────────────────────────────────
 
-fn build_service_endpoint_summary(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-) -> ServiceEndpointSummary {
-    let ws = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ExposesWebService, 1_000),
-        "ExposesWebService",
-    );
-    let hh = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ExposesHttpHandler, 1_000),
-        "ExposesHttpHandler",
-    );
-    let wcf = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ExposesWcfService, 1_000),
-        "ExposesWcfService",
-    );
-    let mods = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::RegistersModule, 1_000),
-        "RegistersModule",
-    );
-    let routes = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::RegistersHandler, 1_000),
-        "RegistersHandler",
-    );
 
-    // Get ApiCall edges to cross-reference callers
-    let api_calls = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000),
-        "ApiCall",
-    );
-
-    let build_endpoints = |edges: &[engram_graph::Edge], modern: &str| -> Vec<ServiceEndpoint> {
-        let mut map: BTreeMap<String, ServiceEndpoint> = BTreeMap::new();
-        for e in edges {
-            let file_path = extract_file_from_node_id(&e.source_id);
-            let entry = map
-                .entry(file_path.clone())
-                .or_insert_with(|| ServiceEndpoint {
-                    file_path: file_path.clone(),
-                    service_name: e.target_id.clone(),
-                    methods: vec![],
-                    modern_equivalent: modern.to_string(),
-                    called_by: vec![],
-                });
-            // Extract method name from metadata if available
-            if let Some(ref meta) = e.metadata
-                && let Some(method) = meta.get("method_name").and_then(|v| v.as_str())
-                && !entry.methods.contains(&method.to_string())
-            {
-                entry.methods.push(method.to_string());
-            }
-        }
-        // Cross-reference with ApiCall edges
-        for ep in map.values_mut() {
-            for ac in &api_calls {
-                let target_file = extract_file_from_node_id(&ac.target_id);
-                if target_file == ep.file_path || ac.target_id.contains(&ep.service_name) {
-                    let caller = extract_file_from_node_id(&ac.source_id);
-                    if !ep.called_by.contains(&caller) {
-                        ep.called_by.push(caller);
-                    }
-                }
-            }
-        }
-        map.into_values().collect()
-    };
-
-    let web_services = build_endpoints(&ws, "Minimal API / Web API controller");
-    let http_handlers = build_endpoints(&hh, "Minimal API endpoint / Middleware");
-    let wcf_services = build_endpoints(&wcf, "gRPC service or Web API controller");
-    let http_modules: Vec<ServiceEndpoint> = mods
-        .iter()
-        .map(|e| ServiceEndpoint {
-            file_path: extract_file_from_node_id(&e.source_id),
-            service_name: e.target_id.clone(),
-            methods: vec![],
-            modern_equivalent: "ASP.NET Core Middleware".into(),
-            called_by: vec![],
-        })
-        .collect();
-    let route_handlers: Vec<ServiceEndpoint> = routes
-        .iter()
-        .map(|e| ServiceEndpoint {
-            file_path: extract_file_from_node_id(&e.source_id),
-            service_name: e.target_id.clone(),
-            methods: vec![],
-            modern_equivalent: "app.MapGet/MapPost route".into(),
-            called_by: vec![],
-        })
-        .collect();
-
-    let total = web_services.len()
-        + http_handlers.len()
-        + wcf_services.len()
-        + http_modules.len()
-        + route_handlers.len();
-
-    ServiceEndpointSummary {
-        web_services,
-        http_handlers,
-        wcf_services,
-        http_modules,
-        route_handlers,
-        total_endpoints: total,
-    }
-}
-
-/// Extract likely file path from a node ID (often "filepath::symbol" or just "filepath").
-fn extract_file_from_node_id(node_id: &str) -> String {
-    // Node IDs often contain "::" separator between file and symbol
-    if let Some(idx) = node_id.find("::") {
-        node_id[..idx].to_string()
-    } else {
-        node_id.to_string()
-    }
-}
 
 // ── Anti-pattern summary ──────────────────────────────────────────────────────
 
-fn build_anti_pattern_summary(graph: &Arc<GraphStore>, project_id: &str) -> AntiPatternSummary {
-    let detected =
-        pattern_detection_service::detect_design_antipatterns(graph, project_id, 15, 5, 4)
-            .unwrap_or_else(|e| {
-                tracing::warn!("anti-pattern detection failed: {e}");
-                vec![]
-            });
-
-    let mut by_type: BTreeMap<String, usize> = BTreeMap::new();
-    let mut critical_items = Vec::new();
-    let mut migration_impact = Vec::new();
-
-    for ap in &detected {
-        *by_type.entry(ap.pattern_name.clone()).or_insert(0) += 1;
-
-        let severity_str = format!("{:?}", ap.severity);
-        let file_path = ap
-            .affected_nodes
-            .first()
-            .map_or("(unknown)", |s| s.as_str());
-        let detail = if ap.evidence.is_empty() {
-            ap.description.clone()
-        } else {
-            ap.evidence.join("; ")
-        };
-
-        critical_items.push(AntiPatternItem {
-            pattern_type: ap.pattern_name.clone(),
-            file_path: file_path.to_string(),
-            node_name: ap.affected_nodes.first().cloned().unwrap_or_default(),
-            severity: severity_str,
-            detail,
-            recommendation: ap.refactoring_steps.join(" → "),
-        });
-    }
-
-    // Build migration impact statements
-    for (name, count) in &by_type {
-        let impact = match name.as_str() {
-            "God Object" => format!(
-                "{count} God Object pages should be split BEFORE migration (Wave 0 refactoring)"
-            ),
-            "Session Soup" => format!(
-                "Session Soup keys must be consolidated before parallel wave execution ({count} instances)"
-            ),
-            "Spaghetti Events" => format!(
-                "{count} Spaghetti Event chains indicate hidden coupling — verify with characterization tests"
-            ),
-            "SqlDataSource Coupling" => format!(
-                "{count} SqlDataSource usages have inline SQL — extract to repository pattern"
-            ),
-            "Tight GIS Coupling" => {
-                format!("{count} tightly coupled GIS components — extract map service layer")
-            }
-            "Windows Service" => {
-                format!("{count} Windows Services — migrate to IHostedService / BackgroundService")
-            }
-            _ => format!("{count} {name} instances detected"),
-        };
-        migration_impact.push(impact);
-    }
-
-    AntiPatternSummary {
-        total_anti_patterns: detected.len(),
-        by_type,
-        critical_items,
-        migration_impact,
-    }
-}
 
 // ── JavaScript / jQuery analysis ──────────────────────────────────────────────
 
-fn build_js_analysis(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-    markup_files: &[FileContent],
-    script_files: &[(String, String)],
-) -> JsAnalysisSummary {
-    let dom_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ManipulatesDom, 10_000),
-        "ManipulatesDom",
-    );
-    let postback_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::TriggersPostback, 10_000),
-        "TriggersPostback",
-    );
-    let api_call_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::ApiCall, 10_000),
-        "ApiCall/js",
-    );
-    let contains_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::Contains, 50_000),
-        "Contains",
-    );
-
-    // Build DOM manipulation refs
-    let dom_manipulations: Vec<JsDomRef> = dom_edges
-        .iter()
-        .map(|e| {
-            let selector_type = e
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("selector_type").and_then(|v| v.as_str()))
-                .unwrap_or("unknown")
-                .to_string();
-            JsDomRef {
-                js_file: extract_file_from_node_id(&e.source_id),
-                target_control: e.target_id.clone(),
-                selector_type,
-            }
-        })
-        .collect();
-
-    // Build postback trigger refs
-    let postback_triggers: Vec<JsPostbackRef> = postback_edges
-        .iter()
-        .map(|e| {
-            let unique_id = e
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("unique_id").and_then(|v| v.as_str()))
-                .unwrap_or("")
-                .to_string();
-            JsPostbackRef {
-                js_file: extract_file_from_node_id(&e.source_id),
-                target_control: e.target_id.clone(),
-                unique_id,
-            }
-        })
-        .collect();
-
-    // Build AJAX call refs
-    let ajax_calls: Vec<JsAjaxCall> = api_call_edges
-        .iter()
-        .map(|e| {
-            let meta = e.metadata.as_ref();
-            let transport = meta
-                .and_then(|m| m.get("transport").and_then(|v| v.as_str()))
-                .unwrap_or("unknown")
-                .to_string();
-            let target_method = meta
-                .and_then(|m| m.get("method").and_then(|v| v.as_str()))
-                .map(String::from);
-            let target_type = meta
-                .and_then(|m| m.get("target_type").and_then(|v| v.as_str()))
-                .unwrap_or("unknown")
-                .to_string();
-            JsAjaxCall {
-                js_file: extract_file_from_node_id(&e.source_id),
-                target_url: e.target_id.clone(),
-                transport,
-                target_method,
-                target_type,
-            }
-        })
-        .collect();
-
-    // Build page→control ownership map from Contains edges
-    let mut control_to_page: BTreeMap<String, String> = BTreeMap::new();
-    for e in &contains_edges {
-        let source_file = extract_file_from_node_id(&e.source_id);
-        if source_file.to_lowercase().ends_with(".aspx")
-            || source_file.to_lowercase().ends_with(".ascx")
-            || source_file.to_lowercase().ends_with(".master")
-        {
-            control_to_page.insert(e.target_id.clone(), source_file);
-        }
-    }
-
-    // Build page↔JS dependency map
-    let mut page_js_deps: BTreeMap<String, Vec<String>> = BTreeMap::new();
-
-    // From graph edges: which JS files reference controls owned by which pages
-    for dom_ref in &dom_manipulations {
-        if let Some(page) = control_to_page.get(&dom_ref.target_control) {
-            let js_list = page_js_deps.entry(page.clone()).or_default();
-            if !js_list.contains(&dom_ref.js_file) {
-                js_list.push(dom_ref.js_file.clone());
-            }
-        }
-    }
-    for pb_ref in &postback_triggers {
-        if let Some(page) = control_to_page.get(&pb_ref.target_control) {
-            let js_list = page_js_deps.entry(page.clone()).or_default();
-            if !js_list.contains(&pb_ref.js_file) {
-                js_list.push(pb_ref.js_file.clone());
-            }
-        }
-    }
-
-    // From markup: scan <script src="..."> tags
-    for fc in markup_files {
-        for cap in JS_SCRIPT_SRC_RE.captures_iter(&fc.markup_content) {
-            let js_ref = cap[1].to_string();
-            let js_list = page_js_deps.entry(fc.file_path.clone()).or_default();
-            if !js_list.contains(&js_ref) {
-                js_list.push(js_ref);
-            }
-        }
-    }
-
-    // Detect inline <script> blocks (not src= external files)
-    let mut inline_script_files = Vec::new();
-    for fc in markup_files {
-        if JS_INLINE_RE
-            .find_iter(&fc.markup_content)
-            .any(|m| !JS_SRC_ATTR_RE.is_match(m.as_str()))
-        {
-            inline_script_files.push(fc.file_path.clone());
-        }
-    }
-
-    // Detect jQuery version hint from JS files
-    let mut jquery_version_hint = None;
-    for (path, _content) in script_files {
-        if let Some(cap) = JS_JQUERY_RE.captures(&path.to_lowercase()) {
-            jquery_version_hint = Some(cap[1].to_string());
-            break;
-        }
-    }
-
-    // Count JS files with server-side dependencies
-    let mut js_files_with_deps: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
-    for dr in &dom_manipulations {
-        js_files_with_deps.insert(dr.js_file.clone());
-    }
-    for pr in &postback_triggers {
-        js_files_with_deps.insert(pr.js_file.clone());
-    }
-    for ac in &ajax_calls {
-        js_files_with_deps.insert(ac.js_file.clone());
-    }
-
-    JsAnalysisSummary {
-        total_script_files: script_files.len(),
-        legacy_total_js_files: script_files.len(),
-        script_files_with_server_deps: js_files_with_deps.len(),
-        legacy_js_files_with_server_deps: js_files_with_deps.len(),
-        dom_manipulations,
-        postback_triggers,
-        ajax_calls,
-        page_js_dependencies: page_js_deps,
-        inline_script_files,
-        jquery_version_hint,
-    }
-}
 
 // ── GIS / Spatial analysis ────────────────────────────────────────────────────
 
-fn build_gis_analysis(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-    target_stack: &str,
-) -> GisAnalysisSummary {
-    let spatial_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::SpatialCall, 10_000),
-        "SpatialCall",
-    );
 
-    // Query insight nodes for GIS inventories
-    let gis_insights = nodes_or_warn(
-        graph.query_nodes(project_id, Some("insight"), None, None, 1_000),
-        "gis_insights",
-    )
-    .into_iter()
-    .filter(|n| {
-        let name_lower = n.name.to_lowercase();
-        name_lower.contains("gis_inventory")
-            || name_lower.contains("google_maps")
-            || name_lower.contains("esri")
-            || name_lower.contains("leaflet")
-            || name_lower.contains("openlayers")
-            || name_lower.contains("spatial")
-    })
-    .collect::<Vec<_>>();
-
-    if spatial_edges.is_empty() && gis_insights.is_empty() {
-        return GisAnalysisSummary {
-            has_gis: false,
-            libraries_detected: vec![],
-            total_spatial_calls: 0,
-            files_with_gis: vec![],
-            migration_complexity: "none".into(),
-            modern_targets: GisModernTargets {
-                react: vec![],
-                blazor: vec![],
-                angular: vec![],
-            },
-        };
-    }
-
-    // Collect files with GIS
-    let mut files_with_gis: Vec<String> = spatial_edges
-        .iter()
-        .map(|e| extract_file_from_node_id(&e.source_id))
-        .collect();
-    files_with_gis.sort();
-    files_with_gis.dedup();
-
-    // Build library summaries from insight metadata
-    let mut libraries: BTreeMap<String, GisLibrarySummary> = BTreeMap::new();
-    for insight in &gis_insights {
-        if let Some(ref meta) = insight.metadata {
-            let library = meta
-                .get("library")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown")
-                .to_string();
-            let entry = libraries
-                .entry(library.clone())
-                .or_insert_with(|| GisLibrarySummary {
-                    library: library.clone(),
-                    files: vec![],
-                    class_count: 0,
-                    features: vec![],
-                    has_3d: false,
-                    has_drawing: false,
-                    has_geocoding: false,
-                    has_clustering: false,
-                    has_wms: false,
-                    api_keys_detected: 0,
-                    api_style: None,
-                });
-
-            let file = insight.file_path.as_str().to_string();
-            if !entry.files.contains(&file) {
-                entry.files.push(file);
-            }
-
-            if let Some(cc) = meta.get("class_count").and_then(|v| v.as_u64()) {
-                entry.class_count = entry.class_count.max(cc as usize);
-            }
-            if meta
-                .get("has_places_api")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                && !entry.features.contains(&"Places API".to_string())
-            {
-                entry.features.push("Places API".into());
-            }
-            if meta
-                .get("has_streetview")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                && !entry.features.contains(&"StreetView".to_string())
-            {
-                entry.features.push("StreetView".into());
-            }
-            if meta
-                .get("has_directions")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                && !entry.features.contains(&"Directions".into())
-            {
-                entry.features.push("Directions".into());
-            }
-            if meta
-                .get("has_heatmap")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                && !entry.features.contains(&"Heatmap".into())
-            {
-                entry.features.push("Heatmap".into());
-            }
-            if meta
-                .get("has_drawing")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                entry.has_drawing = true;
-                if !entry.features.contains(&"Drawing tools".into()) {
-                    entry.features.push("Drawing tools".into());
-                }
-            }
-            if meta
-                .get("has_geocoding")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                entry.has_geocoding = true;
-                if !entry.features.contains(&"Geocoding".into()) {
-                    entry.features.push("Geocoding".into());
-                }
-            }
-            if meta
-                .get("has_kml")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-                && !entry.features.contains(&"KML layers".into())
-            {
-                entry.features.push("KML layers".into());
-            }
-            if meta
-                .get("has_3d")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                entry.has_3d = true;
-            }
-            if meta
-                .get("has_clustering")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                entry.has_clustering = true;
-            }
-            if meta
-                .get("has_wms")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false)
-            {
-                entry.has_wms = true;
-            }
-            if let Some(keys) = meta.get("api_keys_detected").and_then(|v| v.as_u64()) {
-                entry.api_keys_detected = entry.api_keys_detected.max(keys as usize);
-            }
-            if let Some(style) = meta.get("api_style").and_then(|v| v.as_str()) {
-                entry.api_style = Some(style.to_string());
-            }
-        }
-    }
-
-    // Also gather from spatial edges if insights are missing
-    for edge in &spatial_edges {
-        let meta = edge.metadata.as_ref();
-        let library = meta
-            .and_then(|m| m.get("library").and_then(|v| v.as_str()))
-            .unwrap_or("unknown")
-            .to_string();
-        let entry = libraries
-            .entry(library.clone())
-            .or_insert_with(|| GisLibrarySummary {
-                library: library.clone(),
-                files: vec![],
-                class_count: 0,
-                features: vec![],
-                has_3d: false,
-                has_drawing: false,
-                has_geocoding: false,
-                has_clustering: false,
-                has_wms: false,
-                api_keys_detected: 0,
-                api_style: None,
-            });
-        let file = extract_file_from_node_id(&edge.source_id);
-        if !entry.files.contains(&file) {
-            entry.files.push(file);
-        }
-    }
-
-    let libraries_vec: Vec<GisLibrarySummary> = libraries.into_values().collect();
-
-    // Determine overall complexity
-    let max_complexity_insight = gis_insights
-        .iter()
-        .filter_map(|n| n.metadata.as_ref()?.get("migration_complexity")?.as_str())
-        .max_by_key(|c| match *c {
-            "high" => 3,
-            "medium" => 2,
-            _ => 1,
-        })
-        .unwrap_or("medium");
-    let migration_complexity = if libraries_vec.len() > 1 || spatial_edges.len() > 20 {
-        "high".to_string()
-    } else {
-        max_complexity_insight.to_string()
-    };
-
-    // Modern targets based on target_stack
-    let modern_targets = build_gis_modern_targets(&libraries_vec, target_stack);
-
-    GisAnalysisSummary {
-        has_gis: true,
-        libraries_detected: libraries_vec,
-        total_spatial_calls: spatial_edges.len(),
-        files_with_gis,
-        migration_complexity,
-        modern_targets,
-    }
-}
-
-fn build_gis_modern_targets(
-    libraries: &[GisLibrarySummary],
-    target_stack: &str,
-) -> GisModernTargets {
-    let mut react = Vec::new();
-    let mut blazor = Vec::new();
-    let mut angular = Vec::new();
-
-    for lib in libraries {
-        match lib.library.to_lowercase().as_str() {
-            "google_maps" | "google maps" => {
-                react.push("@react-google-maps/api".into());
-                blazor.push("BlazorGoogleMaps NuGet".into());
-                angular.push("@angular/google-maps".into());
-            }
-            "leaflet" => {
-                react.push("react-leaflet".into());
-                blazor.push("BlazorLeaflet NuGet".into());
-                angular.push("ngx-leaflet".into());
-            }
-            "openlayers" => {
-                react.push("rlayers".into());
-                blazor.push("OpenLayers JS interop".into());
-                angular.push("ngx-openlayers".into());
-            }
-            "esri_arcgis" | "esri" | "arcgis" => {
-                react.push("@arcgis/core + React wrapper".into());
-                blazor.push("ArcGIS REST JS (@esri/arcgis-rest-request)".into());
-                angular.push("@arcgis/core + Angular wrapper".into());
-            }
-            _ => {}
-        }
-    }
-
-    // Highlight the one matching target_stack
-    let ts = target_stack.to_lowercase();
-    if ts.contains("blazor") {
-        react.clear();
-        angular.clear();
-    } else if ts.contains("react") {
-        blazor.clear();
-        angular.clear();
-    } else if ts.contains("angular") {
-        react.clear();
-        blazor.clear();
-    }
-
-    GisModernTargets {
-        react,
-        blazor,
-        angular,
-    }
-}
 
 // ── Classic ASP summary ───────────────────────────────────────────────────────
 
-fn build_classic_asp_summary(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-    asp_files: &[(String, String)],
-) -> ClassicAspSummary {
-    if asp_files.is_empty() {
-        // Check graph for any existing classic ASP insights
-        let asp_insights = nodes_or_warn(
-            graph.query_nodes(project_id, Some("insight"), None, None, 1_000),
-            "asp_insights",
-        )
-        .into_iter()
-        .filter(|n| n.name.to_lowercase().contains("classic_asp"))
-        .count();
-        if asp_insights == 0 {
-            return ClassicAspSummary {
-                total_asp_files: 0,
-                com_objects: vec![],
-                ado_connections: 0,
-                sql_statements: 0,
-                includes: vec![],
-                state_accesses: 0,
-                migration_effort_hours: 0.0,
-            };
-        }
-    }
-
-    let include_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::IncludesFile, 5_000),
-        "IncludesFile",
-    );
-
-    let mut com_objects = Vec::new();
-    let mut ado_connections = 0usize;
-    let mut sql_statements = 0usize;
-    let mut state_accesses = 0usize;
-    let mut includes = Vec::new();
-
-    // Scan ASP file contents for patterns
-    for (path, content) in asp_files {
-        for cap in ASP_CREATE_OBJ_RE.captures_iter(content) {
-            let prog_id = cap[1].to_string();
-            if prog_id.to_lowercase().contains("adodb") {
-                ado_connections += 1;
-            }
-            com_objects.push(ComObjectRef {
-                file_path: path.clone(),
-                prog_id,
-            });
-        }
-        sql_statements += ASP_SQL_RE.find_iter(content).count();
-        state_accesses += ASP_STATE_RE.find_iter(content).count();
-        for cap in ASP_INCLUDE_RE.captures_iter(content) {
-            includes.push(IncludeRef {
-                source_file: path.clone(),
-                included_file: cap[1].to_string(),
-            });
-        }
-    }
-
-    // Also gather includes from graph edges for .asp files
-    for e in &include_edges {
-        let src = extract_file_from_node_id(&e.source_id);
-        if src.to_lowercase().ends_with(".asp") {
-            let inc = IncludeRef {
-                source_file: src,
-                included_file: e.target_id.clone(),
-            };
-            if !includes
-                .iter()
-                .any(|i| i.source_file == inc.source_file && i.included_file == inc.included_file)
-            {
-                includes.push(inc);
-            }
-        }
-    }
-
-    // Estimate effort: ~2h per ASP file + 0.5h per COM object + 0.25h per SQL statement
-    let effort = (asp_files.len() as f64 * 2.0)
-        + (com_objects.len() as f64 * 0.5)
-        + (sql_statements as f64 * 0.25);
-
-    ClassicAspSummary {
-        total_asp_files: asp_files.len(),
-        com_objects,
-        ado_connections,
-        sql_statements,
-        includes,
-        state_accesses,
-        migration_effort_hours: effort,
-    }
-}
 
 // ── Report summary ────────────────────────────────────────────────────────────
 
-fn build_report_summary(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-    report_files: &[(String, String)],
-) -> ReportSummary {
-    // Query graph for report-related insights
-    let all_insights = nodes_or_warn(
-        graph.query_nodes(project_id, Some("insight"), None, None, 2_000),
-        "report_insights",
-    );
-
-    let report_insights: Vec<_> = all_insights
-        .iter()
-        .filter(|n| {
-            let name = n.name.to_lowercase();
-            name.contains("report")
-                || name.contains("crystal")
-                || name.contains("ssrs")
-                || name.contains("rdl")
-        })
-        .collect();
-
-    // Also query for anti-pattern edges related to Crystal Reports
-    let ap_edges = edges_or_warn(
-        graph.list_edges_by_kind(project_id, EdgeKind::AntiPattern, 5_000),
-        "AntiPattern/reports",
-    );
-    let crystal_edges: Vec<_> = ap_edges
-        .iter()
-        .filter(|e| {
-            e.metadata
-                .as_ref()
-                .and_then(|m| m.get("pattern").and_then(|v| v.as_str()))
-                .is_some_and(|p| p.to_lowercase().contains("crystal"))
-        })
-        .collect();
-
-    let mut ssrs_reports = Vec::new();
-    let mut crystal_reports = Vec::new();
-    let mut shared_data_sources = Vec::new();
-    let mut has_binary_rpt = false;
-
-    // Parse SSRS report files (.rdl, .rdlc)
-    for (path, content) in report_files {
-        let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
-        if ext == "rdl" || ext == "rdlc" {
-            let datasets: Vec<String> = RPT_DATASET_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
-            let param_count = RPT_PARAM_RE.find_iter(content).count();
-            let subreports: Vec<String> = RPT_SUBREPORT_RE
-                .captures_iter(content)
-                .map(|c| c[1].to_string())
-                .collect();
-            for cap in RPT_DATASOURCE_RE.captures_iter(content) {
-                let ds = cap[1].to_string();
-                if !shared_data_sources.contains(&ds) {
-                    shared_data_sources.push(ds);
-                }
-            }
-            ssrs_reports.push(ReportInfo {
-                file_path: path.clone(),
-                datasets,
-                parameters: param_count,
-                subreports,
-                migration_target: if ext == "rdlc" {
-                    "SSRS on modern / Power BI paginated".into()
-                } else {
-                    "Power BI / SSRS on modern SQL Server".into()
-                },
-            });
-        }
-    }
-
-    // Crystal Reports from graph insights and anti-pattern edges
-    for insight in &report_insights {
-        let name = &insight.name;
-        if name.to_lowercase().contains("crystal") {
-            let file = insight.file_path.as_str().to_string();
-            let rpt_file = insight
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("report_file").and_then(|v| v.as_str()))
-                .unwrap_or("")
-                .to_string();
-            if rpt_file.ends_with(".rpt") {
-                has_binary_rpt = true;
-            }
-            crystal_reports.push(CrystalReportInfo {
-                file_path: file,
-                report_file: rpt_file,
-                is_binary: true,
-                modern_equivalent: "Power BI / SSRS / Telerik Reporting".into(),
-            });
-        }
-    }
-
-    // Also detect Crystal from anti-pattern edges
-    for edge in &crystal_edges {
-        let file = extract_file_from_node_id(&edge.source_id);
-        if !crystal_reports.iter().any(|cr| cr.file_path == file) {
-            crystal_reports.push(CrystalReportInfo {
-                file_path: file,
-                report_file: String::new(),
-                is_binary: true,
-                modern_equivalent: "Power BI / SSRS / Telerik Reporting".into(),
-            });
-            has_binary_rpt = true;
-        }
-    }
-
-    let total = ssrs_reports.len() + crystal_reports.len();
-
-    ReportSummary {
-        ssrs_reports,
-        crystal_reports,
-        total_reports: total,
-        has_binary_rpt_files: has_binary_rpt,
-        shared_data_sources,
-    }
-}
 
 // ── Phase 33 analysis functions ────────────────────────────────────────────────
 
 // ── Gap 1: Code-behind method inventory ─────────────────────────────────────
 
-/// Public wrapper for classify_method_kind, used by access_layer_tools.
-pub fn classify_method_kind_pub(
-    name: &str,
-    effects: &[String],
-    metadata: &Option<serde_json::Value>,
-) -> MethodKind {
-    classify_method_kind(name, effects, metadata)
-}
 
-fn classify_method_kind(
-    name: &str,
-    effects: &[String],
-    metadata: &Option<serde_json::Value>,
-) -> MethodKind {
-    static LIFECYCLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)^(?:Page_(?:Load|Init|PreRender|Unload|PreInit|InitComplete|LoadComplete|PreRenderComplete|SaveStateComplete|Error)|OnInit|OnLoad|OnPreRender|OnUnload)$").expect("valid regex")
-    });
-    static CONTROL_EVENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)_(?:Click|Command|RowCommand|SelectedIndexChanged|TextChanged|CheckedChanged|DataBound|RowEditing|RowUpdating|RowDeleting|RowCancelingEdit|PageIndexChanging|Sorting|ItemCommand|ItemDataBound|DataBinding|ServerClick|ServerChange|NeedDataSource|ItemCreated|Init|Load|PreRender|Unload)$").expect("valid regex")
-    });
 
-    if LIFECYCLE_RE.is_match(name) {
-        return MethodKind::Lifecycle;
-    }
-    if CONTROL_EVENT_RE.is_match(name) {
-        return MethodKind::ControlEvent;
-    }
-
-    // Check for WebMethod attribute in metadata
-    if let Some(meta) = metadata {
-        if let Some(sig) = meta.get("signature").and_then(|v| v.as_str())
-            && sig.contains("WebMethod")
-        {
-            return MethodKind::WebMethod;
-        }
-        if let Some(eff) = meta.get("effects").and_then(|v| v.as_str())
-            && eff.contains("WebMethod")
-        {
-            return MethodKind::WebMethod;
-        }
-    }
-
-    if effects.iter().any(|e| e.contains("SQL_Access")) {
-        return MethodKind::DataAccess;
-    }
-
-    MethodKind::Helper
-}
-
-fn build_method_inventories(
-    graph: &Arc<GraphStore>,
-    project_id: &str,
-    file_contents: &[FileContent],
-) -> BTreeMap<String, PageMethodInventory> {
-    let mut result = BTreeMap::new();
-
-    for fc in file_contents {
-        let cb_path = fc.file_path.clone() + ".vb";
-        let cb_path_cs = fc.file_path.clone() + ".cs";
-
-        // Try both VB and CS code-behind paths
-        for codebehind_path in &[&cb_path, &cb_path_cs] {
-            let method_nodes = match graph.query_nodes(
-                project_id,
-                Some("function"),
-                None,
-                Some(codebehind_path),
-                500,
-            ) {
-                Ok(nodes) => nodes,
-                Err(e) => {
-                    // MIG1/D2: log graph query failure so operators can see it.
-                    tracing::warn!(
-                        project_id,
-                        path = %codebehind_path,
-                        error = %e,
-                        "MIG1: graph query for code-behind failed — skipping method node extraction"
-                    );
-                    continue;
-                }
-            };
-
-            if method_nodes.is_empty() {
-                // Also try without the extra extension (e.g. just "Page.aspx.vb")
-                continue;
-            }
-
-            let mut methods: Vec<MethodInfo> = Vec::new();
-
-            for node in &method_nodes {
-                let effects: Vec<String> = node
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("effects"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| {
-                        s.split(',')
-                            .map(|e| e.trim().to_string())
-                            .filter(|e| !e.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-
-                let signature = node
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("signature"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(&node.name)
-                    .to_string();
-
-                let return_type = node
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("return_type"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Sub")
-                    .to_string();
-
-                let access_level = node
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("access_level"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Private")
-                    .to_string();
-
-                let kind = classify_method_kind(&node.name, &effects, &node.metadata);
-                let line_count = if node.end_line >= node.start_line {
-                    node.end_line - node.start_line + 1
-                } else {
-                    1
-                };
-
-                methods.push(MethodInfo {
-                    name: node.name.clone(),
-                    signature,
-                    return_type,
-                    access_level,
-                    line_range: (node.start_line, node.end_line),
-                    line_count,
-                    method_kind: kind,
-                    effects,
-                    calls_methods: vec![],
-                    called_by: vec![],
-                    body_preview: None, // graph nodes don't have body text
-                    complexity_score: 0,
-                    handles_clause: vec![],
-                });
-            }
-
-            // Populate calls_methods/called_by from Dependency edges
-            if let Ok(dep_edges) = graph.list_edges_by_kind(project_id, EdgeKind::Dependency, 5000)
-            {
-                let method_names: Vec<String> = methods.iter().map(|m| m.name.clone()).collect();
-                for edge in &dep_edges {
-                    for m in &mut methods {
-                        if edge.source_id.ends_with(&m.name) {
-                            let target_name =
-                                edge.target_id.rsplit('.').next().unwrap_or(&edge.target_id);
-                            if method_names.contains(&target_name.to_string()) {
-                                m.calls_methods.push(target_name.to_string());
-                            }
-                        }
-                        if edge.target_id.ends_with(&m.name) {
-                            let source_name =
-                                edge.source_id.rsplit('.').next().unwrap_or(&edge.source_id);
-                            if method_names.contains(&source_name.to_string()) {
-                                m.called_by.push(source_name.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-
-            let lifecycle_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::Lifecycle))
-                .count();
-            let event_handlers = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::ControlEvent))
-                .count();
-            let web_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::WebMethod))
-                .count();
-            let data_access_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::DataAccess))
-                .count();
-            let helper_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::Helper))
-                .count();
-            let methods_with_sql = methods
-                .iter()
-                .filter(|m| m.effects.iter().any(|e| e.contains("SQL")))
-                .count();
-            let methods_with_state = methods
-                .iter()
-                .filter(|m| m.effects.iter().any(|e| e.contains("State")))
-                .count();
-            let largest_method = methods
-                .iter()
-                .max_by_key(|m| m.line_count)
-                .map(|m| (m.name.clone(), m.line_count));
-
-            let inventory = PageMethodInventory {
-                file_path: fc.file_path.clone(),
-                codebehind_path: codebehind_path.to_string(),
-                total_methods: methods.len(),
-                lifecycle_methods,
-                event_handlers,
-                web_methods,
-                data_access_methods,
-                helper_methods,
-                largest_method,
-                methods_with_sql,
-                methods_with_state,
-                methods,
-            };
-
-            result.insert(fc.file_path.clone(), inventory);
-            break; // Found methods, no need to try the other extension
-        }
-    }
-
-    // Fallback: if graph had no data, parse code-behind content directly
-    for fc in file_contents {
-        if result.contains_key(&fc.file_path) {
-            continue;
-        }
-        if let Some(ref cb_content) = fc.codebehind_content {
-            let methods = extract_methods_from_content(cb_content);
-            if methods.is_empty() {
-                continue;
-            }
-            let cb_path = fc.file_path.clone() + ".vb";
-            let lifecycle_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::Lifecycle))
-                .count();
-            let event_handlers = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::ControlEvent))
-                .count();
-            let web_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::WebMethod))
-                .count();
-            let data_access_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::DataAccess))
-                .count();
-            let helper_methods = methods
-                .iter()
-                .filter(|m| matches!(m.method_kind, MethodKind::Helper))
-                .count();
-            let methods_with_sql = methods
-                .iter()
-                .filter(|m| m.effects.iter().any(|e| e.contains("SQL")))
-                .count();
-            let methods_with_state = methods
-                .iter()
-                .filter(|m| m.effects.iter().any(|e| e.contains("State")))
-                .count();
-            let largest_method = methods
-                .iter()
-                .max_by_key(|m| m.line_count)
-                .map(|m| (m.name.clone(), m.line_count));
-
-            result.insert(
-                fc.file_path.clone(),
-                PageMethodInventory {
-                    file_path: fc.file_path.clone(),
-                    codebehind_path: cb_path,
-                    total_methods: methods.len(),
-                    lifecycle_methods,
-                    event_handlers,
-                    web_methods,
-                    data_access_methods,
-                    helper_methods,
-                    largest_method,
-                    methods_with_sql,
-                    methods_with_state,
-                    methods,
-                },
-            );
-        }
-    }
-
-    result
-}
 
 /// Fallback: extract method signatures directly from code-behind text using regex.
 pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
@@ -3269,7 +1518,7 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
             let signature = format!("{access} {kind_str} {name}({params})")
                 .trim()
                 .to_string();
-            let effects = extract_effects_from_nearby_content(content, &name);
+            let effects = analyzers::methods::extract_effects_from_nearby_content(content, &name);
             let handles = handles_map.get(&name).cloned().unwrap_or_default();
             // If Handles MyBase.Load, classify as Lifecycle even if name doesn't match pattern
             let kind = if handles.iter().any(|h| {
@@ -3285,14 +1534,14 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
             } else if !handles.is_empty() {
                 MethodKind::ControlEvent
             } else {
-                classify_method_kind(&name, &effects, &None)
+                analyzers::methods::classify_method_kind(&name, &effects, &None)
             };
 
             // Extract body for line range, preview, and complexity
             let (body_preview, line_range, line_count, complexity) =
                 if let Some((body, sl, el, lc)) = extract_vb_method_body(content, &name) {
-                    let preview = make_body_preview(&body, lc);
-                    let cx = compute_complexity_score(&body);
+                    let preview = analyzers::methods::make_body_preview(&body, lc);
+                    let cx = analyzers::methods::compute_complexity_score(&body);
                     (Some(preview), (sl, el), lc, cx)
                 } else {
                     (None, (0, 0), 0, 0)
@@ -3350,14 +1599,14 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
             let signature = format!("{access} {return_type} {name}({params})")
                 .trim()
                 .to_string();
-            let effects = extract_effects_from_nearby_content(content, &name);
-            let kind = classify_method_kind(&name, &effects, &None);
+            let effects = analyzers::methods::extract_effects_from_nearby_content(content, &name);
+            let kind = analyzers::methods::classify_method_kind(&name, &effects, &None);
 
             // Extract body for line range, preview, and complexity
             let (body_preview, line_range, line_count, complexity) =
                 if let Some((body, sl, el, lc)) = extract_cs_method_body(content, &name) {
-                    let preview = make_body_preview(&body, lc);
-                    let cx = compute_complexity_score(&body);
+                    let preview = analyzers::methods::make_body_preview(&body, lc);
+                    let cx = analyzers::methods::compute_complexity_score(&body);
                     (Some(preview), (sl, el), lc, cx)
                 } else {
                     (None, (0, 0), 0, 0)
@@ -3388,1793 +1637,34 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     methods
 }
 
-fn extract_effects_from_nearby_content(content: &str, method_name: &str) -> Vec<String> {
-    // THIRD-PASS FIX: Scope effect detection to the method body when possible.
-    // Previously scanned the ENTIRE file, causing every method to be tagged
-    // with SQL_Access if any method in the file used SqlCommand.
-    let body_text: Option<String> = {
-        let is_vb = content.contains("End Sub") || content.contains("End Function");
-        if is_vb {
-            extract_vb_method_body(content, method_name).map(|(b, _, _, _)| b)
-        } else {
-            extract_cs_method_body(content, method_name).map(|(b, _, _, _)| b)
-        }
-    };
-    // Use extracted body if available, fall back to full file content
-    let scan_text = body_text.as_deref().unwrap_or(content);
-    let lower = scan_text.to_lowercase();
-
-    let mut effects = Vec::new();
-    if lower.contains("sqlcommand")
-        || lower.contains("sqlconnection")
-        || lower.contains("sqldatareader")
-        || lower.contains("sqldataadapter")
-        || lower.contains("executenonquery")
-        || lower.contains("executereader")
-        || lower.contains("executescalar")
-        || lower.contains("oledbcommand")
-        || lower.contains("oledbconnection")
-    {
-        effects.push("SQL_Access".to_string());
-    }
-    if lower.contains("session(")
-        || lower.contains("session[")
-        || lower.contains("viewstate(")
-        || lower.contains("viewstate[")
-    {
-        effects.push("State_Access".to_string());
-    }
-    if lower.contains("createobject") {
-        effects.push("COM_Interop".to_string());
-    }
-    if lower.contains("response.redirect")
-        || lower.contains("server.transfer")
-        || lower.contains("response.write")
-    {
-        effects.push("HTTP_Response".to_string());
-    }
-    if lower.contains("smtpclient")
-        || lower.contains("mailmessage")
-        || lower.contains("cdo.message")
-    {
-        effects.push("Email_Send".to_string());
-    }
-    effects
-}
 
 // ── Gap 2: Third-party control detection ────────────────────────────────────
 
-fn build_third_party_control_summary(markup_files: &[FileContent]) -> ThirdPartyControlSummary {
-    static THIRD_PARTY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<(telerik|rad|dx|ig|igtbl|igmisc|igsch|ComponentArt|kendo|obout|eo|FarPoint|Dart|cwc|ntx):(\w+)\b"#).expect("valid regex")
-    });
 
-    let mut vendor_controls: BTreeMap<String, BTreeMap<String, Vec<String>>> = BTreeMap::new();
-    let mut all_files: Vec<String> = Vec::new();
 
-    for fc in markup_files {
-        let mut found_in_file = false;
-        for cap in THIRD_PARTY_RE.captures_iter(&fc.markup_content) {
-            let prefix = cap[1].to_string();
-            let control_name = cap[2].to_string();
-            let vendor = classify_vendor_from_prefix(&prefix);
-            vendor_controls
-                .entry(vendor)
-                .or_default()
-                .entry(format!("{prefix}:{control_name}"))
-                .or_default()
-                .push(fc.file_path.clone());
-            found_in_file = true;
-        }
-        if found_in_file {
-            all_files.push(fc.file_path.clone());
-        }
-    }
-    all_files.sort();
-    all_files.dedup();
-
-    let mut vendors_detected = Vec::new();
-    let mut total_third_party = 0usize;
-    let mut unmapped_controls = Vec::new();
-
-    for (vendor, controls_map) in &vendor_controls {
-        let (suite, modern_suite, license) = vendor_suite_info(vendor);
-        let mut controls_used: Vec<(String, usize)> = Vec::new();
-        let mut vendor_files: Vec<String> = Vec::new();
-        let mut vendor_count = 0usize;
-
-        for (tag_name, files) in controls_map {
-            let usage = files.len();
-            vendor_count += usage;
-            controls_used.push((tag_name.clone(), usage));
-
-            let control_short = tag_name.split(':').nth(1).unwrap_or(tag_name);
-            if engram_index::control_mapping::lookup(control_short).is_none() {
-                let first_file = files.first().cloned().unwrap_or_default();
-                unmapped_controls.push(UnmappedControl {
-                    tag_name: tag_name.clone(),
-                    vendor: vendor.clone(),
-                    file_path: first_file,
-                    note: format!(
-                        "No automatic mapping — evaluate {modern_suite} or manual implementation"
-                    ),
-                });
-            }
-
-            vendor_files.extend(files.iter().cloned());
-        }
-
-        vendor_files.sort();
-        vendor_files.dedup();
-        controls_used.sort_by(|a, b| b.1.cmp(&a.1));
-        total_third_party += vendor_count;
-
-        vendors_detected.push(VendorSummary {
-            vendor: vendor.clone(),
-            suite: suite.to_string(),
-            control_count: vendor_count,
-            controls_used,
-            files: vendor_files,
-            modern_replacement_suite: modern_suite.to_string(),
-            license_note: license.to_string(),
-        });
-    }
-
-    vendors_detected.sort_by(|a, b| b.control_count.cmp(&a.control_count));
-
-    ThirdPartyControlSummary {
-        vendors_detected,
-        total_third_party_controls: total_third_party,
-        files_with_third_party: all_files,
-        unmapped_controls,
-    }
-}
-
-fn classify_vendor_from_prefix(prefix: &str) -> String {
-    match prefix.to_lowercase().as_str() {
-        "telerik" | "rad" | "kendo" => "Telerik".to_string(),
-        "dx" => "DevExpress".to_string(),
-        "ig" | "igtbl" | "igmisc" | "igsch" | "ntx" => "Infragistics".to_string(),
-        "componentart" => "ComponentArt".to_string(),
-        "obout" => "Obout".to_string(),
-        "eo" => "EO.WebControls".to_string(),
-        "farpoint" => "FarPoint".to_string(),
-        "dart" => "Dart".to_string(),
-        "cwc" => "CustomWebControls".to_string(),
-        other => other.to_string(),
-    }
-}
-
-fn vendor_suite_info(vendor: &str) -> (&'static str, &'static str, &'static str) {
-    match vendor {
-        "Telerik" => (
-            "UI for ASP.NET AJAX",
-            "Telerik UI for Blazor or MudBlazor",
-            "Commercial for Telerik Blazor; MudBlazor is MIT",
-        ),
-        "DevExpress" => (
-            "ASP.NET Controls",
-            "DevExpress Blazor Components or MudBlazor",
-            "Commercial license required",
-        ),
-        "Infragistics" => (
-            "Ultimate UI for ASP.NET",
-            "IgniteUI for Blazor or MudBlazor",
-            "Commercial license required",
-        ),
-        "ComponentArt" => (
-            "Web.UI",
-            "MudBlazor or Radzen",
-            "ComponentArt discontinued; use open-source alternative",
-        ),
-        "Obout" => (
-            "Suite for ASP.NET",
-            "MudBlazor",
-            "Obout discontinued; migrate to open-source",
-        ),
-        "EO.WebControls" => ("EO.Web", "MudBlazor", "Commercial"),
-        "FarPoint" => (
-            "Spread for ASP.NET",
-            "SpreadJS or AG Grid",
-            "Commercial license required",
-        ),
-        _ => (
-            "Unknown Suite",
-            "MudBlazor (open-source)",
-            "Evaluate licensing",
-        ),
-    }
-}
 
 // ── Gap 3: Dependency inventory ─────────────────────────────────────────────
 
-fn build_dependency_inventory(project_refs: &[ProjectReferenceBundle]) -> DependencyInventory {
-    let mut target_frameworks: Vec<String> = Vec::new();
-    let mut all_packages: Vec<NuGetPackageInfo> = Vec::new();
-    let mut all_assemblies: Vec<AssemblyRefInfo> = Vec::new();
-    let mut proj_refs: Vec<ProjectRefInfo> = Vec::new();
-    let mut seen_packages: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut seen_assemblies: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    for prb in project_refs {
-        if let Some(ref tf) = prb.target_framework
-            && !target_frameworks.contains(tf)
-        {
-            target_frameworks.push(tf.clone());
-        }
 
-        for pkg in &prb.package_references {
-            if seen_packages.contains(&pkg.name.to_lowercase()) {
-                continue;
-            }
-            seen_packages.insert(pkg.name.to_lowercase());
-
-            let (modern, version, notes, category) = lookup_modern_replacement(&pkg.name);
-            let is_framework =
-                pkg.name.starts_with("System.") || pkg.name.starts_with("Microsoft.");
-
-            if is_framework && pkg.version.is_none() {
-                // This is an assembly reference, not a NuGet package
-                if seen_assemblies.insert(pkg.name.to_lowercase()) {
-                    let (asm_modern, removal) = lookup_assembly_replacement(&pkg.name);
-                    all_assemblies.push(AssemblyRefInfo {
-                        assembly_name: pkg.name.clone(),
-                        is_framework: true,
-                        modern_equivalent: asm_modern.map(|s| s.to_string()),
-                        removal_reason: removal.map(|s| s.to_string()),
-                    });
-                }
-            } else {
-                all_packages.push(NuGetPackageInfo {
-                    name: pkg.name.clone(),
-                    version: pkg.version.clone(),
-                    modern_replacement: modern.map(|s| s.to_string()),
-                    modern_version: version.map(|s| s.to_string()),
-                    migration_notes: notes.map(|s| s.to_string()),
-                    category: category.to_string(),
-                });
-            }
-        }
-
-        for asm in &prb.assembly_references {
-            if seen_assemblies.contains(&asm.to_lowercase()) {
-                continue;
-            }
-            seen_assemblies.insert(asm.to_lowercase());
-            let is_fw =
-                asm.starts_with("System.") || asm.starts_with("Microsoft.") || asm == "mscorlib";
-            let (modern, removal) = lookup_assembly_replacement(asm);
-            all_assemblies.push(AssemblyRefInfo {
-                assembly_name: asm.clone(),
-                is_framework: is_fw,
-                modern_equivalent: modern.map(|s| s.to_string()),
-                removal_reason: removal.map(|s| s.to_string()),
-            });
-        }
-
-        for dep in &prb.project_dependencies {
-            proj_refs.push(ProjectRefInfo {
-                project_name: dep.rsplit(['/', '\\']).next().unwrap_or(dep).to_string(),
-                project_path: dep.clone(),
-                target_framework: prb.target_framework.clone(),
-            });
-        }
-    }
-
-    let framework_assemblies: Vec<String> = all_assemblies
-        .iter()
-        .filter(|a| a.is_framework)
-        .map(|a| a.assembly_name.clone())
-        .collect();
-    let third_party_assemblies: Vec<String> = all_assemblies
-        .iter()
-        .filter(|a| !a.is_framework)
-        .map(|a| a.assembly_name.clone())
-        .collect();
-    let with_replacement = all_packages
-        .iter()
-        .filter(|p| p.modern_replacement.is_some())
-        .count();
-    let without_replacement = all_packages.len() - with_replacement;
-
-    DependencyInventory {
-        total_packages: all_packages.len(),
-        total_assemblies: all_assemblies.len(),
-        packages_with_known_replacement: with_replacement,
-        packages_without_replacement: without_replacement,
-        framework_assemblies,
-        third_party_assemblies,
-        target_frameworks,
-        nuget_packages: all_packages,
-        assembly_references: all_assemblies,
-        project_references: proj_refs,
-        legacy_packages: Vec::new(), // populated separately from packages.config
-        binding_redirects: Vec::new(), // populated separately from web.config
-    }
-}
-
-/// Returns (modern_replacement, modern_version, migration_notes, category)
-fn lookup_modern_replacement(
-    package: &str,
-) -> (
-    Option<&'static str>,
-    Option<&'static str>,
-    Option<&'static str>,
-    &'static str,
-) {
-    match package.to_lowercase().as_str() {
-        "entityframework" => (
-            Some("Microsoft.EntityFrameworkCore"),
-            Some("8.0+"),
-            Some("Different DbContext API; migrations differ"),
-            "ORM",
-        ),
-        "newtonsoft.json" => (
-            Some("System.Text.Json (or keep Newtonsoft)"),
-            Some("8.0+"),
-            Some("Compatible; System.Text.Json is built-in but API differs"),
-            "Serialization",
-        ),
-        "telerik.web.ui" => (
-            Some("Telerik.UI.for.Blazor"),
-            None,
-            Some("Commercial, completely different API surface"),
-            "UI Controls",
-        ),
-        "devexpress.web" | "devexpress.web.v23.1" => (
-            Some("DevExpress.Blazor"),
-            None,
-            Some("Commercial, different API"),
-            "UI Controls",
-        ),
-        "infragistics.web" | "infragistics4.web" => (
-            Some("IgniteUI.Blazor"),
-            None,
-            Some("Commercial"),
-            "UI Controls",
-        ),
-        "log4net" => (
-            Some("Serilog or NLog"),
-            Some("3.0+"),
-            Some("Similar patterns; Serilog preferred for structured logging"),
-            "Logging",
-        ),
-        "nlog" => (
-            Some("NLog"),
-            Some("5.0+"),
-            Some("Already .NET Core compatible"),
-            "Logging",
-        ),
-        "serilog" => (
-            Some("Serilog"),
-            Some("3.0+"),
-            Some("Already compatible"),
-            "Logging",
-        ),
-        "unity" => (
-            Some("Microsoft.Extensions.DependencyInjection"),
-            Some("8.0+"),
-            Some("Built-in DI in ASP.NET Core"),
-            "DI",
-        ),
-        "autofac" => (
-            Some("Autofac"),
-            Some("7.0+"),
-            Some(".NET Core compatible"),
-            "DI",
-        ),
-        "structuremap" => (
-            Some("Microsoft.Extensions.DependencyInjection or Lamar"),
-            None,
-            Some("StructureMap discontinued; Lamar is successor"),
-            "DI",
-        ),
-        "system.data.sqlclient" => (
-            Some("Microsoft.Data.SqlClient"),
-            Some("5.0+"),
-            Some("Namespace change; connection string compatible"),
-            "Data",
-        ),
-        "microsoft.practices.enterpriselibrary.data" | "enterpriselibrary.data" => (
-            Some("Microsoft.Data.SqlClient + Dapper"),
-            None,
-            Some("Replace per-block; no single equivalent"),
-            "Data",
-        ),
-        "npoi" => (
-            Some("NPOI"),
-            Some("2.6+"),
-            Some("Compatible; or consider ClosedXML"),
-            "Office",
-        ),
-        "epplus" => (
-            Some("EPPlus"),
-            Some("7.0+"),
-            Some("License changed to commercial in v5+"),
-            "Office",
-        ),
-        "itextsharp" => (
-            Some("itext7 or QuestPDF"),
-            None,
-            Some("License changed; QuestPDF is MIT"),
-            "PDF",
-        ),
-        "crystaldecisions.crystalreports.engine" => (
-            None,
-            None,
-            Some("No .NET Core port; consider SSRS, FastReport, or Telerik Reporting"),
-            "Reporting",
-        ),
-        "microsoft.reportviewer.webforms"
-        | "microsoft.reportingservices.reportviewercontrol.webforms" => (
-            Some("Microsoft.Reporting.NETCore"),
-            Some("16.0+"),
-            Some("Limited .NET Core support"),
-            "Reporting",
-        ),
-        "microsoft.aspnet.signalr" => (
-            Some("Microsoft.AspNetCore.SignalR"),
-            Some("8.0+"),
-            Some("Different hub API; requires rewrite"),
-            "RealTime",
-        ),
-        "system.web.optimization" => (
-            None,
-            None,
-            Some("Removed; use Vite, Webpack, or esbuild for bundling"),
-            "Build",
-        ),
-        "microsoft.owin" | "owin" => (
-            None,
-            None,
-            Some("ASP.NET Core has native middleware pipeline"),
-            "Middleware",
-        ),
-        "nhibernate" => (
-            Some("NHibernate or EF Core"),
-            Some("5.4+"),
-            Some(".NET Core compatible"),
-            "ORM",
-        ),
-        "dapper" => (
-            Some("Dapper"),
-            Some("2.1+"),
-            Some("Already compatible"),
-            "ORM",
-        ),
-        "fluentvalidation" => (
-            Some("FluentValidation"),
-            Some("11.0+"),
-            Some("Already compatible"),
-            "Validation",
-        ),
-        "automapper" => (
-            Some("AutoMapper or Mapster"),
-            Some("13.0+"),
-            Some("Already compatible; Mapster is faster alternative"),
-            "Mapping",
-        ),
-        "mediatr" => (
-            Some("MediatR"),
-            Some("12.0+"),
-            Some("Already compatible"),
-            "Patterns",
-        ),
-        "hangfire" | "hangfire.core" => (
-            Some("Hangfire"),
-            Some("1.8+"),
-            Some("Already compatible"),
-            "BackgroundJobs",
-        ),
-        "quartz" | "quartz.net" => (
-            Some("Quartz.NET"),
-            Some("3.8+"),
-            Some("Already compatible"),
-            "BackgroundJobs",
-        ),
-        "stackexchange.redis" => (
-            Some("StackExchange.Redis"),
-            Some("2.7+"),
-            Some("Already compatible"),
-            "Cache",
-        ),
-        "microsoft.aspnet.webapi" | "microsoft.aspnet.webapi.core" => (
-            Some("Microsoft.AspNetCore.Mvc"),
-            Some("8.0+"),
-            Some("Unified in ASP.NET Core; different routing and DI"),
-            "Web",
-        ),
-        "microsoft.aspnet.mvc" => (
-            Some("Microsoft.AspNetCore.Mvc"),
-            Some("8.0+"),
-            Some("Different routing, DI, filters"),
-            "Web",
-        ),
-        "ajaxcontroltoolkit" => (
-            None,
-            None,
-            Some("No .NET Core port; use MudBlazor or JavaScript components"),
-            "UI Controls",
-        ),
-        "antlr" | "antlr3.runtime" => (
-            Some("Antlr4.Runtime.Standard"),
-            Some("4.13+"),
-            Some("Different API"),
-            "Parsing",
-        ),
-        "webgrease" => (None, None, Some("Removed; use modern bundler"), "Build"),
-        "microsoft.web.infrastructure" => (None, None, Some("Built into ASP.NET Core"), "Web"),
-        "microsoft.aspnet.web.optimization" => {
-            (None, None, Some("Use Vite/Webpack for bundling"), "Build")
-        }
-        "dotnetopenauth" => (
-            Some("Microsoft.AspNetCore.Authentication.OAuth"),
-            Some("8.0+"),
-            Some("Built-in OAuth in ASP.NET Core"),
-            "Auth",
-        ),
-        "microsoft.identitymodel.tokens" => (
-            Some("Microsoft.IdentityModel.Tokens"),
-            Some("7.0+"),
-            Some("Already compatible"),
-            "Auth",
-        ),
-        "microsoft.aspnet.identity.core" => (
-            Some("Microsoft.AspNetCore.Identity"),
-            Some("8.0+"),
-            Some("Different API but same concepts"),
-            "Auth",
-        ),
-        "system.web.services" => (None, None, Some("Removed; use Minimal API or gRPC"), "Web"),
-        "system.servicemodel" => (
-            Some("CoreWCF or gRPC"),
-            None,
-            Some("Limited WCF in .NET Core; gRPC preferred"),
-            "Services",
-        ),
-        "system.enterpriseservices" => (None, None, Some("No .NET Core equivalent"), "Legacy"),
-        "system.directoryservices" => (
-            Some("System.DirectoryServices"),
-            None,
-            Some("Partial support; needs platform-specific shim"),
-            "Directory",
-        ),
-        "system.drawing" => (
-            Some("System.Drawing.Common or SkiaSharp"),
-            None,
-            Some("Linux needs libgdiplus; SkiaSharp is cross-platform"),
-            "Graphics",
-        ),
-        _ => (None, None, None, "Unknown"),
-    }
-}
-
-fn lookup_assembly_replacement(assembly: &str) -> (Option<&'static str>, Option<&'static str>) {
-    match assembly.to_lowercase().as_str() {
-        "system.web" => (
-            None,
-            Some("Removed in .NET Core — use ASP.NET Core middleware"),
-        ),
-        "system.web.mvc" => (
-            Some("Microsoft.AspNetCore.Mvc"),
-            Some("Different routing and DI"),
-        ),
-        "system.web.services" => (None, Some("Removed — use Minimal API or gRPC")),
-        "system.web.extensions" => (
-            None,
-            Some("Removed — AJAX functionality is built-in to ASP.NET Core"),
-        ),
-        "system.enterpriseservices" => (None, Some("Removed — no .NET Core equivalent")),
-        "system.web.mobile" => (None, Some("Removed — use responsive design")),
-        "system.web.routing" => (None, Some("Built into ASP.NET Core endpoint routing")),
-        "system.web.abstractions" => (None, Some("Built into ASP.NET Core")),
-        "system.web.dynamicdata" => (None, Some("Removed — no equivalent")),
-        "system.web.entity" => (None, Some("Use EF Core")),
-        "system.web.applicationservices" => (None, Some("Use ASP.NET Core Identity")),
-        "microsoft.csharp" => (Some("Microsoft.CSharp"), None),
-        "system.configuration" => (
-            Some("Microsoft.Extensions.Configuration"),
-            Some("Different API"),
-        ),
-        "system.data" => (Some("System.Data.Common"), None),
-        "system.data.sqlclient" => (Some("Microsoft.Data.SqlClient"), Some("Namespace change")),
-        _ => (None, None),
-    }
-}
 
 // ── Gap 4: Caching inventory ────────────────────────────────────────────────
 
-fn build_caching_inventory(
-    markup_files: &[FileContent],
-    code_refs: &[(&str, &str)],
-    code_files: &[(String, String)],
-) -> CachingInventory {
-    static OUTPUT_CACHE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<%@\s*OutputCache\s+([^%]+?)%>"#).expect("valid regex")
-    });
-    static CACHE_ATTR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(\w+)\s*=\s*"([^"]*)""#).expect("valid regex")
-    });
-    static CACHE_API_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:HttpRuntime\.Cache|HttpContext\.Current\.Cache|\bCache)\.(Insert|Add|Get|Remove)\s*\(\s*"([^"]+)""#).expect("valid regex")
-    });
-    static RESPONSE_CACHE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)Response\.Cache\.Set(?:Expires|Cacheability|MaxAge|ValidUntilExpires|NoStore|NoTransforms|SlidingExpiration|Revalidation|ETag|LastModified|VaryByCustom|OmitVaryStar)\s*\(").expect("valid regex")
-    });
-    static SQL_CACHE_DEP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(
-            r#"(?i)new\s+SqlCacheDependency\s*\(\s*"?([^",)]*)"?\s*(?:,\s*"?([^",)]*)"?)?\s*\)"#,
-        )
-        .expect("valid regex")
-    });
-
-    let mut output_cache_pages = Vec::new();
-    let mut programmatic_keys: BTreeMap<String, (Vec<String>, String)> = BTreeMap::new();
-    let mut response_cache_files: Vec<String> = Vec::new();
-    let mut sql_cache_deps = Vec::new();
-
-    // Scan markup files for OutputCache directives
-    for fc in markup_files {
-        for cap in OUTPUT_CACHE_RE.captures_iter(&fc.markup_content) {
-            let attrs_str = &cap[1];
-            let mut duration: Option<u32> = None;
-            let mut vary_by_param: Option<String> = None;
-            let mut vary_by_control: Option<String> = None;
-            let mut vary_by_custom: Option<String> = None;
-            let mut location: Option<String> = None;
-            let mut cache_profile: Option<String> = None;
-            let mut sql_dependency: Option<String> = None;
-
-            for attr_cap in CACHE_ATTR_RE.captures_iter(attrs_str) {
-                let key = &attr_cap[1];
-                let val = attr_cap[2].to_string();
-                match key.to_lowercase().as_str() {
-                    "duration" => duration = val.parse().ok(),
-                    "varybyparam" => vary_by_param = Some(val),
-                    "varybycontrol" => vary_by_control = Some(val),
-                    "varybycustom" => vary_by_custom = Some(val),
-                    "location" => location = Some(val),
-                    "cacheprofile" => cache_profile = Some(val),
-                    "sqldependency" => sql_dependency = Some(val),
-                    _ => {}
-                }
-            }
-
-            let mut modern_parts = Vec::new();
-            if let Some(d) = duration {
-                modern_parts.push(format!("Duration = {d}"));
-            }
-            if let Some(ref vbp) = vary_by_param
-                && vbp != "none"
-                && vbp != "*"
-            {
-                modern_parts.push(format!("VaryByQueryKeys = new[] {{ \"{vbp}\" }}"));
-            }
-            let modern_equivalent = if modern_parts.is_empty() {
-                "[ResponseCache]".to_string()
-            } else {
-                format!("[ResponseCache({})]", modern_parts.join(", "))
-            };
-
-            output_cache_pages.push(OutputCacheEntry {
-                file_path: fc.file_path.clone(),
-                duration_seconds: duration,
-                vary_by_param,
-                vary_by_control,
-                vary_by_custom,
-                location,
-                cache_profile,
-                sql_dependency,
-                modern_equivalent,
-            });
-        }
-    }
-
-    // Scan code files for programmatic cache patterns
-    let all_code: Vec<(&str, &str)> = code_refs
-        .iter()
-        .copied()
-        .chain(code_files.iter().map(|(p, c)| (p.as_str(), c.as_str())))
-        .collect();
-
-    for (path, content) in &all_code {
-        for cap in CACHE_API_RE.captures_iter(content) {
-            let operation = cap[1].to_string();
-            let cache_key = cap[2].to_string();
-            programmatic_keys
-                .entry(cache_key)
-                .or_insert_with(|| (Vec::new(), operation.clone()))
-                .0
-                .push(path.to_string());
-        }
-
-        if RESPONSE_CACHE_RE.is_match(content) && !response_cache_files.contains(&path.to_string())
-        {
-            response_cache_files.push(path.to_string());
-        }
-
-        for cap in SQL_CACHE_DEP_RE.captures_iter(content) {
-            let db = cap.get(1).map(|m| m.as_str().to_string());
-            let table = cap.get(2).map(|m| m.as_str().to_string());
-            sql_cache_deps.push(SqlCacheDependencyEntry {
-                file_path: path.to_string(),
-                database_name: db,
-                table_name: table,
-                modern_note: "No direct .NET Core equivalent — use EF Change Tracker + cache invalidation or message bus".to_string(),
-            });
-        }
-    }
-
-    let programmatic_cache_keys: Vec<ProgrammaticCacheEntry> = programmatic_keys
-        .into_iter()
-        .map(|(key, (mut files, operation))| {
-            files.sort();
-            files.dedup();
-            let modern = if files.len() > 1 {
-                "IDistributedCache (shared across instances)".to_string()
-            } else {
-                "IMemoryCache with SlidingExpiration".to_string()
-            };
-            ProgrammaticCacheEntry {
-                cache_key: key,
-                operation,
-                has_expiration: false,
-                has_dependency: false,
-                modern_equivalent: modern,
-                files,
-            }
-        })
-        .collect();
-
-    let total_cached = output_cache_pages.len();
-    let total_keys = programmatic_cache_keys.len();
-    let has_resp = !response_cache_files.is_empty();
-    let has_sql = !sql_cache_deps.is_empty();
-
-    CachingInventory {
-        output_cache_pages,
-        programmatic_cache_keys,
-        response_cache_files,
-        sql_cache_dependencies: sql_cache_deps,
-        total_cached_pages: total_cached,
-        total_cache_keys: total_keys,
-        has_response_caching: has_resp,
-        has_sql_dependencies: has_sql,
-    }
-}
 
 // ── Gap 5: URL routing/rewrite rules ────────────────────────────────────────
 
-fn extract_url_routing(
-    web_config: Option<&str>,
-    global_asax_content: &str,
-    code_files: &[(&str, &str)],
-) -> UrlRoutingInventory {
-    static REWRITE_RULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?is)<rule\s+name="([^"]*)"[^>]*>.*?<match\s+url="([^"]*)"[^/]*/?>.*?<action\s+type="(\w+)"\s+url="([^"]*)"[^/]*/?>.*?</rule>"#).expect("valid regex")
-    });
-    static URL_MAPPING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<add\s+url="([^"]*)"\s+mappedUrl="([^"]*)"\s*/>"#).expect("valid regex")
-    });
-    static MAP_PAGE_ROUTE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)\.MapPageRoute\s*\(\s*"([^"]*)",\s*"([^"]*)",\s*"([^"]*)""#)
-            .expect("valid regex")
-    });
-    static REWRITE_PATH_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(
-            r#"(?i)(?:HttpContext\.Current|Context|HttpContext)\.RewritePath\s*\(\s*"([^"]*)""#,
-        )
-        .expect("valid regex")
-    });
-    static REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Response\.Redirect(Permanent)?\s*\(\s*"([^"]*)""#).expect("valid regex")
-    });
-    static SERVER_TRANSFER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Server\.Transfer\s*\(\s*"([^"]*)""#).expect("valid regex")
-    });
-    static FRIENDLY_URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)FriendlyUrl|FriendlyUrlSettings|EnableFriendlyUrls").expect("valid regex")
-    });
 
-    let mut rewrite_rules = Vec::new();
-    let mut page_routes = Vec::new();
-    let mut url_mappings = Vec::new();
-    let mut rewrite_path_calls = Vec::new();
-    let mut redirects = Vec::new();
-    let mut server_transfers = Vec::new();
-    let mut has_friendly_urls = false;
-
-    // Parse web.config
-    if let Some(wc) = web_config {
-        for cap in REWRITE_RULE_RE.captures_iter(wc) {
-            let name = cap[1].to_string();
-            let pattern = cap[2].to_string();
-            let action = cap[3].to_string();
-            let target = cap[4].to_string();
-            let modern = build_modern_route_equivalent(&pattern, &target, &action);
-            rewrite_rules.push(UrlRewriteRule {
-                rule_name: name,
-                match_pattern: pattern,
-                action_type: action,
-                target_url: target,
-                modern_equivalent: modern,
-            });
-        }
-
-        for cap in URL_MAPPING_RE.captures_iter(wc) {
-            url_mappings.push(UrlMapping {
-                friendly_url: cap[1].to_string(),
-                mapped_url: cap[2].to_string(),
-            });
-        }
-
-        if FRIENDLY_URL_RE.is_match(wc) {
-            has_friendly_urls = true;
-        }
-    }
-
-    // Parse Global.asax for MapPageRoute calls
-    for cap in MAP_PAGE_ROUTE_RE.captures_iter(global_asax_content) {
-        let route_name = cap[1].to_string();
-        let pattern = cap[2].to_string();
-        let page = cap[3].to_string();
-        let modern = format!("app.MapGet(\"/{pattern}\", ...)");
-        page_routes.push(PageRoute {
-            route_name,
-            url_pattern: pattern,
-            physical_page: page,
-            modern_equivalent: modern,
-        });
-    }
-
-    // Scan all code files
-    let all_content: Vec<(&str, &str)> = code_files
-        .iter()
-        .copied()
-        .chain(std::iter::once(("Global.asax.vb", global_asax_content)))
-        .collect();
-
-    for (path, content) in &all_content {
-        for (line_num, line) in content.lines().enumerate() {
-            if let Some(cap) = REWRITE_PATH_RE.captures(line) {
-                rewrite_path_calls.push(RewritePathCall {
-                    file_path: path.to_string(),
-                    target_path: cap[1].to_string(),
-                    line_number: (line_num + 1) as u32,
-                });
-            }
-            if let Some(cap) = REDIRECT_RE.captures(line) {
-                let is_permanent = cap.get(1).is_some();
-                redirects.push(RedirectEntry {
-                    file_path: path.to_string(),
-                    target_url: cap[2].to_string(),
-                    is_permanent,
-                });
-            }
-            if let Some(cap) = SERVER_TRANSFER_RE.captures(line) {
-                server_transfers.push(ServerTransferEntry {
-                    file_path: path.to_string(),
-                    target_page: cap[1].to_string(),
-                });
-            }
-        }
-
-        if FRIENDLY_URL_RE.is_match(content) {
-            has_friendly_urls = true;
-        }
-    }
-
-    let total = rewrite_rules.len() + page_routes.len() + url_mappings.len();
-
-    UrlRoutingInventory {
-        rewrite_rules,
-        page_routes,
-        url_mappings,
-        rewrite_path_calls,
-        redirects,
-        server_transfers,
-        has_friendly_urls,
-        total_url_patterns: total,
-    }
-}
-
-fn build_modern_route_equivalent(pattern: &str, target: &str, action_type: &str) -> String {
-    // Convert IIS rewrite regex to ASP.NET Core endpoint pattern
-    let route = pattern
-        .replace(r"\d+", "{id:int}")
-        .replace(r"(\d+)", "{id}")
-        .replace(r"([^/]+)", "{slug}")
-        .replace("^", "")
-        .replace("$", "");
-    let _ = target; // target is the rewrite destination
-    match action_type.to_lowercase().as_str() {
-        "redirect" | "redirectpermanent" => {
-            format!("app.MapGet(\"/{route}\", () => Results.Redirect(\"{target}\"))")
-        }
-        _ => format!("app.MapGet(\"/{route}\", ...)"),
-    }
-}
 
 // ── Gap 6: VB.NET → C# translation flags ───────────────────────────────────
 
-/// True iff a `VbTranslationFlag` extracted from file `flag_path` belongs
-/// in the dossier for a page at `page_path` with optional detected
-/// `codebehind`. Accepts:
-///   - the page file itself
-///   - the page's detected codebehind (when non-empty)
-///   - the conventional `<page>.vb` / `<page>.cs` sibling for an `.aspx`
-///     page that did not resolve a codebehind (e.g. the page inherits
-///     `System.Web.UI.Page` directly)
-///
-/// Rejects everything else. The prior version allowed
-/// `flag_path.contains(codebehind.unwrap_or(""))` which silently matched
-/// *every* file in the project whenever `codebehind` was `None`, so the
-/// first page dossier on a project with unresolved codebehinds dumped
-/// the entire project-wide flag list into one page's section.
-fn flag_belongs_to_page(flag_path: &str, page_path: &str, codebehind: Option<&str>) -> bool {
-    if flag_path == page_path {
-        return true;
-    }
-    if let Some(cb) = codebehind
-        && !cb.is_empty()
-        && flag_path == cb
-    {
-        return true;
-    }
-    if page_path.ends_with(".aspx")
-        && (flag_path == format!("{}.vb", page_path) || flag_path == format!("{}.cs", page_path))
-    {
-        return true;
-    }
-    false
-}
 
-fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationReport {
-    static OPTIONAL_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bOptional\s+(?:ByVal\s+|ByRef\s+)?\w+\s+As\s+").expect("valid regex")
-    });
-    static IS_MISSING_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bIsMissing\s*\(").expect("valid regex"));
-    static MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*(?:Public\s+|Friend\s+)?Module\s+(\w+)").expect("valid regex")
-    });
-    static MY_NAMESPACE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bMy\.(Computer|Application|Settings|Resources|User|Forms|WebServices)\b")
-            .expect("valid regex")
-    });
-    static WITH_EVENTS_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bWithEvents\s+").expect("valid regex"));
-    static HANDLES_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bHandles\s+\w+\.\w+").expect("valid regex"));
-    static RAISE_EVENT_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bRaiseEvent\s+\w+").expect("valid regex"));
-    static SHADOWS_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bShadows\s+").expect("valid regex"));
-    static OPTION_COMPARE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*Option\s+Compare\s+Text").expect("valid regex")
-    });
-    static LIKE_OPERATOR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)\bLike\s+"[^"]*[*?#\[\]]+[^"]*""#).expect("valid regex")
-    });
-    static VB_INTRINSICS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:IsNumeric|IsDate|IsNothing|IsDBNull|IsArray|IsError)\s*\(")
-            .expect("valid regex")
-    });
-    static ON_ERROR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bOn\s+Error\s+(?:Resume\s+Next|GoTo\s+)").expect("valid regex")
-    });
-    static LATE_BINDING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bDim\s+\w+\s+As\s+Object\b").expect("valid regex")
-    });
-    static VB_CAST_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:CType|DirectCast|TryCast|CStr|CInt|CDbl|CBool|CLng|CDec|CDate|CByte|CShort|CSng|CObj|CChar)\s*\(").expect("valid regex")
-    });
-
-    struct FlagDef {
-        category: &'static str,
-        pattern_name: &'static str,
-        re: &'static std::sync::LazyLock<Regex>,
-        csharp_eq: &'static str,
-        risk: &'static str,
-        auto_tr: bool,
-        notes: &'static str,
-    }
-
-    let flag_defs: Vec<FlagDef> = vec![
-        FlagDef {
-            category: "ErrorHandling",
-            pattern_name: "On Error Resume Next / GoTo",
-            re: &ON_ERROR_RE,
-            csharp_eq: "try-catch blocks",
-            risk: "high",
-            auto_tr: false,
-            notes: "Each On Error must be manually restructured into proper exception handling",
-        },
-        FlagDef {
-            category: "OptionalParams",
-            pattern_name: "Optional parameter",
-            re: &OPTIONAL_PARAM_RE,
-            csharp_eq: "default parameter values",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-        FlagDef {
-            category: "OptionalParams",
-            pattern_name: "IsMissing()",
-            re: &IS_MISSING_RE,
-            csharp_eq: "No equivalent — restructure logic",
-            risk: "high",
-            auto_tr: false,
-            notes: "IsMissing has no C# equivalent; refactor to nullable parameters",
-        },
-        FlagDef {
-            category: "Modules",
-            pattern_name: "Module declaration",
-            re: &MODULE_RE,
-            csharp_eq: "static class",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-        FlagDef {
-            category: "MyNamespace",
-            pattern_name: "My. namespace",
-            re: &MY_NAMESPACE_RE,
-            csharp_eq: "System.IO / IConfiguration / etc.",
-            risk: "medium",
-            auto_tr: false,
-            notes: "My.Settings → IConfiguration; My.Computer → System.IO",
-        },
-        FlagDef {
-            category: "Events",
-            pattern_name: "WithEvents",
-            re: &WITH_EVENTS_RE,
-            csharp_eq: "Explicit += / -= subscription",
-            risk: "medium",
-            auto_tr: false,
-            notes: "",
-        },
-        FlagDef {
-            category: "Events",
-            pattern_name: "Handles clause",
-            re: &HANDLES_RE,
-            csharp_eq: "btn.Click += handler in constructor",
-            risk: "medium",
-            auto_tr: false,
-            notes: "",
-        },
-        FlagDef {
-            category: "Events",
-            pattern_name: "RaiseEvent",
-            re: &RAISE_EVENT_RE,
-            csharp_eq: "MyEvent?.Invoke(args)",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-        FlagDef {
-            category: "Inheritance",
-            pattern_name: "Shadows keyword",
-            re: &SHADOWS_RE,
-            csharp_eq: "new modifier",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-        FlagDef {
-            category: "StringCompare",
-            pattern_name: "Option Compare Text",
-            re: &OPTION_COMPARE_RE,
-            csharp_eq: "StringComparer.OrdinalIgnoreCase everywhere",
-            risk: "high",
-            auto_tr: false,
-            notes: "All string comparisons in this file use case-insensitive by default",
-        },
-        FlagDef {
-            category: "PatternMatch",
-            pattern_name: "Like operator",
-            re: &LIKE_OPERATOR_RE,
-            csharp_eq: "Regex.IsMatch()",
-            risk: "medium",
-            auto_tr: false,
-            notes: "",
-        },
-        FlagDef {
-            category: "Intrinsics",
-            pattern_name: "VB intrinsics (IsNumeric, etc.)",
-            re: &VB_INTRINSICS_RE,
-            csharp_eq: "TryParse methods",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-        FlagDef {
-            category: "LateBind",
-            pattern_name: "Dim x As Object (late binding)",
-            re: &LATE_BINDING_RE,
-            csharp_eq: "dynamic keyword",
-            risk: "high",
-            auto_tr: false,
-            notes: "",
-        },
-        FlagDef {
-            category: "Casting",
-            pattern_name: "VB cast operators",
-            re: &VB_CAST_RE,
-            csharp_eq: "(Type)x or x as Type",
-            risk: "low",
-            auto_tr: true,
-            notes: "",
-        },
-    ];
-
-    let mut vb_files = 0usize;
-    let mut cs_files = 0usize;
-    let mut translation_flags: Vec<VbTranslationFlag> = Vec::new();
-    let mut file_flag_counts: BTreeMap<String, usize> = BTreeMap::new();
-    let mut option_strict_on_files = 0usize;
-    let mut option_strict_off_files = 0usize;
-    let mut methods_with_dynamic_dispatch = 0usize;
-    let mut late_binding_call_count = 0usize;
-    let mut object_var_count = 0usize;
-    let mut callbyname_count = 0usize;
-
-    // MIG1/D2: log regex compile failures so silent zero-out is visible to operators.
-    macro_rules! compile_re {
-        ($pattern:expr, $name:expr) => {{
-            match Regex::new($pattern) {
-                Ok(r) => Some(r),
-                Err(e) => {
-                    tracing::warn!(
-                        pattern_name = $name,
-                        error = %e,
-                        "MIG1: VB analysis regex failed to compile — affected metric will be zero"
-                    );
-                    None
-                }
-            }
-        }};
-    }
-    let option_strict_re =
-        compile_re!(r"(?im)^\s*Option\s+Strict\s+(On|Off)\b", "option_strict_re");
-    let method_re = compile_re!(
-        r"(?is)\b(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial|MustOverride|NotOverridable|Default|Iterator|ReadOnly|WriteOnly\s+)*\b(?:Sub|Function)\b.*?\bEnd\s+(?:Sub|Function)\b",
-        "method_re"
-    );
-    let object_decl_re = compile_re!(r"(?i)\bDim\s+(\w+)\s+As\s+Object\b", "object_decl_re");
-    let callbyname_re = compile_re!(r"(?i)\bCallByName\s*\(", "callbyname_re");
-    let late_call_re = compile_re!(r"(?i)\b(\w+)\.(\w+)\s*(?:\(([^)]*)\))?", "late_call_re");
-
-    for (path, content) in code_files {
-        let is_vb = path.to_lowercase().ends_with(".vb");
-        let is_cs = path.to_lowercase().ends_with(".cs");
-        if is_vb {
-            vb_files += 1;
-        } else if is_cs {
-            cs_files += 1;
-        }
-
-        // Only scan VB files for VB-specific constructs
-        if !is_vb {
-            continue;
-        }
-
-        if let Some(re) = &option_strict_re {
-            let mut file_option = None;
-            for cap in re.captures_iter(content) {
-                file_option = cap.get(1).map(|m| m.as_str().to_ascii_lowercase());
-            }
-            match file_option.as_deref() {
-                Some("on") => option_strict_on_files += 1,
-                Some("off") => option_strict_off_files += 1,
-                _ => {}
-            }
-        }
-
-        if let (Some(mre), Some(obj_re), Some(cbn_re), Some(call_re)) =
-            (&method_re, &object_decl_re, &callbyname_re, &late_call_re)
-        {
-            for method_match in mre.find_iter(content) {
-                let body = method_match.as_str();
-                let mut method_object_vars = std::collections::HashSet::new();
-                let mut method_object_var_count = 0usize;
-
-                for cap in obj_re.captures_iter(body) {
-                    if let Some(v) = cap.get(1).map(|m| m.as_str()) {
-                        method_object_var_count += 1;
-                        method_object_vars.insert(v.to_lowercase());
-                    }
-                }
-
-                let method_callbyname = cbn_re.find_iter(body).count();
-                let method_late_calls = call_re
-                    .captures_iter(body)
-                    .filter(|cap| {
-                        cap.get(1)
-                            .map(|m| method_object_vars.contains(&m.as_str().to_lowercase()))
-                            .unwrap_or(false)
-                    })
-                    .count();
-
-                if method_object_var_count > 0 || method_callbyname > 0 || method_late_calls > 0 {
-                    methods_with_dynamic_dispatch += 1;
-                }
-                object_var_count += method_object_var_count;
-                callbyname_count += method_callbyname;
-                late_binding_call_count += method_late_calls;
-            }
-        }
-
-        for def in &flag_defs {
-            let count = def.re.find_iter(content).count();
-            if count > 0 {
-                translation_flags.push(VbTranslationFlag {
-                    category: def.category.to_string(),
-                    pattern: def.pattern_name.to_string(),
-                    file_path: path.to_string(),
-                    count,
-                    csharp_equivalent: def.csharp_eq.to_string(),
-                    risk_level: def.risk.to_string(),
-                    auto_translatable: def.auto_tr,
-                    notes: def.notes.to_string(),
-                });
-                *file_flag_counts.entry(path.to_string()).or_insert(0) += count;
-            }
-        }
-    }
-
-    let mut flags_by_category: BTreeMap<String, usize> = BTreeMap::new();
-    for flag in &translation_flags {
-        *flags_by_category.entry(flag.category.clone()).or_insert(0) += flag.count;
-    }
-
-    let total_flags: usize = translation_flags.iter().map(|f| f.count).sum();
-
-    let mut highest_risk: Vec<(String, usize)> = file_flag_counts.into_iter().collect();
-    highest_risk.sort_by(|a, b| b.1.cmp(&a.1));
-    highest_risk.truncate(10);
-
-    let dynamic_dispatch_risk_tier =
-        if option_strict_off_files > 0 || callbyname_count > 0 || late_binding_call_count >= 5 {
-            "high"
-        } else if methods_with_dynamic_dispatch > 0 || object_var_count > 0 {
-            "medium"
-        } else {
-            "low"
-        };
-
-    VbTranslationReport {
-        is_vb_project: vb_files > cs_files,
-        vb_file_count: vb_files,
-        cs_file_count: cs_files,
-        mixed_language: vb_files > 0 && cs_files > 0,
-        total_flags,
-        translation_flags,
-        flags_by_category,
-        highest_risk_files: highest_risk,
-        dynamic_dispatch: DynamicDispatchSummary {
-            option_strict_on_files,
-            option_strict_off_files,
-            methods_with_dynamic_dispatch,
-            late_binding_call_count,
-            object_var_count,
-            callbyname_count,
-            dynamic_dispatch_risk_tier: dynamic_dispatch_risk_tier.to_string(),
-        },
-    }
-}
 
 // ── Gap 7: Multi-tenancy detection ──────────────────────────────────────────
 
-fn detect_multi_tenancy(
-    web_config: Option<&str>,
-    code_files: &[(&str, &str)],
-    global_asax_content: Option<&str>,
-) -> MultiTenancyReport {
-    static TENANT_SESSION_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)Session\s*[\(\[]\s*"(?:TenantId|Tenant|TenantKey|TenantCode|OrganizationId|OrgId|CompanyId|ClientId|SiteId|AccountId|CustomerId)"#).expect("valid regex")
-    });
-    static TENANT_CONTEXT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:HttpContext\.Current\.Items|Context\.Items)\s*[\(\[]\s*"(?:TenantId|Tenant|TenantContext|CurrentTenant)"#).expect("valid regex")
-    });
-    static TENANT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:WHERE|AND)\s+(?:\w+\.)?(?:TenantId|TenantID|Tenant_ID|OrgId|OrganizationId|CompanyId|SiteId|AccountId)\s*=\s*(?:@\w+|'\w*'|\?)"#).expect("valid regex")
-    });
-    static TENANT_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:tenantId|tenant_id|orgId|organizationId|companyId|siteId|accountId)\s+(?:As\s+(?:Integer|String|Guid|Long|Int32|Int64)|:\s*(?:int|string|Guid|long))"#).expect("valid regex")
-    });
-    static TENANT_CONFIG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:TenantMode|MultiTenancy|TenantProvider|TenantResolution|TenantStrategy|IsTenanted|EnableMultiTenancy)"#).expect("valid regex")
-    });
-    static TENANT_CONN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(
-            r#"(?i)(?:GetConnectionString|ConnectionString)\s*[\(\[]\s*(?:tenantId|tenant|orgId)"#,
-        )
-        .expect("valid regex")
-    });
-    static SUBDOMAIN_TENANT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)(?:Request\.Url\.Host|Request\.Headers\["X-Tenant"|Request\.Headers\["Host"\]).*(?:Split|Substring|Replace|tenant|org)"#).expect("valid regex")
-    });
-    static TENANT_MODULE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)class\s+\w*(?:Tenant|MultiTenant|Org)\w*\s*(?::\s*I(?:Http)?Module|Inherits\s+I(?:Http)?Module)"#).expect("valid regex")
-    });
-
-    let mut evidence: Vec<TenancyEvidence> = Vec::new();
-    let mut files_with_tenant: Vec<String> = Vec::new();
-    let mut tenant_filtered_queries = 0usize;
-    let mut tenant_resolution: Option<TenantResolution> = None;
-    let mut tenant_col_name: Option<String> = None;
-
-    // Scan web.config
-    if let Some(wc) = web_config
-        && TENANT_CONFIG_RE.is_match(wc)
-    {
-        evidence.push(TenancyEvidence {
-            evidence_type: "config".to_string(),
-            file_path: "web.config".to_string(),
-            detail: "Tenant configuration key found in web.config".to_string(),
-            line_hint: None,
-        });
-    }
-
-    // Scan Global.asax
-    if let Some(ga) = global_asax_content
-        && (TENANT_MODULE_RE.is_match(ga) || SUBDOMAIN_TENANT_RE.is_match(ga))
-    {
-        evidence.push(TenancyEvidence {
-            evidence_type: "module".to_string(),
-            file_path: "Global.asax".to_string(),
-            detail: "Tenant resolution logic in Global.asax".to_string(),
-            line_hint: None,
-        });
-    }
-
-    // Scan code files
-    for (path, content) in code_files {
-        let mut file_has_tenant = false;
-
-        if TENANT_SESSION_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "session_storage".to_string(),
-                file_path: path.to_string(),
-                detail: "Tenant ID stored in/read from Session".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-        }
-
-        if TENANT_CONTEXT_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "context_items".to_string(),
-                file_path: path.to_string(),
-                detail: "Tenant context stored in HttpContext.Items".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-        }
-
-        let sql_count = TENANT_SQL_RE.find_iter(content).count();
-        if sql_count > 0 {
-            tenant_filtered_queries += sql_count;
-            evidence.push(TenancyEvidence {
-                evidence_type: "sql_filter".to_string(),
-                file_path: path.to_string(),
-                detail: format!("{sql_count} SQL queries filter by tenant column"),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-            // Try to extract the most common column name
-            if tenant_col_name.is_none()
-                && let Some(cap) = TENANT_SQL_RE.captures(content)
-            {
-                let full_match = cap.get(0).expect("group 0 always present").as_str();
-                if let Some(col) = full_match.split('=').next() {
-                    let col = col.trim().rsplit('.').next().unwrap_or(col.trim());
-                    let col = col.split_whitespace().last().unwrap_or(col);
-                    tenant_col_name = Some(col.to_string());
-                }
-            }
-        }
-
-        if TENANT_PARAM_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "parameter".to_string(),
-                file_path: path.to_string(),
-                detail: "Method parameter with tenant ID".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-        }
-
-        if TENANT_CONN_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "connection_string".to_string(),
-                file_path: path.to_string(),
-                detail: "Tenant-specific connection string selection".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-        }
-
-        if SUBDOMAIN_TENANT_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "subdomain".to_string(),
-                file_path: path.to_string(),
-                detail: "Subdomain-based tenant resolution".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-            if tenant_resolution.is_none() {
-                tenant_resolution = Some(TenantResolution {
-                    mechanism: "subdomain".to_string(),
-                    module_class: None,
-                    file_path: path.to_string(),
-                });
-            }
-        }
-
-        if TENANT_MODULE_RE.is_match(content) {
-            evidence.push(TenancyEvidence {
-                evidence_type: "http_module".to_string(),
-                file_path: path.to_string(),
-                detail: "Tenant resolution IHttpModule".to_string(),
-                line_hint: None,
-            });
-            file_has_tenant = true;
-            tenant_resolution = Some(TenantResolution {
-                mechanism: "http_module".to_string(),
-                module_class: TENANT_MODULE_RE
-                    .captures(content)
-                    .and_then(|c| c.get(0))
-                    .map(|m| m.as_str().to_string()),
-                file_path: path.to_string(),
-            });
-        }
-
-        if file_has_tenant {
-            files_with_tenant.push(path.to_string());
-        }
-    }
-
-    files_with_tenant.sort();
-    files_with_tenant.dedup();
-
-    // Classify confidence
-    let evidence_types: std::collections::HashSet<&str> =
-        evidence.iter().map(|e| e.evidence_type.as_str()).collect();
-    let confidence = match evidence_types.len() {
-        0 => "none",
-        1 => "low",
-        2 => "medium",
-        _ => "high",
-    };
-
-    let is_multi_tenant = !evidence.is_empty();
-
-    // Determine isolation strategy
-    let isolation_strategy = if evidence_types.contains("connection_string") {
-        Some("separate_db".to_string())
-    } else if tenant_filtered_queries > 0 {
-        Some("shared_db_shared_schema".to_string())
-    } else {
-        None
-    };
-
-    // Build recommendations
-    let mut recommendations = Vec::new();
-    if is_multi_tenant {
-        recommendations
-            .push("Replace tenant resolution module with ASP.NET Core middleware".to_string());
-        recommendations
-            .push("Use EF Core Global Query Filters for automatic tenant filtering".to_string());
-        recommendations
-            .push("Register ITenantContext as scoped service (one per request)".to_string());
-        if isolation_strategy.as_deref() == Some("separate_db") {
-            recommendations
-                .push("Use IDbContextFactory<T> with tenant-specific connections".to_string());
-        }
-        recommendations.push(
-            "Move Session-based tenant ID to JWT claims or HttpContext.Items via middleware"
-                .to_string(),
-        );
-        recommendations.push("CRITICAL: Audit ALL SQL queries for tenant filtering — missing ANY filter causes data leak".to_string());
-    }
-
-    MultiTenancyReport {
-        is_multi_tenant,
-        confidence: confidence.to_string(),
-        tenant_id_column_name: tenant_col_name,
-        isolation_strategy,
-        detection_evidence: evidence,
-        tenant_resolution,
-        tenant_filtered_queries,
-        files_with_tenant_logic: files_with_tenant,
-        migration_recommendations: recommendations,
-    }
-}
 
 // ── Gap 8: Email & background job detection ─────────────────────────────────
 
-fn detect_email_patterns(
-    code_files: &[(&str, &str)],
-    web_config: Option<&str>,
-) -> EmailPatternReport {
-    static SMTP_CLIENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?SmtpClient\s*[\(\.]").expect("valid regex")
-    });
-    static MAIL_MESSAGE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?MailMessage\s*\(").expect("valid regex")
-    });
-    static WEB_MAIL_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bSystem\.Web\.Mail\b").expect("valid regex"));
-    static ATTACHMENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?Attachment\s*\(").expect("valid regex")
-    });
-    static ALTERNATE_VIEW_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bAlternateView\.CreateAlternateViewFromString\s*\(").expect("valid regex")
-    });
-    static CDO_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)CreateObject\s*\(\s*"CDO\.Message"\s*\)"#).expect("valid regex")
-    });
-    static SMTP_CONFIG_HOST_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<network\s+host\s*=\s*"([^"]*)""#).expect("valid regex")
-    });
-    static SMTP_CONFIG_PORT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<network[^>]*port\s*=\s*"(\d+)""#).expect("valid regex")
-    });
-    static SMTP_CONFIG_FROM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)<smtp\s+[^>]*from\s*=\s*"([^"]*)""#).expect("valid regex")
-    });
 
-    let mut email_patterns: Vec<EmailPattern> = Vec::new();
-    let mut uses_html = false;
-    let mut uses_attachments = false;
-    let mut uses_cdo = false;
-    let mut uses_web_mail = false;
-    let mut email_files: Vec<String> = Vec::new();
-
-    for (path, content) in code_files {
-        let mut file_patterns: Vec<(&str, &str, usize)> = Vec::new();
-
-        let smtp_count = SMTP_CLIENT_RE.find_iter(content).count();
-        if smtp_count > 0 {
-            file_patterns.push(("SmtpClient", "IEmailSender / SendGrid SDK", smtp_count));
-        }
-        let mm_count = MAIL_MESSAGE_RE.find_iter(content).count();
-        if mm_count > 0 {
-            file_patterns.push(("MailMessage", "IEmailSender with Razor templates", mm_count));
-        }
-        let wm_count = WEB_MAIL_RE.find_iter(content).count();
-        if wm_count > 0 {
-            file_patterns.push(("System.Web.Mail", "IEmailSender (obsolete API)", wm_count));
-            uses_web_mail = true;
-        }
-        let cdo_count = CDO_RE.find_iter(content).count();
-        if cdo_count > 0 {
-            file_patterns.push(("CDO.Message", "IEmailSender (COM object)", cdo_count));
-            uses_cdo = true;
-        }
-
-        if ATTACHMENT_RE.is_match(content) {
-            uses_attachments = true;
-        }
-        if ALTERNATE_VIEW_RE.is_match(content) {
-            uses_html = true;
-        }
-
-        if !file_patterns.is_empty() {
-            email_files.push(path.to_string());
-            for (ptype, modern, count) in file_patterns {
-                email_patterns.push(EmailPattern {
-                    file_path: path.to_string(),
-                    pattern_type: ptype.to_string(),
-                    count,
-                    modern_equivalent: modern.to_string(),
-                });
-            }
-        }
-    }
-    email_files.sort();
-    email_files.dedup();
-
-    // Parse SMTP config from web.config
-    let smtp_config = web_config.and_then(|wc| {
-        if !wc.to_lowercase().contains("<smtp") && !wc.to_lowercase().contains("<network") {
-            return None;
-        }
-        let host = SMTP_CONFIG_HOST_RE.captures(wc).map(|c| c[1].to_string());
-        let port = SMTP_CONFIG_PORT_RE
-            .captures(wc)
-            .and_then(|c| c[1].parse().ok());
-        let from = SMTP_CONFIG_FROM_RE.captures(wc).map(|c| c[1].to_string());
-        let uses_credentials = wc.to_lowercase().contains("username=")
-            || wc.to_lowercase().contains("defaultcredentials");
-        let uses_ssl =
-            wc.to_lowercase().contains("enablessl") || wc.to_lowercase().contains("ssl=\"true\"");
-        Some(SmtpConfig {
-            host,
-            port,
-            from_address: from,
-            uses_credentials,
-            uses_ssl,
-        })
-    });
-
-    let has_email = !email_patterns.is_empty();
-
-    EmailPatternReport {
-        has_email,
-        email_patterns,
-        smtp_config,
-        total_email_files: email_files.len(),
-        uses_html_email: uses_html,
-        uses_attachments,
-        uses_legacy_cdo: uses_cdo,
-        uses_legacy_web_mail: uses_web_mail,
-    }
-}
-
-fn detect_background_job_patterns(
-    code_files: &[(&str, &str)],
-    global_asax_content: Option<&str>,
-) -> BackgroundJobReport {
-    static THREAD_POOL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\bThreadPool\.QueueUserWorkItem\s*\(").expect("valid regex")
-    });
-    static BG_WORKER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?BackgroundWorker\b").expect("valid regex")
-    });
-    static TASK_RUN_RE: std::sync::LazyLock<Regex> =
-        std::sync::LazyLock::new(|| Regex::new(r"(?i)\bTask\.Run\s*\(").expect("valid regex"));
-    static TIMER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?(?:System\.(?:Timers|Threading)\.)?Timer\s*\(")
-            .expect("valid regex")
-    });
-    static THREAD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:New\s+)?Thread\s*\(\s*(?:AddressOf|New\s+ThreadStart|New\s+ParameterizedThreadStart)\s").expect("valid regex")
-    });
-    static HANGFIRE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(
-            r"(?i)\bBackgroundJob\.(?:Enqueue|Schedule|ContinueWith|ContinueJobWith)\s*[\(<]",
-        )
-        .expect("valid regex")
-    });
-    static QUARTZ_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r"(?i)\b(?:IScheduler|JobBuilder\.Create|TriggerBuilder\.Create)\b")
-            .expect("valid regex")
-    });
-    static SELF_CALL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-        Regex::new(r#"(?i)WebClient\s*\(\s*\)\.Download(?:String|Data)\s*\(\s*"(?:http|~/)"#)
-            .expect("valid regex")
-    });
-
-    struct BgDef {
-        re: &'static std::sync::LazyLock<Regex>,
-        pattern_type: &'static str,
-        modern: &'static str,
-        risk: &'static str,
-    }
-
-    let bg_defs: Vec<BgDef> = vec![
-        BgDef {
-            re: &THREAD_POOL_RE,
-            pattern_type: "ThreadPool.QueueUserWorkItem",
-            modern: "BackgroundService + Channel<T>",
-            risk: "high",
-        },
-        BgDef {
-            re: &BG_WORKER_RE,
-            pattern_type: "BackgroundWorker",
-            modern: "BackgroundService",
-            risk: "medium",
-        },
-        BgDef {
-            re: &TASK_RUN_RE,
-            pattern_type: "Task.Run (fire-and-forget)",
-            modern: "Hangfire BackgroundJob.Enqueue or IHostedService",
-            risk: "high",
-        },
-        BgDef {
-            re: &TIMER_RE,
-            pattern_type: "Timer",
-            modern: "IHostedService with PeriodicTimer",
-            risk: "medium",
-        },
-        BgDef {
-            re: &THREAD_RE,
-            pattern_type: "Thread creation",
-            modern: "BackgroundService or Task.Run with lifetime management",
-            risk: "high",
-        },
-        BgDef {
-            re: &HANGFIRE_RE,
-            pattern_type: "Hangfire",
-            modern: "Hangfire (already compatible)",
-            risk: "low",
-        },
-        BgDef {
-            re: &QUARTZ_RE,
-            pattern_type: "Quartz.NET",
-            modern: "Quartz.NET (already compatible)",
-            risk: "low",
-        },
-        BgDef {
-            re: &SELF_CALL_RE,
-            pattern_type: "Self-call timer (WebClient)",
-            modern: "IHostedService + HttpClientFactory",
-            risk: "high",
-        },
-    ];
-
-    let mut patterns: Vec<BackgroundJobPattern> = Vec::new();
-    let mut bg_files: Vec<String> = Vec::new();
-    let mut uses_thread_pool = false;
-    let mut uses_timers = false;
-    let mut uses_task_run = false;
-    let mut uses_bg_worker = false;
-    let mut uses_hangfire = false;
-    let mut uses_quartz = false;
-    let mut fire_and_forget = 0usize;
-
-    let all_code: Vec<(&str, &str)> = code_files
-        .iter()
-        .copied()
-        .chain(global_asax_content.map(|c| ("Global.asax", c)))
-        .collect();
-
-    for (path, content) in &all_code {
-        let mut file_has_bg = false;
-        for def in &bg_defs {
-            let count = def.re.find_iter(content).count();
-            if count > 0 {
-                patterns.push(BackgroundJobPattern {
-                    file_path: path.to_string(),
-                    pattern_type: def.pattern_type.to_string(),
-                    count,
-                    modern_equivalent: def.modern.to_string(),
-                    risk_level: def.risk.to_string(),
-                });
-                file_has_bg = true;
-
-                match def.pattern_type {
-                    "ThreadPool.QueueUserWorkItem" => {
-                        uses_thread_pool = true;
-                        fire_and_forget += count;
-                    }
-                    "BackgroundWorker" => uses_bg_worker = true,
-                    "Task.Run (fire-and-forget)" => {
-                        uses_task_run = true;
-                        fire_and_forget += count;
-                    }
-                    "Timer" => uses_timers = true,
-                    "Thread creation" => fire_and_forget += count,
-                    "Hangfire" => uses_hangfire = true,
-                    "Quartz.NET" => uses_quartz = true,
-                    _ => {}
-                }
-            }
-        }
-        if file_has_bg {
-            bg_files.push(path.to_string());
-        }
-    }
-    bg_files.sort();
-    bg_files.dedup();
-
-    BackgroundJobReport {
-        has_background_jobs: !patterns.is_empty(),
-        total_background_files: bg_files.len(),
-        uses_thread_pool,
-        uses_timers,
-        uses_task_run,
-        uses_bg_worker,
-        uses_hangfire,
-        uses_quartz,
-        fire_and_forget_count: fire_and_forget,
-        patterns,
-    }
-}
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
@@ -7118,7 +3608,7 @@ fn render_markdown(
                 .translation_flags
                 .iter()
                 .filter(|f| {
-                    flag_belongs_to_page(&f.file_path, &d.file_path, d.codebehind_file.as_deref())
+                    analyzers::vb_translation::flag_belongs_to_page(&f.file_path, &d.file_path, d.codebehind_file.as_deref())
                 })
                 .collect();
             if !page_flags.is_empty() {
@@ -7819,158 +4309,36 @@ fn render_confidence_dashboard(
 
 // ── Phase 34: Stored Procedure Catalog Builder ───────────────────────────────
 
-fn build_sp_catalog(
-    sql_files: &[(String, String)],
-    code_files: &[(&str, &str)],
-) -> StoredProcedureCatalog {
-    use engram_index::sp_extractor;
 
-    let mut all_procs: Vec<StoredProcedureInfo> = Vec::new();
-    let mut code_calls: Vec<(String, String)> = Vec::new(); // (sp_name, calling_file)
-
-    // 1. Parse SQL files for SP definitions
-    for (_path, content) in sql_files {
-        let defs = sp_extractor::parse_sp_definitions(content);
-        for sp in defs {
-            let modern_eq = if sp.has_dynamic_sql {
-                "raw SQL (review for SQL injection)".to_string()
-            } else if sp.has_cursor {
-                "LINQ query or Dapper (cursor refactoring needed)".to_string()
-            } else if sp.tables_read.len() > 3 || sp.tables_written.len() > 2 {
-                "EF Core with repository pattern (complex joins)".to_string()
-            } else if sp.tables_written.is_empty() {
-                "EF Core query or Dapper".to_string()
-            } else {
-                "EF Core SaveChanges or Dapper Execute".to_string()
-            };
-
-            all_procs.push(StoredProcedureInfo {
-                name: sp.name.clone(),
-                parameters: sp
-                    .parameters
-                    .iter()
-                    .map(|p| SpParameterInfo {
-                        name: p.name.clone(),
-                        sql_type: p.sql_type.clone(),
-                        direction: p.direction.clone(),
-                        default_value: p.default_value.clone(),
-                        csharp_type: p.csharp_type.clone(),
-                    })
-                    .collect(),
-                tables_read: sp.tables_read,
-                tables_written: sp.tables_written,
-                called_from: Vec::new(), // filled below
-                line_count: sp.line_count,
-                has_dynamic_sql: sp.has_dynamic_sql,
-                has_cursor: sp.has_cursor,
-                modern_equivalent: modern_eq,
-            });
-        }
-    }
-
-    // 2. Scan code files for SP calls
-    for (path, content) in code_files {
-        let rel = engram_core::RelPath::new(path);
-        let (_, edges) = sp_extractor::extract_code_side_sp_calls(&rel, content);
-        for edge in edges {
-            if edge.kind == "calls_stored_procedure" {
-                code_calls.push((edge.target_name.clone(), path.to_string()));
-            }
-        }
-    }
-
-    // 3. Cross-reference: mark which SPs are called from code
-    for (sp_name, calling_file) in &code_calls {
-        for proc in &mut all_procs {
-            if proc.name.eq_ignore_ascii_case(sp_name) && !proc.called_from.contains(calling_file) {
-                proc.called_from.push(calling_file.clone());
-            }
-        }
-    }
-
-    let total = all_procs.len();
-    let with_params = all_procs
-        .iter()
-        .filter(|p| !p.parameters.is_empty())
-        .count();
-    let called_from_code = all_procs
-        .iter()
-        .filter(|p| !p.called_from.is_empty())
-        .count();
-    let uncalled: Vec<String> = all_procs
-        .iter()
-        .filter(|p| p.called_from.is_empty())
-        .map(|p| p.name.clone())
-        .collect();
-
-    StoredProcedureCatalog {
-        procedures: all_procs,
-        total_procedures: total,
-        procedures_with_params: with_params,
-        procedures_called_from_code: called_from_code,
-        uncalled_procedures: uncalled,
-    }
-}
-
-/// Public wrapper for building a stored procedure catalog from SQL + code files.
-/// Used by standalone tools (e.g., `analyze_database_intelligence`) that need the catalog
-/// without running the full project migration analysis.
-/// `sp_limit` caps the number of procedures to include (0 = unlimited).
-pub fn build_sp_catalog_public(
-    sql_files: &[(String, String)],
-    code_files: &[(&str, &str)],
-    sp_limit: usize,
-) -> StoredProcedureCatalog {
-    let mut catalog = build_sp_catalog(sql_files, code_files);
-    // Sort so that procs called from application code appear first — when
-    // `sp_limit` truncates, we want business-critical SPs to survive. On
-    // real projects the tail tends to be framework procs (e.g. `aspnet_*`
-    // from Membership) that no application code actually references, so
-    // pushing them to the back via a descending `called_from.len()` sort
-    // (with alphabetical tiebreaker for determinism) is the right shape.
-    catalog.procedures.sort_by(|a, b| {
-        b.called_from
-            .len()
-            .cmp(&a.called_from.len())
-            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
-    });
-    if sp_limit > 0 && catalog.procedures.len() > sp_limit {
-        catalog.procedures.truncate(sp_limit);
-    }
-    // Keep `total_procedures` in sync with what's actually returned so the
-    // downstream renderer and JSON consumers agree on the count.
-    catalog.total_procedures = catalog.procedures.len();
-    catalog
-}
 
 // ── Phase 34: Inheritance Chain Resolution ───────────────────────────────────
 
-static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"(?im)^\s*(?:Public\s+)?(?:Partial\s+)?Class\s+(\w+)\s*(?:\r?\n\s*)?Inherits\s+(\w[\w.]*)",
     )
     .expect("vb_class_inherits")
 });
-static CS_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static CS_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?im)^\s*(?:public\s+)?(?:partial\s+)?class\s+(\w+)\s*:\s*(\w[\w.]*)")
         .expect("cs_class_inherits")
 });
-static VB_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static VB_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?im)^\s*(?:Protected\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Public\s+)?(?:Private\s+)?(?:Friend\s+)?(?:Shared\s+)?(?:Async\s+)?(?:Sub|Function)\s+(\w+)").expect("vb_method_def")
 });
-static CS_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static CS_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     // Supports generic return types with commas: Task<ActionResult>, Dictionary<string, int>,
     // IEnumerable<KeyValuePair<string, int>>, Nullable<int>, List<T> etc.
     Regex::new(r"(?im)^\s*(?:protected\s+)?(?:override\s+)?(?:virtual\s+)?(?:public\s+)?(?:private\s+)?(?:internal\s+)?(?:static\s+)?(?:async\s+)?(?:void|[\w]+(?:<[\w,\s<>\[\]?]+>)?(?:\[\])?)\s+(\w+)\s*\(").expect("cs_method_def")
 });
-static VB_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
+pub(super) static VB_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)MyBase\.(\w+)").expect("vb_calls_base"));
-static CS_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CS_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)base\.(\w+)").expect("cs_calls_base"));
-static SESSION_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static SESSION_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)Session\s*[\(\[]\s*"(\w+)"\s*[\)\]]\s*="#).expect("session_write")
 });
-static INHERITS_DIRECTIVE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static INHERITS_DIRECTIVE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)Inherits\s*=\s*"([^"]+)""#).expect("inherits_directive")
 });
 
@@ -7996,859 +4364,91 @@ const LIFECYCLE_METHODS: &[&str] = &[
     "Render",
 ];
 
-fn resolve_inheritance_chains(
-    code_files: &[(&str, &str)],
-    markup_files: &[FileContent],
-) -> InheritanceChainReport {
-    // C# keyword blacklist for method name filtering
-    const CS_KEYWORDS: &[&str] = &[
-        "if",
-        "else",
-        "for",
-        "foreach",
-        "while",
-        "switch",
-        "catch",
-        "using",
-        "lock",
-        "return",
-        "new",
-        "class",
-        "struct",
-        "interface",
-        "enum",
-        "namespace",
-    ];
-
-    // 1. Build class map: class_name → (parent_class, file_path, methods[], state_writes[], base_calls[])
-    // SECOND-PASS FIX: Scope methods & state_writes to each class body, not the whole file.
-    let mut class_map: std::collections::HashMap<String, ClassInfo> =
-        std::collections::HashMap::new();
-
-    for (path, content) in code_files {
-        let is_vb = path.to_lowercase().ends_with(".vb");
-
-        // Collect all class starts (with their byte positions) to determine class boundaries
-        let mut class_ranges: Vec<(String, String, usize)> = Vec::new(); // (name, parent, start_pos)
-
-        if is_vb {
-            for cap in VB_CLASS_INHERITS_RE.captures_iter(content) {
-                let class_name = cap[1].to_string();
-                let parent = cap[2].to_string();
-                let start_pos = cap.get(0).map_or(0, |m| m.start());
-                class_ranges.push((class_name, parent, start_pos));
-            }
-        } else {
-            for cap in CS_CLASS_INHERITS_RE.captures_iter(content) {
-                let class_name = cap[1].to_string();
-                let parent = cap[2].to_string();
-                let start_pos = cap.get(0).map_or(0, |m| m.start());
-                class_ranges.push((class_name, parent, start_pos));
-            }
-        }
-
-        // For each class, extract methods/state_writes only from its body region
-        for (ci, (class_name, parent, start_pos)) in class_ranges.iter().enumerate() {
-            let end_pos = class_ranges
-                .get(ci + 1)
-                .map(|(_, _, p)| *p)
-                .unwrap_or(content.len());
-            let class_body = &content[*start_pos..end_pos];
-
-            let methods: Vec<String> = if is_vb {
-                VB_METHOD_DEF_RE
-                    .captures_iter(class_body)
-                    .map(|c| c[1].to_string())
-                    .collect()
-            } else {
-                CS_METHOD_DEF_RE
-                    .captures_iter(class_body)
-                    .filter_map(|c| {
-                        let name = c[1].to_string();
-                        if CS_KEYWORDS.contains(&name.as_str()) {
-                            None
-                        } else {
-                            Some(name)
-                        }
-                    })
-                    .collect()
-            };
-
-            let base_calls: Vec<String> = if is_vb {
-                VB_CALLS_BASE_RE
-                    .captures_iter(class_body)
-                    .map(|c| c[1].to_string())
-                    .collect()
-            } else {
-                CS_CALLS_BASE_RE
-                    .captures_iter(class_body)
-                    .map(|c| c[1].to_string())
-                    .collect()
-            };
-
-            let state_writes: Vec<String> = SESSION_WRITE_RE
-                .captures_iter(class_body)
-                .map(|c| c[1].to_string())
-                .collect();
-
-            // THIRD-PASS FIX: Merge instead of overwrite when partial classes
-            // span multiple files (e.g. _Default.aspx.vb + _Default.aspx.designer.vb).
-            // The second insert would clobber the first file's methods.
-            if let Some(existing) = class_map.get_mut(class_name) {
-                // Keep the parent from the file that declares the inheritance
-                if existing.0.is_empty() || existing.0 == class_name.as_str() {
-                    existing.0 = parent.clone();
-                }
-                // Merge methods, state_writes, base_calls (deduplicated)
-                for m in &methods {
-                    if !existing.2.contains(m) {
-                        existing.2.push(m.clone());
-                    }
-                }
-                for sw in &state_writes {
-                    if !existing.3.contains(sw) {
-                        existing.3.push(sw.clone());
-                    }
-                }
-                for bc in &base_calls {
-                    if !existing.4.contains(bc) {
-                        existing.4.push(bc.clone());
-                    }
-                }
-            } else {
-                class_map.insert(
-                    class_name.clone(),
-                    (
-                        parent.clone(),
-                        path.to_string(),
-                        methods,
-                        state_writes,
-                        base_calls,
-                    ),
-                );
-            }
-        }
-    }
-
-    // 2. For each .aspx Inherits directive, walk the chain
-    let mut chains: Vec<InheritanceChain> = Vec::new();
-    let mut base_class_usage: std::collections::HashMap<String, Vec<String>> =
-        std::collections::HashMap::new();
-
-    for fc in markup_files {
-        let inherits_class = INHERITS_DIRECTIVE_RE
-            .captures(&fc.markup_content)
-            .and_then(|c| {
-                let full = c[1].to_string();
-                // Extract just the class name (after last dot)
-                full.rsplit('.').next().map(|s| s.to_string())
-            });
-
-        let Some(page_class) = inherits_class else {
-            continue;
-        };
-
-        let mut chain: Vec<String> = Vec::new();
-        let mut inherited_lifecycle: Vec<(String, String)> = Vec::new();
-        let mut inherited_state_writes: Vec<String> = Vec::new();
-        let mut current = page_class.clone();
-
-        // Walk up the inheritance chain
-        for _ in 0..20 {
-            // max depth safety
-            chain.push(current.clone());
-
-            let Some((parent, _path, methods, state_writes, _base_calls)) = class_map.get(&current)
-            else {
-                // Check if parent is a known framework class
-                if current == "Page"
-                    || current == "System.Web.UI.Page"
-                    || current == "UserControl"
-                    || current == "MasterPage"
-                {
-                    chain.push(format!("System.Web.UI.{current}"));
-                }
-                break;
-            };
-
-            // Track which base classes are used
-            base_class_usage
-                .entry(current.clone())
-                .or_default()
-                .push(fc.file_path.clone());
-
-            // Collect lifecycle methods from this ancestor
-            for method in methods {
-                if LIFECYCLE_METHODS
-                    .iter()
-                    .any(|lm| lm.eq_ignore_ascii_case(method))
-                {
-                    inherited_lifecycle.push((method.clone(), current.clone()));
-                }
-            }
-
-            // Collect state writes from ancestors (not the page class itself)
-            if current != page_class {
-                for key in state_writes {
-                    if !inherited_state_writes.contains(key) {
-                        inherited_state_writes.push(key.clone());
-                    }
-                }
-            }
-
-            current = parent.clone();
-        }
-
-        if chain.len() > 1 {
-            chains.push(InheritanceChain {
-                page_file: fc.file_path.clone(),
-                chain,
-                inherited_lifecycle_methods: inherited_lifecycle,
-                inherited_state_writes,
-            });
-        }
-    }
-
-    // 3. Build base class info
-    let mut base_classes: Vec<BaseClassInfo> = Vec::new();
-    for (class_name, pages) in &base_class_usage {
-        if let Some((_, file_path, methods, state_writes, _)) = class_map.get(class_name) {
-            let lifecycle_methods: Vec<String> = methods
-                .iter()
-                .filter(|m| {
-                    LIFECYCLE_METHODS
-                        .iter()
-                        .any(|lm| lm.eq_ignore_ascii_case(m))
-                })
-                .cloned()
-                .collect();
-
-            if pages.len() > 1 || !lifecycle_methods.is_empty() {
-                base_classes.push(BaseClassInfo {
-                    class_name: class_name.clone(),
-                    file_path: file_path.clone(),
-                    derived_count: pages.len(),
-                    lifecycle_methods,
-                    state_keys_initialized: state_writes.clone(),
-                });
-            }
-        }
-    }
-    base_classes.sort_by(|a, b| b.derived_count.cmp(&a.derived_count));
-
-    // 4. Build shared lifecycle methods
-    let mut shared_lifecycle: Vec<SharedLifecycleMethod> = Vec::new();
-    for lm_name in LIFECYCLE_METHODS {
-        let mut defining_classes: Vec<(String, Vec<String>)> = Vec::new();
-
-        for (class_name, (_, _, methods, _, base_calls)) in &class_map {
-            if methods.iter().any(|m| m.eq_ignore_ascii_case(lm_name)) {
-                let calls_base = base_calls.iter().any(|bc| bc.eq_ignore_ascii_case(lm_name));
-                defining_classes.push((
-                    class_name.clone(),
-                    if calls_base {
-                        vec!["calls_base".to_string()]
-                    } else {
-                        vec![]
-                    },
-                ));
-            }
-        }
-
-        if defining_classes.len() > 1 {
-            let first = defining_classes[0].0.clone();
-            let calls_base = !defining_classes[0].1.is_empty();
-            let overridden_in: Vec<String> = defining_classes[1..]
-                .iter()
-                .map(|(name, _)| name.clone())
-                .collect();
-
-            shared_lifecycle.push(SharedLifecycleMethod {
-                method_name: lm_name.to_string(),
-                defining_class: first,
-                overridden_in,
-                calls_base,
-            });
-        }
-    }
-
-    // 5. Propagate effects down inheritance chains
-    let inherited_effects = propagate_inherited_effects(&chains, code_files);
-
-    let deepest = chains.iter().map(|c| c.chain.len()).max().unwrap_or(0);
-
-    InheritanceChainReport {
-        chains,
-        base_classes,
-        shared_lifecycle_methods: shared_lifecycle,
-        inherited_effects,
-        deepest_chain_depth: deepest,
-    }
-}
 
 // ── Phase 35: Inherited effect propagation ───────────────────────────────────
 
 // Effect detection regexes for method bodies
-static EFFECT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static EFFECT_SQL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:SqlCommand|SqlDataAdapter|ExecuteReader|ExecuteNonQuery|ExecuteScalar|SqlConnection|OleDbCommand|DataAdapter)\b")
         .expect("effect_sql")
 });
-static EFFECT_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static EFFECT_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:Response\.Redirect|Server\.Transfer|Response\.RedirectPermanent)\b")
         .expect("effect_redirect")
 });
-static EFFECT_CONTROL_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static EFFECT_CONTROL_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:\w+\.(?:Text|Visible|Enabled|DataSource|DataBind|SelectedValue|SelectedIndex|Items)\s*=)")
         .expect("effect_control_write")
 });
-static EFFECT_HTTP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static EFFECT_HTTP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"(?i)\b(?:Response\.Write|Response\.ContentType|Response\.AddHeader|Response\.Cookies)\b",
     )
     .expect("effect_http")
 });
 
-/// Extract effects from a method body snippet.
-fn extract_method_effects(method_body: &str) -> Vec<String> {
-    let mut effects = Vec::new();
 
-    // Session/ViewState writes
-    let session_keys: Vec<String> = SESSION_WRITE_RE
-        .captures_iter(method_body)
-        .map(|c| format!("Session[\"{}\"]", &c[1]))
-        .collect();
-    if !session_keys.is_empty() {
-        effects.push(format!("State_Access: writes {}", session_keys.join(", ")));
-    }
 
-    // SQL operations
-    if EFFECT_SQL_RE.is_match(method_body) {
-        effects.push("SQL_Access".to_string());
-    }
-
-    // Redirects
-    if EFFECT_REDIRECT_RE.is_match(method_body) {
-        effects.push("Redirect".to_string());
-    }
-
-    // Control writes (UI mutation)
-    if EFFECT_CONTROL_WRITE_RE.is_match(method_body) {
-        effects.push("UI_Mutation".to_string());
-    }
-
-    // HTTP response manipulation
-    if EFFECT_HTTP_RE.is_match(method_body) {
-        effects.push("HTTP_Response".to_string());
-    }
-
-    effects
-}
-
-/// Extract method bodies from a class region of code.
-fn extract_method_bodies_from_class(class_body: &str, is_vb: bool) -> Vec<(String, String)> {
-    let mut results: Vec<(String, String)> = Vec::new();
-
-    let method_re = if is_vb {
-        &*VB_METHOD_DEF_RE
-    } else {
-        &*CS_METHOD_DEF_RE
-    };
-
-    let starts: Vec<(usize, String)> = method_re
-        .captures_iter(class_body)
-        .map(|c| (c.get(0).expect("match").start(), c[1].to_string()))
-        .collect();
-
-    for (i, (start, name)) in starts.iter().enumerate() {
-        let end = starts
-            .get(i + 1)
-            .map(|(s, _)| *s)
-            .unwrap_or(class_body.len());
-        let body = &class_body[*start..end];
-        results.push((name.clone(), body.to_string()));
-    }
-
-    results
-}
-
-/// Propagate effects from ancestor classes down to derived page classes.
-fn propagate_inherited_effects(
-    chains: &[InheritanceChain],
-    code_files: &[(&str, &str)],
-) -> Vec<InheritedEffect> {
-    // Build class_name → (file_path, class_body) for targeted extraction
-    let mut class_bodies: std::collections::HashMap<String, (bool, String)> =
-        std::collections::HashMap::new();
-
-    for (path, content) in code_files {
-        let is_vb = path.to_lowercase().ends_with(".vb");
-        let class_re = if is_vb {
-            &*VB_CLASS_INHERITS_RE
-        } else {
-            &*CS_CLASS_INHERITS_RE
-        };
-
-        let mut ranges: Vec<(String, usize)> = Vec::new();
-        for cap in class_re.captures_iter(content) {
-            let class_name = cap[1].to_string();
-            let start_pos = cap.get(0).map_or(0, |m| m.start());
-            ranges.push((class_name, start_pos));
-        }
-
-        for (ci, (class_name, start_pos)) in ranges.iter().enumerate() {
-            let end_pos = ranges.get(ci + 1).map(|(_, p)| *p).unwrap_or(content.len());
-            let body = content[*start_pos..end_pos].to_string();
-            class_bodies.insert(class_name.clone(), (is_vb, body));
-        }
-    }
-
-    let mut inherited_effects: Vec<InheritedEffect> = Vec::new();
-
-    for chain in chains {
-        if chain.chain.len() < 2 {
-            continue;
-        }
-
-        let page_class = &chain.chain[0];
-
-        // Walk ancestors (skip the page class itself at index 0)
-        for ancestor_name in &chain.chain[1..] {
-            // Skip framework base classes
-            if ancestor_name.starts_with("System.Web.UI.") {
-                continue;
-            }
-
-            let Some((is_vb, class_body)) = class_bodies.get(ancestor_name) else {
-                continue;
-            };
-
-            let method_bodies = extract_method_bodies_from_class(class_body, *is_vb);
-
-            for (method_name, method_body) in &method_bodies {
-                let effects = extract_method_effects(method_body);
-                if effects.is_empty() {
-                    continue;
-                }
-
-                inherited_effects.push(InheritedEffect {
-                    class: page_class.clone(),
-                    inherited_from: ancestor_name.clone(),
-                    method: method_name.clone(),
-                    effects: effects.clone(),
-                    detail: format!(
-                        "{}.{} has: {}",
-                        ancestor_name,
-                        method_name,
-                        effects.join(", ")
-                    ),
-                });
-            }
-        }
-    }
-
-    inherited_effects
-}
 
 // ── Phase 35: Cross-Layer AJAX→Handler→Data Tracing ──────────────────────────
 
-static HANDLER_SP_NAME_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static HANDLER_SP_NAME_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)CommandText\s*=\s*"(sp_\w+|usp_\w+|\w+_\w+)""#).expect("handler_sp_name")
 });
 
-static HANDLER_TABLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static HANDLER_TABLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?")
         .expect("handler_table")
 });
 
-/// Build cross-layer traces from JS AJAX calls → handlers → database.
-fn build_cross_layer_traces(
-    js_analysis: &JsAnalysisSummary,
-    sp_catalog: &StoredProcedureCatalog,
-    service_endpoints: &ServiceEndpointSummary,
-    code_files: &[(&str, &str)],
-) -> CrossLayerTraceSummary {
-    // 1. Build URL→handler file map from service endpoints and code files
-    let mut url_to_handler: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
-
-    // Map from service_endpoints
-    for ep in &service_endpoints.web_services {
-        let base = extract_filename_from_path(&ep.file_path);
-        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
-    }
-    for ep in &service_endpoints.http_handlers {
-        let base = extract_filename_from_path(&ep.file_path);
-        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
-    }
-    for ep in &service_endpoints.wcf_services {
-        let base = extract_filename_from_path(&ep.file_path);
-        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
-    }
-    for ep in &service_endpoints.route_handlers {
-        let base = extract_filename_from_path(&ep.file_path);
-        url_to_handler.insert(base.to_lowercase(), ep.file_path.clone());
-    }
-
-    // Also map from code files by filename
-    for &(path, _) in code_files {
-        let lower = path.to_lowercase();
-        if lower.ends_with(".ashx")
-            || lower.ends_with(".ashx.cs")
-            || lower.ends_with(".ashx.vb")
-            || lower.ends_with(".asmx")
-            || lower.ends_with(".asmx.cs")
-            || lower.ends_with(".asmx.vb")
-        {
-            let base = extract_filename_from_path(path);
-            // Strip .cs / .vb suffix for matching
-            let base_lower = base.to_lowercase().replace(".cs", "").replace(".vb", "");
-            url_to_handler.insert(base_lower, path.to_string());
-        }
-    }
-
-    // Build code_file content map
-    let content_map: std::collections::HashMap<&str, &str> =
-        code_files.iter().map(|&(p, c)| (p, c)).collect();
-
-    // SP name → tables map from catalog
-    let mut sp_tables: std::collections::HashMap<String, (Vec<String>, Vec<String>)> =
-        std::collections::HashMap::new();
-    for sp in &sp_catalog.procedures {
-        sp_tables.insert(
-            sp.name.to_lowercase(),
-            (sp.tables_read.clone(), sp.tables_written.clone()),
-        );
-    }
-
-    let mut chains: Vec<DataFlowChain> = Vec::new();
-    let mut unresolved_urls: Vec<String> = Vec::new();
-    let mut resolved_handlers: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    // 2. For each AJAX call, try to resolve the chain
-    for ajax_call in &js_analysis.ajax_calls {
-        let url = &ajax_call.target_url;
-        let url_parts = extract_url_parts(url);
-        let handler_file_lower = url_parts
-            .file_part
-            .to_lowercase()
-            .replace(".cs", "")
-            .replace(".vb", "");
-
-        // Try to find handler
-        let handler_path = url_to_handler.get(&handler_file_lower).cloned();
-
-        if handler_path.is_none() {
-            if !unresolved_urls.contains(url) {
-                unresolved_urls.push(url.clone());
-            }
-            continue;
-        }
-
-        let handler_path = handler_path.expect("checked above");
-        resolved_handlers.insert(handler_path.clone());
-
-        // Build steps
-        let mut steps: Vec<DataFlowStep> = Vec::new();
-        let mut tables_touched: Vec<String> = Vec::new();
-        let mut risk_notes: Vec<String> = Vec::new();
-
-        // Step 1: Client AJAX call
-        steps.push(DataFlowStep {
-            layer: "client".to_string(),
-            file_path: ajax_call.js_file.clone(),
-            action: format!(
-                "{} {} to {}",
-                ajax_call.transport,
-                url_parts.method_part.as_deref().unwrap_or(""),
-                url
-            ),
-            params: Vec::new(),
-        });
-
-        // Step 2: Handler processing
-        let handler_content = find_handler_content(&handler_path, &content_map);
-        let mut sp_names: Vec<String> = Vec::new();
-
-        if let Some(content) = handler_content {
-            // Find SP calls in handler
-            for cap in HANDLER_SP_NAME_RE.captures_iter(content) {
-                sp_names.push(cap[1].to_string());
-            }
-
-            // Find direct table access
-            for cap in HANDLER_TABLE_RE.captures_iter(content) {
-                let table = cap[1].to_string();
-                if !tables_touched.contains(&table) {
-                    tables_touched.push(table);
-                }
-            }
-
-            let sp_desc = if !sp_names.is_empty() {
-                format!("calls {}", sp_names.join(", "))
-            } else if !tables_touched.is_empty() {
-                format!("direct SQL on: {}", tables_touched.join(", "))
-            } else {
-                "processes request (no SQL detected)".to_string()
-            };
-
-            steps.push(DataFlowStep {
-                layer: "handler".to_string(),
-                file_path: handler_path.clone(),
-                action: sp_desc,
-                params: sp_names.clone(),
-            });
-        } else {
-            steps.push(DataFlowStep {
-                layer: "handler".to_string(),
-                file_path: handler_path.clone(),
-                action: "handler file (code not available for analysis)".to_string(),
-                params: Vec::new(),
-            });
-            risk_notes.push("Handler code-behind not found — cannot trace data layer".into());
-        }
-
-        // Step 3: Database layer (from SP catalog)
-        for sp_name in &sp_names {
-            if let Some((reads, writes)) = sp_tables.get(&sp_name.to_lowercase()) {
-                for t in reads {
-                    if !tables_touched.contains(t) {
-                        tables_touched.push(t.clone());
-                    }
-                }
-                for t in writes {
-                    if !tables_touched.contains(t) {
-                        tables_touched.push(t.clone());
-                    }
-                }
-
-                steps.push(DataFlowStep {
-                    layer: "database".to_string(),
-                    file_path: sp_name.clone(),
-                    action: format!(
-                        "reads: [{}], writes: [{}]",
-                        reads.join(", "),
-                        writes.join(", ")
-                    ),
-                    params: Vec::new(),
-                });
-            }
-        }
-
-        let feature_name = url_parts
-            .method_part
-            .unwrap_or_else(|| url_parts.file_part.clone());
-
-        chains.push(DataFlowChain {
-            feature_name,
-            trigger_file: ajax_call.js_file.clone(),
-            steps,
-            tables_touched,
-            risk_notes,
-        });
-    }
-
-    // Find handlers without callers
-    let all_handler_paths: Vec<String> = url_to_handler.values().cloned().collect();
-    let handlers_without_ajax_callers: Vec<String> = all_handler_paths
-        .into_iter()
-        .filter(|h| !resolved_handlers.contains(h))
-        .collect();
-
-    let total_chains = chains.len();
-
-    CrossLayerTraceSummary {
-        chains,
-        total_chains,
-        unresolved_urls,
-        handlers_without_ajax_callers,
-    }
-}
 
 struct UrlParts {
     file_part: String,
     method_part: Option<String>,
 }
 
-fn extract_url_parts(url: &str) -> UrlParts {
-    // Strip query string and fragment
-    let clean = url.split('?').next().unwrap_or(url);
-    let clean = clean.split('#').next().unwrap_or(clean);
 
-    // Split on last / to separate method from file
-    // e.g. "Services/MapData.asmx/GetPolygons" → file="MapData.asmx", method="GetPolygons"
-    let parts: Vec<&str> = clean.rsplitn(2, '/').collect();
-    if parts.len() == 2 {
-        let maybe_method = parts[0];
-        let path_part = parts[1];
 
-        // If the path part contains a file extension, the right side is a method name
-        if path_part.contains('.') && !maybe_method.contains('.') {
-            let file = extract_filename_from_path(path_part);
-            return UrlParts {
-                file_part: file.to_string(),
-                method_part: Some(maybe_method.to_string()),
-            };
-        }
-    }
-
-    // No method part, just extract filename
-    let file = extract_filename_from_path(clean);
-    UrlParts {
-        file_part: file.to_string(),
-        method_part: None,
-    }
-}
-
-fn extract_filename_from_path(path: &str) -> &str {
-    path.rsplit(['/', '\\']).next().unwrap_or(path)
-}
-
-fn find_handler_content<'a>(
-    handler_path: &str,
-    content_map: &std::collections::HashMap<&str, &'a str>,
-) -> Option<&'a str> {
-    // Direct match
-    if let Some(&c) = content_map.get(handler_path) {
-        return Some(c);
-    }
-    // Try with .cs or .vb suffix
-    let with_cs = format!("{handler_path}.cs");
-    if let Some(&c) = content_map.get(with_cs.as_str()) {
-        return Some(c);
-    }
-    let with_vb = format!("{handler_path}.vb");
-    if let Some(&c) = content_map.get(with_vb.as_str()) {
-        return Some(c);
-    }
-    // Partial match by filename
-    let filename = extract_filename_from_path(handler_path).to_lowercase();
-    for (&path, &content) in content_map {
-        let pf = extract_filename_from_path(path).to_lowercase();
-        if pf == filename || pf.starts_with(&filename) {
-            return Some(content);
-        }
-    }
-    None
-}
 
 // ── Phase 34: packages.config Parser ─────────────────────────────────────────
 
 // packages.config element regex — matches the entire <package ... /> tag
 // regardless of attribute order. Individual attributes are extracted inside.
-static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?is)<package\s+([^>]+?)/>").expect("pkg_config_element")
 });
-static PKG_ATTR_ID_RE: std::sync::LazyLock<Regex> =
+pub(super) static PKG_ATTR_ID_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bid\s*=\s*"([^"]+)""#).expect("pkg_attr_id"));
-static PKG_ATTR_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static PKG_ATTR_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bversion\s*=\s*"([^"]+)""#).expect("pkg_attr_ver")
 });
-static PKG_ATTR_TFM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static PKG_ATTR_TFM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\btargetFramework\s*=\s*"([^"]+)""#).expect("pkg_attr_tfm")
 });
-static PKG_ATTR_DEV_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static PKG_ATTR_DEV_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bdevelopmentDependency\s*=\s*"true""#).expect("pkg_attr_dev")
 });
 
-/// Parse packages.config XML. Handles any attribute order within `<package ... />` elements.
-fn parse_packages_config(content: &str) -> Vec<LegacyPackageRef> {
-    let mut packages = Vec::new();
-
-    for element in PKG_CONFIG_ELEMENT_RE.captures_iter(content) {
-        let attrs = &element[1];
-
-        // id and version are required
-        let Some(id_cap) = PKG_ATTR_ID_RE.captures(attrs) else {
-            continue;
-        };
-        let Some(ver_cap) = PKG_ATTR_VER_RE.captures(attrs) else {
-            continue;
-        };
-
-        let package_id = id_cap[1].to_string();
-        let version = ver_cap[1].to_string();
-        let target_framework = PKG_ATTR_TFM_RE
-            .captures(attrs)
-            .map(|c| c[1].to_string())
-            .unwrap_or_default();
-        let is_dev = PKG_ATTR_DEV_RE.is_match(attrs);
-
-        let modern_replacement = {
-            let (repl, _, _, _) = lookup_modern_replacement(&package_id);
-            repl.map(|s| s.to_string())
-        };
-
-        packages.push(LegacyPackageRef {
-            package_id,
-            version,
-            target_framework,
-            is_dev_dependency: is_dev,
-            modern_replacement,
-        });
-    }
-
-    packages
-}
 
 // ── Phase 34: Binding Redirect Parser ────────────────────────────────────────
 
 // Binding redirect parsing: matches the entire <dependentAssembly> block,
 // then extracts attributes individually for order-independence.
-static DEP_ASSEMBLY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static DEP_ASSEMBLY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?is)<dependentAssembly>\s*(.*?)\s*</dependentAssembly>").expect("dep_assembly")
 });
-static ASM_NAME_RE: std::sync::LazyLock<Regex> =
+pub(super) static ASM_NAME_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bname\s*=\s*"([^"]+)""#).expect("asm_name"));
-static ASM_PKT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static ASM_PKT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bpublicKeyToken\s*=\s*"([^"]+)""#).expect("asm_pkt")
 });
-static BR_OLD_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static BR_OLD_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\boldVersion\s*=\s*"([^"]+)""#).expect("br_old_ver")
 });
-static BR_NEW_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static BR_NEW_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bnewVersion\s*=\s*"([^"]+)""#).expect("br_new_ver")
 });
 
-fn extract_binding_redirects(web_config: Option<&str>) -> Vec<BindingRedirect> {
-    let Some(content) = web_config else {
-        return Vec::new();
-    };
-
-    let mut redirects = Vec::new();
-
-    for block in DEP_ASSEMBLY_RE.captures_iter(content) {
-        let inner = &block[1];
-
-        // Extract assemblyIdentity attributes (any order)
-        let Some(name_cap) = ASM_NAME_RE.captures(inner) else {
-            continue;
-        };
-        let assembly_name = name_cap[1].to_string();
-        let public_key_token = ASM_PKT_RE.captures(inner).map(|c| c[1].to_string());
-
-        // Extract bindingRedirect attributes (any order)
-        let Some(old_cap) = BR_OLD_VER_RE.captures(inner) else {
-            continue;
-        };
-        let Some(new_cap) = BR_NEW_VER_RE.captures(inner) else {
-            continue;
-        };
-        let old_version = old_cap[1].to_string();
-        let new_version = new_cap[1].to_string();
-
-        let has_known = lookup_assembly_replacement(&assembly_name).0.is_some();
-
-        redirects.push(BindingRedirect {
-            assembly_name,
-            old_version_range: old_version,
-            new_version,
-            public_key_token,
-            has_known_replacement: has_known,
-        });
-    }
-
-    redirects
-}
 
 // ── Phase 34: Method Body Extraction ─────────────────────────────────────────
 
@@ -9071,526 +4671,118 @@ pub(crate) fn extract_cs_method_body(
     Some((body.to_string(), start_line, end_line, line_count))
 }
 
-/// Produce a body preview: full for ≤30 lines, truncated otherwise.
-fn make_body_preview(body: &str, line_count: u32) -> String {
-    let lines: Vec<&str> = body.lines().collect();
-    if lines.is_empty() {
-        return String::new();
-    }
-
-    // Dedent: find minimum leading whitespace
-    let min_indent = lines
-        .iter()
-        .filter(|l| !l.trim().is_empty())
-        .map(|l| l.len() - l.trim_start().len())
-        .min()
-        .unwrap_or(0);
-
-    let dedent = |line: &str| -> String {
-        if line.len() >= min_indent {
-            line[min_indent..].to_string()
-        } else {
-            line.trim_start().to_string()
-        }
-    };
-
-    if line_count <= 30 {
-        lines
-            .iter()
-            .map(|l| dedent(l))
-            .collect::<Vec<_>>()
-            .join("\n")
-    } else {
-        let first_10: Vec<String> = lines.iter().take(10).map(|l| dedent(l)).collect();
-        let last_5: Vec<String> = lines
-            .iter()
-            .rev()
-            .take(5)
-            .rev()
-            .map(|l| dedent(l))
-            .collect();
-        // Use the actual number of shown lines so the count is correct even if
-        // take(10)/take(5) yielded fewer lines than expected.
-        let shown = first_10.len() + last_5.len();
-        let remaining = (line_count as usize).saturating_sub(shown);
-        format!(
-            "{}\n    ... ({remaining} more lines) ...\n{}",
-            first_10.join("\n"),
-            last_5.join("\n")
-        )
-    }
-}
 
 // ── Phase 34 second-pass: LazyLock statics for compute_complexity_score ──────
 // Pre-compiled regexes avoid recompiling 18 patterns on every method body.
 
-static CX_IF_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_IF_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\bif\b").expect("valid regex"));
-static CX_ELSE_IF_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_ELSE_IF_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\belse\s+if\b").expect("valid regex"));
-static CX_ELSEIF_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_ELSEIF_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\belseif\b").expect("valid regex"));
-static CX_SWITCH_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SWITCH_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\bswitch\b").expect("valid regex"));
-static CX_CASE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_CASE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\bcase\b").expect("valid regex"));
-static CX_SELECT_CASE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SELECT_CASE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)\bselect\s+case\b").expect("valid regex"));
 
-static CX_FOR_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_FOR_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s").expect("valid regex"));
-static CX_FOREACH_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_FOREACH_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bforeach\b").expect("valid regex"));
-static CX_FOR_EACH_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_FOR_EACH_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bfor\s+each\b").expect("valid regex"));
-static CX_WHILE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_WHILE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bwhile\b").expect("valid regex"));
-static CX_DO_WHILE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_DO_WHILE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s+while\b").expect("valid regex"));
-static CX_DO_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_DO_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bdo\s*$").expect("valid regex"));
 
-static CX_TRY_BRACE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_TRY_BRACE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*\{").expect("valid regex"));
-static CX_TRY_EOL_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_TRY_EOL_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\btry\s*$").expect("valid regex"));
-static CX_CATCH_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_CATCH_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bcatch\b").expect("valid regex"));
-static CX_ON_ERROR_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_ON_ERROR_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?im)\bOn\s+Error\b").expect("valid regex"));
 
-static CX_SQL_SELECT_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_SELECT_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)"SELECT\s"#).expect("valid regex"));
-static CX_SQL_INSERT_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_INSERT_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)"INSERT\s"#).expect("valid regex"));
-static CX_SQL_UPDATE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_UPDATE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)"UPDATE\s"#).expect("valid regex"));
-static CX_SQL_DELETE_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_DELETE_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)"DELETE\s"#).expect("valid regex"));
-static CX_CMD_TEXT_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_CMD_TEXT_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)CommandText\s*=").expect("valid regex"));
-static CX_SQL_CMD_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_CMD_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlCommand").expect("valid regex"));
-static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r"(?i)SqlDataAdapter").expect("valid regex"));
 
-static CX_SESSION_RE: std::sync::LazyLock<Regex> =
+pub(super) static CX_SESSION_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).expect("valid regex"));
 
-/// Compute a heuristic complexity score for a method body.
-/// Uses pre-compiled LazyLock regexes to avoid per-call compilation overhead.
-///
-/// THIRD-PASS FIX: Subtract overlap counts to prevent double-counting.
-/// `else if` matches both `\bif\b` and `\belse\s+if\b`.
-/// `select case` matches both `\bcase\b` and `\bselect\s+case\b`.
-/// `do while` matches both `\bwhile\b` and `\bdo\s+while\b`.
-/// `for each` (VB) matches both `\bfor\s` and `\bfor\s+each\b`.
-/// `foreach` (C#) matches `\bfor\s` because of the word boundary + space.
-fn compute_complexity_score(body: &str) -> u32 {
-    let mut score: u32 = 0;
-
-    // Branches (1 point each), with overlap subtraction
-    let if_count = CX_IF_RE.find_iter(body).count() as u32;
-    let else_if_count = CX_ELSE_IF_RE.find_iter(body).count() as u32;
-    let elseif_count = CX_ELSEIF_RE.find_iter(body).count() as u32;
-    // `else if` and `elseif` also match `\bif\b`, so subtract them
-    score += if_count
-        .saturating_sub(else_if_count)
-        .saturating_sub(elseif_count);
-    score += else_if_count;
-    score += elseif_count;
-
-    score += CX_SWITCH_RE.find_iter(body).count() as u32;
-    let case_count = CX_CASE_RE.find_iter(body).count() as u32;
-    let select_case_count = CX_SELECT_CASE_RE.find_iter(body).count() as u32;
-    // `select case` also matches `\bcase\b`, subtract overlap
-    score += case_count.saturating_sub(select_case_count);
-    score += select_case_count;
-
-    // Loops (1 point each), with overlap subtraction
-    let for_count = CX_FOR_RE.find_iter(body).count() as u32;
-    let foreach_count = CX_FOREACH_RE.find_iter(body).count() as u32;
-    let for_each_count = CX_FOR_EACH_RE.find_iter(body).count() as u32;
-    // `for each` (VB) matches `\bfor\s`, and C# `foreach` does NOT match `\bfor\s`
-    // (because `foreach` has no space after `for`). So only subtract VB for_each.
-    score += for_count.saturating_sub(for_each_count);
-    score += foreach_count;
-    score += for_each_count;
-
-    let while_count = CX_WHILE_RE.find_iter(body).count() as u32;
-    let do_while_count = CX_DO_WHILE_RE.find_iter(body).count() as u32;
-    // `do while` also matches `\bwhile\b`, subtract overlap
-    score += while_count.saturating_sub(do_while_count);
-    score += do_while_count;
-    score += CX_DO_RE.find_iter(body).count() as u32;
-
-    // Error handlers (2 points each)
-    score += CX_TRY_BRACE_RE.find_iter(body).count() as u32 * 2;
-    score += CX_TRY_EOL_RE.find_iter(body).count() as u32 * 2;
-    score += CX_CATCH_RE.find_iter(body).count() as u32 * 2;
-    score += CX_ON_ERROR_RE.find_iter(body).count() as u32 * 2;
-
-    // SQL strings (3 points each)
-    score += CX_SQL_SELECT_RE.find_iter(body).count() as u32 * 3;
-    score += CX_SQL_INSERT_RE.find_iter(body).count() as u32 * 3;
-    score += CX_SQL_UPDATE_RE.find_iter(body).count() as u32 * 3;
-    score += CX_SQL_DELETE_RE.find_iter(body).count() as u32 * 3;
-    score += CX_CMD_TEXT_RE.find_iter(body).count() as u32 * 3;
-    score += CX_SQL_CMD_RE.find_iter(body).count() as u32 * 3;
-    score += CX_SQL_ADAPTER_RE.find_iter(body).count() as u32 * 3;
-
-    // Session access (1 point each)
-    score += CX_SESSION_RE.find_iter(body).count() as u32;
-
-    score
-}
 
 // ── Phase 34: Config Transform Parser ────────────────────────────────────────
 
-static XDT_TRANSFORM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static XDT_TRANSFORM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)xdt:Transform\s*=\s*"(\w+)""#).expect("xdt_transform")
 });
-static XDT_LOCATOR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static XDT_LOCATOR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)xdt:Locator\s*=\s*"Match\((\w+)\)""#).expect("xdt_locator")
 });
-static XDT_CONNSTR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static XDT_CONNSTR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r#"(?i)<add\s+name\s*=\s*"([^"]+)"[^>]*connectionString\s*=\s*"([^"]*)"[^>]*xdt:Transform"#,
     )
     .expect("xdt_connstr")
 });
-static XDT_APPSETTING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static XDT_APPSETTING_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<add\s+key\s*=\s*"([^"]+)"\s+value\s*=\s*"([^"]*)"[^>]*xdt:Transform"#)
         .expect("xdt_appsetting")
 });
-static XDT_DEBUG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static XDT_DEBUG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<compilation[^>]*debug\s*=\s*"(true|false)""#).expect("xdt_debug")
 });
 
-fn parse_config_transforms(transform_files: &[(String, String)]) -> ConfigTransformReport {
-    let mut environments: Vec<ConfigEnvironment> = Vec::new();
-    let mut total_transforms = 0usize;
-    let mut conn_overrides: Vec<(String, String)> = Vec::new();
-    let mut debug_overrides: Vec<(String, bool)> = Vec::new();
-    let mut setting_overrides: Vec<(String, String, String)> = Vec::new();
-    // MIG1/D2: log if value-attribute regex fails to compile.
-    let value_attr_re = Regex::new(r#"value\s*=\s*"([^"]*)""#)
-        .inspect_err(|e| tracing::warn!(error = %e, "MIG1: config transform value_attr regex compile failed — value extraction disabled"))
-        .ok();
-
-    for (path, content) in transform_files {
-        // Derive environment name from filename: web.Release.config → Release
-        let env_name = path
-            .rsplit('/')
-            .next()
-            .or_else(|| path.rsplit('\\').next())
-            .unwrap_or(path)
-            .strip_prefix("web.")
-            .or_else(|| path.strip_prefix("Web."))
-            .unwrap_or(path)
-            .strip_suffix(".config")
-            .unwrap_or(path)
-            .to_string();
-
-        let mut transforms: Vec<ConfigTransform> = Vec::new();
-
-        // Extract all XDT transform operations
-        for cap in XDT_TRANSFORM_RE.captures_iter(content) {
-            let operation = cap[1].to_string();
-
-            // Find the XML element context around this transform
-            let match_pos = cap.get(0).map_or(0, |m| m.start());
-            let context_start = content[..match_pos].rfind('<').unwrap_or(0);
-            let context_end = content[match_pos..]
-                .find('>')
-                .map(|p| match_pos + p + 1)
-                .unwrap_or(content.len());
-            let context = &content[context_start..context_end];
-
-            let key = XDT_LOCATOR_RE.captures(context).map(|c| c[1].to_string());
-
-            // Extract value preview (sanitize sensitive values)
-            let value_preview = if context.contains("connectionString") {
-                Some("(connection string)".to_string())
-            } else if let Some(val_cap) = value_attr_re.as_ref().and_then(|re| re.captures(context))
-            {
-                let val = val_cap[1].to_string();
-                if val.len() > 50 {
-                    Some(format!("{}...", &val[..47]))
-                } else {
-                    Some(val)
-                }
-            } else {
-                None
-            };
-
-            // Derive xpath hint from element context AND parent context.
-            // Look back in the content to find the parent XML element for nested <add> elements.
-            let parent_context = &content[..match_pos];
-            let xpath_hint = if context.contains("<appSettings")
-                || (context.contains("<add ") && context.contains("key="))
-                || parent_context
-                    .rfind("<appSettings")
-                    .is_some_and(|p| !parent_context[p..].contains("</appSettings"))
-            {
-                "configuration/appSettings".to_string()
-            } else if context.contains("connectionStrings")
-                || context.contains("connectionString")
-                || parent_context
-                    .rfind("<connectionStrings")
-                    .is_some_and(|p| !parent_context[p..].contains("</connectionStrings"))
-            {
-                "configuration/connectionStrings".to_string()
-            } else if context.contains("<compilation") {
-                "configuration/system.web/compilation".to_string()
-            } else if context.contains("<customErrors") {
-                "configuration/system.web/customErrors".to_string()
-            } else if context.contains("<httpHandlers")
-                || context.contains("<handlers")
-                || parent_context
-                    .rfind("<handlers")
-                    .is_some_and(|p| !parent_context[p..].contains("</handlers"))
-            {
-                "configuration/system.webServer/handlers".to_string()
-            } else if context.contains("<httpModules")
-                || context.contains("<modules")
-                || parent_context
-                    .rfind("<modules")
-                    .is_some_and(|p| !parent_context[p..].contains("</modules"))
-            {
-                "configuration/system.webServer/modules".to_string()
-            } else if context.contains("<system.webServer") {
-                "configuration/system.webServer".to_string()
-            } else if context.contains("<system.web") {
-                "configuration/system.web".to_string()
-            } else {
-                "configuration/...".to_string()
-            };
-
-            transforms.push(ConfigTransform {
-                xpath_hint,
-                operation,
-                key,
-                value_preview,
-            });
-            total_transforms += 1;
-        }
-
-        // Extract connection string overrides
-        for cap in XDT_CONNSTR_RE.captures_iter(content) {
-            conn_overrides.push((env_name.clone(), cap[1].to_string()));
-        }
-
-        // Extract debug flag overrides
-        if let Some(cap) = XDT_DEBUG_RE.captures(content) {
-            let debug_val = cap[1].eq_ignore_ascii_case("true");
-            debug_overrides.push((env_name.clone(), debug_val));
-        }
-
-        // Extract app setting overrides
-        for cap in XDT_APPSETTING_RE.captures_iter(content) {
-            setting_overrides.push((env_name.clone(), cap[1].to_string(), cap[2].to_string()));
-        }
-
-        if !transforms.is_empty() {
-            environments.push(ConfigEnvironment {
-                name: env_name,
-                file_path: path.clone(),
-                transforms,
-            });
-        }
-    }
-
-    ConfigTransformReport {
-        environments,
-        total_transforms,
-        connection_string_overrides: conn_overrides,
-        debug_flag_overrides: debug_overrides,
-        app_setting_overrides: setting_overrides,
-    }
-}
 
 // ── Phase 34: Master Page Region Mapping ─────────────────────────────────────
 
-static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)""#)
         .expect("content_placeholder")
 });
-static CONTENT_FILLS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static CONTENT_FILLS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<asp:Content\s+[^>]*ContentPlaceHolderID\s*=\s*"([^"]+)""#)
         .expect("content_fills")
 });
-static MASTER_PAGE_FILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static MASTER_PAGE_FILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).expect("master_page_file")
 });
-static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?is)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)"[^>]*>\s*\S"#)
         .expect("placeholder_default")
 });
 
-fn build_master_page_region_map(
-    master_files: &[(String, String)],
-    markup_files: &[FileContent],
-) -> MasterPageRegionMap {
-    let mut master_pages: Vec<MasterPageInfo> = Vec::new();
-    let mut region_map: std::collections::HashMap<String, (String, Vec<String>, bool)> =
-        std::collections::HashMap::new();
-
-    // 1. Parse master pages for ContentPlaceHolder definitions
-    for (path, content) in master_files {
-        let mut placeholders: Vec<String> = Vec::new();
-
-        for cap in CONTENT_PLACEHOLDER_RE.captures_iter(content) {
-            let id = cap[1].to_string();
-            let has_default = PLACEHOLDER_DEFAULT_RE
-                .captures_iter(content)
-                .any(|dc| dc[1] == *id);
-            region_map
-                .entry(id.clone())
-                .or_insert_with(|| (path.clone(), Vec::new(), has_default));
-            placeholders.push(id);
-        }
-
-        let nested_master = MASTER_PAGE_FILE_RE
-            .captures(content)
-            .map(|c| c[1].to_string());
-
-        master_pages.push(MasterPageInfo {
-            file_path: path.clone(),
-            placeholders,
-            nested_master,
-        });
-    }
-
-    // 2. Scan aspx/ascx files for asp:Content fills
-    for fc in markup_files {
-        for cap in CONTENT_FILLS_RE.captures_iter(&fc.markup_content) {
-            let region_id = cap[1].to_string();
-            if let Some(entry) = region_map.get_mut(&region_id) {
-                if !entry.1.contains(&fc.file_path) {
-                    entry.1.push(fc.file_path.clone());
-                }
-            } else {
-                // Region referenced but not defined in any scanned master page
-                region_map.insert(
-                    region_id,
-                    (
-                        "(unknown master)".to_string(),
-                        vec![fc.file_path.clone()],
-                        false,
-                    ),
-                );
-            }
-        }
-    }
-
-    // 3. Build region mappings
-    let mut regions: Vec<RegionMapping> = Vec::new();
-    let mut orphans: Vec<String> = Vec::new();
-
-    for (region_name, (defined_in, filled_by, has_default)) in &region_map {
-        let modern_eq = match region_name.as_str() {
-            "MainContent" | "ContentPlaceHolder1" | "BodyContent" | "content" => {
-                "@RenderBody()".to_string()
-            }
-            "head" | "HeadContent" | "HeaderContent" => {
-                "@RenderSection(\"Head\", required: false)".to_string()
-            }
-            "ScriptsSection" | "Scripts" | "FooterScripts" => {
-                "@RenderSection(\"Scripts\", required: false)".to_string()
-            }
-            _ => format!("@RenderSection(\"{region_name}\", required: false)"),
-        };
-
-        if filled_by.is_empty() || defined_in == "(unknown master)" {
-            orphans.push(region_name.clone());
-        }
-
-        regions.push(RegionMapping {
-            region_name: region_name.clone(),
-            defined_in: defined_in.clone(),
-            filled_by: filled_by.clone(),
-            has_default_content: *has_default,
-            modern_equivalent: modern_eq,
-        });
-    }
-
-    regions.sort_by(|a, b| b.filled_by.len().cmp(&a.filled_by.len()));
-
-    MasterPageRegionMap {
-        master_pages,
-        regions,
-        orphan_regions: orphans,
-    }
-}
 
 // ── Phase 34: Resource File (.resx) Inventory ────────────────────────────────
 
-static RESX_DATA_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RESX_DATA_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<data\s+name\s*=\s*"([^"]+)""#).expect("resx_data")
 });
-static RESX_FILE_REF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RESX_FILE_REF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)type\s*=\s*"System\.Resources\.ResXFileRef"#).expect("resx_file_ref")
 });
-static RESX_LANG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+pub(super) static RESX_LANG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"\.([a-z]{2}(?:-[A-Z]{2})?)\.resx$").expect("resx_lang")
 });
 
-fn build_resource_inventory(resx_files: &[(String, String)]) -> ResourceInventory {
-    let mut files: Vec<ResourceFileInfo> = Vec::new();
-    let mut total_keys = 0usize;
-    let mut languages: Vec<String> = Vec::new();
-    let mut has_global = false;
-    let mut has_local = false;
-    let mut embedded_count = 0usize;
-
-    for (path, content) in resx_files {
-        let key_count = RESX_DATA_RE.captures_iter(content).count();
-        total_keys += key_count;
-
-        // Detect embedded resources (file refs)
-        let file_ref_count = RESX_FILE_REF_RE.captures_iter(content).count();
-        embedded_count += file_ref_count;
-
-        // Detect language from filename
-        let language = RESX_LANG_RE.captures(path).map(|c| c[1].to_string());
-        if let Some(ref lang) = language
-            && !languages.contains(lang)
-        {
-            languages.push(lang.clone());
-        }
-
-        // Classify: App_GlobalResources vs App_LocalResources
-        let resource_type =
-            if path.contains("App_GlobalResources") || path.contains("app_globalresources") {
-                has_global = true;
-                "global".to_string()
-            } else if path.contains("App_LocalResources") || path.contains("app_localresources") {
-                has_local = true;
-                "local".to_string()
-            } else {
-                "embedded".to_string()
-            };
-
-        files.push(ResourceFileInfo {
-            file_path: path.clone(),
-            key_count,
-            language,
-            resource_type,
-        });
-    }
-
-    files.sort_by(|a, b| b.key_count.cmp(&a.key_count));
-
-    ResourceInventory {
-        resource_files: files,
-        total_keys,
-        languages_detected: languages,
-        has_global_resources: has_global,
-        has_local_resources: has_local,
-        embedded_resource_count: embedded_count,
-    }
-}
 
 /// Convert epoch days (since 1970-01-01) to (year, month, day).
 pub(crate) fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
@@ -9762,7 +4954,7 @@ mod tests {
                 high_risk_keys: vec![],
             },
         };
-        let cross = build_cross_cutting_summary(
+        let cross = analyzers::cross_cutting::build_cross_cutting_summary(
             &[],
             &state,
             &empty_js(),
@@ -9813,7 +5005,7 @@ mod tests {
         let dossier2 = make_test_dossier("Page2.aspx", vec!["Users", "Orders"], 3);
         let dossier3 = make_test_dossier("Page3.aspx", vec!["Logs"], 2);
 
-        let cross = build_cross_cutting_summary(
+        let cross = analyzers::cross_cutting::build_cross_cutting_summary(
             &[dossier1, dossier2, dossier3],
             &state,
             &empty_js(),
@@ -9989,7 +5181,7 @@ mod tests {
             fire_and_forget_count: 1,
         };
 
-        let cross = build_cross_cutting_summary(
+        let cross = analyzers::cross_cutting::build_cross_cutting_summary(
             &[],
             &state,
             &empty_js(),
@@ -10036,7 +5228,7 @@ mod tests {
 
     #[test]
     fn flag_belongs_to_page_accepts_exact_page() {
-        assert!(flag_belongs_to_page(
+        assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Site/AuthCallback.aspx",
             "Site/AuthCallback.aspx",
             None
@@ -10045,7 +5237,7 @@ mod tests {
 
     #[test]
     fn flag_belongs_to_page_accepts_detected_codebehind() {
-        assert!(flag_belongs_to_page(
+        assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Site/AuthCallback.aspx.vb",
             "Site/AuthCallback.aspx",
             Some("Site/AuthCallback.aspx.vb"),
@@ -10057,12 +5249,12 @@ mod tests {
         // Page inherits `System.Web.UI.Page` directly — dossier builder
         // sets `codebehind_file = None` — the conventional `.aspx.vb`
         // sibling still belongs to this page.
-        assert!(flag_belongs_to_page(
+        assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Site/AuthCallback.aspx.vb",
             "Site/AuthCallback.aspx",
             None
         ));
-        assert!(flag_belongs_to_page(
+        assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Site/AuthCallback.aspx.cs",
             "Site/AuthCallback.aspx",
             None
@@ -10072,23 +5264,23 @@ mod tests {
     #[test]
     fn flag_belongs_to_page_rejects_unrelated_files_when_codebehind_is_none() {
         // THE regression guard: codebehind None must not open the gate.
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "Site/Other.aspx.vb",
             "Site/AuthCallback.aspx",
             None
         ));
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "App_Code/shared/Helpers.vb",
             "Site/AuthCallback.aspx",
             None
         ));
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "Site/permits/permits.aspx.vb",
             "Site/AuthCallback.aspx",
             None
         ));
         // Empty-string codebehind must behave the same as None.
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "App_Code/shared/Helpers.vb",
             "Site/AuthCallback.aspx",
             Some(""),
@@ -10097,14 +5289,14 @@ mod tests {
 
     #[test]
     fn flag_belongs_to_page_rejects_unrelated_files_with_codebehind() {
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "App_Code/shared/Helpers.vb",
             "Site/AuthCallback.aspx",
             Some("Site/AuthCallback.aspx.vb"),
         ));
         // And must not accept a file that merely *contains* the
         // codebehind path as a substring.
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "Other/Site/AuthCallback.aspx.vb",
             "Site/AuthCallback.aspx",
             Some("AuthCallback.aspx.vb"),
@@ -10115,13 +5307,13 @@ mod tests {
     fn flag_belongs_to_page_non_aspx_page_does_not_fall_back_to_sibling() {
         // For an .ascx / .master page we don't blindly accept
         // `<page>.vb` — only explicit codebehind detection counts.
-        assert!(!flag_belongs_to_page(
+        assert!(!analyzers::vb_translation::flag_belongs_to_page(
             "Controls/MyControl.ascx.vb",
             "Controls/MyControl.ascx",
             None,
         ));
         // But if the dossier detected the codebehind, it's accepted.
-        assert!(flag_belongs_to_page(
+        assert!(analyzers::vb_translation::flag_belongs_to_page(
             "Controls/MyControl.ascx.vb",
             "Controls/MyControl.ascx",
             Some("Controls/MyControl.ascx.vb"),
@@ -10292,7 +5484,7 @@ Module GlobalHelpers
     End Sub
 End Module
 "#;
-        let flags = analyze_vb_translation_flags(&[("Helpers.vb", vb_code)]);
+        let flags = analyzers::vb_translation::analyze_vb_translation_flags(&[("Helpers.vb", vb_code)]);
         assert!(!flags.translation_flags.is_empty());
         assert!(
             flags
@@ -10315,7 +5507,7 @@ Public Class Legacy
     End Sub
 End Class
 "#;
-        let flags = analyze_vb_translation_flags(&[("Legacy.vb", vb_code)]);
+        let flags = analyzers::vb_translation::analyze_vb_translation_flags(&[("Legacy.vb", vb_code)]);
         assert_eq!(flags.dynamic_dispatch.option_strict_off_files, 1);
         assert_eq!(flags.dynamic_dispatch.methods_with_dynamic_dispatch, 1);
         assert_eq!(flags.dynamic_dispatch.object_var_count, 1);
@@ -10332,7 +5524,7 @@ Dim msg As New MailMessage()
 msg.To.Add("user@example.com")
 smtp.Send(msg)
 "#;
-        let report = detect_email_patterns(&[("Mailer.vb", code)], None);
+        let report = analyzers::email::detect_email_patterns(&[("Mailer.vb", code)], None);
         assert!(report.has_email);
         assert!(report.total_email_files > 0);
     }
@@ -10344,7 +5536,7 @@ ThreadPool.QueueUserWorkItem(Sub(state)
     ProcessBatch()
 End Sub)
 "#;
-        let report = detect_background_job_patterns(&[("Worker.vb", code)], None);
+        let report = analyzers::background_jobs::detect_background_job_patterns(&[("Worker.vb", code)], None);
         assert!(report.has_background_jobs);
         assert!(report.uses_thread_pool);
     }
@@ -10369,7 +5561,7 @@ End Sub)
             assembly_references: vec!["System.Web".into(), "System.Data".into()],
             project_dependencies: vec![],
         }];
-        let inv = build_dependency_inventory(&refs);
+        let inv = analyzers::dependencies::build_dependency_inventory(&refs);
         assert!(inv.target_frameworks.contains(&"v4.7.2".to_string()));
         assert_eq!(inv.total_packages, 2);
         // Newtonsoft.Json should have a replacement
@@ -10386,7 +5578,7 @@ End Sub)
 Dim tenantId As String = CStr(Session("TenantId"))
 Dim conn As String = GetConnectionForTenant(tenantId)
 "#;
-        let report = detect_multi_tenancy(None, &[("Data.vb", code)], None);
+        let report = analyzers::multi_tenancy::detect_multi_tenancy(None, &[("Data.vb", code)], None);
         assert!(!report.detection_evidence.is_empty());
     }
 
@@ -10400,7 +5592,7 @@ Dim conn As String = GetConnectionForTenant(tenantId)
             markup_content: markup.into(),
             codebehind_content: None,
         }];
-        let inv = build_caching_inventory(&files, &[], &[]);
+        let inv = analyzers::caching::build_caching_inventory(&files, &[], &[]);
         assert_eq!(inv.total_cached_pages, 1);
         assert_eq!(inv.output_cache_pages.len(), 1);
         assert_eq!(inv.output_cache_pages[0].duration_seconds, Some(60));
@@ -10422,7 +5614,7 @@ Dim conn As String = GetConnectionForTenant(tenantId)
     </rewrite>
   </system.webServer>
 </configuration>"#;
-        let inv = extract_url_routing(Some(web_config), "", &[]);
+        let inv = analyzers::routing::extract_url_routing(Some(web_config), "", &[]);
         assert!(!inv.rewrite_rules.is_empty());
     }
 
@@ -10565,7 +5757,7 @@ BEGIN
     SELECT * FROM Users WHERE Active = @Active AND RoleId = @RoleId
 END
 "#;
-        let catalog = build_sp_catalog(
+        let catalog = analyzers::sp_catalog::build_sp_catalog(
             &[("stored_procs/GetUsers.sql".to_string(), sql.to_string())],
             &[],
         );
@@ -10594,7 +5786,7 @@ cmd.CommandText = "GetActiveProjects";
 cmd.Connection = conn;
 cmd.ExecuteReader();
 "#;
-        let catalog = build_sp_catalog(
+        let catalog = analyzers::sp_catalog::build_sp_catalog(
             &[("sp/GetActiveProjects.sql".to_string(), sql.to_string())],
             &[("Data/ProjectRepo.cs", cs_code)],
         );
@@ -10608,7 +5800,7 @@ cmd.ExecuteReader();
         let sql = r#"
 CREATE PROCEDURE dbo.OldUnusedProc AS SELECT 1
 "#;
-        let catalog = build_sp_catalog(&[("sp/unused.sql".to_string(), sql.to_string())], &[]);
+        let catalog = analyzers::sp_catalog::build_sp_catalog(&[("sp/unused.sql".to_string(), sql.to_string())], &[]);
         assert_eq!(catalog.uncalled_procedures.len(), 1);
         assert!(catalog.procedures[0].called_from.is_empty());
     }
@@ -10621,7 +5813,7 @@ DECLARE @sql nvarchar(max)
 SET @sql = 'SELECT * FROM Products WHERE ' + @Filter
 EXEC sp_executesql @sql
 "#;
-        let catalog = build_sp_catalog(&[("sp/dyn.sql".to_string(), sql.to_string())], &[]);
+        let catalog = analyzers::sp_catalog::build_sp_catalog(&[("sp/dyn.sql".to_string(), sql.to_string())], &[]);
         assert!(catalog.procedures[0].has_dynamic_sql);
         assert!(
             catalog.procedures[0]
@@ -10649,7 +5841,7 @@ cmd.CommandType = CommandType.StoredProcedure;
 cmd.CommandText = "usp_GetBusinessData";
 cmd.ExecuteReader();
 "#;
-        let catalog = build_sp_catalog_public(
+        let catalog = analyzers::sp_catalog::build_sp_catalog_public(
             &[("db/all.sql".to_string(), sql.to_string())],
             &[("Data/BusinessRepo.cs", cs_code)],
             /* sp_limit */ 2,
@@ -10686,7 +5878,7 @@ cmd.CommandType = CommandType.StoredProcedure;
 cmd.CommandText = "usp_business";
 cmd.ExecuteReader();
 "#;
-        let catalog = build_sp_catalog_public(
+        let catalog = analyzers::sp_catalog::build_sp_catalog_public(
             &[("db/all.sql".to_string(), sql.to_string())],
             &[("Data/App.cs", cs_code)],
             /* sp_limit */ 0,
@@ -10720,7 +5912,7 @@ public class EditPage : BasePage
             markup_content: r#"<%@ Page Inherits="EditPage" %>"#.to_string(),
             codebehind_content: None,
         };
-        let report = resolve_inheritance_chains(
+        let report = analyzers::inheritance::resolve_inheritance_chains(
             &[("BasePage.cs", base_code), ("EditPage.cs", derived_code)],
             &[markup],
         );
@@ -10753,7 +5945,7 @@ End Class
             markup_content: r#"<%@ Page Inherits="AdminPage" %>"#.to_string(),
             codebehind_content: None,
         };
-        let report = resolve_inheritance_chains(
+        let report = analyzers::inheritance::resolve_inheritance_chains(
             &[("SecureBasePage.vb", base_code), ("AdminPage.vb", derived)],
             &[markup],
         );
@@ -10796,7 +5988,7 @@ public class Page2 : AppBasePage
             markup_content: r#"<%@ Page Inherits="Page2" %>"#.to_string(),
             codebehind_content: None,
         };
-        let report = resolve_inheritance_chains(
+        let report = analyzers::inheritance::resolve_inheritance_chains(
             &[
                 ("AppBasePage.cs", base_code),
                 ("Page1.cs", child1),
@@ -10834,7 +6026,7 @@ public class CheckoutPage : StatefulBase
             markup_content: r#"<%@ Page Inherits="CheckoutPage" %>"#.to_string(),
             codebehind_content: None,
         };
-        let report = resolve_inheritance_chains(
+        let report = analyzers::inheritance::resolve_inheritance_chains(
             &[("StatefulBase.cs", base_code), ("CheckoutPage.cs", derived)],
             &[markup],
         );
@@ -10876,7 +6068,7 @@ public class Level2 : Level1
             markup_content: r#"<%@ Page Inherits="Level2" %>"#.to_string(),
             codebehind_content: None,
         };
-        let report = resolve_inheritance_chains(
+        let report = analyzers::inheritance::resolve_inheritance_chains(
             &[
                 ("Level0.cs", level0),
                 ("Level1.cs", level1),
@@ -10894,7 +6086,7 @@ public class Level2 : Level1
 
     #[test]
     fn inheritance_empty_code_produces_empty_report() {
-        let report = resolve_inheritance_chains(&[], &[]);
+        let report = analyzers::inheritance::resolve_inheritance_chains(&[], &[]);
         assert!(report.chains.is_empty());
         assert!(report.base_classes.is_empty());
         assert_eq!(report.deepest_chain_depth, 0);
@@ -10912,7 +6104,7 @@ public class Level2 : Level1
   <package id="EntityFramework" version="6.4.4" targetFramework="net48" />
   <package id="AutoMapper" version="12.0.1" targetFramework="net48" />
 </packages>"#;
-        let packages = parse_packages_config(xml);
+        let packages = analyzers::dependencies::parse_packages_config(xml);
         assert_eq!(packages.len(), 3);
         assert_eq!(packages[0].package_id, "Newtonsoft.Json");
         assert_eq!(packages[0].version, "13.0.3");
@@ -10924,7 +6116,7 @@ public class Level2 : Level1
         let xml = r#"<packages>
   <package id="xunit" version="2.4.2" targetFramework="net48" developmentDependency="true" />
 </packages>"#;
-        let packages = parse_packages_config(xml);
+        let packages = analyzers::dependencies::parse_packages_config(xml);
         assert_eq!(packages.len(), 1);
         assert!(packages[0].is_dev_dependency);
     }
@@ -10932,7 +6124,7 @@ public class Level2 : Level1
     #[test]
     fn parse_packages_config_empty() {
         let xml = r#"<packages></packages>"#;
-        let packages = parse_packages_config(xml);
+        let packages = analyzers::dependencies::parse_packages_config(xml);
         assert!(packages.is_empty());
     }
 
@@ -10941,7 +6133,7 @@ public class Level2 : Level1
         let xml = r#"<packages>
   <package id="Newtonsoft.Json" version="13.0.3" targetFramework="net48" />
 </packages>"#;
-        let packages = parse_packages_config(xml);
+        let packages = analyzers::dependencies::parse_packages_config(xml);
         assert_eq!(packages.len(), 1);
         // Newtonsoft.Json should have System.Text.Json as modern replacement
         // (depends on lookup_modern_replacement impl)
@@ -10964,7 +6156,7 @@ public class Level2 : Level1
     </assemblyBinding>
   </runtime>
 </configuration>"#;
-        let redirects = extract_binding_redirects(Some(config));
+        let redirects = analyzers::dependencies::extract_binding_redirects(Some(config));
         assert_eq!(redirects.len(), 2);
         assert_eq!(redirects[0].assembly_name, "Newtonsoft.Json");
         assert_eq!(redirects[0].old_version_range, "0.0.0.0-13.0.0.0");
@@ -10977,14 +6169,14 @@ public class Level2 : Level1
 
     #[test]
     fn binding_redirects_none_config() {
-        let redirects = extract_binding_redirects(None);
+        let redirects = analyzers::dependencies::extract_binding_redirects(None);
         assert!(redirects.is_empty());
     }
 
     #[test]
     fn binding_redirects_no_redirects() {
         let config = r#"<configuration><runtime></runtime></configuration>"#;
-        let redirects = extract_binding_redirects(Some(config));
+        let redirects = analyzers::dependencies::extract_binding_redirects(Some(config));
         assert!(redirects.is_empty());
     }
 
@@ -11116,7 +6308,7 @@ End Function
     #[test]
     fn make_body_preview_short_method() {
         let body = "protected void Page_Load(object sender, EventArgs e)\n{\n    var x = 1;\n}";
-        let preview = make_body_preview(body, 4);
+        let preview = analyzers::methods::make_body_preview(body, 4);
         // Short method (≤30 lines) should be returned in full
         assert!(preview.contains("var x = 1"));
         assert!(!preview.contains("more lines"));
@@ -11133,13 +6325,13 @@ End Function
         lines.push("    }".to_string());
         let body = lines.join("\n");
         let line_count = body.lines().count() as u32;
-        let preview = make_body_preview(&body, line_count);
+        let preview = analyzers::methods::make_body_preview(&body, line_count);
         assert!(preview.contains("more lines"));
     }
 
     #[test]
     fn complexity_score_empty() {
-        let score = compute_complexity_score("");
+        let score = analyzers::methods::compute_complexity_score("");
         assert_eq!(score, 0);
     }
 
@@ -11151,7 +6343,7 @@ else if (other) { }
 for (int i = 0; i < 10; i++) { }
 while (running) { }
 "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // 2 if-related + 1 for + 1 while = 4+
         assert!(score >= 4, "Expected >= 4, got {score}");
     }
@@ -11165,7 +6357,7 @@ try {
     LogError(ex);
 }
 "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // try = 2pts, catch = 2pts = 4+
         assert!(score >= 4, "Expected >= 4 for try/catch, got {score}");
     }
@@ -11177,7 +6369,7 @@ var sql = "SELECT * FROM Users WHERE Active = 1";
 cmd.CommandText = sql;
 var adapter = new SqlDataAdapter(cmd);
 "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // "SELECT " = 3, CommandText = 3, SqlDataAdapter = 3 = 9+
         assert!(score >= 9, "Expected >= 9 for SQL, got {score}");
     }
@@ -11188,7 +6380,7 @@ var adapter = new SqlDataAdapter(cmd);
 Session["user"] = GetUser();
 var cart = Session["cart"];
 "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // 2 session accesses
         assert!(score >= 2, "Expected >= 2 for session, got {score}");
     }
@@ -11344,7 +6536,7 @@ var cart = Session["cart"];
   </appSettings>
 </configuration>"#;
         let report =
-            parse_config_transforms(&[("web.Release.config".to_string(), transform.to_string())]);
+            analyzers::config_transforms::parse_config_transforms(&[("web.Release.config".to_string(), transform.to_string())]);
         assert_eq!(report.environments.len(), 1);
         assert_eq!(report.environments[0].name, "Release");
         assert!(report.total_transforms > 0);
@@ -11364,7 +6556,7 @@ var cart = Session["cart"];
     <compilation debug="false" xdt:Transform="SetAttributes" />
   </system.web>
 </configuration>"#;
-        let report = parse_config_transforms(&[
+        let report = analyzers::config_transforms::parse_config_transforms(&[
             ("web.Debug.config".to_string(), debug_t.to_string()),
             ("web.Release.config".to_string(), release_t.to_string()),
         ]);
@@ -11374,7 +6566,7 @@ var cart = Session["cart"];
 
     #[test]
     fn config_transforms_empty() {
-        let report = parse_config_transforms(&[]);
+        let report = analyzers::config_transforms::parse_config_transforms(&[]);
         assert_eq!(report.environments.len(), 0);
         assert_eq!(report.total_transforms, 0);
     }
@@ -11387,7 +6579,7 @@ var cart = Session["cart"];
   </connectionStrings>
 </configuration>"#;
         let report =
-            parse_config_transforms(&[("web.Staging.config".to_string(), staging.to_string())]);
+            analyzers::config_transforms::parse_config_transforms(&[("web.Staging.config".to_string(), staging.to_string())]);
         assert_eq!(report.environments[0].name, "Staging");
     }
 
@@ -11417,7 +6609,7 @@ var cart = Session["cart"];
                 .to_string(),
             codebehind_content: None,
         };
-        let map = build_master_page_region_map(
+        let map = analyzers::master_pages::build_master_page_region_map(
             &[("Site.master".to_string(), master_content.to_string())],
             &[page],
         );
@@ -11456,7 +6648,7 @@ var cart = Session["cart"];
                 .to_string(),
             codebehind_content: None,
         };
-        let map = build_master_page_region_map(
+        let map = analyzers::master_pages::build_master_page_region_map(
             &[(
                 "Main.master".to_string(),
                 r#"<asp:ContentPlaceHolder ID="Body" runat="server" />"#.to_string(),
@@ -11469,7 +6661,7 @@ var cart = Session["cart"];
 
     #[test]
     fn master_page_region_map_empty() {
-        let map = build_master_page_region_map(&[], &[]);
+        let map = analyzers::master_pages::build_master_page_region_map(&[], &[]);
         assert!(map.master_pages.is_empty());
         assert!(map.regions.is_empty());
     }
@@ -11480,7 +6672,7 @@ var cart = Session["cart"];
 <asp:Content ContentPlaceHolderID="Body" runat="server">
   <asp:ContentPlaceHolder ID="ChildBody" runat="server" />
 </asp:Content>"#;
-        let map = build_master_page_region_map(
+        let map = analyzers::master_pages::build_master_page_region_map(
             &[("Child.master".to_string(), master_content.to_string())],
             &[],
         );
@@ -11509,7 +6701,7 @@ var cart = Session["cart"];
     <value>Click Me</value>
   </data>
 </root>"#;
-        let inv = build_resource_inventory(&[(
+        let inv = analyzers::resources::build_resource_inventory(&[(
             "App_GlobalResources/Strings.resx".to_string(),
             resx.to_string(),
         )]);
@@ -11523,7 +6715,7 @@ var cart = Session["cart"];
         let resx_en = r#"<root><data name="Hello"><value>Hello</value></data></root>"#;
         let resx_fr = r#"<root><data name="Hello"><value>Bonjour</value></data></root>"#;
         let resx_de = r#"<root><data name="Hello"><value>Hallo</value></data></root>"#;
-        let inv = build_resource_inventory(&[
+        let inv = analyzers::resources::build_resource_inventory(&[
             (
                 "App_GlobalResources/Strings.resx".to_string(),
                 resx_en.to_string(),
@@ -11544,7 +6736,7 @@ var cart = Session["cart"];
     #[test]
     fn resource_inventory_local_resources() {
         let resx = r#"<root><data name="Label1.Text"><value>Submit</value></data></root>"#;
-        let inv = build_resource_inventory(&[(
+        let inv = analyzers::resources::build_resource_inventory(&[(
             "App_LocalResources/Default.aspx.resx".to_string(),
             resx.to_string(),
         )]);
@@ -11554,7 +6746,7 @@ var cart = Session["cart"];
 
     #[test]
     fn resource_inventory_empty() {
-        let inv = build_resource_inventory(&[]);
+        let inv = analyzers::resources::build_resource_inventory(&[]);
         assert_eq!(inv.resource_files.len(), 0);
         assert_eq!(inv.total_keys, 0);
         assert!(!inv.has_global_resources);
@@ -11564,7 +6756,7 @@ var cart = Session["cart"];
     #[test]
     fn resource_inventory_embedded_resources() {
         let resx = r#"<root><data name="Icon" type="System.Resources.ResXFileRef, System.Windows.Forms"><value>icon.bmp;System.Drawing.Bitmap</value></data></root>"#;
-        let inv = build_resource_inventory(&[(
+        let inv = analyzers::resources::build_resource_inventory(&[(
             "Properties/Resources.resx".to_string(),
             resx.to_string(),
         )]);
@@ -11660,7 +6852,7 @@ End Class
   <package version="5.2.7" id="Newtonsoft.Json" targetFramework="net461" />
   <package targetFramework="net461" developmentDependency="true" id="NUnit" version="3.13.3" />
 </packages>"#;
-        let pkgs = parse_packages_config(xml);
+        let pkgs = analyzers::dependencies::parse_packages_config(xml);
         assert_eq!(pkgs.len(), 2);
         assert_eq!(pkgs[0].package_id, "Newtonsoft.Json");
         assert_eq!(pkgs[0].version, "5.2.7");
@@ -11685,7 +6877,7 @@ End Class
     </assemblyBinding>
   </runtime>
 </configuration>"#;
-        let redirects = extract_binding_redirects(Some(config));
+        let redirects = analyzers::dependencies::extract_binding_redirects(Some(config));
         assert_eq!(redirects.len(), 1);
         assert_eq!(redirects[0].assembly_name, "Newtonsoft.Json");
         assert_eq!(redirects[0].old_version_range, "0.0.0.0-13.0.0.0");
@@ -11727,7 +6919,7 @@ public class BasePage : System.Web.UI.Page {
         };
         let code_files: Vec<(&str, &str)> =
             vec![("PageA.aspx.cs", code), ("BasePage.cs", base_code)];
-        let report = resolve_inheritance_chains(&code_files, &[markup_a, markup_b]);
+        let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &[markup_a, markup_b]);
 
         // Check that PageA's chain exists and has scoped methods
         let chain_a = report.chains.iter().find(|c| c.page_file == "PageA.aspx");
@@ -11751,7 +6943,7 @@ public class BasePage : System.Web.UI.Page {
 
     #[test]
     fn config_transform_xpath_handlers_modules() {
-        let transforms = parse_config_transforms(&[(
+        let transforms = analyzers::config_transforms::parse_config_transforms(&[(
             "web.Release.config".to_string(),
             r#"<configuration>
   <system.webServer>
@@ -11804,7 +6996,7 @@ public class BasePage : System.Web.UI.Page {
                 }
             }
         "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // Should be significantly > 0:
         // 2 ifs = 2, 1 foreach = 1, 1 try = 2, 1 catch = 2, 1 while = 1,
         // 1 SELECT = 3, 1 SqlCommand = 3, 1 Session = 1 = total ~15
@@ -11882,7 +7074,7 @@ public class BasePage : System.Web.UI.Page {
                 DoC();
             }
         "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // 1 if + 2 else if = 3, not 5
         assert_eq!(
             score, 3,
@@ -11903,7 +7095,7 @@ public class BasePage : System.Web.UI.Page {
                     DoNothing()
             End Select
         "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // 1 select case + 2 case + 1 for each = 4, not 7
         assert_eq!(score, 4, "VB patterns should not double-count, got {score}");
     }
@@ -11946,7 +7138,7 @@ End Class
             codebehind_content: None,
         }];
 
-        let report = resolve_inheritance_chains(&code_files, &markup);
+        let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &markup);
 
         // Verify the _Default class merged methods from both files
         // The chain should include _Default → BasePage
@@ -11981,7 +7173,7 @@ Public Class MyPage
 End Class
 "#;
         // Page_Load should NOT have SQL_Access effect
-        let page_load_effects = extract_effects_from_nearby_content(content, "Page_Load");
+        let page_load_effects = analyzers::methods::extract_effects_from_nearby_content(content, "Page_Load");
         assert!(
             !page_load_effects.iter().any(|e| e.contains("SQL")),
             "Page_Load should NOT have SQL_Access (SQL is in btnQuery_Click), got: {:?}",
@@ -11989,7 +7181,7 @@ End Class
         );
 
         // btnQuery_Click SHOULD have SQL_Access
-        let btn_effects = extract_effects_from_nearby_content(content, "btnQuery_Click");
+        let btn_effects = analyzers::methods::extract_effects_from_nearby_content(content, "btnQuery_Click");
         assert!(
             btn_effects.iter().any(|e| e.contains("SQL")),
             "btnQuery_Click SHOULD have SQL_Access, got: {:?}",
@@ -12076,7 +7268,7 @@ End Class
                 count += 1
             loop
         "#;
-        let score = compute_complexity_score(body);
+        let score = analyzers::methods::compute_complexity_score(body);
         // 1 do while = 1, not 2 (do while + while)
         assert_eq!(score, 1, "do while should count as 1, not 2, got {score}");
     }
@@ -12118,7 +7310,7 @@ public class _Default : BasePage {
             markup_content: r#"<%@ Page Inherits="_Default" %>"#.into(),
             codebehind_content: None,
         }];
-        let report = resolve_inheritance_chains(&code_files, &markup);
+        let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &markup);
         assert!(
             !report.inherited_effects.is_empty(),
             "should have inherited effects"
@@ -12191,7 +7383,7 @@ public class _Default : SectionPage {
             markup_content: r#"<%@ Page Inherits="_Default" %>"#.into(),
             codebehind_content: None,
         }];
-        let report = resolve_inheritance_chains(&code_files, &markup);
+        let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &markup);
         // _Default inherits from SectionPage which inherits from BasePage
         // Should get effects from both ancestors
         let from_basepage: Vec<&InheritedEffect> = report
@@ -12280,7 +7472,7 @@ public class MapData : WebService {
         )];
 
         let traces =
-            build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_files);
+            analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_files);
 
         assert!(!traces.chains.is_empty(), "should have at least one chain");
         assert!(
@@ -12329,7 +7521,7 @@ public class MapData : WebService {
             total_endpoints: 0,
         };
 
-        let traces = build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &[]);
+        let traces = analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &[]);
 
         assert!(
             traces.chains.is_empty(),
@@ -12343,11 +7535,11 @@ public class MapData : WebService {
 
     #[test]
     fn cross_layer_url_parts_extraction() {
-        let parts = extract_url_parts("Services/MapData.asmx/GetPolygons?bounds=1,2,3,4");
+        let parts = analyzers::cross_layer::extract_url_parts("Services/MapData.asmx/GetPolygons?bounds=1,2,3,4");
         assert_eq!(parts.file_part, "MapData.asmx");
         assert_eq!(parts.method_part.as_deref(), Some("GetPolygons"));
 
-        let parts2 = extract_url_parts("api/search");
+        let parts2 = analyzers::cross_layer::extract_url_parts("api/search");
         assert!(parts2.method_part.is_none() || parts2.file_part == "search");
     }
 
@@ -12604,7 +7796,7 @@ public class MapData : WebService {
     fn global_asax_not_found_is_not_an_error() {
         // Simulate the path where Global.asax is absent: bundle.global_asax is
         // None, so we call extract_global_asax_info with empty strings.
-        let summary = extract_global_asax_info("", "");
+        let summary = analyzers::global_asax::extract_global_asax_info("", "");
         assert!(
             !summary.has_global_asax,
             "Missing Global.asax must not be reported as present"
