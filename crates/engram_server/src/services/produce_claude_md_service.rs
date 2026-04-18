@@ -919,6 +919,232 @@ fn extract_bullet(line: &str) -> Option<String> {
     None
 }
 
+/// Marker pair used by `splice_engram_section`. Everything between
+/// these two lines in a CLAUDE.md is considered engram-owned and is
+/// safe to replace on a rerun. Content outside the markers is
+/// hand-authored and MUST be preserved verbatim.
+pub const ENGRAM_BEGIN_MARKER: &str = "<!-- engram:begin -->";
+pub const ENGRAM_END_MARKER: &str = "<!-- engram:end -->";
+
+/// Splice an engram-generated block into an existing CLAUDE.md,
+/// preserving every byte outside the engram-owned region.
+///
+/// Semantics:
+/// - If `existing` already contains both markers, replace the span
+///   between them (inclusive) with the new engram block.
+/// - If `existing` does NOT contain the markers, append the new
+///   engram block to the end of `existing` under a clear heading.
+///   Hand-authored content above stays exactly where it is.
+/// - `engram_block` is the full rendered engram output — the
+///   splicer wraps it in `<!-- engram:begin --> ... <!-- engram:end -->`
+///   so the next rerun can find it precisely.
+///
+/// This is what `write_to_disk: true` with an existing CLAUDE.md
+/// should have been doing from day one. Fixes the bug where a
+/// hand-authored CLAUDE.md got replaced by the ~60-line engram
+/// output.
+pub fn splice_engram_section(existing: &str, engram_block: &str) -> String {
+    let block_body = engram_block.trim_end_matches('\n');
+    let wrapped = format!(
+        "{ENGRAM_BEGIN_MARKER}\n\
+         _This section is managed by engram. Edits between the markers \
+         are overwritten on the next `produce_claude_md` run._\n\n\
+         {block_body}\n\n\
+         {ENGRAM_END_MARKER}"
+    );
+
+    // Case 1: both markers present → replace the span.
+    if let (Some(b), Some(e)) = (
+        existing.find(ENGRAM_BEGIN_MARKER),
+        existing.find(ENGRAM_END_MARKER),
+    ) {
+        if b < e {
+            let mut out = String::with_capacity(existing.len() + wrapped.len());
+            out.push_str(&existing[..b]);
+            out.push_str(&wrapped);
+            let end_after = e + ENGRAM_END_MARKER.len();
+            out.push_str(&existing[end_after..]);
+            return out;
+        }
+    }
+
+    // Case 2: no markers → append at the end under a clear heading.
+    // Hand-authored content above is untouched; the section heading
+    // signals that everything below is engram-owned.
+    let mut out = String::with_capacity(existing.len() + wrapped.len() + 64);
+    out.push_str(existing.trim_end());
+    out.push_str("\n\n---\n\n");
+    out.push_str("## Engram-generated guidance\n\n");
+    out.push_str(&wrapped);
+    out.push('\n');
+    out
+}
+
+/// Result of an optimize-rewrite operation. The report is surfaced
+/// alongside the rewritten markdown so the caller sees exactly which
+/// sections engram took ownership of vs which human content survived.
+#[derive(Debug, Clone, Default)]
+pub struct OptimizeReport {
+    /// Section headings engram replaced (owned-by-engram categories).
+    pub replaced_sections: Vec<String>,
+    /// Section headings preserved verbatim from the existing file
+    /// (domain context, architecture notes, onboarding, etc.).
+    pub preserved_sections: Vec<String>,
+    /// Approximate line-count of the existing file before rewrite.
+    pub original_line_count: usize,
+    /// Line count of the rewritten result.
+    pub rewritten_line_count: usize,
+}
+
+/// Section-level rewrite: replace engram-owned sections in the
+/// existing CLAUDE.md with fresh engram output; preserve
+/// human-authored sections (architecture notes, onboarding, domain
+/// context) exactly. Returns the merged markdown + a report.
+///
+/// Ownership rule: a heading is considered **engram-owned** when its
+/// normalised text matches one of the engram-generated section
+/// names. These sections mechanically describe the codebase —
+/// engram's version is evidence-backed and current, so replacing
+/// human-authored copies is correct.
+///
+/// Everything else — numbered manuals, "never do X because Y"
+/// rationales, onboarding steps, custom section names — is
+/// preserved verbatim because it represents insight engram cannot
+/// produce from the graph.
+pub fn optimize_rewrite(
+    existing: &str,
+    engram_block: &str,
+) -> (String, OptimizeReport) {
+    let original_line_count = existing.lines().count();
+    let sections = split_into_sections(existing);
+
+    let mut preserved_body = String::with_capacity(existing.len());
+    let mut report = OptimizeReport {
+        original_line_count,
+        ..Default::default()
+    };
+    for s in sections {
+        if is_engram_owned_heading(&s.heading) {
+            report.replaced_sections.push(s.heading.clone());
+            continue;
+        }
+        if !preserved_body.is_empty() && !preserved_body.ends_with("\n\n") {
+            preserved_body.push('\n');
+        }
+        preserved_body.push_str(&s.raw);
+        if !report.preserved_sections.contains(&s.heading) {
+            report.preserved_sections.push(s.heading.clone());
+        }
+    }
+
+    // Compose: engram block at the TOP (highest priority attention
+    // budget), followed by preserved human content. A human reader
+    // of CLAUDE.md sees the fresh engram-generated guidance first,
+    // then the domain-specific context below.
+    let mut out = String::with_capacity(engram_block.len() + preserved_body.len() + 128);
+    out.push_str(ENGRAM_BEGIN_MARKER);
+    out.push('\n');
+    out.push_str(
+        "_This section is managed by engram. Edits between the markers are overwritten on \
+         the next `produce_claude_md` run._\n\n",
+    );
+    out.push_str(engram_block.trim_end_matches('\n'));
+    out.push_str("\n\n");
+    out.push_str(ENGRAM_END_MARKER);
+    out.push_str("\n\n");
+    if !preserved_body.trim().is_empty() {
+        out.push_str("---\n\n");
+        out.push_str("## Project-specific guidance (preserved)\n\n");
+        out.push_str(preserved_body.trim());
+        out.push('\n');
+    }
+
+    report.rewritten_line_count = out.lines().count();
+    (out, report)
+}
+
+/// Small helper: one section of a markdown document — the heading
+/// line plus everything until the next heading of equal or higher
+/// level.
+struct Section {
+    heading: String,
+    raw: String,
+}
+
+fn split_into_sections(md: &str) -> Vec<Section> {
+    // Walk lines; open a new section on every `#`-prefixed line.
+    // Content before the first heading goes into a synthetic
+    // "(preamble)" section so it isn't lost.
+    let mut out: Vec<Section> = Vec::new();
+    let mut current = Section {
+        heading: "(preamble)".into(),
+        raw: String::new(),
+    };
+    for line in md.lines() {
+        if line.starts_with('#') {
+            if !current.raw.trim().is_empty() || current.heading != "(preamble)" {
+                out.push(current);
+            }
+            // Heading line becomes part of the new section's raw.
+            let heading = line.trim_start_matches('#').trim().to_string();
+            current = Section {
+                heading,
+                raw: String::new(),
+            };
+            current.raw.push_str(line);
+            current.raw.push('\n');
+        } else {
+            current.raw.push_str(line);
+            current.raw.push('\n');
+        }
+    }
+    if !current.raw.trim().is_empty() || !out.is_empty() {
+        out.push(current);
+    }
+    out
+}
+
+/// Return true when a section heading describes content engram
+/// generates deterministically from the graph. Normalised match so
+/// "Critical Rules", "CRITICAL RULES", "Critical rules (from graph)"
+/// all collapse to the same slot.
+fn is_engram_owned_heading(heading: &str) -> bool {
+    let h = heading.trim().to_ascii_lowercase();
+    // Leading bracket tags like "[engram] …" also count.
+    let core = h
+        .trim_start_matches('[')
+        .splitn(2, ']')
+        .last()
+        .unwrap_or(&h)
+        .trim()
+        .to_string();
+    const OWNED: &[&str] = &[
+        "critical rules",
+        "critical_rules",
+        "danger zones",
+        "danger_zones",
+        "blast radius",
+        "conventions",
+        "per-language conventions",
+        "language conventions",
+        "temporal couplings",
+        "co-change pairs",
+        "state summary",
+        "database summary",
+        "engram",
+        "engram tools",
+        "engram-generated guidance",
+        "role",
+        "build",
+        "coderabbit patterns",
+    ];
+    OWNED.iter().any(|name| {
+        core == *name
+            || core.starts_with(&format!("{name} "))
+            || core.starts_with(&format!("{name}:"))
+    })
+}
+
 /// Merge engram-derived rules with rules extracted from an existing
 /// CLAUDE.md. Human rules take priority on conflict — if the human
 /// wrote a rule whose text is a prefix of an engram-derived rule (or
@@ -1172,6 +1398,148 @@ mod tests {
         assert!(md.contains("<instructions>"));
         assert!(md.contains("Methods: PascalCase"));
         assert!(md.contains("sharedfunc.vb"));
+    }
+
+    #[test]
+    fn splice_with_markers_replaces_only_that_span() {
+        let existing = "\
+# Project manual
+
+Handwritten guidance the agent needs.
+
+<!-- engram:begin -->
+OLD engram block
+<!-- engram:end -->
+
+## Section after engram
+
+Another handwritten section.
+";
+        let new_block = "NEW engram block";
+        let out = splice_engram_section(existing, new_block);
+        assert!(out.contains("Handwritten guidance"));
+        assert!(out.contains("Another handwritten section."));
+        assert!(out.contains("NEW engram block"));
+        assert!(
+            !out.contains("OLD engram block"),
+            "old engram content must have been replaced; got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn splice_without_markers_appends_without_touching_existing() {
+        let existing = "# Project manual\n\n## Rules\n\n1. Never do X.\n2. Always Y.\n";
+        let new_block = "Engram-generated block";
+        let out = splice_engram_section(existing, new_block);
+        assert!(
+            out.starts_with("# Project manual"),
+            "existing content must remain at top"
+        );
+        assert!(out.contains("1. Never do X."));
+        assert!(out.contains("Engram-generated block"));
+        assert!(out.contains(ENGRAM_BEGIN_MARKER));
+        assert!(out.contains(ENGRAM_END_MARKER));
+    }
+
+    #[test]
+    fn splice_is_idempotent_across_runs() {
+        let existing = "# Manual\n\nUser rule 1.\n";
+        let block1 = "Run 1 engram content";
+        let block2 = "Run 2 engram content";
+        let after_run1 = splice_engram_section(existing, block1);
+        let after_run2 = splice_engram_section(&after_run1, block2);
+        assert!(after_run2.contains("User rule 1."));
+        assert!(after_run2.contains("Run 2 engram content"));
+        assert!(
+            !after_run2.contains("Run 1 engram content"),
+            "run 2 must replace the run 1 engram block; got:\n{after_run2}"
+        );
+        // Only ONE marker pair should remain after rerun.
+        assert_eq!(
+            after_run2.matches(ENGRAM_BEGIN_MARKER).count(),
+            1,
+            "exactly one engram block expected"
+        );
+        assert_eq!(after_run2.matches(ENGRAM_END_MARKER).count(), 1);
+    }
+
+    #[test]
+    fn optimize_rewrite_replaces_engram_owned_sections() {
+        let existing = "\
+# My Project
+
+## Critical rules
+
+- stale rule the human copied from an old engram run
+
+## Architecture decisions
+
+Service boundaries at X because of Y domain reason.
+
+## Danger zones
+
+- stale human-written list
+
+## Onboarding
+
+Read docs/internal.md first.
+";
+        let engram_block = "## Critical rules\n\n- fresh engram rule\n\n## Danger zones\n\n- fresh zone\n";
+        let (out, report) = optimize_rewrite(existing, engram_block);
+
+        assert!(
+            out.contains("Service boundaries at X"),
+            "architecture section must survive (human-only insight); got:\n{out}"
+        );
+        assert!(
+            out.contains("Read docs/internal.md first."),
+            "onboarding section must survive"
+        );
+        assert!(
+            out.contains("fresh engram rule"),
+            "engram block must be present"
+        );
+        assert!(
+            !out.contains("stale rule the human copied"),
+            "engram-owned section must be replaced, not merged; got:\n{out}"
+        );
+
+        let replaced_joined = report.replaced_sections.join(" ").to_ascii_lowercase();
+        assert!(replaced_joined.contains("critical rules"));
+        assert!(replaced_joined.contains("danger zones"));
+        let preserved_joined = report.preserved_sections.join(" ");
+        assert!(preserved_joined.contains("Architecture decisions"));
+        assert!(preserved_joined.contains("Onboarding"));
+    }
+
+    #[test]
+    fn optimize_rewrite_preserves_numbered_behavioral_manual() {
+        // Regression for the real-world bug: a 500-line hand-authored
+        // manual with sections like `## 1. Data layer rules` must
+        // survive. These aren't on the engram-owned list so every
+        // numbered section is preserved verbatim.
+        let mut existing = String::from("# OciusX\n\n");
+        for i in 1..=5 {
+            existing.push_str(&format!(
+                "## {i}. Section {i}\n\nDomain rule {i}.\n\n"
+            ));
+        }
+        let engram = "## Critical rules\n\n- engram rule\n";
+        let (out, report) = optimize_rewrite(&existing, engram);
+        for i in 1..=5 {
+            let expected = format!("## {i}. Section {i}");
+            assert!(
+                out.contains(&expected),
+                "numbered human section `{expected}` must survive; got:\n{out}"
+            );
+            assert!(out.contains(&format!("Domain rule {i}.")));
+        }
+        assert!(out.contains("engram rule"));
+        assert!(
+            report.preserved_sections.len() >= 5,
+            "5 numbered sections expected; got {:?}",
+            report.preserved_sections
+        );
     }
 
     #[test]
