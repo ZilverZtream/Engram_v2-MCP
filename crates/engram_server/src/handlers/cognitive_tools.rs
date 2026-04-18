@@ -3978,12 +3978,36 @@ fn build_role_description(
     if languages.is_empty() {
         return "Indexed project.".into();
     }
+    // Filter out data / markup formats before picking the top-3 —
+    // "VB.NET + JavaScript + json" reads like an inventory bug.
+    // JSON / XML / YAML / MD aren't programming languages; they're
+    // file formats. Same for config / lockfiles.
+    const NON_PROGRAMMING: &[&str] = &[
+        "json", "xml", "yaml", "yml", "toml", "ini", "markdown", "md", "txt", "csv",
+        "lock", "config", "properties",
+    ];
+    let is_programming = |lang: &str| -> bool {
+        let lower = lang.to_ascii_lowercase();
+        !NON_PROGRAMMING.iter().any(|n| *n == lower)
+    };
     let names: Vec<&str> = languages
         .iter()
+        .filter(|l| is_programming(&l.language))
         .take(3)
         .map(|l| language_display(&l.language))
         .collect();
-    let lang_phrase = names.join(" + ");
+    let lang_phrase = if names.is_empty() {
+        // All detected languages were data formats — fall back to the
+        // raw top-3 so we still say *something*.
+        languages
+            .iter()
+            .take(3)
+            .map(|l| language_display(&l.language))
+            .collect::<Vec<_>>()
+            .join(" + ")
+    } else {
+        names.join(" + ")
+    };
 
     // Framework / data-layer / architecture hints — driven by the
     // graph's node-type inventory. What we're trying to tell the

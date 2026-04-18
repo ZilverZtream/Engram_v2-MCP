@@ -57,6 +57,11 @@ pub struct CurationCandidate {
     pub text: String,
     pub evidence: String,
     pub source: String,
+    /// Non-serialised: carried through so the parser can re-attach the
+    /// original confidence tier to the LLM-curated output without the
+    /// model having to reason about it.
+    #[serde(skip)]
+    pub confidence: super::RuleConfidence,
 }
 
 /// Parsed LLM response. Robust to slightly-malformed JSON — the
@@ -235,10 +240,21 @@ fn parse_response(raw: &str, candidates: &[CurationCandidate]) -> Option<Vec<Cri
                 orig_id = r.id
             )
         });
+        // The LLM gets the deterministic candidate list as input and
+        // only rewrites what made it through the render threshold, so
+        // its output carries the same empirical weight as the source
+        // candidate. Preserve the source's confidence tier — immune
+        // stays Hard, well-supported CodeRabbit meta-clusters stay
+        // Hard/Strong, sparse ones stay Observed.
+        let confidence = by_id
+            .get(r.id.as_str())
+            .map(|c| c.confidence)
+            .unwrap_or(super::RuleConfidence::Strong);
         out.push(CriticalRule {
             text: trim_to_120(&r.text),
             evidence: evidence.or_else(|| Some(format!("(LLM-curated from {})", r.id))),
             source,
+            confidence,
         });
     }
     if out.is_empty() { None } else { Some(out) }
@@ -298,6 +314,7 @@ pub fn prepare_candidates(rules: &[CriticalRule]) -> Vec<CurationCandidate> {
                 text: r.text.clone(),
                 evidence: r.evidence.clone().unwrap_or_default(),
                 source: source_to_str(&r.source).to_string(),
+                confidence: r.confidence,
             }
         })
         .collect()
@@ -395,11 +412,13 @@ mod tests {
                 text: "Do X".into(),
                 evidence: Some("(cr_abc12345)".into()),
                 source: RuleSource::CodeRabbit,
+                confidence: Default::default(),
             },
             CriticalRule {
                 text: "Do Y".into(),
                 evidence: None,
                 source: RuleSource::Existing,
+                confidence: Default::default(),
             },
         ];
         let c = prepare_candidates(&rules);
@@ -419,12 +438,14 @@ mod tests {
                 text: "Null-guard rule".into(),
                 evidence: "".into(),
                 source: "coderabbit".into(),
+                confidence: crate::services::produce_claude_md_service::RuleConfidence::Observed,
             },
             CurationCandidate {
                 id: "cr_perm1".into(),
                 text: "Permission rule".into(),
                 evidence: "".into(),
                 source: "coderabbit".into(),
+                confidence: crate::services::produce_claude_md_service::RuleConfidence::Observed,
             },
         ];
         let parsed = parse_response(raw, &candidates).expect("must parse");
@@ -442,6 +463,7 @@ mod tests {
             text: "t".into(),
             evidence: "".into(),
             source: "coderabbit".into(),
+            confidence: crate::services::produce_claude_md_service::RuleConfidence::Observed,
         }];
         let parsed = parse_response(raw, &candidates).expect("must parse");
         assert_eq!(parsed.len(), 1);
@@ -462,12 +484,14 @@ mod tests {
                 text: "t".into(),
                 evidence: "".into(),
                 source: "coderabbit".into(),
+                confidence: crate::services::produce_claude_md_service::RuleConfidence::Observed,
             },
             CurationCandidate {
                 id: "b".into(),
                 text: "t".into(),
                 evidence: "".into(),
                 source: "coderabbit".into(),
+                confidence: crate::services::produce_claude_md_service::RuleConfidence::Observed,
             },
         ];
         let parsed = parse_response(raw, &candidates).expect("must parse");
