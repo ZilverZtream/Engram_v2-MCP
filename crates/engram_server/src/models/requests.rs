@@ -2402,6 +2402,23 @@ pub struct ProduceClaudeMdRequest {
     ///   new file contains only engram output.
     #[serde(default = "default_merge_mode")]
     pub merge_mode: String,
+    /// Opt into an LLM curation pass on the critical-rules section.
+    /// When true, the deterministic rules pipeline (noise filter +
+    /// keyword meta-clustering + render thresholds) runs first as
+    /// normal, then its ~8 candidates are handed to the configured
+    /// LLM backend with project context. The LLM drops edge-case
+    /// noise the keyword filter missed, merges near-duplicates the
+    /// clusterer split, and rewrites each surviving rule in
+    /// project-idiomatic voice using vocabulary from the evidence
+    /// (class names, framework helpers, etc).
+    ///
+    /// Results are cached in the registry keyed by
+    /// `blake3(candidates + project_context)` — reruns against the
+    /// same inputs spend zero tokens. On any LLM failure (no
+    /// backend, timeout, parse error) the deterministic baseline
+    /// is used untouched. Default: false.
+    #[serde(default)]
+    pub use_llm: bool,
 }
 
 fn default_merge_mode() -> String {

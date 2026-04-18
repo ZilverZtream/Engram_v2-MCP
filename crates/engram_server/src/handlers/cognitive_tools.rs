@@ -2697,7 +2697,14 @@ impl Engram {
         languages.sort_by(|a, b| b.file_count.cmp(&a.file_count));
 
         // ── 2. Role description (auto from languages + framework hint) ──
-        let role = build_role_description(&languages, &graph, &pid);
+        // Role: graph-derived shape + multitenant / framework
+        // quirks, prepended by the README blurb when present. The
+        // README blurb almost always beats whatever we synthesise
+        // because it's the project maintainer's own description.
+        let mut role = build_role_description(&languages, &graph, &pid);
+        if let Some(blurb) = read_readme_blurb(&rec.directory) {
+            role = format!("{blurb} — {role}");
+        }
 
         // ── 3. Repo rules (immune + anti-pattern) → critical rules ────
         let registry = self.state.registry.clone();
@@ -2731,7 +2738,11 @@ impl Engram {
                 // immune rule is process-hygiene noise — those
                 // entries disappear here.
                 let text = if matches!(source, svc::RuleSource::Immune) {
-                    match pipeline::render_immune_rule_text(&r.rule_text, &r.file_pattern) {
+                    match pipeline::render_immune_rule_text(
+                        &r.rule_text,
+                        &r.rule_id,
+                        &r.file_pattern,
+                    ) {
                         Some(t) => t,
                         None => return None,
                     }
@@ -2762,12 +2773,53 @@ impl Engram {
             pipeline::RenderThreshold::default(),
         );
         let mut critical_rules: Vec<svc::CriticalRule> = pipeline_output.root_rules;
-        let pipeline_summary = pipeline_output.summary.clone();
+        let mut pipeline_summary = pipeline_output.summary.clone();
         let _overflow = pipeline_output.per_language_overflow;
         // Overflow rules are kept for a future change where
         // .claude/rules/ files pick them up; right now they're
         // simply removed from the root's attention budget, which is
         // the primary fix the user asked for.
+
+        // Optional LLM curation pass. Gated by `req.use_llm`. The
+        // deterministic pipeline is always the floor; the LLM can
+        // only ever make the output better or fall back to the
+        // deterministic result. Never a blocker.
+        if req.use_llm && !critical_rules.is_empty() {
+            use crate::services::produce_claude_md_service::llm_curation as curation;
+            let candidates = curation::prepare_candidates(&critical_rules);
+            let input = curation::CurationInput {
+                project_context: role.clone(),
+                candidates,
+                max_rules: 8,
+            };
+            let before = critical_rules.len();
+            let curated = curation::curate_with_llm(
+                self.state.dreaming.as_ref(),
+                self.state.registry.as_ref(),
+                &pid,
+                input,
+                critical_rules.clone(),
+            )
+            .await;
+            // Only accept the curated set when the LLM actually
+            // returned something different — `curate_with_llm`
+            // returns the deterministic fallback unchanged on any
+            // failure, so a same-length identical list signals
+            // "no curation happened" and we skip the summary note.
+            let curated_changed = curated.len() != before
+                || curated
+                    .iter()
+                    .zip(critical_rules.iter())
+                    .any(|(a, b)| a.text != b.text);
+            if curated_changed {
+                pipeline_summary.push_str(&format!(
+                    " → {} after LLM curation",
+                    curated.len()
+                ));
+            }
+            critical_rules = curated;
+        }
+
         critical_rules.sort_by_key(|r| match r.source {
             svc::RuleSource::Immune => 0,
             svc::RuleSource::CodeRabbit => 1,
@@ -3933,27 +3985,169 @@ fn build_role_description(
         .collect();
     let lang_phrase = names.join(" + ");
 
-    // Framework hint: peek at node_type counts.
+    // Framework / data-layer / architecture hints — driven by the
+    // graph's node-type inventory. What we're trying to tell the
+    // agent in two sentences: "this is a <kind of app>, with <data
+    // layer>, and <these architectural quirks that break generic
+    // assumptions>."
     let counts = graph.count_nodes_by_type(project_id).unwrap_or_default();
     let has_pages = counts.get("page").copied().unwrap_or(0) > 0;
     let has_controls = counts.get("control").copied().unwrap_or(0) > 0;
     let has_tables = counts.get("db_table").copied().unwrap_or(0) > 0;
+    let has_web_services = counts.get("web_service").copied().unwrap_or(0) > 0;
+    let has_http_handlers = counts.get("http_handler").copied().unwrap_or(0) > 0;
+    let has_wcf = counts.get("wcf_service").copied().unwrap_or(0) > 0;
+    let has_route_handlers = counts.get("route_handler").copied().unwrap_or(0) > 0;
 
-    let mut hint = String::new();
+    // Fragment 1: architecture shape.
+    let mut shape: Vec<String> = Vec::new();
     if has_pages && has_controls {
-        hint.push_str(" ASP.NET WebForms");
-    } else if counts.get("web_service").copied().unwrap_or(0) > 0 {
-        hint.push_str(" Web services");
+        shape.push("ASP.NET WebForms".into());
+    }
+    if has_route_handlers {
+        shape.push("Web API".into());
+    } else if has_web_services && !has_pages {
+        shape.push("Web services (ASMX)".into());
+    } else if has_web_services && has_pages {
+        // Classic WebForms + ASMX combo like OciusX.
+        shape.push("ASMX + Web API".into());
+    }
+    if has_wcf {
+        shape.push("WCF services".into());
+    }
+    if has_http_handlers {
+        shape.push("HTTP handlers".into());
+    }
+
+    // Fragment 2: multitenant detection. Pattern: nodes whose file
+    // path lives in a `multitenant/` directory, or files whose name
+    // contains `multitenant` or `tenant`. Cheap — one filename-substring
+    // query over existing file nodes. If the graph returned ≥3
+    // distinct files in a multitenant directory, it's a real feature,
+    // not a one-off.
+    let multitenant_files = graph
+        .query_nodes(project_id, Some("file"), None, None, 5000)
+        .ok()
+        .map(|nodes| {
+            nodes
+                .iter()
+                .filter(|n| {
+                    let p = n.file_path.as_str().to_ascii_lowercase();
+                    p.contains("/multitenant/") || p.contains("\\multitenant\\")
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    let multitenant_hint = multitenant_files >= 3;
+
+    // Fragment 3: custom TypeScript framework detection. Pattern:
+    // TypeScript files in a `q/` or `Q/` directory, or references to
+    // `q.ctrl.` / `q.api.` / `q.page` / `q.bind.` namespaces in code.
+    // This is OciusX-flavoured but generalises: any codebase with a
+    // dominant internal TS namespace surfaces it here.
+    let q_framework_files = graph
+        .query_nodes(project_id, Some("file"), None, None, 5000)
+        .ok()
+        .map(|nodes| {
+            nodes
+                .iter()
+                .filter(|n| {
+                    let p = n.file_path.as_str().to_ascii_lowercase();
+                    (p.ends_with(".ts") || p.ends_with(".tsx"))
+                        && (p.contains("/q/") || p.contains("\\q\\"))
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    let custom_ts_framework = q_framework_files >= 5;
+
+    // Fragment 4: compose. Keep it to two short sentences.
+    // README blurb is prepended by the caller in the handler.
+    let mut out = String::new();
+    out.push_str(&lang_phrase);
+    if !shape.is_empty() {
+        out.push(' ');
+        out.push_str(&shape.join(" + "));
     }
     if has_tables {
-        hint.push_str(if hint.is_empty() {
-            " SQL-backed"
-        } else {
-            " + SQL"
-        });
+        out.push_str(" + SQL");
+    }
+    out.push('.');
+
+    // Second sentence: quirks that break generic assumptions.
+    let mut quirks: Vec<String> = Vec::new();
+    if multitenant_hint {
+        quirks.push("first-class multitenant mode".into());
+    }
+    if custom_ts_framework {
+        quirks.push("custom `q` TypeScript framework".into());
+    }
+    if !quirks.is_empty() {
+        out.push_str(" Notable: ");
+        out.push_str(&quirks.join(", "));
+        out.push('.');
     }
 
-    format!("{lang_phrase} project.{hint}").trim().to_string()
+    out
+}
+
+/// Extract a 1-2 sentence blurb from the project's README if present,
+/// usable as an opening line for the role description. Skips H1
+/// headings, code fences, and HTML comments; returns the first
+/// substantive paragraph. Cap at 280 characters — anything longer
+/// bloats the root document.
+fn read_readme_blurb(project_dir: &str) -> Option<String> {
+    let dir = std::path::Path::new(project_dir);
+    let candidates = ["README.md", "readme.md", "README.MD", "README"];
+    let mut content: Option<String> = None;
+    for name in &candidates {
+        let full = dir.join(name);
+        if let Ok(text) = std::fs::read_to_string(&full) {
+            content = Some(text);
+            break;
+        }
+    }
+    let text = content?;
+    // Skip H1 / blank lines / code fences; collect the first real
+    // paragraph.
+    let mut para = String::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("```") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        if trimmed.is_empty() {
+            if !para.is_empty() {
+                break; // paragraph end
+            }
+            continue;
+        }
+        if trimmed.starts_with('#') || trimmed.starts_with("<!--") {
+            continue;
+        }
+        if !para.is_empty() {
+            para.push(' ');
+        }
+        para.push_str(trimmed);
+    }
+    if para.is_empty() {
+        return None;
+    }
+    // Strip trailing markdown link refs `[^1]`-style, trim quotes.
+    let mut out = para.trim().to_string();
+    if out.len() > 280 {
+        out.truncate(280);
+        while !out.is_empty() && !out.is_char_boundary(out.len()) {
+            out.pop();
+        }
+        out.push('…');
+    }
+    Some(out)
 }
 
 /// Turn a [`engram_core::registry::RepoRule`] into a short rule text.
@@ -4130,38 +4324,165 @@ fn detect_build_commands(project_dir: &str) -> Vec<String> {
     let has = |name: &str| dir.join(name).exists();
     let mut cmds = Vec::new();
     if has("Cargo.toml") {
-        cmds.push("cargo build --release --workspace".into());
-        cmds.push("cargo test --workspace".into());
+        // Detect workspace vs single-crate and emit the right flag.
+        let workspace = std::fs::read_to_string(dir.join("Cargo.toml"))
+            .map(|s| s.contains("[workspace]"))
+            .unwrap_or(false);
+        if workspace {
+            cmds.push("cargo build --release --workspace".into());
+            cmds.push("cargo test --workspace".into());
+        } else {
+            cmds.push("cargo build --release".into());
+            cmds.push("cargo test".into());
+        }
+        // Suggest clippy if it's configured.
+        if has(".clippy.toml") || has("clippy.toml") {
+            cmds.push("cargo clippy --all-targets -- -D warnings".into());
+        }
     } else if has("package.json") {
+        // Parse the scripts block so we emit `npm run build` /
+        // `npm test` only when those scripts actually exist.
+        let scripts = std::fs::read_to_string(dir.join("package.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+            .and_then(|v| v.get("scripts").cloned())
+            .and_then(|v| v.as_object().cloned());
         cmds.push("npm install".into());
-        cmds.push("npm test".into());
+        if let Some(map) = scripts {
+            for script in ["build", "test", "typecheck", "lint"] {
+                if map.contains_key(script) {
+                    cmds.push(format!("npm run {script}"));
+                }
+            }
+        } else {
+            cmds.push("npm test".into());
+        }
     } else if has("pyproject.toml") || has("requirements.txt") {
-        cmds.push("pip install -r requirements.txt  # or: pip install -e .".into());
-        cmds.push("pytest".into());
+        // Prefer `uv` when the project has a `uv.lock`.
+        if has("uv.lock") {
+            cmds.push("uv sync".into());
+            cmds.push("uv run pytest".into());
+        } else if has("poetry.lock") {
+            cmds.push("poetry install".into());
+            cmds.push("poetry run pytest".into());
+        } else {
+            cmds.push("pip install -e .".into());
+            cmds.push("pytest".into());
+        }
     } else if has("pom.xml") {
         cmds.push("mvn package".into());
         cmds.push("mvn test".into());
     } else if has("build.gradle") || has("build.gradle.kts") {
-        cmds.push("./gradlew build".into());
-        cmds.push("./gradlew test".into());
+        let gradlew = has("gradlew") || has("gradlew.bat");
+        let prefix = if gradlew { "./gradlew" } else { "gradle" };
+        cmds.push(format!("{prefix} build"));
+        cmds.push(format!("{prefix} test"));
     } else if has("go.mod") {
         cmds.push("go build ./...".into());
         cmds.push("go test ./...".into());
-    } else if std::fs::read_dir(dir)
-        .ok()
-        .into_iter()
-        .flatten()
-        .flatten()
-        .any(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .to_lowercase()
-                .ends_with(".sln")
-        })
-    {
-        cmds.push("msbuild  # or: dotnet build".into());
+    } else if has("Makefile") || has("makefile") {
+        // Scan Makefile targets and emit the first canonical one.
+        let content = std::fs::read_to_string(dir.join("Makefile"))
+            .or_else(|_| std::fs::read_to_string(dir.join("makefile")))
+            .unwrap_or_default();
+        for target in ["build", "all", "test"] {
+            if content.contains(&format!("\n{target}:"))
+                || content.starts_with(&format!("{target}:"))
+            {
+                cmds.push(format!("make {target}"));
+            }
+        }
+        if cmds.is_empty() {
+            cmds.push("make".into());
+        }
+    }
+    // .NET — find the actual .sln (or .csproj/.vbproj) and cite it.
+    // Runs AFTER the other language detectors because a project
+    // might be primarily Rust/Node with a tooling .sln floating
+    // around.
+    if cmds.is_empty() || only_has_dotnet(dir) {
+        if let Some(sln_name) = find_first_file_with_ext(dir, "sln") {
+            cmds.push(format!(
+                "msbuild \"{sln_name}\" /t:Build /p:Configuration=Debug"
+            ));
+            cmds.push(format!(
+                "msbuild \"{sln_name}\" /t:Build /p:Configuration=Release"
+            ));
+            // Scan for a test project conventionally named
+            // `<Something>.Tests.csproj` / `<Something>.Tests.vbproj`.
+            if let Some(test_proj) = find_test_project(dir) {
+                cmds.push(format!("vstest.console.exe \"{test_proj}\""));
+            }
+        } else if let Some(csproj) = find_first_file_with_ext(dir, "csproj")
+            .or_else(|| find_first_file_with_ext(dir, "vbproj"))
+        {
+            cmds.push(format!("dotnet build \"{csproj}\""));
+            cmds.push("dotnet test".into());
+        }
     }
     cmds
+}
+
+/// True when the directory primarily contains .NET project files —
+/// used to decide whether to also emit dotnet commands when another
+/// ecosystem's files are present.
+fn only_has_dotnet(dir: &std::path::Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    let mut has_dotnet = false;
+    let mut has_other = false;
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().to_ascii_lowercase();
+        if name.ends_with(".sln") || name.ends_with(".csproj") || name.ends_with(".vbproj") {
+            has_dotnet = true;
+        } else if matches!(
+            name.as_str(),
+            "cargo.toml" | "package.json" | "go.mod" | "pom.xml" | "pyproject.toml"
+        ) {
+            has_other = true;
+        }
+    }
+    has_dotnet && !has_other
+}
+
+fn find_first_file_with_ext(dir: &std::path::Path, ext: &str) -> Option<String> {
+    std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .find_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name.to_ascii_lowercase().ends_with(&format!(".{ext}")) {
+                Some(name)
+            } else {
+                None
+            }
+        })
+}
+
+fn find_test_project(dir: &std::path::Path) -> Option<String> {
+    for candidate in std::fs::read_dir(dir).ok()?.flatten() {
+        let path = candidate.path();
+        if path.is_dir() {
+            if let Some(p) = find_test_project(&path) {
+                return Some(p);
+            }
+        } else {
+            let name = candidate.file_name().to_string_lossy().into_owned();
+            let lower = name.to_ascii_lowercase();
+            if (lower.ends_with(".csproj") || lower.ends_with(".vbproj"))
+                && (lower.contains(".tests.") || lower.contains(".test."))
+            {
+                return Some(
+                    path.strip_prefix(dir)
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .into_owned(),
+                );
+            }
+        }
+    }
+    None
 }
 
 /// Derive a display-friendly project name from the project directory.
