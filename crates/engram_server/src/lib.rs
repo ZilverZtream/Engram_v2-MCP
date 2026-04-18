@@ -6,6 +6,7 @@ pub mod capabilities;
 pub mod error;
 pub mod handlers;
 pub mod models;
+pub mod multi_client;
 pub mod services;
 pub mod state;
 pub mod tools;

@@ -74,6 +74,10 @@ tree-sitter-cpp = "0.23"
 # HTTP client (for Ollama / OpenAI remote backends)
 reqwest = { version = "0.13", features = ["json"] }
 
+# Cross-platform advisory file locking — used by the multi-client
+# auto-daemon to decide primary-vs-proxy role at startup.
+fs2 = "0.4"
+
 # Binary serialization
 bincode = "1"
 

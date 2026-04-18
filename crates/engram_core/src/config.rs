@@ -215,6 +215,28 @@ pub struct Config {
     #[serde(default)]
     pub adp_kill_switch: bool,
 
+    // --- Multi-client auto-daemon (see docs/MULTI_CLIENT_AUTO_DAEMON.md) ---
+    /// Opt in to multi-client mode. When `true`, the first engram_server
+    /// process to start against this `data_dir` becomes the primary;
+    /// subsequent spawns auto-detect the primary via an advisory lock
+    /// and proxy their stdio over a local socket. When `false` (default
+    /// during v0.7 rollout), every process opens its own storage — the
+    /// legacy single-client model.
+    #[serde(default)]
+    pub multi_client: bool,
+
+    /// How long (seconds) a multi-client primary stays up with zero
+    /// active clients before auto-exiting. A fresh client spawn after
+    /// exit starts a new primary transparently. Default 300 (5 min).
+    #[serde(default = "default_multi_client_idle_secs")]
+    pub multi_client_idle_timeout_secs: u64,
+
+    /// Override the IPC socket / named-pipe path for multi-client mode.
+    /// `None` derives the path from `data_dir`. Useful primarily for
+    /// tests where multiple sandboxes need disjoint socket paths.
+    #[serde(default)]
+    pub multi_client_socket_path: Option<String>,
+
     // --- ADP vNext ---
     /// Default evidence depth: "fast", "standard", or "deep". Default: "standard".
     #[serde(default = "default_adp_evidence_depth")]
@@ -391,6 +413,10 @@ fn default_adp_rollout_phase() -> String {
     "shadow".into()
 }
 
+fn default_multi_client_idle_secs() -> u64 {
+    300
+}
+
 fn default_adp_evidence_depth() -> String {
     "standard".into()
 }
@@ -478,6 +504,9 @@ impl Default for Config {
             adp_max_blast_radius: default_adp_max_blast_radius(),
             adp_rollout_phase: default_adp_rollout_phase(),
             adp_kill_switch: false,
+            multi_client: false,
+            multi_client_idle_timeout_secs: default_multi_client_idle_secs(),
+            multi_client_socket_path: None,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),
