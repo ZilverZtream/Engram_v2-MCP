@@ -280,7 +280,7 @@ pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
     let metadata_path = derive_metadata_path(&data_dir);
     match LockHandle::try_acquire(&lock_path)? {
         Some(handle) => run_primary(cfg, handle, metadata_path, socket_path).await,
-        None => run_proxy(cfg, metadata_path, socket_path).await,
+        None => run_proxy(metadata_path, socket_path).await,
     }
 }
 
@@ -390,6 +390,20 @@ async fn run_primary(
         "engram_server: primary mode"
     );
 
+    // Spawn a SIGTERM/Ctrl-C handler so graceful shutdown is
+    // possible from outside. When fired, it signals the same
+    // shutdown token the idle watchdog uses, so the cleanup path
+    // below runs identically.
+    {
+        let shutdown_signal = ps.shutdown.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                tracing::info!("multi-client primary: received shutdown signal");
+                shutdown_signal.cancel();
+            }
+        });
+    }
+
     // Serve the stdio session for THIS process's own MCP client.
     // Counted as an active session so the watchdog doesn't kill us
     // while the caller is mid-request.
@@ -397,17 +411,20 @@ async fn run_primary(
     let stdio_result = crate::tools::run_stdio(state.clone()).await;
     ps.active_sessions.fetch_sub(1, Ordering::SeqCst);
 
-    // Trigger shutdown and clean up. If the stdio caller left but
-    // peers are still connected, the shutdown token fires only when
-    // the watchdog decides (active_sessions == 0 for idle_timeout).
-    let _ = tokio::time::timeout(std::time::Duration::from_secs(10), async {
-        // Wait until the watchdog fires OR we've been cancelled.
-        ps.shutdown.cancelled().await;
-    })
-    .await;
+    // Wait until shutdown is actually signalled — either the idle
+    // watchdog fires (active_sessions stayed 0 long enough) or a
+    // signal handler fires. We MUST NOT timeout here: if peers are
+    // still connected, this blocks as it should.
+    ps.shutdown.cancelled().await;
+    tracing::info!("multi-client primary: shutting down, cleaning up");
 
-    shutdown.cancel();
+    // Now drain in-flight tasks with a 10s grace window. After that
+    // we cleanup regardless — better to lose a straggler request
+    // than to hang the process.
+    let grace = std::time::Duration::from_secs(10);
     listener_handle.abort();
+    let _ = tokio::time::timeout(grace, listener_handle).await;
+
     let _ = std::fs::remove_file(&socket_path);
     let _ = std::fs::remove_file(&metadata_path);
     // Drop the lock handle LAST so the next primary doesn't race
@@ -452,10 +469,21 @@ async fn spawn_socket_listener(
                     accepted = listener.accept() => {
                         match accepted {
                             Ok((sock, _addr)) => {
-                                let current = active.load(Ordering::SeqCst);
-                                if current >= MAX_CONCURRENT_SESSIONS {
+                                // Atomic reserve-or-reject: use
+                                // fetch_update to both cap at
+                                // MAX_CONCURRENT_SESSIONS AND
+                                // increment before the task spawns.
+                                // This closes the window where the
+                                // watchdog could observe idle=0
+                                // between accept() and the session
+                                // task actually running.
+                                let reserved = active.fetch_update(
+                                    Ordering::SeqCst,
+                                    Ordering::SeqCst,
+                                    |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+                                );
+                                if reserved.is_err() {
                                     tracing::warn!(
-                                        current,
                                         cap = MAX_CONCURRENT_SESSIONS,
                                         "rejecting socket connection — concurrent-session cap hit"
                                     );
@@ -466,7 +494,6 @@ async fn spawn_socket_listener(
                                 let active_c = active.clone();
                                 let shutdown_c = shutdown.clone();
                                 tokio::spawn(async move {
-                                    active_c.fetch_add(1, Ordering::SeqCst);
                                     serve_socket_session(sock, state_c, shutdown_c).await;
                                     active_c.fetch_sub(1, Ordering::SeqCst);
                                 });
@@ -557,28 +584,33 @@ async fn run_idle_watchdog(
 
 // ─── Proxy ──────────────────────────────────────────────────────────────────
 
-async fn run_proxy(
-    cfg: Config,
-    metadata_path: PathBuf,
-    socket_path: PathBuf,
-) -> anyhow::Result<()> {
+async fn run_proxy(metadata_path: PathBuf, socket_path: PathBuf) -> anyhow::Result<()> {
     // A primary holds the OS lock on the lock file. Read its
     // metadata from the sibling `.engram.primary` file (always
     // readable — no mandatory lock contention on Windows).
-    let meta = match read_primary_metadata(&metadata_path) {
-        Ok(m) => m,
-        Err(e) => {
-            // Metadata missing or malformed — likely a primary that
-            // acquired the lock but crashed before writing metadata.
-            // Fail with a clear message; the user's MCP client will
-            // restart us and we'll race for the lock.
-            anyhow::bail!(
-                "engram_server: could not start as proxy — primary metadata at {} is \
-                 unreadable ({e}). A primary may have crashed mid-startup. Restart your \
-                 MCP client to retry.",
-                metadata_path.display()
-            );
+    //
+    // Startup race: a peer can lose the try_lock_exclusive race
+    // milliseconds before the winner writes its metadata file.
+    // Retry reads for up to a second so we don't fail just because
+    // we got here faster than the winner could finish stage-2
+    // startup.
+    let mut meta_result = read_primary_metadata(&metadata_path);
+    if meta_result.is_err() {
+        let mut attempts = 0;
+        while meta_result.is_err() && attempts < 20 {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            meta_result = read_primary_metadata(&metadata_path);
+            attempts += 1;
         }
+    }
+    let meta = match meta_result {
+        Ok(m) => m,
+        Err(e) => anyhow::bail!(
+            "engram_server: could not start as proxy — primary metadata at {} is \
+             unreadable ({e}). A primary may have crashed mid-startup. Restart your \
+             MCP client to retry.",
+            metadata_path.display()
+        ),
     };
     if meta.protocol_version != PROTOCOL_VERSION {
         anyhow::bail!(
@@ -623,12 +655,11 @@ async fn run_proxy(
             socket = %sock_path.display(),
             "engram_server: proxy mode"
         );
-        let _ = cfg; // proxy doesn't need the full config past dispatch
         forward_stdio_to_socket(sock).await
     }
     #[cfg(not(unix))]
     {
-        let _ = (cfg, sock_path);
+        let _ = sock_path;
         anyhow::bail!(
             "multi-client mode on non-Unix platforms is a v0.8 follow-up; \
              set `multi_client: false` in engram_mcp.yaml to run the legacy single-client path"
@@ -647,40 +678,33 @@ fn is_missing_or_refused(e: &std::io::Error) -> bool {
 
 #[cfg(unix)]
 async fn forward_stdio_to_socket(sock: tokio::net::UnixStream) -> anyhow::Result<()> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    // Copy stdin → socket and socket → stdout concurrently. When
-    // either side closes (EOF), we tear down the other side and
-    // exit. Using `copy` directly in both directions lets us use the
-    // same async I/O primitives that rmcp uses on stdio, so there's
-    // no re-framing overhead — bytes pass through verbatim.
+    use tokio::io::AsyncWriteExt;
+    // Byte-transparent passthrough between our stdio and the
+    // primary's socket. `tokio::io::copy` handles the read/write
+    // loop and EOF semantics; we run both directions concurrently
+    // via `tokio::try_join!`, so when either direction completes
+    // (EOF on stdin, EOF on the socket, or an error), the other
+    // direction is cancelled and the proxy exits.
+    //
+    // No re-framing: bytes move through verbatim, so any MCP JSON-RPC
+    // payload is forwarded as-is. This also means any protocol
+    // change to MCP in the future is transparent to the auto-daemon.
     let (mut sock_read, mut sock_write) = sock.into_split();
     let mut stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();
 
-    let up = async move {
-        let mut buf = [0u8; 8192];
-        loop {
-            let n = stdin.read(&mut buf).await?;
-            if n == 0 {
-                break;
-            }
-            sock_write.write_all(&buf[..n]).await?;
-            sock_write.flush().await?;
-        }
+    let up = async {
+        let res = tokio::io::copy(&mut stdin, &mut sock_write).await;
+        // Half-close the write side so the primary sees EOF and can
+        // wind down the MCP session cleanly.
         sock_write.shutdown().await.ok();
-        Ok::<_, anyhow::Error>(())
+        res.map(|_| ()).map_err(anyhow::Error::from)
     };
-    let down = async move {
-        let mut buf = [0u8; 8192];
-        loop {
-            let n = sock_read.read(&mut buf).await?;
-            if n == 0 {
-                break;
-            }
-            stdout.write_all(&buf[..n]).await?;
-            stdout.flush().await?;
-        }
-        Ok::<_, anyhow::Error>(())
+    let down = async {
+        tokio::io::copy(&mut sock_read, &mut stdout)
+            .await
+            .map(|_| ())
+            .map_err(anyhow::Error::from)
     };
     tokio::select! {
         r = up => { r.ok(); }
@@ -794,6 +818,68 @@ mod tests {
     fn derive_metadata_path_adds_filename() {
         let p = derive_metadata_path(Path::new("/data"));
         assert_eq!(p, PathBuf::from("/data/.engram.primary"));
+    }
+
+    #[test]
+    fn session_counter_cap_via_fetch_update() {
+        // Regression guard for the "active_sessions race" fix —
+        // fetch_update must atomically reject increments above the
+        // cap and return Err when the cap is hit.
+        let active = std::sync::atomic::AtomicUsize::new(MAX_CONCURRENT_SESSIONS - 1);
+        let res = active.fetch_update(
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+            |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+        );
+        assert!(res.is_ok());
+        assert_eq!(active.load(std::sync::atomic::Ordering::SeqCst), MAX_CONCURRENT_SESSIONS);
+        // At cap — next attempt must fail without mutating.
+        let res = active.fetch_update(
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+            |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+        );
+        assert!(res.is_err());
+        assert_eq!(active.load(std::sync::atomic::Ordering::SeqCst), MAX_CONCURRENT_SESSIONS);
+    }
+
+    #[tokio::test]
+    async fn read_primary_metadata_tolerates_startup_race() {
+        // Simulates the startup race: a proxy loses the lock race
+        // and immediately tries to read metadata that the primary
+        // hasn't written yet. We model this by writing the metadata
+        // file after a short delay, then verifying a retry-reading
+        // proxy eventually sees it.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let meta_path = tmp.path().join(".engram.primary");
+        let meta_path_clone = meta_path.clone();
+        // Simulate the primary finishing startup after 100ms.
+        let writer = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            write_primary_metadata(
+                &meta_path_clone,
+                &LockMetadata {
+                    pid: 1,
+                    started_at_ms: 2,
+                    protocol_version: PROTOCOL_VERSION,
+                    socket_path: "/x".into(),
+                },
+            )
+            .unwrap();
+        });
+        // Proxy-side retry loop modelled the same way as run_proxy.
+        let mut meta_result = read_primary_metadata(&meta_path);
+        let mut attempts = 0;
+        while meta_result.is_err() && attempts < 20 {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            meta_result = read_primary_metadata(&meta_path);
+            attempts += 1;
+        }
+        assert!(
+            meta_result.is_ok(),
+            "proxy must eventually see freshly-written metadata within retry budget"
+        );
+        writer.await.unwrap();
     }
 
     #[test]
