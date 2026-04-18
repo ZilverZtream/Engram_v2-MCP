@@ -2707,9 +2707,17 @@ impl Engram {
             .ok()
             .and_then(|r| r.ok())
             .unwrap_or_default();
-        let mut critical_rules: Vec<svc::CriticalRule> = repo_rules
+        // Feed the raw repo-rule set through the rules pipeline
+        // (noise filter → keyword meta-clustering → rule-text
+        // templating → render-threshold split). Pipeline collapses
+        // 30+ token-level CodeRabbit clusters into ~8 semantic
+        // meta-rules and strips the LLM-rationalisation essays out
+        // of immune rule text. Everything deterministic; no LLM
+        // calls in this path.
+        use crate::services::produce_claude_md_service::rules_pipeline as pipeline;
+        let raw_for_pipeline: Vec<pipeline::RawRule> = repo_rules
             .iter()
-            .map(|r| {
+            .filter_map(|r| {
                 let source = if r.rule_id.starts_with("immune_") {
                     svc::RuleSource::Immune
                 } else if r.rule_id.starts_with("cr_") {
@@ -2717,16 +2725,49 @@ impl Engram {
                 } else {
                     svc::RuleSource::RepoRule
                 };
-                svc::CriticalRule {
-                    text: rule_text_from_repo_rule(r),
-                    evidence: Some(format!("({})", r.rule_id)),
+                // Apply immune-rule cleanup at the entry point so
+                // the pipeline sees crisp text instead of
+                // three-paragraph essays. Returns None when the
+                // immune rule is process-hygiene noise — those
+                // entries disappear here.
+                let text = if matches!(source, svc::RuleSource::Immune) {
+                    match pipeline::render_immune_rule_text(&r.rule_text, &r.file_pattern) {
+                        Some(t) => t,
+                        None => return None,
+                    }
+                } else {
+                    rule_text_from_repo_rule(r)
+                };
+                // Parse CodeRabbit aggregate stats out of the
+                // rule's priority / rule_text footer. The ingest
+                // writes "… — CodeRabbit pattern, N PRs, M% fix rate"
+                // so we can recover the stats with a small regex.
+                let (fix_rate, pr_count) = if matches!(source, svc::RuleSource::CodeRabbit) {
+                    parse_coderabbit_stats(&r.rule_text)
+                } else {
+                    (None, None)
+                };
+                Some(pipeline::RawRule {
+                    rule_id: r.rule_id.clone(),
+                    file_pattern: r.file_pattern.clone(),
+                    rule_text: text,
                     source,
-                }
+                    fix_rate,
+                    pr_count,
+                })
             })
             .collect();
-        // Stable order: immune (past reverts = hardest rules) first,
-        // then CodeRabbit (team-learned), then plain repo rules,
-        // then rules migrated from an existing CLAUDE.md.
+        let pipeline_output = pipeline::run_pipeline(
+            raw_for_pipeline,
+            pipeline::RenderThreshold::default(),
+        );
+        let mut critical_rules: Vec<svc::CriticalRule> = pipeline_output.root_rules;
+        let pipeline_summary = pipeline_output.summary.clone();
+        let _overflow = pipeline_output.per_language_overflow;
+        // Overflow rules are kept for a future change where
+        // .claude/rules/ files pick them up; right now they're
+        // simply removed from the root's attention budget, which is
+        // the primary fix the user asked for.
         critical_rules.sort_by_key(|r| match r.source {
             svc::RuleSource::Immune => 0,
             svc::RuleSource::CodeRabbit => 1,
@@ -3017,6 +3058,10 @@ impl Engram {
         // without the caller explicitly opting into `overwrite_existing`.
         let mut written: Vec<String> = Vec::new();
         let mut notes: Vec<String> = Vec::new();
+        // Always surface the rules-pipeline summary so the caller
+        // sees the noise-filter / meta-clustering impact. Happens
+        // regardless of whether we write to disk.
+        notes.push(pipeline_summary);
         if req.write_to_disk {
             use engram_core::safe_join;
             let project_dir = std::path::PathBuf::from(&rec.directory);
@@ -3914,6 +3959,34 @@ fn build_role_description(
 /// Turn a [`engram_core::registry::RepoRule`] into a short rule text.
 /// Prefers `rule_text` when present; falls back to a descriptive line
 /// derived from the rule id / file pattern.
+/// Parse a CodeRabbit repo-rule's embedded stats footer back into
+/// `(fix_rate, pr_count)`. The ingest writes rules with a tail of the
+/// form `"… — CodeRabbit pattern, <N> PRs, <M>% fix rate"`; the
+/// pipeline needs those numbers to apply its render threshold.
+/// Returns `(None, None)` when the footer is missing or malformed —
+/// the pipeline treats that as zero confidence and routes the rule
+/// to overflow.
+fn parse_coderabbit_stats(rule_text: &str) -> (Option<f32>, Option<usize>) {
+    use std::sync::LazyLock;
+    static STATS_RE: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
+        regex::Regex::new(r"(?i)(\d+)\s*PRs?,\s*(\d+)\s*%\s*fix\s*rate").ok()
+    });
+    let Some(re) = STATS_RE.as_ref() else {
+        return (None, None);
+    };
+    let Some(caps) = re.captures(rule_text) else {
+        return (None, None);
+    };
+    let prs = caps
+        .get(1)
+        .and_then(|m| m.as_str().parse::<usize>().ok());
+    let fix_rate = caps
+        .get(2)
+        .and_then(|m| m.as_str().parse::<f32>().ok())
+        .map(|pct| pct / 100.0);
+    (fix_rate, prs)
+}
+
 fn rule_text_from_repo_rule(r: &engram_core::registry::RepoRule) -> String {
     let clean = r.rule_text.trim();
     if !clean.is_empty() {
