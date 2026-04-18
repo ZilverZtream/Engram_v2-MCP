@@ -453,6 +453,21 @@ impl Engram {
         self.handle_ingest_code_review_history(params.0).await
     }
 
+    #[tool(
+        description = "Explain a diff — natural dual of pre_commit_review. Takes the same \
+                       inputs (staged / unstaged / head / raw / .patch) and produces a \
+                       Conventional-Commits commit message, a structured PR description, and \
+                       a Keep-a-Changelog entry, all derived deterministically from the \
+                       graph, CodeRabbit rules, blast-radius data, and temporal couplings. \
+                       Output is markdown (default) or JSON for CI. No LLM calls."
+    )]
+    pub async fn explain_change(
+        &self,
+        params: Parameters<ExplainChangeRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_explain_change(params.0).await
+    }
+
     #[tool(description = "Generate instrumentation pack.")]
     pub async fn get_instrumentation_pack(
         &self,

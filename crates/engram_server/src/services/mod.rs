@@ -13,6 +13,7 @@ pub mod database_intelligence_service;
 pub mod db_strategy_service;
 pub mod dossier_service;
 pub mod evidence_orchestration;
+pub mod explain_change_service;
 pub mod full_project_migration_service;
 pub mod git_service;
 pub mod graph_service;

@@ -2453,6 +2453,47 @@ pub struct IngestCodeReviewHistoryRequest {
     pub promote_min_prs: usize,
 }
 
+// ─── Explain change ──────────────────────────────────────────────────────────
+
+fn default_explain_diff() -> String {
+    "staged".into()
+}
+fn default_explain_style() -> String {
+    "conventional".into()
+}
+fn default_explain_format() -> String {
+    "markdown".into()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExplainChangeRequest {
+    pub project_id: String,
+    /// Same shape as `pre_commit_review.diff`: a raw unified-diff
+    /// string, one of `"staged"` / `"unstaged"` / `"head"`, or a
+    /// path ending in `.patch` / `.diff`. Default `"staged"`.
+    #[serde(default = "default_explain_diff")]
+    pub diff: String,
+    /// Commit-subject style. `"conventional"` → `feat(scope): …`.
+    /// `"plain"` → natural prose (`Added in scope: …`). Default
+    /// `"conventional"`.
+    #[serde(default = "default_explain_style")]
+    pub subject_style: String,
+    /// Output format — `"markdown"` (default, human-readable) or
+    /// `"json"` (structured schema for CI pipelines).
+    #[serde(default = "default_explain_format")]
+    pub output_format: String,
+    /// Include a Keep-a-Changelog-formatted `### Added / Fixed /
+    /// Changed` entry in the output bundle. Default `true`.
+    #[serde(default = "default_true")]
+    pub include_changelog: bool,
+    /// Reserved for a future LLM polish pass. No-op in the current
+    /// build — the deterministic renderer produces the final output
+    /// directly.
+    #[serde(default)]
+    pub use_llm: bool,
+}
+
 // ─── Pre-commit review ───────────────────────────────────────────────────────
 
 fn default_diff_source() -> String {
