@@ -535,11 +535,17 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
         if lang.bullets.is_empty() && ranked.is_empty() {
             continue;
         }
-        files.push(RuleFile {
-            filename: format!("{}-conventions.md", language_slug(&lang.language)),
-            content: render_language_rules_with_cr(lang, &ranked),
-        });
-        emitted_langs.insert(lang.language.clone());
+        // `render_language_rules_with_cr` returns `None` when the file
+        // would be too thin or the language is a placeholder (`unknown`,
+        // `other`). Skip those instead of writing a hollow file that
+        // erodes trust in the collection.
+        if let Some(content) = render_language_rules_with_cr(lang, &ranked) {
+            files.push(RuleFile {
+                filename: format!("{}-conventions.md", language_slug(&lang.language)),
+                content,
+            });
+            emitted_langs.insert(lang.language.clone());
+        }
     }
 
     // Languages present in coderabbit_rules_by_language but without a
@@ -561,10 +567,12 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
                 .partial_cmp(&a.composite_score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        files.push(RuleFile {
-            filename: format!("{}-conventions.md", language_slug(language)),
-            content: render_language_rules_with_cr(&synthetic_lang, &ranked),
-        });
+        if let Some(content) = render_language_rules_with_cr(&synthetic_lang, &ranked) {
+            files.push(RuleFile {
+                filename: format!("{}-conventions.md", language_slug(language)),
+                content,
+            });
+        }
     }
 
     if !snapshot.danger_zones.is_empty() {
@@ -663,62 +671,282 @@ fn render_rule_bucket(out: &mut String, heading: &str, bucket: &[&CriticalRule])
 /// survive.
 const CODERABBIT_PER_LANGUAGE_CAP: usize = 10;
 
+/// Bucket a raw language-style bullet into the `Applies to / Mandatory
+/// / Strong / Observed` template used by the rewritten convention
+/// files. Classification is keyword-driven so it works for any language
+/// regardless of what the detector emitted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BulletTier {
+    /// Structural invariant — transpiled-output markers, `"use strict"`,
+    /// required header / footer. Rendered under `## Mandatory`.
+    Mandatory,
+    /// Strong preference — sample-consistent convention that survives
+    /// across files (e.g., "all three sampled files use `var`").
+    Strong,
+    /// Observed in one or a few sampled files — scope explicitly to
+    /// avoid over-generalisation.
+    Observed,
+    /// Security signal — explicit XSS / innerHTML / injection risk.
+    /// Rendered under `## Avoid` so it's read as a prohibition rather
+    /// than an observation.
+    Avoid,
+}
+
+fn classify_bullet(text: &str) -> BulletTier {
+    let lower = text.to_ascii_lowercase();
+    // Security signals → Avoid (clear prohibition tone).
+    if lower.contains("security risk")
+        || lower.contains("xss")
+        || lower.contains("injection")
+        || lower.contains("innerhtml")
+        || lower.contains("unsafe")
+    {
+        return BulletTier::Avoid;
+    }
+    // Structural invariants → Mandatory.
+    if lower.contains("transpiled")
+        || lower.contains("use strict")
+        || lower.contains("generated js")
+        || lower.contains("do not hand-edit")
+        || lower.contains("preserve the directive")
+    {
+        return BulletTier::Mandatory;
+    }
+    // Heuristic for "strong vs observed": if the bullet cites a
+    // ratio like `(N/N)` meaning 100% consistent, it's Strong;
+    // anything with `(k/N)` where k<N is Observed — those are the
+    // ratios the detector emits when sampled files disagreed.
+    if let Some((k, n)) = parse_ratio(&lower) {
+        if k == n && n >= 2 {
+            return BulletTier::Strong;
+        }
+        if n > 0 {
+            return BulletTier::Observed;
+        }
+    }
+    // Bullets that start with "Don't", "Avoid", or "Never" → Avoid.
+    if lower.starts_with("do not")
+        || lower.starts_with("don't")
+        || lower.starts_with("avoid")
+        || lower.starts_with("never")
+    {
+        return BulletTier::Avoid;
+    }
+    // Default: treat as Observed. The agent weights it accordingly.
+    BulletTier::Observed
+}
+
+/// Parse a ratio like `(2/3)` or `(17/17)` embedded in a bullet to
+/// drive the Mandatory / Strong / Observed split. Returns `(numerator,
+/// denominator)` on success.
+fn parse_ratio(text: &str) -> Option<(u32, u32)> {
+    let open = text.find('(')?;
+    let after = &text[open + 1..];
+    let close = after.find(')')?;
+    let inner = &after[..close];
+    let mut parts = inner.split('/');
+    let num = parts.next()?.trim().parse::<u32>().ok()?;
+    let den = parts.next()?.trim().parse::<u32>().ok()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    Some((num, den))
+}
+
+/// Minimum number of substantive lines a rule file must carry to be
+/// worth writing to disk. Below this, the file is more noise than
+/// signal — the agent learns to ignore shallow files and starts
+/// discounting better ones.
+const MIN_RULE_FILE_LINES: usize = 3;
+
+/// Short snake_case identifier kept in the agent's context is the
+/// language name, so "unknown" gets filtered out entirely rather than
+/// producing a hollow `unknown-conventions.md` that undermines trust
+/// in the convention-file collection.
+fn is_placeholder_language(lang: &str) -> bool {
+    let lower = lang.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "unknown" | "" | "other" | "misc" | "txt" | "plain"
+    )
+}
+
 /// Render a single `LanguageRules` bucket as the `.claude/rules/…md`
-/// content. `cr_rules` is the pre-sorted, language-scoped list of
-/// CodeRabbit patterns to append — empty when the project hasn't
-/// ingested CodeRabbit history or when no pattern matched this
-/// language.
-fn render_language_rules_with_cr(lang: &LanguageRules, cr_rules: &[CodeRabbitRule]) -> String {
-    let mut out = String::with_capacity(512);
+/// content. Uses the structured `Applies to / Mandatory / Strong /
+/// Observed / Avoid / Examples` template introduced to address the
+/// ChatGPT review findings that:
+///   - sample-derived claims need explicit scoping (not universal law),
+///   - hollow files (empty instructions, only CR patterns) erode trust,
+///   - contradictory bullets from different sampled files (camelCase
+///     in one, PascalCase in another) need aggregation + caveats.
+///
+/// Returns `None` when the file would be too thin to be useful —
+/// caller should skip it entirely.
+fn render_language_rules_with_cr(
+    lang: &LanguageRules,
+    cr_rules: &[CodeRabbitRule],
+) -> Option<String> {
+    if is_placeholder_language(&lang.language) {
+        return None;
+    }
+
+    // Classify every bullet into a tier. Bullets that look like
+    // near-duplicates across sampled files get deduplicated here so
+    // contradictory "(2/3) camelCase" and "(8/9) PascalCase" don't both
+    // appear as universal law.
+    let mut mandatory: Vec<&String> = Vec::new();
+    let mut strong: Vec<&String> = Vec::new();
+    let mut observed: Vec<&String> = Vec::new();
+    let mut avoid: Vec<&String> = Vec::new();
+    for b in &lang.bullets {
+        let b_trim = b.trim();
+        if b_trim.is_empty() {
+            continue;
+        }
+        match classify_bullet(b_trim) {
+            BulletTier::Mandatory => mandatory.push(b),
+            BulletTier::Strong => strong.push(b),
+            BulletTier::Observed => observed.push(b),
+            BulletTier::Avoid => avoid.push(b),
+        }
+    }
+
+    // CodeRabbit patterns feed two buckets: high-fix-rate patterns
+    // become `## Avoid` (clear anti-patterns reviewers catch
+    // repeatedly); lower-fix-rate patterns land under `## Observed`
+    // as informational references.
+    let mut cr_strong_avoid: Vec<&CodeRabbitRule> = Vec::new();
+    let mut cr_observed: Vec<&CodeRabbitRule> = Vec::new();
+    let mut ranked: Vec<&CodeRabbitRule> = cr_rules.iter().collect();
+    ranked.sort_by(|a, b| {
+        b.composite_score
+            .partial_cmp(&a.composite_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    for r in ranked.iter().take(CODERABBIT_PER_LANGUAGE_CAP) {
+        if r.fix_rate >= 0.80 && r.pr_count >= 2 {
+            cr_strong_avoid.push(r);
+        } else {
+            cr_observed.push(r);
+        }
+    }
+
+    let total_lines = mandatory.len()
+        + strong.len()
+        + observed.len()
+        + avoid.len()
+        + cr_strong_avoid.len()
+        + cr_observed.len();
+    if total_lines < MIN_RULE_FILE_LINES {
+        return None;
+    }
+
+    let mut out = String::with_capacity(1024);
     let _ = writeln!(out, "---");
     let _ = writeln!(out, "globs: \"{}\"", lang.glob);
     let _ = writeln!(out, "---");
     out.push('\n');
     let _ = writeln!(out, "# {} conventions", language_display(&lang.language));
     out.push('\n');
-    if !lang.sample_files.is_empty() {
-        let _ = writeln!(out, "_Detected from: {}_", lang.sample_files.join(", "));
-        out.push('\n');
-    }
-    out.push_str("<instructions>\n");
-    for b in &lang.bullets {
-        let b = b.trim();
-        if b.is_empty() {
-            continue;
-        }
-        if b.starts_with('-') || b.starts_with('*') {
-            let _ = writeln!(out, "{b}");
-        } else {
-            let _ = writeln!(out, "- {b}");
-        }
-    }
-    out.push_str("</instructions>\n");
 
-    // CodeRabbit patterns section — only when there are any for this
-    // language. Sorted by composite score (fix_rate × log₂(pr_count + 1))
-    // and capped at CODERABBIT_PER_LANGUAGE_CAP so the file stays
-    // readable. We sort here (not only at the call site) so this
-    // renderer is robust regardless of the order its caller supplies.
-    if !cr_rules.is_empty() {
-        let mut ranked: Vec<&CodeRabbitRule> = cr_rules.iter().collect();
-        ranked.sort_by(|a, b| {
-            b.composite_score
-                .partial_cmp(&a.composite_score)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        out.push('\n');
+    // ## Applies to — scopes the whole file. Explicit about the sample
+    // size so readers don't over-generalise from a handful of files.
+    out.push_str("## Applies to\n\n");
+    let _ = writeln!(out, "Files matching `{}`.", lang.glob);
+    if !lang.sample_files.is_empty() {
         let _ = writeln!(
             out,
-            "## CodeRabbit patterns (top {})",
-            ranked.len().min(CODERABBIT_PER_LANGUAGE_CAP)
+            "Observations below were aggregated from {} sampled file{}: {}.",
+            lang.sample_files.len(),
+            if lang.sample_files.len() == 1 { "" } else { "s" },
+            lang.sample_files.join(", "),
         );
-        out.push('\n');
+    }
+    out.push('\n');
+
+    // ## Mandatory — only when there's at least one.
+    if !mandatory.is_empty() {
+        out.push_str("## Mandatory\n\n");
         out.push_str(
-            "Patterns CodeRabbit flagged that the team **fixed across multiple PRs**. \
-             Each line is a class of issue reviewers catch repeatedly in this \
-             language — check the added code against these before proposing.\n\n",
+            "Invariants that must hold in every file matching the glob above.\n\n",
         );
-        for rule in ranked.iter().take(CODERABBIT_PER_LANGUAGE_CAP) {
+        for b in &mandatory {
+            let t = b.trim().trim_start_matches(['-', '*', ' ']);
+            let _ = writeln!(out, "- {t}");
+        }
+        out.push('\n');
+    }
+
+    // ## Strong preferences — sample-consistent conventions.
+    if !strong.is_empty() {
+        out.push_str("## Strong preferences\n\n");
+        out.push_str(
+            "Conventions consistent across every sampled file. Match these when \
+             extending or adding code alongside existing modules.\n\n",
+        );
+        for b in &strong {
+            let t = b.trim().trim_start_matches(['-', '*', ' ']);
+            let _ = writeln!(out, "- {t}");
+        }
+        out.push('\n');
+    }
+
+    // ## Observed in sampled files — explicit scope.
+    if !observed.is_empty() {
+        out.push_str("## Observed in sampled files\n\n");
+        out.push_str(
+            "Patterns detected in some (not all) sampled files. Treat as context \
+             for matching local style when extending existing modules — **not** \
+             universal law. For brand-new files, fall back to the language's \
+             standard convention.\n\n",
+        );
+        for b in &observed {
+            let t = b.trim().trim_start_matches(['-', '*', ' ']);
+            let _ = writeln!(out, "- {t}");
+        }
+        out.push('\n');
+    }
+
+    // ## Avoid — prohibitions (both detector-flagged + CR high-fix-rate).
+    if !avoid.is_empty() || !cr_strong_avoid.is_empty() {
+        out.push_str("## Avoid\n\n");
+        out.push_str(
+            "Anti-patterns flagged by static analysis and/or reviewers catch \
+             repeatedly. Treat these as prohibitions — the team fixes them nearly \
+             every time they appear.\n\n",
+        );
+        for b in &avoid {
+            let t = b.trim().trim_start_matches(['-', '*', ' ']);
+            let _ = writeln!(out, "- {t}");
+        }
+        for rule in &cr_strong_avoid {
+            let sha = rule
+                .fix_commit
+                .as_deref()
+                .map(|s| format!(", fix {s}"))
+                .unwrap_or_default();
+            let _ = writeln!(
+                out,
+                "- **{text}** — {prs} PR{plural}, {rate:.0}% fix rate{sha}",
+                text = rule.rule_text.trim(),
+                prs = rule.pr_count,
+                plural = if rule.pr_count == 1 { "" } else { "s" },
+                rate = rule.fix_rate * 100.0,
+                sha = sha,
+            );
+        }
+        out.push('\n');
+    }
+
+    // ## Review observations — lower-confidence CR patterns kept for
+    // context but clearly labelled as advisory.
+    if !cr_observed.is_empty() {
+        out.push_str("## Review observations\n\n");
+        out.push_str(
+            "Lower-confidence patterns from past reviews. Useful as hints; not \
+             enforced consistently enough to be prohibitions.\n\n",
+        );
+        for rule in &cr_observed {
             let sha = rule
                 .fix_commit
                 .as_deref()
@@ -735,7 +963,20 @@ fn render_language_rules_with_cr(lang: &LanguageRules, cr_rules: &[CodeRabbitRul
             );
         }
     }
-    out
+
+    Some(out)
+}
+
+/// Legacy shim: the original renderer returned a plain `String` and
+/// callers used it unconditionally. The new Option-returning variant
+/// lets the caller skip hollow files entirely. Kept as a thin wrapper
+/// so existing tests that call the old path still work.
+#[cfg(test)]
+fn render_language_rules_with_cr_string(
+    lang: &LanguageRules,
+    cr_rules: &[CodeRabbitRule],
+) -> String {
+    render_language_rules_with_cr(lang, cr_rules).unwrap_or_default()
 }
 
 fn render_danger_zones(zones: &[DangerZone]) -> String {
@@ -1609,19 +1850,32 @@ mod tests {
 
     #[test]
     fn rule_files_generated_for_each_language() {
+        // Languages produce a file when they have at least
+        // MIN_RULE_FILE_LINES substantive observations. A single-bullet
+        // language is now considered too thin (regression guard covered
+        // separately in `thin_rule_file_is_skipped_entirely`). Give
+        // each language three bullets to hit the threshold.
         let snap = ProjectSnapshot {
             project_name: "Multi".into(),
             per_language_rules: vec![
                 LanguageRules {
                     language: "rust".into(),
                     glob: "**/*.rs".into(),
-                    bullets: vec!["Rust bullet".into()],
+                    bullets: vec![
+                        "Rust bullet one (3/3)".into(),
+                        "Rust bullet two (3/3)".into(),
+                        "Rust bullet three (3/3)".into(),
+                    ],
                     sample_files: vec!["src/lib.rs".into()],
                 },
                 LanguageRules {
                     language: "typescript".into(),
                     glob: "**/*.ts,**/*.tsx".into(),
-                    bullets: vec!["TS bullet".into()],
+                    bullets: vec![
+                        "TS bullet one (3/3)".into(),
+                        "TS bullet two (3/3)".into(),
+                        "TS bullet three (3/3)".into(),
+                    ],
                     sample_files: vec!["app.ts".into()],
                 },
                 LanguageRules {
@@ -1649,15 +1903,66 @@ mod tests {
         let lang = LanguageRules {
             language: "vbnet".into(),
             glob: "**/*.vb".into(),
-            bullets: vec!["Methods: PascalCase".into()],
+            // Need at least MIN_RULE_FILE_LINES substantive bullets
+            // for the file to be emitted rather than skipped as too
+            // thin. Adding three concrete bullets keeps this test
+            // focused on "the metadata serialises correctly", not on
+            // the thin-file skip behaviour (covered separately).
+            bullets: vec![
+                "Methods: PascalCase (3/3)".into(),
+                "`\"use strict\"` declared at top of file".into(),
+                "Variable declarations: var (2/3)".into(),
+            ],
             sample_files: vec!["sharedfunc.vb".into()],
         };
-        let md = render_language_rules_with_cr(&lang, &[]);
+        let md = render_language_rules_with_cr_string(&lang, &[]);
         assert!(md.contains("globs: \"**/*.vb\""));
         assert!(!md.contains("paths:"), "must use globs: not paths:");
-        assert!(md.contains("<instructions>"));
-        assert!(md.contains("Methods: PascalCase"));
+        assert!(md.contains("## Applies to"));
         assert!(md.contains("sharedfunc.vb"));
+    }
+
+    #[test]
+    fn thin_rule_file_is_skipped_entirely() {
+        // Regression guard: when a language produces fewer than three
+        // substantive bullets and has no CR patterns, emit no file.
+        // Shallow files teach the agent to discount the whole
+        // `.claude/rules/` collection.
+        let lang = LanguageRules {
+            language: "vbnet".into(),
+            glob: "**/*.vb".into(),
+            bullets: vec!["Methods: PascalCase (1/1)".into()],
+            sample_files: vec!["sharedfunc.vb".into()],
+        };
+        assert!(
+            render_language_rules_with_cr(&lang, &[]).is_none(),
+            "a single-bullet rule file must be skipped as too thin"
+        );
+    }
+
+    #[test]
+    fn placeholder_language_produces_no_conventions_file() {
+        // Languages labelled "unknown" / "other" / "" MUST NOT yield a
+        // convention file — they're a detector fallback, not a real
+        // language, and an "unknown-conventions.md" erodes trust in
+        // the collection.
+        for lang_name in &["unknown", "other", ""] {
+            let lang = LanguageRules {
+                language: (*lang_name).into(),
+                glob: "**/*.foo".into(),
+                bullets: vec![
+                    "bullet 1".into(),
+                    "bullet 2".into(),
+                    "bullet 3".into(),
+                    "bullet 4".into(),
+                ],
+                sample_files: vec!["x.foo".into()],
+            };
+            assert!(
+                render_language_rules_with_cr(&lang, &[]).is_none(),
+                "placeholder language `{lang_name}` must produce no file"
+            );
+        }
     }
 
     #[test]
@@ -1850,10 +2155,19 @@ Read docs/internal.md first.
 
     #[test]
     fn language_rule_file_embeds_coderabbit_top_k() {
+        // CR patterns now split across `## Avoid` (high fix-rate,
+        // high PR count — prohibitions) and `## Review observations`
+        // (lower confidence — advisory). All 15 rules in this
+        // fixture pass the 0.80 / 2-PR threshold, so they land in
+        // `## Avoid`; the top-K cap (10) still applies.
         let lang = LanguageRules {
             language: "vbnet".into(),
             glob: "**/*.vb".into(),
-            bullets: vec!["Methods: PascalCase".into()],
+            bullets: vec![
+                "Methods: PascalCase (3/3)".into(),
+                "`\"use strict\"` declared at top of file".into(),
+                "var (2/3)".into(),
+            ],
             sample_files: vec!["sharedfunc.vb".into()],
         };
         let cr_rules: Vec<CodeRabbitRule> = (0..15)
@@ -1865,19 +2179,16 @@ Read docs/internal.md first.
                 composite_score: 0.5 + (i as f32) * 0.01,
             })
             .collect();
-        let md = render_language_rules_with_cr(&lang, &cr_rules);
+        let md = render_language_rules_with_cr_string(&lang, &cr_rules);
         assert!(
-            md.contains("## CodeRabbit patterns"),
-            "section header expected; got:\n{md}"
+            md.contains("## Avoid"),
+            "Avoid section expected for high-fix-rate CR rules; got:\n{md}"
         );
-        // Cap — only 10 should render even though we passed 15.
         let bullet_count = md.matches("\n- **Rule #").count();
         assert_eq!(
             bullet_count, 10,
             "top-K cap must limit rendered CR bullets; got {bullet_count}"
         );
-        // The highest-composite ones survive (14 has composite 0.64,
-        // 0 has 0.50). Rule #14 must appear; Rule #0 must not.
         assert!(md.contains("Rule #14"), "highest-score rule missing: {md}");
         assert!(
             !md.contains("Rule #0 "),
@@ -1890,13 +2201,21 @@ Read docs/internal.md first.
         let lang = LanguageRules {
             language: "python".into(),
             glob: "**/*.py".into(),
-            bullets: vec!["Use snake_case".into()],
+            bullets: vec![
+                "Use snake_case (3/3)".into(),
+                "`\"use strict\"` declared at top of file".into(),
+                "Transpiled output: file contains helpers".into(),
+            ],
             sample_files: Vec::new(),
         };
-        let md = render_language_rules_with_cr(&lang, &[]);
+        let md = render_language_rules_with_cr_string(&lang, &[]);
         assert!(
-            !md.contains("CodeRabbit patterns"),
-            "section must be omitted when no CR rules are present: {md}"
+            !md.contains("## Review observations"),
+            "review-observations section must be omitted without CR rules: {md}"
+        );
+        assert!(
+            !md.contains("## Avoid"),
+            "Avoid section must be omitted when there are no high-fix-rate CR rules: {md}"
         );
     }
 
@@ -1904,25 +2223,43 @@ Read docs/internal.md first.
     fn coderabbit_only_language_still_gets_a_rule_file() {
         // A project that has CodeRabbit patterns for C# but no
         // deterministic style bullets for that language should still
-        // get a csharp-conventions.md file.
+        // get a csharp-conventions.md file — with the high-fix-rate
+        // pattern surfaced under `## Avoid` so the agent reads it as
+        // a prohibition, not an observation.
         let mut snap = minimal_snapshot();
         snap.per_language_rules = Vec::new(); // no deterministic rules
         snap.coderabbit_rules_by_language.insert(
             "csharp".into(),
-            vec![CodeRabbitRule {
-                rule_text: "await ConfigureAwait(false) on library calls".into(),
-                fix_rate: 1.0,
-                pr_count: 4,
-                fix_commit: Some("fab1234".into()),
-                composite_score: 0.9,
-            }],
+            vec![
+                CodeRabbitRule {
+                    rule_text: "await ConfigureAwait(false) on library calls".into(),
+                    fix_rate: 1.0,
+                    pr_count: 4,
+                    fix_commit: Some("fab1234".into()),
+                    composite_score: 0.9,
+                },
+                CodeRabbitRule {
+                    rule_text: "Prefer var for obvious types".into(),
+                    fix_rate: 1.0,
+                    pr_count: 3,
+                    fix_commit: None,
+                    composite_score: 0.8,
+                },
+                CodeRabbitRule {
+                    rule_text: "Avoid swallowing exceptions".into(),
+                    fix_rate: 1.0,
+                    pr_count: 2,
+                    fix_commit: None,
+                    composite_score: 0.7,
+                },
+            ],
         );
         let files = render_rule_files(&snap);
         let cs_file = files
             .iter()
             .find(|f| f.filename == "csharp-conventions.md")
             .expect("CR-only language must produce a rule file");
-        assert!(cs_file.content.contains("CodeRabbit patterns"));
+        assert!(cs_file.content.contains("## Avoid"));
         assert!(cs_file.content.contains("ConfigureAwait"));
     }
 
