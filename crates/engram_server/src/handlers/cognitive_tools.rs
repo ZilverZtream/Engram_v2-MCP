@@ -3209,6 +3209,38 @@ impl Engram {
                 .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
             std::fs::create_dir_all(&rules_dir)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            // Purge stale rule files from prior runs. We only prune
+            // files that match the generator's naming patterns
+            // (`*-conventions.md`, `danger-zones.md`, `state-and-data.md`,
+            // `co-change-pairs.md`, `frontend-notes.md`) so any
+            // hand-authored files under `.claude/rules/` survive. This
+            // keeps the set of convention files in sync with what the
+            // current run actually produced — e.g. an
+            // `unknown-conventions.md` left over from a pre-filter run
+            // disappears on the next refresh.
+            let current_filenames: std::collections::HashSet<&str> =
+                rule_files.iter().map(|f| f.filename.as_str()).collect();
+            if let Ok(entries) = std::fs::read_dir(&rules_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    let is_engram_owned = name.ends_with("-conventions.md")
+                        || matches!(
+                            name.as_str(),
+                            "danger-zones.md"
+                                | "state-and-data.md"
+                                | "co-change-pairs.md"
+                                | "frontend-notes.md"
+                        );
+                    if is_engram_owned && !current_filenames.contains(name.as_str()) {
+                        let _ = std::fs::remove_file(entry.path());
+                        notes.push(format!(
+                            "Removed stale .claude/rules/{name} (not emitted this run)"
+                        ));
+                    }
+                }
+            }
+
             for f in &rule_files {
                 let path = safe_join(&project_dir, &format!(".claude/rules/{}", f.filename))
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;

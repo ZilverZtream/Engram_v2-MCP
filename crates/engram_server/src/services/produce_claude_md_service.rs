@@ -736,6 +736,132 @@ fn classify_bullet(text: &str) -> BulletTier {
     BulletTier::Observed
 }
 
+/// Collapse sample-derived bullets that differ only in their `(k/n)`
+/// ratio — e.g. `"Variable declarations: let (10/10)"` and `"Variable
+/// declarations: let (3/3)"` from two separate sampled files become a
+/// single `"Variable declarations: let (13/13)"` entry. Preserves
+/// insertion order so the rendered output matches what the upstream
+/// detector emitted.
+///
+/// Bullets without a ratio pass through unchanged; bullets that appear
+/// only once are unaffected. This eliminates the "duplicated `let`
+/// bullets" class of noise ChatGPT flagged.
+fn dedup_sampled_bullets(bullets: &[String]) -> Vec<String> {
+    // (key, first_occurrence, summed_num, summed_den, ratio_count)
+    //
+    // `key` is the bullet text with every `(k/n)` ratio replaced by a
+    // sentinel, so two bullets that share the same narrative but have
+    // different sample sizes collapse. `first_occurrence` keeps the
+    // original wording (including its first ratio, which we overwrite
+    // below with the summed totals when merging).
+    struct Slot {
+        key: String,
+        first: String,
+        num: u32,
+        den: u32,
+        hits: u32,
+    }
+    let mut slots: Vec<Slot> = Vec::with_capacity(bullets.len());
+    for b in bullets {
+        let text = b.trim();
+        if text.is_empty() {
+            continue;
+        }
+        let (key, ratios) = ratio_dedup_key(text);
+        let summed_num: u32 = ratios.iter().map(|(n, _)| *n).sum();
+        let summed_den: u32 = ratios.iter().map(|(_, d)| *d).sum();
+        if let Some(s) = slots.iter_mut().find(|s| s.key == key) {
+            s.num = s.num.saturating_add(summed_num);
+            s.den = s.den.saturating_add(summed_den);
+            s.hits += 1;
+        } else {
+            slots.push(Slot {
+                key,
+                first: text.to_string(),
+                num: summed_num,
+                den: summed_den,
+                hits: 1,
+            });
+        }
+    }
+    slots
+        .into_iter()
+        .map(|s| {
+            if s.hits <= 1 || s.den == 0 {
+                return s.first;
+            }
+            // Rewrite the FIRST `(k/n)` occurrence in the preserved
+            // bullet text with the summed totals. Any subsequent
+            // ratios on the same bullet (uncommon) stay as-is.
+            replace_first_ratio(&s.first, s.num, s.den)
+        })
+        .collect()
+}
+
+/// Build the dedup key for a sample-derived bullet and also return
+/// every `(k/n)` ratio it contained. The key masks ratios to a fixed
+/// sentinel so two bullets with the same narrative collapse.
+fn ratio_dedup_key(text: &str) -> (String, Vec<(u32, u32)>) {
+    let mut key = String::with_capacity(text.len());
+    let mut ratios: Vec<(u32, u32)> = Vec::new();
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'(' {
+            // Try to parse (digits/digits) — if it works, replace with
+            // a sentinel; otherwise emit the paren and continue.
+            if let Some((num, den, end)) = try_parse_ratio_at(bytes, i) {
+                ratios.push((num, den));
+                key.push_str("(…)");
+                i = end;
+                continue;
+            }
+        }
+        key.push(bytes[i] as char);
+        i += 1;
+    }
+    (key, ratios)
+}
+
+fn try_parse_ratio_at(bytes: &[u8], start: usize) -> Option<(u32, u32, usize)> {
+    debug_assert_eq!(bytes[start], b'(');
+    let mut i = start + 1;
+    let num_start = i;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        i += 1;
+    }
+    if i == num_start || i >= bytes.len() || bytes[i] != b'/' {
+        return None;
+    }
+    let num: u32 = std::str::from_utf8(&bytes[num_start..i]).ok()?.parse().ok()?;
+    i += 1;
+    let den_start = i;
+    while i < bytes.len() && bytes[i].is_ascii_digit() {
+        i += 1;
+    }
+    if i == den_start || i >= bytes.len() || bytes[i] != b')' {
+        return None;
+    }
+    let den: u32 = std::str::from_utf8(&bytes[den_start..i]).ok()?.parse().ok()?;
+    Some((num, den, i + 1))
+}
+
+fn replace_first_ratio(text: &str, num: u32, den: u32) -> String {
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'(' && let Some((_, _, end)) = try_parse_ratio_at(bytes, i) {
+            let mut out = String::with_capacity(text.len());
+            out.push_str(&text[..i]);
+            out.push_str(&format!("({num}/{den})"));
+            out.push_str(&text[end..]);
+            return out;
+        }
+        i += 1;
+    }
+    text.to_string()
+}
+
 /// Parse a ratio like `(2/3)` or `(17/17)` embedded in a bullet to
 /// drive the Mandatory / Strong / Observed split. Returns `(numerator,
 /// denominator)` on success.
@@ -790,24 +916,26 @@ fn render_language_rules_with_cr(
         return None;
     }
 
-    // Classify every bullet into a tier. Bullets that look like
-    // near-duplicates across sampled files get deduplicated here so
-    // contradictory "(2/3) camelCase" and "(8/9) PascalCase" don't both
-    // appear as universal law.
-    let mut mandatory: Vec<&String> = Vec::new();
-    let mut strong: Vec<&String> = Vec::new();
-    let mut observed: Vec<&String> = Vec::new();
-    let mut avoid: Vec<&String> = Vec::new();
-    for b in &lang.bullets {
+    // Classify every bullet into a tier, deduplicating near-
+    // duplicates across sampled files (e.g. `let (10/10)` + `let
+    // (3/3)` from two different files → one merged `let (13/13)`).
+    // The dedup key ignores the `(k/n)` ratio so textually-
+    // equivalent observations with different sample sizes collapse.
+    let bullets_dedup = dedup_sampled_bullets(&lang.bullets);
+    let mut mandatory: Vec<String> = Vec::new();
+    let mut strong: Vec<String> = Vec::new();
+    let mut observed: Vec<String> = Vec::new();
+    let mut avoid: Vec<String> = Vec::new();
+    for b in &bullets_dedup {
         let b_trim = b.trim();
         if b_trim.is_empty() {
             continue;
         }
         match classify_bullet(b_trim) {
-            BulletTier::Mandatory => mandatory.push(b),
-            BulletTier::Strong => strong.push(b),
-            BulletTier::Observed => observed.push(b),
-            BulletTier::Avoid => avoid.push(b),
+            BulletTier::Mandatory => mandatory.push(b.clone()),
+            BulletTier::Strong => strong.push(b.clone()),
+            BulletTier::Observed => observed.push(b.clone()),
+            BulletTier::Avoid => avoid.push(b.clone()),
         }
     }
 
@@ -831,13 +959,16 @@ fn render_language_rules_with_cr(
         }
     }
 
-    let total_lines = mandatory.len()
-        + strong.len()
-        + observed.len()
-        + avoid.len()
-        + cr_strong_avoid.len()
-        + cr_observed.len();
-    if total_lines < MIN_RULE_FILE_LINES {
+    // Signal-bearing sections: Mandatory, Strong, Observed (sample-
+    // derived), and anything that reached the Avoid bucket (security
+    // or high-fix-rate CR patterns). `cr_observed` is explicitly
+    // EXCLUDED from the signal count because it's all low-confidence
+    // 1-PR review-note noise — a file with only `## Review
+    // observations` is a review-note collection, not a convention
+    // file. See the ChatGPT review of OciusX's sql/webforms outputs.
+    let signal_lines =
+        mandatory.len() + strong.len() + observed.len() + avoid.len() + cr_strong_avoid.len();
+    if signal_lines < MIN_RULE_FILE_LINES {
         return None;
     }
 
@@ -1012,14 +1143,85 @@ fn render_state_and_data(
     db: Option<&DbSummary>,
     auth: Option<&AuthSummary>,
 ) -> String {
-    let mut out = String::with_capacity(512);
+    let mut out = String::with_capacity(1024);
     out.push_str("---\n");
-    out.push_str("# State management + database surface.\n");
+    out.push_str("# State management + database surface — rules, not just inventory.\n");
     out.push_str("---\n\n");
     out.push_str("# State and data\n\n");
 
+    // ── Mandatory + Strong rules derived from the underlying stats ──
+    // The old version of this file was a map (counts and top-N lists).
+    // The new version turns each signal into an actionable rule the
+    // agent should follow before touching shared state, and keeps the
+    // raw inventory at the bottom as reference.
+    let mut mandatory: Vec<String> = Vec::new();
+    let mut strong: Vec<String> = Vec::new();
+
     if let Some(s) = state {
-        out.push_str("## Session / ViewState / Application state\n\n");
+        if s.cross_page_chains > 0 {
+            mandatory.push(format!(
+                "**{}** state keys are touched by 2+ pages. Before changing the SHAPE or SEMANTICS of any session / viewstate key, run `trace_state_usage(key)` to see every other reader and writer — silent cross-page breakage is the dominant regression mode on this surface.",
+                s.cross_page_chains
+            ));
+        }
+        if s.session_keys > 0 && s.session_keys >= s.viewstate_keys * 2 {
+            strong.push(format!(
+                "Session is the dominant state surface ({} keys vs {} ViewState). Prefer existing session keys over introducing new ones — the highest-traffic keys listed below are strong reuse candidates.",
+                s.session_keys, s.viewstate_keys
+            ));
+        }
+        if !s.top_keys.is_empty() {
+            if let Some((top_key, top_ops)) = s.top_keys.first() {
+                strong.push(format!(
+                    "`{}` is the hottest state key ({} ops). Any change to its shape cascades widely — treat it as a published contract, not an implementation detail.",
+                    top_key, top_ops
+                ));
+            }
+        }
+    }
+
+    if let Some(d) = db {
+        if !d.top_tables.is_empty() {
+            if let Some((top_table, refs)) = d.top_tables.first() {
+                if *refs >= 10 {
+                    mandatory.push(format!(
+                        "`{}` is the central database table ({} references). A schema change here touches the largest fan-out in the graph — run `get_table_schema` + `find_symbol_references` on every column you plan to rename or retype.",
+                        top_table, refs
+                    ));
+                }
+            }
+        }
+    }
+
+    if let Some(a) = auth {
+        if !a.mode.is_empty() {
+            strong.push(format!(
+                "Auth mode: **{}**. Every API controller action and ASPX `Page_Load` must run its permission check before `IsPostBack` / before any data access — not after.",
+                a.mode
+            ));
+        }
+    }
+
+    if !mandatory.is_empty() {
+        out.push_str("## Mandatory\n\n");
+        for m in &mandatory {
+            let _ = writeln!(out, "- {m}");
+        }
+        out.push('\n');
+    }
+    if !strong.is_empty() {
+        out.push_str("## Strong preferences\n\n");
+        for s in &strong {
+            let _ = writeln!(out, "- {s}");
+        }
+        out.push('\n');
+    }
+
+    // ── Inventory (reference, not rules) ──
+    // Kept below the rules so the agent reads the rules first but can
+    // still look up the raw numbers when it needs them.
+    if let Some(s) = state {
+        out.push_str("## State inventory (reference)\n\n");
         let _ = writeln!(
             out,
             "- Total distinct state keys: **{}** ({} Session, {} ViewState, {} Application)",
@@ -1028,7 +1230,7 @@ fn render_state_and_data(
         if s.cross_page_chains > 0 {
             let _ = writeln!(
                 out,
-                "- Cross-page state chains: **{}** (a state key touched by 2+ pages)",
+                "- Cross-page state chains: **{}** (keys touched by 2+ pages)",
                 s.cross_page_chains
             );
         }
@@ -1042,7 +1244,7 @@ fn render_state_and_data(
     }
 
     if let Some(d) = db {
-        out.push_str("## Database tables\n\n");
+        out.push_str("## Database inventory (reference)\n\n");
         let _ = writeln!(out, "- Tables in graph: **{}**", d.table_count);
         if !d.top_tables.is_empty() {
             out.push_str("- Most referenced tables:\n");
@@ -1054,7 +1256,7 @@ fn render_state_and_data(
     }
 
     if let Some(a) = auth {
-        out.push_str("## Auth\n\n");
+        out.push_str("## Auth inventory (reference)\n\n");
         if !a.mode.is_empty() {
             let _ = writeln!(out, "- Mode: **{}**", a.mode);
         }
@@ -1342,19 +1544,29 @@ pub fn splice_engram_section(existing: &str, engram_block: &str) -> String {
          {ENGRAM_END_MARKER}"
     );
 
-    // Case 1: both markers present → replace the span.
-    if let (Some(b), Some(e)) = (
+    // Case 1: at least one begin marker AND at least one end marker.
+    //
+    // Replace the span from the FIRST begin marker to the LAST end
+    // marker. This deliberately collapses any stale nested pairs that
+    // accumulated between them — a previous buggy splicer version (or
+    // a hand edit) could leave two engram blocks side-by-side, and
+    // the right answer is "one canonical block going forward", not
+    // "preserve the stale content between blocks as human-authored".
+    //
+    // If the first begin appears AFTER the last end, treat it as
+    // corrupt and fall through to Case 2 so we at least append a
+    // clean block instead of producing garbage.
+    if let (Some(first_begin), Some(last_end)) = (
         existing.find(ENGRAM_BEGIN_MARKER),
-        existing.find(ENGRAM_END_MARKER),
-    ) {
-        if b < e {
-            let mut out = String::with_capacity(existing.len() + wrapped.len());
-            out.push_str(&existing[..b]);
-            out.push_str(&wrapped);
-            let end_after = e + ENGRAM_END_MARKER.len();
-            out.push_str(&existing[end_after..]);
-            return out;
-        }
+        existing.rfind(ENGRAM_END_MARKER),
+    ) && last_end > first_begin
+    {
+        let end_after = last_end + ENGRAM_END_MARKER.len();
+        let mut out = String::with_capacity(existing.len() + wrapped.len());
+        out.push_str(&existing[..first_begin]);
+        out.push_str(&wrapped);
+        out.push_str(&existing[end_after..]);
+        return out;
     }
 
     // Case 2: no markers → append at the end under a clear heading.
@@ -1992,6 +2204,59 @@ Another handwritten section.
     }
 
     #[test]
+    fn splice_collapses_multiple_engram_blocks_into_one() {
+        // Regression guard for the OciusX duplicate-block incident:
+        // a buggy prior splicer run left the file with two engram
+        // blocks side-by-side. The fixed splicer must collapse ALL
+        // engram-managed content (first begin → last end) into one
+        // fresh block, leaving human-authored content around it
+        // intact.
+        let existing = "\
+# Project manual
+
+Handwritten intro that must survive.
+
+<!-- engram:begin -->
+OLD engram block #1 — should disappear entirely
+<!-- engram:end -->
+
+
+## Project-specific guidance (preserved)
+
+<!-- engram:begin -->
+OLD engram block #2 — should disappear entirely
+<!-- engram:end -->
+
+# Hand-authored section below
+
+Long-form human content the author wrote by hand.
+";
+        let new_block = "NEW engram block";
+        let out = splice_engram_section(existing, new_block);
+        assert!(out.contains("Handwritten intro"));
+        assert!(out.contains("Hand-authored section below"));
+        assert!(out.contains("Long-form human content"));
+        assert!(
+            !out.contains("OLD engram block #1"),
+            "first stale block must be removed; got:\n{out}"
+        );
+        assert!(
+            !out.contains("OLD engram block #2"),
+            "second stale block must be removed; got:\n{out}"
+        );
+        assert!(
+            out.contains("NEW engram block"),
+            "fresh engram content must land between the original \
+             human sections; got:\n{out}"
+        );
+        // Exactly one begin marker + one end marker should survive.
+        let begins = out.matches(ENGRAM_BEGIN_MARKER).count();
+        let ends = out.matches(ENGRAM_END_MARKER).count();
+        assert_eq!(begins, 1, "expected exactly one begin marker; got {begins}");
+        assert_eq!(ends, 1, "expected exactly one end marker; got {ends}");
+    }
+
+    #[test]
     fn splice_without_markers_appends_without_touching_existing() {
         let existing = "# Project manual\n\n## Rules\n\n1. Never do X.\n2. Always Y.\n";
         let new_block = "Engram-generated block";
@@ -2292,9 +2557,118 @@ Read docs/internal.md first.
         );
         assert!(md.contains("Session"));
         assert!(md.contains("CartID"));
-        // Sections with no data must not render.
-        assert!(!md.contains("## Database tables"));
+        // Sections with no data must not render — the new template
+        // renames them to `## Database inventory (reference)` etc,
+        // so both old and new headings must be absent.
+        assert!(!md.contains("Database"));
         assert!(!md.contains("## Auth"));
+    }
+
+    #[test]
+    fn state_and_data_emits_actionable_rules_not_only_inventory() {
+        // Regression guard: the previous renderer was a map of counts
+        // and top-N lists with no rules. The new renderer must turn
+        // the signals into actionable Mandatory / Strong rules that
+        // tell the agent what to DO before touching shared state.
+        let md = render_state_and_data(
+            Some(&StateSummary {
+                total_state_keys: 158,
+                session_keys: 137,
+                viewstate_keys: 20,
+                application_keys: 1,
+                cross_page_chains: 154,
+                top_keys: vec![("fjAdvancedFilter".into(), 15)],
+            }),
+            Some(&DbSummary {
+                table_count: 192,
+                top_tables: vec![("fj_fiberjobb".into(), 27)],
+            }),
+            Some(&AuthSummary {
+                mode: "ASP.NET Membership + OAuth2".into(),
+                required_roles: vec!["Admin".into()],
+                session_auth_patterns: 5,
+            }),
+        );
+        // Mandatory / Strong headings must appear.
+        assert!(md.contains("## Mandatory"), "expected Mandatory section:\n{md}");
+        assert!(
+            md.contains("## Strong preferences"),
+            "expected Strong section:\n{md}"
+        );
+        // Cross-page chains rule must mention trace_state_usage.
+        assert!(
+            md.contains("trace_state_usage"),
+            "cross-page-chains rule must point at `trace_state_usage`:\n{md}"
+        );
+        // The central DB table rule must name the table.
+        assert!(
+            md.contains("fj_fiberjobb"),
+            "central-table rule must cite the table:\n{md}"
+        );
+        // Hottest state key rule must name the key.
+        assert!(
+            md.contains("fjAdvancedFilter"),
+            "hottest-key rule must cite the key:\n{md}"
+        );
+        // Inventory is still present but below the rules.
+        assert!(
+            md.contains("## State inventory (reference)"),
+            "raw inventory should be kept as a reference section:\n{md}"
+        );
+        // The rules should appear BEFORE the inventory so the agent
+        // reads them first.
+        let mand_idx = md.find("## Mandatory").unwrap();
+        let inv_idx = md.find("## State inventory").unwrap();
+        assert!(
+            mand_idx < inv_idx,
+            "Mandatory rules must appear before raw inventory"
+        );
+    }
+
+    #[test]
+    fn dedup_sampled_bullets_merges_same_bullet_with_different_ratios() {
+        // Regression guard for the ChatGPT-flagged duplicated `let`
+        // bullets in TypeScript: two sampled files each emitted
+        // "Variable declarations: let (10/10)" and "(3/3)". The
+        // dedup pass must collapse them into one entry with the
+        // summed ratio.
+        let bullets = vec![
+            "Variable declarations: **`let`** (10/10) — prefer const".to_string(),
+            "Variable declarations: **`let`** (3/3) — prefer const".to_string(),
+        ];
+        let out = dedup_sampled_bullets(&bullets);
+        assert_eq!(out.len(), 1, "duplicates must collapse; got {out:?}");
+        assert!(
+            out[0].contains("(13/13)"),
+            "ratios must sum; got {:?}",
+            out[0]
+        );
+    }
+
+    #[test]
+    fn dedup_sampled_bullets_leaves_distinct_bullets_alone() {
+        let bullets = vec![
+            "Method naming: camelCase (2/3)".to_string(),
+            "Method naming: PascalCase (8/9)".to_string(),
+            "Event wiring: Handles clauses (2/2)".to_string(),
+        ];
+        let out = dedup_sampled_bullets(&bullets);
+        assert_eq!(out.len(), 3, "distinct bullets must survive; got {out:?}");
+    }
+
+    #[test]
+    fn dedup_sampled_bullets_passes_through_no_ratio_bullets() {
+        let bullets = vec![
+            "Use strict mode at top of file".to_string(),
+            "Use strict mode at top of file".to_string(), // exact duplicate
+            "Prefer composition over inheritance".to_string(),
+        ];
+        let out = dedup_sampled_bullets(&bullets);
+        assert_eq!(
+            out.len(),
+            2,
+            "exact duplicates (no ratios) must also collapse; got {out:?}"
+        );
     }
 
     // ── Existing CLAUDE.md merge ──
