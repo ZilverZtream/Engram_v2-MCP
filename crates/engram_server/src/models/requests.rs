@@ -446,6 +446,70 @@ pub struct SearchMemoryRequest {
     pub language_filters: Option<Vec<String>>,
     #[serde(default)]
     pub metadata_filter: Option<serde_json::Value>,
+    /// When `false`, short-circuits the hybrid pipeline: skips vector
+    /// search, RRF fusion, and MMR reranking, returning pure FTS
+    /// results ranked by BM25. Use this when you want to find where
+    /// a literal identifier appears and don't need semantic matching.
+    /// Default: `true` (full hybrid search).
+    #[serde(default = "default_true")]
+    pub semantic: bool,
+}
+
+/// Fast literal / regex search over the indexed file set. Prefilters
+/// via the existing Tantivy trigram index and verifies the actual
+/// literal inside each candidate chunk — beats ripgrep on warm queries
+/// because the index already knows which chunks contain the token.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GrepProjectRequest {
+    pub project_id: String,
+    pub pattern: String,
+    /// Treat `pattern` as a regex. Default: false (literal).
+    #[serde(default)]
+    pub regex: bool,
+    /// Force case-sensitive or case-insensitive. When omitted, smart
+    /// case applies: case-insensitive unless the pattern contains any
+    /// uppercase ASCII character.
+    #[serde(default)]
+    pub case_sensitive: Option<bool>,
+    /// Regex-only: let `.` match newlines. Default: false.
+    #[serde(default)]
+    pub multiline: bool,
+    /// Only scan files whose indexed path starts with this prefix.
+    #[serde(default)]
+    pub path_prefix: Option<String>,
+    /// Only scan chunks in this language.
+    #[serde(default)]
+    pub language: Option<String>,
+    /// Lines of context before each match. Default: 0.
+    #[serde(default)]
+    pub context_before: usize,
+    /// Lines of context after each match. Default: 0.
+    #[serde(default)]
+    pub context_after: usize,
+    /// Cap on returned matches. Default: 200.
+    #[serde(default = "default_grep_max_results")]
+    pub max_results: usize,
+    /// How to handle staleness between the index and disk:
+    /// `"strict"` (default) — fingerprint every tracked file, surface
+    /// stale paths in the result; `"warn"` — note staleness but don't
+    /// prioritise re-scanning; `"off"` — skip the check entirely.
+    #[serde(default = "default_grep_freshness")]
+    pub freshness: String,
+    /// Namespace to search. Default: "memory" (same as search tools).
+    #[serde(default = "default_namespace_memory")]
+    pub namespace: String,
+    /// Return structured JSON instead of rendered Markdown. Default: false.
+    #[serde(default)]
+    pub output_json: bool,
+}
+
+fn default_grep_max_results() -> usize {
+    200
+}
+
+fn default_grep_freshness() -> String {
+    "strict".into()
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -1059,6 +1123,7 @@ impl Default for SearchMemoryRequest {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
+            semantic: true,
         }
     }
 }
