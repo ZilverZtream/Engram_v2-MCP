@@ -1816,6 +1816,148 @@ impl HybridSearchEngine {
         Ok(out)
     }
 
+    /// Variant of [`Self::lexical_search`] that also returns each
+    /// chunk's full stored content and start-line. Used by
+    /// [`crate::grep::grep`] to verify literal matches without a
+    /// DocStore round-trip — the content is already in Tantivy's
+    /// stored-fields block.
+    ///
+    /// Returns `Vec<(HybridHit, content, start_line)>` so the caller
+    /// can feed each hit directly into the per-chunk scanner.
+    pub fn lexical_search_with_content(
+        &self,
+        q: &HybridQuery,
+    ) -> anyhow::Result<Vec<(HybridHit, String, u32)>> {
+        let reader = self.tantivy_index.reader()?;
+        let searcher = reader.searcher();
+
+        // Reuse the same query-building logic as `lexical_search` so
+        // the two variants agree on semantics. We inline the core
+        // instead of refactoring `lexical_search` because that path
+        // is exercised by many existing tests and this method is
+        // additive.
+        const MAX_REGEX_PATTERN_LEN: usize = 500;
+        let content_q: Box<dyn tantivy::query::Query> = match q.fts_mode.as_str() {
+            "regex" => {
+                if q.text.len() > MAX_REGEX_PATTERN_LEN {
+                    anyhow::bail!(
+                        "FTS1: regex pattern too long ({} bytes, max {})",
+                        q.text.len(),
+                        MAX_REGEX_PATTERN_LEN
+                    );
+                }
+                let mut parser =
+                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.set_conjunction_by_default();
+                parser.parse_query(&q.text)?
+            }
+            "loose" => {
+                let parser = QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.parse_query(&escape_tantivy_literal(&q.text))?
+            }
+            "strict" => {
+                let mut parser =
+                    QueryParser::for_index(&self.tantivy_index, vec![self.fields.content]);
+                parser.set_conjunction_by_default();
+                parser.parse_query(&escape_tantivy_literal(&q.text))?
+            }
+            unknown => anyhow::bail!(
+                "unknown fts_mode '{unknown}': must be strict, loose, or regex"
+            ),
+        };
+
+        let pid_q = TermQuery::new(
+            Term::from_field_text(self.fields.project_id, &q.project_id),
+            IndexRecordOption::Basic,
+        );
+        let ns_q = TermQuery::new(
+            Term::from_field_text(self.fields.namespace, &q.namespace),
+            IndexRecordOption::Basic,
+        );
+        let mut must: Vec<(Occur, Box<dyn tantivy::query::Query>)> = vec![
+            (Occur::Must, content_q),
+            (Occur::Must, Box::new(pid_q)),
+            (Occur::Must, Box::new(ns_q)),
+        ];
+
+        if let Some(langs) = &q.language_filters {
+            let mut lq: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for l in langs {
+                lq.push((
+                    Occur::Should,
+                    Box::new(TermQuery::new(
+                        Term::from_field_text(self.fields.language, l),
+                        IndexRecordOption::Basic,
+                    )),
+                ));
+            }
+            must.push((Occur::Must, Box::new(BooleanQuery::new(lq))));
+        }
+
+        let query = BooleanQuery::new(must);
+        let top_docs: Vec<(Score, DocAddress)> =
+            searcher.search(&query, &TopDocs::with_limit(q.top_k))?;
+
+        let mut out: Vec<(HybridHit, String, u32)> = Vec::with_capacity(top_docs.len());
+        for (score, addr) in top_docs {
+            let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
+            let pk = doc
+                .get_first(self.fields.pk)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let chunk_id = doc
+                .get_first(self.fields.chunk_id)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let path_str = doc
+                .get_first(self.fields.path)
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let doc_id_str = doc
+                .get_first(self.fields.doc_id)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            // Full content — NOT truncated. This is the point of the
+            // new method: grep needs the whole chunk to locate the
+            // match and any requested context lines.
+            let content: String = doc
+                .get_first(self.fields.content)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let start_line = doc
+                .get_first(self.fields.start_line)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+
+            out.push((
+                HybridHit {
+                    pk,
+                    chunk_id,
+                    path: RelPath::new(path_str),
+                    score,
+                    centrality: 0.0,
+                    snippet: None,
+                    doc_id: doc_id_str,
+                },
+                content,
+                start_line,
+            ));
+        }
+        // Same deterministic sort as `lexical_search`.
+        out.sort_by(|a, b| {
+            b.0.score
+                .partial_cmp(&a.0.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.0.path.as_str().cmp(b.0.path.as_str()))
+                .then_with(|| a.0.doc_id.cmp(&b.0.doc_id))
+                .then_with(|| a.0.chunk_id.cmp(&b.0.chunk_id))
+        });
+        Ok(out)
+    }
+
     /// Retrieve a doc by its doc_id string (instance identity).
     #[allow(clippy::type_complexity)]
     pub fn get_doc_by_doc_id(
