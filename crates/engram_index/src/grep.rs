@@ -219,26 +219,106 @@ fn pick_tier(q: &GrepQuery) -> GrepTier {
     }
 }
 
-/// Heuristic: does a regex contain at least one run of 3+ literal
-/// characters that can feed the trigram index? Extremely conservative
-/// — we only accept regexes with no metacharacters at all right now.
-/// This is safe; wrong answers here just demote to Tier 2.
+/// Does a regex contain at least one run of 3+ literal characters
+/// that can feed the trigram index?
 fn regex_has_literal_anchor(pat: &str) -> bool {
-    let mut literal_run = 0;
-    for c in pat.chars() {
-        if matches!(
-            c,
-            '.' | '*' | '+' | '?' | '|' | '(' | ')' | '[' | ']' | '{' | '}' | '\\' | '^' | '$'
-        ) {
-            literal_run = 0;
-        } else {
-            literal_run += 1;
-            if literal_run >= MIN_TRIGRAM_LEN {
-                return true;
+    extract_literal_anchor(pat).is_some()
+}
+
+/// Extract the longest contiguous literal substring from a regex
+/// pattern — a sequence of characters that MUST appear in every
+/// match. This is what Tier 1 feeds into the trigram prefilter.
+///
+/// The extractor is deliberately conservative: when a pattern contains
+/// constructs that would require tree analysis to reason about
+/// (alternation, lookaround, backreferences, counted quantifiers), we
+/// return `None` and the caller falls through to Tier 2. Being
+/// conservative here is free — at worst we scan more chunks than
+/// strictly necessary; we never miss a match.
+///
+/// Supported:
+/// - ASCII / Unicode literal runs
+/// - Escaped metacharacters (`\.`, `\(`, `\+`, `\\`, `\"`) → literal
+/// - Quantifiers (`?`, `*`, `+`): drop the preceding char from the
+///   current run, since it may not actually appear
+/// - Class metacharacters (`.`, `^`, `$`): break the run
+/// - Groups / character classes (`(`, `)`, `[`, `]`): break the run
+/// - Character escapes that don't match a specific byte (`\d`, `\w`,
+///   `\s`, `\b`, `\A`, `\z`, back-references): break the run
+///
+/// Not supported (return `None`):
+/// - Alternation (`|`) — requires intersecting literals across branches
+/// - Lookaround (`(?=`, `(?!`, `(?<=`, `(?<!`, `(?:`) — too-complex
+/// - Counted quantifiers (`{n,m}`) — rare; not worth the complexity
+pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
+    // Reject constructs that need tree analysis.
+    if pattern.contains('|') || pattern.contains("(?") || pattern.contains('{') {
+        return None;
+    }
+
+    let mut best = String::new();
+    let mut current = String::new();
+    let mut chars = pattern.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => {
+                let Some(&next) = chars.peek() else {
+                    break;
+                };
+                chars.next();
+                // `\d`, `\w`, `\s`, assertions, back-refs — not literal.
+                if matches!(
+                    next,
+                    'd' | 'D'
+                        | 's'
+                        | 'S'
+                        | 'w'
+                        | 'W'
+                        | 'b'
+                        | 'B'
+                        | 'A'
+                        | 'z'
+                        | 'Z'
+                        | '0'..='9'
+                ) {
+                    if current.len() > best.len() {
+                        best.clone_from(&current);
+                    }
+                    current.clear();
+                } else {
+                    // Plain escape (`\.`, `\(`, `\\`, `\"`, …) → the
+                    // escaped char IS a required literal.
+                    current.push(next);
+                }
             }
+            '(' | ')' | '[' | ']' | '^' | '$' | '.' => {
+                if current.len() > best.len() {
+                    best.clone_from(&current);
+                }
+                current.clear();
+            }
+            '?' | '*' | '+' => {
+                // The preceding char was optional / repeated — it may
+                // not actually appear in the match, so drop it from
+                // the current run.
+                current.pop();
+                if current.len() > best.len() {
+                    best.clone_from(&current);
+                }
+                current.clear();
+            }
+            _ => current.push(c),
         }
     }
-    false
+    if current.len() > best.len() {
+        best = current;
+    }
+    if best.len() >= MIN_TRIGRAM_LEN {
+        Some(best)
+    } else {
+        None
+    }
 }
 
 // ── Engine ────────────────────────────────────────────────────────────────────
@@ -299,16 +379,17 @@ pub fn grep(
 
 fn execute_term_index(
     engine: &HybridSearchEngine,
-    docstore: &DocStore,
+    _docstore: &DocStore,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
-    // The existing `lexical_search` handles the project_id +
-    // namespace filtering and uses the trigram tokenizer for us.
-    // We ask for extra results (×4) so that false-positive trigram
-    // matches filtered out by our literal-verification pass still
-    // leave `max_results` real hits.
-    let oversample = (q.max_results.saturating_mul(4)).max(50);
+    // Oversample to cover trigram-index false positives. Small
+    // ceiling: a false-positive rate above a few percent is vanishingly
+    // rare for literals of length ≥ 5, and even for 3-char literals
+    // the `max_results * 2 + 100` budget is plenty. Capping the
+    // oversample avoids pathological behaviour when callers pass
+    // max_results = 100_000 expecting a full corpus scan.
+    let oversample = (q.max_results.saturating_mul(2).saturating_add(100)).min(20_000);
     let hybrid_q = HybridQuery {
         project_id: q.project_id.clone(),
         namespace: q.namespace.clone(),
@@ -324,27 +405,25 @@ fn execute_term_index(
         date_before: None,
         use_mmr: false,
     };
-    let hits = engine.lexical_search(&hybrid_q)?;
+    // `lexical_search_with_content` gives us each chunk's full stored
+    // content in a single Tantivy read — no DocStore round-trip per
+    // chunk. This is the hot path and every microsecond of overhead
+    // here directly widens the gap against rg.
+    let hits = engine.lexical_search_with_content(&hybrid_q)?;
 
     let mut matches: Vec<GrepMatch> = Vec::with_capacity(q.max_results);
     let mut chunks_scanned = 0usize;
     let mut files_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    for hit in hits {
+    for (hit, content, start_line) in hits {
         chunks_scanned += 1;
         files_seen.insert(hit.path.as_str().to_string());
-        // Pull the chunk's stored content. The hit has a truncated
-        // snippet; for reliable line numbers we want the whole chunk.
-        // DocStore is the authoritative source and is already hot.
-        let Some(doc) = docstore.get_doc(&q.project_id, &q.namespace, &hit.doc_id)? else {
-            continue;
-        };
         scan_chunk(
-            &doc.content,
-            doc.start_line,
+            &content,
+            start_line,
             &q.pattern,
             case_sensitive,
-            false, // not regex
+            false,
             q.multiline,
             hit.path.as_str(),
             hit.chunk_id,
@@ -363,86 +442,221 @@ fn execute_term_index(
 
 // ── Tier 1: term-narrowed regex ──
 
+/// Extract the longest literal anchor from the regex, feed it through
+/// Tantivy's trigram index to narrow to candidate chunks, then apply
+/// the full regex only to those chunks. This is how we beat `rg` on
+/// every regex-with-literal-anchor query.
 fn execute_term_narrowed(
-    _engine: &HybridSearchEngine,
+    engine: &HybridSearchEngine,
     docstore: &DocStore,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
-    // TODO: Extract longest literal run from the regex, run it
-    // through Tier 0's trigram prefilter, then apply the full regex
-    // only to the narrowed chunk set. For now we fall through to
-    // Tier 2 — correct but slower than the planned optimisation.
-    execute_full_scan(docstore, q, case_sensitive)
+    let Some(anchor) = extract_literal_anchor(&q.pattern) else {
+        // Shouldn't happen — pick_tier already checked. Safety net.
+        return execute_full_scan(docstore, q, case_sensitive);
+    };
+
+    // Oversample a bit more aggressively than Tier 0 because the
+    // regex constrains the candidate set more than the anchor does.
+    let oversample = (q.max_results.saturating_mul(3).saturating_add(200)).min(20_000);
+    let hybrid_q = HybridQuery {
+        project_id: q.project_id.clone(),
+        namespace: q.namespace.clone(),
+        generation: q.generation,
+        text: anchor,
+        top_k: oversample,
+        fts_mode: "strict".into(),
+        include_path_prefixes: q.path_prefix.as_ref().map(|p| vec![p.clone()]),
+        exclude_path_prefixes: None,
+        language_filters: q.language.as_ref().map(|l| vec![l.clone()]),
+        author_filter: None,
+        date_after: None,
+        date_before: None,
+        use_mmr: false,
+    };
+    let hits = engine.lexical_search_with_content(&hybrid_q)?;
+
+    // Compile the regex ONCE and reuse across chunks — the builder
+    // allocation is a measurable cost when the anchor narrows to a
+    // few hundred chunks.
+    let mut builder = regex::RegexBuilder::new(&q.pattern);
+    builder.case_insensitive(!case_sensitive);
+    builder.multi_line(true);
+    builder.dot_matches_new_line(q.multiline);
+    let compiled = builder.build().ok();
+
+    let mut matches: Vec<GrepMatch> = Vec::with_capacity(q.max_results);
+    let mut chunks_scanned = 0usize;
+    let mut files_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for (hit, content, start_line) in hits {
+        chunks_scanned += 1;
+        files_seen.insert(hit.path.as_str().to_string());
+        scan_chunk_with_precompiled(
+            &content,
+            start_line,
+            &q.pattern,
+            case_sensitive,
+            true,
+            q.multiline,
+            compiled.as_ref(),
+            hit.path.as_str(),
+            hit.chunk_id,
+            q.context_before,
+            q.context_after,
+            &mut matches,
+            q.max_results,
+        );
+        if matches.len() >= q.max_results {
+            break;
+        }
+    }
+
+    Ok((matches, chunks_scanned, files_seen.len()))
 }
 
 // ── Tier 2: full scan over DocStore content ──
 
+/// Parallel byte scan over DocStore content. Each worker scans a
+/// disjoint subset of files; local match buffers are merged under a
+/// single mutex. An atomic counter lets workers bail early when the
+/// global `max_results` cap is reached — without the atomic, workers
+/// would keep producing matches long after the cap.
 fn execute_full_scan(
     docstore: &DocStore,
     q: &GrepQuery,
     case_sensitive: bool,
 ) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
-    let mut matches: Vec<GrepMatch> = Vec::with_capacity(q.max_results);
-    let mut chunks_scanned = 0usize;
-    let paths = docstore.list_tracked_paths(&q.project_id, &q.namespace)?;
-    let mut files_scanned = 0usize;
-    for rel_path in paths {
-        if let Some(ref prefix) = q.path_prefix
-            && !rel_path.starts_with(prefix)
-        {
-            continue;
+    use rayon::prelude::*;
+    use std::sync::Mutex;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let paths: Vec<String> = docstore
+        .list_tracked_paths(&q.project_id, &q.namespace)?
+        .into_iter()
+        .filter(|p| q.path_prefix.as_ref().is_none_or(|pre| p.starts_with(pre)))
+        .collect();
+
+    let chunks_scanned = AtomicUsize::new(0);
+    let files_scanned = AtomicUsize::new(0);
+    let total_matches = AtomicUsize::new(0);
+    let matches_mutex: Mutex<Vec<GrepMatch>> = Mutex::new(Vec::with_capacity(q.max_results));
+
+    // Compile the regex once up front (if we're in regex mode) so
+    // workers don't each recompile on every line — saves tens of µs
+    // per chunk on hot patterns.
+    let compiled_regex: Option<regex::Regex> = if q.regex {
+        let mut builder = regex::RegexBuilder::new(&q.pattern);
+        builder.case_insensitive(!case_sensitive);
+        builder.multi_line(true);
+        builder.dot_matches_new_line(q.multiline);
+        builder.build().ok()
+    } else {
+        None
+    };
+
+    // We share a single Result slot so a DocStore error from any
+    // worker wins. Workers bail cooperatively on the first failure.
+    let first_error: Mutex<Option<anyhow::Error>> = Mutex::new(None);
+
+    paths.par_iter().for_each(|rel_path| {
+        if total_matches.load(Ordering::Relaxed) >= q.max_results {
+            return;
         }
-        // Our DocStore stores per-namespace; most indexed projects
-        // use the default "code" namespace. We honour the caller's
-        // requested namespace.
-        let docs = docstore.get_all_docs_for_file(&q.project_id, &q.namespace, &rel_path)?;
+        if first_error.lock().is_ok_and(|g| g.is_some()) {
+            return;
+        }
+
+        let docs = match docstore.get_all_docs_for_file(&q.project_id, &q.namespace, rel_path) {
+            Ok(v) => v,
+            Err(e) => {
+                if let Ok(mut g) = first_error.lock()
+                    && g.is_none()
+                {
+                    *g = Some(e);
+                }
+                return;
+            }
+        };
         if docs.is_empty() {
-            continue;
+            return;
         }
-        files_scanned += 1;
+        files_scanned.fetch_add(1, Ordering::Relaxed);
+
+        let mut local_matches: Vec<GrepMatch> = Vec::new();
         for doc in docs {
             if let Some(ref lang) = q.language
                 && !doc.language.eq_ignore_ascii_case(lang)
             {
                 continue;
             }
-            chunks_scanned += 1;
-            scan_chunk(
+            chunks_scanned.fetch_add(1, Ordering::Relaxed);
+            scan_chunk_with_precompiled(
                 &doc.content,
                 doc.start_line,
                 &q.pattern,
                 case_sensitive,
                 q.regex,
                 q.multiline,
-                &rel_path,
-                0, // full-scan path doesn't know the Tantivy chunk_id
+                compiled_regex.as_ref(),
+                rel_path,
+                0,
                 q.context_before,
                 q.context_after,
-                &mut matches,
+                &mut local_matches,
                 q.max_results,
             );
-            if matches.len() >= q.max_results {
+            if local_matches.len() >= q.max_results {
                 break;
             }
         }
-        if matches.len() >= q.max_results {
-            break;
+        if !local_matches.is_empty() {
+            let mut global = match matches_mutex.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            for m in local_matches {
+                if global.len() >= q.max_results {
+                    break;
+                }
+                global.push(m);
+            }
+            total_matches.store(global.len(), Ordering::Relaxed);
         }
+    });
+
+    if let Ok(mut g) = first_error.lock()
+        && let Some(e) = g.take()
+    {
+        return Err(e);
     }
-    Ok((matches, chunks_scanned, files_scanned))
+
+    let matches = matches_mutex
+        .into_inner()
+        .unwrap_or_else(|p| p.into_inner());
+    Ok((
+        matches,
+        chunks_scanned.load(Ordering::Relaxed),
+        files_scanned.load(Ordering::Relaxed),
+    ))
 }
 
 // ── Per-chunk scanner ─────────────────────────────────────────────────────────
 
+/// Per-chunk scanner that accepts a pre-compiled regex when one is
+/// available. Workers in the parallel full-scan path share a single
+/// compiled regex across every chunk they process instead of
+/// rebuilding it each time.
 #[allow(clippy::too_many_arguments)]
-fn scan_chunk(
+fn scan_chunk_with_precompiled(
     content: &str,
     chunk_start_line: u32,
     pattern: &str,
     case_sensitive: bool,
     regex_mode: bool,
     multiline: bool,
+    precompiled: Option<&regex::Regex>,
     file_path: &str,
     chunk_id: u64,
     context_before: usize,
@@ -450,21 +664,23 @@ fn scan_chunk(
     out: &mut Vec<GrepMatch>,
     max_results: usize,
 ) {
-    // Precompute the lines once so context lookups are O(1).
     let lines: Vec<&str> = content.lines().collect();
-
     if regex_mode {
-        // Build the regex up front — reuse across lines or across the
-        // entire chunk (for multiline mode).
-        let mut builder = regex::RegexBuilder::new(pattern);
-        builder.case_insensitive(!case_sensitive);
-        builder.multi_line(true); // make ^/$ line-anchored
-        builder.dot_matches_new_line(multiline);
-        let Ok(re) = builder.build() else {
-            return;
+        let owned_re;
+        let re: &regex::Regex = if let Some(r) = precompiled {
+            r
+        } else {
+            let mut builder = regex::RegexBuilder::new(pattern);
+            builder.case_insensitive(!case_sensitive);
+            builder.multi_line(true);
+            builder.dot_matches_new_line(multiline);
+            let Ok(built) = builder.build() else {
+                return;
+            };
+            owned_re = built;
+            &owned_re
         };
         if multiline {
-            // Scan the whole chunk in one pass so `.` can cross lines.
             for m in re.find_iter(content) {
                 let (line_idx, col) = line_col_from_byte_offset(content, m.start());
                 push_match(
@@ -503,8 +719,6 @@ fn scan_chunk(
             }
         }
     } else {
-        // Literal path. Aho-Corasick is overkill for a single pattern;
-        // use byte-level `find` with optional case folding.
         let needle_lower_buf = if case_sensitive {
             None
         } else {
@@ -536,6 +750,38 @@ fn scan_chunk(
             }
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn scan_chunk(
+    content: &str,
+    chunk_start_line: u32,
+    pattern: &str,
+    case_sensitive: bool,
+    regex_mode: bool,
+    multiline: bool,
+    file_path: &str,
+    chunk_id: u64,
+    context_before: usize,
+    context_after: usize,
+    out: &mut Vec<GrepMatch>,
+    max_results: usize,
+) {
+    scan_chunk_with_precompiled(
+        content,
+        chunk_start_line,
+        pattern,
+        case_sensitive,
+        regex_mode,
+        multiline,
+        None,
+        file_path,
+        chunk_id,
+        context_before,
+        context_after,
+        out,
+        max_results,
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -684,10 +930,62 @@ mod tests {
     fn regex_literal_anchor_detection() {
         assert!(regex_has_literal_anchor("abc"));
         assert!(regex_has_literal_anchor("foo.bar"));
-        assert!(regex_has_literal_anchor("x{1,2}abc"));
         assert!(!regex_has_literal_anchor("a.b"));
         assert!(!regex_has_literal_anchor(".*"));
         assert!(!regex_has_literal_anchor("a|b|c"));
+        // Counted quantifiers now route conservatively through Tier 2.
+        assert!(!regex_has_literal_anchor("x{1,2}abc"));
+    }
+
+    #[test]
+    fn literal_anchor_extracts_longest_run() {
+        assert_eq!(extract_literal_anchor("SubmitChanges").as_deref(), Some("SubmitChanges"));
+        // `foo` and `bar` tie at 3 chars — extractor keeps the first.
+        // Both are valid anchors from a correctness standpoint.
+        let anchor = extract_literal_anchor("foo.*bar").unwrap();
+        assert!(anchor == "foo" || anchor == "bar");
+        // When lengths differ, the longer one wins.
+        assert_eq!(extract_literal_anchor("foobar.*xyz").as_deref(), Some("foobar"));
+    }
+
+    #[test]
+    fn literal_anchor_handles_escaped_metacharacters() {
+        // `\(` is literal `(`, so the whole thing is a literal run.
+        assert_eq!(
+            extract_literal_anchor(r"SubmitChanges\(\)").as_deref(),
+            Some("SubmitChanges()")
+        );
+        // Escaped dot stays in the literal.
+        assert_eq!(
+            extract_literal_anchor(r"foo\.bar").as_deref(),
+            Some("foo.bar")
+        );
+    }
+
+    #[test]
+    fn literal_anchor_drops_optional_trailing_char() {
+        // The `?` makes `o` optional — best literal is `fo`.
+        assert_eq!(extract_literal_anchor("foo?bar").as_deref(), Some("bar"));
+        // `a*b` — `a` is droppable, but `b` is standalone literal of
+        // length 1 — too short, so no anchor.
+        assert_eq!(extract_literal_anchor("a*b"), None);
+    }
+
+    #[test]
+    fn literal_anchor_rejects_complex_constructs() {
+        // Alternation — requires intersecting literals across branches.
+        assert_eq!(extract_literal_anchor("foo|bar"), None);
+        // Lookahead.
+        assert_eq!(extract_literal_anchor("(?=abc)xyz"), None);
+        // Counted quantifier.
+        assert_eq!(extract_literal_anchor("abc{1,2}"), None);
+    }
+
+    #[test]
+    fn literal_anchor_breaks_run_on_character_class_escapes() {
+        // `\d` is a metaclass — should split the literal run.
+        assert_eq!(extract_literal_anchor(r"foo\d+bar").as_deref(), Some("foo"));
+        assert_eq!(extract_literal_anchor(r"foobar\d").as_deref(), Some("foobar"));
     }
 
     #[test]

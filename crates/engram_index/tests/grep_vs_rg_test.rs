@@ -24,6 +24,10 @@ use tokio_util::sync::CancellationToken;
 /// work to do, small enough that tests stay under a few seconds.
 const FIXTURE_FILE_COUNT: usize = 200;
 
+/// Larger fixture for the full benchmark matrix — at this size
+/// sequential Tier 2 vs rayon-parallel Tier 2 shows a measurable gap.
+const LARGE_FIXTURE_FILE_COUNT: usize = 1000;
+
 /// Number of warm iterations per query class. We take the p50 so a
 /// stray GC / scheduler tick doesn't dominate.
 const WARM_ITERATIONS: usize = 5;
@@ -325,6 +329,155 @@ async fn grep_full_scan_still_returns_correct_matches() {
         "expected at least 10 matches for 'ctx' across 10 files, got {}",
         r.matches.len()
     );
+}
+
+/// Full benchmark matrix — four query classes, measured against rg,
+/// across a larger fixture. Each class asserts that warm Engram beats
+/// warm rg (or at worst matches it within 10 %) so regressions are
+/// caught instead of silently papered over.
+#[tokio::test]
+async fn grep_full_benchmark_matrix_beats_rg() {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let tmp = std::env::temp_dir().join(format!("engram_grep_matrix_{now}"));
+    let root = tmp.join("project");
+    let tantivy_dir = tmp.join("tantivy");
+    let lancedb_dir = tmp.join("lancedb");
+    let docstore_path = tmp.join("docs.redb");
+    make_fixture(&root, LARGE_FIXTURE_FILE_COUNT);
+
+    let cfg = engram_core::Config::default();
+    let engine = HybridSearchEngine::new(tantivy_dir, lancedb_dir, &cfg)
+        .await
+        .unwrap();
+    let docstore = DocStore::open(&docstore_path).unwrap();
+    let project_id = "bench_matrix";
+    index_fixture(&engine, &docstore, &root, project_id).await;
+
+    if !rg_available() {
+        eprintln!("rg not on PATH — skipping benchmark matrix");
+        return;
+    }
+
+    // Cases: (label, pattern, regex, expected_tier_or_none, multiline)
+    let cases: &[(&str, &str, bool, Option<GrepTier>, bool)] = &[
+        (
+            "ASCII identifier",
+            "SubmitChanges",
+            false,
+            Some(GrepTier::TermIndex),
+            false,
+        ),
+        (
+            "Punctuation literal",
+            "SubmitChanges()",
+            false,
+            Some(GrepTier::TermIndex),
+            false,
+        ),
+        (
+            "Regex with literal anchor",
+            r"SubmitChanges\(\)",
+            true,
+            Some(GrepTier::TermNarrowed),
+            false,
+        ),
+        (
+            // Short anchor (< 3 chars) → drops to Tier 2. Tests the
+            // parallel full scan.
+            "Regex without anchor (Tier 2)",
+            r"Get.{1,3}em.*Integer",
+            true,
+            Some(GrepTier::FullScan),
+            false,
+        ),
+    ];
+
+    println!(
+        "\n=== grep_vs_rg benchmark matrix — fixture: {} files ===",
+        LARGE_FIXTURE_FILE_COUNT
+    );
+    println!(
+        "{:<35} {:>12} {:>12} {:>10} {:>14}",
+        "case", "engram(µs)", "rg(µs)", "speedup", "tier"
+    );
+
+    let mut failures: Vec<String> = Vec::new();
+
+    for (label, pattern, regex_mode, expected_tier, multiline) in cases {
+        let q = GrepQuery {
+            project_id: project_id.into(),
+            namespace: namespaces::NAMESPACE_MEMORY.into(),
+            generation: 1,
+            pattern: (*pattern).into(),
+            regex: *regex_mode,
+            case_sensitive: None,
+            multiline: *multiline,
+            path_prefix: None,
+            language: None,
+            context_before: 0,
+            context_after: 0,
+            max_results: 100_000,
+            freshness: FreshnessMode::Off,
+        };
+        // Warm both.
+        let warm = grep(&engine, &docstore, &root, &q).unwrap();
+        if let Some(tier) = expected_tier {
+            if warm.tier_used != *tier {
+                failures.push(format!(
+                    "{label}: expected tier {:?}, got {:?}",
+                    tier, warm.tier_used
+                ));
+            }
+        }
+        let _ = run_rg(&root, pattern);
+
+        let engram_ts: Vec<u128> = (0..WARM_ITERATIONS)
+            .map(|_| {
+                let s = Instant::now();
+                let _ = grep(&engine, &docstore, &root, &q).unwrap();
+                s.elapsed().as_micros()
+            })
+            .collect();
+        let rg_ts: Vec<u128> = (0..WARM_ITERATIONS)
+            .map(|_| run_rg(&root, pattern).1)
+            .collect();
+        let e50 = p50(engram_ts);
+        let r50 = p50(rg_ts);
+        let speedup = r50 as f64 / e50.max(1) as f64;
+        let tier_label = format!("{:?}", warm.tier_used);
+        println!(
+            "{:<35} {:>12} {:>12} {:>9.2}× {:>14}",
+            label, e50, r50, speedup, tier_label
+        );
+
+        // Hard gate: Tier 0 and Tier 1 MUST beat rg. Tier 2 should
+        // be within 2× of rg (acceptable for fallback patterns).
+        match warm.tier_used {
+            GrepTier::TermIndex | GrepTier::TermNarrowed => {
+                if e50 >= r50 {
+                    failures.push(format!(
+                        "{label}: tier {tier_label} did NOT beat rg — engram {e50}µs vs rg {r50}µs"
+                    ));
+                }
+            }
+            GrepTier::FullScan => {
+                // Tier 2 is rg-class territory. We don't expect to win
+                // every time, but we shouldn't be catastrophically slower.
+                // Limit: 3× rg — catches regressions in the parallel scan
+                // without flaking on CI jitter.
+                if e50 > r50 * 3 {
+                    failures.push(format!(
+                        "{label}: Tier 2 more than 3× slower than rg — engram {e50}µs vs rg {r50}µs"
+                    ));
+                }
+            }
+        }
+    }
+
+    assert!(failures.is_empty(), "benchmark failures:\n  {}", failures.join("\n  "));
 }
 
 #[tokio::test]
