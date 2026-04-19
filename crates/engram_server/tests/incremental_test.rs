@@ -120,6 +120,7 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+semantic: true,
     };
 
     let res = engram.search_memory(Parameters(search_req)).await.unwrap();
@@ -143,6 +144,7 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+semantic: true,
     };
     let res_b = engram
         .search_memory(Parameters(search_req_b))
@@ -172,6 +174,7 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
+semantic: true,
     };
     let res_c = engram
         .search_memory(Parameters(search_req_c))

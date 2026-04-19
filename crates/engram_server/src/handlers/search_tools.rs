@@ -88,32 +88,50 @@ impl Engram {
             });
         }
 
-        // 2. Perform Hybrid Search with Boost
-        let hits = ps
-            .search
-            .search(
-                &HybridQuery {
-                    project_id: req.project_id.clone(),
-                    namespace: req.namespace.clone(),
-                    generation: gen_,
-                    text: req.query.clone(),
-                    top_k: req.sanitized_max_results(),
-                    fts_mode: req.fts_mode.as_str().to_owned(),
-                    include_path_prefixes: req.include_path_prefixes.clone(),
-                    exclude_path_prefixes: req.exclude_path_prefixes.clone(),
-                    language_filters: req.language_filters.clone(),
-                    author_filter: None,
-                    date_after: None,
-                    date_before: None,
-                    use_mmr: req.use_mmr,
-                },
-                // `centrality` is `Option<Arc<CentralityMetrics>>`; deref through
-                // the Arc to obtain `Option<&CentralityMetrics>` for the call.
-                centrality.as_deref().map(|c| &c.pagerank),
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        // 2. Perform Hybrid Search — with a fast-path for literal
+        //    queries. When `semantic: false` is set, we skip vector
+        //    search, RRF, and MMR entirely and return pure FTS
+        //    results ranked by BM25. This is what you want when the
+        //    query is a literal identifier like `SubmitChanges()` and
+        //    you just need to know where it lives — the semantic
+        //    pipeline's vector embedding + fusion is pure overhead
+        //    for that case.
+        let hybrid_q = HybridQuery {
+            project_id: req.project_id.clone(),
+            namespace: req.namespace.clone(),
+            generation: gen_,
+            text: req.query.clone(),
+            top_k: req.sanitized_max_results(),
+            fts_mode: req.fts_mode.as_str().to_owned(),
+            include_path_prefixes: req.include_path_prefixes.clone(),
+            exclude_path_prefixes: req.exclude_path_prefixes.clone(),
+            language_filters: req.language_filters.clone(),
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            use_mmr: req.use_mmr,
+        };
+        let hits = if req.semantic {
+            ps.search
+                .search(
+                    &hybrid_q,
+                    // `centrality` is `Option<Arc<CentralityMetrics>>`; deref
+                    // through the Arc to obtain `Option<&CentralityMetrics>`.
+                    centrality.as_deref().map(|c| &c.pagerank),
+                    &tokio_util::sync::CancellationToken::new(),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        } else {
+            // Fast path: pure FTS via the existing `lexical_search`
+            // entry point. No vector embedding, no RRF, no MMR.
+            let engine = ps.search.clone();
+            let q_clone = hybrid_q.clone();
+            tokio::task::spawn_blocking(move || engine.lexical_search(&q_clone))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
 
         // Feed the dreamer co-occurrence graph (non-blocking).
         let lite: Vec<SearchHitLite> = hits

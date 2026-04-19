@@ -122,6 +122,16 @@ impl Engram {
         self.handle_vector_search(params.0).await
     }
 
+    #[tool(
+        description = "Fast literal/regex grep over the indexed file set. Uses the Tantivy trigram index as a prefilter — typically beats ripgrep on warm queries. Returns file:line:col matches with optional context lines."
+    )]
+    pub async fn grep_project(
+        &self,
+        params: Parameters<GrepProjectRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_grep_project(params.0).await
+    }
+
     #[tool(description = "Fetch full content for a chunk.")]
     pub async fn get_chunk(
         &self,
