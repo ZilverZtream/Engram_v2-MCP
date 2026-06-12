@@ -12,7 +12,56 @@ use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 
+/// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
+/// and never overlap anything.
+fn line_ranges_overlap(a_start: u32, a_end: u32, b_start: u32, b_end: u32) -> bool {
+    if (a_start == 0 && a_end == 0) || (b_start == 0 && b_end == 0) {
+        return false;
+    }
+    a_start <= b_end && b_start <= a_end
+}
+
+/// Compact symbol facts attached to search hits: (name, node_type, node_id,
+/// start_line, end_line).
+type SymbolSpan = (String, String, String, u32, u32);
+
 impl Engram {
+    /// P0-8: bridge search → graph. For the final hit list, fetch each
+    /// distinct file's symbol nodes in one blocking hop so hits can carry
+    /// `symbols:` lines with node_ids agents feed straight into graph tools.
+    pub(crate) async fn symbols_for_hits(
+        &self,
+        project_id: &str,
+        hits: &[engram_index::HybridHit],
+    ) -> std::collections::HashMap<String, Vec<SymbolSpan>> {
+        let mut paths: Vec<String> = hits.iter().map(|h| h.path.as_str().to_string()).collect();
+        paths.sort();
+        paths.dedup();
+        if paths.is_empty() {
+            return Default::default();
+        }
+        let graph = self.state.graph.clone();
+        let pid = project_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            let mut map: std::collections::HashMap<String, Vec<SymbolSpan>> = Default::default();
+            for path in paths {
+                let nodes = graph
+                    .query_nodes(&pid, None, None, Some(&path), 200)
+                    .unwrap_or_default();
+                let syms: Vec<SymbolSpan> = nodes
+                    .into_iter()
+                    .filter(|n| n.node_type != "file")
+                    .map(|n| (n.name, n.node_type, n.node_id, n.start_line, n.end_line))
+                    .collect();
+                if !syms.is_empty() {
+                    map.insert(path, syms);
+                }
+            }
+            map
+        })
+        .await
+        .unwrap_or_default()
+    }
     pub async fn handle_search_memory(
         &self,
         req: SearchMemoryRequest,
@@ -182,6 +231,7 @@ impl Engram {
             }
         }
         out.push_str(&format!("active_generation: {gen_}\n"));
+        let symbols_by_path = self.symbols_for_hits(&req.project_id, &hits).await;
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
@@ -193,6 +243,22 @@ impl Engram {
                 h.end_line,
                 h.score
             ));
+
+            // P0-8: name the symbols this chunk covers, with node_ids usable
+            // in find_symbol_references / compute_blast_radius / resolve_id.
+            if let Some(syms) = symbols_by_path.get(h.path.as_str()) {
+                let overlapping: Vec<String> = syms
+                    .iter()
+                    .filter(|(_, _, _, s, e)| {
+                        line_ranges_overlap(h.start_line, h.end_line, *s, *e)
+                    })
+                    .take(3)
+                    .map(|(name, ty, id, _, _)| format!("{name} ({ty}) node_id={id}"))
+                    .collect();
+                if !overlapping.is_empty() {
+                    out.push_str(&format!("symbols: {}\n", overlapping.join("; ")));
+                }
+            }
 
             if req.include_content {
                 if let Ok(Some((_, _, content, _, _))) =
@@ -830,5 +896,31 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
+    }
+}
+
+#[cfg(test)]
+mod p0_line_overlap_tests {
+    use super::line_ranges_overlap;
+
+    #[test]
+    fn overlapping_and_nested_ranges_overlap() {
+        assert!(line_ranges_overlap(10, 20, 15, 25)); // partial
+        assert!(line_ranges_overlap(10, 20, 12, 14)); // nested
+        assert!(line_ranges_overlap(10, 20, 20, 30)); // touching edge (inclusive)
+        assert!(line_ranges_overlap(7, 7, 7, 7)); // single-line identity
+    }
+
+    #[test]
+    fn disjoint_ranges_do_not_overlap() {
+        assert!(!line_ranges_overlap(10, 20, 21, 30));
+        assert!(!line_ranges_overlap(21, 30, 10, 20));
+    }
+
+    #[test]
+    fn unknown_zero_ranges_never_overlap() {
+        assert!(!line_ranges_overlap(0, 0, 10, 20));
+        assert!(!line_ranges_overlap(10, 20, 0, 0));
+        assert!(!line_ranges_overlap(0, 0, 0, 0));
     }
 }

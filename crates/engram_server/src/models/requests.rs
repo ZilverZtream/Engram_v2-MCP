@@ -401,6 +401,19 @@ pub struct GetIndexFreshnessRequest {
     pub check_disk: bool,
 }
 
+/// P0-8: convert any Engram identifier into all its other identities.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ResolveIdRequest {
+    pub project_id: String,
+    /// Any identifier: a graph node_id (e.g. "sym:...", "file:..."), a
+    /// symbol name or FQN, or a search doc_id.
+    pub id: String,
+    /// Namespace used when `id` is tried as a doc_id. Default "memory".
+    #[serde(default = "default_namespace_memory")]
+    pub namespace: String,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WatchProjectRequest {
