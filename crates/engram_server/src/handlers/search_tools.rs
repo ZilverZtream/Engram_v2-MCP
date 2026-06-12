@@ -219,6 +219,7 @@ impl Engram {
             }
         }
 
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -293,7 +294,9 @@ impl Engram {
             {
                 if content.chars().count() > max_chars {
                     out.push_str(&content.chars().take(max_chars).collect::<String>());
-                    out.push_str("... (truncated)\n");
+                    out.push_str(&format!(
+                        "... [truncated at {max_chars} chars — call get_chunk(doc_id) for the full chunk]\n"
+                    ));
                 } else {
                     out.push_str(&content);
                     out.push('\n');
@@ -301,6 +304,7 @@ impl Engram {
             }
         }
 
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -353,6 +357,7 @@ impl Engram {
             path, req.doc_id, req.namespace, lang, start_line, end_line, gen_, display_content
         );
         output.push_str(&confidence_footer);
+        output.push_str(&self.freshness_footer(&req.project_id, gen_).await);
 
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
@@ -573,9 +578,9 @@ impl Engram {
         }
 
         if found_in_graph {
-            return Ok(CallToolResult::success(vec![Content::text(
-                out.trim().to_string(),
-            )]));
+            let mut text = out.trim().to_string();
+            text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
 
         // 2. Fallback: Lexical search (deduplicated — only runs if graph found nothing)
@@ -617,13 +622,13 @@ impl Engram {
         ));
         for h in hits {
             out.push_str(&format!(
-                "- {} (chunk_id={}, score={:.3})\n",
-                h.path, h.chunk_id, h.score
+                "- {} lines {}-{} (chunk_id={}, score={:.3})\n",
+                h.path, h.start_line, h.end_line, h.chunk_id, h.score
             ));
         }
-        Ok(CallToolResult::success(vec![Content::text(
-            out.trim().to_string(),
-        )]))
+        let mut text = out.trim().to_string();
+        text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(text)]))
     }
 
     pub async fn handle_analyze_error_stack(

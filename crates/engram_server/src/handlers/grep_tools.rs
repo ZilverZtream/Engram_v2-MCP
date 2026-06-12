@@ -100,11 +100,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let body = if req.output_json {
+        let mut body = if req.output_json {
             serde_json::to_string_pretty(&result).unwrap_or_else(|_| "{}".into())
         } else {
             render_markdown(&result, &req.pattern, req.regex)
         };
+        if !req.output_json {
+            body.push_str(&self.freshness_footer(&req.project_id, generation).await);
+        }
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 }

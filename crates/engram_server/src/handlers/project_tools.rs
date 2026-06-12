@@ -260,6 +260,22 @@ impl Engram {
             .map_err(McpError::from)
     }
 
+    /// P0-4/P0-5: standard one-line response trailer (generation + index age).
+    /// Never fails — a missing meta key just renders as "index age unknown".
+    pub(crate) async fn freshness_footer(&self, project_id: &str, generation: u64) -> String {
+        let reg = self.state.registry.clone();
+        let pid = project_id.to_string();
+        let last_ms = tokio::task::spawn_blocking(move || {
+            reg.get_meta(&pid, "last_index_completed_ms")
+                .ok()
+                .flatten()
+                .and_then(|s| s.parse::<u64>().ok())
+        })
+        .await
+        .unwrap_or(None);
+        crate::utils::envelope::footer(generation, last_ms)
+    }
+
     pub(crate) fn generate_indexing_report(&self, stats: &engram_index::IngestStats) -> String {
         project_service::generate_indexing_report(stats)
     }
@@ -1778,6 +1794,109 @@ impl Engram {
             engram_index::SemanticQuality::Off => "off (fts_only)",
         };
         out.push_str(&format!("semantic_search: {semantic}\n"));
+
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// P0-5: answer "can I trust this index right now?" in one call.
+    pub async fn handle_get_index_freshness(
+        &self,
+        req: crate::models::GetIndexFreshnessRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let pid = req.project_id.clone();
+        let rec = self.ensure_project_record(&pid).await?;
+        let generation = self.get_active_generation(&pid).await.unwrap_or(1);
+
+        // Registry reads (blocking Redb) in one spawn_blocking hop.
+        let reg = self.state.registry.clone();
+        let pid_b = pid.clone();
+        let (last_index_ms, last_index_files, watch_enabled) =
+            tokio::task::spawn_blocking(move || {
+                let last_ms = reg
+                    .get_meta(&pid_b, "last_index_completed_ms")
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.parse::<u64>().ok());
+                let last_files = reg
+                    .get_meta(&pid_b, "last_index_files")
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.parse::<usize>().ok());
+                let watching = reg
+                    .list_watches(&pid_b)
+                    .map(|ws| ws.iter().any(|w| w.enabled))
+                    .unwrap_or(false);
+                (last_ms, last_files, watching)
+            })
+            .await
+            .unwrap_or((None, None, false));
+
+        let mut out = String::with_capacity(512);
+        out.push_str(&format!("project_id: {pid}\n"));
+        out.push_str(&format!("active_generation: {generation}\n"));
+        match last_index_ms {
+            Some(ms) => {
+                let age_s = now_ms().saturating_sub(ms) / 1000;
+                out.push_str(&format!(
+                    "last_index_completed: {age_s}s ago (epoch_ms={ms})\n"
+                ));
+            }
+            None => out.push_str(
+                "last_index_completed: unknown (project indexed before freshness tracking)\n",
+            ),
+        }
+        if let Some(files) = last_index_files {
+            out.push_str(&format!("last_index_files: {files}\n"));
+        }
+        out.push_str(&format!("watcher_enabled: {watch_enabled}\n"));
+        if let Some(since) = rec.reindex_required_since_ms {
+            out.push_str(&format!(
+                "WARNING: full reindex required since epoch_ms={since} (vector table was recreated) — run update_project.\n"
+            ));
+        }
+
+        // Optional disk drift check: count tracked files modified after the
+        // last completed index.
+        let mut dirty_files: Option<usize> = None;
+        if req.check_disk && let Some(last_ms) = last_index_ms {
+            let exts = ProjectType::from_registry_str(&rec.project_type)
+                .map(exts_for_project_type_enum)
+                .unwrap_or_else(|| exts_for_project_type(&rec.project_type));
+            let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
+            let dir = PathBuf::from(&rec.directory);
+            let count = tokio::task::spawn_blocking(move || {
+                let refs: Vec<&str> = exts_owned.iter().map(|s| s.as_str()).collect();
+                engram_index::ingest::iter_files(&dir, &refs)
+                    .into_iter()
+                    .filter(|p| {
+                        std::fs::metadata(p)
+                            .and_then(|m| m.modified())
+                            .ok()
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                            .map(|d| d.as_millis() as u64 > last_ms)
+                            .unwrap_or(false)
+                    })
+                    .count()
+            })
+            .await
+            .unwrap_or(0);
+            dirty_files = Some(count);
+            out.push_str(&format!("files_modified_since_index: {count}\n"));
+        }
+
+        let advice = if rec.reindex_required_since_ms.is_some() {
+            "run update_project now — vector data was lost and must be rebuilt"
+        } else if matches!(dirty_files, Some(n) if n > 0) {
+            "index is stale — run update_project (or enable watch_project for auto-updates)"
+        } else if last_index_ms.is_none() {
+            "freshness unknown — run update_project once to start tracking"
+        } else if !watch_enabled {
+            "index is current; enable watch_project to keep it that way automatically"
+        } else {
+            "index is current and the watcher is active"
+        };
+        out.push_str(&format!("advice: {advice}\n"));
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }

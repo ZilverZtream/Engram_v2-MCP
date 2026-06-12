@@ -104,6 +104,16 @@ impl Engram {
         self.handle_unwatch_project(params.0).await
     }
 
+    #[tool(
+        description = "Check whether a project's index is current: active generation, time since last index, watcher status, and (by default) a count of files modified on disk since the last index. Use before trusting search/graph results, or when results look stale. Related: update_project to refresh, watch_project for auto-refresh."
+    )]
+    pub async fn get_index_freshness(
+        &self,
+        params: Parameters<GetIndexFreshnessRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_index_freshness(params.0).await
+    }
+
     // ---- Search + chunks ----
 
     #[tool(description = "Search the indexed code/docs.")]

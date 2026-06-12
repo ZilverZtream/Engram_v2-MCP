@@ -624,5 +624,32 @@ pub async fn process_ingest_stats(
         }
     }
 
+    // P0-5: record when this project's index last completed so every read
+    // tool (and get_index_freshness) can report staleness. Both index_project
+    // and update_project flow through here, making it the single choke point.
+    {
+        let reg = state.registry.clone();
+        let pid = project_id.to_string();
+        let completed_ms = now_ms().to_string();
+        let files_count = stats.all_files.len().to_string();
+        match tokio::task::spawn_blocking(move || {
+            reg.set_meta(&pid, "last_index_completed_ms", &completed_ms)?;
+            reg.set_meta(&pid, "last_index_files", &files_count)
+        })
+        .await
+        {
+            Ok(Ok(())) => {}
+            // Freshness metadata is advisory — never fail an ingest over it.
+            Ok(Err(e)) => tracing::warn!(
+                project_id = %project_id,
+                "failed to record last_index_completed_ms: {e}"
+            ),
+            Err(e) => tracing::warn!(
+                project_id = %project_id,
+                "last_index_completed_ms write task panicked: {e}"
+            ),
+        }
+    }
+
     Ok(())
 }
