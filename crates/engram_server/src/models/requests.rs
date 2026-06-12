@@ -547,6 +547,24 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
+/// TODO-14: shortest connection path between two graph identities.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindConnectionPathRequest {
+    pub project_id: String,
+    /// Start: node_id, symbol name, or FQN.
+    pub from: String,
+    /// Target: node_id, symbol name, or FQN.
+    pub to: String,
+    /// Maximum hops to search. Default 6.
+    #[serde(default = "default_path_max_depth")]
+    pub max_depth: usize,
+}
+
+pub fn default_path_max_depth() -> usize {
+    6
+}
+
 /// P0-8: convert any Engram identifier into all its other identities.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -505,3 +505,100 @@ impl Engram {
         )]))
     }
 }
+
+impl Engram {
+    /// TODO-14: "how does A reach B?" — BFS shortest path between two
+    /// resolvable identifiers, directed first, undirected fallback.
+    pub async fn handle_find_connection_path(
+        &self,
+        req: crate::models::FindConnectionPathRequest,
+    ) -> Result<CallToolResult, McpError> {
+        crate::handlers::validate_project_id(&req.project_id)?;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+
+        let resolve = |label: &'static str, input: String| {
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            async move {
+                let r = tokio::task::spawn_blocking(move || {
+                    graph.resolve_symbol(&pid, &input, None, None)
+                })
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                match r {
+                    engram_graph::ResolveResult::Unique(n) => Ok(n.node_id),
+                    engram_graph::ResolveResult::Ambiguous(nodes) => {
+                        let mut msg = format!(
+                            "{label} '{}' is AMBIGUOUS — {} candidates. Re-call with an exact node_id:\n",
+                            nodes.first().map(|n| n.name.as_str()).unwrap_or(""),
+                            nodes.len()
+                        );
+                        for n in nodes.iter().take(8) {
+                            msg.push_str(&format!(
+                                "- {} ({}) node_id={}\n",
+                                n.name, n.file_path, n.node_id
+                            ));
+                        }
+                        Err(McpError::invalid_params(msg, None))
+                    }
+                    engram_graph::ResolveResult::NotFound => Err(McpError::invalid_params(
+                        format!(
+                            "{label} not found in the graph. Use resolve_id or query_graph_nodes first."
+                        ),
+                        None,
+                    )),
+                }
+            }
+        };
+        let from_id = resolve("from", req.from.clone()).await?;
+        let to_id = resolve("to", req.to.clone()).await?;
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let max_depth = req.max_depth.clamp(1, 12);
+        let (from_c, to_c) = (from_id.clone(), to_id.clone());
+        let found = tokio::task::spawn_blocking(move || {
+            engram_graph::analysis::find_path(&graph, &pid, &from_c, &to_c, max_depth, &[])
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = String::new();
+        match found {
+            Some(path) => {
+                out.push_str(&format!(
+                    "# Connection path ({} hop(s), {})\n\n",
+                    path.hops.len(),
+                    if path.directed {
+                        "directed"
+                    } else {
+                        "undirected — includes reversed edges"
+                    }
+                ));
+                out.push_str(&format!("{from_id}\n"));
+                for hop in &path.hops {
+                    let arrow = if hop.reversed { "<--" } else { "-->" };
+                    out.push_str(&format!(
+                        "  {arrow} [{}] {}\n",
+                        hop.edge_kind.as_str(),
+                        hop.node_id
+                    ));
+                }
+                out.push_str(
+                    "\nnext: blast_radius on intermediate nodes before editing them; \
+                     trace_data_flow for value-level detail.\n",
+                );
+            }
+            None => {
+                out.push_str(&format!(
+                    "No path within {max_depth} hops between\n  {from_id}\n  {to_id}\n\
+                     (searched directed then undirected; synthesized file-membership edges excluded).\n\
+                     Try a larger max_depth, or check both endpoints with resolve_id.\n"
+                ));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
