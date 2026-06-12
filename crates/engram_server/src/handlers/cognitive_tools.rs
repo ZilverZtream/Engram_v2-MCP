@@ -2878,7 +2878,17 @@ impl Engram {
         let pid = req.project_id.clone();
         let active_gen = self.get_active_generation(&pid).await.unwrap_or(1);
 
+        // PERF: per-section wall-clock so slow regens name their culprit.
+        let mut section_clock = std::time::Instant::now();
+        let mut prev_section = "setup";
         // ── 1. Language breakdown ────────────────────────────────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "1. Language breakdown";
         let lang_counts = ps.search.count_docs_by_language(&pid).unwrap_or_default();
         let total_files: usize = lang_counts.values().copied().sum();
         let mut languages: Vec<svc::LanguageShare> = lang_counts
@@ -2906,6 +2916,13 @@ impl Engram {
         }
 
         // ── 3. Repo rules (immune + anti-pattern) → critical rules ────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "3. Repo rules (immune + anti-pattern) → critical";
         let registry = self.state.registry.clone();
         let pid_clone = pid.clone();
         let repo_rules = tokio::task::spawn_blocking(move || registry.list_repo_rules(&pid_clone))
@@ -3033,6 +3050,13 @@ impl Engram {
         }
 
         // ── 5a. Compute PageRank + fetch file nodes ONCE ──────────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "5a. Compute PageRank + fetch file nodes ONCE";
         //
         // PageRank is the expensive part of this tool (iterative matrix
         // op over the full graph). Both the danger-zones pass and the
@@ -3078,6 +3102,13 @@ impl Engram {
         };
 
         // ── 5c. Run all blast-radius calls in parallel. ───────────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "5c. Run all blast-radius calls in parallel.";
         //
         // Each `compute_blast_radius` does heavy work (per-kind
         // `neighbors` calls + `list_edges` scan for file targets +
@@ -3128,6 +3159,13 @@ impl Engram {
         danger_zones.truncate(10);
 
         // ── 6. Static coding style per language (top-5% share) ────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "6. Static coding style per language (top-5% shar";
         //
         // Reuses the precomputed `pagerank_map` + `file_nodes` so the
         // per-language gather is an in-memory filter + rank, not a
@@ -3157,6 +3195,13 @@ impl Engram {
         }
 
         // ── 7. Session workflow summary (only if state nodes exist) ───
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "7. Session workflow summary (only if state nodes";
         let state_summary = {
             let g = graph.clone();
             let p = pid.clone();
@@ -3230,6 +3275,13 @@ impl Engram {
         };
 
         // ── 8. Database summary (only if db_table nodes exist) ────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "8. Database summary (only if db_table nodes exis";
         let db_summary = {
             let g = graph.clone();
             let p = pid.clone();
@@ -3263,6 +3315,13 @@ impl Engram {
         };
 
         // ── 8b. CodeRabbit review_pattern nodes → per-language map ────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "8b. CodeRabbit review_pattern nodes → per-langua";
         // Queries every `review_pattern` node (kind=pattern only;
         // wontFix/suppression clusters go elsewhere) and buckets them
         // by language. Metadata is the JSON blob written by
@@ -3295,6 +3354,13 @@ impl Engram {
         };
 
         // ── 8c2. Co-change pairs from git temporal coupling. Empty until
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "8c2. Co-change pairs from git temporal coupling.";
         // index_git_history has run - the rules pipeline drops the section
         // when there are no pairs.
         let co_change_pairs = {
@@ -3380,6 +3446,13 @@ impl Engram {
         };
 
         // ── 9. Build the snapshot ─────────────────────────────────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "9. Build the snapshot";
         let project_name = project_name_from_dir(&rec.directory);
         let snapshot = svc::ProjectSnapshot {
             project_name,
@@ -3400,6 +3473,13 @@ impl Engram {
         };
 
         // ── 10. Render ────────────────────────────────────────────────
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
+        section_clock = std::time::Instant::now();
+        prev_section = "10. Render";
         let root_md = svc::render_root_claude_md(&snapshot, req.max_root_lines);
         let rule_files = svc::render_rule_files(&snapshot);
         let agents_md = if req.generate_agents_md {
