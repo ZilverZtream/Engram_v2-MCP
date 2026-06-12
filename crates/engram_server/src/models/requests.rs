@@ -154,7 +154,15 @@ pub enum ProjectType {
     #[serde(alias = "rustlang", alias = "cargo")]
     Rust,
     /// C# projects (non-WebForms focused indexing profile).
-    #[serde(alias = "c#", alias = "cs", alias = "c_sharp", alias = "dotnet_csharp")]
+    /// Keep in sync with `from_registry_str`, which already accepted
+    /// "csharp" — the serde alias list had drifted behind it.
+    #[serde(
+        alias = "csharp",
+        alias = "c#",
+        alias = "cs",
+        alias = "c_sharp",
+        alias = "dotnet_csharp"
+    )]
     CSharp,
     /// C++ projects.
     #[serde(alias = "c++", alias = "cxx")]
