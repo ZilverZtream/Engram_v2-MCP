@@ -21,6 +21,7 @@ tokio.workspace = true
 tokio-util = { version = "0.7", features = ["rt"] }
 futures.workspace = true
 redb.workspace = true
+async-trait.workspace = true
 rayon = "1.10"
 
 tantivy.workspace = true
