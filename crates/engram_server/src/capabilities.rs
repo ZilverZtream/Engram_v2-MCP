@@ -90,6 +90,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "find_dependency_cycles",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_agent_integration",
         status: CapabilityStatus::Implemented,
     },

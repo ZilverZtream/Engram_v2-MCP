@@ -181,6 +181,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Inventory of dependency cycles (strongly-connected components over Calls/Dependency/Imports): the code that CANNOT be migrated one piece at a time. Run before planning migration waves or strangler-fig extraction; each cycle must move as a unit or have an edge broken first. Related: suggest_migration_boundaries, get_migration_order."
+    )]
+    pub async fn find_dependency_cycles(
+        &self,
+        params: Parameters<FindDependencyCyclesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_dependency_cycles(params.0).await
+    }
+
+    #[tool(
         description = "Shortest connection path between two code entities ('how does this button reach that table?'): BFS over the full edge graph, directed first then undirected fallback, every hop labeled with its edge kind. Accepts node_ids, names, or FQNs; ambiguous names return a candidate list. Related: blast_radius for impact, trace_data_flow for value-level detail."
     )]
     pub async fn find_connection_path(

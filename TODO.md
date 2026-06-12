@@ -162,7 +162,7 @@ they feed blast radius, edit safety, and the ADP gates.
   `graph_service.rs` (App_Code resolution). Same-language, bare-name matching only.
   Record language-boundary crossings explicitly with lowered confidence.
 
-- [ ] **20. Cycle/SCC detection surfaced in impact analysis** (M)
+- [x] **20. Cycle/SCC detection surfaced in impact analysis** (M) - *done 2026-06-12: tarjan_scc over Calls/Dependency/Imports (placeholders + statistical kinds excluded; 3 tests) + find_dependency_cycles tool (named members, binding kinds, migration guidance). Blast-radius integration deferred until a cached SCC index exists.*
   `engram_graph` (analysis), `blast_radius_service.rs`. Tarjan SCC post-ingest; flag
   cycles in blast radius and migration ordering (cycles are exactly where naive
   strangler-fig plans fail).
