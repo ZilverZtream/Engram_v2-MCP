@@ -93,7 +93,7 @@ const CTX_NON_TABLE_MEMBERS: [&str; 12] = [
 
 struct Sidecar {
     child: Child,
-    stdin: ChildStdin,
+    stdin: Option<ChildStdin>,
     stdout: Option<BufReader<ChildStdout>>,
 }
 
@@ -145,7 +145,7 @@ fn ensure_sidecar(guard: &mut Option<Sidecar>) -> std::io::Result<&mut Sidecar> 
         let stdout = BufReader::new(child.stdout.take().expect("sidecar stdout should be piped"));
         *guard = Some(Sidecar {
             child,
-            stdin,
+            stdin: Some(stdin),
             stdout: Some(stdout),
         });
     }
@@ -204,27 +204,77 @@ fn parse_via_sidecar(
     path: &Path,
     source: &str,
 ) -> Result<(Vec<ExtractedSymbol>, Vec<ExtractedEdge>), SidecarParseError> {
+    // WEDGE-2026-06-12: the request write used to be a plain blocking
+    // writeln! into the child's stdin pipe. When the child dies mid-exchange
+    // (and an inherited handle keeps the pipe's read end alive — a classic
+    // Windows hazard), the write blocks FOREVER at 0 CPU while holding the
+    // sidecar mutex, wedging every VB extraction worker behind it. Both
+    // failed OciusX reindexes died exactly here. The write now (a) checks
+    // child liveness first, (b) caps the source size routed through the
+    // sidecar, and (c) runs on a helper thread with the same timeout
+    // discipline as the response read.
+    if let Ok(Some(status)) = sidecar.child.try_wait() {
+        return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+            "sidecar process exited ({status}) before request for {}",
+            path.display()
+        )));
+    }
+
+    let max_sidecar_bytes = std::env::var("ENGRAM_VB_SIDECAR_MAX_SOURCE_BYTES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(2_000_000);
+    if source.len() > max_sidecar_bytes {
+        return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+            "source too large for sidecar ({} bytes > {max_sidecar_bytes}) for {} — using fallback",
+            source.len(),
+            path.display()
+        )));
+    }
+
     let req = SidecarRequest {
         cmd: "parse",
         path: path.display().to_string(),
         source,
     };
-    writeln!(
-        sidecar.stdin,
-        "{}",
-        serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?
-    )
-    .map_err(|e| SidecarParseError::Protocol(e.into()))?;
-    sidecar
-        .stdin
-        .flush()
-        .map_err(|e| SidecarParseError::Protocol(e.into()))?;
+    let payload = serde_json::to_string(&req).map_err(|e| SidecarParseError::Protocol(e.into()))?;
 
     let timeout_secs = std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .filter(|v| *v > 0)
         .unwrap_or(60);
+
+    let mut stdin = sidecar.stdin.take().ok_or_else(|| {
+        SidecarParseError::Protocol(anyhow::anyhow!(
+            "sidecar stdin missing (previous write timed out)"
+        ))
+    })?;
+    let (wtx, wrx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let res = writeln!(stdin, "{payload}").and_then(|_| stdin.flush());
+        let _ = wtx.send((stdin, res));
+    });
+    match wrx.recv_timeout(Duration::from_secs(timeout_secs)) {
+        Ok((stdin, write_result)) => {
+            sidecar.stdin = Some(stdin);
+            write_result.map_err(|e| SidecarParseError::Protocol(e.into()))?;
+        }
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            // Writer thread still blocked on the dead pipe: leave stdin
+            // taken; the caller kills the child which unblocks the thread.
+            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+                "sidecar request write timed out after {timeout_secs}s for {}",
+                path.display()
+            )));
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            return Err(SidecarParseError::Protocol(anyhow::anyhow!(
+                "sidecar request write channel disconnected"
+            )));
+        }
+    }
     let mut stdout = sidecar
         .stdout
         .take()
@@ -376,13 +426,27 @@ pub fn begin_project(project_root: &Path) {
         "project_root": project_root.display().to_string(),
     });
 
-    if let Err(e) = writeln!(sidecar.stdin, "{}", req) {
+    // Same liveness discipline as parse_via_sidecar; begin_project sends a
+    // tiny payload, so a blocking write cannot fill the pipe — the dead-child
+    // check is the part that matters.
+    if let Ok(Some(status)) = sidecar.child.try_wait() {
+        tracing::warn!("begin_project: sidecar already exited ({status})");
+        *guard = None;
+        return;
+    }
+    let Some(stdin) = sidecar.stdin.as_mut() else {
+        tracing::warn!("begin_project: sidecar stdin missing (prior write timed out)");
+        let _ = sidecar.child.kill();
+        *guard = None;
+        return;
+    };
+    if let Err(e) = writeln!(stdin, "{}", req) {
         tracing::warn!("begin_project write failed: {e}");
         let _ = sidecar.child.kill();
         *guard = None;
         return;
     }
-    if let Err(e) = sidecar.stdin.flush() {
+    if let Err(e) = stdin.flush() {
         tracing::warn!("begin_project flush failed: {e}");
         return;
     }
