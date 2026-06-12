@@ -327,7 +327,25 @@ impl Engram {
         let pid_consumer = pid.clone();
         let consumer_handle = tokio::spawn(async move {
             // BulkWriterGuard: commits + waits on Drop (cancel-safe).
-            let mut guard = search_consumer.create_bulk_writer()?;
+            // The single per-process tantivy writer slot can be held
+            // transiently by the GC actor or setup steps — retry briefly
+            // instead of failing the whole history run on a race.
+            let mut guard = {
+                let mut attempt = 0u32;
+                loop {
+                    match search_consumer.create_bulk_writer() {
+                        Ok(g) => break g,
+                        Err(e) if attempt < 5 => {
+                            attempt += 1;
+                            tracing::warn!(
+                                "bulk writer busy (attempt {attempt}/5): {e:#}; retrying"
+                            );
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        }
+                        Err(e) => return Err(e),
+                    }
+                }
+            };
             let fields = search_consumer.fields();
             // Separate vector queues per namespace to avoid heterogeneous batch errors.
             let mut vector_queues: std::collections::HashMap<String, Vec<engram_index::IndexDoc>> =
