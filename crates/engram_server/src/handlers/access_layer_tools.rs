@@ -347,6 +347,88 @@ pub struct DeadMethodInfo {
 
 /// Build an FQN from a graph node. The node_id typically has the format
 /// `project_id\0file_path::ClassName.MethodName` or similar.
+/// TODO-11: resolve an FQN query to exactly ONE function node or fail with
+/// a disambiguation list. `query_nodes` matches case-insensitive substrings,
+/// so "Page_Load" hits every page's handler - silently taking the first
+/// match is how agents read or edit the wrong method.
+fn resolve_unique_function(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    fqn_query: &str,
+) -> Result<engram_graph::Node, String> {
+    let mut candidates = graph
+        .query_nodes(project_id, Some("function"), Some(fqn_query), None, 25)
+        .unwrap_or_default();
+    // A dotted query like "_admin.PageA.Page_Load" won't substring-match a
+    // node NAMED "Page_Load" whose full identity lives in metadata.fqn -
+    // retry on the terminal segment and keep only exact-FQN survivors.
+    if candidates.is_empty() && fqn_query.contains('.') {
+        let short = fqn_query.rsplit('.').next().unwrap_or(fqn_query);
+        candidates = graph
+            .query_nodes(project_id, Some("function"), Some(short), None, 50)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|n| {
+                n.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("fqn"))
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|f| f.eq_ignore_ascii_case(fqn_query))
+            })
+            .collect();
+    }
+    if candidates.is_empty() {
+        return Err(format!(
+            "No method found matching FQN '{fqn_query}'. Ensure the project is indexed."
+        ));
+    }
+    // Prefer exact name / exact metadata-FQN equality over substring hits.
+    let exact: Vec<&engram_graph::Node> = candidates
+        .iter()
+        .filter(|n| {
+            n.name.eq_ignore_ascii_case(fqn_query)
+                || n.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("fqn"))
+                    .and_then(|v| v.as_str())
+                    .is_some_and(|f| f.eq_ignore_ascii_case(fqn_query))
+        })
+        .collect();
+    let pool: Vec<&engram_graph::Node> = if exact.is_empty() {
+        candidates.iter().collect()
+    } else {
+        exact
+    };
+    if pool.len() == 1 {
+        return Ok(pool[0].clone());
+    }
+    let mut msg = format!(
+        "AMBIGUOUS: {} methods match '{}'. Re-call with the exact FQN below (or pass file_path + line range):
+",
+        pool.len(),
+        fqn_query
+    );
+    for n in pool.iter().take(10) {
+        msg.push_str(&format!(
+            "- {} ({}:{}-{}) node_id={}
+",
+            fqn_from_node(n),
+            n.file_path,
+            n.start_line,
+            n.end_line,
+            n.node_id
+        ));
+    }
+    if pool.len() > 10 {
+        msg.push_str(&format!(
+            "... and {} more
+",
+            pool.len() - 10
+        ));
+    }
+    Err(msg)
+}
+
 fn fqn_from_node(node: &Node) -> String {
     // The node's namespace often holds the class name, and name holds the method.
     // Build: namespace.name (skip namespace if it's "default" or empty).
@@ -1612,22 +1694,10 @@ impl Engram {
             let (resolved_fqn, resolved_file, resolved_start, resolved_end, language) =
                 if let Some(ref fqn_query) = fqn {
                     // Resolve via graph node lookup
-                    let candidates = graph
-                        .query_nodes(
-                            &project_id,
-                            Some("function"),
-                            Some(fqn_query),
-                            None,
-                            10,
-                        )
-                        .unwrap_or_default();
-
-                    let node = candidates.first().ok_or_else(|| {
-                        format!("No method found matching FQN '{}'. Ensure the project is indexed.", fqn_query)
-                    })?;
+                    let node = resolve_unique_function(&graph, &project_id, fqn_query)?;
 
                     (
-                        fqn_from_node(node),
+                        fqn_from_node(&node),
                         node.file_path.as_str().to_string(),
                         node.start_line,
                         node.end_line,
@@ -1660,11 +1730,9 @@ impl Engram {
             let mut caller_bodies = Vec::new();
             if include_callers
                 && let Some(ref fqn_query) = fqn {
-                    let candidates = graph
-                        .query_nodes(&project_id, Some("function"), Some(fqn_query), None, 1)
-                        .unwrap_or_default();
-
-                    if let Some(target_node) = candidates.first() {
+                    if let Ok(target_node) = resolve_unique_function(&graph, &project_id, fqn_query)
+                        .as_ref()
+                    {
                         let callers = graph
                             .find_incoming_edges_with_kind(
                                 &project_id,
@@ -3863,5 +3931,108 @@ impl Engram {
         }
 
         Ok(CallToolResult::success(vec![Content::text(md)]))
+    }
+}
+
+#[cfg(test)]
+mod resolve_unique_function_tests {
+    use super::resolve_unique_function;
+
+    fn store() -> (tempfile::TempDir, engram_graph::GraphStore) {
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let g = engram_graph::GraphStore::open(&tmp.path().join("g.redb")).expect("open");
+        (tmp, g)
+    }
+
+    fn func(node_id: &str, name: &str, file: &str, fqn: Option<&str>) -> engram_graph::Node {
+        let metadata = fqn.map(|f| serde_json::json!({"fqn": f}));
+        engram_graph::Node {
+            node_id: node_id.to_string(),
+            node_type: "function".to_string(),
+            name: name.to_string(),
+            namespace: "memory".to_string(),
+            language: "vbnet".to_string(),
+            file_path: engram_core::RelPath::new(file),
+            start_line: 1,
+            end_line: 5,
+            generation: 1,
+            metadata,
+        }
+    }
+
+    #[test]
+    fn substring_collision_is_an_error_with_candidates() {
+        let (_t, g) = store();
+        g.upsert_nodes(
+            "p",
+            &[
+                func(
+                    "sym:function:a.aspx.vb:PageA.Page_Load:1",
+                    "PageA.Page_Load",
+                    "a.aspx.vb",
+                    None,
+                ),
+                func(
+                    "sym:function:b.aspx.vb:PageB.Page_Load:1",
+                    "PageB.Page_Load",
+                    "b.aspx.vb",
+                    None,
+                ),
+            ],
+        )
+        .unwrap();
+        let err = resolve_unique_function(&g, "p", "Page_Load").unwrap_err();
+        assert!(
+            err.contains("AMBIGUOUS"),
+            "must refuse to pick silently: {err}"
+        );
+        assert!(err.contains("PageA.Page_Load") && err.contains("PageB.Page_Load"));
+    }
+
+    #[test]
+    fn exact_name_beats_substring_hits() {
+        let (_t, g) = store();
+        g.upsert_nodes(
+            "p",
+            &[
+                func("sym:function:a.vb:Save:1", "Save", "a.vb", None),
+                func("sym:function:b.vb:SaveAll:1", "SaveAll", "b.vb", None),
+            ],
+        )
+        .unwrap();
+        let node = resolve_unique_function(&g, "p", "Save").expect("exact match wins");
+        assert_eq!(node.name, "Save");
+    }
+
+    #[test]
+    fn exact_metadata_fqn_disambiguates() {
+        let (_t, g) = store();
+        g.upsert_nodes(
+            "p",
+            &[
+                func(
+                    "sym:function:a.aspx.vb:Page_Load:1",
+                    "Page_Load",
+                    "a.aspx.vb",
+                    Some("_admin.PageA.Page_Load"),
+                ),
+                func(
+                    "sym:function:b.aspx.vb:Page_Load:1",
+                    "Page_Load",
+                    "b.aspx.vb",
+                    Some("_pub.PageB.Page_Load"),
+                ),
+            ],
+        )
+        .unwrap();
+        let node = resolve_unique_function(&g, "p", "_admin.PageA.Page_Load").expect("fqn match");
+        assert_eq!(node.file_path.as_str(), "a.aspx.vb");
+    }
+
+    #[test]
+    fn missing_method_is_a_clear_error() {
+        let (_t, g) = store();
+        let err = resolve_unique_function(&g, "p", "Ghost").unwrap_err();
+        assert!(err.contains("No method found"));
     }
 }

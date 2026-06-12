@@ -98,7 +98,7 @@ they feed blast radius, edit safety, and the ADP gates.
   callers in blast radius and "dead" methods that look alive. Purge a file's old symbols
   synchronously on change/delete; add an orphan-detection integrity check.
 
-- [ ] **11. Surface ambiguity instead of silently picking the first match** (S)
+- [x] **11. Surface ambiguity instead of silently picking the first match** (S) - *done 2026-06-12: resolve_symbol/resolve_id/trace tools already surfaced Ambiguous; the remaining hazard was access-layer candidates.first() on substring matches. New resolve_unique_function: exact-name/FQN preference, dotted-FQN retry via terminal segment, AMBIGUOUS error with candidate list (4 tests). File-scoped first() sites deferred to #13 overloads.*
   `store.rs` (resolve_symbol), `graph_tools.rs`. Multiple classes named `Order` →
   tools silently use the first. Return the candidate list with namespaces and require/let
   the agent disambiguate. Silent wrong-target resolution is how agents edit the wrong class.
