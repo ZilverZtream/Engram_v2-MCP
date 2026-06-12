@@ -138,6 +138,14 @@ they feed blast radius, edit safety, and the ADP gates.
   re-derives file membership by string-comparing `file_path`. Emit File→Symbol edges and
   drop the workaround; fixes systematic undercounting of file-level impact.
 
+- [ ] **16b. rebuild_graph mode: re-extract without re-embedding** (M)
+  Extractor changes currently require delete+reindex: new project id, full Ollama
+  re-embed (~30 min), git history re-run (~50 min). Add an update_project mode (or tool)
+  that re-runs extraction + process_ingest_stats from disk for ALL files but leaves
+  search/vector stores untouched (content unchanged); scoped purge + successor remap
+  already preserve cross-file and temporal edges. Turns extractor iteration from ~80 min
+  into ~3 min and keeps the project id stable.
+
 - [ ] **17. Mark dynamic state/SQL access instead of skipping it** (M)
   `state_extractor.rs`, `sql_parser.rs`. `Session[variableName]` and string-built SQL are
   silently dropped. Emit `dynamic: true` unresolved-access nodes/edges so data-flow and
