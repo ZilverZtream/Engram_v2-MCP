@@ -223,15 +223,23 @@ pub fn compute_blast_radius(
             .entry(kind.clone())
             .or_default()
             .insert(source_id.clone());
-        let conf = graph
-            .get_edge_confidence(project_id, kind, source_id, target_id)
-            .ok()
-            .flatten()
-            .unwrap_or(1.0);
-        discounted_incoming += conf.clamp(0.0, 1.0);
-        if conf < 0.6 {
-            low_confidence_incoming += 1;
+    }
+    // One read transaction for all confidence lookups (per-edge
+    // transactions made multi-target sweeps crawl).
+    let conf_queries: Vec<(EdgeKind, String, String)> = incoming
+        .iter()
+        .map(|(source_id, kind, _)| (kind.clone(), source_id.clone(), target_id.to_string()))
+        .collect();
+    if let Ok(confs) = graph.get_edge_confidences(project_id, &conf_queries) {
+        for conf in confs {
+            let c = conf.unwrap_or(1.0).clamp(0.0, 1.0);
+            discounted_incoming += c;
+            if c < 0.6 {
+                low_confidence_incoming += 1;
+            }
         }
+    } else {
+        discounted_incoming = incoming.len() as f32;
     }
 
     // 3b. Transitive aggregation for file-level targets.

@@ -910,6 +910,36 @@ impl GraphStore {
             .and_then(|s| s.parse::<f32>().ok()))
     }
 
+    /// Batched variant of [`Self::get_edge_confidence`]: one read
+    /// transaction for the whole set. Blast radius checks confidence for
+    /// every incoming edge of a target — per-edge transactions made the
+    /// danger-zone sweep in produce_claude_md crawl.
+    pub fn get_edge_confidences(
+        &self,
+        project_id: &str,
+        queries: &[(EdgeKind, String, String)],
+    ) -> anyhow::Result<Vec<Option<f32>>> {
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let mut out = Vec::with_capacity(queries.len());
+        for (kind, source_id, target_id) in queries {
+            let key = edge_key(project_id, kind, source_id, target_id);
+            let conf = match et.get(key.as_str())? {
+                Some(v) => {
+                    let e: Edge = bincode::deserialize(v.value())?;
+                    e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("confidence"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<f32>().ok())
+                }
+                None => None,
+            };
+            out.push(conf);
+        }
+        Ok(out)
+    }
+
     pub fn fold_edges_by_kind(
         &self,
         project_id: &str,
