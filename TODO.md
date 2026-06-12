@@ -144,7 +144,7 @@ they feed blast radius, edit safety, and the ADP gates.
   state-migration reports can say "plus N dynamic accesses we couldn't resolve" — agents
   need to know what the graph *doesn't* know.
 
-- [ ] **18. Flag VB Roslyn sidecar fallback in extraction metadata** (S)
+- [x] **18. Flag VB Roslyn sidecar fallback in extraction metadata** (S) - *done 2026-06-12: fallback_extract_vb stamps extraction_fallback=true on every symbol; sidecar obj/ now gitignored; sidecar deploy documented in memory.*
   `vb_extractor.rs`. Sidecar timeout silently falls back to tree-sitter; the resulting
   lower-fidelity nodes are indistinguishable. Tag them (`extraction_fallback: true`) so
   confidence (#12) reflects it. Also: `tools/vb_roslyn_sidecar/obj/` is untracked at repo
