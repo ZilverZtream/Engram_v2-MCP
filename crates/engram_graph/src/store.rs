@@ -887,6 +887,29 @@ impl GraphStore {
     /// materializing the list — OciusX has 1.3M TemporalCoupling edges and
     /// collecting them costs hundreds of MB for aggregation that needs a
     /// running map.
+    /// Point lookup of one edge's resolution confidence (TODO-12).
+    /// Returns None when the edge is missing or carries no confidence.
+    pub fn get_edge_confidence(
+        &self,
+        project_id: &str,
+        kind: &EdgeKind,
+        source_id: &str,
+        target_id: &str,
+    ) -> anyhow::Result<Option<f32>> {
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let key = edge_key(project_id, kind, source_id, target_id);
+        let Some(v) = et.get(key.as_str())? else {
+            return Ok(None);
+        };
+        let e: Edge = bincode::deserialize(v.value())?;
+        Ok(e.metadata
+            .as_ref()
+            .and_then(|m| m.get("confidence"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<f32>().ok()))
+    }
+
     pub fn fold_edges_by_kind(
         &self,
         project_id: &str,

@@ -212,12 +212,26 @@ pub fn compute_blast_radius(
     let incoming = graph.find_incoming_edges_with_kind(project_id, None, target_id, 1000)?;
     let mut in_counts: HashMap<EdgeKind, usize> = HashMap::new();
     let mut in_sources_by_kind: HashMap<EdgeKind, HashSet<String>> = HashMap::new();
+    // TODO-12: bare-name bindings count at their confidence, not 1.0 —
+    // app JS calling `new Map()` must not give a class named `Map`
+    // hundreds of phantom callers and a RED edit-safety verdict.
+    let mut discounted_incoming: f32 = 0.0;
+    let mut low_confidence_incoming: usize = 0;
     for (source_id, kind, _weight) in &incoming {
         *in_counts.entry(kind.clone()).or_default() += 1;
         in_sources_by_kind
             .entry(kind.clone())
             .or_default()
             .insert(source_id.clone());
+        let conf = graph
+            .get_edge_confidence(project_id, kind, source_id, target_id)
+            .ok()
+            .flatten()
+            .unwrap_or(1.0);
+        discounted_incoming += conf.clamp(0.0, 1.0);
+        if conf < 0.6 {
+            low_confidence_incoming += 1;
+        }
     }
 
     // 3b. Transitive aggregation for file-level targets.
@@ -295,6 +309,17 @@ pub fn compute_blast_radius(
                         .entry(edge.edge_kind.clone())
                         .or_default()
                         .insert(edge.source_id.clone());
+                    let conf = edge
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("confidence"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<f32>().ok())
+                        .unwrap_or(1.0);
+                    discounted_incoming += conf.clamp(0.0, 1.0);
+                    if conf < 0.6 {
+                        low_confidence_incoming += 1;
+                    }
                 }
             }
         }
@@ -423,7 +448,8 @@ pub fn compute_blast_radius(
     let total_incoming: usize = in_counts.values().sum();
     let total_outgoing: usize = out_counts.values().sum();
     let total_downstream: usize = total_incoming + total_outgoing;
-    let dependency_density_score = normalize_score(total_incoming, DEPENDENCY_SATURATION);
+    let dependency_density_score =
+        normalize_score(discounted_incoming.round() as usize, DEPENDENCY_SATURATION);
 
     // 6. Composite risk score
     //
@@ -565,6 +591,20 @@ pub fn compute_blast_radius(
                     Replace legacy map library with React-based component."
                     .into(),
                 modern_pattern: Some("React: react-leaflet or @react-google-maps/api".into()),
+            });
+        }
+        if low_confidence_incoming * 2 > total_incoming.max(1) {
+            guidance.push(GuidanceItem {
+                concern: "Phantom Caller Inflation".into(),
+                severity: "info".into(),
+                recommendation: format!(
+                    "{low_confidence_incoming} of {total_incoming} incoming edges are \
+                     bare-name bindings (confidence < 0.6) — likely name collisions, \
+                     not real callers. The density score already discounts them; \
+                     verify hot callers with find_symbol_references before trusting \
+                     raw counts."
+                ),
+                modern_pattern: None,
             });
         }
         if polymorphism_score > 5.0 {
@@ -1390,6 +1430,82 @@ EndProject
             report.risk_band
         );
         assert_eq!(report.risk_band, RiskBand::Low);
+    }
+
+    /// TODO-12: bare-name bindings must not inflate dependency density.
+    /// 60 incoming calls at confidence 0.35 ≈ 21 effective — Low/Medium,
+    /// not the High that 60 real callers would earn.
+    #[test]
+    fn low_confidence_callers_are_discounted() {
+        let (_tmp, store) = tmp_graph();
+        let target_id = "sym:class:Cfg.vb:ConfigSettings.Map:10";
+        let target = engram_graph::Node {
+            node_id: target_id.to_string(),
+            node_type: "class".to_string(),
+            name: "ConfigSettings.Map".to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new("Cfg.vb"),
+            start_line: 10,
+            end_line: 20,
+            generation: 1,
+            metadata: None,
+        };
+        store
+            .upsert_nodes("proj", std::slice::from_ref(&target))
+            .expect("upsert target");
+
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        for i in 0..60 {
+            let sid = format!("sym:function:js{i}.js:helper{i}:1");
+            nodes.push(engram_graph::Node {
+                node_id: sid.clone(),
+                node_type: "function".to_string(),
+                name: format!("helper{i}"),
+                namespace: "memory".to_string(),
+                language: "javascript".to_string(),
+                file_path: engram_core::RelPath::new(&format!("js{i}.js")),
+                start_line: 1,
+                end_line: 2,
+                generation: 1,
+                metadata: None,
+            });
+            edges.push(engram_graph::Edge {
+                source_id: sid,
+                target_id: target_id.to_string(),
+                namespace: "memory".to_string(),
+                language: "javascript".to_string(),
+                edge_kind: EdgeKind::Dependency,
+                weight: 1,
+                generation: 1,
+                metadata: Some(serde_json::json!({
+                    "resolution": "batch_unique_any_terminal",
+                    "confidence": "0.35"
+                })),
+                updated_at_ms: 0,
+            });
+        }
+        store.upsert_nodes("proj", &nodes).expect("upsert callers");
+        store.upsert_edges("proj", &edges).expect("upsert edges");
+
+        let report = compute_blast_radius(&store, "proj", target_id, 1, true).expect("compute");
+
+        assert_eq!(report.total_incoming, 60, "raw count still reported");
+        // 60 * 0.35 = 21 effective vs DEPENDENCY_SATURATION 50 → ~4.2/10,
+        // where 60 full-confidence callers saturate at 10/10.
+        assert!(
+            report.complexity_breakdown.dependency_density_score < 6.0,
+            "discounted density must be well below saturation; got {}",
+            report.complexity_breakdown.dependency_density_score
+        );
+        assert!(
+            report
+                .guidance
+                .iter()
+                .any(|g| g.concern.contains("Phantom Caller")),
+            "phantom-inflation guidance must fire when most callers are bare-name"
+        );
     }
 
     /// TODO-16 guard: synthesized file->symbol Contains edges (metadata
