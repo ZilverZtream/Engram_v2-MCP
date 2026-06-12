@@ -495,96 +495,120 @@ impl Engram {
         let file_scope_b = req.file_scope.clone();
 
         // Execute all blocking graph I/O in one dedicated OS thread.
-        let (graph_results, found_in_graph): (Vec<NodeGraphResult>, bool) =
-            tokio::task::spawn_blocking(move || {
-                let nodes = graph_b
-                    .query_nodes(&project_id_b, None, Some(&needle_b), None, 50)
+        type EndpointLabels = std::collections::HashMap<String, String>;
+        let (graph_results, endpoint_labels, found_in_graph): (
+            Vec<NodeGraphResult>,
+            EndpointLabels,
+            bool,
+        ) = tokio::task::spawn_blocking(move || {
+            let nodes = graph_b
+                .query_nodes(&project_id_b, None, Some(&needle_b), None, 50)
+                .unwrap_or_default();
+
+            let needle_lower = needle_b.to_lowercase();
+            let mut results: Vec<NodeGraphResult> = Vec::new();
+
+            for node in nodes {
+                // Multi-strategy name match: exact, FQN suffix, node-id suffix.
+                let name_lower = node.name.to_lowercase();
+                let name_matches = name_lower == needle_lower
+                    || name_lower.ends_with(&format!(".{}", needle_lower))
+                    || name_lower.ends_with(&format!("::{}", needle_lower))
+                    || node
+                        .node_id
+                        .to_lowercase()
+                        .ends_with(&format!(":{}", needle_lower));
+                if !name_matches {
+                    continue;
+                }
+
+                // File scope filter on the node itself.
+                let fp_str = node.file_path.as_str().to_string();
+                if let Some(ref scope) = file_scope_b
+                    && !fp_str.is_empty()
+                    && !fp_str.starts_with(scope.as_str())
+                {
+                    continue;
+                }
+
+                // Fix 8: Fetch all incoming kinds unconditionally; the
+                // post-query retain handles kind-level filtering.  Over-fetch
+                // to ensure enough candidates survive the retain step.
+                let mut incoming = graph_b
+                    .find_incoming_edges_with_kind(
+                        &project_id_b,
+                        None, // always fetch all kinds
+                        &node.node_id,
+                        incoming_fetch_limit,
+                    )
                     .unwrap_or_default();
 
-                let needle_lower = needle_b.to_lowercase();
-                let mut results: Vec<NodeGraphResult> = Vec::new();
+                if let Some(ref filter) = ekf_b {
+                    incoming.retain(|(_, kind, _)| filter.contains(kind));
+                }
+                incoming.truncate(max_incoming);
 
-                for node in nodes {
-                    // Multi-strategy name match: exact, FQN suffix, node-id suffix.
-                    let name_lower = node.name.to_lowercase();
-                    let name_matches = name_lower == needle_lower
-                        || name_lower.ends_with(&format!(".{}", needle_lower))
-                        || name_lower.ends_with(&format!("::{}", needle_lower))
-                        || node
-                            .node_id
-                            .to_lowercase()
-                            .ends_with(&format!(":{}", needle_lower));
-                    if !name_matches {
-                        continue;
-                    }
+                if let Some(ref scope) = file_scope_b {
+                    incoming.retain(|(src_id, _, _)| src_id.contains(scope.as_str()));
+                }
 
-                    // File scope filter on the node itself.
-                    let fp_str = node.file_path.as_str().to_string();
-                    if let Some(ref scope) = file_scope_b
-                        && !fp_str.is_empty()
-                        && !fp_str.starts_with(scope.as_str())
-                    {
-                        continue;
-                    }
-
-                    // Fix 8: Fetch all incoming kinds unconditionally; the
-                    // post-query retain handles kind-level filtering.  Over-fetch
-                    // to ensure enough candidates survive the retain step.
-                    let mut incoming = graph_b
-                        .find_incoming_edges_with_kind(
-                            &project_id_b,
-                            None, // always fetch all kinds
-                            &node.node_id,
-                            incoming_fetch_limit,
-                        )
-                        .unwrap_or_default();
-
-                    if let Some(ref filter) = ekf_b {
-                        incoming.retain(|(_, kind, _)| filter.contains(kind));
-                    }
-                    incoming.truncate(max_incoming);
-
-                    if let Some(ref scope) = file_scope_b {
-                        incoming.retain(|(src_id, _, _)| src_id.contains(scope.as_str()));
-                    }
-
-                    // Outgoing edges for each requested kind.
-                    let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
-                    for kind in &outgoing_kinds_owned {
-                        if let Ok(neighbors) = graph_b.neighbors(
-                            &project_id_b,
-                            kind.clone(),
-                            &node.node_id,
-                            max_outgoing_per_kind,
-                        ) {
-                            for (target_id, weight) in neighbors {
-                                if let Some(ref scope) = file_scope_b
-                                    && !target_id.contains(scope.as_str())
-                                {
-                                    continue;
-                                }
-                                outgoing.push((target_id, kind.clone(), weight));
+                // Outgoing edges for each requested kind.
+                let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
+                for kind in &outgoing_kinds_owned {
+                    if let Ok(neighbors) = graph_b.neighbors(
+                        &project_id_b,
+                        kind.clone(),
+                        &node.node_id,
+                        max_outgoing_per_kind,
+                    ) {
+                        for (target_id, weight) in neighbors {
+                            if let Some(ref scope) = file_scope_b
+                                && !target_id.contains(scope.as_str())
+                            {
+                                continue;
                             }
+                            outgoing.push((target_id, kind.clone(), weight));
                         }
-                    }
-
-                    if !incoming.is_empty() || !outgoing.is_empty() {
-                        results.push(NodeGraphResult {
-                            name: node.name,
-                            node_type: node.node_type,
-                            file_path: fp_str,
-                            node_id: node.node_id,
-                            incoming,
-                            outgoing,
-                        });
                     }
                 }
 
-                let found = !results.is_empty();
-                (results, found)
-            })
-            .await
-            .unwrap_or((Vec::new(), false));
+                if !incoming.is_empty() || !outgoing.is_empty() {
+                    results.push(NodeGraphResult {
+                        name: node.name,
+                        node_type: node.node_type,
+                        file_path: fp_str,
+                        node_id: node.node_id,
+                        incoming,
+                        outgoing,
+                    });
+                }
+            }
+
+            // Resolve displayed endpoints to "name (file:line)" labels so
+            // callers don't need a second lookup per reference (bounded).
+            let mut labels: std::collections::HashMap<String, String> =
+                std::collections::HashMap::new();
+            for nr in &results {
+                for (id, _, _) in nr.incoming.iter().chain(nr.outgoing.iter()) {
+                    if labels.len() >= 400 || labels.contains_key(id) {
+                        continue;
+                    }
+                    if let Ok(Some(n)) = graph_b.get_node(&project_id_b, id) {
+                        let loc = if n.file_path.as_str().is_empty() {
+                            String::new()
+                        } else {
+                            format!(" ({}:{})", n.file_path, n.start_line)
+                        };
+                        labels.insert(id.clone(), format!("{}{}", n.name, loc));
+                    }
+                }
+            }
+
+            let found = !results.is_empty();
+            (results, labels, found)
+        })
+        .await
+        .unwrap_or((Vec::new(), std::collections::HashMap::new(), false));
 
         // Format output from the non-blocking data collected above.
         let mut out = String::with_capacity(4096);
@@ -610,7 +634,12 @@ impl Engram {
                 for (kind, refs) in &kinds_sorted {
                     out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
                     for (src, w) in refs.iter().take(20) {
-                        out.push_str(&format!("      <- {} (w={})\n", src, w));
+                        match endpoint_labels.get(*src) {
+                            Some(label) => {
+                                out.push_str(&format!("      <- {label} [{src}] (w={w})\n"))
+                            }
+                            None => out.push_str(&format!("      <- {src} (w={w})\n")),
+                        }
                     }
                     if refs.len() > 20 {
                         out.push_str(&format!("      ... and {} more\n", refs.len() - 20));
@@ -636,7 +665,12 @@ impl Engram {
                 for (kind, refs) in &kinds_sorted {
                     out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
                     for (tgt, w) in refs.iter().take(20) {
-                        out.push_str(&format!("      -> {} (w={})\n", tgt, w));
+                        match endpoint_labels.get(*tgt) {
+                            Some(label) => {
+                                out.push_str(&format!("      -> {label} [{tgt}] (w={w})\n"))
+                            }
+                            None => out.push_str(&format!("      -> {tgt} (w={w})\n")),
+                        }
                     }
                     if refs.len() > 20 {
                         out.push_str(&format!("      ... and {} more\n", refs.len() - 20));

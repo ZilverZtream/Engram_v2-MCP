@@ -16,8 +16,8 @@ use tokio_util::sync::CancellationToken;
 use engram_core::registry::RepoRule;
 
 use super::{
-    file_node_id, is_test_path, read_file_content, ChangeType, ConventionCategory,
-    DetectedConvention, DiffFile, Gate, GateContext, ReviewFinding, Severity,
+    ChangeType, ConventionCategory, DetectedConvention, DiffFile, Gate, GateContext, ReviewFinding,
+    Severity, file_node_id, is_test_path, read_file_content,
 };
 
 use crate::services::blast_radius_service::compute_blast_radius;
@@ -37,7 +37,101 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(NewFileGate),
         Box::new(TestCoverageGate),
         Box::new(SecretLeakageGate),
+        Box::new(GuardParityGate),
     ]
+}
+
+// ─── Gate 11: Guard parity ──────────────────────────────────────────────────
+//
+// A new endpoint or event handler that skips the permission checks its
+// siblings use is the classic "public API added without the admin check"
+// regression. Detection is generic name-shape matching (IsInRole,
+// IsUserInRole, Is*Admin*, Check*Access*, Has*Permission*, Require*Role*,
+// Demand*, Authorize*) — no application-specific helper names.
+
+static RE_GP_NEW_ENDPOINT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(\[\s*webmethod|<\s*webmethod\s*\(\s*\)\s*>|\bprotected\s+(?:void|sub)\s+\w+_(?:click|command)\s*\(|\bhandles\s+\w+\.(?:click|command))",
+    )
+    .expect("valid endpoint regex")
+});
+
+static RE_GP_GUARD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(is[a-z0-9_]*admin[a-z0-9_]*|isinrole|isuserinrole|is[a-z0-9_]*role|check[a-z0-9_]*(?:access|permission|role)[a-z0-9_]*|has[a-z0-9_]*(?:permission|access|role)[a-z0-9_]*|require[a-z0-9_]*(?:role|permission|admin)[a-z0-9_]*|demand[a-z0-9_]*|authorize[a-z0-9_]*)\s*\(",
+    )
+    .expect("valid guard regex")
+});
+
+/// Distinct guard call names found in `text`, lowercased.
+fn guard_names_in(text: &str) -> Vec<String> {
+    let mut names: Vec<String> = RE_GP_GUARD
+        .captures_iter(text)
+        .filter_map(|c| c.get(1).map(|m| m.as_str().to_lowercase()))
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+pub struct GuardParityGate;
+
+#[async_trait]
+impl Gate for GuardParityGate {
+    fn name(&self) -> &'static str {
+        "guard_parity"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            let lower = df.path.to_lowercase();
+            if !(lower.ends_with(".cs") || lower.ends_with(".vb") || lower.ends_with(".asmx")) {
+                continue;
+            }
+            if df.added_content.is_empty() || !RE_GP_NEW_ENDPOINT.is_match(&df.added_content) {
+                continue;
+            }
+            // The added code itself carries a guard — nothing to flag.
+            if RE_GP_GUARD.is_match(&df.added_content) {
+                continue;
+            }
+            // Sibling evidence: guards used elsewhere in the same file on disk.
+            let disk = std::fs::read_to_string(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let sibling_guards = guard_names_in(&disk);
+            if sibling_guards.is_empty() {
+                // No guard convention in this file — parity can't be judged
+                // from here; the project-wide view is map_guards_and_settings.
+                continue;
+            }
+            let sibling_list = sibling_guards.join(", ");
+            let mut finding = ReviewFinding::new(
+                Severity::Warning,
+                "guard_parity",
+                df.path.clone(),
+                "New endpoint/handler without the permission checks its siblings use",
+                format!(
+                    "The added code introduces an endpoint or event handler but contains \
+                     none of the permission checks used elsewhere in this file ({sibling_list}). \
+                     New public surface that skips the sibling guards is how admin-only \
+                     operations leak to unauthorized users."
+                ),
+                format!(
+                    "Guard the new entry point the same way its siblings do (e.g. call \
+                     `{}` before any data access), or add an explicit comment stating why \
+                     this endpoint is intentionally anonymous.",
+                    sibling_guards
+                        .first()
+                        .map(String::as_str)
+                        .unwrap_or("IsInRole")
+                ),
+            );
+            finding.evidence = vec![format!("sibling guards in {}: {sibling_list}", df.path)];
+            finding.next_tool = Some(format!("map_guards_and_settings(scope=\"{}\")", df.path));
+            findings.push(finding);
+        }
+        Ok(findings)
+    }
 }
 
 // ─── Destructive-pattern detection (reused by Immune + AntiPattern) ─────────
@@ -233,7 +327,10 @@ impl Gate for ImmuneGate {
                     format!(
                         "Read the revert commit for {} first. Confirm the added code does \
                          not reintroduce the reverted pattern.",
-                        revert_hashes.first().cloned().unwrap_or_else(|| "<unknown>".into())
+                        revert_hashes
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| "<unknown>".into())
                     ),
                 )
                 .with_evidence(evidence)
@@ -308,7 +405,8 @@ impl Gate for BlastRadiusGate {
             let evidence = vec![
                 format!(
                     "migration_risk = {}/10 ({})",
-                    report.migration_risk, report.risk_band.as_str()
+                    report.migration_risk,
+                    report.risk_band.as_str()
                 ),
                 format!("total_incoming = {}", report.total_incoming),
                 format!("total_outgoing = {}", report.total_outgoing),
@@ -340,23 +438,21 @@ impl Gate for BlastRadiusGate {
         }
 
         if truncated {
-            findings.push(
-                ReviewFinding::new(
-                    Severity::Info,
-                    "blast_radius",
-                    "(diff)".to_string(),
-                    "Blast-radius analysis truncated",
-                    format!(
-                        "Diff touches more than {} files; blast radius was computed only \
+            findings.push(ReviewFinding::new(
+                Severity::Info,
+                "blast_radius",
+                "(diff)".to_string(),
+                "Blast-radius analysis truncated",
+                format!(
+                    "Diff touches more than {} files; blast radius was computed only \
                          for the shallowest 20 (by path depth). Deeper files were skipped \
                          to stay within the 5-second budget.",
-                        FILE_CAP
-                    ),
-                    "For a full blast-radius read, run `impact_analysis` on each skipped \
-                     file individually."
-                        .to_string(),
+                    FILE_CAP
                 ),
-            );
+                "For a full blast-radius read, run `impact_analysis` on each skipped \
+                     file individually."
+                    .to_string(),
+            ));
         }
 
         Ok(findings)
@@ -397,17 +493,12 @@ impl Gate for StyleGate {
 
 /// Line-level style checks that fire when added code breaks a convention
 /// detected on the full file.
-fn check_style_compliance(
-    df: &DiffFile,
-    conventions: &[DetectedConvention],
-) -> Vec<ReviewFinding> {
+fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> Vec<ReviewFinding> {
     let mut out = Vec::new();
     let file_path = &df.path;
     let is_vb = file_path.to_ascii_lowercase().ends_with(".vb");
     let is_csharp = file_path.to_ascii_lowercase().ends_with(".cs");
-    let is_ts_js = file_path
-        .to_ascii_lowercase()
-        .ends_with(".ts")
+    let is_ts_js = file_path.to_ascii_lowercase().ends_with(".ts")
         || file_path.to_ascii_lowercase().ends_with(".tsx")
         || file_path.to_ascii_lowercase().ends_with(".js")
         || file_path.to_ascii_lowercase().ends_with(".jsx");
@@ -477,10 +568,10 @@ fn check_style_compliance(
                 static NEW_METHOD_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
                     Regex::new(r"(?im)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Sub|Function)\s+(\w+)\s*\((.*?)\)").ok()
                 });
-                static DATA_ACCESS_RE: LazyLock<Option<Regex>> =
-                    LazyLock::new(|| {
-                        Regex::new(r"(?i)\b(?:SubmitChanges|InsertOnSubmit|DataContext|\.Table\()\b").ok()
-                    });
+                static DATA_ACCESS_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+                    Regex::new(r"(?i)\b(?:SubmitChanges|InsertOnSubmit|DataContext|\.Table\()\b")
+                        .ok()
+                });
 
                 let has_data = DATA_ACCESS_RE
                     .as_ref()
@@ -535,9 +626,8 @@ fn check_style_compliance(
                 }
             }
             ConventionCategory::ErrorHandling if is_vb && conv.value == "Try/Catch" => {
-                static ON_ERROR_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-                    Regex::new(r"(?im)^\s*On\s+Error\s+Resume\s+Next\b").ok()
-                });
+                static ON_ERROR_RE: LazyLock<Option<Regex>> =
+                    LazyLock::new(|| Regex::new(r"(?im)^\s*On\s+Error\s+Resume\s+Next\b").ok());
                 if let Some(re) = ON_ERROR_RE.as_ref() {
                     for (ln, line) in &df.added_lines {
                         if re.is_match(line) {
@@ -564,9 +654,8 @@ fn check_style_compliance(
                 }
             }
             ConventionCategory::RedirectPattern if is_vb && conv.value == "SafeRedirect" => {
-                static REDIR_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-                    Regex::new(r"(?i)\bResponse\.Redirect\s*\(").ok()
-                });
+                static REDIR_RE: LazyLock<Option<Regex>> =
+                    LazyLock::new(|| Regex::new(r"(?i)\bResponse\.Redirect\s*\(").ok());
                 if let Some(re) = REDIR_RE.as_ref() {
                     for (ln, line) in &df.added_lines {
                         if re.is_match(line) {
@@ -718,8 +807,12 @@ fn matches_casing(name: &str, expected: &str) -> bool {
         return true;
     }
     match expected {
-        "PascalCase" => name.chars().next().is_some_and(|c| c.is_ascii_uppercase()) && !name.contains('_'),
-        "camelCase" => name.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && !name.contains('_'),
+        "PascalCase" => {
+            name.chars().next().is_some_and(|c| c.is_ascii_uppercase()) && !name.contains('_')
+        }
+        "camelCase" => {
+            name.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && !name.contains('_')
+        }
         "snake_case" => name.chars().all(|c| !c.is_ascii_uppercase()),
         _ => true,
     }
@@ -869,7 +962,10 @@ impl Gate for TemporalGate {
 pub struct StateGate;
 
 static STATE_KEY_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-    Regex::new(r#"(?i)\b(Session|ViewState|Application|Cache)\s*[\(\[]\s*["']([\w_\.\-]+)["']\s*[\)\]]"#).ok()
+    Regex::new(
+        r#"(?i)\b(Session|ViewState|Application|Cache)\s*[\(\[]\s*["']([\w_\.\-]+)["']\s*[\)\]]"#,
+    )
+    .ok()
 });
 
 #[async_trait]
@@ -890,8 +986,14 @@ impl Gate for StateGate {
             let mut per_file: HashMap<(String, String), Vec<usize>> = HashMap::new();
             for (ln, line) in &df.added_lines {
                 for cap in re.captures_iter(line) {
-                    let store = cap.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-                    let key = cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
+                    let store = cap
+                        .get(1)
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
+                    let key = cap
+                        .get(2)
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default();
                     per_file.entry((store, key)).or_default().push(*ln);
                 }
             }
@@ -900,21 +1002,11 @@ impl Gate for StateGate {
                 let node_id = format!("state:{store}:{key}");
                 let readers = ctx
                     .graph
-                    .find_incoming_edges(
-                        ctx.project_id,
-                        Some(EdgeKind::ReadsState),
-                        &node_id,
-                        50,
-                    )
+                    .find_incoming_edges(ctx.project_id, Some(EdgeKind::ReadsState), &node_id, 50)
                     .unwrap_or_default();
                 let writers = ctx
                     .graph
-                    .find_incoming_edges(
-                        ctx.project_id,
-                        Some(EdgeKind::WritesState),
-                        &node_id,
-                        50,
-                    )
+                    .find_incoming_edges(ctx.project_id, Some(EdgeKind::WritesState), &node_id, 50)
                     .unwrap_or_default();
                 // Filter out the current file — we only care about OTHER
                 // readers/writers affected by this change.
@@ -1000,7 +1092,11 @@ impl Gate for AuditGate {
         let Some(audit_name) = ctx.audit_function.clone() else {
             return Ok(Vec::new());
         };
-        let audit_short = audit_name.rsplit('.').next().unwrap_or(&audit_name).to_string();
+        let audit_short = audit_name
+            .rsplit('.')
+            .next()
+            .unwrap_or(&audit_name)
+            .to_string();
 
         static MUTATION_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
             Regex::new(r"(?i)\.SubmitChanges\s*\(|\.SaveChanges(Async)?\s*\(|\bINSERT\s+INTO\b|\bUPDATE\s+\w|\bDELETE\s+FROM\b|\.ExecuteNonQuery\s*\(").ok()
@@ -1203,7 +1299,10 @@ impl Gate for AntiPatternGate {
                     severity,
                     "antipattern",
                     df.path.clone(),
-                    format!("Added code resembles {} indexed anti-pattern(s)", relevant.len()),
+                    format!(
+                        "Added code resembles {} indexed anti-pattern(s)",
+                        relevant.len()
+                    ),
                     format!(
                         "The hybrid search index found {} previously-reverted / CodeRabbit-\
                          flagged snippet(s) that structurally match the added code. Review \
@@ -1278,12 +1377,10 @@ impl AntiPatternGate {
                     ),
                     "Confirm each destructive call is scoped correctly. If there is any \
                      doubt, split the change into a dry-run + apply pattern so the first \
-                     PR demonstrates the target rows.".to_string(),
+                     PR demonstrates the target rows."
+                        .to_string(),
                 )
-                .with_evidence(vec![format!(
-                    "destructive_patterns = {}",
-                    hits.join(", ")
-                )]),
+                .with_evidence(vec![format!("destructive_patterns = {}", hits.join(", "))]),
             );
         }
         findings
@@ -1346,8 +1443,7 @@ impl Gate for NewFileGate {
             if sibling_names.len() >= 3 {
                 // Extension consistency.
                 let file_ext = extension(&df.path);
-                let sibling_exts: HashMap<String, usize> =
-                    count_extensions(&sibling_names);
+                let sibling_exts: HashMap<String, usize> = count_extensions(&sibling_names);
                 if let Some((top_ext, top_count)) = sibling_exts
                     .iter()
                     .max_by_key(|(_, c)| **c)
@@ -1357,27 +1453,22 @@ impl Gate for NewFileGate {
                         && file_ext != top_ext
                         && top_count >= sibling_names.len() / 2
                     {
-                        findings.push(
-                            ReviewFinding::new(
-                                Severity::Style,
-                                "new_file",
-                                df.path.clone(),
-                                format!(
-                                    "New file extension `.{}` differs from siblings",
-                                    file_ext
-                                ),
-                                format!(
-                                    "`{parent}/` contains {top_count} `.{top_ext}` files. The \
+                        findings.push(ReviewFinding::new(
+                            Severity::Style,
+                            "new_file",
+                            df.path.clone(),
+                            format!("New file extension `.{}` differs from siblings", file_ext),
+                            format!(
+                                "`{parent}/` contains {top_count} `.{top_ext}` files. The \
                                      new file `{}` uses `.{}`.",
-                                    df.path, file_ext
-                                ),
-                                format!(
-                                    "If the project organises files by language, consider \
-                                     placing `{}` in a folder that matches `.{file_ext}`.",
-                                    df.path
-                                ),
+                                df.path, file_ext
                             ),
-                        );
+                            format!(
+                                "If the project organises files by language, consider \
+                                     placing `{}` in a folder that matches `.{file_ext}`.",
+                                df.path
+                            ),
+                        ));
                     }
                 }
 
@@ -1386,19 +1477,17 @@ impl Gate for NewFileGate {
                 if let Some(p) = prefix {
                     let fname = df.path.rsplit('/').next().unwrap_or(&df.path);
                     if !fname.starts_with(&p) {
-                        findings.push(
-                            ReviewFinding::new(
-                                Severity::Style,
-                                "new_file",
-                                df.path.clone(),
-                                format!("File naming doesn't match `{p}*` convention"),
-                                format!(
-                                    "Every sibling file in `{parent}/` starts with `{p}`. The \
+                        findings.push(ReviewFinding::new(
+                            Severity::Style,
+                            "new_file",
+                            df.path.clone(),
+                            format!("File naming doesn't match `{p}*` convention"),
+                            format!(
+                                "Every sibling file in `{parent}/` starts with `{p}`. The \
                                      new file `{fname}` does not.",
-                                ),
-                                format!("Rename `{fname}` → `{p}{fname}` or similar."),
                             ),
-                        );
+                            format!("Rename `{fname}` → `{p}{fname}` or similar."),
+                        ));
                     }
                 }
             }
@@ -1410,23 +1499,21 @@ impl Gate for NewFileGate {
                         .starts_with(&df.path.to_ascii_lowercase())
                 });
                 if !has_cb {
-                    findings.push(
-                        ReviewFinding::new(
-                            Severity::Info,
-                            "new_file",
-                            df.path.clone(),
-                            "ASPX page added without a codebehind file",
-                            format!(
-                                "`{}` is a new page but no matching `.aspx.vb` / `.aspx.cs` \
+                    findings.push(ReviewFinding::new(
+                        Severity::Info,
+                        "new_file",
+                        df.path.clone(),
+                        "ASPX page added without a codebehind file",
+                        format!(
+                            "`{}` is a new page but no matching `.aspx.vb` / `.aspx.cs` \
                                  codebehind was added in the same diff.",
-                                df.path
-                            ),
-                            "If the project uses codebehind (almost every WebForms project \
+                            df.path
+                        ),
+                        "If the project uses codebehind (almost every WebForms project \
                              does), add the matching file. If the page is intentionally \
                              codebehind-less, document why in the commit message."
-                                .to_string(),
-                        ),
-                    );
+                            .to_string(),
+                    ));
                 }
             }
             let _ = added_aspx.contains(&df.path); // silence unused; helps in future extensions
@@ -1477,10 +1564,7 @@ fn common_name_prefix(paths: &[String]) -> Option<String> {
         // Require the prefix to end at a word boundary (non-alnum char or
         // end-of-segment) so we don't accidentally match `per` inside
         // `permit_*` and `permission_*` as a single group.
-        let count = names
-            .iter()
-            .filter(|n| n.starts_with(candidate))
-            .count();
+        let count = names.iter().filter(|n| n.starts_with(candidate)).count();
         if count * 10 >= names.len() * 6 {
             best = Some(candidate.to_string());
             break;
@@ -1563,24 +1647,22 @@ impl Gate for TestCoverageGate {
                 );
             } else if !any_test_in_diff {
                 // No coupled test exists — a softer note.
-                findings.push(
-                    ReviewFinding::new(
-                        Severity::Info,
-                        "test_coverage",
-                        df.path.clone(),
-                        "No test file changed alongside this code",
-                        format!(
-                            "`{}` added {} lines of non-test code; no test file in the \
+                findings.push(ReviewFinding::new(
+                    Severity::Info,
+                    "test_coverage",
+                    df.path.clone(),
+                    "No test file changed alongside this code",
+                    format!(
+                        "`{}` added {} lines of non-test code; no test file in the \
                              project is temporally coupled to it, and no test file is in \
                              the diff.",
-                            df.path,
-                            df.added_lines.len()
-                        ),
-                        "If this code has behaviour worth locking in, add a test. If it's a \
-                         pure refactor, note that in the commit message."
-                            .to_string(),
+                        df.path,
+                        df.added_lines.len()
                     ),
-                );
+                    "If this code has behaviour worth locking in, add a test. If it's a \
+                         pure refactor, note that in the commit message."
+                        .to_string(),
+                ));
             }
         }
 
@@ -1618,18 +1700,15 @@ fn secret_patterns() -> &'static [SecretPattern] {
             // OpenAI — classic (`sk-…`) and project (`sk-proj-…`) keys.
             // Length threshold is generous enough to match short test /
             // rotation fixtures that still reveal the key shape.
-            (
-                "OpenAI API Key",
-                r"\bsk-(?:proj-)?[A-Za-z0-9_\-]{12,}\b",
-            ),
+            ("OpenAI API Key", r"\bsk-(?:proj-)?[A-Za-z0-9_\-]{12,}\b"),
             // Anthropic
-            (
-                "Anthropic API Key",
-                r"\bsk-ant-[A-Za-z0-9_\-]{20,}\b",
-            ),
+            ("Anthropic API Key", r"\bsk-ant-[A-Za-z0-9_\-]{20,}\b"),
             // Slack
             ("Slack Bot Token", r"\bxoxb-[0-9]+-[0-9]+-[A-Za-z0-9]+\b"),
-            ("Slack User Token", r"\bxoxp-[0-9]+-[0-9]+-[0-9]+-[A-Za-z0-9]+\b"),
+            (
+                "Slack User Token",
+                r"\bxoxp-[0-9]+-[0-9]+-[0-9]+-[A-Za-z0-9]+\b",
+            ),
             // Stripe
             ("Stripe Secret Key", r"\bsk_live_[0-9A-Za-z]{24,}\b"),
             ("Stripe Restricted Key", r"\brk_live_[0-9A-Za-z]{24,}\b"),
@@ -1764,14 +1843,21 @@ impl Gate for SecretLeakageGate {
 mod tests {
     use super::*;
     use crate::services::pre_commit_review_service::{
-        parse_unified_diff, stable_finding_id, Severity,
+        Severity, parse_unified_diff, stable_finding_id,
     };
 
     #[test]
     fn destructive_patterns_match_known_snippets() {
-        assert!(!detect_destructive("rows.Where(r => r.Id == 1).Select(r => r.Name)").iter().any(|p| !p.is_empty()));
+        assert!(
+            !detect_destructive("rows.Where(r => r.Id == 1).Select(r => r.Name)")
+                .iter()
+                .any(|p| !p.is_empty())
+        );
         let hits = detect_destructive("db.Users.DeleteAllOnSubmit(allRows)");
-        assert!(hits.iter().any(|p| p.contains("DeleteAllOnSubmit")), "hits: {hits:?}");
+        assert!(
+            hits.iter().any(|p| p.contains("DeleteAllOnSubmit")),
+            "hits: {hits:?}"
+        );
     }
 
     #[test]
@@ -1798,7 +1884,10 @@ mod tests {
     #[test]
     fn secret_scanner_ignores_short_strings() {
         let hits = scan_for_secrets("let x = \"short\";");
-        assert!(hits.is_empty(), "should not fire on short strings: {hits:?}");
+        assert!(
+            hits.is_empty(),
+            "should not fire on short strings: {hits:?}"
+        );
     }
 
     #[test]
@@ -1911,7 +2000,10 @@ diff --git a/tests/fixtures/fake.env b/tests/fixtures/fake.env
         // The gate is pure — we can call it with a minimal context by
         // constructing one. But we can also exercise the scanner directly:
         let hits = scan_for_secrets(&diff_files[0].added_content);
-        assert!(!hits.is_empty(), "scanner must match; path guard is in run()");
+        assert!(
+            !hits.is_empty(),
+            "scanner must match; path guard is in run()"
+        );
     }
 
     #[test]

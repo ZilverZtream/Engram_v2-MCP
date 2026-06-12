@@ -170,6 +170,26 @@ impl Engram {
         self.handle_find_implementation_pattern(params.0).await
     }
 
+    #[tool(
+        description = "Map the permission checks and settings that gate an area: guarded vs UNGUARDED functions in scope, settings each one reads (web.config keys + DB/env), settings-shaped DB tables with consumer counts, and the project's house auth patterns (guard helper names + roles). Call with scope=<file/dir> before adding any endpoint or admin operation; call without scope to learn how this codebase does authorization. Detection covers .NET idioms (AppSettings, My.Settings, IsInRole/Is*Admin*/Check*Access* name shapes)."
+    )]
+    pub async fn map_guards_and_settings(
+        &self,
+        params: Parameters<MapGuardsAndSettingsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_map_guards_and_settings(params.0).await
+    }
+
+    #[tool(
+        description = "ONE call from a weak user story (e.g. 'As an admin I would like to set minimum number of photos required') to an implementation brief: extracted domain concepts with their full touchpoint footprints, exemplars of the house pattern to imitate, the project's auth/settings conventions, and a completion checklist wired to find_similar_changes, check_edit_safety, and pre_commit_review. START HERE for any feature request."
+    )]
+    pub async fn plan_user_story(
+        &self,
+        params: Parameters<PlanUserStoryRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_plan_user_story(params.0).await
+    }
+
     // ---- Search + chunks ----
 
     #[tool(
@@ -557,11 +577,11 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-commit review — runs ten graph-backed gates (immune, blast-radius, \
+        description = "Pre-commit review — runs eleven graph-backed gates (immune, blast-radius, \
                        style, temporal, state, audit, anti-pattern, new-file, test-coverage, \
-                       secret-leakage) over a unified diff and returns severity-ranked, \
-                       evidence-backed findings. Accepts a raw diff, `staged`, `unstaged`, \
-                       `head`, or a `.patch` path. No LLM calls."
+                       secret-leakage, guard-parity) over a unified diff and returns \
+                       severity-ranked, evidence-backed findings. Accepts a raw diff, `staged`, \
+                       `unstaged`, `head`, or a `.patch` path. No LLM calls."
     )]
     pub async fn pre_commit_review(
         &self,

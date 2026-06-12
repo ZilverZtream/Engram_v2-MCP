@@ -267,3 +267,124 @@ namespace App {{
         "exemplar cards should be rendered"
     );
 }
+
+#[tokio::test]
+async fn map_guards_and_settings_reports_parity_and_setting_reads() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+
+    std::fs::write(
+        root.join("web.config"),
+        r#"<?xml version="1.0"?>
+<configuration>
+  <appSettings>
+    <add key="MinPhotosRequired" value="3" />
+  </appSettings>
+</configuration>"#,
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("AdminApi.aspx.cs"),
+        r#"
+namespace App {
+    public partial class AdminApi {
+        protected void DeleteUser(object sender, System.EventArgs e) {
+            if (!User.IsInRole("Admin")) { return; }
+        }
+        protected void ListUsers(object sender, System.EventArgs e) {
+            var min = ConfigurationManager.AppSettings["MinPhotosRequired"];
+        }
+    }
+}"#,
+    )
+    .unwrap();
+
+    let cfg = test_config(root, "engram_data_guards");
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+    index(&engram, root, "GuardsTest").await;
+    let project_id = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+
+    let res = engram
+        .map_guards_and_settings(Parameters(
+            engram_server::models::MapGuardsAndSettingsRequest {
+                project_id: project_id.clone(),
+                scope: Some("AdminApi".into()),
+            },
+        ))
+        .await
+        .unwrap();
+    let text = &res.content[0].as_text().unwrap().text;
+    println!("GUARDS OUTPUT:\n{text}");
+
+    assert!(text.contains("Guard parity"), "parity section required");
+    assert!(
+        text.contains("UNGUARDED: ListUsers"),
+        "the unguarded sibling must be called out"
+    );
+    assert!(
+        text.contains("DeleteUser") && text.contains("isinrole"),
+        "guarded function with its check must be listed"
+    );
+    assert!(
+        text.contains("MinPhotosRequired"),
+        "the setting read in scope must be reported"
+    );
+    assert!(
+        text.contains("roles referenced: Admin"),
+        "role literal must surface in house patterns"
+    );
+}
+
+#[tokio::test]
+async fn plan_user_story_produces_brief_with_checklist() {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+
+    std::fs::write(
+        root.join("PhotoUpload.aspx.cs"),
+        r#"
+namespace App {
+    public partial class PhotoUpload {
+        protected void btnUploadPhoto_Click(object sender, System.EventArgs e) {
+            var min = ConfigurationManager.AppSettings["MinPhotosRequired"];
+        }
+    }
+}"#,
+    )
+    .unwrap();
+
+    let cfg = test_config(root, "engram_data_story");
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+    index(&engram, root, "StoryTest").await;
+    let project_id = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+
+    let res = engram
+        .plan_user_story(Parameters(engram_server::models::PlanUserStoryRequest {
+            project_id: project_id.clone(),
+            story: "As an admin I would like to set minimum number of photos required".into(),
+            concepts: None,
+        }))
+        .await
+        .unwrap();
+    let text = &res.content[0].as_text().unwrap().text;
+    println!("STORY BRIEF:\n{text}");
+
+    assert!(text.contains("concepts: photos"), "concept extraction");
+    assert!(
+        text.contains("Concept footprint: 'photos'"),
+        "per-concept footprint section"
+    );
+    assert!(text.contains("## Checklist"), "checklist section");
+    assert!(
+        text.contains("find_similar_changes") && text.contains("pre_commit_review"),
+        "checklist must chain into the completeness and review tools"
+    );
+}

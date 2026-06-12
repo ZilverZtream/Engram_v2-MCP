@@ -46,3 +46,47 @@ End Namespace
         assert_eq!(meta.get("fqn").unwrap(), "MyApp.DataPage.SaveAll");
     }
 }
+
+#[test]
+fn vb_fallback_extracts_settings_reads_and_guards() {
+    let code = r#"
+Namespace MyApp
+    Public Class UserAdmin
+        Public Sub AddUser()
+            If Not Roles.IsUserInRole("Administrators") Then Return
+            If Not IsContactableAdmin() Then Return
+            Dim max = ConfigurationManager.AppSettings("MaxUserCount")
+            Dim flag = My.Settings.AllowUserCreation
+        End Sub
+    End Class
+End Namespace
+"#;
+    let (symbols, edges) = extract_vb(std::path::Path::new("UserAdmin.aspx.vb"), code);
+
+    let setting_keys: Vec<&str> = edges
+        .iter()
+        .filter(|e| e.kind == "reads_setting")
+        .map(|e| e.target_name.as_str())
+        .collect();
+    assert!(setting_keys.contains(&"MaxUserCount"), "got {setting_keys:?}");
+    assert!(
+        setting_keys.contains(&"AllowUserCreation"),
+        "My.Settings member must be detected, got {setting_keys:?}"
+    );
+
+    let add_user = symbols
+        .iter()
+        .find(|s| s.kind == "function" && s.name.contains("AddUser"))
+        .expect("AddUser symbol");
+    let meta = add_user.metadata.as_ref().expect("guard metadata");
+    let checks = meta.get("permission_checks").expect("permission_checks");
+    assert!(checks.contains("isuserinrole"), "got {checks}");
+    assert!(
+        checks.contains("iscontactableadmin"),
+        "custom Is*Admin* helper must be caught, got {checks}"
+    );
+    assert_eq!(
+        meta.get("guard_roles").map(String::as_str),
+        Some("Administrators")
+    );
+}

@@ -293,45 +293,42 @@ pub async fn process_ingest_stats(
             symbols_by_name.entry(term).or_default().push(entry);
         }
     }
-    let rebuild_symbol_id = |e: SymEntry| -> String {
-        engram_core::ids::NodeId::symbol(e.1, None, e.0, e.2, e.3).0
-    };
+    let rebuild_symbol_id =
+        |e: SymEntry| -> String { engram_core::ids::NodeId::symbol(e.1, None, e.0, e.2, e.3).0 };
     // Resolve a possibly-qualified name to a real symbol node in this batch:
     // same-file exact/terminal match first, then unique kind-matching
     // cross-file candidate, then unique candidate of any kind. None means
     // absent-or-ambiguous; the caller then emits a "::name" placeholder so
     // the post-ingest resolve_symbol_edges pass (which sees the whole graph,
     // not just this batch) can rewire it.
-    let resolve_batch_symbol =
-        |raw: &str, prefer_path: &str, prefer_kind: Option<&str>| -> Option<String> {
-            let terminal = raw.rsplit('.').next().unwrap_or(raw);
-            for key in [raw, terminal] {
-                let Some(cands) = symbols_by_name.get(key) else {
-                    continue;
-                };
-                let kind_ok = |c: &SymEntry| {
-                    prefer_kind.is_none_or(|k| c.1.eq_ignore_ascii_case(k))
-                };
-                let same_file: Vec<&SymEntry> =
-                    cands.iter().filter(|c| c.0 == prefer_path).collect();
-                if let Some(c) = same_file
-                    .iter()
-                    .find(|c| kind_ok(c))
-                    .or_else(|| same_file.first())
-                {
-                    return Some(rebuild_symbol_id(**c));
-                }
-                let kind_matches: Vec<&SymEntry> =
-                    cands.iter().filter(|c| kind_ok(c)).collect();
-                if kind_matches.len() == 1 {
-                    return Some(rebuild_symbol_id(*kind_matches[0]));
-                }
-                if cands.len() == 1 {
-                    return Some(rebuild_symbol_id(cands[0]));
-                }
+    let resolve_batch_symbol = |raw: &str,
+                                prefer_path: &str,
+                                prefer_kind: Option<&str>|
+     -> Option<String> {
+        let terminal = raw.rsplit('.').next().unwrap_or(raw);
+        for key in [raw, terminal] {
+            let Some(cands) = symbols_by_name.get(key) else {
+                continue;
+            };
+            let kind_ok = |c: &SymEntry| prefer_kind.is_none_or(|k| c.1.eq_ignore_ascii_case(k));
+            let same_file: Vec<&SymEntry> = cands.iter().filter(|c| c.0 == prefer_path).collect();
+            if let Some(c) = same_file
+                .iter()
+                .find(|c| kind_ok(c))
+                .or_else(|| same_file.first())
+            {
+                return Some(rebuild_symbol_id(**c));
             }
-            None
-        };
+            let kind_matches: Vec<&SymEntry> = cands.iter().filter(|c| kind_ok(c)).collect();
+            if kind_matches.len() == 1 {
+                return Some(rebuild_symbol_id(*kind_matches[0]));
+            }
+            if cands.len() == 1 {
+                return Some(rebuild_symbol_id(cands[0]));
+            }
+        }
+        None
+    };
 
     let mut edges = Vec::with_capacity(stats.edges.len());
     for (rel_path, edge) in &stats.edges {
@@ -471,9 +468,8 @@ pub async fn process_ingest_stats(
                 path_str
             };
             let lower = page_path.to_ascii_lowercase();
-            let is_page_file = lower.ends_with(".aspx")
-                || lower.ends_with(".ascx")
-                || lower.ends_with(".master");
+            let is_page_file =
+                lower.ends_with(".aspx") || lower.ends_with(".ascx") || lower.ends_with(".master");
             let sanitized_control = control_id.trim().replace('\0', "");
             if is_page_file || sanitized_control.is_empty() {
                 engram_core::ids::NodeId::control(page_path, control_id).0
@@ -535,20 +531,22 @@ pub async fn process_ingest_stats(
             //  4. ::placeholder for the post-ingest resolver — never a
             //     phantom location ID under the SOURCE file's path.
             let exact_same_file = edge.target_start_line.and_then(|line| {
-                symbols_by_name.get(edge.target_name.as_str()).and_then(|cands| {
-                    cands
-                        .iter()
-                        .find(|c| c.0 == rel_path.as_str() && c.2 == edge.target_name && c.3 == line)
-                        .map(|c| rebuild_symbol_id(*c))
-                })
+                symbols_by_name
+                    .get(edge.target_name.as_str())
+                    .and_then(|cands| {
+                        cands
+                            .iter()
+                            .find(|c| {
+                                c.0 == rel_path.as_str() && c.2 == edge.target_name && c.3 == line
+                            })
+                            .map(|c| rebuild_symbol_id(*c))
+                    })
             });
             if let Some(id) = exact_same_file {
                 id
-            } else if let Some(id) = resolve_batch_symbol(
-                &edge.target_name,
-                rel_path.as_str(),
-                Some(kind.as_str()),
-            ) {
+            } else if let Some(id) =
+                resolve_batch_symbol(&edge.target_name, rel_path.as_str(), Some(kind.as_str()))
+            {
                 id
             } else if let Some(line) = edge.target_start_line {
                 let fqn = if edge.target_name.contains('.') {
@@ -704,6 +702,7 @@ pub async fn process_ingest_stats(
             "queries_table" => engram_graph::EdgeKind::QueriesTable,
             "reads_state" => engram_graph::EdgeKind::ReadsState,
             "writes_state" => engram_graph::EdgeKind::WritesState,
+            "reads_setting" => engram_graph::EdgeKind::ReadsSetting,
             "data_binding" => engram_graph::EdgeKind::DataBinding,
             "registers_control" => engram_graph::EdgeKind::RegistersControl,
             "includes_file" => engram_graph::EdgeKind::IncludesFile,

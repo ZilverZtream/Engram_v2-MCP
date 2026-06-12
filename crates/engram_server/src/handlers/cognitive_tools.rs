@@ -2638,14 +2638,41 @@ impl Engram {
         let pid = req.project_id.clone();
         let include_guidance = req.include_guidance;
 
-        let report = tokio::task::spawn_blocking(move || {
-            crate::services::blast_radius_service::compute_blast_radius(
+        type TopDependent = (String, String, u32); // label, kind, weight
+        let (report, top_dependents) = tokio::task::spawn_blocking(move || {
+            let report = crate::services::blast_radius_service::compute_blast_radius(
                 &graph,
                 &pid,
                 &target_id,
                 gen_,
                 include_guidance,
-            )
+            )?;
+            // A score without names is unactionable: resolve the heaviest
+            // incoming dependents to name (file:line) so the caller knows
+            // exactly WHAT breaks first.
+            let mut deps: Vec<TopDependent> = graph
+                .find_incoming_edges_with_kind(&pid, None, &target_id, 200)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(src, kind, w)| {
+                    let label = graph
+                        .get_node(&pid, &src)
+                        .ok()
+                        .flatten()
+                        .map(|n| {
+                            if n.file_path.as_str().is_empty() {
+                                n.name
+                            } else {
+                                format!("{} ({}:{})", n.name, n.file_path, n.start_line)
+                            }
+                        })
+                        .unwrap_or(src);
+                    (label, kind.as_str().to_string(), w)
+                })
+                .collect();
+            deps.sort_by(|a, b| b.2.cmp(&a.2));
+            deps.truncate(10);
+            Ok::<_, anyhow::Error>((report, deps))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -2691,6 +2718,26 @@ impl Engram {
             bd.script_injection_score
         ));
 
+        if !top_dependents.is_empty() {
+            out.push_str("\n## Top incoming dependents (what breaks first)\n");
+            for (label, kind, w) in &top_dependents {
+                out.push_str(&format!("- {label} [{kind}] (weight {w})\n"));
+            }
+        }
+
+        if !report.seam_candidates.is_empty() {
+            out.push_str("\n## Seam candidates (natural boundaries for splitting the change)\n");
+            for s in report.seam_candidates.iter().take(8) {
+                out.push_str(&format!(
+                    "- {} ({}) — {} [crossing: {}]\n",
+                    s.node_id,
+                    s.node_type,
+                    s.reason,
+                    s.edge_kinds_crossing.join(", ")
+                ));
+            }
+        }
+
         if !report.guidance.is_empty() {
             out.push_str("\n## Migration Guidance\n");
             for g in &report.guidance {
@@ -2701,6 +2748,7 @@ impl Engram {
             }
         }
 
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
@@ -2811,10 +2859,8 @@ impl Engram {
                 })
             })
             .collect();
-        let pipeline_output = pipeline::run_pipeline(
-            raw_for_pipeline,
-            pipeline::RenderThreshold::default(),
-        );
+        let pipeline_output =
+            pipeline::run_pipeline(raw_for_pipeline, pipeline::RenderThreshold::default());
         let mut critical_rules: Vec<svc::CriticalRule> = pipeline_output.root_rules;
         let mut pipeline_summary = pipeline_output.summary.clone();
         let _overflow = pipeline_output.per_language_overflow;
@@ -2855,10 +2901,7 @@ impl Engram {
                     .zip(critical_rules.iter())
                     .any(|(a, b)| a.text != b.text);
             if curated_changed {
-                pipeline_summary.push_str(&format!(
-                    " → {} after LLM curation",
-                    curated.len()
-                ));
+                pipeline_summary.push_str(&format!(" → {} after LLM curation", curated.len()));
             }
             critical_rules = curated;
         }
@@ -3207,8 +3250,7 @@ impl Engram {
                     // replaces engram-owned sections with fresh output
                     // and preserves domain-specific human content.
                     "optimize" => {
-                        let (rewritten, report) =
-                            svc::optimize_rewrite(&existing, &root_md);
+                        let (rewritten, report) = svc::optimize_rewrite(&existing, &root_md);
                         notes.push(format!(
                             "Optimize rewrite: {original} → {rewritten} lines \
                              (replaced {replaced}, preserved {preserved} section(s))",
@@ -4058,8 +4100,19 @@ fn build_role_description(
     // JSON / XML / YAML / MD aren't programming languages; they're
     // file formats. Same for config / lockfiles.
     const NON_PROGRAMMING: &[&str] = &[
-        "json", "xml", "yaml", "yml", "toml", "ini", "markdown", "md", "txt", "csv",
-        "lock", "config", "properties",
+        "json",
+        "xml",
+        "yaml",
+        "yml",
+        "toml",
+        "ini",
+        "markdown",
+        "md",
+        "txt",
+        "csv",
+        "lock",
+        "config",
+        "properties",
     ];
     let is_programming = |lang: &str| -> bool {
         let lower = lang.to_ascii_lowercase();
@@ -4261,18 +4314,15 @@ fn read_readme_blurb(project_dir: &str) -> Option<String> {
 /// to overflow.
 fn parse_coderabbit_stats(rule_text: &str) -> (Option<f32>, Option<usize>) {
     use std::sync::LazyLock;
-    static STATS_RE: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
-        regex::Regex::new(r"(?i)(\d+)\s*PRs?,\s*(\d+)\s*%\s*fix\s*rate").ok()
-    });
+    static STATS_RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"(?i)(\d+)\s*PRs?,\s*(\d+)\s*%\s*fix\s*rate").ok());
     let Some(re) = STATS_RE.as_ref() else {
         return (None, None);
     };
     let Some(caps) = re.captures(rule_text) else {
         return (None, None);
     };
-    let prs = caps
-        .get(1)
-        .and_then(|m| m.as_str().parse::<usize>().ok());
+    let prs = caps.get(1).and_then(|m| m.as_str().parse::<usize>().ok());
     let fix_rate = caps
         .get(2)
         .and_then(|m| m.as_str().parse::<f32>().ok())
@@ -4343,7 +4393,10 @@ fn reasons_from_breakdown(
 /// rate. Ties broken by fix_commit presence (explicit `✅` signal).
 fn build_coderabbit_language_map(
     nodes: &[engram_graph::Node],
-) -> std::collections::HashMap<String, Vec<crate::services::produce_claude_md_service::CodeRabbitRule>> {
+) -> std::collections::HashMap<
+    String,
+    Vec<crate::services::produce_claude_md_service::CodeRabbitRule>,
+> {
     use crate::services::produce_claude_md_service::CodeRabbitRule;
 
     let mut out: std::collections::HashMap<String, Vec<CodeRabbitRule>> =
@@ -4359,10 +4412,7 @@ fn build_coderabbit_language_map(
         if kind != "pattern" {
             continue;
         }
-        let fix_rate = meta
-            .get("fix_rate")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0) as f32;
+        let fix_rate = meta.get("fix_rate").and_then(|v| v.as_f64()).unwrap_or(0.0) as f32;
         let pr_count = meta
             .get("pr_ids")
             .and_then(|v| v.as_array())
@@ -4546,17 +4596,14 @@ fn only_has_dotnet(dir: &std::path::Path) -> bool {
 }
 
 fn find_first_file_with_ext(dir: &std::path::Path, ext: &str) -> Option<String> {
-    std::fs::read_dir(dir)
-        .ok()?
-        .flatten()
-        .find_map(|e| {
-            let name = e.file_name().to_string_lossy().into_owned();
-            if name.to_ascii_lowercase().ends_with(&format!(".{ext}")) {
-                Some(name)
-            } else {
-                None
-            }
-        })
+    std::fs::read_dir(dir).ok()?.flatten().find_map(|e| {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if name.to_ascii_lowercase().ends_with(&format!(".{ext}")) {
+            Some(name)
+        } else {
+            None
+        }
+    })
 }
 
 fn find_test_project(dir: &std::path::Path) -> Option<String> {
