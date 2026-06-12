@@ -7,6 +7,15 @@ pub trait Embedder: Send + Sync {
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding>;
     fn dimension(&self) -> usize;
 
+    /// Stable identity of the embedding space this embedder produces.
+    /// Used as a cache key component: two embedders with the same tag MUST
+    /// produce interchangeable vectors. Default is dimension-only, which is
+    /// safe for deterministic local embedders; model-backed embedders
+    /// override with the model name.
+    fn model_tag(&self) -> String {
+        format!("dim{}", self.dimension())
+    }
+
     /// Embed multiple texts in a single batch. Default falls back to sequential
     /// calls, but remote embedders override this with true batched API calls
     /// for 5-10x throughput improvement.
@@ -1105,6 +1114,13 @@ fn l2_normalize(mut v: Embedding) -> Embedding {
 
 #[async_trait]
 impl Embedder for RemoteEmbedder {
+    fn model_tag(&self) -> String {
+        match &self.backend {
+            RemoteBackend::Ollama(o) => format!("ollama:{}:{}", o.model, o.dim),
+            RemoteBackend::OpenAI(o) => format!("openai:{}:{}", o.model, o.dim),
+        }
+    }
+
     fn dimension(&self) -> usize {
         match &self.backend {
             RemoteBackend::Ollama(e) => e.dimension(),
