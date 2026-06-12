@@ -2874,3 +2874,78 @@ fn ns1_hybrid_source_documents_fallback_pk_lifecycle() {
          not for persistent storage — the comment is the audit evidence"
     );
 }
+
+// ── P0-1: line numbers + labeled snippet truncation ──────────────────────────
+
+/// P0-1: every lexical hit must carry the chunk's stored line range, and
+/// snippets must be cut at a line boundary with an explicit truncation flag,
+/// so an agent can jump straight to the location without a follow-up read.
+#[tokio::test]
+async fn lexical_hits_carry_line_range_and_labeled_snippet_truncation() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    // Long content: well over 500 chars, spread across many lines, so the
+    // snippet must be truncated at a line boundary.
+    let long_line = "let alpha_needle_value = compute_alpha_needle_value();";
+    let long_content = vec![long_line; 20].join("\n");
+    assert!(long_content.len() > 600, "test premise: content > 600 chars");
+
+    let mut long_doc = make_doc("d-long", "src/long.rs", "memory", &long_content);
+    long_doc.start_line = 41;
+    long_doc.end_line = 60;
+
+    let mut short_doc = make_doc("d-short", "src/short.rs", "memory", "fn alpha_needle() {}");
+    short_doc.start_line = 7;
+    short_doc.end_line = 7;
+
+    engine
+        .index_docs("proj-lines", &[long_doc, short_doc], &cancel)
+        .await
+        .expect("index_docs must succeed");
+
+    let hits = engine
+        .lexical_search(&fts_query("proj-lines", "memory", "alpha_needle"))
+        .expect("lexical_search must succeed");
+    assert!(hits.len() >= 2, "both docs must match; got {}", hits.len());
+
+    let long_hit = hits
+        .iter()
+        .find(|h| h.path.as_str() == "src/long.rs")
+        .expect("hit for src/long.rs");
+    assert_eq!(long_hit.start_line, 41, "start_line must come from the index");
+    assert_eq!(long_hit.end_line, 60, "end_line must come from the index");
+    assert!(
+        long_hit.snippet_truncated,
+        "snippet of >600-char content must be flagged as truncated"
+    );
+    let sn = long_hit.snippet.as_deref().expect("snippet present");
+    assert!(
+        sn.chars().count() <= 520,
+        "snippet must respect the ~500-char budget; got {}",
+        sn.chars().count()
+    );
+    // Line-boundary cut: the snippet must be a prefix of the content that
+    // ends exactly where a newline followed in the original.
+    assert!(
+        long_content.starts_with(sn),
+        "snippet must be a prefix of the chunk content"
+    );
+    assert_eq!(
+        long_content.as_bytes().get(sn.len()),
+        Some(&b'\n'),
+        "snippet must end exactly at a line boundary"
+    );
+
+    let short_hit = hits
+        .iter()
+        .find(|h| h.path.as_str() == "src/short.rs")
+        .expect("hit for src/short.rs");
+    assert_eq!((short_hit.start_line, short_hit.end_line), (7, 7));
+    assert!(
+        !short_hit.snippet_truncated,
+        "short content must not be flagged truncated"
+    );
+    assert_eq!(short_hit.snippet.as_deref(), Some("fn alpha_needle() {}"));
+}

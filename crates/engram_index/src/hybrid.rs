@@ -40,6 +40,36 @@ pub struct HybridHit {
     pub snippet: Option<String>,
     /// doc_id of the specific chunk instance.
     pub doc_id: String,
+    /// 1-based first line of the chunk in its file (0 = unknown, e.g. a
+    /// vector-only hit that has not been enriched from Tantivy yet).
+    pub start_line: u32,
+    /// 1-based last line of the chunk in its file (0 = unknown).
+    pub end_line: u32,
+    /// True when `snippet` was cut short of the full chunk content. Callers
+    /// should surface this so agents know to fetch the rest via get_chunk.
+    pub snippet_truncated: bool,
+}
+
+/// Character budget for search-hit snippets. Generous enough to show a whole
+/// function signature plus context, small enough not to flood agent context.
+const SNIPPET_MAX_CHARS: usize = 500;
+
+/// Cut `content` at the last line boundary at or below `max_chars`.
+///
+/// Falls back to a plain char-boundary cut when the first line alone exceeds
+/// the budget (e.g. minified JS). Returns the snippet and whether it was
+/// truncated relative to the full content.
+pub(crate) fn snippet_of(content: &str, max_chars: usize) -> (String, bool) {
+    if content.chars().count() <= max_chars {
+        return (content.to_string(), false);
+    }
+    let prefix: String = content.chars().take(max_chars).collect();
+    match prefix.rfind('\n') {
+        // Cut at the last full line inside the budget.
+        Some(nl) if nl > 0 => (prefix[..nl].to_string(), true),
+        // Single oversized line: keep the char-budget prefix.
+        _ => (prefix, true),
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1783,11 +1813,24 @@ impl HybridSearchEngine {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let snippet = if let Some(v) = doc.get_first(self.fields.content) {
-                v.as_str().map(|s| s.chars().take(300).collect::<String>())
-            } else {
-                None
+            let (snippet, snippet_truncated) = match doc
+                .get_first(self.fields.content)
+                .and_then(|v| v.as_str())
+            {
+                Some(s) => {
+                    let (sn, truncated) = snippet_of(s, SNIPPET_MAX_CHARS);
+                    (Some(sn), truncated)
+                }
+                None => (None, false),
             };
+            let start_line = doc
+                .get_first(self.fields.start_line)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+            let end_line = doc
+                .get_first(self.fields.end_line)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
 
             out.push(HybridHit {
                 pk,
@@ -1797,6 +1840,9 @@ impl HybridSearchEngine {
                 centrality: 0.0,
                 snippet,
                 doc_id: doc_id_str,
+                start_line,
+                end_line,
+                snippet_truncated,
             });
         }
 
@@ -1931,6 +1977,10 @@ impl HybridSearchEngine {
                 .get_first(self.fields.start_line)
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0) as u32;
+            let end_line = doc
+                .get_first(self.fields.end_line)
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
 
             out.push((
                 HybridHit {
@@ -1941,6 +1991,9 @@ impl HybridSearchEngine {
                     centrality: 0.0,
                     snippet: None,
                     doc_id: doc_id_str,
+                    start_line,
+                    end_line,
+                    snippet_truncated: false,
                 },
                 content,
                 start_line,
@@ -2024,6 +2077,29 @@ impl HybridSearchEngine {
             .unwrap_or(0) as u32;
 
         Ok(Some((path, language, content, start_line, end_line)))
+    }
+
+    /// Fill line range + snippet for hits that came from the vector store,
+    /// which carries no line columns. Looks each unenriched hit up in Tantivy
+    /// by pk (bounded: only runs over a final, truncated result list).
+    fn enrich_hits_from_store(&self, hits: &mut [HybridHit]) {
+        for hit in hits.iter_mut() {
+            if hit.start_line != 0 || hit.end_line != 0 {
+                continue;
+            }
+            if hit.pk.is_empty() {
+                continue;
+            }
+            if let Ok(Some((_, _, content, start_line, end_line))) = self.get_doc_by_pk(&hit.pk) {
+                hit.start_line = start_line;
+                hit.end_line = end_line;
+                if hit.snippet.is_none() {
+                    let (sn, truncated) = snippet_of(&content, SNIPPET_MAX_CHARS);
+                    hit.snippet = Some(sn);
+                    hit.snippet_truncated = truncated;
+                }
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -2197,6 +2273,11 @@ impl HybridSearchEngine {
                         centrality: 0.0,
                         snippet: None,
                         doc_id: doc_id_val,
+                        // LanceDB rows carry no line columns; enriched from
+                        // Tantivy via enrich_hits_from_store on final results.
+                        start_line: 0,
+                        end_line: 0,
+                        snippet_truncated: false,
                     });
                 }
             }
@@ -2282,6 +2363,11 @@ impl HybridSearchEngine {
         }
 
         hits.truncate(q.top_k);
+
+        // Vector rows carry no line columns; backfill line range + snippet
+        // from Tantivy on the final, truncated list.
+        self.enrich_hits_from_store(&mut hits);
+
         Ok(hits)
     }
 
@@ -2518,6 +2604,10 @@ impl HybridSearchEngine {
         if merged.len() > q.top_k {
             merged.truncate(q.top_k);
         }
+
+        // Vector-sourced hits have no line info; backfill from Tantivy now
+        // that the list is final and small.
+        self.enrich_hits_from_store(&mut merged);
 
         Ok(merged)
     }
