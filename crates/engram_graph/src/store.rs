@@ -2024,6 +2024,30 @@ impl GraphStore {
 
     // ── Resolve symbol edges ─────────────────────────────────────────────────
 
+    /// TODO-12: record how a placeholder edge was rewired so consumers can
+    /// weigh it. Merges into existing metadata, preserving extractor keys.
+    fn stamp_resolution(edge: &mut Edge, method: &str, confidence: f32) {
+        let mut obj = match edge.metadata.take() {
+            Some(serde_json::Value::Object(o)) => o,
+            Some(other) => {
+                // Non-object metadata is unexpected; preserve it under a key.
+                let mut o = serde_json::Map::new();
+                o.insert("legacy_metadata".into(), other);
+                o
+            }
+            None => serde_json::Map::new(),
+        };
+        obj.insert(
+            "resolution".into(),
+            serde_json::Value::String(method.to_string()),
+        );
+        obj.insert(
+            "confidence".into(),
+            serde_json::Value::String(format!("{confidence:.2}")),
+        );
+        edge.metadata = Some(serde_json::Value::Object(obj));
+    }
+
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let prefix = format!("{project_id}\0");
 
@@ -2195,6 +2219,7 @@ impl GraphStore {
             if let Some(target_id) = resolved {
                 let mut new_e = entry.edge.clone();
                 new_e.target_id = target_id;
+                Self::stamp_resolution(&mut new_e, "post_exact_name", 0.85);
                 updates.push((entry.old_key.clone(), new_e));
                 continue;
             }
@@ -2203,6 +2228,7 @@ impl GraphStore {
             if let Some(id) = by_metadata_fqn.get(name) {
                 let mut new_e = entry.edge.clone();
                 new_e.target_id = id.clone();
+                Self::stamp_resolution(&mut new_e, "post_node_fqn", 0.9);
                 updates.push((entry.old_key.clone(), new_e));
                 continue;
             }
@@ -2228,6 +2254,7 @@ impl GraphStore {
                 if let Some(target_id) = resolved {
                     let mut new_e = entry.edge.clone();
                     new_e.target_id = target_id;
+                    Self::stamp_resolution(&mut new_e, "post_edge_fqn", 0.9);
                     updates.push((entry.old_key.clone(), new_e));
                     continue;
                 }
@@ -2239,10 +2266,12 @@ impl GraphStore {
                 if candidates.len() == 1 {
                     let mut new_e = entry.edge.clone();
                     new_e.target_id = candidates[0].clone();
+                    Self::stamp_resolution(&mut new_e, "post_terminal_unique", 0.45);
                     updates.push((entry.old_key.clone(), new_e));
                 } else if let Some(id) = resolve_ambiguous(candidates, source_file) {
                     let mut new_e = entry.edge.clone();
                     new_e.target_id = id;
+                    Self::stamp_resolution(&mut new_e, "post_terminal_samefile", 0.6);
                     updates.push((entry.old_key.clone(), new_e));
                 }
             }

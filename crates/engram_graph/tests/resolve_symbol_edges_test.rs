@@ -325,6 +325,16 @@ fn resolves_via_edge_metadata_fqn_when_name_is_ambiguous_across_files() {
         rewritten[0].target_id, a.node_id,
         "must pick the admin handler named by the edge fqn, not the public one"
     );
+    // TODO-12: the rewrite must record how it was resolved.
+    let meta = rewritten[0].metadata.as_ref().expect("stamped metadata");
+    assert_eq!(
+        meta.get("resolution").and_then(|v| v.as_str()),
+        Some("post_edge_fqn")
+    );
+    assert_eq!(
+        meta.get("confidence").and_then(|v| v.as_str()),
+        Some("0.90")
+    );
 }
 
 #[test]
