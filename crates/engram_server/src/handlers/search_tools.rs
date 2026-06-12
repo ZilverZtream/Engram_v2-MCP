@@ -162,6 +162,21 @@ impl Engram {
                 since_ms
             ));
         }
+        // P0-2: be honest about what the vector half of this search actually is.
+        if req.semantic {
+            match ps.search.semantic_quality() {
+                engram_index::SemanticQuality::DegradedTrigram => out.push_str(
+                    "NOTE: vector half of this search uses a non-semantic trigram-projection \
+                     embedder (default install). Lexical quality is unaffected. For true \
+                     semantic search set embedding_backend=ollama|openai in engram_mcp.yaml.\n",
+                ),
+                engram_index::SemanticQuality::Off => out.push_str(
+                    "NOTE: vector search disabled (embedding_backend=fts_only) — results are \
+                     lexical-only.\n",
+                ),
+                engram_index::SemanticQuality::Semantic => {}
+            }
+        }
         out.push_str(&format!("active_generation: {gen_}\n"));
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
@@ -247,6 +262,16 @@ impl Engram {
         }
 
         let mut out = String::with_capacity(4096);
+        // P0-2: a "pure semantic" tool built on the trigram stub is misleading
+        // without this label.
+        if ps.search.semantic_quality() == engram_index::SemanticQuality::DegradedTrigram {
+            out.push_str(
+                "NOTE: this install uses the non-semantic trigram-projection embedder \
+                 (default). Similarity scores reflect character-trigram overlap, not \
+                 meaning. Set embedding_backend=ollama|openai in engram_mcp.yaml for \
+                 true semantic search.\n\n",
+            );
+        }
         out.push_str(&format!(
             "Vector search results (namespace={}, top_k={}, mmr={}):\n\n",
             req.namespace, top_k, req.use_mmr

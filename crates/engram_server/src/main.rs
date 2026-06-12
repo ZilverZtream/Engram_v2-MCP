@@ -15,6 +15,18 @@ async fn main() -> anyhow::Result<()> {
 
     let mut cfg = Config::load()?;
 
+    // P0-2: the default embedding backend is a non-semantic trigram projection.
+    // Say so once at startup instead of letting operators assume real
+    // semantic search is active.
+    if matches!(cfg.embedding_backend.as_str(), "" | "local" | "candle") {
+        tracing::warn!(
+            backend = %if cfg.embedding_backend.is_empty() { "(default)" } else { cfg.embedding_backend.as_str() },
+            "embedding backend is the non-semantic trigram-projection stub — \
+             vector search will reflect character overlap, not meaning. Set \
+             embedding_backend=ollama|openai in engram_mcp.yaml for true semantic search."
+        );
+    }
+
     // Multi-client mode can be forced on/off via env var or CLI flag,
     // overriding the YAML. This lets a user flip modes without
     // editing config — useful during the v0.7 rollout when the

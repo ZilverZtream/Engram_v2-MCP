@@ -40,6 +40,7 @@ pub use confidence::{
 pub use docstore::{DocRecord, DocStore, FileFingerprint};
 pub use hybrid::{
     BulkWriterGuard, HybridHit, HybridQuery, HybridSearchEngine, IndexDoc, IngestStats,
-    chunk_id_from_content_hash, chunk_id_from_hash, escape_tantivy_literal,
+    SemanticQuality, chunk_id_from_content_hash, chunk_id_from_hash, escape_tantivy_literal,
+    semantic_quality_for_backend,
 };
 pub use parsing::{ExtractedEdge, ExtractedSymbol, SymbolExtractor};
