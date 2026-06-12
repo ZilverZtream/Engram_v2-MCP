@@ -82,6 +82,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "resolve_graph_edges",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_agent_integration",
         status: CapabilityStatus::Implemented,
     },

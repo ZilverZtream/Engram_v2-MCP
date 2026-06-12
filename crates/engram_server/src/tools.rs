@@ -181,6 +181,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Re-run placeholder edge resolution on the existing graph (no reindex). Use after upgrading Engram so resolver improvements apply to already-indexed projects; returns the count of '::name' placeholder edges resolved to concrete nodes."
+    )]
+    pub async fn resolve_graph_edges(
+        &self,
+        params: Parameters<ProjectIdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_resolve_graph_edges(params.0).await
+    }
+
+    #[tool(
         description = "GIS surface inventory: every map library/class the project uses with call-site counts, files, and modern equivalents (Google Maps/Leaflet/OpenLayers/Esri), per-file map configurations (api key, zoom, center), and the WMS/XYZ/Esri layer inventory. Call before touching any map feature; pairs with get_concept_footprint and blast_radius for the change plan."
     )]
     pub async fn get_gis_inventory(
