@@ -1461,7 +1461,16 @@ impl HybridSearchEngine {
                             .and_then(|e| e.to_str())
                             .map(|e| e.to_lowercase());
 
-                        let (syms, edges) = if crate::webforms::is_webforms_markup(p) {
+                        // Vendor assets (package-manager dirs, minified
+                        // bundles) stay searchable but must not feed the
+                        // graph: bare-name matches from a 53k-line vendor
+                        // bundle create phantom dependency edges into app
+                        // code (false blast radius, false paths).
+                        let is_vendor = engram_core::is_vendor_path(arc_rel.as_str());
+
+                        let (syms, edges) = if is_vendor {
+                            (Vec::new(), Vec::new())
+                        } else if crate::webforms::is_webforms_markup(p) {
                             crate::webforms::extract_webforms(&root_buf, &arc_rel, &text)
                         } else if crate::layout_extractor::is_winforms_designer(p) {
                             let base_lang = if ext_lower.as_deref() == Some("vb") {
@@ -1506,7 +1515,9 @@ impl HybridSearchEngine {
 
                         // Post-processing: extract JS→ASP.NET bridge edges.
                         // Use extension-based gating so `.jsx`/`.tsx` files are included.
-                        if crate::js_extractor::is_js_file(p) {
+                        if is_vendor {
+                            // No bridge extraction for vendor files either.
+                        } else if crate::js_extractor::is_js_file(p) {
                             let (js_syms, js_edges) = crate::js_extractor::extract_js(p, &text);
                             for s in &js_syms {
                                 local_stats.symbols.push((arc_rel.clone(), s.clone()));
