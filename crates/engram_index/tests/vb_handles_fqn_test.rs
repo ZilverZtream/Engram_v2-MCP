@@ -243,3 +243,22 @@ End Namespace
     // SubmitChanges is a method call, never a table.
     assert!(!qt.iter().any(|e| e.target_name == "submitchanges"));
 }
+
+#[test]
+fn dedupe_fqn_collapses_repeated_prefix_chains() {
+    use engram_index::vb_extractor::dedupe_fqn_for_test as d;
+    assert_eq!(d("_api2._api2.Logger.LogError"), "_api2.Logger.LogError");
+    assert_eq!(
+        d("ConfigSettings.ConfigSettings.Map.WMSLayers"),
+        "ConfigSettings.Map.WMSLayers"
+    );
+    assert_eq!(d("a.b.c.a.b.c.X"), "a.b.c.X");
+    // Legitimate names pass through unchanged.
+    assert_eq!(d("MyApp.Order.PrintJob"), "MyApp.Order.PrintJob");
+    assert_eq!(d("LogError"), "LogError");
+    // Deep pathological nesting from old sidecar builds.
+    assert_eq!(
+        d("_io.Export._io.Export.Pdf._io.Export._io.Export.Pdf.Element"),
+        "_io.Export.Pdf.Element"
+    );
+}

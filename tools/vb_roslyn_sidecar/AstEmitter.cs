@@ -667,8 +667,15 @@ internal sealed class AstEmitter
 
         string ComposeName(string terminal)
         {
+            // Entries on the `types` stack are already fully qualified (they
+            // were produced by this method). Re-concatenating namespaces plus
+            // the whole type chain duplicated every ancestor segment, e.g.
+            // `_api2._api2.Logger.LogError` — and worse for deeper nesting.
+            if (types.Count > 0)
+            {
+                return SanitizeName($"{types.Peek()}.{terminal}");
+            }
             var parts = namespaces.Reverse()
-                .Concat(types.Reverse())
                 .Append(terminal)
                 .Where(p => !string.IsNullOrWhiteSpace(p));
             return SanitizeName(string.Join('.', parts));
