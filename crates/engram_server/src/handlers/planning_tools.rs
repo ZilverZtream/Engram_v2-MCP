@@ -1555,3 +1555,238 @@ mod review_ingest_tests {
         assert!(parse_sonarqube_issues("{\"foo\":1}").is_empty());
     }
 }
+
+// ── get_gis_inventory ────────────────────────────────────────────────────────
+
+/// One grouped row of spatial-call usage: (library, map class, modern
+/// equivalent, call-site count, distinct source files).
+pub(crate) type GisUsageRow = (
+    String,
+    String,
+    String,
+    usize,
+    std::collections::BTreeSet<String>,
+);
+
+/// Group raw spatial-call rows (library, class, modern_equivalent, file)
+/// into per-(library, class) usage rows sorted by call-site count.
+pub(crate) fn group_spatial_calls(rows: &[(String, String, String, String)]) -> Vec<GisUsageRow> {
+    let mut grouped: BTreeMap<
+        (String, String),
+        (String, usize, std::collections::BTreeSet<String>),
+    > = BTreeMap::new();
+    for (lib, class, modern, file) in rows {
+        let e = grouped
+            .entry((lib.clone(), class.clone()))
+            .or_insert_with(|| (modern.clone(), 0, Default::default()));
+        e.1 += 1;
+        if !file.is_empty() {
+            e.2.insert(file.clone());
+        }
+    }
+    let mut out: Vec<GisUsageRow> = grouped
+        .into_iter()
+        .map(|((lib, class), (modern, count, files))| (lib, class, modern, count, files))
+        .collect();
+    out.sort_by(|a, b| {
+        b.3.cmp(&a.3)
+            .then_with(|| a.0.cmp(&b.0))
+            .then_with(|| a.1.cmp(&b.1))
+    });
+    out
+}
+
+impl Engram {
+    /// GIS surface inventory: which map libraries/classes the project uses and
+    /// where, per-file map configurations (api key / zoom / center), and the
+    /// WMS/XYZ/Esri layer inventory — the map-stack documentation an agent
+    /// needs before touching any map feature.
+    pub async fn handle_get_gis_inventory(
+        &self,
+        req: crate::models::ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let (configs, layers, usage, spatial_total) = tokio::task::spawn_blocking(move || {
+            let nodes = graph
+                .query_nodes(&pid, None, None, None, 50_000)
+                .unwrap_or_default();
+
+            // Per-file map configuration facts ("gis_config:{file}:{kind}").
+            let mut configs: BTreeMap<String, Vec<String>> = BTreeMap::new();
+            // Layer inventory from layer_type metadata: (type, name, file).
+            let mut layers: Vec<(String, String, String)> = Vec::new();
+            for n in &nodes {
+                if n.node_type == "gis_config"
+                    && let Some(rest) = n.name.strip_prefix("gis_config:")
+                    && let Some((file, kind)) = rest.rsplit_once(':')
+                {
+                    configs
+                        .entry(file.to_string())
+                        .or_default()
+                        .push(kind.to_string());
+                }
+                if let Some(lt) = n
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("layer_type"))
+                    .and_then(|v| v.as_str())
+                {
+                    layers.push((
+                        lt.to_string(),
+                        n.name.clone(),
+                        n.file_path.as_str().to_string(),
+                    ));
+                }
+            }
+            layers.sort();
+            layers.dedup();
+
+            // Spatial call edges → (library, class, modern_equivalent, file).
+            let spatial = graph
+                .list_edges_by_kind(&pid, EdgeKind::SpatialCall, 100_000)
+                .unwrap_or_default();
+            let spatial_total = spatial.len();
+            let rows: Vec<(String, String, String, String)> = spatial
+                .iter()
+                .map(|e| {
+                    let m = e.metadata.as_ref();
+                    let get = |k: &str| {
+                        m.and_then(|m| m.get(k))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string()
+                    };
+                    let file = e
+                        .source_id
+                        .strip_prefix("file:")
+                        .unwrap_or(&e.source_id)
+                        .to_string();
+                    (
+                        get("gis_library"),
+                        get("map_class"),
+                        get("modern_equivalent"),
+                        file,
+                    )
+                })
+                .collect();
+            (configs, layers, group_spatial_calls(&rows), spatial_total)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if configs.is_empty() && layers.is_empty() && usage.is_empty() {
+            let mut out = String::from(
+                "No GIS surface detected (no gis_config nodes, layer metadata, or spatial_call \
+                 edges). If this project uses maps, its library may not be covered by the GIS \
+                 extractors yet.",
+            );
+            out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
+        }
+
+        let mut out = String::from("# GIS surface inventory\n");
+
+        if !usage.is_empty() {
+            out.push_str(&format!(
+                "\n## Map API usage ({spatial_total} call sites)\n"
+            ));
+            for (lib, class, modern, count, files) in usage.iter().take(30) {
+                out.push_str(&format!(
+                    "- {lib}.{class}: {count} call site(s) in {} file(s)",
+                    files.len()
+                ));
+                if !modern.is_empty() {
+                    out.push_str(&format!(" — modern equivalent: {modern}"));
+                }
+                out.push('\n');
+                for f in files.iter().take(3) {
+                    out.push_str(&format!("    {f}\n"));
+                }
+                if files.len() > 3 {
+                    out.push_str(&format!("    ... and {} more file(s)\n", files.len() - 3));
+                }
+            }
+            if usage.len() > 30 {
+                out.push_str(&format!("  ... and {} more API(s)\n", usage.len() - 30));
+            }
+        }
+
+        if !configs.is_empty() {
+            out.push_str(&format!(
+                "\n## Map configurations ({} file(s))\n",
+                configs.len()
+            ));
+            for (file, kinds) in configs.iter().take(20) {
+                let mut ks = kinds.clone();
+                ks.sort();
+                ks.dedup();
+                let key_flag = if ks.iter().any(|k| k == "api_key") {
+                    " — note: API key referenced in client code"
+                } else {
+                    ""
+                };
+                out.push_str(&format!("- {file}: {}{}\n", ks.join(", "), key_flag));
+            }
+            if configs.len() > 20 {
+                out.push_str(&format!("  ... and {} more\n", configs.len() - 20));
+            }
+        }
+
+        if !layers.is_empty() {
+            out.push_str(&format!("\n## Layer inventory ({})\n", layers.len()));
+            for (lt, name, file) in layers.iter().take(25) {
+                out.push_str(&format!("- [{lt}] {name} ({file})\n"));
+            }
+            if layers.len() > 25 {
+                out.push_str(&format!("  ... and {} more\n", layers.len() - 25));
+            }
+        }
+
+        out.push_str(
+            "\nnext: get_concept_footprint(concept=\"map\"/\"layer\") for full touchpoints; \
+             find_implementation_pattern(pattern=\"map init\") for the house style; \
+             blast_radius on the map config class before changing layer settings.\n",
+        );
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+#[cfg(test)]
+mod gis_inventory_tests {
+    use super::group_spatial_calls;
+
+    fn row(lib: &str, class: &str, modern: &str, file: &str) -> (String, String, String, String) {
+        (lib.into(), class.into(), modern.into(), file.into())
+    }
+
+    #[test]
+    fn groups_by_library_and_class_sorted_by_count() {
+        let rows = vec![
+            row("google_maps", "Polygon", "MapLibre fill layer", "a.js"),
+            row("google_maps", "Polygon", "MapLibre fill layer", "b.js"),
+            row("google_maps", "Polygon", "MapLibre fill layer", "a.js"),
+            row("leaflet", "TileLayer", "MapLibre raster source", "c.js"),
+        ];
+        let grouped = group_spatial_calls(&rows);
+        assert_eq!(grouped.len(), 2);
+        assert_eq!(grouped[0].0, "google_maps");
+        assert_eq!(grouped[0].1, "Polygon");
+        assert_eq!(grouped[0].3, 3, "three call sites");
+        assert_eq!(grouped[0].4.len(), 2, "two distinct files");
+        assert_eq!(grouped[1].0, "leaflet");
+    }
+
+    #[test]
+    fn empty_files_are_not_counted_and_empty_input_is_empty() {
+        assert!(group_spatial_calls(&[]).is_empty());
+        let grouped = group_spatial_calls(&[row("esri", "FeatureLayer", "", "")]);
+        assert_eq!(grouped[0].3, 1);
+        assert!(grouped[0].4.is_empty(), "empty file string is dropped");
+    }
+}

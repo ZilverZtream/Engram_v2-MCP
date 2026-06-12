@@ -181,6 +181,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "GIS surface inventory: every map library/class the project uses with call-site counts, files, and modern equivalents (Google Maps/Leaflet/OpenLayers/Esri), per-file map configurations (api key, zoom, center), and the WMS/XYZ/Esri layer inventory. Call before touching any map feature; pairs with get_concept_footprint and blast_radius for the change plan."
+    )]
+    pub async fn get_gis_inventory(
+        &self,
+        params: Parameters<ProjectIdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_gis_inventory(params.0).await
+    }
+
+    #[tool(
         description = "ONE call from a weak user story (e.g. 'As an admin I would like to set minimum number of photos required') to an implementation brief: extracted domain concepts with their full touchpoint footprints, exemplars of the house pattern to imitate, the project's auth/settings conventions, and a completion checklist wired to find_similar_changes, check_edit_safety, and pre_commit_review. START HERE for any feature request."
     )]
     pub async fn plan_user_story(
