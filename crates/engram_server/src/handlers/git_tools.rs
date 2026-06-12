@@ -319,8 +319,7 @@ impl Engram {
         // ── Channel pipeline ─────────────────────────────────────────────
         // Bounded channel (64 slots) provides backpressure: if the consumer
         // falls behind, the producer blocks on send — no unbounded growth.
-        let (doc_tx, mut doc_rx) =
-            tokio::sync::mpsc::channel::<Vec<engram_index::IndexDoc>>(64);
+        let (doc_tx, mut doc_rx) = tokio::sync::mpsc::channel::<Vec<engram_index::IndexDoc>>(64);
 
         // ── Async consumer: Tantivy bulk writer + vector embedding ───────
         let search_consumer = search.clone();
@@ -765,14 +764,23 @@ impl Engram {
             ))
         })
         .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        // ── Wait for consumer to finish (Tantivy merge + final vectors) ──
-        consumer_handle
+        // ── Wait for consumer BEFORE judging the producer ─────────────────
+        // When the consumer errors, the channel closes and the producer
+        // fails with the opaque "index consumer dropped" — awaiting the
+        // consumer first surfaces the ROOT error (embed failure, writer
+        // lock, ...) instead of masking it.
+        let consumer_result = consumer_handle
             .await
-            .map_err(|e| McpError::internal_error(format!("index consumer panicked: {e}"), None))?
-            .map_err(|e| McpError::internal_error(format!("index consumer failed: {e}"), None))?;
+            .map_err(|e| McpError::internal_error(format!("index consumer panicked: {e}"), None))?;
+        if let Err(consumer_err) = consumer_result {
+            return Err(McpError::internal_error(
+                format!("index consumer failed: {consumer_err:#}"),
+                None,
+            ));
+        }
+        let summary = summary.map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // Update git checkpoints meta best-effort.
         if let Some(last_line) = summary.lines().find(|l| l.starts_with("last_oid: ")) {
