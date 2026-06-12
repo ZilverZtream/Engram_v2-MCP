@@ -279,14 +279,14 @@ fn parse_via_sidecar(
         .symbols
         .into_iter()
         .map(|s| ExtractedSymbol {
-            name: s.name,
+            name: dedupe_fqn(&s.name),
             kind: s.kind,
             start_line: s.start_line,
             end_line: s.end_line,
             metadata: if s.metadata.is_empty() {
                 None
             } else {
-                Some(s.metadata)
+                Some(dedupe_fqn_metadata(s.metadata))
             },
         })
         .collect::<Vec<_>>();
@@ -295,23 +295,63 @@ fn parse_via_sidecar(
         .edges
         .into_iter()
         .map(|e| ExtractedEdge {
-            source_name: e.source_name,
+            source_name: dedupe_fqn(&e.source_name),
             source_kind: e.source_kind,
             source_start_line: e.source_start_line,
             source_language: e.source_language,
-            target_name: e.target_name,
+            target_name: dedupe_fqn(&e.target_name),
             target_kind: e.target_kind,
             target_start_line: e.target_start_line,
             kind: e.kind,
             metadata: if e.metadata.is_empty() {
                 None
             } else {
-                Some(e.metadata)
+                Some(dedupe_fqn_metadata(e.metadata))
             },
         })
         .collect::<Vec<_>>();
 
     Ok((symbols, edges))
+}
+
+/// Collapse repeated leading segment chains in a dotted name:
+/// `_api2._api2.Logger.LogError` → `_api2.Logger.LogError`,
+/// `a.b.c.a.b.c.X` → `a.b.c.X`. Older sidecar builds composed FQNs by
+/// concatenating namespaces with an already-qualified type stack; this
+/// normalizer makes ingestion correct regardless of deployed sidecar
+/// version.
+pub(crate) fn dedupe_fqn(name: &str) -> String {
+    if !name.contains('.') {
+        return name.to_string();
+    }
+    let mut parts: Vec<&str> = name.split('.').collect();
+    loop {
+        let mut collapsed = false;
+        let max_k = parts.len() / 2;
+        for k in (1..=max_k).rev() {
+            if parts[..k] == parts[k..2 * k] {
+                parts.drain(..k);
+                collapsed = true;
+                break;
+            }
+        }
+        if !collapsed {
+            break;
+        }
+    }
+    parts.join(".")
+}
+
+/// Test-only re-export.
+pub fn dedupe_fqn_for_test(name: &str) -> String {
+    dedupe_fqn(name)
+}
+
+fn dedupe_fqn_metadata(mut m: HashMap<String, String>) -> HashMap<String, String> {
+    if let Some(fqn) = m.get("fqn").cloned() {
+        m.insert("fqn".to_string(), dedupe_fqn(&fqn));
+    }
+    m
 }
 
 pub fn begin_project(project_root: &Path) {
