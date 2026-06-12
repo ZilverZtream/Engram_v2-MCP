@@ -81,20 +81,38 @@ namespace App {
     // Resolve
     state.graph.resolve_symbol_edges(project_id).unwrap();
 
-    // Verify: sym:class:App.Foo contains control:Foo.aspx:btnSubmit
-    let class_id = "sym:class:App.Foo";
-    let neighbors = state
+    // Verify: a Foo class node contains control:Foo.aspx:btnSubmit.
+    // Node IDs are location-based, so each PARTIAL class declaration
+    // (codebehind + designer file) is its own node — the designer-field
+    // containment edge hangs off the designer-file partial. Check all of
+    // them.
+    let class_nodes = state
         .graph
-        .neighbors(project_id, engram_graph::EdgeKind::Contains, class_id, 10)
+        .query_nodes(project_id, Some("class"), Some("Foo"), None, 10)
         .unwrap();
+    assert!(!class_nodes.is_empty(), "Foo class node missing");
+    let mut all_neighbors = Vec::new();
+    for class_node in &class_nodes {
+        all_neighbors.extend(
+            state
+                .graph
+                .neighbors(
+                    project_id,
+                    engram_graph::EdgeKind::Contains,
+                    &class_node.node_id,
+                    10,
+                )
+                .unwrap(),
+        );
+    }
 
-    let has_control = neighbors
+    let has_control = all_neighbors
         .iter()
         .any(|(nid, _)| nid == "control:Foo.aspx:btnSubmit");
     assert!(
         has_control,
-        "Class App.Foo should contain btnSubmit control. Neighbors: {:?}",
-        neighbors
+        "A Foo class partial should contain btnSubmit control. Neighbors: {:?}",
+        all_neighbors
     );
 }
 
@@ -176,12 +194,27 @@ End Namespace"#;
     // Resolve
     state.graph.resolve_symbol_edges(project_id).unwrap();
 
-    // Verify: sym:class:VbApp.Bar contains control:Bar.aspx:btnVb
-    let class_id = "sym:class:VbApp.Bar";
-    let neighbors = state
+    // Verify: a Bar class partial contains control:Bar.aspx:btnVb (each
+    // partial declaration is its own location-based node — check all).
+    let class_nodes = state
         .graph
-        .neighbors(project_id, engram_graph::EdgeKind::Contains, class_id, 10)
+        .query_nodes(project_id, Some("class"), Some("Bar"), None, 10)
         .unwrap();
+    assert!(!class_nodes.is_empty(), "Bar class node missing");
+    let mut neighbors = Vec::new();
+    for class_node in &class_nodes {
+        neighbors.extend(
+            state
+                .graph
+                .neighbors(
+                    project_id,
+                    engram_graph::EdgeKind::Contains,
+                    &class_node.node_id,
+                    10,
+                )
+                .unwrap(),
+        );
+    }
 
     let has_control = neighbors
         .iter()

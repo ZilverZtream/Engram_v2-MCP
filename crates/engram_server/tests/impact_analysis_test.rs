@@ -83,7 +83,9 @@ namespace App {
         text.contains("App.Page.btn_Click"),
         "Impact should include the caller"
     );
-    assert!(text.contains("Calls/Uses this"), "Should include reason");
+    // Raw `calls` edges map to EdgeKind::Calls (not Dependency) since the
+    // calls edge kind was restored through the ingest pipeline.
+    assert!(text.contains("Calls this"), "Should include reason");
 
     // 3. Analyze impact of file
     let res_file = engram

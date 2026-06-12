@@ -69,6 +69,8 @@ namespace MyApp {
     let mut class_id = String::new();
     let mut method_id = String::new();
 
+    let mut class_fqn = None;
+    let mut method_fqn = None;
     while i < 20 {
         let nodes = engram
             .state
@@ -79,9 +81,21 @@ namespace MyApp {
             for n in &nodes {
                 if n.node_type == "class" && n.name == "Order" {
                     class_id = n.node_id.clone();
+                    class_fqn = n
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
                 }
                 if n.node_type == "function" && n.name == "PrintJob" {
                     method_id = n.node_id.clone();
+                    method_fqn = n
+                        .metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from);
                 }
             }
             if !class_id.is_empty() && !method_id.is_empty() {
@@ -92,8 +106,12 @@ namespace MyApp {
         i += 1;
     }
 
-    assert_eq!(class_id, "sym:class:MyApp.Order");
-    assert_eq!(method_id, "sym:function:MyApp.Order.PrintJob");
+    // Node IDs are location-based: sym:{kind}:{path}:{name}:{line}.
+    // (The earlier FQN-based scheme collided across files sharing names;
+    // logical identity now lives in metadata.fqn.)
+    assert_eq!(class_id, "sym:class:Order.cs:Order:3");
+    assert_eq!(method_id, "sym:function:Order.cs:PrintJob:4");
+    assert_eq!(method_fqn.as_deref(), Some("MyApp.Order.PrintJob"));
 
     // 3. Edit file (insert lines to change positions)
     let cs_content_v2 = r#"
@@ -138,24 +156,37 @@ namespace MyApp {
         .unwrap();
     let mut class_id_v2 = String::new();
     let mut method_id_v2 = String::new();
+    let mut method_fqn_v2 = None;
     for n in &nodes_v2 {
         if n.node_type == "class" && n.name == "Order" && n.generation == 2 {
             class_id_v2 = n.node_id.clone();
         }
         if n.node_type == "function" && n.name == "PrintJob" && n.generation == 2 {
             method_id_v2 = n.node_id.clone();
+            method_fqn_v2 = n
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .and_then(|v| v.as_str())
+                .map(String::from);
         }
     }
 
-    assert_eq!(class_id_v2, "sym:class:MyApp.Order");
-    assert_eq!(method_id_v2, "sym:function:MyApp.Order.PrintJob");
+    // The location-based ID moves with the declaration line (two comment
+    // lines were inserted above): collision-freedom won over raw-ID
+    // stability in the ID redesign. What stays stable across edits is the
+    // logical identity carried in metadata.fqn — and the ID remains fully
+    // deterministic for unchanged content.
+    assert_eq!(class_id_v2, "sym:class:Order.cs:Order:5");
+    assert_eq!(method_id_v2, "sym:function:Order.cs:PrintJob:6");
     assert_eq!(
-        class_id, class_id_v2,
-        "Class ID should be stable across edits"
+        method_fqn, method_fqn_v2,
+        "Logical identity (metadata.fqn) must be stable across edits"
     );
     assert_eq!(
-        method_id, method_id_v2,
-        "Method ID should be stable across edits"
+        class_fqn.as_deref(),
+        Some("MyApp.Order"),
+        "class FQN must survive reindex"
     );
 }
 

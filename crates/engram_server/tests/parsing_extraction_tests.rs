@@ -1195,16 +1195,16 @@ fn parse1_captures_calls_are_guarded_by_option_check() {
 
 // ── PARSE1-j1n4: vb_extractor.rs safety invariants ───────────────────────────
 
-/// PARSE1-j1n4: vb_extractor.rs uses `cap.get(0).expect("full match always exists")`
-/// at multiple sites. This is safe because every such call appears inside a
-/// `for cap in re.captures_iter(source)` loop. `captures_iter` yields only
-/// successful regex matches, so group 0 (the whole match) is always Some.
-/// This test documents and verifies the invariant structurally.
+/// PARSE1-j1n4 (updated): the regex-based VB extractor was replaced wholesale
+/// by the Roslyn sidecar client, so the old "every cap.get(0).expect() uses
+/// the canonical message" invariant is now vacuous — there are no regex
+/// capture sites left at all, which is strictly safer. This test re-arms the
+/// original rule conditionally: IF regex captures ever return to this file,
+/// they must again use the canonical, statically-verifiable message.
 #[test]
 fn parse1_vb_extractor_cap_get_0_expect_all_have_canonical_message() {
     let src = include_str!("../../engram_index/src/vb_extractor.rs");
 
-    // Every cap.get(0).expect must use the canonical safety message.
     let canonical = src
         .matches("cap.get(0).expect(\"full match always exists\")")
         .count();
@@ -1219,45 +1219,30 @@ fn parse1_vb_extractor_cap_get_0_expect_all_have_canonical_message() {
          message other than 'full match always exists' — all must use the canonical \
          invariant message so static analysis can verify the safety claim"
     );
-
-    // There must be a meaningful number of such sites (the production code uses many).
-    assert!(
-        canonical >= 5,
-        "PARSE1-j1n4: expected ≥5 cap.get(0).expect('full match always exists') sites \
-         in vb_extractor.rs production code; found {canonical} — some may have been removed"
-    );
 }
 
-/// PARSE1-j1n4: every `cap.get(0).expect` in vb_extractor.rs is reached only
-/// via `for cap in re.captures_iter(...)`. Proves no bare `.captures()` call
-/// precedes an `.expect()` without an option guard.
+/// PARSE1-j1n4 (updated): if any regex capture `.expect()` sites exist in
+/// vb_extractor.rs, they must be guarded by `captures_iter` (group 0 of an
+/// iterator-yielded match is always Some). Zero sites — the current
+/// sidecar-based implementation — trivially satisfies the invariant.
 #[test]
 fn parse1_vb_extractor_captures_iter_guards_all_cap_get_0_sites() {
     let src = include_str!("../../engram_index/src/vb_extractor.rs");
 
-    // captures_iter() always yields a complete match — group 0 is always Some.
     let captures_iter_count = src.matches("captures_iter(").count();
-
-    // Every expect("full match always exists") must be reachable only through
-    // captures_iter — if the count of captures_iter drops to 0 while expects remain,
-    // the invariant is broken.
     let expect_count = src
         .matches("cap.get(0).expect(\"full match always exists\")")
         .count();
 
+    // Conditional re-arm: expect sites without the iterator guard = violation.
     assert!(
-        captures_iter_count > 0,
-        "PARSE1-j1n4: vb_extractor.rs must use captures_iter() as the guard before \
-         cap.get(0).expect() — no captures_iter found"
+        expect_count == 0 || captures_iter_count > 0,
+        "PARSE1-j1n4: {expect_count} cap.get(0).expect() site(s) but no captures_iter() \
+         guard in vb_extractor.rs — group 0 is only guaranteed Some for \
+         iterator-yielded matches"
     );
-    assert!(
-        expect_count > 0,
-        "PARSE1-j1n4: expected cap.get(0).expect() sites in vb_extractor.rs — none found; \
-         test may be out of date"
-    );
-    // The invariant: captures_iter is the exclusive entry point for these sites.
-    // If someone adds .captures() with a raw .expect() (no guard), the guard count
-    // below would catch it via the bare_captures check.
+
+    // Bare `.captures(source)` followed by unguarded access stays forbidden.
     let bare_captures = src
         .matches(".captures(source)")
         .count()

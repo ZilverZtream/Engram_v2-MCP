@@ -100,9 +100,11 @@ namespace MyApp {
         .unwrap();
     println!("Neighbors of {}: {:?}", page_id, neighbors);
 
+    // Node IDs are location-based (sym:class:{file}:{name}:{line}); the
+    // code-behind class node lives in Order.aspx.cs.
     let has_class = neighbors
         .iter()
-        .any(|(nid, _): &(String, u32)| nid.contains("MyApp.Order"));
+        .any(|(nid, _): &(String, u32)| nid.starts_with("sym:class:Order.aspx.cs:Order"));
     assert!(
         has_class,
         "Page should have edge to code-behind class. Neighbors: {:?}",
