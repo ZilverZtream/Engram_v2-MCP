@@ -19,3 +19,7 @@ Thumbs.db
 # Note: Cargo.lock should be committed if this MCP is a standalone executable binary. 
 # If it is a library crate, you would uncomment the line below to ignore it.
 # Cargo.lock
+# VB Roslyn sidecar build artifacts
+tools/vb_roslyn_sidecar/obj/
+tools/vb_roslyn_sidecar/bin/
+tools/vb_roslyn_sidecar/publish_out/

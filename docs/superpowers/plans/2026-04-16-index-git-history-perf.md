@@ -28,7 +28,7 @@
 
 This is the lowest-risk, highest-certainty change. The existing code loads 2MB of diffs just to compare file lists, then checks tree IDs at the end. The tree-ID check alone is definitive — move it first, delete the redundant diff loading.
 
-- [ ] **Step 1: Replace `is_structural_revert` body**
+- [x] **Step 1: Replace `is_structural_revert` body**
 
 In `crates/engram_git/src/history.rs`, replace the entire method body. The current code loads diffs for both commits (up to 2MB total) before comparing tree IDs. The tree-ID comparison is the canonical check — if `commit_b.tree() == commit_a.parent(0).tree()`, it's a perfect revert. No diffs needed.
 
@@ -49,12 +49,12 @@ In `crates/engram_git/src/history.rs`, replace the entire method body. The curre
     }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cargo check -p engram_git`
 Expected: compiles cleanly (no callers changed, signature identical)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add crates/engram_git/src/history.rs
@@ -70,7 +70,7 @@ git commit -m "perf(git): tree-ID precheck in is_structural_revert — skip diff
 
 The input is sorted + i < j guarantees unique ordered pairs. The `BTreeSet` does redundant dedup with O(log n) inserts. Replace with a pre-allocated `Vec`.
 
-- [ ] **Step 1: Replace `file_pairs` implementation**
+- [x] **Step 1: Replace `file_pairs` implementation**
 
 ```rust
 //! Temporal coupling + revert analysis.
@@ -104,12 +104,12 @@ pub fn file_pairs(files: &[RelPath], hard_cap: usize) -> Vec<(RelPath, RelPath)>
 }
 ```
 
-- [ ] **Step 2: Verify build**
+- [x] **Step 2: Verify build**
 
 Run: `cargo check -p engram_git`
 Expected: compiles cleanly, `BTreeSet` import now unused — remove it.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add crates/engram_git/src/temporal.rs
@@ -131,7 +131,7 @@ Add three new methods that let callers keep a single Tantivy `IndexWriter` alive
 
 The existing `index_docs` method is unchanged — non-bulk callers keep working.
 
-- [ ] **Step 1: Add `BulkWriterGuard` struct and `create_bulk_writer`**
+- [x] **Step 1: Add `BulkWriterGuard` struct and `create_bulk_writer`**
 
 Insert after the `impl HybridSearchEngine` block's existing `new_with_budget` method (after line ~183), before `index_docs`:
 
@@ -217,7 +217,7 @@ Then inside `impl HybridSearchEngine`, add:
     }
 ```
 
-- [ ] **Step 2: Add `write_docs_to_writer`**
+- [x] **Step 2: Add `write_docs_to_writer`**
 
 Inside `impl HybridSearchEngine`, add this method. It contains the same Tantivy write logic as `index_docs` lines 237-281, but uses a provided `BulkWriterGuard` and never commits/waits.
 
@@ -282,7 +282,7 @@ Inside `impl HybridSearchEngine`, add this method. It contains the same Tantivy 
     }
 ```
 
-- [ ] **Step 3: Add `embed_and_upsert_vectors`**
+- [x] **Step 3: Add `embed_and_upsert_vectors`**
 
 This extracts the vector-only portion of `index_docs` (lines 296-465) into a standalone async method. It's called separately from the Tantivy path so vector writes can be batched on a different cadence.
 
@@ -428,7 +428,7 @@ This extracts the vector-only portion of `index_docs` (lines 296-465) into a sta
     }
 ```
 
-- [ ] **Step 4: Export new types from lib.rs**
+- [x] **Step 4: Export new types from lib.rs**
 
 In `crates/engram_index/src/lib.rs`, add `BulkWriterGuard` to the `pub use hybrid::` re-export:
 
@@ -439,12 +439,12 @@ pub use hybrid::{
 };
 ```
 
-- [ ] **Step 5: Verify build**
+- [x] **Step 5: Verify build**
 
 Run: `cargo check -p engram_index`
 Expected: compiles cleanly. Existing `index_docs` unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add crates/engram_index/src/hybrid.rs crates/engram_index/src/lib.rs
@@ -477,7 +477,7 @@ Key changes inside the `spawn_blocking` closure:
 5. **Incremental byte tracking**: Add to `history_batch_bytes` per doc instead of summing every commit.
 6. **Pre-computed node IDs**: Build `file:{}` strings once per change list.
 
-- [ ] **Step 1: Add necessary imports at top of `git_tools.rs`**
+- [x] **Step 1: Add necessary imports at top of `git_tools.rs`**
 
 Add these imports to the top of the file (merge with existing):
 
@@ -487,7 +487,7 @@ use std::collections::{HashMap, VecDeque};
 
 Verify that `engram_graph::EdgeKind` and `engram_graph::Node` are importable (EdgeKind is already imported; add Node if not present).
 
-- [ ] **Step 2: Replace `git_update_stream` method body**
+- [x] **Step 2: Replace `git_update_stream` method body**
 
 Replace the full method body (lines 273-654) with the optimized version. The method signature stays identical.
 
@@ -999,7 +999,7 @@ Replace the full method body (lines 273-654) with the optimized version. The met
     }
 ```
 
-- [ ] **Step 3: Add `HashMap` / `VecDeque` imports**
+- [x] **Step 3: Add `HashMap` / `VecDeque` imports**
 
 At the top of `git_tools.rs`, ensure these are imported:
 
@@ -1007,18 +1007,18 @@ At the top of `git_tools.rs`, ensure these are imported:
 use std::collections::{HashMap, VecDeque};
 ```
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run: `cargo check -p engram_server`
 Expected: compiles cleanly.
 
-- [ ] **Step 5: Verify all tests pass**
+- [x] **Step 5: Verify all tests pass**
 
 Run: `cargo test -p engram_git -- --test-threads=1`
 Run: `cargo test -p engram_index -- --test-threads=1`
 Expected: all existing tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add crates/engram_server/src/handlers/git_tools.rs
