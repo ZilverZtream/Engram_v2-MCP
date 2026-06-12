@@ -374,7 +374,14 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     };
 
     match parse_via_sidecar(sidecar, path, source) {
-        Ok(result) => result,
+        Ok((mut symbols, mut edges)) => {
+            // The Roslyn sidecar gives symbols/calls/SQL — but knows nothing
+            // about Engram's settings/guard/hierarchy extraction. Enrich its
+            // output with the same line-scan pass the fallback performs, so
+            // production (sidecar) and degraded (fallback) modes agree.
+            enrich_vb_source(source, &mut symbols, &mut edges);
+            (symbols, edges)
+        }
         Err(SidecarParseError::Sidecar(err)) => {
             tracing::warn!("VB sidecar parse error for {}: {err}", path.display());
             fallback_extract_vb(path, source)
@@ -386,6 +393,139 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             fallback_extract_vb(path, source)
         }
     }
+}
+
+/// Test-only re-export: the enrichment pass can't be exercised through
+/// `extract_vb` in tests (no sidecar binary), so integration tests call it
+/// directly with synthetic real-ranged symbols.
+pub fn enrich_vb_source_for_test(
+    source: &str,
+    symbols: &mut [ExtractedSymbol],
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    enrich_vb_source(source, symbols, edges)
+}
+
+/// Enrichment pass over sidecar output: settings reads (ReadsSetting edges),
+/// permission-check metadata on the enclosing functions, and class-level
+/// Inherits/Implements hierarchy edges. Sidecar symbols carry REAL line
+/// ranges, so association is range-based (same approach as the C# path).
+fn enrich_vb_source(
+    source: &str,
+    symbols: &mut [ExtractedSymbol],
+    edges: &mut Vec<ExtractedEdge>,
+) {
+    // (start, end, name) for functions and classes, for range association.
+    let fn_ranges: Vec<(u32, u32, String)> = symbols
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| (s.start_line, s.end_line, s.name.clone()))
+        .collect();
+    let class_ranges: Vec<(u32, u32, String)> = symbols
+        .iter()
+        .filter(|s| s.kind == "class")
+        .map(|s| (s.start_line, s.end_line, s.name.clone()))
+        .collect();
+    let enclosing = |ranges: &[(u32, u32, String)], line: u32| -> Option<String> {
+        ranges
+            .iter()
+            .filter(|(s, e, _)| *s <= line && *e >= line)
+            // Innermost: the tightest containing range.
+            .min_by_key(|(s, e, _)| e - s)
+            .map(|(_, _, n)| n.clone())
+    };
+
+    // Avoid duplicating hierarchy edges the sidecar may already emit.
+    let existing_hierarchy: std::collections::HashSet<(String, String)> = edges
+        .iter()
+        .filter(|e| e.kind == "inherits_from" || e.kind == "implements_interface")
+        .map(|e| (e.source_name.clone(), e.target_name.clone()))
+        .collect();
+
+    let mut guard_hits: Vec<(u32, String)> = Vec::new();
+    let mut role_hits: Vec<(u32, String)> = Vec::new();
+
+    for (idx, raw_line) in source.lines().enumerate() {
+        let line_no = idx as u32 + 1;
+        let line = raw_line.trim();
+        let lower = line.to_ascii_lowercase();
+
+        // Settings reads → edges from the enclosing function (or file).
+        for cap in RE_VB_APPSETTINGS
+            .captures_iter(line)
+            .chain(RE_VB_MY_SETTINGS.captures_iter(line))
+        {
+            let Some(key) = cap.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            edges.push(ExtractedEdge {
+                source_name: enclosing(&fn_ranges, line_no)
+                    .unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: key.to_string(),
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
+        // Guard calls + role literals (annotated onto functions below).
+        for cap in RE_VB_GUARD_CALL.captures_iter(line) {
+            if let Some(name) = cap.get(1) {
+                guard_hits.push((line_no, name.as_str().to_lowercase()));
+            }
+        }
+        for cap in RE_VB_GUARD_ROLE_LITERAL.captures_iter(line) {
+            if let Some(role) = cap.get(1) {
+                role_hits.push((line_no, role.as_str().to_string()));
+            }
+        }
+
+        // Class-level Inherits / Implements.
+        if lower.starts_with("inherits ") || lower.starts_with("implements ") {
+            let Some(class_name) = enclosing(&class_ranges, line_no) else {
+                continue;
+            };
+            let is_implements = lower.starts_with("implements ");
+            let list = &line[if is_implements { 11 } else { 9 }..];
+            for raw_base in list.split(',') {
+                let base = raw_base
+                    .split('(')
+                    .next()
+                    .unwrap_or(raw_base)
+                    .trim()
+                    .trim_start_matches("Global.")
+                    .trim();
+                if base.is_empty()
+                    || existing_hierarchy
+                        .contains(&(class_name.clone(), base.to_string()))
+                {
+                    continue;
+                }
+                edges.push(ExtractedEdge {
+                    source_name: class_name.clone(),
+                    source_kind: "class".to_string(),
+                    source_start_line: line_no,
+                    source_language: "vb".to_string(),
+                    target_name: base.to_string(),
+                    target_kind: Some("class".to_string()),
+                    target_start_line: None,
+                    kind: if is_implements {
+                        "implements_interface".to_string()
+                    } else {
+                        "inherits_from".to_string()
+                    },
+                    metadata: None,
+                });
+            }
+        }
+    }
+
+    // Range-based guard annotation (shared with the C# extractor).
+    crate::cs_extractor::annotate_guards(symbols, &guard_hits, &role_hits);
 }
 
 fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
