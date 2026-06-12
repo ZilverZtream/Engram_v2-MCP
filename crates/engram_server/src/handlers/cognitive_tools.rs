@@ -3261,6 +3261,67 @@ impl Engram {
             .unwrap_or(false)
         };
 
+        // ── 8d. Auth summary: house guard helpers + roles from guard
+        // metadata stamped on function nodes by the extractors. ────────
+        let auth_summary = {
+            let graph = self.state.graph.clone();
+            let p = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                let nodes = graph
+                    .query_nodes(&p, Some("function"), None, None, 50_000)
+                    .unwrap_or_default();
+                let mut house: std::collections::HashMap<String, usize> = Default::default();
+                let mut roles: std::collections::HashMap<String, usize> = Default::default();
+                let mut guarded = 0usize;
+                for n in &nodes {
+                    let m = n.metadata.as_ref();
+                    let checks = m
+                        .and_then(|m| m.get("permission_checks"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if checks.is_empty() {
+                        continue;
+                    }
+                    guarded += 1;
+                    for g in checks.split(';').filter(|g| !g.is_empty()) {
+                        *house.entry(g.to_lowercase()).or_default() += 1;
+                    }
+                    let rs = m
+                        .and_then(|m| m.get("guard_roles"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    for r in rs.split(';').filter(|r| !r.is_empty()) {
+                        *roles.entry(r.to_string()).or_default() += 1;
+                    }
+                }
+                (house, roles, guarded)
+            })
+            .await
+            .ok()
+            .and_then(|(house, roles, guarded)| {
+                if house.is_empty() {
+                    return None;
+                }
+                let mut hs: Vec<_> = house.into_iter().collect();
+                hs.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                let mode = format!(
+                    "house guard helpers: {}",
+                    hs.iter()
+                        .take(3)
+                        .map(|(name, c)| format!("{name} ({c}x)"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                let mut rv: Vec<_> = roles.into_iter().collect();
+                rv.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+                Some(svc::AuthSummary {
+                    mode,
+                    required_roles: rv.into_iter().map(|(r, _)| r).take(10).collect(),
+                    session_auth_patterns: guarded,
+                })
+            })
+        };
+
         // ── 9. Build the snapshot ─────────────────────────────────────
         let project_name = project_name_from_dir(&rec.directory);
         let snapshot = svc::ProjectSnapshot {
@@ -3274,7 +3335,7 @@ impl Engram {
             state_summary,
             db_summary,
             co_change_pairs: Vec::new(),
-            auth_summary: None,
+            auth_summary,
             frontend_warnings: Vec::new(),
             existing_claude_md: existing_md.clone(),
             coderabbit_rules_by_language,
