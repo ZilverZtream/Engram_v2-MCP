@@ -1,3 +1,4 @@
+pub mod envelope;
 pub mod files;
 pub mod text;
 

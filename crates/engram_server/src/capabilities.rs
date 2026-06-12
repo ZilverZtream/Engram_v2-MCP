@@ -50,6 +50,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "get_index_freshness",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "search_memory",
         status: CapabilityStatus::Implemented,
     },

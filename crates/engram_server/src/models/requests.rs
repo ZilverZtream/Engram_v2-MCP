@@ -390,6 +390,17 @@ pub struct ProjectIdRequest {
     pub project_id: String,
 }
 
+/// P0-5: staleness visibility for agents.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetIndexFreshnessRequest {
+    pub project_id: String,
+    /// Also stat the project directory and count files modified since the
+    /// last index completed. Costs one directory walk; default true.
+    #[serde(default = "default_true")]
+    pub check_disk: bool,
+}
+
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct WatchProjectRequest {
