@@ -10,6 +10,7 @@ pub mod control_mapping;
 pub mod cs_extractor;
 pub mod ddl_extractor;
 pub mod docstore;
+pub mod embed_cache;
 pub mod grep;
 pub mod hybrid;
 pub mod ingest;

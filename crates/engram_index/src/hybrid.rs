@@ -272,6 +272,28 @@ impl HybridSearchEngine {
             anyhow::bail!("Embedder reported dimension 0 — check embedding_backend config");
         }
 
+        // 16b: wrap remote embedders in the cross-project content-hash cache.
+        // Reindex cycles, copy-forward, and history re-runs become cache hits
+        // instead of full re-embeds. Local/deterministic embedders are cheap
+        // enough that caching only adds I/O. Cache-open failure falls back to
+        // the uncached embedder (warn, never fail engine construction).
+        #[cfg(feature = "vector")]
+        let embedder: Arc<dyn engram_ml::Embedder> =
+            if matches!(embedding_backend.as_str(), "openai" | "remote" | "ollama")
+                && !cfg.data_dir.as_os_str().is_empty()
+            {
+                let cache_path = cfg.data_dir.join("embed_cache.redb");
+                match crate::embed_cache::CachedEmbedder::new(embedder.clone(), &cache_path) {
+                    Ok(cached) => Arc::new(cached),
+                    Err(e) => {
+                        tracing::warn!("embed cache unavailable, continuing uncached: {e:#}");
+                        embedder
+                    }
+                }
+            } else {
+                embedder
+            };
+
         Ok(Self {
             tantivy_index: index,
             fields,
