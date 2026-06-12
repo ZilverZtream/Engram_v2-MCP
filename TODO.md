@@ -426,6 +426,15 @@ value is accuracy, this is the biggest meta-gap.
 
 ---
 
+- **2026-06-13 iter 15 — accuracy batch verified + perf regression hunted down**:
+  warm embed cache cut reindex 8min->4.5min and history 9min->4.6min; calls
+  98,977->74,289 (25k phantoms gone). Doc regen ballooned to 30+ min twice; section
+  instrumentation + timeline analysis pinned it to the O(n^2) co-change tail-merge
+  (650k pairs ~ 1e11 probes). Fixed (sort + 256-pair working set): regen now 11
+  SECONDS, co-change window 1.5s. Live docs verified: "37 state accesses use a
+  VARIABLE key ... lower bound" (#17), arity + confidence stamps in index (#12/#13),
+  blast radius discounts bare-name callers.
+
 ## Suggested sequencing
 
 **Week 1–2 (quick wins, mostly S):** #1, #5, #7, #11, #15, #16, #18, #34, #40, #41, #44, #47, #54, #56, #60, #63
