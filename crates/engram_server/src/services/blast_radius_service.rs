@@ -255,9 +255,37 @@ pub fn compute_blast_radius(
             .collect();
 
         if !contained_symbols.is_empty() {
+            // The synthesized file->symbol Contains edges (TODO-16) describe
+            // membership, not wiring: drop them from this file's outgoing
+            // counts so handles/event scoring keeps its meaning.
+            let synthesized = contained_symbols
+                .iter()
+                .filter(|id| id.starts_with("sym:"))
+                .count();
+            if synthesized > 0
+                && let Some(c) = out_counts.get_mut(&EdgeKind::Contains)
+            {
+                *c = c.saturating_sub(synthesized);
+                if *c == 0 {
+                    out_counts.remove(&EdgeKind::Contains);
+                }
+            }
+
             // Single EDGES table scan — cheaper than per-symbol
             // `neighbors` × `EdgeKind::ALL` on large files.
             for edge in graph.list_edges(project_id, None)? {
+                // Membership edges are not dependencies — counting them
+                // would inflate every file's incoming density by its own
+                // symbol count.
+                if edge
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("containment"))
+                    .and_then(|v| v.as_str())
+                    == Some("file")
+                {
+                    continue;
+                }
                 if contained_symbols.contains(&edge.source_id) {
                     *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
                 }
@@ -1363,6 +1391,72 @@ EndProject
             report.risk_band
         );
         assert_eq!(report.risk_band, RiskBand::Low);
+    }
+
+    /// TODO-16 guard: synthesized file->symbol Contains edges (metadata
+    /// containment=file) are membership, not dependency. They must not
+    /// inflate a file's incoming density or its event-wiring score.
+    #[test]
+    fn file_membership_edges_do_not_inflate_blast_scores() {
+        let (_tmp, store) = tmp_graph();
+        let file_id = "file:Big.vb";
+        let file_node = make_file_node(file_id);
+        store
+            .upsert_nodes("proj", std::slice::from_ref(&file_node))
+            .expect("upsert file");
+
+        // Three symbols inside the file, each linked by a synthesized
+        // containment edge exactly as ingest emits it.
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        for i in 0..3 {
+            let sid = format!("sym:function:Big.vb:Fn{i}:{}", i + 1);
+            nodes.push(engram_graph::Node {
+                node_id: sid.clone(),
+                node_type: "function".to_string(),
+                name: format!("Fn{i}"),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                file_path: engram_core::RelPath::new("Big.vb"),
+                start_line: (i + 1) as u32,
+                end_line: (i + 2) as u32,
+                generation: 1,
+                metadata: None,
+            });
+            edges.push(engram_graph::Edge {
+                source_id: file_id.to_string(),
+                target_id: sid,
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                edge_kind: EdgeKind::Contains,
+                weight: 1,
+                generation: 1,
+                metadata: Some(serde_json::json!({"containment": "file"})),
+                updated_at_ms: 0,
+            });
+        }
+        store.upsert_nodes("proj", &nodes).expect("upsert symbols");
+        store
+            .upsert_edges("proj", &edges)
+            .expect("upsert membership");
+
+        let report = compute_blast_radius(&store, "proj", file_id, 1, false)
+            .expect("compute_blast_radius must succeed");
+
+        // Membership edges must not count as incoming dependency mass:
+        // nothing actually calls into this file.
+        assert!(
+            (report.complexity_breakdown.dependency_density_score - 0.0).abs() < 0.01,
+            "membership edges must not create incoming density; got {}",
+            report.complexity_breakdown.dependency_density_score
+        );
+        assert_eq!(
+            report.risk_band,
+            RiskBand::Low,
+            "an uncalled file with 3 symbols must stay Low; got {} ({:?})",
+            report.migration_risk,
+            report.risk_band
+        );
     }
 
     /// A base class with many subclasses must register polymorphism

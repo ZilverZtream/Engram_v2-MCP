@@ -114,6 +114,7 @@ pub async fn process_ingest_stats(
         });
     }
 
+    let mut file_contains_edges: Vec<engram_graph::Edge> = Vec::new();
     for (rel_path, sym) in &stats.symbols {
         if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
@@ -235,6 +236,28 @@ pub async fn process_ingest_stats(
                 sym.kind.to_string(),
             )
         };
+
+        // TODO-16: file-level containment. Extractors emit Contains only as
+        // namespace->class and class->function, so nothing links a file node
+        // to the symbols inside it; blast radius had to re-derive membership
+        // by comparing file_path strings. Emit an explicit file->symbol edge
+        // for location-based symbols (the generic branch above). Tagged so
+        // scoring passes can tell synthesized containment from extractor
+        // Contains edges.
+        let is_location_symbol = node_id.starts_with("sym:");
+        if is_location_symbol {
+            file_contains_edges.push(engram_graph::Edge {
+                source_id: engram_core::ids::NodeId::file(rel_path.as_str()).0,
+                target_id: node_id.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                language: language.into(),
+                edge_kind: engram_graph::EdgeKind::Contains,
+                weight: 1,
+                generation,
+                metadata: Some(serde_json::json!({"containment": "file"})),
+                updated_at_ms: now_ms(),
+            });
+        }
 
         nodes.push(engram_graph::Node {
             node_id,
@@ -763,6 +786,8 @@ pub async fn process_ingest_stats(
             updated_at_ms: now_ms(),
         });
     }
+
+    edges.append(&mut file_contains_edges);
 
     if !edges.is_empty() {
         let mut mapped_edge_kind_counts: std::collections::HashMap<String, usize> =
