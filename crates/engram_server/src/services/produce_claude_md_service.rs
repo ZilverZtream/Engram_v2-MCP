@@ -1333,19 +1333,36 @@ pub fn top_co_change_pairs(
     use std::collections::HashMap;
     let mut best: HashMap<(String, String), u32> = HashMap::new();
     for e in edges {
-        let a = e.source_id.strip_prefix("file:").unwrap_or(&e.source_id);
-        let b = e.target_id.strip_prefix("file:").unwrap_or(&e.target_id);
-        if a == b {
-            continue;
-        }
-        let key = if a <= b {
-            (a.to_string(), b.to_string())
-        } else {
-            (b.to_string(), a.to_string())
-        };
-        let w = best.entry(key).or_default();
-        *w = (*w).max(e.weight);
+        accumulate_co_change(&mut best, e);
     }
+    finalize_co_change_pairs(best, limit)
+}
+
+/// Streaming-friendly accumulator: fold one TemporalCoupling edge into the
+/// unordered-pair -> max-weight map.
+pub fn accumulate_co_change(
+    best: &mut std::collections::HashMap<(String, String), u32>,
+    e: &engram_graph::Edge,
+) {
+    let a = e.source_id.strip_prefix("file:").unwrap_or(&e.source_id);
+    let b = e.target_id.strip_prefix("file:").unwrap_or(&e.target_id);
+    if a == b {
+        return;
+    }
+    let key = if a <= b {
+        (a.to_string(), b.to_string())
+    } else {
+        (b.to_string(), a.to_string())
+    };
+    let w = best.entry(key).or_default();
+    *w = (*w).max(e.weight);
+}
+
+/// Tail-merge spelling variants, sort by weight, truncate.
+pub fn finalize_co_change_pairs(
+    best: std::collections::HashMap<(String, String), u32>,
+    limit: usize,
+) -> Vec<(String, String, u32)> {
     let pairs: Vec<(String, String, u32)> = best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
 
     // Merge path-spelling variants from repo restructures: git history
