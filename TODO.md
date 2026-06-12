@@ -129,7 +129,7 @@ they feed blast radius, edit safety, and the ADP gates.
   change X". Add `find_paths_between`, `reachable_from` (with depth + edge-kind filters),
   and SCC/bottleneck detection. This turns N agent turns into one call.
 
-- [ ] **15. Blast radius: polymorphism weight + better explanations** (S)
+- [x] **15. Blast radius: polymorphism weight + better explanations** (S) - *done 2026-06-12: WEIGHT_POLYMORPHISM=0.10 over incoming inherits_from+implements_interface (saturates at 8 subclasses), polymorphism_score in ComplexityBreakdown + report line + fan-out guidance item; weights rebalanced dep 0.35 / handles 0.05.*
   `blast_radius_service.rs`. No weight for inheritance fan-out (depends on #9). Also make
   the 1–10 score decomposable in output: which edges, which files, why.
 
