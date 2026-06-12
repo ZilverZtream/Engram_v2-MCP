@@ -146,6 +146,15 @@ they feed blast radius, edit safety, and the ADP gates.
   already preserve cross-file and temporal edges. Turns extractor iteration from ~80 min
   into ~3 min and keeps the project id stable.
 
+- [ ] **16c. Indexing must survive embed-backend failure** (M)
+  Observed 2026-06-12: machine contention starved Ollama (3x30s retries exhausted) and
+  the whole index job died mid-walk (9.5k/28k chunks, 0 graph nodes) and git-history's
+  consumer dropped. Embed failure should degrade that BATCH to fts-only + count it in
+  the report ("N chunks unembedded — rerun repair_project vector_only"), never kill the
+  job. Graph extraction must complete regardless of vector health. Mitigations applied:
+  embedding_request_timeout_secs 30->120 in deployed config; embed cache (in progress)
+  makes retries cheap.
+
 - [ ] **17. Mark dynamic state/SQL access instead of skipping it** (M)
   `state_extractor.rs`, `sql_parser.rs`. `Session[variableName]` and string-built SQL are
   silently dropped. Emit `dynamic: true` unresolved-access nodes/edges so data-flow and
