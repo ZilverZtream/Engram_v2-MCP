@@ -227,6 +227,9 @@ pub struct ProjectSnapshot {
     /// language are actually rendered — the full list is kept so the
     /// renderer has ranking freedom.
     pub coderabbit_rules_by_language: std::collections::HashMap<String, Vec<CodeRabbitRule>>,
+    /// True when the graph has spatial_call edges - gates the GIS line in
+    /// the <engram> tool manual.
+    pub has_gis: bool,
 }
 
 // ── Language → glob mapping ──────────────────────────────────────────────────
@@ -407,11 +410,34 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
 
     // <engram> — always present; it's the user manual for our own tools.
     out.push_str("<engram>\n");
-    out.push_str("This project is indexed by Engram MCP. Key tools:\n");
-    out.push_str("- `immune_check` before editing danger-zone files\n");
-    out.push_str("- `compute_blast_radius` before large refactors\n");
-    out.push_str("- `analyze_file_coding_style` before writing code in unfamiliar files\n");
-    out.push_str("- `trace_data_flow` / `trace_ui_event` to trace data + UI paths\n");
+    out.push_str("This project is indexed by Engram MCP. Workflow for ANY feature or story:\n");
+    out.push_str(
+        "1. `plan_user_story` - START HERE: expands a one-line story into concepts, \
+         touchpoints, exemplars, and a completion checklist\n",
+    );
+    out.push_str(
+        "2. `get_concept_footprint` - every place a concept lives (don't edit 2 of its 17 \
+         touchpoints)\n",
+    );
+    out.push_str("3. `map_guards_and_settings` - permission checks + settings gating your area\n");
+    out.push_str(
+        "4. `find_similar_changes` - companion artifacts past changes included that yours is \
+         missing (admin page, menu entry)\n",
+    );
+    out.push_str(
+        "5. `check_edit_safety` per method + `compute_blast_radius` before large refactors; \
+         `immune_check` on danger-zone files\n",
+    );
+    out.push_str("6. `pre_commit_review` before every commit\n");
+    if snapshot.has_gis {
+        out.push_str(
+            "Map work: `get_gis_inventory` first - map API usage, configs, layer inventory.\n",
+        );
+    }
+    out.push_str(
+        "Also: `trace_ui_event` for postbacks/handlers; `analyze_file_coding_style` before \
+         writing in unfamiliar files.\n",
+    );
     out.push_str("</engram>\n");
 
     // Trim tail if over budget. We drop from `<engram>` backwards toward
@@ -518,8 +544,7 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
     // also include a file when a language has NO deterministic style
     // bullets but DOES have CodeRabbit patterns — the team-learned
     // rules are worth surfacing on their own.
-    let mut emitted_langs: std::collections::HashSet<String> =
-        std::collections::HashSet::new();
+    let mut emitted_langs: std::collections::HashSet<String> = std::collections::HashSet::new();
     for lang in &snapshot.per_language_rules {
         let cr_rules = snapshot
             .coderabbit_rules_by_language
@@ -833,7 +858,10 @@ fn try_parse_ratio_at(bytes: &[u8], start: usize) -> Option<(u32, u32, usize)> {
     if i == num_start || i >= bytes.len() || bytes[i] != b'/' {
         return None;
     }
-    let num: u32 = std::str::from_utf8(&bytes[num_start..i]).ok()?.parse().ok()?;
+    let num: u32 = std::str::from_utf8(&bytes[num_start..i])
+        .ok()?
+        .parse()
+        .ok()?;
     i += 1;
     let den_start = i;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
@@ -842,7 +870,10 @@ fn try_parse_ratio_at(bytes: &[u8], start: usize) -> Option<(u32, u32, usize)> {
     if i == den_start || i >= bytes.len() || bytes[i] != b')' {
         return None;
     }
-    let den: u32 = std::str::from_utf8(&bytes[den_start..i]).ok()?.parse().ok()?;
+    let den: u32 = std::str::from_utf8(&bytes[den_start..i])
+        .ok()?
+        .parse()
+        .ok()?;
     Some((num, den, i + 1))
 }
 
@@ -850,7 +881,9 @@ fn replace_first_ratio(text: &str, num: u32, den: u32) -> String {
     let bytes = text.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'(' && let Some((_, _, end)) = try_parse_ratio_at(bytes, i) {
+        if bytes[i] == b'('
+            && let Some((_, _, end)) = try_parse_ratio_at(bytes, i)
+        {
             let mut out = String::with_capacity(text.len());
             out.push_str(&text[..i]);
             out.push_str(&format!("({num}/{den})"));
@@ -989,7 +1022,11 @@ fn render_language_rules_with_cr(
             out,
             "Observations below were aggregated from {} sampled file{}: {}.",
             lang.sample_files.len(),
-            if lang.sample_files.len() == 1 { "" } else { "s" },
+            if lang.sample_files.len() == 1 {
+                ""
+            } else {
+                "s"
+            },
             lang.sample_files.join(", "),
         );
     }
@@ -998,9 +1035,7 @@ fn render_language_rules_with_cr(
     // ## Mandatory — only when there's at least one.
     if !mandatory.is_empty() {
         out.push_str("## Mandatory\n\n");
-        out.push_str(
-            "Invariants that must hold in every file matching the glob above.\n\n",
-        );
+        out.push_str("Invariants that must hold in every file matching the glob above.\n\n");
         for b in &mandatory {
             let t = b.trim().trim_start_matches(['-', '*', ' ']);
             let _ = writeln!(out, "- {t}");
@@ -1612,10 +1647,7 @@ pub struct OptimizeReport {
 /// rationales, onboarding steps, custom section names — is
 /// preserved verbatim because it represents insight engram cannot
 /// produce from the graph.
-pub fn optimize_rewrite(
-    existing: &str,
-    engram_block: &str,
-) -> (String, OptimizeReport) {
+pub fn optimize_rewrite(existing: &str, engram_block: &str) -> (String, OptimizeReport) {
     let original_line_count = existing.lines().count();
     let sections = split_into_sections(existing);
 
@@ -1821,18 +1853,37 @@ mod tests {
             project_name: "Demo".into(),
             role_description: "Rust test.".into(),
             critical_rules: vec![
-                rule("Observed-tier note", RuleSource::CodeRabbit, RuleConfidence::Observed),
-                rule("Hard-tier invariant", RuleSource::Immune, RuleConfidence::Hard),
-                rule("Strong-tier convention", RuleSource::CodeRabbit, RuleConfidence::Strong),
+                rule(
+                    "Observed-tier note",
+                    RuleSource::CodeRabbit,
+                    RuleConfidence::Observed,
+                ),
+                rule(
+                    "Hard-tier invariant",
+                    RuleSource::Immune,
+                    RuleConfidence::Hard,
+                ),
+                rule(
+                    "Strong-tier convention",
+                    RuleSource::CodeRabbit,
+                    RuleConfidence::Strong,
+                ),
             ],
             ..Default::default()
         };
         let rendered = render_root_claude_md(&snapshot, 200);
         let hard_idx = rendered.find("🛡 Hard rules").expect("hard heading");
-        let strong_idx = rendered.find("⚠️ Strong conventions").expect("strong heading");
-        let observed_idx = rendered.find("📊 Observed patterns").expect("observed heading");
+        let strong_idx = rendered
+            .find("⚠️ Strong conventions")
+            .expect("strong heading");
+        let observed_idx = rendered
+            .find("📊 Observed patterns")
+            .expect("observed heading");
         assert!(hard_idx < strong_idx, "Hard must render before Strong");
-        assert!(strong_idx < observed_idx, "Strong must render before Observed");
+        assert!(
+            strong_idx < observed_idx,
+            "Strong must render before Observed"
+        );
         assert!(rendered.contains("Hard-tier invariant"));
         assert!(rendered.contains("Strong-tier convention"));
         assert!(rendered.contains("Observed-tier note"));
@@ -1989,6 +2040,33 @@ mod tests {
         assert!(!md.contains("<build>"));
         assert!(!md.contains("<danger_zones>"));
         assert!(!md.contains("<conventions>"));
+    }
+
+    #[test]
+    fn engram_block_teaches_planning_workflow_and_gates_gis_line() {
+        let mut snap = ProjectSnapshot {
+            project_name: "Tiny".into(),
+            role_description: "VB.NET WebForms app".into(),
+            ..Default::default()
+        };
+        let md = render_root_claude_md(&snap, 80);
+        assert!(
+            md.contains("plan_user_story"),
+            "workflow must start with plan_user_story"
+        );
+        assert!(md.contains("get_concept_footprint"));
+        assert!(md.contains("pre_commit_review"));
+        assert!(
+            !md.contains("get_gis_inventory"),
+            "GIS line must be absent without spatial edges"
+        );
+
+        snap.has_gis = true;
+        let md_gis = render_root_claude_md(&snap, 80);
+        assert!(
+            md_gis.contains("get_gis_inventory"),
+            "GIS line must appear when the project has spatial edges"
+        );
     }
 
     #[test]
@@ -2314,7 +2392,8 @@ Service boundaries at X because of Y domain reason.
 
 Read docs/internal.md first.
 ";
-        let engram_block = "## Critical rules\n\n- fresh engram rule\n\n## Danger zones\n\n- fresh zone\n";
+        let engram_block =
+            "## Critical rules\n\n- fresh engram rule\n\n## Danger zones\n\n- fresh zone\n";
         let (out, report) = optimize_rewrite(existing, engram_block);
 
         assert!(
@@ -2350,9 +2429,7 @@ Read docs/internal.md first.
         // numbered section is preserved verbatim.
         let mut existing = String::from("# OciusX\n\n");
         for i in 1..=5 {
-            existing.push_str(&format!(
-                "## {i}. Section {i}\n\nDomain rule {i}.\n\n"
-            ));
+            existing.push_str(&format!("## {i}. Section {i}\n\nDomain rule {i}.\n\n"));
         }
         let engram = "## Critical rules\n\n- engram rule\n";
         let (out, report) = optimize_rewrite(&existing, engram);
@@ -2590,7 +2667,10 @@ Read docs/internal.md first.
             }),
         );
         // Mandatory / Strong headings must appear.
-        assert!(md.contains("## Mandatory"), "expected Mandatory section:\n{md}");
+        assert!(
+            md.contains("## Mandatory"),
+            "expected Mandatory section:\n{md}"
+        );
         assert!(
             md.contains("## Strong preferences"),
             "expected Strong section:\n{md}"
