@@ -2123,17 +2123,27 @@ impl GraphStore {
         {
             let rtx = self.db.begin_read()?;
             let et = rtx.open_table(EDGES)?;
-            for r in et.range(prefix.as_str()..)? {
-                let (k, v) = r?;
-                if !k.value().starts_with(&prefix) {
-                    break;
+            // Per-kind prefix scans, skipping statistical history kinds:
+            // TemporalCoupling/CoOccurrence endpoints are always concrete
+            // file ids, never `::` placeholders, and after git-history
+            // indexing they dominate the table (OciusX: 1.3M vs 113k).
+            for kind in EdgeKind::ALL {
+                if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
+                    continue;
                 }
-                let e: Edge = bincode::deserialize(v.value())?;
-                if e.target_id.starts_with("::") {
-                    unresolved.push(UnresolvedEdge {
-                        old_key: k.value().to_string(),
-                        edge: e,
-                    });
+                let kind_prefix = format!("{project_id}\0{}\0", kind.as_str());
+                for r in et.range(kind_prefix.as_str()..)? {
+                    let (k, v) = r?;
+                    if !k.value().starts_with(&kind_prefix) {
+                        break;
+                    }
+                    let e: Edge = bincode::deserialize(v.value())?;
+                    if e.target_id.starts_with("::") {
+                        unresolved.push(UnresolvedEdge {
+                            old_key: k.value().to_string(),
+                            edge: e,
+                        });
+                    }
                 }
             }
         }
