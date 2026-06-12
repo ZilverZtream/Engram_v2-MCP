@@ -1544,6 +1544,16 @@ impl Engram {
 
         self.enforce_project_byte_budget(&changed).await?;
 
+        // Files whose stale graph generations are eligible for the scoped
+        // purge after indexing: everything re-extracted this update plus
+        // deletions (whose nodes have no replacement generation at all).
+        let purge_paths: std::collections::HashSet<String> = changed
+            .iter()
+            .filter_map(|p| engram_core::RelPath::from_relative(&dir, p))
+            .map(|r| r.as_str().to_string())
+            .chain(deleted.iter().map(|r| r.as_str().to_string()))
+            .collect();
+
         // Copy-forward unchanged files to the new generation (Snapshot namespaces).
         let memory_policy = engram_core::get_policy("memory")
             .map(|p| p.versioning)
@@ -1708,6 +1718,40 @@ impl Engram {
             .purge_old_generations(project_id, new_gen)
             .await
             .ok();
+
+        // Eagerly purge stale GRAPH generations for the files this update
+        // actually re-indexed (plus deletions): a symbol whose declaration
+        // line shifted would otherwise keep its old-generation node alive
+        // until scheduled GC, and under watcher mode blast radius, footprints
+        // and query_nodes count phantoms continuously. Scoped per-file — a
+        // GLOBAL purge is unsafe after incremental updates because unchanged
+        // files legitimately keep their older-generation nodes.
+        {
+            let graph = self.state.graph.clone();
+            let pid_gc = pid.clone();
+            let paths = purge_paths.clone();
+            match tokio::task::spawn_blocking(move || {
+                graph.purge_stale_nodes_for_paths(&pid_gc, &paths, new_gen)
+            })
+            .await
+            {
+                Ok(Ok((n, e))) if n > 0 || e > 0 => tracing::debug!(
+                    project_id = %pid,
+                    nodes = n,
+                    edges = e,
+                    "purged stale graph generations for re-indexed files"
+                ),
+                Ok(Ok(_)) => {}
+                Ok(Err(e)) => tracing::warn!(
+                    project_id = %pid,
+                    "scoped graph purge after update failed (GC will retry): {e}"
+                ),
+                Err(e) => tracing::warn!(
+                    project_id = %pid,
+                    "scoped graph purge task panicked: {e}"
+                ),
+            }
+        }
 
         Ok(format!(
             "✅ Updated project_id: {project_id}\nactive_generation: {new_gen}\nfiles={} chunks={} bytes={}\n{git_summary}\n",

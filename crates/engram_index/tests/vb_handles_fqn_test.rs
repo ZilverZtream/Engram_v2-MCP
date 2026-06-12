@@ -68,7 +68,10 @@ End Namespace
         .filter(|e| e.kind == "reads_setting")
         .map(|e| e.target_name.as_str())
         .collect();
-    assert!(setting_keys.contains(&"MaxUserCount"), "got {setting_keys:?}");
+    assert!(
+        setting_keys.contains(&"MaxUserCount"),
+        "got {setting_keys:?}"
+    );
     assert!(
         setting_keys.contains(&"AllowUserCreation"),
         "My.Settings member must be detected, got {setting_keys:?}"
@@ -88,5 +91,37 @@ End Namespace
     assert_eq!(
         meta.get("guard_roles").map(String::as_str),
         Some("Administrators")
+    );
+}
+
+#[test]
+fn vb_fallback_extracts_inherits_and_implements() {
+    let code = r#"
+Namespace MyApp
+    Public Class OrdersPage
+        Inherits PageBase
+        Implements IAuditable, IExportable
+    End Class
+End Namespace
+"#;
+    let (_, edges) = extract_vb(std::path::Path::new("Orders.aspx.vb"), code);
+    let inherits: Vec<&str> = edges
+        .iter()
+        .filter(|e| e.kind == "inherits_from")
+        .map(|e| e.target_name.as_str())
+        .collect();
+    assert_eq!(inherits, vec!["PageBase"]);
+    let implements: Vec<&str> = edges
+        .iter()
+        .filter(|e| e.kind == "implements_interface")
+        .map(|e| e.target_name.as_str())
+        .collect();
+    assert_eq!(implements, vec!["IAuditable", "IExportable"]);
+    assert!(
+        edges
+            .iter()
+            .filter(|e| e.kind == "inherits_from" || e.kind == "implements_interface")
+            .all(|e| e.source_name == "OrdersPage"),
+        "hierarchy edges must originate from the declaring class"
     );
 }

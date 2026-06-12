@@ -703,6 +703,8 @@ pub async fn process_ingest_stats(
             "reads_state" => engram_graph::EdgeKind::ReadsState,
             "writes_state" => engram_graph::EdgeKind::WritesState,
             "reads_setting" => engram_graph::EdgeKind::ReadsSetting,
+            "inherits_from" => engram_graph::EdgeKind::InheritsFrom,
+            "implements_interface" => engram_graph::EdgeKind::Implements,
             "data_binding" => engram_graph::EdgeKind::DataBinding,
             "registers_control" => engram_graph::EdgeKind::RegistersControl,
             "includes_file" => engram_graph::EdgeKind::IncludesFile,

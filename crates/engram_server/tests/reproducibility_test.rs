@@ -405,14 +405,40 @@ namespace GoldenApp {
         edge_sigs1.len()
     );
 
-    // After update, edges from unchanged files (gen1) + re-indexed file (gen2)
-    // may produce duplicates or slightly more edges from git temporal coupling.
-    // The core structure should be preserved: all gen1 edges should still exist.
+    // Node IDs are location-based, and the added comment shifts every line
+    // in Order.cs — so the file's gen1 edges are correctly REPLACED by gen2
+    // equivalents at the new lines (the scoped post-update purge removes the
+    // stale generation instead of leaving duplicates). The invariant is
+    // structural: every gen1 edge must still exist once line numbers are
+    // normalized away.
+    fn normalize_id(id: &str) -> String {
+        if let Some(rest) = id.strip_prefix("sym:")
+            && let Some(pos) = rest.rfind(':')
+            && !rest[pos + 1..].is_empty()
+            && rest[pos + 1..].chars().all(|c| c.is_ascii_digit())
+        {
+            return format!("sym:{}", &rest[..pos]);
+        }
+        id.to_string()
+    }
+    let normalize_sig = |sig: &str| -> String {
+        match sig.rsplit_once(':') {
+            Some((endpoints, kind)) => match endpoints.split_once("->") {
+                Some((s, t)) => format!("{}->{}:{kind}", normalize_id(s), normalize_id(t)),
+                None => sig.to_string(),
+            },
+            None => sig.to_string(),
+        }
+    };
+    let normalized2: std::collections::HashSet<String> =
+        edge_sigs2.iter().map(|s| normalize_sig(s)).collect();
     for sig in &edge_sigs1 {
+        let norm = normalize_sig(sig);
         assert!(
-            edge_sigs2.contains(sig),
-            "Gen1 edge missing after update: {}",
-            sig
+            normalized2.contains(&norm),
+            "Gen1 edge structurally missing after update: {} (normalized {})",
+            sig,
+            norm
         );
     }
 }
