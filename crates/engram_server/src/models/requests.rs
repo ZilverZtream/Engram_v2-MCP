@@ -409,6 +409,72 @@ pub struct GetIndexFreshnessRequest {
     pub check_disk: bool,
 }
 
+/// Planning: every touchpoint of a domain concept, grouped by role.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetConceptFootprintRequest {
+    pub project_id: String,
+    /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
+    pub concept: String,
+    /// Cap per output group. Default 15.
+    #[serde(default = "default_footprint_group_cap")]
+    pub max_per_group: usize,
+}
+
+pub fn default_footprint_group_cap() -> usize {
+    15
+}
+
+/// Planning: historical changes most similar to a planned file set, plus the
+/// recurring companion artifacts missing from it.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindSimilarChangesRequest {
+    pub project_id: String,
+    /// Files you plan to change or have changed (project-relative paths;
+    /// they do not need to exist yet).
+    pub files: Vec<String>,
+    /// How many recent commits to scan. Default 500.
+    #[serde(default = "default_similar_max_commits")]
+    pub max_commits: usize,
+    /// How many similar commits to report. Default 5.
+    #[serde(default = "default_similar_top")]
+    pub top: usize,
+}
+
+pub fn default_similar_max_commits() -> usize {
+    500
+}
+pub fn default_similar_top() -> usize {
+    5
+}
+
+impl FindSimilarChangesRequest {
+    pub fn sanitized_max_commits(&self) -> usize {
+        self.max_commits.clamp(10, 5_000)
+    }
+    pub fn sanitized_top(&self) -> usize {
+        self.top.clamp(1, 20)
+    }
+}
+
+/// Planning: concrete exemplars of how this codebase implements a pattern.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindImplementationPatternRequest {
+    pub project_id: String,
+    /// What you want examples of, e.g. "admin settings page save",
+    /// "dropdown bound to lookup table", "file upload validation".
+    pub pattern_query: String,
+    /// How many exemplar files to expand. Default 3.
+    #[serde(default = "default_pattern_examples")]
+    pub max_examples: usize,
+}
+
+pub fn default_pattern_examples() -> usize {
+    3
+}
+
 /// P0-8: convert any Engram identifier into all its other identities.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
