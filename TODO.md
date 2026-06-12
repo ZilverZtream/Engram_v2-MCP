@@ -410,3 +410,20 @@ interaction is materially better and the graph is trustworthy.
 **Month 2:** P2 generalization (#23 TS/Python first, #24, #25) + #28 `ask_codebase` + #36 git perf.
 **Month 3+:** remaining P1 deep accuracy (L items), P3 workflow tools, P5 eval harness
 (start earlier if ranking changes land — don't tune retrieval blind).
+
+---
+
+## Loop log (continuous improvement, validated against OciusX)
+
+- **2026-06-12 iter 1 — LINQ/ORM DAL extraction (VB)**: `enrich_vb_source` now emits
+  `queries_table` edges for LINQ-to-SQL DataContext usage (ctx decl/assign tracking,
+  member-access table refs, write-method detection, orm/access metadata).
+  *Verified: OciusX queries_table 67 → 1,967; ss_systemsettings consumers 0 → 14.*
+- **2026-06-12 iter 2 — FQN ancestor-duplication fix**: sidecar `ComposeName` uses the
+  FQN already on the types stack; Rust `dedupe_fqn` normalizer as defense-in-depth.
+  *Verified: central nodes show `_api2.Logger.LogError` (was `_api2._api2.…`).*
+- **2026-06-12 iter 3 — get_gis_inventory tool**: map API usage grouped by
+  library.class with call sites/files/modern equivalents + per-file map configs +
+  WMS/XYZ/Esri layer inventory, from existing spatial_call/gis_config extraction.
+- **next**: index_git_history on OciusX (6,761 commits; history_docs=0 → unlocks
+  temporal coupling, find_similar_changes, harvest_reverted_commits).
