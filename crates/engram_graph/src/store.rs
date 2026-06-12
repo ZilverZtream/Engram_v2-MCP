@@ -883,6 +883,30 @@ impl GraphStore {
     /// a full-table scan per tool call stops scaling. Key layout is
     /// `project\0kind\0source\0target`, so per-kind prefix scans skip the
     /// temporal ranges entirely.
+    /// Stream every edge of one kind through a visitor without
+    /// materializing the list — OciusX has 1.3M TemporalCoupling edges and
+    /// collecting them costs hundreds of MB for aggregation that needs a
+    /// running map.
+    pub fn fold_edges_by_kind(
+        &self,
+        project_id: &str,
+        kind: EdgeKind,
+        mut visit: impl FnMut(&Edge),
+    ) -> anyhow::Result<()> {
+        let prefix = format!("{project_id}\0{}\0", kind.as_str());
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        for r in et.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            let e: Edge = bincode::deserialize(v.value())?;
+            visit(&e);
+        }
+        Ok(())
+    }
+
     pub fn list_structural_edges(&self, project_id: &str) -> anyhow::Result<Vec<Edge>> {
         let mut out = Vec::new();
         for kind in EdgeKind::ALL {

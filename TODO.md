@@ -155,6 +155,13 @@ they feed blast radius, edit safety, and the ADP gates.
   embedding_request_timeout_secs 30->120 in deployed config; embed cache (in progress)
   makes retries cheap.
 
+- [ ] **16d. Temporal increments are not idempotent across partial runs** (S-M)
+  A history run that dies mid-walk leaves its TemporalCoupling increments behind;
+  the rerun re-walks from the last SUCCESS watermark and double-counts (observed:
+  api-broker<->map.js 246 -> 1112 after one failed + one clean run). Checkpoint the
+  walk watermark periodically (e.g. every edge flush), or rebuild temporal edges
+  from scratch per full run instead of incrementing.
+
 - [ ] **17. Mark dynamic state/SQL access instead of skipping it** (M)
   `state_extractor.rs`, `sql_parser.rs`. `Session[variableName]` and string-built SQL are
   silently dropped. Emit `dynamic: true` unresolved-access nodes/edges so data-flow and

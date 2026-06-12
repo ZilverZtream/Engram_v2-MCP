@@ -3268,10 +3268,18 @@ impl Engram {
             let graph = self.state.graph.clone();
             let p = pid.clone();
             tokio::task::spawn_blocking(move || {
-                let edges = graph
-                    .list_edges_by_kind(&p, engram_graph::EdgeKind::TemporalCoupling, 100_000)
-                    .unwrap_or_default();
-                svc::top_co_change_pairs(&edges, 20)
+                // Stream ALL temporal edges (1.3M on OciusX) — a capped list
+                // takes the first N by key order, which biases the sample
+                // alphabetically, not by strength.
+                let mut best = std::collections::HashMap::new();
+                if let Err(e) =
+                    graph.fold_edges_by_kind(&p, engram_graph::EdgeKind::TemporalCoupling, |edge| {
+                        svc::accumulate_co_change(&mut best, edge)
+                    })
+                {
+                    tracing::warn!("co-change fold failed: {e:#}");
+                }
+                svc::finalize_co_change_pairs(best, 20)
             })
             .await
             .unwrap_or_default()
