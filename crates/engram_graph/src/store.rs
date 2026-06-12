@@ -2159,6 +2159,32 @@ impl GraphStore {
                 continue;
             }
 
+            // Step 2b: the EDGE's own metadata.fqn. WebForms event_wiring
+            // edges carry the handler's full FQN there while the placeholder
+            // holds only the short method name — and the same-file tiebreak
+            // can't help because the control lives in the .aspx page while
+            // the handler lives in the code-behind file.
+            if let Some(edge_fqn) = entry
+                .edge
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("fqn"))
+                .and_then(|v| v.as_str())
+                && edge_fqn != name
+            {
+                let resolved = match by_name.get(edge_fqn) {
+                    Some(SymbolMatch::Unique(id)) => Some(id.clone()),
+                    Some(SymbolMatch::Ambiguous(ids)) => resolve_ambiguous(ids, source_file),
+                    None => by_metadata_fqn.get(edge_fqn).cloned(),
+                };
+                if let Some(target_id) = resolved {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = target_id;
+                    updates.push((entry.old_key.clone(), new_e));
+                    continue;
+                }
+            }
+
             // Step 3: terminal segment fallback
             let short = name.rsplit('.').next().unwrap_or(name);
             if let Some(candidates) = by_terminal.get(short) {
