@@ -1322,6 +1322,37 @@ fn render_state_and_data(
     out
 }
 
+/// Collapse directed TemporalCoupling edges into unique unordered file
+/// pairs, keep the strongest, and strip the `file:` id prefix. Pairs where
+/// either side no longer matters (designer files churn with their page by
+/// construction) are kept - the agent can judge; ordering is weight desc.
+pub fn top_co_change_pairs(
+    edges: &[engram_graph::Edge],
+    limit: usize,
+) -> Vec<(String, String, u32)> {
+    use std::collections::HashMap;
+    let mut best: HashMap<(String, String), u32> = HashMap::new();
+    for e in edges {
+        let a = e.source_id.strip_prefix("file:").unwrap_or(&e.source_id);
+        let b = e.target_id.strip_prefix("file:").unwrap_or(&e.target_id);
+        if a == b {
+            continue;
+        }
+        let key = if a <= b {
+            (a.to_string(), b.to_string())
+        } else {
+            (b.to_string(), a.to_string())
+        };
+        let w = best.entry(key).or_default();
+        *w = (*w).max(e.weight);
+    }
+    let mut pairs: Vec<(String, String, u32)> =
+        best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    pairs.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
+    pairs.truncate(limit);
+    pairs
+}
+
 fn render_co_change_pairs(pairs: &[(String, String, u32)]) -> String {
     let mut out = String::with_capacity(512);
     out.push_str("---\n");
@@ -2650,6 +2681,40 @@ Read docs/internal.md first.
         // so both old and new headings must be absent.
         assert!(!md.contains("Database"));
         assert!(!md.contains("## Auth"));
+    }
+
+    #[test]
+    fn top_co_change_pairs_dedupes_directions_and_sorts_by_weight() {
+        fn edge(a: &str, b: &str, w: u32) -> engram_graph::Edge {
+            engram_graph::Edge {
+                source_id: format!("file:{a}"),
+                target_id: format!("file:{b}"),
+                namespace: "history".into(),
+                language: "text".into(),
+                edge_kind: engram_graph::EdgeKind::TemporalCoupling,
+                weight: w,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+        // Undirected storage writes both directions; both must collapse to
+        // one pair carrying the max weight.
+        let edges = vec![
+            edge("a.aspx", "a.aspx.vb", 41),
+            edge("a.aspx.vb", "a.aspx", 41),
+            edge("menu.master", "admin/nav.ascx", 17),
+            edge("x.vb", "x.vb", 99), // self-pair: dropped
+        ];
+        let pairs = top_co_change_pairs(&edges, 20);
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(
+            pairs[0],
+            ("a.aspx".to_string(), "a.aspx.vb".to_string(), 41)
+        );
+        assert_eq!(pairs[1].2, 17);
+        // Limit applies.
+        assert_eq!(top_co_change_pairs(&edges, 1).len(), 1);
     }
 
     #[test]
