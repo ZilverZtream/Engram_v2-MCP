@@ -180,3 +180,66 @@ End Namespace
     assert!(meta.get("permission_checks").unwrap().contains("isuserinrole"));
     assert_eq!(meta.get("guard_roles").map(String::as_str), Some("Admin"));
 }
+
+#[test]
+fn enrichment_extracts_linq_to_sql_table_access() {
+    use engram_index::vb_extractor::enrich_vb_source_for_test as enrich;
+    use engram_index::{ExtractedEdge, ExtractedSymbol};
+
+    let source = r#"
+Namespace MyApp
+    Public Class OrderDal
+        Public Sub LoadAndSave()
+            Dim db As New iFaltDataContext()
+            Dim q = From o In db.fiberjobb Where o.Id > 0 Select o
+            Dim s = From x In db.ss_systemsettings Select x
+            db.fiberjobb.InsertOnSubmit(Nothing)
+            db.SubmitChanges()
+            Dim noise = other.Whatever
+        End Sub
+    End Class
+End Namespace
+"#;
+    let mut symbols = vec![
+        ExtractedSymbol {
+            name: "OrderDal".into(),
+            kind: "class".into(),
+            start_line: 3,
+            end_line: 12,
+            metadata: None,
+        },
+        ExtractedSymbol {
+            name: "LoadAndSave".into(),
+            kind: "function".into(),
+            start_line: 4,
+            end_line: 11,
+            metadata: None,
+        },
+    ];
+    let mut edges: Vec<ExtractedEdge> = Vec::new();
+    enrich(source, &mut symbols, &mut edges);
+
+    let qt: Vec<&ExtractedEdge> = edges.iter().filter(|e| e.kind == "queries_table").collect();
+    let fiberjobb = qt
+        .iter()
+        .find(|e| e.target_name == "fiberjobb")
+        .expect("fiberjobb access expected");
+    assert_eq!(fiberjobb.source_name, "LoadAndSave");
+    assert_eq!(
+        fiberjobb.metadata.as_ref().unwrap().get("access").map(String::as_str),
+        Some("readwrite"),
+        "From-query + InsertOnSubmit = readwrite"
+    );
+    let settings = qt
+        .iter()
+        .find(|e| e.target_name == "ss_systemsettings")
+        .expect("settings table access expected");
+    assert_eq!(
+        settings.metadata.as_ref().unwrap().get("access").map(String::as_str),
+        Some("read")
+    );
+    // Non-context member access must not produce table edges.
+    assert!(!qt.iter().any(|e| e.target_name == "whatever"));
+    // SubmitChanges is a method call, never a table.
+    assert!(!qt.iter().any(|e| e.target_name == "submitchanges"));
+}

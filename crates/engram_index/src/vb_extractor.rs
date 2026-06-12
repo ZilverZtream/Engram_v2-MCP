@@ -55,6 +55,42 @@ static RE_VB_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)\b(?:isinrole|isuserinrole)\s*\(\s*"([^"]+)""#)
         .expect("valid VB role literal regex")
 });
+// LINQ-to-SQL / EF context variables: `Dim db As New iFaltDataContext` /
+// `Using db As New FooDbContext` / `db = New BarDataContext`. The ORM DAL
+// idiom is otherwise completely invisible to SQL-literal extraction.
+static RE_VB_CTX_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:Dim|Using)\s+(\w+)\s+As\s+New\s+\w*D(?:ata|b)Context\b")
+        .expect("valid VB ctx decl regex")
+});
+static RE_VB_CTX_ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(\w+)\s*=\s*New\s+\w*D(?:ata|b)Context\b")
+        .expect("valid VB ctx assign regex")
+});
+/// `ctx.TableProp` member access. Method calls (followed by `(`) are
+/// filtered by the caller — the regex crate has no lookahead.
+static RE_VB_CTX_MEMBER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(\w+)\.([A-Za-z_]\w*)").expect("valid ctx member regex")
+});
+/// Write calls: `ctx.Table.InsertOnSubmit(x)` etc.
+static RE_VB_CTX_WRITE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(\w+)\.(\w+)\.(?:InsertOnSubmit|InsertAllOnSubmit|DeleteOnSubmit|DeleteAllOnSubmit|Add|AddRange|Remove|RemoveRange)\s*\(")
+        .expect("valid ctx write regex")
+});
+/// Context members that are ORM machinery, not tables.
+const CTX_NON_TABLE_MEMBERS: [&str; 12] = [
+    "connection",
+    "transaction",
+    "log",
+    "commandtimeout",
+    "deferredloadingenabled",
+    "loadoptions",
+    "objecttrackingenabled",
+    "mapping",
+    "database",
+    "changetracker",
+    "configuration",
+    "entry",
+];
 
 struct Sidecar {
     child: Child,
@@ -445,10 +481,73 @@ fn enrich_vb_source(
     let mut guard_hits: Vec<(u32, String)> = Vec::new();
     let mut role_hits: Vec<(u32, String)> = Vec::new();
 
+    // ── Pass 0: collect ORM context variable names (file-scoped) ────────────
+    let mut ctx_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for line in source.lines() {
+        for cap in RE_VB_CTX_DECL
+            .captures_iter(line)
+            .chain(RE_VB_CTX_ASSIGN.captures_iter(line))
+        {
+            if let Some(v) = cap.get(1) {
+                ctx_vars.insert(v.as_str().to_lowercase());
+            }
+        }
+    }
+    // (function, table, access) — dedup before emitting; 900 LINQ queries in
+    // one file must not become 900 identical edges.
+    let mut table_accesses: std::collections::HashSet<(String, String, &'static str)> =
+        std::collections::HashSet::new();
+    let mut table_access_lines: std::collections::HashMap<(String, String), u32> =
+        std::collections::HashMap::new();
+
     for (idx, raw_line) in source.lines().enumerate() {
         let line_no = idx as u32 + 1;
         let line = raw_line.trim();
         let lower = line.to_ascii_lowercase();
+
+        // ── ORM table access (LINQ-to-SQL / EF) ────────────────────────────
+        if !ctx_vars.is_empty() {
+            for cap in RE_VB_CTX_WRITE.captures_iter(line) {
+                let (Some(var), Some(table)) = (cap.get(1), cap.get(2)) else {
+                    continue;
+                };
+                if !ctx_vars.contains(&var.as_str().to_lowercase()) {
+                    continue;
+                }
+                let table_l = table.as_str().to_lowercase();
+                if CTX_NON_TABLE_MEMBERS.contains(&table_l.as_str()) {
+                    continue;
+                }
+                let func = enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string());
+                table_access_lines
+                    .entry((func.clone(), table_l.clone()))
+                    .or_insert(line_no);
+                table_accesses.insert((func, table_l, "write"));
+            }
+            for cap in RE_VB_CTX_MEMBER.captures_iter(line) {
+                let (Some(var), Some(table)) = (cap.get(1), cap.get(2)) else {
+                    continue;
+                };
+                if !ctx_vars.contains(&var.as_str().to_lowercase()) {
+                    continue;
+                }
+                // Method calls are not table properties: skip when the next
+                // non-space char after the member is `(`.
+                let after = line[table.end()..].trim_start();
+                if after.starts_with('(') {
+                    continue;
+                }
+                let table_l = table.as_str().to_lowercase();
+                if CTX_NON_TABLE_MEMBERS.contains(&table_l.as_str()) {
+                    continue;
+                }
+                let func = enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string());
+                table_access_lines
+                    .entry((func.clone(), table_l.clone()))
+                    .or_insert(line_no);
+                table_accesses.insert((func, table_l, "read"));
+            }
+        }
 
         // Settings reads → edges from the enclosing function (or file).
         for cap in RE_VB_APPSETTINGS
@@ -522,6 +621,46 @@ fn enrich_vb_source(
                 });
             }
         }
+    }
+
+    // ── Emit deduplicated ORM table-access edges ────────────────────────────
+    // One edge per (function, table); access metadata distinguishes
+    // read / write / readwrite. Targets resolve to the DDL-extracted
+    // db_table nodes via NodeId::table (lowercased) in ingest.
+    let mut per_pair: std::collections::HashMap<(String, String), (bool, bool)> =
+        std::collections::HashMap::new();
+    for (func, table, access) in table_accesses {
+        let entry = per_pair.entry((func, table)).or_insert((false, false));
+        if access == "write" {
+            entry.1 = true;
+        } else {
+            entry.0 = true;
+        }
+    }
+    for ((func, table), (read, write)) in per_pair {
+        let access = match (read, write) {
+            (true, true) => "readwrite",
+            (false, true) => "write",
+            _ => "read",
+        };
+        let line = table_access_lines
+            .get(&(func.clone(), table.clone()))
+            .copied()
+            .unwrap_or(0);
+        let mut meta = HashMap::new();
+        meta.insert("orm".to_string(), "true".to_string());
+        meta.insert("access".to_string(), access.to_string());
+        edges.push(ExtractedEdge {
+            source_name: func,
+            source_kind: "function".to_string(),
+            source_start_line: line,
+            source_language: "vb".to_string(),
+            target_name: table,
+            target_kind: Some("db_table".to_string()),
+            target_start_line: None,
+            kind: "queries_table".to_string(),
+            metadata: Some(meta),
+        });
     }
 
     // Range-based guard annotation (shared with the C# extractor).
