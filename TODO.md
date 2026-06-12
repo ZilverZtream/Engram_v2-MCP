@@ -103,6 +103,14 @@ they feed blast radius, edit safety, and the ADP gates.
   `ExtractionConfidence` into the Autonomous Decision Protocol's extraction gate (it's
   computed today but not consumed).
 
+- [ ] **12b. resolve_symbol_edges: consult edge-metadata FQN during resolution** (S)
+  `engram_graph/src/store.rs`. The HashMap rewrite of resolve_symbol_edges dropped the
+  old implementation's use of the EDGE's `metadata.fqn` (webforms event_wiring edges
+  carry the handler FQN there). Restore it as a step before terminal-segment matching —
+  it disambiguates shared handler names across pages where same-file tiebreaks can't.
+  (Identified during the 2026-06-12 edge-endpoint wiring fix; not needed for the test
+  suite but improves precision on real multi-page projects like OciusX.)
+
 - [ ] **13. Overload/arity-aware call resolution** (M–L)
   `parsing.rs`, `cs_extractor.rs`, `vb_extractor.rs`. Calls resolve by bare name to the
   first `MyMethod`, regardless of signature. Store arity (cheap, tree-sitter gives it) and
