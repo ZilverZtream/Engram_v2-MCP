@@ -2509,47 +2509,73 @@ fn fts1_regex_mode_error_propagates_with_context() {
 // ── VEC1-h3k8 / X1-d4p9: schema-mismatch degradation window observability ────
 
 /// VEC1/X1: when a vector table is recreated due to schema mismatch, the bail!
-/// message must include `prior_row_count` so operators know exactly how many
-/// vectors were lost and need to be recovered via a full reindex job.
+/// message must include the data-loss scope derived from `prior_row_count` so
+/// operators know exactly how many vectors were lost.
+///
+/// hybrid.rs now has MULTIPLE recreate-bail sites (index_docs and the vector
+/// upsert helper), and each builds its message via a `loss_str` computed from
+/// `prior_row_count` a few lines ABOVE the message string. So this checks
+/// every "VEC1: vector table" site, with a window that spans backward to
+/// cover the destructuring + loss_str construction.
 #[test]
 fn vec1_recreated_table_bail_includes_prior_row_count_for_operator_visibility() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
+    let bytes = src.as_bytes();
 
-    let bail_pos = src
-        .find("VEC1: vector table")
-        .or_else(|| src.find("Recreated"))
-        .expect("VEC1: hybrid.rs must have a VEC1/Recreated error path");
+    let mut sites = 0usize;
+    let mut from = 0usize;
+    while let Some(rel) = src[from..].find("VEC1: vector table") {
+        let pos = from + rel;
+        sites += 1;
+        // Byte-slice + lossy decode: windows may split multibyte chars
+        // (hybrid.rs contains em-dashes) and that must not panic the test.
+        let start = pos.saturating_sub(600);
+        let end = (pos + 400).min(bytes.len());
+        let window = String::from_utf8_lossy(&bytes[start..end]);
+        assert!(
+            window.contains("prior_row_count"),
+            "VEC1: recreate-bail site #{sites} (byte {pos}) must derive its \
+             data-loss message from prior_row_count; window: {:?}",
+            &window[..200.min(window.len())]
+        );
+        from = pos + 1;
+    }
 
-    let window = &src[bail_pos..bail_pos + 400.min(src.len() - bail_pos)];
     assert!(
-        window.contains("prior_row_count"),
-        "VEC1: bail! on vector table recreate must include prior_row_count so \
-         operators know the data-loss scope; found window: {:?}",
-        &window[..200.min(window.len())]
+        sites >= 1,
+        "VEC1: hybrid.rs must have at least one 'VEC1: vector table' recreate bail"
     );
 }
 
-/// VEC1/X1: the Tantivy commit is performed BEFORE the vector recreate check.
-/// This preserves lexical index consistency but creates a temporary window where
-/// vectors are absent. The ordering must be documented and tested.
+/// VEC1/X1: inside `index_docs`, the Tantivy commit is performed BEFORE the
+/// vector recreate check. This preserves lexical index consistency but creates
+/// a temporary window where vectors are absent. The ordering must hold.
+///
+/// Scoped to the `index_docs` body: other functions (the vector upsert
+/// helper) legitimately handle `Recreated` with no Tantivy writer in scope,
+/// so a whole-file positional scan measures the wrong thing.
 #[test]
 fn x1_tantivy_commit_precedes_vector_recreate_bail_in_index_docs() {
     let src = include_str!("../../engram_index/src/hybrid.rs");
 
-    // Find the commit() call in the lexical write path.
-    let commit_pos = src
-        .find("writer.commit()")
-        .expect("X1: hybrid.rs must call writer.commit() for Tantivy");
+    let fn_pos = src
+        .find("pub async fn index_docs")
+        .expect("X1: hybrid.rs must define index_docs");
+    let body = &src[fn_pos..];
 
-    // The Recreated bail! must come AFTER the commit.
-    let recreate_pos = src
+    // First commit and first Recreated handling AFTER the function start.
+    let commit_pos = body
+        .find("writer.commit()")
+        .expect("X1: index_docs must call writer.commit() for Tantivy");
+    let recreate_pos = body
         .find("Recreated")
-        .expect("X1: hybrid.rs must handle TableOpenOutcome::Recreated");
+        .expect("X1: index_docs must handle TableOpenOutcome::Recreated");
 
     assert!(
         commit_pos < recreate_pos,
-        "X1: writer.commit() (pos {commit_pos}) must precede Recreated handling \
-         (pos {recreate_pos}) — lexical data durability before vector schema check"
+        "X1: within index_docs, writer.commit() (offset {commit_pos}) must \
+         precede Recreated handling (offset {recreate_pos}) — lexical data \
+         durability before vector schema check"
     );
 }
 

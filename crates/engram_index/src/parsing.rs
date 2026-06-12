@@ -85,6 +85,52 @@ struct CompiledQueries {
 unsafe impl Send for CompiledQueries {}
 unsafe impl Sync for CompiledQueries {}
 
+/// C symbol/call query. Named const so tests can prove it compiles against
+/// the pinned tree-sitter-c grammar — `Query::new(...).ok()` otherwise
+/// swallows pattern errors into `None` and silently disables ALL C
+/// extraction (which is exactly what happened to the C++ query).
+///
+/// Declarator nesting note: in tree-sitter C/C++, `int *f()` parses as
+/// pointer_declarator WRAPPING function_declarator, not the other way round.
+const C_QUERY_SRC: &str = r#"
+        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (parenthesized_declarator (pointer_declarator declarator: (identifier) @name)))) @func
+        (struct_specifier name: (type_identifier) @name) @struct
+        (call_expression function: (identifier) @call.name)
+        "#;
+
+/// C++ symbol/call query. Every pattern is validated against
+/// tree-sitter-cpp 0.23 node-types: `reference_declarator` has NO
+/// `declarator:` field (children only), and `template_method`'s `name`
+/// field admits field_identifier/operator_name but never `identifier` —
+/// the two mistakes that made the previous query fail to compile, turning
+/// C++ extraction off entirely.
+const CPP_QUERY_SRC: &str = r#"
+        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (type_identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (operator_name) @name)) @func
+        (function_definition declarator: (function_declarator declarator: (destructor_name (identifier) @name))) @func
+        (function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (field_identifier) @name))) @func
+        (function_definition declarator: (reference_declarator (function_declarator declarator: (identifier) @name))) @func
+        (function_definition declarator: (reference_declarator (function_declarator declarator: (field_identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (destructor_name (identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (operator_name) @name))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (template_method name: (field_identifier) @name)))) @func
+        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (qualified_identifier name: (identifier) @name)))) @func
+        (function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
+        (function_definition declarator: (reference_declarator (function_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
+        (class_specifier name: (type_identifier) @name) @class
+        (struct_specifier name: (type_identifier) @name) @struct
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (field_expression field: (field_identifier) @call.name))
+        (call_expression function: (qualified_identifier name: (identifier) @call.name))
+        (call_expression function: (qualified_identifier name: (field_identifier) @call.name))
+        "#;
+
 static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     let rust_lang = tree_sitter_rust::LANGUAGE.into();
     let python_lang = tree_sitter_python::LANGUAGE.into();
@@ -219,47 +265,19 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     })
     .ok();
 
-    let c = Query::new(
-        &c_lang,
-        r#"
-        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
-        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (parenthesized_declarator (pointer_declarator declarator: (identifier) @name)))) @func
-        (struct_specifier name: (type_identifier) @name) @struct
-        (call_expression function: (identifier) @call.name)
-        "#,
-    )
-    .ok();
+    let c = Query::new(&c_lang, C_QUERY_SRC)
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to compile C Tree-sitter query; C extraction DISABLED");
+            e
+        })
+        .ok();
 
-    let cpp = Query::new(
-        &cpp_lang,
-        r#"
-        (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
-        (function_definition declarator: (function_declarator declarator: (type_identifier) @name)) @func
-        (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
-        (function_definition declarator: (function_declarator declarator: (operator_name) @name)) @func
-        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (field_identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (field_identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (destructor_name (identifier) @name)))) @func
-        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (operator_name) @name))) @func
-        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name)))) @func
-        (function_definition declarator: (function_declarator declarator: (qualified_identifier name: (template_method name: (operator_name) @name)))) @func
-        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
-        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (qualified_identifier name: (identifier) @name)))) @func
-        (function_definition declarator: (function_declarator declarator: (reference_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name))))) @func
-        (function_definition declarator: (function_declarator declarator: (pointer_declarator declarator: (qualified_identifier name: (template_method name: (identifier) @name))))) @func
-        (class_specifier name: (type_identifier) @name) @class
-        (struct_specifier name: (type_identifier) @name) @struct
-        (call_expression function: (identifier) @call.name)
-        (call_expression function: (field_expression field: (field_identifier) @call.name))
-        (call_expression function: (qualified_identifier name: (identifier) @call.name))
-        (call_expression function: (qualified_identifier name: (field_identifier) @call.name))
-        "#,
-    )
-    .ok();
+    let cpp = Query::new(&cpp_lang, CPP_QUERY_SRC)
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to compile C++ Tree-sitter query; C++ extraction DISABLED");
+            e
+        })
+        .ok();
 
     // ── Pass-1 namespace queries ──────────────────────────────────────────
     let cs_ns = Query::new(
@@ -992,5 +1010,52 @@ class Baz {
                 .map(String::as_str),
             Some("Baz.qux")
         );
+    }
+}
+
+#[cfg(test)]
+mod query_compile_tests {
+    use super::*;
+
+    /// The C and C++ query consts must compile against the pinned grammars.
+    /// Failure here = the corresponding language's extraction is silently
+    /// disabled in production (Query::new(...).ok() → None → zero symbols).
+    #[test]
+    fn c_query_compiles() {
+        let lang = tree_sitter_c::LANGUAGE.into();
+        if let Err(e) = Query::new(&lang, C_QUERY_SRC) {
+            panic!("C query failed to compile — C extraction would be DISABLED: {e}");
+        }
+    }
+
+    #[test]
+    fn cpp_query_compiles() {
+        let lang = tree_sitter_cpp::LANGUAGE.into();
+        if let Err(e) = Query::new(&lang, CPP_QUERY_SRC) {
+            panic!("C++ query failed to compile — C++ extraction would be DISABLED: {e}");
+        }
+    }
+
+    /// Every language's compiled query must be present. Catches any future
+    /// grammar bump or query edit that silently kills extraction for a
+    /// language via the .ok() swallow.
+    #[test]
+    fn all_compiled_queries_are_present() {
+        let q = &*QUERIES;
+        assert!(q.rust.is_some(), "rust query failed to compile");
+        assert!(q.python.is_some(), "python query failed to compile");
+        assert!(q.go.is_some(), "go query failed to compile");
+        assert!(q.java.is_some(), "java query failed to compile");
+        assert!(q.ts.is_some(), "typescript query failed to compile");
+        assert!(q.js.is_some(), "javascript query failed to compile");
+        assert!(q.cs.is_some(), "c# query failed to compile");
+        assert!(q.c.is_some(), "c query failed to compile");
+        assert!(q.cpp.is_some(), "c++ query failed to compile");
+        assert!(q.cs_ns.is_some(), "c# namespace query failed to compile");
+        assert!(q.java_ns.is_some(), "java namespace query failed to compile");
+        assert!(q.go_ns.is_some(), "go namespace query failed to compile");
+        assert!(q.rust_mod.is_some(), "rust mod query failed to compile");
+        assert!(q.ts_ns.is_some(), "typescript ns query failed to compile");
+        assert!(q.js_ns.is_some(), "javascript ns query failed to compile");
     }
 }

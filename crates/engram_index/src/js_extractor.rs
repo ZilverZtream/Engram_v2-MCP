@@ -2729,22 +2729,33 @@ mod tests {
 
         let (_, edges) = extract_js(&test_path("OrderForm.jsx"), jsx);
 
+        // Contract (same as the plain-JS tests): the WebMethod name lives in
+        // metadata under "ajax_target_method".
         assert!(
             edges.iter().any(|e| {
                 e.kind == "api_call"
                     && e.target_name == "Services/Orders.asmx"
                     && e.metadata
                         .as_ref()
-                        .and_then(|m| m.get("method"))
+                        .and_then(|m| m.get("ajax_target_method"))
                         .map(|v| v.as_str())
                         == Some("SaveOrder")
             }),
             "expected fetch(...) to .asmx endpoint to emit api_call edge; got: {edges:?}"
         );
 
+        // Contract (see postback_unique_id_extracts_short_name): target_name
+        // is the short control id so the edge resolves to the control node;
+        // the full UniqueID is preserved in metadata.
         assert!(
             edges.iter().any(|e| {
-                e.kind == "triggers_postback" && e.target_name == "ctl00$MainContent$btnSave"
+                e.kind == "triggers_postback"
+                    && e.target_name == "btnSave"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("unique_id"))
+                        .map(|v| v.as_str())
+                        == Some("ctl00$MainContent$btnSave")
             }),
             "expected __doPostBack(...) in .jsx to emit triggers_postback edge; got: {edges:?}"
         );
@@ -2764,13 +2775,14 @@ mod tests {
 
         let (_, edges) = extract_js(&test_path("Toolbar.tsx"), tsx);
 
+        // Same contracts as the .jsx test above.
         assert!(
             edges.iter().any(|e| {
                 e.kind == "api_call"
                     && e.target_name == "Services/Profile.asmx"
                     && e.metadata
                         .as_ref()
-                        .and_then(|m| m.get("method"))
+                        .and_then(|m| m.get("ajax_target_method"))
                         .map(|v| v.as_str())
                         == Some("Update")
             }),
@@ -2779,7 +2791,13 @@ mod tests {
 
         assert!(
             edges.iter().any(|e| {
-                e.kind == "triggers_postback" && e.target_name == "ctl00$MainContent$btnUpdate"
+                e.kind == "triggers_postback"
+                    && e.target_name == "btnUpdate"
+                    && e.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("unique_id"))
+                        .map(|v| v.as_str())
+                        == Some("ctl00$MainContent$btnUpdate")
             }),
             "expected __doPostBack(...) in .tsx to emit triggers_postback edge; got: {edges:?}"
         );
