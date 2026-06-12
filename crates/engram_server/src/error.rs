@@ -9,7 +9,10 @@ pub enum EngramError {
     #[error("{0}")]
     Internal(String),
 
-    #[error("Unknown project_id: {0}")]
+    #[error(
+        "Unknown project_id: '{0}'. Call list_projects to see indexed projects, \
+         or index_project to index a new directory."
+    )]
     ProjectNotFound(String),
 
     #[error("{0}")]
