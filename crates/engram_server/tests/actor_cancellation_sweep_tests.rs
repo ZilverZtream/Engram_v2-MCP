@@ -577,27 +577,29 @@ fn mig1_handler_sources_completeness_header_in_markdown_output() {
 /// Having these fields in the serialized JSON makes them impossible to miss.
 #[test]
 fn migration_report_struct_exposes_completeness_fields_for_clients() {
-    let service_src = include_str!("../src/services/full_project_migration_service.rs");
+    // The struct moved from the monolith service file into the directory
+    // module's model.rs when the service was split — scan where it lives now.
+    let model_src = include_str!("../src/services/full_project_migration_service/model.rs");
 
     // The struct definition must declare both fields.
     assert!(
-        service_src.contains("pub report_is_complete: bool"),
+        model_src.contains("pub report_is_complete: bool"),
         "FullProjectMigrationReport must have pub report_is_complete: bool so clients \
          can inspect completeness without parsing the markdown body"
     );
     assert!(
-        service_src.contains("pub degraded_sections: Vec<String>"),
+        model_src.contains("pub degraded_sections: Vec<String>"),
         "FullProjectMigrationReport must have pub degraded_sections: Vec<String> so \
          clients can identify which graph sections produced incomplete data"
     );
 
     // The struct must derive Serialize so these fields appear in JSON responses.
     // Find the derive line above the struct.
-    let struct_pos = service_src
+    let struct_pos = model_src
         .find("pub struct FullProjectMigrationReport")
-        .expect("FullProjectMigrationReport must exist in migration service");
+        .expect("FullProjectMigrationReport must exist in full_project_migration_service/model.rs");
     // Look for #[derive(...Serialize...)] in the 400 chars before the struct.
-    let before_struct = &service_src[struct_pos.saturating_sub(400)..struct_pos];
+    let before_struct = &model_src[struct_pos.saturating_sub(400)..struct_pos];
     assert!(
         before_struct.contains("Serialize"),
         "FullProjectMigrationReport must derive Serialize so report_is_complete and \

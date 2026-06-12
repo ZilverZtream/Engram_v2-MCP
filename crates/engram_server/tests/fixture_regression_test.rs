@@ -150,6 +150,7 @@ async fn test_fixture_dotnet_webforms_vb() {
         .unwrap();
 
     let text = &res.content[0].as_text().unwrap().text;
+    println!("VB FIXTURE TRACE OUTPUT:\n{text}");
 
     assert!(
         text.contains("LegacyApp.OrderPage.btnSave_Click"),
@@ -261,6 +262,7 @@ async fn test_fixture_dotnet_webforms_cs_frontend_bridge() {
         .await
         .unwrap();
     let ui_text = &ui_trace.content[0].as_text().unwrap().text;
+    println!("BRIDGE TRACE OUTPUT:\n{ui_text}");
     assert!(
         ui_text.contains("LegacyApp.FrontendBridgePage.btnSearch_Click"),
         "Should reach postback click handler"

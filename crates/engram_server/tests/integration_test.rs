@@ -3633,12 +3633,11 @@ async fn test_language_aware_resolution() {
 
     let graph = engram.state.graph.clone();
 
-    // Check 'init' from app.rs (Rust)
-    let rust_init_id = "sym:function:app.rs:init:0";
-    let python_init_id = "sym:function:script.py:init:1";
-
+    // Raw `calls` edges map to EdgeKind::Calls (restored through the ingest
+    // pipeline); edge targets resolve to the real declaring node, so match
+    // on the location-based prefix rather than a hardcoded line number.
     let edges = graph
-        .list_edges(project_id, Some(engram_graph::EdgeKind::Dependency))
+        .list_edges(project_id, Some(engram_graph::EdgeKind::Calls))
         .unwrap();
 
     // Find edge from app.rs:function:main to init
@@ -3646,9 +3645,12 @@ async fn test_language_aware_resolution() {
         .iter()
         .find(|e| e.source_id.contains("app.rs") && e.source_id.contains("main"))
         .expect("Should find rust main edge");
-    assert_eq!(
-        rust_edge.target_id, rust_init_id,
-        "Rust main should call rust init"
+    assert!(
+        rust_edge
+            .target_id
+            .starts_with("sym:function:app.rs:init:"),
+        "Rust main should call rust init; got {}",
+        rust_edge.target_id
     );
 
     // Find edge from script.py:function:run to init
@@ -3656,9 +3658,12 @@ async fn test_language_aware_resolution() {
         .iter()
         .find(|e| e.source_id.contains("script.py") && e.source_id.contains("run"))
         .expect("Should find python run edge");
-    assert_eq!(
-        py_edge.target_id, python_init_id,
-        "Python run should call python init"
+    assert!(
+        py_edge
+            .target_id
+            .starts_with("sym:function:script.py:init:"),
+        "Python run should call python init; got {}",
+        py_edge.target_id
     );
 }
 
@@ -5127,15 +5132,18 @@ fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
 #[test]
 fn migration_report_source_has_completeness_fields_and_tls_accumulator() {
     let source = include_str!("../src/services/full_project_migration_service.rs");
+    // The report struct moved into the directory module's model.rs when the
+    // service was split; the derivation + accumulator stayed in the monolith.
+    let model_src = include_str!("../src/services/full_project_migration_service/model.rs");
 
     // The completeness fields must exist on the report struct.
     assert!(
-        source.contains("pub degraded_sections"),
+        model_src.contains("pub degraded_sections"),
         "MIG1-c7y2: FullProjectMigrationReport must have pub degraded_sections field \
          so callers can identify which graph analyses failed"
     );
     assert!(
-        source.contains("pub report_is_complete"),
+        model_src.contains("pub report_is_complete"),
         "MIG1-c7y2: FullProjectMigrationReport must have pub report_is_complete field \
          so callers can distinguish a complete report from a degraded one"
     );

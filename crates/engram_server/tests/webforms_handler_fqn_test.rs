@@ -89,15 +89,13 @@ namespace MyApp.Web {
         .iter()
         .find(|n| n.node_type == "control" && n.name == "btnPrint")
         .expect("btnPrint node missing");
-    let handler_id = "sym:function:MyApp.Web.Orders.PrintJob";
-
-    // Check if handler node exists
-    let _handler_node = engram
-        .state
-        .graph
-        .get_node(project_id, handler_id)
-        .unwrap()
+    // Node IDs are location-based; find the handler by name and use its
+    // real node_id (the FQN lives in metadata, not the ID).
+    let handler_node = all_nodes
+        .iter()
+        .find(|n| n.node_type == "function" && n.name == "PrintJob")
         .expect("Handler node missing");
+    let handler_id = handler_node.node_id.as_str();
 
     // Verify neighbors of control node
     // event_wiring is mapped to Dependency or Contains?
