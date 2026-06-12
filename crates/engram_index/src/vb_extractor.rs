@@ -68,9 +68,8 @@ static RE_VB_CTX_ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
 });
 /// `ctx.TableProp` member access. Method calls (followed by `(`) are
 /// filtered by the caller — the regex crate has no lookahead.
-static RE_VB_CTX_MEMBER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b(\w+)\.([A-Za-z_]\w*)").expect("valid ctx member regex")
-});
+static RE_VB_CTX_MEMBER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b(\w+)\.([A-Za-z_]\w*)").expect("valid ctx member regex"));
 /// Write calls: `ctx.Table.InsertOnSubmit(x)` etc.
 static RE_VB_CTX_WRITE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(\w+)\.(\w+)\.(?:InsertOnSubmit|InsertAllOnSubmit|DeleteOnSubmit|DeleteAllOnSubmit|Add|AddRange|Remove|RemoveRange)\s*\(")
@@ -486,11 +485,7 @@ pub fn enrich_vb_source_for_test(
 /// permission-check metadata on the enclosing functions, and class-level
 /// Inherits/Implements hierarchy edges. Sidecar symbols carry REAL line
 /// ranges, so association is range-based (same approach as the C# path).
-fn enrich_vb_source(
-    source: &str,
-    symbols: &mut [ExtractedSymbol],
-    edges: &mut Vec<ExtractedEdge>,
-) {
+fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut Vec<ExtractedEdge>) {
     // (start, end, name) for functions and classes, for range association.
     let fn_ranges: Vec<(u32, u32, String)> = symbols
         .iter()
@@ -598,8 +593,7 @@ fn enrich_vb_source(
                 continue;
             };
             edges.push(ExtractedEdge {
-                source_name: enclosing(&fn_ranges, line_no)
-                    .unwrap_or_else(|| "file".to_string()),
+                source_name: enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string()),
                 source_kind: "function".to_string(),
                 source_start_line: line_no,
                 source_language: "vb".to_string(),
@@ -639,8 +633,7 @@ fn enrich_vb_source(
                     .trim_start_matches("Global.")
                     .trim();
                 if base.is_empty()
-                    || existing_hierarchy
-                        .contains(&(class_name.clone(), base.to_string()))
+                    || existing_hierarchy.contains(&(class_name.clone(), base.to_string()))
                 {
                     continue;
                 }
@@ -1048,7 +1041,27 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         sym.metadata = Some(meta);
     }
 
+    // TODO-18: tag degraded-mode output. The sidecar silently falls back to
+    // this line-scan extractor on spawn/protocol failure; without a marker
+    // the lower-fidelity symbols are indistinguishable from Roslyn output,
+    // so confidence scoring and audits can't discount them.
+    for s in &mut symbols {
+        s.metadata
+            .get_or_insert_with(Default::default)
+            .insert("extraction_fallback".to_string(), "true".to_string());
+    }
+
     (symbols, edges)
+}
+
+/// Test-only re-export of the degraded-mode extractor so tests can pin its
+/// behavior without depending on sidecar availability in the environment.
+#[cfg(test)]
+pub(crate) fn fallback_extract_vb_for_test(
+    path: &Path,
+    source: &str,
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    fallback_extract_vb(path, source)
 }
 
 fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, &'static str)> {
@@ -1067,6 +1080,26 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, &'static str)> {
 mod tests {
     use super::extract_vb;
     use std::path::Path;
+
+    #[test]
+    fn fallback_symbols_are_tagged_extraction_fallback() {
+        // TODO-18: degraded-mode output must be distinguishable from
+        // Roslyn sidecar output so confidence scoring can discount it.
+        let code = "Class Foo\n  Public Sub Bar()\n  End Sub\nEnd Class";
+        let (symbols, _) = super::fallback_extract_vb_for_test(Path::new("foo.vb"), code);
+        assert!(!symbols.is_empty());
+        for s in &symbols {
+            assert_eq!(
+                s.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("extraction_fallback"))
+                    .map(String::as_str),
+                Some("true"),
+                "symbol {} missing extraction_fallback tag",
+                s.name
+            );
+        }
+    }
 
     #[test]
     fn indexes_partial_class_without_modifier() {
