@@ -359,6 +359,9 @@ pub struct PathHop {
     /// True when the edge was traversed against its stored direction
     /// (only happens in undirected mode).
     pub reversed: bool,
+    /// Resolution confidence from edge metadata (TODO-12), when recorded.
+    /// Low values mean the endpoint was bound by bare-name matching.
+    pub confidence: Option<f32>,
 }
 
 /// Result of [`find_path`]: the start node plus the hops to the target.
@@ -401,9 +404,9 @@ pub fn find_path(
         acc
     };
 
-    // adjacency: node -> [(neighbor, kind, reversed)]
-    let mut fwd: HashMap<&str, Vec<(&str, &EdgeKind)>> = HashMap::new();
-    let mut rev: HashMap<&str, Vec<(&str, &EdgeKind)>> = HashMap::new();
+    // adjacency: node -> [(neighbor, kind, confidence)]
+    let mut fwd: HashMap<&str, Vec<(&str, &EdgeKind, Option<f32>)>> = HashMap::new();
+    let mut rev: HashMap<&str, Vec<(&str, &EdgeKind, Option<f32>)>> = HashMap::new();
     for e in &edges {
         if !kind_filter.is_empty() && !kind_filter.contains(&e.edge_kind) {
             continue;
@@ -421,18 +424,28 @@ pub fn find_path(
         {
             continue;
         }
-        fwd.entry(e.source_id.as_str())
-            .or_default()
-            .push((e.target_id.as_str(), &e.edge_kind));
-        rev.entry(e.target_id.as_str())
-            .or_default()
-            .push((e.source_id.as_str(), &e.edge_kind));
+        let conf = e
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("confidence"))
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<f32>().ok());
+        fwd.entry(e.source_id.as_str()).or_default().push((
+            e.target_id.as_str(),
+            &e.edge_kind,
+            conf,
+        ));
+        rev.entry(e.target_id.as_str()).or_default().push((
+            e.source_id.as_str(),
+            &e.edge_kind,
+            conf,
+        ));
     }
 
     let bfs = |undirected: bool| -> Option<FoundPath> {
         use std::collections::VecDeque;
-        // parent: node -> (prev_node, kind, reversed)
-        let mut parent: HashMap<&str, (&str, EdgeKind, bool)> = HashMap::new();
+        // parent: node -> (prev_node, kind, reversed, confidence)
+        let mut parent: HashMap<&str, (&str, EdgeKind, bool, Option<f32>)> = HashMap::new();
         let mut q: VecDeque<(&str, usize)> = VecDeque::new();
         q.push_back((from, 0));
         let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
@@ -443,11 +456,12 @@ pub fn find_path(
                 let mut hops_rev = Vec::new();
                 let mut walk = cur;
                 while walk != from {
-                    let (prev, kind, reversed) = parent.get(walk)?.clone();
+                    let (prev, kind, reversed, confidence) = parent.get(walk)?.clone();
                     hops_rev.push(PathHop {
                         edge_kind: kind,
                         node_id: walk.to_string(),
                         reversed,
+                        confidence,
                     });
                     walk = prev;
                 }
@@ -466,20 +480,20 @@ pub fn find_path(
                 .get(cur)
                 .unwrap_or(&empty)
                 .iter()
-                .map(|(n, k)| (*n, *k, false));
+                .map(|(n, k, c)| (*n, *k, false, *c));
             let backs = if undirected {
                 Some(
                     rev.get(cur)
                         .unwrap_or(&empty)
                         .iter()
-                        .map(|(n, k)| (*n, *k, true)),
+                        .map(|(n, k, c)| (*n, *k, true, *c)),
                 )
             } else {
                 None
             };
-            for (n, k, reversed) in nexts.chain(backs.into_iter().flatten()) {
+            for (n, k, reversed, conf) in nexts.chain(backs.into_iter().flatten()) {
                 if seen.insert(n) {
-                    parent.insert(n, (cur, k.clone(), reversed));
+                    parent.insert(n, (cur, k.clone(), reversed, conf));
                     q.push_back((n, depth + 1));
                 }
             }
@@ -1033,6 +1047,39 @@ mod tests {
                 .unwrap()
                 .is_some()
         );
+    }
+
+    #[test]
+    fn path_hops_carry_resolution_confidence() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_node(&store, "caller");
+        path_node(&store, "guessed_target");
+        store
+            .upsert_edges(
+                "proj",
+                &[crate::store::Edge {
+                    source_id: "caller".into(),
+                    target_id: "guessed_target".into(),
+                    namespace: "memory".into(),
+                    language: "vb".into(),
+                    edge_kind: EdgeKind::Calls,
+                    weight: 1,
+                    generation: 1,
+                    metadata: Some(serde_json::json!({
+                        "resolution": "batch_unique_any_terminal",
+                        "confidence": "0.35"
+                    })),
+                    updated_at_ms: 0,
+                }],
+            )
+            .unwrap();
+
+        let p = find_path(&store, "proj", "caller", "guessed_target", 3, &[])
+            .unwrap()
+            .expect("path");
+        assert_eq!(p.hops.len(), 1);
+        assert_eq!(p.hops[0].confidence, Some(0.35), "confidence must surface");
     }
 
     #[test]

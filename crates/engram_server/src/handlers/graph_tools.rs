@@ -580,8 +580,14 @@ impl Engram {
                 out.push_str(&format!("{from_id}\n"));
                 for hop in &path.hops {
                     let arrow = if hop.reversed { "<--" } else { "-->" };
+                    let warn = match hop.confidence {
+                        Some(c) if c < 0.6 => {
+                            format!("  [LOW CONFIDENCE {c:.2} - bare-name match, verify]")
+                        }
+                        _ => String::new(),
+                    };
                     out.push_str(&format!(
-                        "  {arrow} [{}] {}\n",
+                        "  {arrow} [{}] {}{warn}\n",
                         hop.edge_kind.as_str(),
                         hop.node_id
                     ));
