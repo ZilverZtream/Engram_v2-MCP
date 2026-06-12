@@ -3247,6 +3247,20 @@ impl Engram {
             .unwrap_or_default()
         };
 
+        // ── 8c. GIS presence: one spatial_call edge is enough ─────────
+        let has_gis = {
+            let graph = self.state.graph.clone();
+            let p = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                graph.list_edges_by_kind(&p, EdgeKind::SpatialCall, 1)
+            })
+            .await
+            .ok()
+            .and_then(|r| r.ok())
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
+        };
+
         // ── 9. Build the snapshot ─────────────────────────────────────
         let project_name = project_name_from_dir(&rec.directory);
         let snapshot = svc::ProjectSnapshot {
@@ -3264,6 +3278,7 @@ impl Engram {
             frontend_warnings: Vec::new(),
             existing_claude_md: existing_md.clone(),
             coderabbit_rules_by_language,
+            has_gis,
         };
 
         // ── 10. Render ────────────────────────────────────────────────
