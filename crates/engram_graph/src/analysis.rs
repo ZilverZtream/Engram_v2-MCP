@@ -349,6 +349,139 @@ fn approximate_betweenness(graph: &DiGraph<String, f32>, k: usize) -> HashMap<No
     betweenness
 }
 
+// ── Path finding (TODO-14) ───────────────────────────────────────────────────
+
+/// One hop in a found path: the edge kind taken and the node arrived at.
+#[derive(Debug, Clone)]
+pub struct PathHop {
+    pub edge_kind: EdgeKind,
+    pub node_id: String,
+    /// True when the edge was traversed against its stored direction
+    /// (only happens in undirected mode).
+    pub reversed: bool,
+}
+
+/// Result of [`find_path`]: the start node plus the hops to the target.
+#[derive(Debug, Clone)]
+pub struct FoundPath {
+    pub start: String,
+    pub hops: Vec<PathHop>,
+    /// False when the path needed undirected traversal.
+    pub directed: bool,
+}
+
+/// BFS shortest path between two node ids over the project's edges.
+///
+/// Tries directed traversal first (source -> target along edge direction);
+/// when no directed path exists within `max_depth`, retries treating every
+/// edge as bidirectional so "how are these even related?" still gets an
+/// answer (marked `directed: false`, hops carry `reversed` flags).
+///
+/// `kind_filter`: when non-empty, only these edge kinds are traversed.
+/// Loads the project's edge list once (one prefix scan) — OciusX-scale
+/// (113k edges) builds the adjacency map in well under a second.
+pub fn find_path(
+    store: &GraphStore,
+    project_id: &str,
+    from: &str,
+    to: &str,
+    max_depth: usize,
+    kind_filter: &[EdgeKind],
+) -> anyhow::Result<Option<FoundPath>> {
+    let edges = store.list_edges(project_id, None)?;
+
+    // adjacency: node -> [(neighbor, kind, reversed)]
+    let mut fwd: HashMap<&str, Vec<(&str, &EdgeKind)>> = HashMap::new();
+    let mut rev: HashMap<&str, Vec<(&str, &EdgeKind)>> = HashMap::new();
+    for e in &edges {
+        if !kind_filter.is_empty() && !kind_filter.contains(&e.edge_kind) {
+            continue;
+        }
+        // Synthesized file-membership edges connect a file to everything in
+        // it; including them makes every intra-file pair "1 hop" and hides
+        // the real wiring. They are still used as a last-resort connector in
+        // undirected mode only when nothing else links the endpoints — for
+        // now simply skip them; file blast aggregation covers membership.
+        if e.metadata
+            .as_ref()
+            .and_then(|m| m.get("containment"))
+            .and_then(|v| v.as_str())
+            == Some("file")
+        {
+            continue;
+        }
+        fwd.entry(e.source_id.as_str())
+            .or_default()
+            .push((e.target_id.as_str(), &e.edge_kind));
+        rev.entry(e.target_id.as_str())
+            .or_default()
+            .push((e.source_id.as_str(), &e.edge_kind));
+    }
+
+    let bfs = |undirected: bool| -> Option<FoundPath> {
+        use std::collections::VecDeque;
+        // parent: node -> (prev_node, kind, reversed)
+        let mut parent: HashMap<&str, (&str, EdgeKind, bool)> = HashMap::new();
+        let mut q: VecDeque<(&str, usize)> = VecDeque::new();
+        q.push_back((from, 0));
+        let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        seen.insert(from);
+        while let Some((cur, depth)) = q.pop_front() {
+            if cur == to {
+                // Reconstruct.
+                let mut hops_rev = Vec::new();
+                let mut walk = cur;
+                while walk != from {
+                    let (prev, kind, reversed) = parent.get(walk)?.clone();
+                    hops_rev.push(PathHop {
+                        edge_kind: kind,
+                        node_id: walk.to_string(),
+                        reversed,
+                    });
+                    walk = prev;
+                }
+                hops_rev.reverse();
+                return Some(FoundPath {
+                    start: from.to_string(),
+                    hops: hops_rev,
+                    directed: !undirected,
+                });
+            }
+            if depth >= max_depth {
+                continue;
+            }
+            let empty = Vec::new();
+            let nexts = fwd
+                .get(cur)
+                .unwrap_or(&empty)
+                .iter()
+                .map(|(n, k)| (*n, *k, false));
+            let backs = if undirected {
+                Some(
+                    rev.get(cur)
+                        .unwrap_or(&empty)
+                        .iter()
+                        .map(|(n, k)| (*n, *k, true)),
+                )
+            } else {
+                None
+            };
+            for (n, k, reversed) in nexts.chain(backs.into_iter().flatten()) {
+                if seen.insert(n) {
+                    parent.insert(n, (cur, k.clone(), reversed));
+                    q.push_back((n, depth + 1));
+                }
+            }
+        }
+        None
+    };
+
+    if let Some(p) = bfs(false) {
+        return Ok(Some(p));
+    }
+    Ok(bfs(true))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -703,6 +836,167 @@ mod tests {
         assert!(
             source.contains("warn!(") || source.contains("tracing::warn!"),
             "cache write failure must emit a warn! log"
+        );
+    }
+
+    // ── find_path tests (TODO-14) ────────────────────────────────────────
+
+    fn path_edge(store: &GraphStore, a: &str, b: &str, kind: EdgeKind) {
+        path_node(store, a);
+        path_node(store, b);
+        store
+            .upsert_edges(
+                "proj",
+                &[crate::store::Edge {
+                    source_id: a.to_string(),
+                    target_id: b.to_string(),
+                    namespace: "memory".to_string(),
+                    language: "vb".to_string(),
+                    edge_kind: kind,
+                    weight: 1,
+                    generation: 1,
+                    metadata: None,
+                    updated_at_ms: 0,
+                }],
+            )
+            .unwrap();
+    }
+
+    fn path_node(store: &GraphStore, id: &str) {
+        store
+            .upsert_nodes(
+                "proj",
+                &[crate::store::Node {
+                    node_id: id.to_string(),
+                    node_type: "function".to_string(),
+                    name: id.to_string(),
+                    namespace: "memory".to_string(),
+                    language: "vb".to_string(),
+                    file_path: engram_core::RelPath::new("f.vb"),
+                    start_line: 1,
+                    end_line: 1,
+                    generation: 1,
+                    metadata: None,
+                }],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn directed_chain_found_with_kinds() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_edge(&store, "btn", "handler", EdgeKind::Dependency);
+        path_edge(&store, "handler", "sql:GetOrders", EdgeKind::SqlCalls);
+        path_edge(
+            &store,
+            "sql:GetOrders",
+            "table:orders",
+            EdgeKind::QueriesTable,
+        );
+
+        let p = find_path(&store, "proj", "btn", "table:orders", 6, &[])
+            .unwrap()
+            .expect("path exists");
+        assert!(p.directed);
+        assert_eq!(p.hops.len(), 3);
+        assert_eq!(p.hops[0].edge_kind, EdgeKind::Dependency);
+        assert_eq!(p.hops[2].node_id, "table:orders");
+        assert!(p.hops.iter().all(|h| !h.reversed));
+    }
+
+    #[test]
+    fn falls_back_to_undirected_when_direction_blocks() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        // a -> shared <- b : no directed a->b path, undirected exists.
+        path_edge(&store, "a", "shared", EdgeKind::Calls);
+        path_edge(&store, "b", "shared", EdgeKind::Calls);
+
+        let p = find_path(&store, "proj", "a", "b", 6, &[])
+            .unwrap()
+            .expect("undirected path");
+        assert!(!p.directed);
+        assert_eq!(p.hops.len(), 2);
+        assert!(p.hops[1].reversed, "second hop goes against edge direction");
+    }
+
+    #[test]
+    fn respects_max_depth_and_kind_filter() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_edge(&store, "n1", "n2", EdgeKind::Calls);
+        path_edge(&store, "n2", "n3", EdgeKind::Calls);
+        path_edge(&store, "n3", "n4", EdgeKind::Calls);
+
+        assert!(
+            find_path(&store, "proj", "n1", "n4", 2, &[])
+                .unwrap()
+                .is_none(),
+            "3 hops must not be found at max_depth 2"
+        );
+        assert!(
+            find_path(&store, "proj", "n1", "n4", 6, &[EdgeKind::SqlCalls])
+                .unwrap()
+                .is_none(),
+            "kind filter excludes Calls"
+        );
+        assert!(
+            find_path(&store, "proj", "n1", "n4", 6, &[EdgeKind::Calls])
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn membership_edges_are_not_shortcuts() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_node(&store, "file:big.vb");
+        path_node(&store, "sym:function:big.vb:A:1");
+        path_node(&store, "sym:function:big.vb:B:9");
+        store
+            .upsert_edges(
+                "proj",
+                &[
+                    crate::store::Edge {
+                        source_id: "file:big.vb".into(),
+                        target_id: "sym:function:big.vb:A:1".into(),
+                        namespace: "memory".into(),
+                        language: "vb".into(),
+                        edge_kind: EdgeKind::Contains,
+                        weight: 1,
+                        generation: 1,
+                        metadata: Some(serde_json::json!({"containment": "file"})),
+                        updated_at_ms: 0,
+                    },
+                    crate::store::Edge {
+                        source_id: "file:big.vb".into(),
+                        target_id: "sym:function:big.vb:B:9".into(),
+                        namespace: "memory".into(),
+                        language: "vb".into(),
+                        edge_kind: EdgeKind::Contains,
+                        weight: 1,
+                        generation: 1,
+                        metadata: Some(serde_json::json!({"containment": "file"})),
+                        updated_at_ms: 0,
+                    },
+                ],
+            )
+            .unwrap();
+
+        assert!(
+            find_path(
+                &store,
+                "proj",
+                "sym:function:big.vb:A:1",
+                "sym:function:big.vb:B:9",
+                6,
+                &[]
+            )
+            .unwrap()
+            .is_none(),
+            "two unrelated functions in one file must not be 'connected' via membership"
         );
     }
 }
