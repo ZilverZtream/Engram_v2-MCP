@@ -79,13 +79,20 @@ These degrade or improve *every single interaction*. Nothing below matters until
 The graph is the differentiator vs. plain RAG. Wrong edges are worse than missing edges:
 they feed blast radius, edit safety, and the ADP gates.
 
-- [ ] **9. Add inheritance/interface edges (Implements, Extends)** (M)
+- [~] **9. Add inheritance/interface edges (Implements, Extends)** (M) — *partial 2026-06-12:
+  InheritsFrom/Implements edge kinds + C# base-list and VB Inherits/Implements extraction;
+  overview lists most-inherited types. Remaining: tree-sitter languages (TS/Python/Rust/Java),
+  blast-radius polymorphism weight (#15), guard-parity inheritance awareness.*
   `engram_graph/src/store.rs`, `cs_extractor.rs`, `vb_extractor.rs`, `parsing.rs`. There
   are 33 edge kinds but no type hierarchy. An agent can't answer "who implements
   IRepository" or see that editing a base class touches 50 subclasses. This also fixes a
   systematic blast-radius blind spot (#15).
 
-- [ ] **10. Clean up stale nodes/edges when files are deleted or change** (S–M)
+- [x] **10. Clean up stale nodes/edges when files are deleted or change** (S–M) — *done
+  2026-06-12: purge_stale_nodes_for_paths runs after every update for re-indexed + deleted
+  files, REMAPPING surviving cross-file edges onto same-identity successor nodes. NOTE
+  discovered: the scheduled GC's GLOBAL purge_old_generations is unsafe for incrementally
+  updated projects (unchanged files keep older generations) — audit gc.rs.*
   `store.rs` (purge_old_generations), `ingest_service.rs`. Deleted files leave orphaned
   symbol nodes and dangling edges until (and sometimes past) GC. Agents then get phantom
   callers in blast radius and "dead" methods that look alive. Purge a file's old symbols
