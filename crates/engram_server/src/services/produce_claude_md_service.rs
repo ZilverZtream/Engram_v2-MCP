@@ -1235,6 +1235,17 @@ fn render_state_and_data(
                 a.mode
             ));
         }
+        if !a.required_roles.is_empty() {
+            strong.push(format!(
+                "Role names are string literals checked across {} guarded function(s): {}. Use these EXACT strings — a typo'd role name fails open or locks everyone out depending on the guard.",
+                a.session_auth_patterns,
+                a.required_roles
+                    .iter()
+                    .map(|r| format!("`{r}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
     }
 
     if !mandatory.is_empty() {
@@ -2639,6 +2650,34 @@ Read docs/internal.md first.
         // so both old and new headings must be absent.
         assert!(!md.contains("Database"));
         assert!(!md.contains("## Auth"));
+    }
+
+    #[test]
+    fn auth_roles_render_as_exact_string_rule() {
+        let md = render_state_and_data(
+            None,
+            None,
+            Some(&AuthSummary {
+                mode: "house guard helpers: checkisuserinrole (66x)".into(),
+                required_roles: vec!["Administrator".into(), "Worker".into()],
+                session_auth_patterns: 66,
+            }),
+        );
+        assert!(
+            md.contains("checkisuserinrole"),
+            "mode must render:
+{md}"
+        );
+        assert!(
+            md.contains("`Administrator`") && md.contains("`Worker`"),
+            "role literals must be listed verbatim:
+{md}"
+        );
+        assert!(
+            md.contains("66 guarded function"),
+            "guarded count must appear:
+{md}"
+        );
     }
 
     #[test]
