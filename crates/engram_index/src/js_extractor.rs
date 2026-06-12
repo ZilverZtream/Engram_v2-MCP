@@ -260,7 +260,7 @@ pub fn is_js_file(path: &Path) -> bool {
 fn extract_jquery_selectors(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -278,7 +278,7 @@ fn extract_jquery_selectors(
         let line = line_of(line_starts, byte_offset);
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -302,7 +302,7 @@ fn extract_jquery_selectors(
 fn extract_asp_client_ids(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -320,7 +320,7 @@ fn extract_asp_client_ids(
         let line = line_of(line_starts, byte_offset);
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -343,7 +343,7 @@ fn extract_asp_client_ids(
 fn extract_postbacks(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -364,7 +364,7 @@ fn extract_postbacks(
         let short_id = ctrl_id.rsplit('$').next().unwrap_or(ctrl_id);
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -383,7 +383,7 @@ fn extract_postbacks(
 fn extract_getelementbyid(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -401,7 +401,7 @@ fn extract_getelementbyid(
         let line = line_of(line_starts, byte_offset);
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -524,7 +524,7 @@ fn extract_xhr_calls(
 fn extract_page_methods(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -546,7 +546,7 @@ fn extract_page_methods(
         meta.insert("ajax_target_method".into(), method_name.to_string());
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -568,7 +568,7 @@ fn extract_page_methods(
 /// metadata when a method name is extracted.
 fn emit_ajax_edge(
     edges: &mut Vec<ExtractedEdge>,
-    file_name: &str,
+    _file_name: &str,
     line: u32,
     raw_url: &str,
     transport: &str,
@@ -618,7 +618,7 @@ fn emit_ajax_edge(
     };
 
     edges.push(ExtractedEdge {
-        source_name: file_name.to_string(),
+        source_name: "file".to_string(),
         source_kind: "file".to_string(),
         source_start_line: line,
         source_language: "javascript".to_string(),
@@ -659,7 +659,7 @@ fn modern_gis_equivalent(library: &str, class: &str) -> &'static str {
 
 /// Emit a spatial_call edge.
 fn emit_spatial_edge(
-    file_name: &str,
+    _file_name: &str,
     line: u32,
     library: &str,
     class: &str,
@@ -674,7 +674,7 @@ fn emit_spatial_edge(
     );
 
     edges.push(ExtractedEdge {
-        source_name: file_name.to_string(),
+        source_name: "file".to_string(),
         source_kind: "file".to_string(),
         source_start_line: line,
         source_language: "javascript".to_string(),
@@ -951,7 +951,7 @@ fn extract_gis_configs(
             });
 
             edges.push(ExtractedEdge {
-                source_name: file_name.to_string(),
+                source_name: "file".to_string(),
                 source_kind: "file".to_string(),
                 source_start_line: line,
                 source_language: "javascript".to_string(),
@@ -1025,7 +1025,7 @@ fn extract_gis_configs(
 fn extract_ctl00_references(
     source: &str,
     line_starts: &[usize],
-    file_name: &str,
+    _file_name: &str,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let re = match get_compiled_regex(
@@ -1049,7 +1049,7 @@ fn extract_ctl00_references(
         meta.insert("resolved_control_id".into(), ctrl_id.into());
 
         edges.push(ExtractedEdge {
-            source_name: file_name.to_string(),
+            source_name: "file".to_string(),
             source_kind: "file".to_string(),
             source_start_line: line,
             source_language: "javascript".to_string(),
@@ -1140,7 +1140,7 @@ fn extract_gis_layer_inventory(
             meta.insert("layer_type".into(), "wms".into());
 
             edges.push(ExtractedEdge {
-                source_name: file_name.to_string(),
+                source_name: "file".to_string(),
                 source_kind: "file".to_string(),
                 source_start_line: line,
                 source_language: "javascript".to_string(),
@@ -1555,7 +1555,7 @@ fn extract_esri_arcgis(
             );
 
             edges.push(ExtractedEdge {
-                source_name: file_name.to_string(),
+                source_name: "file".to_string(),
                 source_kind: "file".to_string(),
                 source_start_line: line,
                 source_language: "javascript".to_string(),
@@ -1590,7 +1590,7 @@ fn extract_esri_arcgis(
             );
 
             edges.push(ExtractedEdge {
-                source_name: file_name.to_string(),
+                source_name: "file".to_string(),
                 source_kind: "file".to_string(),
                 source_start_line: line,
                 source_language: "javascript".to_string(),
@@ -2713,12 +2713,16 @@ mod tests {
     }
 
     #[test]
-    fn edge_source_name_is_filename() {
+    fn edge_source_uses_file_sentinel() {
+        // Edges must source from the "file" sentinel so ingest substitutes
+        // the full project-relative path. Using the basename created phantom
+        // `file:{basename}` nodes disconnected from the real file nodes.
         let js = r#"__doPostBack('btnCheck', '');"#;
         let path = test_path("mypage.js");
         let (_, edges) = extract_js(&path, js);
         assert!(!edges.is_empty());
-        assert_eq!(edges[0].source_name, "mypage.js");
+        assert_eq!(edges[0].source_name, "file");
+        assert_eq!(edges[0].source_kind, "file");
     }
 
     #[test]
