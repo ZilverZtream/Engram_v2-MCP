@@ -56,6 +56,9 @@ pub struct ComplexityBreakdown {
     /// edges, i.e. how many other nodes break if this target changes. 0-10.
     #[serde(default)]
     pub dependency_density_score: f32,
+    /// Polymorphism fan-out - direct subclasses / implementors. 0-10.
+    #[serde(default)]
+    pub polymorphism_score: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,10 +138,13 @@ fn meta_f32(metadata: Option<&serde_json::Value>, key: &str) -> Option<f32> {
 // dependency turned out to be too modest once combined with the 0.80
 // base-weighted dilution below — a target with 170 incoming deps and nothing
 // else scored 2/10, which under-reports the risk of touching such a node.
-const WEIGHT_DEPENDENCY: f32 = 0.40;
+const WEIGHT_DEPENDENCY: f32 = 0.35;
 const WEIGHT_SQL: f32 = 0.15;
 const WEIGHT_STATE: f32 = 0.15;
-const WEIGHT_HANDLES: f32 = 0.10;
+const WEIGHT_HANDLES: f32 = 0.05;
+/// Polymorphism fan-out: classes inheriting from / implementing this node.
+/// Editing a base class or interface ripples into every derived type.
+const WEIGHT_POLYMORPHISM: f32 = 0.10;
 const WEIGHT_PAGERANK: f32 = 0.10;
 const WEIGHT_GIS: f32 = 0.05;
 const WEIGHT_SCRIPT: f32 = 0.05;
@@ -308,6 +314,14 @@ pub fn compute_blast_radius(
         + in_counts.get(&EdgeKind::SpatialCall).copied().unwrap_or(0);
     let gis_coupling_score = normalize_score(gis_count, 5);
 
+    // Polymorphism fan-out: incoming inherits_from / implements_interface
+    // edges = direct subclasses and implementors whose behavior changes
+    // when this node changes. Saturates at 8 - one base page class with
+    // 19 derived pages is already maximal ripple.
+    let polymorphism_count = in_counts.get(&EdgeKind::InheritsFrom).copied().unwrap_or(0)
+        + in_counts.get(&EdgeKind::Implements).copied().unwrap_or(0);
+    let polymorphism_score = normalize_score(polymorphism_count, 8);
+
     // Script injection
     let script_count = out_counts
         .get(&EdgeKind::InjectsScript)
@@ -401,7 +415,8 @@ pub fn compute_blast_radius(
         + handles_clause_score * WEIGHT_HANDLES
         + pagerank_score * WEIGHT_PAGERANK
         + gis_coupling_score * WEIGHT_GIS
-        + script_injection_score * WEIGHT_SCRIPT;
+        + script_injection_score * WEIGHT_SCRIPT
+        + polymorphism_score * WEIGHT_POLYMORPHISM;
     let uncertainty_uplift = (uncertainty_composite * 0.15).min(1.5);
     let raw_score = (base_weighted_score + uncertainty_uplift).min(10.0);
     let migration_risk = (raw_score.round() as u8).clamp(1, 10);
@@ -525,6 +540,18 @@ pub fn compute_blast_radius(
                 modern_pattern: Some("React: react-leaflet or @react-google-maps/api".into()),
             });
         }
+        if polymorphism_score > 5.0 {
+            guidance.push(GuidanceItem {
+                concern: "Polymorphism Fan-Out".into(),
+                severity: "high".into(),
+                recommendation: "Multiple classes inherit from or implement this type. \
+                    Any behavioral change here silently changes every derived class - \
+                    enumerate them (find_symbol_references / inherits_from edges) and \
+                    test each derived page before shipping."
+                    .into(),
+                modern_pattern: Some("Prefer composition or explicit interface versioning".into()),
+            });
+        }
         if script_injection_score > 5.0 {
             guidance.push(GuidanceItem {
                 concern: "Server-to-Client Script Injection".into(),
@@ -564,6 +591,7 @@ pub fn compute_blast_radius(
             gis_coupling_score,
             script_injection_score,
             dependency_density_score,
+            polymorphism_score,
         },
         uncertainty_breakdown: UncertaintyBreakdown {
             dynamic_ui_uncertainty_score,
@@ -625,6 +653,10 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
     out.push_str(&format!(
         "  Script Injection: {:.1}/10\n",
         bd.script_injection_score
+    ));
+    out.push_str(&format!(
+        "  Polymorphism:     {:.1}/10\n",
+        bd.polymorphism_score
     ));
 
     out.push_str("Uncertainty Breakdown:\n");
@@ -770,6 +802,7 @@ mod tests {
                 pagerank_score: 5.0,
                 state_coupling_score: 4.0,
                 gis_coupling_score: 2.0,
+                polymorphism_score: 0.0,
                 script_injection_score: 3.0,
                 dependency_density_score: 1.0,
             },
@@ -978,6 +1011,7 @@ mod tests {
                 pagerank_score: 2.0,
                 state_coupling_score: 4.0,
                 gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
                 script_injection_score: 1.0,
                 dependency_density_score: 2.0,
             },
@@ -1039,6 +1073,7 @@ mod tests {
                 pagerank_score: 0.0,
                 state_coupling_score: 0.0,
                 gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
                 script_injection_score: 0.0,
                 dependency_density_score: 0.0,
             },
@@ -1077,6 +1112,7 @@ mod tests {
                 pagerank_score: 0.0,
                 state_coupling_score: 0.0,
                 gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
                 script_injection_score: 0.0,
                 dependency_density_score: 5.555,
             },
@@ -1107,7 +1143,8 @@ mod tests {
             + WEIGHT_PAGERANK
             + WEIGHT_STATE
             + WEIGHT_GIS
-            + WEIGHT_SCRIPT;
+            + WEIGHT_SCRIPT
+            + WEIGHT_POLYMORPHISM;
         assert!(
             (sum - 1.0).abs() < 0.001,
             "weights must sum to 1.0, got {sum}"
@@ -1165,6 +1202,7 @@ EndProject
                 pagerank_score: 2.0,
                 state_coupling_score: 3.0,
                 gis_coupling_score: 0.0,
+                polymorphism_score: 0.0,
                 script_injection_score: 0.0,
                 dependency_density_score: 1.0,
             },
@@ -1325,6 +1363,84 @@ EndProject
             report.risk_band
         );
         assert_eq!(report.risk_band, RiskBand::Low);
+    }
+
+    /// A base class with many subclasses must register polymorphism
+    /// fan-out: 16 incoming InheritsFrom edges saturate the sub-score
+    /// and trigger the Polymorphism Fan-Out guidance item.
+    #[test]
+    fn compute_blast_radius_base_class_fanout_scores_polymorphism() {
+        let (_tmp, store) = tmp_graph();
+        let target_id = "sym:class:Base.vb:BasePage:1";
+        let target = engram_graph::Node {
+            node_id: target_id.to_string(),
+            node_type: "class".to_string(),
+            name: "BasePage".to_string(),
+            namespace: "memory".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new("Base.vb"),
+            start_line: 1,
+            end_line: 10,
+            generation: 1,
+            metadata: None,
+        };
+        store
+            .upsert_nodes("proj", std::slice::from_ref(&target))
+            .expect("upsert target");
+
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+        for i in 0..16 {
+            let sid = format!("sym:class:Page{i}.vb:Page{i}:1");
+            nodes.push(engram_graph::Node {
+                node_id: sid.clone(),
+                node_type: "class".to_string(),
+                name: format!("Page{i}"),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                file_path: engram_core::RelPath::new(&format!("Page{i}.vb")),
+                start_line: 1,
+                end_line: 10,
+                generation: 1,
+                metadata: None,
+            });
+            edges.push(engram_graph::Edge {
+                source_id: sid,
+                target_id: target_id.to_string(),
+                namespace: "memory".to_string(),
+                language: "vb".to_string(),
+                edge_kind: EdgeKind::InheritsFrom,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            });
+        }
+        store
+            .upsert_nodes("proj", &nodes)
+            .expect("upsert subclasses");
+        store.upsert_edges("proj", &edges).expect("upsert inherits");
+
+        let report = compute_blast_radius(&store, "proj", target_id, 1, true)
+            .expect("compute_blast_radius must succeed");
+
+        assert!(
+            (report.complexity_breakdown.polymorphism_score - 10.0).abs() < 0.01,
+            "16 subclasses saturates polymorphism at 10/10; got {}",
+            report.complexity_breakdown.polymorphism_score
+        );
+        assert!(
+            report
+                .guidance
+                .iter()
+                .any(|g| g.concern.contains("Polymorphism")),
+            "polymorphism guidance must fire"
+        );
+        assert!(
+            report.migration_risk >= 2,
+            "base-class fan-out must lift risk above the floor; got {}",
+            report.migration_risk
+        );
     }
 
     /// A target with 100 incoming dependencies AND SQL edges AND state
