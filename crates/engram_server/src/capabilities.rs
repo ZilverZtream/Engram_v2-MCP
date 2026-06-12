@@ -86,6 +86,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "find_connection_path",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_agent_integration",
         status: CapabilityStatus::Implemented,
     },

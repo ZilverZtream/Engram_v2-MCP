@@ -123,7 +123,7 @@ they feed blast radius, edit safety, and the ADP gates.
   first `MyMethod`, regardless of signature. Store arity (cheap, tree-sitter gives it) and
   prefer arity matches; record `ambiguous_overload` when unsure.
 
-- [ ] **14. Path-between / reachability / bottleneck graph queries** (M)
+- [x] **14. Path-between / reachability graph queries** (M) - *done 2026-06-12: engram_graph::analysis::find_path (BFS, directed-then-undirected fallback, kind filter, membership-edge exclusion, 4 tests) + find_connection_path tool with #11-style ambiguity errors. Bottleneck/SCC queries remain under #20.*
   `graph_tools.rs`, `graph_service.rs`. Agents can traverse one hop at a time but can't
   ask "how does LoginPage reach the Orders table" or "what's transitively affected if I
   change X". Add `find_paths_between`, `reachable_from` (with depth + edge-kind filters),

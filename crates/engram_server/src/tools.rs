@@ -181,6 +181,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Shortest connection path between two code entities ('how does this button reach that table?'): BFS over the full edge graph, directed first then undirected fallback, every hop labeled with its edge kind. Accepts node_ids, names, or FQNs; ambiguous names return a candidate list. Related: blast_radius for impact, trace_data_flow for value-level detail."
+    )]
+    pub async fn find_connection_path(
+        &self,
+        params: Parameters<FindConnectionPathRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_connection_path(params.0).await
+    }
+
+    #[tool(
         description = "Re-run placeholder edge resolution on the existing graph (no reindex). Use after upgrading Engram so resolver improvements apply to already-indexed projects; returns the count of '::name' placeholder edges resolved to concrete nodes."
     )]
     pub async fn resolve_graph_edges(
