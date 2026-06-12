@@ -54,6 +54,31 @@ pub struct HybridHit {
 /// function signature plus context, small enough not to flood agent context.
 const SNIPPET_MAX_CHARS: usize = 500;
 
+/// How trustworthy the vector half of hybrid search is for the configured
+/// embedding backend. The default install ("local"/"candle"/empty) uses a
+/// deterministic trigram-projection embedder — useful for fuzzy identifier
+/// matching but NOT semantic. Agents deserve to know the difference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SemanticQuality {
+    /// A real embedding model (ollama / openai / remote).
+    Semantic,
+    /// Trigram-projection stub: deterministic, non-semantic.
+    DegradedTrigram,
+    /// Vector search intentionally disabled (fts_only).
+    Off,
+}
+
+/// Map an `embedding_backend` config string to its semantic quality tier.
+pub fn semantic_quality_for_backend(backend: &str) -> SemanticQuality {
+    match backend {
+        "ollama" | "openai" | "remote" => SemanticQuality::Semantic,
+        "fts_only" => SemanticQuality::Off,
+        // "local", "candle", and "" (Config::default) all resolve to the
+        // trigram-projection embedder family.
+        _ => SemanticQuality::DegradedTrigram,
+    }
+}
+
 /// Cut `content` at the last line boundary at or below `max_chars`.
 ///
 /// Falls back to a plain char-boundary cut when the first line alone exceeds
@@ -222,7 +247,10 @@ impl HybridSearchEngine {
         // quality without any operator-visible signal.
         #[cfg(feature = "vector")]
         let embedder: Arc<dyn engram_ml::Embedder> = match embedding_backend.as_str() {
-            "openai" | "remote" => build_embedder_for_backend(cfg)?,
+            // EMB3: "ollama" was missing here and fell through to the bail arm,
+            // so a documented backend could never be used. Route it through the
+            // same fail-fast builder as openai/remote.
+            "openai" | "remote" | "ollama" => build_embedder_for_backend(cfg)?,
             "local" | "candle" => Arc::new(engram_ml::embed::LocalEmbedder),
             // "fts_only" and empty-string (Config::default()) signal that vector
             // embeddings are intentionally disabled. Use a no-op stub embedder.
@@ -233,7 +261,7 @@ impl HybridSearchEngine {
             )),
             _ => anyhow::bail!(
                 "EMB2: unknown embedding backend {:?} — check embedding_backend in config \
-                 (valid: openai, remote, local, candle, fts_only)",
+                 (valid: openai, remote, ollama, local, candle, fts_only)",
                 embedding_backend
             ),
         };
@@ -259,6 +287,13 @@ impl HybridSearchEngine {
             mmr_oversampling: cfg.mmr_oversampling,
             memory_budget,
         })
+    }
+
+    /// Semantic quality tier of this engine's vector half. Surfaced in search
+    /// responses so agents know whether "semantic" hits are real embeddings
+    /// or the default trigram-projection stub.
+    pub fn semantic_quality(&self) -> SemanticQuality {
+        semantic_quality_for_backend(&self.embedding_backend)
     }
 
     /// Create a long-lived Tantivy writer for bulk indexing.
@@ -2794,5 +2829,85 @@ fn build_embedder_for_backend(
         _ => Ok(Arc::new(engram_ml::embed::ProjectionEmbedder::new(
             crate::vector::VECTOR_DIM,
         ))),
+    }
+}
+
+#[cfg(test)]
+mod p0_core_loop_tests {
+    use super::{SNIPPET_MAX_CHARS, SemanticQuality, semantic_quality_for_backend, snippet_of};
+
+    #[test]
+    fn semantic_quality_maps_every_backend() {
+        assert_eq!(
+            semantic_quality_for_backend("ollama"),
+            SemanticQuality::Semantic
+        );
+        assert_eq!(
+            semantic_quality_for_backend("openai"),
+            SemanticQuality::Semantic
+        );
+        assert_eq!(
+            semantic_quality_for_backend("remote"),
+            SemanticQuality::Semantic
+        );
+        assert_eq!(semantic_quality_for_backend("fts_only"), SemanticQuality::Off);
+        assert_eq!(
+            semantic_quality_for_backend("local"),
+            SemanticQuality::DegradedTrigram
+        );
+        assert_eq!(
+            semantic_quality_for_backend("candle"),
+            SemanticQuality::DegradedTrigram
+        );
+        // Config::default() leaves the backend empty — that is the default
+        // install and must be labeled degraded, not semantic.
+        assert_eq!(
+            semantic_quality_for_backend(""),
+            SemanticQuality::DegradedTrigram
+        );
+    }
+
+    #[test]
+    fn snippet_short_content_is_untouched() {
+        let (sn, truncated) = snippet_of("fn main() {}", SNIPPET_MAX_CHARS);
+        assert_eq!(sn, "fn main() {}");
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn snippet_cuts_at_line_boundary() {
+        let line = "a".repeat(80);
+        let content = vec![line.as_str(); 10].join("\n"); // 809 chars
+        let (sn, truncated) = snippet_of(&content, 500);
+        assert!(truncated);
+        // 6 lines of 80 + 5 newlines = 485 ≤ 500; cut lands on a boundary.
+        assert!(content.starts_with(&sn));
+        assert_eq!(content.as_bytes()[sn.len()], b'\n');
+        assert!(sn.chars().count() <= 500);
+    }
+
+    #[test]
+    fn snippet_single_oversized_line_falls_back_to_char_cut() {
+        let content = "x".repeat(900); // no newlines at all
+        let (sn, truncated) = snippet_of(&content, 500);
+        assert!(truncated);
+        assert_eq!(sn.chars().count(), 500);
+    }
+
+    #[test]
+    fn snippet_exact_budget_is_not_truncated() {
+        let content = "y".repeat(500);
+        let (sn, truncated) = snippet_of(&content, 500);
+        assert_eq!(sn.len(), 500);
+        assert!(!truncated);
+    }
+
+    #[test]
+    fn snippet_multibyte_safe() {
+        // 600 two-byte chars: a 500-char budget must not split a char.
+        let content = "é".repeat(600);
+        let (sn, truncated) = snippet_of(&content, 500);
+        assert!(truncated);
+        assert_eq!(sn.chars().count(), 500);
     }
 }

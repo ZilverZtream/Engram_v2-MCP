@@ -1768,6 +1768,16 @@ impl Engram {
         out.push_str(&format!("tantivy_docs_total: {total_docs}\n"));
         out.push_str(&format!("lancedb_vectors: {lancedb_rows}\n"));
         out.push_str(&format!("lancedb_rows: {lancedb_rows}\n"));
+        // P0-2: surface the semantic tier so agents/operators can see at a
+        // glance whether vector search is real, the trigram stub, or off.
+        let semantic = match ps.search.semantic_quality() {
+            engram_index::SemanticQuality::Semantic => "true",
+            engram_index::SemanticQuality::DegradedTrigram => {
+                "degraded (trigram projection — set embedding_backend=ollama|openai)"
+            }
+            engram_index::SemanticQuality::Off => "off (fts_only)",
+        };
+        out.push_str(&format!("semantic_search: {semantic}\n"));
 
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
