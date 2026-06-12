@@ -1170,8 +1170,29 @@ impl GraphStore {
             return Ok(*score);
         }
 
+        let computed = self.get_or_compute_centrality(project_id, generation)?;
+        Ok(computed.get(node_id).copied().unwrap_or(0.0))
+    }
+
+    /// Cached PageRank for a whole project generation: cache hit returns the
+    /// stored map; miss computes, persists (best-effort), and returns it.
+    /// TODO-41: callers (blast radius, reranking) previously recomputed
+    /// PageRank on every request and the cache was never written.
+    pub fn get_or_compute_centrality(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> anyhow::Result<HashMap<String, f32>> {
+        if let Some(cached) = self.get_cached_centrality(project_id, generation)? {
+            return Ok(cached);
+        }
         let computed = compute_pagerank(self, project_id, generation)?;
-        Ok(computed.pagerank.get(node_id).copied().unwrap_or(0.0))
+        if let Err(e) = self.set_cached_centrality(project_id, generation, &computed.pagerank) {
+            tracing::warn!(
+                "centrality cache write failed for {project_id} gen {generation}: {e:#}"
+            );
+        }
+        Ok(computed.pagerank)
     }
 
     pub fn get_cached_centrality(
@@ -2478,7 +2499,7 @@ mod tests {
             );
         }
 
-        let variant_count = 40;
+        let variant_count = 43;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,
