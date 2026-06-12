@@ -1957,6 +1957,33 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
+    /// Re-run placeholder edge resolution on the existing graph. Lets
+    /// resolver upgrades (e.g. edge-metadata FQN matching) apply to an
+    /// already-indexed project without a full reindex.
+    pub async fn handle_resolve_graph_edges(
+        &self,
+        req: crate::models::ProjectIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        crate::handlers::validate_project_id(&req.project_id)?;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let resolved = tokio::time::timeout(
+            std::time::Duration::from_secs(600),
+            tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid)),
+        )
+        .await
+        .map_err(|_| McpError::internal_error("resolve_symbol_edges timed out after 600s", None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "resolve_graph_edges: {resolved} placeholder edge(s) resolved to concrete nodes.
+             Edges still starting with '::' had no matching symbol (external or dynamic targets).
+             next: find_symbol_references / trace_ui_event now see the resolved targets."
+        ))]))
+    }
+
     pub async fn handle_repair_project(
         &self,
         req: RepairProjectRequest,
