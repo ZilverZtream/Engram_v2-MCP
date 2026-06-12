@@ -3261,6 +3261,22 @@ impl Engram {
             .unwrap_or(false)
         };
 
+        // ── 8c2. Co-change pairs from git temporal coupling. Empty until
+        // index_git_history has run - the rules pipeline drops the section
+        // when there are no pairs.
+        let co_change_pairs = {
+            let graph = self.state.graph.clone();
+            let p = pid.clone();
+            tokio::task::spawn_blocking(move || {
+                let edges = graph
+                    .list_edges_by_kind(&p, engram_graph::EdgeKind::TemporalCoupling, 100_000)
+                    .unwrap_or_default();
+                svc::top_co_change_pairs(&edges, 20)
+            })
+            .await
+            .unwrap_or_default()
+        };
+
         // ── 8d. Auth summary: house guard helpers + roles from guard
         // metadata stamped on function nodes by the extractors. ────────
         let auth_summary = {
@@ -3334,7 +3350,7 @@ impl Engram {
             per_language_rules,
             state_summary,
             db_summary,
-            co_change_pairs: Vec::new(),
+            co_change_pairs,
             auth_summary,
             frontend_warnings: Vec::new(),
             existing_claude_md: existing_md.clone(),
