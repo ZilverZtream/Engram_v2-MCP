@@ -65,14 +65,21 @@ fn resolves_exact_name_match() {
 
     let target = make_node("sym:function:a.vb:Foo:1", "Foo", "a.vb");
     let source = make_node("sym:function:b.vb:Bar:1", "Bar", "b.vb");
-    graph.upsert_nodes(pid, &[target.clone(), source.clone()]).unwrap();
-    graph.upsert_edges(pid, &[make_call(&source.node_id, "::Foo")]).unwrap();
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(pid, &[make_call(&source.node_id, "::Foo")])
+        .unwrap();
 
     let resolved = graph.resolve_symbol_edges(pid).unwrap();
     assert_eq!(resolved, 1);
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
-    let rewritten: Vec<_> = calls.iter().filter(|e| e.source_id == source.node_id).collect();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
     assert_eq!(rewritten.len(), 1);
     assert_eq!(rewritten[0].target_id, target.node_id);
 }
@@ -91,7 +98,9 @@ fn resolves_metadata_fqn_fallback() {
         "MyModule.SpecialWork",
     );
     let source = make_node("sym:function:b.vb:Caller:1", "Caller", "b.vb");
-    graph.upsert_nodes(pid, &[target.clone(), source.clone()]).unwrap();
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
     graph
         .upsert_edges(pid, &[make_call(&source.node_id, "::MyModule.SpecialWork")])
         .unwrap();
@@ -100,7 +109,10 @@ fn resolves_metadata_fqn_fallback() {
     assert_eq!(resolved, 1);
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
-    let rewritten: Vec<_> = calls.iter().filter(|e| e.source_id == source.node_id).collect();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
     assert_eq!(rewritten[0].target_id, target.node_id);
 }
 
@@ -111,9 +123,15 @@ fn resolves_terminal_segment_fallback() {
     let pid = "test-terminal";
 
     // Node name is "MyModule.Helper" — terminal segment is "Helper".
-    let target = make_node("sym:function:a.vb:MyModule.Helper:1", "MyModule.Helper", "a.vb");
+    let target = make_node(
+        "sym:function:a.vb:MyModule.Helper:1",
+        "MyModule.Helper",
+        "a.vb",
+    );
     let source = make_node("sym:function:b.vb:Caller:1", "Caller", "b.vb");
-    graph.upsert_nodes(pid, &[target.clone(), source.clone()]).unwrap();
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
     graph
         .upsert_edges(pid, &[make_call(&source.node_id, "::Helper")])
         .unwrap();
@@ -122,7 +140,10 @@ fn resolves_terminal_segment_fallback() {
     assert_eq!(resolved, 1);
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
-    let rewritten: Vec<_> = calls.iter().filter(|e| e.source_id == source.node_id).collect();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
     assert_eq!(rewritten[0].target_id, target.node_id);
 }
 
@@ -148,7 +169,10 @@ fn disambiguates_by_file_path() {
     assert_eq!(resolved, 1);
 
     let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
-    let rewritten: Vec<_> = calls.iter().filter(|e| e.source_id == source.node_id).collect();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
     assert_eq!(
         rewritten[0].target_id, node_a.node_id,
         "Expected tiebreaker to pick node_a (same file as source)"
@@ -185,7 +209,9 @@ fn adj_in_updated_after_resolve() {
 
     let target = make_node("sym:function:a.vb:SafeRedirect:1", "SafeRedirect", "a.vb");
     let source = make_node("sym:function:b.vb:Page_Load:1", "Page_Load", "b.vb");
-    graph.upsert_nodes(pid, &[target.clone(), source.clone()]).unwrap();
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
     graph
         .upsert_edges(pid, &[make_call(&source.node_id, "::SafeRedirect")])
         .unwrap();
@@ -219,7 +245,9 @@ fn mixed_resolution_strategies() {
     // Source
     let src = make_node("src", "Caller", "d.vb");
 
-    graph.upsert_nodes(pid, &[n1.clone(), n2.clone(), n3.clone(), src.clone()]).unwrap();
+    graph
+        .upsert_nodes(pid, &[n1.clone(), n2.clone(), n3.clone(), src.clone()])
+        .unwrap();
     graph
         .upsert_edges(
             pid,
@@ -244,4 +272,99 @@ fn mixed_resolution_strategies() {
         targets.contains(&"::NoSuchThing"),
         "Unresolvable should stay as ::NoSuchThing"
     );
+}
+
+#[test]
+fn resolves_via_edge_metadata_fqn_when_name_is_ambiguous_across_files() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-edge-fqn";
+
+    // Two handlers share the short name "btnSave_Click" in DIFFERENT files;
+    // the edge source (a control) lives in a third file (the .aspx page), so
+    // the same-file tiebreak cannot disambiguate.
+    let a = make_node_with_fqn(
+        "sym:function:admin/a.aspx.vb:btnSave_Click:10",
+        "btnSave_Click",
+        "admin/a.aspx.vb",
+        "_admin.PageA.btnSave_Click",
+    );
+    let b = make_node_with_fqn(
+        "sym:function:public/b.aspx.vb:btnSave_Click:20",
+        "btnSave_Click",
+        "public/b.aspx.vb",
+        "_public.PageB.btnSave_Click",
+    );
+    let source = make_node("control:admin/a.aspx:btnSave", "btnSave", "admin/a.aspx");
+    graph
+        .upsert_nodes(pid, &[a.clone(), b.clone(), source.clone()])
+        .unwrap();
+
+    // event_wiring-style edge: placeholder is the short name, the edge's own
+    // metadata carries the precise handler FQN.
+    let mut edge = make_call(&source.node_id, "::btnSave_Click");
+    edge.edge_kind = EdgeKind::Insight; // any kind; resolution is kind-agnostic
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "fqn".into(),
+        serde_json::Value::String("_admin.PageA.btnSave_Click".into()),
+    );
+    edge.metadata = Some(serde_json::Value::Object(m));
+    graph.upsert_edges(pid, &[edge]).unwrap();
+
+    let resolved = graph.resolve_symbol_edges(pid).unwrap();
+    assert_eq!(resolved, 1, "edge metadata fqn should disambiguate");
+
+    let edges = graph.list_edges(pid, Some(EdgeKind::Insight)).unwrap();
+    let rewritten: Vec<_> = edges
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
+    assert_eq!(rewritten.len(), 1);
+    assert_eq!(
+        rewritten[0].target_id, a.node_id,
+        "must pick the admin handler named by the edge fqn, not the public one"
+    );
+}
+
+#[test]
+fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-edge-fqn-miss";
+
+    // Single node whose dotted name ends in the placeholder's short name.
+    let t = make_node(
+        "sym:function:x.vb:Ns.Helper.DoWork:5",
+        "Ns.Helper.DoWork",
+        "x.vb",
+    );
+    let source = make_node("sym:function:y.vb:Caller:1", "Caller", "y.vb");
+    graph
+        .upsert_nodes(pid, &[t.clone(), source.clone()])
+        .unwrap();
+
+    // Edge fqn points at something that does not exist — must not block
+    // the terminal-segment fallback.
+    let mut edge = make_call(&source.node_id, "::DoWork");
+    let mut m = serde_json::Map::new();
+    m.insert(
+        "fqn".into(),
+        serde_json::Value::String("Ghost.Class.DoWork".into()),
+    );
+    edge.metadata = Some(serde_json::Value::Object(m));
+    graph.upsert_edges(pid, &[edge]).unwrap();
+
+    let resolved = graph.resolve_symbol_edges(pid).unwrap();
+    assert_eq!(
+        resolved, 1,
+        "terminal fallback still applies after fqn miss"
+    );
+
+    let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
+    assert_eq!(rewritten[0].target_id, t.node_id);
 }

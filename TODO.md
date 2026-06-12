@@ -110,7 +110,7 @@ they feed blast radius, edit safety, and the ADP gates.
   `ExtractionConfidence` into the Autonomous Decision Protocol's extraction gate (it's
   computed today but not consumed).
 
-- [ ] **12b. resolve_symbol_edges: consult edge-metadata FQN during resolution** (S)
+- [x] **12b. resolve_symbol_edges: consult edge-metadata FQN during resolution** (S) — *done 2026-06-12: Step 2b matches the edge's own metadata.fqn against node names + node FQNs before terminal-segment fallback; 2 behavioral tests (ambiguous cross-file handler, fqn-miss fallthrough).*
   `engram_graph/src/store.rs`. The HashMap rewrite of resolve_symbol_edges dropped the
   old implementation's use of the EDGE's `metadata.fqn` (webforms event_wiring edges
   carry the handler FQN there). Restore it as a step before terminal-segment matching —
