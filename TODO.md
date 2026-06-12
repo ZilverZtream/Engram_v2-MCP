@@ -162,7 +162,7 @@ they feed blast radius, edit safety, and the ADP gates.
   walk watermark periodically (e.g. every edge flush), or rebuild temporal edges
   from scratch per full run instead of incrementing.
 
-- [ ] **17. Mark dynamic state/SQL access instead of skipping it** (M)
+- [~] **17. Mark dynamic state/SQL access instead of skipping it** (M) - *state half done 2026-06-13: extractor already emitted unresolved_state_read/write (47+13 on OciusX); now COUNTED in StateSummary.unresolved_accesses and rendered as a mandatory lower-bound rule in state-and-data.md. Remaining: string-built SQL marking in sql_parser, trace_state_usage footer.*
   `state_extractor.rs`, `sql_parser.rs`. `Session[variableName]` and string-built SQL are
   silently dropped. Emit `dynamic: true` unresolved-access nodes/edges so data-flow and
   state-migration reports can say "plus N dynamic accesses we couldn't resolve" — agents
