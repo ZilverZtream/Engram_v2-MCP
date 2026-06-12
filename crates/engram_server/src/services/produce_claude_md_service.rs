@@ -1377,7 +1377,16 @@ pub fn finalize_co_change_pairs(
     best: std::collections::HashMap<(String, String), u32>,
     limit: usize,
 ) -> Vec<(String, String, u32)> {
-    let pairs: Vec<(String, String, u32)> = best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    // PERF: the tail-merge below is O(n^2) by construction (linear probe of
+    // `merged` per pair). Over the full OciusX pair map (~650k unique pairs)
+    // that is ~10^11 comparisons — the 30-minute doc-regen hang. Spelling
+    // variants we care about are by definition near the top by weight, so
+    // sort first and tail-merge only a small working set.
+    const MERGE_WORKING_SET: usize = 256;
+    let mut pairs: Vec<(String, String, u32)> =
+        best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    pairs.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
+    pairs.truncate(MERGE_WORKING_SET.max(limit));
 
     // Merge path-spelling variants from repo restructures: git history
     // records the path as of each commit, so the same physical file can
