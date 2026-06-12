@@ -290,7 +290,7 @@ specs already written.
   GC is schedule-only; crash-resume loops accumulate stale generations/segments until
   disk and latency suffer.
 
-- [ ] **41. PageRank/centrality cache warming** (S)
+- [x] **41. PageRank/centrality cache warming** (S) - *done 2026-06-12: get_or_compute_centrality (cache-or-compute-and-persist) used by blast radius + get_centrality; index_project warms the cache post-resolve; stale EdgeKind exhaustiveness count fixed (40->43).*
   Centrality reranking blocks on first use. Compute post-ingest, persist, refresh lazily.
 
 - [ ] **42. Harden `business_logic_service` LLM integration** (M)

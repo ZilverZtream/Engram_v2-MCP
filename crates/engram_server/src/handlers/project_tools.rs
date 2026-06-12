@@ -682,6 +682,27 @@ impl Engram {
                 }
             }
 
+            // TODO-41: warm the centrality cache so the first blast_radius /
+            // rerank call doesn't block on a full PageRank over the graph.
+            {
+                let graph = self.state.graph.clone();
+                let pid = project_id.clone();
+                let warm_gen = self.get_active_generation(&project_id).await.unwrap_or(1);
+                tokio::task::spawn_blocking(move || {
+                    match graph.get_or_compute_centrality(&pid, warm_gen) {
+                        Ok(m) => tracing::info!(
+                            project_id = %pid,
+                            nodes = m.len(),
+                            "index_project: centrality cache warmed"
+                        ),
+                        Err(e) => tracing::warn!(
+                            project_id = %pid,
+                            "index_project: centrality warm failed: {e:#}"
+                        ),
+                    }
+                });
+            }
+
             let report = self.generate_indexing_report(&stats);
             if let Err(e) = self
                 .handle_update_memory_bank(UpdateMemoryBankRequest {

@@ -316,15 +316,14 @@ pub fn compute_blast_radius(
     let sql_concat_score = normalize_score(sql_count, 10);
 
     // PageRank centrality
-    let pagerank_score =
-        match engram_graph::analysis::compute_pagerank(graph, project_id, generation) {
-            Ok(metrics) => {
-                let pr = metrics.pagerank.get(target_id).copied().unwrap_or(0.0);
-                // Normalize: typical high PageRank in a medium project is 0.01-0.05
-                (pr * 200.0).min(10.0)
-            }
-            Err(_) => 0.0,
-        };
+    let pagerank_score = match graph.get_or_compute_centrality(project_id, generation) {
+        Ok(pagerank) => {
+            let pr = pagerank.get(target_id).copied().unwrap_or(0.0);
+            // Normalize: typical high PageRank in a medium project is 0.01-0.05
+            (pr * 200.0).min(10.0)
+        }
+        Err(_) => 0.0,
+    };
 
     // State coupling: reads + writes + affinity
     let state_count = out_counts.get(&EdgeKind::ReadsState).copied().unwrap_or(0)
