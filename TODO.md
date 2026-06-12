@@ -464,5 +464,16 @@ interaction is materially better and the graph is trustworthy.
 - **2026-06-12 iter 10 — vendor gating**: bower_components/node_modules/*.min.js no
   longer feed the graph (font-awesome bare-name phantoms). Reindex died from
   load-starved Ollama (-> 16c queued, timeout 30->120s); recovery chain running.
-- **in progress**: CachedEmbedder (content-hash embed cache, wired but uncompiled —
-  awaits quiet machine); verify vendor-gated reindex + rerun history.
+- **2026-06-12 iter 11 — wedge root-caused + fixed**: both reindex failures were a
+  blocking writeln! into the sidecar stdin pipe (child dead, inherited handle keeps
+  pipe alive -> 0-CPU hang holding the sidecar mutex). Fixed: liveness check, 2MB
+  source cap -> fallback, threaded write with 60s timeout. *Verified: reindex
+  completes in ~8 min (old 30-min estimate was build-contention).*
+- **2026-06-12 iter 12 — embed cache landed**: CachedEmbedder (redb, model_tag +
+  blake3 keys, cross-project) wraps remote embedders; copy-forward and reindex
+  re-embeds become cache hits. 2 behavioral tests.
+- **2026-06-12 iter 13 — vendor gating verified live**: graph 49,470 nodes (vendor
+  symbols gone), GIS 466 clean call sites, path probe routes through app code only
+  (font-awesome phantom eliminated). find_dependency_cycles on real data: 31
+  components, top = 39-function cycle in map.js. Driver shutdown fixed (stale
+  tantivy lock killed follow-on phases).
