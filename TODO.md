@@ -219,9 +219,20 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
   it composes the already-built check_edit_safety/pre_commit_review machinery.
 
-- [ ] **30. `find_implementation_pattern` (spec 42-2)** (M)
-  "Show me 3 existing examples of how this codebase does X" (a grid page, a service call,
-  a migration). Agents imitate better than they invent; this is cheap retrieval composition.
+- [x] **30. `find_implementation_pattern` (spec 42-2)** (M) — *done 2026-06-12: top exemplar
+  files for a pattern query with symbols, SQL/state edges, co-change partners, snippet, and
+  cross-exemplar common ingredients.*
+
+- [x] **30b. `get_concept_footprint`** — *done 2026-06-12 (from the OciusX weak-user-story
+  analysis): every touchpoint of a domain concept grouped by role (data/sql/state/ui/logic/
+  endpoints) + anchor consumers + lexical-only files. The "all the places code categories
+  is used" catch.*
+
+- [x] **30c. `find_similar_changes`** — *done 2026-06-12: token-bag similarity over recent
+  git history; reports recurring companion artifacts (exact files + dir/*.ext shapes)
+  missing from a planned file set. The "forgot the admin page / menu entry" catch. v2 ideas:
+  persistent commit-shape index instead of request-time walk; cluster into named feature
+  templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for

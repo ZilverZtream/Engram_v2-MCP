@@ -6,6 +6,7 @@ pub mod git_tools;
 pub mod grep_tools;
 pub mod graph_tools;
 pub mod migration_tools;
+pub mod planning_tools;
 pub mod project_tools;
 pub mod review_tools;
 pub mod search_tools;

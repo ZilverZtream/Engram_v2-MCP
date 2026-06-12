@@ -140,6 +140,36 @@ impl Engram {
         self.handle_resolve_id(params.0).await
     }
 
+    #[tool(
+        description = "Map EVERY touchpoint of a domain concept (e.g. 'photo', 'code category'): tables, columns, stored procs, Session/ViewState keys, pages, controls, functions, endpoints, plus who reads/writes the core anchors and files that only mention it in text. Call this FIRST when a user story names a domain concept — it's how you avoid changing 2 of the 17 places the concept lives. Related: find_implementation_pattern, find_similar_changes."
+    )]
+    pub async fn get_concept_footprint(
+        &self,
+        params: Parameters<GetConceptFootprintRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_concept_footprint(params.0).await
+    }
+
+    #[tool(
+        description = "Given the files you plan to change, find the most similar historical commits and report the recurring companion artifacts MISSING from your set (admin pages, menu/sitemap entries, registrations — the things reviewers notice are absent). Call before implementing and again before committing. Scans recent git history at request time (max_commits, default 500)."
+    )]
+    pub async fn find_similar_changes(
+        &self,
+        params: Parameters<FindSimilarChangesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_similar_changes(params.0).await
+    }
+
+    #[tool(
+        description = "Find concrete exemplars of how THIS codebase implements a pattern (e.g. 'admin settings page save', 'dropdown bound to lookup table'): top matching files with their symbols, SQL/table/state edges, co-changed partners, and a snippet — plus the ingredients common across exemplars. Imitate the best exemplar instead of inventing a new approach. Related: get_chunk for full source."
+    )]
+    pub async fn find_implementation_pattern(
+        &self,
+        params: Parameters<FindImplementationPatternRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_implementation_pattern(params.0).await
+    }
+
     // ---- Search + chunks ----
 
     #[tool(

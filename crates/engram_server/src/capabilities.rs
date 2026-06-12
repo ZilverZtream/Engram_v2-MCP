@@ -58,6 +58,18 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "get_concept_footprint",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "find_similar_changes",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "find_implementation_pattern",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "search_memory",
         status: CapabilityStatus::Implemented,
     },
