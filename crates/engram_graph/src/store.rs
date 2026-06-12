@@ -877,6 +877,23 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// All edges EXCEPT the statistical history kinds (TemporalCoupling,
+    /// CoOccurrence). After git-history indexing those can outnumber
+    /// structural edges 10:1 (OciusX: 1.3M temporal vs 113k structural) —
+    /// a full-table scan per tool call stops scaling. Key layout is
+    /// `project\0kind\0source\0target`, so per-kind prefix scans skip the
+    /// temporal ranges entirely.
+    pub fn list_structural_edges(&self, project_id: &str) -> anyhow::Result<Vec<Edge>> {
+        let mut out = Vec::new();
+        for kind in EdgeKind::ALL {
+            if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
+                continue;
+            }
+            out.extend(self.list_edges_by_kind(project_id, kind.clone(), usize::MAX)?);
+        }
+        Ok(out)
+    }
+
     pub fn list_node_ids(
         &self,
         project_id: &str,

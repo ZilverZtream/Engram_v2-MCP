@@ -273,7 +273,7 @@ pub fn compute_blast_radius(
 
             // Single EDGES table scan — cheaper than per-symbol
             // `neighbors` × `EdgeKind::ALL` on large files.
-            for edge in graph.list_edges(project_id, None)? {
+            for edge in graph.list_structural_edges(project_id)? {
                 // Membership edges are not dependencies — counting them
                 // would inflate every file's incoming density by its own
                 // symbol count.
@@ -362,7 +362,7 @@ pub fn compute_blast_radius(
 
     // Runtime uncertainty: dynamic UI, late binding, and probabilistic SQL/table inference.
     let touching_edges = graph
-        .list_edges(project_id, None)?
+        .list_structural_edges(project_id)?
         .into_iter()
         .filter(|edge| edge.source_id == target_id || edge.target_id == target_id)
         .collect::<Vec<_>>();

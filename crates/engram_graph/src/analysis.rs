@@ -388,7 +388,18 @@ pub fn find_path(
     max_depth: usize,
     kind_filter: &[EdgeKind],
 ) -> anyhow::Result<Option<FoundPath>> {
-    let edges = store.list_edges(project_id, None)?;
+    // Structural edges only by default; statistical history kinds are
+    // misleading as "connections" and dominate the table after git-history
+    // indexing. An explicit kind_filter scans exactly those kinds instead.
+    let edges = if kind_filter.is_empty() {
+        store.list_structural_edges(project_id)?
+    } else {
+        let mut acc = Vec::new();
+        for k in kind_filter {
+            acc.extend(store.list_edges_by_kind(project_id, k.clone(), usize::MAX)?);
+        }
+        acc
+    };
 
     // adjacency: node -> [(neighbor, kind, reversed)]
     let mut fwd: HashMap<&str, Vec<(&str, &EdgeKind)>> = HashMap::new();
