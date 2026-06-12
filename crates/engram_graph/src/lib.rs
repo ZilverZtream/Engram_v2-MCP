@@ -4,4 +4,4 @@ pub mod algorithms;
 pub mod analysis;
 pub mod store;
 
-pub use store::{Edge, EdgeKind, GraphStore, Node};
+pub use store::{Edge, EdgeKind, GraphStore, Node, ResolveResult};

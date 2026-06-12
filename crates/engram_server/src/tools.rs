@@ -114,6 +114,16 @@ impl Engram {
         self.handle_get_index_freshness(params.0).await
     }
 
+    #[tool(
+        description = "Convert any Engram identifier into all its identities: pass a graph node_id, a symbol name/FQN, or a search doc_id and get back node_id, name, type, file, line range, and which tools accept it. Use when chaining search output into graph tools, or when a name is ambiguous (returns all candidates)."
+    )]
+    pub async fn resolve_id(
+        &self,
+        params: Parameters<ResolveIdRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_resolve_id(params.0).await
+    }
+
     // ---- Search + chunks ----
 
     #[tool(description = "Search the indexed code/docs.")]

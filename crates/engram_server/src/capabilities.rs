@@ -54,6 +54,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "resolve_id",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "search_memory",
         status: CapabilityStatus::Implemented,
     },

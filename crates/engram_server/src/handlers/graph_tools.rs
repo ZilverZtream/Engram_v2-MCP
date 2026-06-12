@@ -11,8 +11,131 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 
+/// Render one node as an identity card with follow-up tool hints.
+fn render_node_identity(node: &engram_graph::Node) -> String {
+    let mut out = String::with_capacity(256);
+    out.push_str(&format!("node_id: {}\n", node.node_id));
+    out.push_str(&format!("name: {}\n", node.name));
+    out.push_str(&format!("type: {}\n", node.node_type));
+    if !node.file_path.as_str().is_empty() {
+        out.push_str(&format!(
+            "file: {} (lines {}-{})\n",
+            node.file_path, node.start_line, node.end_line
+        ));
+    }
+    if !node.language.is_empty() {
+        out.push_str(&format!("language: {}\n", node.language));
+    }
+    out.push_str(&format!(
+        "use with: find_symbol_references(symbol_name=\"{}\"), compute_blast_radius, traverse_graph(start_node_id=\"{}\")\n",
+        node.name, node.node_id
+    ));
+    out
+}
+
 /// Graph tool helper methods on Engram.
 impl Engram {
+    /// P0-8: one tool that accepts any identifier kind (node_id, name/FQN,
+    /// doc_id) and returns every identity Engram knows for it, so agents can
+    /// chain search output into graph tools without guessing formats.
+    pub async fn handle_resolve_id(
+        &self,
+        req: crate::models::ResolveIdRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+
+        // 1. Graph resolution: node_id / exact name / FQN / short name.
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let id = req.id.clone();
+        let resolved =
+            tokio::task::spawn_blocking(move || graph.resolve_symbol(&pid, &id, None, None))
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        match resolved {
+            engram_graph::ResolveResult::Unique(node) => {
+                let mut out = String::from("resolved: graph node (unique)\n");
+                out.push_str(&render_node_identity(&node));
+                return Ok(CallToolResult::success(vec![Content::text(out)]));
+            }
+            engram_graph::ResolveResult::Ambiguous(nodes) => {
+                let mut out = format!(
+                    "resolved: AMBIGUOUS — {} graph nodes match '{}'. \
+                     Pass an exact node_id or a more specific name:\n\n",
+                    nodes.len(),
+                    req.id
+                );
+                for node in nodes.iter().take(10) {
+                    out.push_str(&format!(
+                        "- {} ({}) node_id={} file={} lines {}-{}\n",
+                        node.name,
+                        node.node_type,
+                        node.node_id,
+                        node.file_path,
+                        node.start_line,
+                        node.end_line
+                    ));
+                }
+                if nodes.len() > 10 {
+                    out.push_str(&format!("... and {} more\n", nodes.len() - 10));
+                }
+                return Ok(CallToolResult::success(vec![Content::text(out)]));
+            }
+            engram_graph::ResolveResult::NotFound => {}
+        }
+
+        // 2. doc_id resolution (search-layer identity).
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        if let Ok(Some((path, lang, _content, start_line, end_line))) =
+            ps.search
+                .get_doc_by_doc_id(&req.project_id, &req.namespace, gen_, &req.id)
+        {
+            let mut out = String::from("resolved: search doc (chunk)\n");
+            out.push_str(&format!("doc_id: {}\n", req.id));
+            out.push_str(&format!(
+                "file: {path} (lines {start_line}-{end_line})\nlanguage: {lang}\n"
+            ));
+
+            // Symbols covering this chunk → the node_id bridge.
+            let graph = self.state.graph.clone();
+            let pid = req.project_id.clone();
+            let path_s = path.as_str().to_string();
+            let nodes = tokio::task::spawn_blocking(move || {
+                graph
+                    .query_nodes(&pid, None, None, Some(&path_s), 200)
+                    .unwrap_or_default()
+            })
+            .await
+            .unwrap_or_default();
+            let overlapping: Vec<String> = nodes
+                .iter()
+                .filter(|n| {
+                    n.node_type != "file"
+                        && !(n.start_line == 0 && n.end_line == 0)
+                        && n.start_line <= end_line
+                        && start_line <= n.end_line
+                })
+                .take(5)
+                .map(|n| format!("{} ({}) node_id={}", n.name, n.node_type, n.node_id))
+                .collect();
+            if !overlapping.is_empty() {
+                out.push_str(&format!("symbols: {}\n", overlapping.join("; ")));
+            }
+            out.push_str("use with: get_chunk(doc_id) for full text\n");
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
+        }
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "resolved: NOT FOUND — '{}' is not a known node_id, symbol name, FQN, \
+             or doc_id (namespace '{}', generation {}). hints: search_memory to find \
+             the symbol; doc_ids are generation-scoped and expire on reindex.",
+            req.id, req.namespace, gen_
+        ))]))
+    }
+
     pub async fn handle_query_graph_nodes(
         &self,
         req: QueryGraphNodesRequest,
