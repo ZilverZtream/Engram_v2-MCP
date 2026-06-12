@@ -70,6 +70,14 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "map_guards_and_settings",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "plan_user_story",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "search_memory",
         status: CapabilityStatus::Implemented,
     },

@@ -106,6 +106,9 @@ pub enum EdgeKind {
     ObservedRuntimeControl,
     /// Runtime-observed SQL execution (query/SP) captured from logs/profilers.
     ObservedRuntimeSql,
+    /// Code reads a configuration/app setting (web.config appSettings key,
+    /// My.Settings member, or a settings accessor helper).
+    ReadsSetting,
 }
 
 impl EdgeKind {
@@ -150,6 +153,7 @@ impl EdgeKind {
         EdgeKind::FillsRegion,
         EdgeKind::ObservedRuntimeControl,
         EdgeKind::ObservedRuntimeSql,
+        EdgeKind::ReadsSetting,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -194,6 +198,7 @@ impl EdgeKind {
             EdgeKind::FillsRegion => "fills_region",
             EdgeKind::ObservedRuntimeControl => "observed_runtime_control",
             EdgeKind::ObservedRuntimeSql => "observed_runtime_sql",
+            EdgeKind::ReadsSetting => "reads_setting",
         }
     }
 
@@ -239,6 +244,7 @@ impl EdgeKind {
             "fills_region" => Some(EdgeKind::FillsRegion),
             "observed_runtime_control" => Some(EdgeKind::ObservedRuntimeControl),
             "observed_runtime_sql" => Some(EdgeKind::ObservedRuntimeSql),
+            "reads_setting" => Some(EdgeKind::ReadsSetting),
             _ => None,
         }
     }
@@ -1837,7 +1843,8 @@ impl GraphStore {
                         ids.push(node.node_id.clone());
                     }
                     None => {
-                        by_name.insert(node.name.clone(), SymbolMatch::Unique(node.node_id.clone()));
+                        by_name
+                            .insert(node.name.clone(), SymbolMatch::Unique(node.node_id.clone()));
                     }
                 }
 
@@ -1868,7 +1875,12 @@ impl GraphStore {
         let phase1_elapsed = phase1_start.elapsed();
         tracing::info!(
             "resolve_symbol_edges: built symbol map project_id={} nodes={} by_name={} by_terminal={} by_metadata_fqn={} elapsed_ms={}",
-            project_id, node_count, by_name.len(), by_terminal.len(), by_metadata_fqn.len(), phase1_elapsed.as_millis()
+            project_id,
+            node_count,
+            by_name.len(),
+            by_terminal.len(),
+            by_metadata_fqn.len(),
+            phase1_elapsed.as_millis()
         );
 
         // ── Phase 2: Collect unresolved edges (single EDGES scan) ────
@@ -1901,7 +1913,9 @@ impl GraphStore {
         let phase2_elapsed = phase2_start.elapsed();
         tracing::info!(
             "resolve_symbol_edges: collected unresolved edges project_id={} count={} elapsed_ms={}",
-            project_id, unresolved.len(), phase2_elapsed.as_millis()
+            project_id,
+            unresolved.len(),
+            phase2_elapsed.as_millis()
         );
 
         if unresolved.is_empty() {
@@ -1973,7 +1987,10 @@ impl GraphStore {
         let phase3_elapsed = phase3_start.elapsed();
         tracing::info!(
             "resolve_symbol_edges: resolved project_id={} resolved={} unresolved={} elapsed_ms={}",
-            project_id, updates.len(), unresolved.len() - updates.len(), phase3_elapsed.as_millis()
+            project_id,
+            updates.len(),
+            unresolved.len() - updates.len(),
+            phase3_elapsed.as_millis()
         );
 
         // ── Phase 4: Apply updates (single write transaction) ────────
@@ -1994,12 +2011,10 @@ impl GraphStore {
                 if old_parts.len() == 4 {
                     let old_target = old_parts[3];
 
-                    let out_prefix =
-                        adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
+                    let out_prefix = adj_key(project_id, &new_edge.edge_kind, &new_edge.source_id);
                     adj_out_t.remove((out_prefix.as_str(), old_target))?;
 
-                    let old_in_prefix =
-                        adj_key(project_id, &new_edge.edge_kind, old_target);
+                    let old_in_prefix = adj_key(project_id, &new_edge.edge_kind, old_target);
                     adj_in_t.remove((old_in_prefix.as_str(), new_edge.source_id.as_str()))?;
 
                     let adj_val = encode_adj_value(new_edge.weight, now);
@@ -2031,7 +2046,9 @@ impl GraphStore {
         let phase4_elapsed = phase4_start.elapsed();
         tracing::info!(
             "resolve_symbol_edges: applied updates project_id={} count={} elapsed_ms={}",
-            project_id, updates.len(), phase4_elapsed.as_millis()
+            project_id,
+            updates.len(),
+            phase4_elapsed.as_millis()
         );
 
         Ok(updates.len())
@@ -2230,7 +2247,8 @@ mod tests {
                 | EdgeKind::StoredProcWritesTable
                 | EdgeKind::FillsRegion
                 | EdgeKind::ObservedRuntimeControl
-                | EdgeKind::ObservedRuntimeSql => all_set.contains(&ek),
+                | EdgeKind::ObservedRuntimeSql
+                | EdgeKind::ReadsSetting => all_set.contains(&ek),
             }
         };
 
@@ -2613,9 +2631,7 @@ mod tests {
             "path must contain the db_column terminal node"
         );
         assert!(
-            first
-                .iter()
-                .any(|n| n.node_id.starts_with("column:")),
+            first.iter().any(|n| n.node_id.starts_with("column:")),
             "path must contain a column:... node id"
         );
     }

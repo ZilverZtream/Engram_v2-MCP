@@ -35,6 +35,26 @@ const VB_CALL_HEAD_STOPWORDS: [&str; 10] = [
 static RE_VB_WITHEVENTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\bWithEvents\s+([A-Za-z_]\w*)\s+As\b").expect("valid VB WithEvents regex")
 });
+// Settings reads: ConfigurationManager.AppSettings("Key") (VB call syntax)
+// and My.Settings.Key. Generic name shapes only.
+static RE_VB_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)AppSettings\s*\(\s*"([^"]+)"\s*\)"#).expect("valid VB appsettings regex")
+});
+static RE_VB_MY_SETTINGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\bMy\.Settings\.([A-Za-z_]\w*)").expect("valid My.Settings regex")
+});
+// Permission checks by call-name shape (IsInRole, IsUserInRole, IsXxxAdmin,
+// CheckAccessLevel, HasPermission, RequireRole, DemandAdmin, Authorize...).
+static RE_VB_GUARD_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(is[a-z0-9_]*admin[a-z0-9_]*|isinrole|isuserinrole|is[a-z0-9_]*role|check[a-z0-9_]*(access|permission|role)[a-z0-9_]*|has[a-z0-9_]*(permission|access|role)[a-z0-9_]*|require[a-z0-9_]*(role|permission|admin)[a-z0-9_]*|demand[a-z0-9_]*|authorize[a-z0-9_]*)\s*\(",
+    )
+    .expect("valid VB guard regex")
+});
+static RE_VB_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\b(?:isinrole|isuserinrole)\s*\(\s*"([^"]+)""#)
+        .expect("valid VB role literal regex")
+});
 
 struct Sidecar {
     child: Child,
@@ -378,6 +398,8 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // real source symbol (matching the FQN-named node minted below) or fall
     // back to the "file" sentinel.
     let mut current_method: Option<String> = None;
+    // Guard calls per enclosing method: (guard names, role literals).
+    let mut method_guards: HashMap<String, (Vec<String>, Vec<String>)> = HashMap::new();
 
     let mut add_symbol =
         |name: String, kind: &str, line: u32, metadata: Option<HashMap<String, String>>| {
@@ -422,6 +444,51 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 kind: "sql_calls".to_string(),
                 metadata: Some(meta),
             });
+        }
+
+        // Settings reads (web.config appSettings + My.Settings members).
+        for cap in RE_VB_APPSETTINGS
+            .captures_iter(line)
+            .chain(RE_VB_MY_SETTINGS.captures_iter(line))
+        {
+            let Some(key) = cap.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            edges.push(ExtractedEdge {
+                source_name: current_method.clone().unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: key.to_string(),
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
+        // Permission checks: collected per enclosing method, annotated after
+        // the scan (fallback symbols are line-anchored, so association is by
+        // the current-method context rather than line ranges).
+        if let Some(ref method_fqn) = current_method {
+            for cap in RE_VB_GUARD_CALL.captures_iter(line) {
+                if let Some(name) = cap.get(1) {
+                    method_guards
+                        .entry(method_fqn.clone())
+                        .or_default()
+                        .0
+                        .push(name.as_str().to_lowercase());
+                }
+            }
+            for cap in RE_VB_GUARD_ROLE_LITERAL.captures_iter(line) {
+                if let Some(role) = cap.get(1) {
+                    method_guards
+                        .entry(method_fqn.clone())
+                        .or_default()
+                        .1
+                        .push(role.as_str().to_string());
+                }
+            }
         }
 
         // Qualified call edges (Foo.Bar(...)) inside method bodies keep the
@@ -603,6 +670,30 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 metadata: None,
             });
         }
+    }
+
+    // Attach collected guard facts to the (FQN-named) function symbols.
+    for sym in symbols.iter_mut() {
+        if sym.kind != "function" {
+            continue;
+        }
+        let Some((guards, roles)) = method_guards.get(&sym.name) else {
+            continue;
+        };
+        let mut guards = guards.clone();
+        guards.sort();
+        guards.dedup();
+        let mut roles = roles.clone();
+        roles.sort();
+        roles.dedup();
+        let mut meta = sym.metadata.take().unwrap_or_default();
+        if !guards.is_empty() {
+            meta.insert("permission_checks".to_string(), guards.join(";"));
+        }
+        if !roles.is_empty() {
+            meta.insert("guard_roles".to_string(), roles.join(";"));
+        }
+        sym.metadata = Some(meta);
     }
 
     (symbols, edges)

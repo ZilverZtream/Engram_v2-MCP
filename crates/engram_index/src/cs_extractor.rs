@@ -44,6 +44,26 @@ static RE_SQL_DAPPER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"\.(?:Query|Execute|ExecuteScalar|QueryFirst|QuerySingle|QueryAsync|ExecuteAsync)\s*\(\s*(?:@\"([^\"]*)\"|\"((?:\\.|[^\"\\])*)\")"#)
         .expect("valid dapper regex")
 });
+// Configuration reads: ConfigurationManager.AppSettings["Key"] and friends.
+// Generic name-shape detection — no application-specific helper names.
+static RE_CS_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"AppSettings\s*\[\s*"([^"]+)"\s*\]"#).expect("valid appsettings regex")
+});
+/// Permission-check calls by name shape: IsInRole / IsUserInRole and the
+/// custom-helper families legacy apps grow (IsXxxAdmin, CheckAccessLevel,
+/// HasPermission, RequireRole, DemandAdmin, Authorize...). Matching is on
+/// the call-site name only — works for any project's helpers.
+static RE_GUARD_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b(is[a-z0-9_]*admin[a-z0-9_]*|isinrole|isuserinrole|is[a-z0-9_]*role|check[a-z0-9_]*(access|permission|role)[a-z0-9_]*|has[a-z0-9_]*(permission|access|role)[a-z0-9_]*|require[a-z0-9_]*(role|permission|admin)[a-z0-9_]*|demand[a-z0-9_]*|authorize[a-z0-9_]*)\s*\(",
+    )
+    .expect("valid guard regex")
+});
+/// Role string literal passed to a role check: IsInRole("Admin").
+static RE_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\b(?:isinrole|isuserinrole)\s*\(\s*"([^"]+)""#)
+        .expect("valid role literal regex")
+});
 
 pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let extractor = SymbolExtractor::new();
@@ -64,6 +84,8 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         .collect();
 
     let mut class_name = String::new();
+    let mut guard_hits: Vec<(u32, String)> = Vec::new();
+    let mut role_hits: Vec<(u32, String)> = Vec::new();
     for (idx, raw) in source.lines().enumerate() {
         let line_no = idx as u32 + 1;
         let line = raw.trim();
@@ -215,6 +237,45 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
                 metadata: Some(meta),
             });
         }
+
+        // ── Settings reads ──────────────────────────────────────────────
+        for cap in RE_CS_APPSETTINGS.captures_iter(line) {
+            let Some(key) = cap.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            let source_name = method_ranges
+                .iter()
+                .find(|(start, end, _)| *start <= line_no && *end >= line_no)
+                .map(|(_, _, fqn)| fqn.clone())
+                .unwrap_or_else(|| "file".to_string());
+            edges.push(ExtractedEdge {
+                source_name,
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "cs".to_string(),
+                target_name: key.to_string(),
+                // app_setting symbols come from web.config extraction; the
+                // ingest batch resolver (or ::placeholder + post-resolver)
+                // links this read to the real setting node.
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
+        // ── Permission checks (annotated onto the enclosing method) ────
+        for cap in RE_GUARD_CALL.captures_iter(line) {
+            if let Some(name) = cap.get(1) {
+                let guard = name.as_str().to_string();
+                guard_hits.push((line_no, guard));
+            }
+        }
+        for cap in RE_GUARD_ROLE_LITERAL.captures_iter(line) {
+            if let Some(role) = cap.get(1) {
+                role_hits.push((line_no, role.as_str().to_string()));
+            }
+        }
     }
 
     for s in &mut symbols {
@@ -229,10 +290,56 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
         }
     }
 
+    // Attach guard facts to the enclosing function symbols so the graph can
+    // answer "which permission checks protect this method".
+    annotate_guards(&mut symbols, &guard_hits, &role_hits);
+
     dedupe_symbols(&mut symbols);
     dedupe_edges(&mut edges);
 
     (symbols, edges)
+}
+
+/// Attach `permission_checks` / `guard_roles` metadata to the function
+/// symbols whose line range contains each detected guard call.
+pub(crate) fn annotate_guards(
+    symbols: &mut [ExtractedSymbol],
+    guard_hits: &[(u32, String)],
+    role_hits: &[(u32, String)],
+) {
+    if guard_hits.is_empty() && role_hits.is_empty() {
+        return;
+    }
+    for s in symbols.iter_mut() {
+        if s.kind != "function" {
+            continue;
+        }
+        let mut guards: Vec<String> = guard_hits
+            .iter()
+            .filter(|(l, _)| *l >= s.start_line && *l <= s.end_line)
+            .map(|(_, g)| g.to_lowercase())
+            .collect();
+        guards.sort();
+        guards.dedup();
+        let mut roles: Vec<String> = role_hits
+            .iter()
+            .filter(|(l, _)| *l >= s.start_line && *l <= s.end_line)
+            .map(|(_, r)| r.clone())
+            .collect();
+        roles.sort();
+        roles.dedup();
+        if guards.is_empty() && roles.is_empty() {
+            continue;
+        }
+        let mut meta = s.metadata.take().unwrap_or_default();
+        if !guards.is_empty() {
+            meta.insert("permission_checks".into(), guards.join(";"));
+        }
+        if !roles.is_empty() {
+            meta.insert("guard_roles".into(), roles.join(";"));
+        }
+        s.metadata = Some(meta);
+    }
 }
 
 fn dedupe_symbols(symbols: &mut Vec<ExtractedSymbol>) {
@@ -308,5 +415,72 @@ pub(crate) fn classify_cs_sql(sql: &str) -> (String, &'static str) {
     } else {
         let h = blake3::hash(trimmed.as_bytes()).to_hex().to_string();
         (format!("sql:inline:{}", &h[..12]), "inline_sql")
+    }
+}
+
+#[cfg(test)]
+mod guard_settings_tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn cs_appsettings_read_emits_reads_setting_edge() {
+        let code = r#"
+namespace App {
+    public class UserService {
+        public void AddUser() {
+            var max = ConfigurationManager.AppSettings["MaxUserCount"];
+        }
+    }
+}"#;
+        let (_, edges) = extract_cs(Path::new("UserService.cs"), code);
+        let setting = edges
+            .iter()
+            .find(|e| e.kind == "reads_setting")
+            .expect("reads_setting edge expected");
+        assert_eq!(setting.target_name, "MaxUserCount");
+        assert_eq!(setting.target_kind.as_deref(), Some("app_setting"));
+        assert!(
+            setting.source_name.contains("AddUser"),
+            "edge source should be the enclosing method, got {}",
+            setting.source_name
+        );
+    }
+
+    #[test]
+    fn cs_guard_calls_annotate_enclosing_function() {
+        let code = r#"
+namespace App {
+    public class AdminApi {
+        public void AddUser() {
+            if (!User.IsInRole("Admin")) { return; }
+            if (!CheckAccessLevelByAccessObject(7)) { return; }
+        }
+        public void ListUsers() { }
+    }
+}"#;
+        let (symbols, _) = extract_cs(Path::new("AdminApi.cs"), code);
+        let add_user = symbols
+            .iter()
+            .find(|s| s.kind == "function" && s.name == "AddUser")
+            .expect("AddUser symbol");
+        let meta = add_user.metadata.as_ref().expect("guard metadata");
+        let checks = meta.get("permission_checks").expect("permission_checks");
+        assert!(checks.contains("isinrole"), "got {checks}");
+        assert!(
+            checks.contains("checkaccesslevelbyaccessobject"),
+            "custom guard helper must be caught by name shape, got {checks}"
+        );
+        assert_eq!(meta.get("guard_roles").map(String::as_str), Some("Admin"));
+
+        let list_users = symbols
+            .iter()
+            .find(|s| s.kind == "function" && s.name == "ListUsers")
+            .expect("ListUsers symbol");
+        let unguarded = list_users
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("permission_checks"));
+        assert!(unguarded.is_none(), "ListUsers has no guards");
     }
 }

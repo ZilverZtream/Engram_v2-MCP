@@ -458,6 +458,30 @@ impl FindSimilarChangesRequest {
     }
 }
 
+/// Planning: permission checks + settings that gate an area of the codebase.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MapGuardsAndSettingsRequest {
+    pub project_id: String,
+    /// File path, directory prefix, or exact function name to scope the
+    /// analysis to. Omit for a project-wide view.
+    #[serde(default)]
+    pub scope: Option<String>,
+}
+
+/// Planning: one-call implementation brief for a (one-line) user story.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PlanUserStoryRequest {
+    pub project_id: String,
+    /// The user story, verbatim — e.g. "As an admin I would like to set
+    /// minimum number of photos required".
+    pub story: String,
+    /// Override the automatically extracted domain concepts (max 3 used).
+    #[serde(default)]
+    pub concepts: Option<Vec<String>>,
+}
+
 /// Planning: concrete exemplars of how this codebase implements a pattern.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

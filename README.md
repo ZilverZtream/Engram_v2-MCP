@@ -34,7 +34,9 @@ without asking every time.
 | Touches a high-impact file blindly | `compute_blast_radius` returns a 1–10 score with incoming / outgoing / downstream counts |
 | Re-introduces a reverted pattern | Immune system indexes every reverted diff; `immune_check` scores new code against it |
 | Changes a file but not its coupled partner | Temporal coupling surfaces files that change together in git history |
-| Ships a regression | `pre_commit_review` runs 10 deterministic gates over the staged diff, with secret redaction and CI-stable finding IDs |
+| Ships a regression | `pre_commit_review` runs 11 deterministic gates over the staged diff, with secret redaction and CI-stable finding IDs |
+| Adds a public endpoint that skips the admin check | `guard_parity` gate + `map_guards_and_settings` compare new code against the sibling guards and settings that gate the area |
+| Implements 2 of the 17 places a concept lives | `plan_user_story` → `get_concept_footprint` → `find_similar_changes` map every touchpoint and the companion artifacts changes like this always include |
 | Gets lost in a 5,000-file legacy codebase | `get_codebase_overview`, `generate_migration_blueprint`, `analyze_full_project_migration` |
 | Writes project-context guidance from scratch every session | `produce_claude_md` generates a `CLAUDE.md` and `.claude/rules/*` from indexed signals |
 | Can't explain the diff it just produced | `explain_change` narrates a diff as commit message, PR description, or changelog |
@@ -53,7 +55,7 @@ exists; the bottom ones are operational surface.
 
 ### Pre-commit review (`pre_commit_review`)
 
-Ten deterministic gates run over a unified diff (raw text, `staged`,
+Eleven deterministic gates run over a unified diff (raw text, `staged`,
 `unstaged`, `head`, or a `.patch` path) and emit severity-ranked findings
 with concrete evidence and fix suggestions. No LLM calls. Typical run: under
 two seconds.

@@ -12,18 +12,18 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use engram_core::RelPath;
 use engram_core::config::Config;
 use engram_core::registry::RepoRule;
-use engram_core::RelPath;
 use engram_graph::{Edge, EdgeKind, Node};
 
 use engram_server::services::pre_commit_review_service::gates::{
-    all_gates, AuditGate, BlastRadiusGate, ImmuneGate, NewFileGate, SecretLeakageGate,
-    StateGate, TemporalGate, TestCoverageGate,
+    AuditGate, BlastRadiusGate, GuardParityGate, ImmuneGate, NewFileGate, SecretLeakageGate,
+    StateGate, TemporalGate, TestCoverageGate, all_gates,
 };
 use engram_server::services::pre_commit_review_service::{
-    aggregate_findings, parse_unified_diff, ChangeType, DiffFile, Gate, GateContext,
-    ReviewFinding, Severity,
+    ChangeType, DiffFile, Gate, GateContext, ReviewFinding, Severity, aggregate_findings,
+    parse_unified_diff,
 };
 use engram_server::state::AppState;
 
@@ -146,23 +146,29 @@ fn as_gate_ctx<'a>(c: &'a Ctx) -> GateContext<'a> {
     }
     // Detect audit function — same logic as the production orchestrator,
     // inlined so tests exercise the gate's fast path.
-    let audit_function = ["handelselogg", "AuditLog", "audit_log", "LogActivity", "AuditTrail"]
-        .iter()
-        .find_map(|pat| {
-            let matches = c
-                .state
-                .graph
-                .query_nodes(&c.project_id, Some("function"), Some(pat), None, 10)
-                .unwrap_or_default();
-            if matches.is_empty() {
-                None
-            } else {
-                matches
-                    .iter()
-                    .max_by_key(|n| n.name.len())
-                    .map(|n| n.name.clone())
-            }
-        });
+    let audit_function = [
+        "handelselogg",
+        "AuditLog",
+        "audit_log",
+        "LogActivity",
+        "AuditTrail",
+    ]
+    .iter()
+    .find_map(|pat| {
+        let matches = c
+            .state
+            .graph
+            .query_nodes(&c.project_id, Some("function"), Some(pat), None, 10)
+            .unwrap_or_default();
+        if matches.is_empty() {
+            None
+        } else {
+            matches
+                .iter()
+                .max_by_key(|n| n.name.len())
+                .map(|n| n.name.clone())
+        }
+    });
     GateContext {
         state: &c.state,
         graph: c.state.graph.clone(),
@@ -326,16 +332,18 @@ diff --git a/a.ts b/a.ts
     c.total_commits = 6_729;
     c.state
         .graph
-        .upsert_nodes(
-            "proj-t",
-            &[make_file_node("a.ts"), make_file_node("b.ts")],
-        )
+        .upsert_nodes("proj-t", &[make_file_node("a.ts"), make_file_node("b.ts")])
         .unwrap();
     c.state
         .graph
         .upsert_edges(
             "proj-t",
-            &[edge("file:a.ts", "file:b.ts", EdgeKind::TemporalCoupling, 877)],
+            &[edge(
+                "file:a.ts",
+                "file:b.ts",
+                EdgeKind::TemporalCoupling,
+                877,
+            )],
         )
         .unwrap();
     let findings = TemporalGate.run(&as_gate_ctx(&c)).unwrap();
@@ -367,7 +375,12 @@ diff --git a/a.ts b/a.ts
         .graph
         .upsert_edges(
             "proj-t",
-            &[edge("file:a.ts", "file:b.ts", EdgeKind::TemporalCoupling, 10)],
+            &[edge(
+                "file:a.ts",
+                "file:b.ts",
+                EdgeKind::TemporalCoupling,
+                10,
+            )],
         )
         .unwrap();
     let findings = TemporalGate.run(&as_gate_ctx(&c)).unwrap();
@@ -414,7 +427,9 @@ diff --git a/Site/Page.aspx.vb b/Site/Page.aspx.vb
         .unwrap();
     let findings = StateGate.run(&as_gate_ctx(&c)).unwrap();
     assert!(
-        findings.iter().any(|f| f.gate == "state" && f.title.contains("userId")),
+        findings
+            .iter()
+            .any(|f| f.gate == "state" && f.title.contains("userId")),
         "expected state-key finding for userId, got {findings:#?}"
     );
 }
@@ -481,10 +496,15 @@ diff --git a/Site/App_Code/permits/helpers.cs b/Site/App_Code/permits/helpers.cs
 +public class Other {}
 ";
     let c = ctx_from_diff(diff);
-    let nodes: Vec<Node> = ["perm_create.vb", "perm_delete.vb", "perm_update.vb", "perm_search.vb"]
-        .iter()
-        .map(|n| make_file_node(&format!("Site/App_Code/permits/{n}")))
-        .collect();
+    let nodes: Vec<Node> = [
+        "perm_create.vb",
+        "perm_delete.vb",
+        "perm_update.vb",
+        "perm_search.vb",
+    ]
+    .iter()
+    .map(|n| make_file_node(&format!("Site/App_Code/permits/{n}")))
+    .collect();
     c.state.graph.upsert_nodes("proj-t", &nodes).unwrap();
 
     let findings = NewFileGate.run(&as_gate_ctx(&c)).unwrap();
@@ -538,8 +558,9 @@ diff --git a/src/service.ts b/src/service.ts
         .unwrap();
     let findings = TestCoverageGate.run(&as_gate_ctx(&c)).unwrap();
     assert!(
-        findings.iter().any(|f| f.gate == "test_coverage"
-            && f.title.contains("service.test.ts")),
+        findings
+            .iter()
+            .any(|f| f.gate == "test_coverage" && f.title.contains("service.test.ts")),
         "expected test-coverage WARNING citing service.test.ts, got {findings:#?}"
     );
 }
@@ -607,7 +628,10 @@ fn aggregate_dedups_and_sorts_and_corroborates() {
         100,
     );
     let corr = out.iter().filter(|f| f.gate == "corroboration").count();
-    assert_eq!(corr, 1, "expected one corroboration meta-finding, got {out:#?}");
+    assert_eq!(
+        corr, 1,
+        "expected one corroboration meta-finding, got {out:#?}"
+    );
     // Critical / Warning come first in severity order.
     assert!(
         out.first().map(|f| f.severity).unwrap_or(Severity::Style) <= Severity::Warning,
@@ -618,7 +642,7 @@ fn aggregate_dedups_and_sorts_and_corroborates() {
 // ── all_gates() registry ─────────────────────────────────────────────────────
 
 #[test]
-fn all_gates_returns_ten_gates_in_expected_order() {
+fn all_gates_returns_eleven_gates_in_expected_order() {
     let names: Vec<&str> = all_gates().iter().map(|g| g.name()).collect();
     assert_eq!(
         names,
@@ -633,6 +657,7 @@ fn all_gates_returns_ten_gates_in_expected_order() {
             "new_file",
             "test_coverage",
             "secret_leakage",
+            "guard_parity",
         ]
     );
 }
@@ -677,6 +702,99 @@ fn empty_diff_produces_no_findings() {
     let ctx = as_gate_ctx(&c);
     for gate in all_gates() {
         let res = gate.run(&ctx).unwrap();
-        assert!(res.is_empty(), "gate {} emitted findings on empty diff: {res:#?}", gate.name());
+        assert!(
+            res.is_empty(),
+            "gate {} emitted findings on empty diff: {res:#?}",
+            gate.name()
+        );
     }
+}
+
+// ─── Gate 11: guard_parity ──────────────────────────────────────────────────
+
+#[test]
+fn guard_parity_flags_unguarded_new_endpoint_when_siblings_are_guarded() {
+    let diff = "diff --git a/UserApi.asmx.cs b/UserApi.asmx.cs\n\
+--- a/UserApi.asmx.cs\n\
++++ b/UserApi.asmx.cs\n\
+@@ -20,0 +21,4 @@\n\
++    [WebMethod]\n\
++    public void AddUser(string name) {\n\
++        InsertUser(name);\n\
++    }\n";
+    let c = ctx_from_diff(diff);
+    std::fs::create_dir_all(&c.project_dir).unwrap();
+    std::fs::write(
+        c.project_dir.join("UserApi.asmx.cs"),
+        "public class UserApi {\n\
+         [WebMethod]\n\
+         public void DeleteUser(int id) {\n\
+             if (!User.IsInRole(\"Admin\")) { return; }\n\
+             RemoveUser(id);\n\
+         }\n\
+         }\n",
+    )
+    .unwrap();
+
+    let findings = GuardParityGate.run(&as_gate_ctx(&c)).unwrap();
+    assert_eq!(
+        findings.len(),
+        1,
+        "expected exactly one guard-parity finding"
+    );
+    let f = &findings[0];
+    assert_eq!(f.gate, "guard_parity");
+    assert!(
+        f.evidence.iter().any(|e| e.contains("isinrole")),
+        "evidence must name the sibling guard; got {:?}",
+        f.evidence
+    );
+    assert!(
+        f.next_tool
+            .as_deref()
+            .unwrap_or("")
+            .contains("map_guards_and_settings"),
+        "next_tool must point at map_guards_and_settings"
+    );
+}
+
+#[test]
+fn guard_parity_silent_when_new_endpoint_is_guarded() {
+    let diff = "diff --git a/UserApi.asmx.cs b/UserApi.asmx.cs\n\
+--- a/UserApi.asmx.cs\n\
++++ b/UserApi.asmx.cs\n\
+@@ -20,0 +21,5 @@\n\
++    [WebMethod]\n\
++    public void AddUser(string name) {\n\
++        if (!User.IsInRole(\"Admin\")) { return; }\n\
++        InsertUser(name);\n\
++    }\n";
+    let c = ctx_from_diff(diff);
+    std::fs::create_dir_all(&c.project_dir).unwrap();
+    std::fs::write(
+        c.project_dir.join("UserApi.asmx.cs"),
+        "if (!User.IsInRole(\"Admin\")) { }",
+    )
+    .unwrap();
+    let findings = GuardParityGate.run(&as_gate_ctx(&c)).unwrap();
+    assert!(findings.is_empty(), "guarded addition must not be flagged");
+}
+
+#[test]
+fn guard_parity_silent_when_file_has_no_guard_convention() {
+    let diff = "diff --git a/Helpers.cs b/Helpers.cs\n\
+--- a/Helpers.cs\n\
++++ b/Helpers.cs\n\
+@@ -5,0 +6,3 @@\n\
++    protected void btnExport_Click(object s, EventArgs e) {\n\
++        Export();\n\
++    }\n";
+    let c = ctx_from_diff(diff);
+    std::fs::create_dir_all(&c.project_dir).unwrap();
+    std::fs::write(c.project_dir.join("Helpers.cs"), "public class Helpers { }").unwrap();
+    let findings = GuardParityGate.run(&as_gate_ctx(&c)).unwrap();
+    assert!(
+        findings.is_empty(),
+        "no sibling guards = no parity judgment from this gate"
+    );
 }

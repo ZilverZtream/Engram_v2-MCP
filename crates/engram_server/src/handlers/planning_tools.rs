@@ -762,3 +762,478 @@ mod tests {
         assert_eq!(dir_ext_shape("Makefile"), None);
     }
 }
+
+// ── map_guards_and_settings + plan_user_story ────────────────────────────────
+
+/// Settings-shaped table names: tables that store configuration rows.
+pub(crate) fn is_settings_table_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    ["setting", "config", "option", "param", "preference"]
+        .iter()
+        .any(|p| lower.contains(p))
+}
+
+/// Stopword filter for deterministic concept extraction from a user story.
+pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
+    const STOPWORDS: &[&str] = &[
+        "as",
+        "an",
+        "a",
+        "the",
+        "i",
+        "we",
+        "to",
+        "of",
+        "in",
+        "on",
+        "for",
+        "and",
+        "or",
+        "is",
+        "are",
+        "be",
+        "able",
+        "would",
+        "like",
+        "want",
+        "need",
+        "needs",
+        "should",
+        "must",
+        "can",
+        "could",
+        "set",
+        "sets",
+        "add",
+        "adds",
+        "new",
+        "get",
+        "have",
+        "has",
+        "when",
+        "with",
+        "that",
+        "this",
+        "it",
+        "my",
+        "our",
+        "so",
+        "user",
+        "users",
+        "admin",
+        "admins",
+        "administrator",
+        "system",
+        "page",
+        "allow",
+        "allows",
+        "make",
+        "required",
+        "require",
+        "minimum",
+        "maximum",
+        "number",
+        "amount",
+        "count",
+        "via",
+        "from",
+        "into",
+        "their",
+        "them",
+        "they",
+        "if",
+        "then",
+        "also",
+        "story",
+    ];
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for word in story.split(|c: char| !c.is_alphanumeric()) {
+        let lower = word.to_lowercase();
+        if lower.len() < 4 || STOPWORDS.contains(&lower.as_str()) {
+            continue;
+        }
+        if seen.insert(lower.clone()) {
+            out.push(lower);
+        }
+        if out.len() >= 3 {
+            break;
+        }
+    }
+    out
+}
+
+impl Engram {
+    pub async fn handle_map_guards_and_settings(
+        &self,
+        req: crate::models::MapGuardsAndSettingsRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let scope = req
+            .scope
+            .as_deref()
+            .map(|s| s.replace('\\', "/").to_lowercase());
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let scope_b = scope.clone();
+        let report = tokio::task::spawn_blocking(move || {
+            let nodes = graph
+                .query_nodes(&pid, None, None, None, 50_000)
+                .unwrap_or_default();
+
+            let in_scope = |file_path: &str, name: &str| -> bool {
+                match &scope_b {
+                    None => true,
+                    Some(s) => {
+                        let fp = file_path.replace('\\', "/").to_lowercase();
+                        fp.contains(s.as_str()) || name.to_lowercase() == *s
+                    }
+                }
+            };
+
+            let mut fn_total = 0usize;
+            let mut guarded: Vec<(String, String, String, String)> = Vec::new();
+            let mut unguarded: Vec<(String, String)> = Vec::new();
+            let mut house: HashMap<String, usize> = HashMap::new();
+            let mut roles_seen: HashMap<String, usize> = HashMap::new();
+            let mut scoped_fn_ids: Vec<(String, String)> = Vec::new();
+            let mut app_settings_defined = 0usize;
+            let mut settings_tables: Vec<(String, String)> = Vec::new();
+
+            for n in &nodes {
+                let checks = n
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("permission_checks"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let roles = n
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("guard_roles"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if n.node_type == "function" {
+                    if !checks.is_empty() {
+                        for g in checks.split(';') {
+                            *house.entry(g.to_string()).or_default() += 1;
+                        }
+                        for r in roles.split(';').filter(|r| !r.is_empty()) {
+                            *roles_seen.entry(r.to_string()).or_default() += 1;
+                        }
+                    }
+                    if in_scope(n.file_path.as_str(), &n.name) {
+                        fn_total += 1;
+                        scoped_fn_ids.push((n.node_id.clone(), n.name.clone()));
+                        if checks.is_empty() {
+                            unguarded.push((n.name.clone(), n.file_path.as_str().to_string()));
+                        } else {
+                            guarded.push((
+                                n.name.clone(),
+                                n.file_path.as_str().to_string(),
+                                checks.to_string(),
+                                roles.to_string(),
+                            ));
+                        }
+                    }
+                } else if n.node_type == "app_setting" {
+                    app_settings_defined += 1;
+                } else if n.node_type == "db_table" && is_settings_table_name(&n.name) {
+                    settings_tables.push((n.node_id.clone(), n.name.clone()));
+                }
+            }
+
+            // Settings consumed by in-scope functions (bounded).
+            let mut settings_read: HashMap<String, Vec<String>> = HashMap::new();
+            for (fn_id, fn_name) in scoped_fn_ids.iter().take(300) {
+                if let Ok(neigh) = graph.neighbors(&pid, EdgeKind::ReadsSetting, fn_id, 20) {
+                    for (target, _) in neigh {
+                        let key = if let Some(rest) = target.strip_prefix("::") {
+                            format!("{rest} (not in web.config — DB/env setting?)")
+                        } else {
+                            graph
+                                .get_node(&pid, &target)
+                                .ok()
+                                .flatten()
+                                .map(|n| n.name)
+                                .unwrap_or(target)
+                        };
+                        settings_read.entry(key).or_default().push(fn_name.clone());
+                    }
+                }
+            }
+
+            // Settings-table consumer counts.
+            let mut table_consumers: Vec<(String, usize)> = Vec::new();
+            for (table_id, table_name) in settings_tables.iter().take(10) {
+                let count = graph
+                    .find_incoming_edges_with_kind(&pid, None, table_id, 500)
+                    .map(|v| {
+                        v.into_iter()
+                            .filter(|(_, k, _)| {
+                                matches!(
+                                    k,
+                                    EdgeKind::QueriesTable
+                                        | EdgeKind::SqlCalls
+                                        | EdgeKind::ReadsColumn
+                                        | EdgeKind::StoredProcReadsTable
+                                        | EdgeKind::StoredProcWritesTable
+                                )
+                            })
+                            .count()
+                    })
+                    .unwrap_or(0);
+                table_consumers.push((table_name.clone(), count));
+            }
+
+            (
+                fn_total,
+                guarded,
+                unguarded,
+                house,
+                roles_seen,
+                settings_read,
+                table_consumers,
+                app_settings_defined,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let (
+            fn_total,
+            guarded,
+            unguarded,
+            house,
+            roles_seen,
+            settings_read,
+            table_consumers,
+            app_settings_count,
+        ) = report;
+
+        let mut out = format!(
+            "# Guards & settings{}\n",
+            scope
+                .as_deref()
+                .map(|s| format!(" — scope: {s}"))
+                .unwrap_or_else(|| " — project-wide".into())
+        );
+        out.push_str(&format!(
+            "\n## Guard parity\n{} of {} function(s) in scope have permission checks.\n",
+            guarded.len(),
+            fn_total
+        ));
+        if !guarded.is_empty() && !unguarded.is_empty() && scope.is_some() {
+            out.push_str(
+                "WARNING: mixed guarding in this scope — verify each unguarded function is \
+                 intentionally public:\n",
+            );
+            for (name, file) in unguarded.iter().take(10) {
+                out.push_str(&format!("  - UNGUARDED: {name} ({file})\n"));
+            }
+        }
+        if !guarded.is_empty() {
+            out.push_str("\n## Guarded functions in scope\n");
+            for (name, file, checks, roles) in guarded.iter().take(20) {
+                let role_str = if roles.is_empty() {
+                    String::new()
+                } else {
+                    format!(" roles=[{roles}]")
+                };
+                out.push_str(&format!("- {name} ({file}) checks: {checks}{role_str}\n"));
+            }
+        }
+        if !settings_read.is_empty() {
+            out.push_str("\n## Settings read in scope\n");
+            let mut keys: Vec<_> = settings_read.iter().collect();
+            keys.sort_by_key(|(k, _)| k.to_string());
+            for (key, fns) in keys.iter().take(20) {
+                let mut consumers = fns.to_vec();
+                consumers.sort();
+                consumers.dedup();
+                out.push_str(&format!("- {key} <- read by {}\n", consumers.join(", ")));
+            }
+        }
+        if !table_consumers.is_empty() {
+            out.push_str("\n## Settings-shaped tables (config stored in the DB)\n");
+            for (table, count) in &table_consumers {
+                out.push_str(&format!(
+                    "- {table} — {count} code/SP consumer edge(s); changes to settings \
+                     semantics ripple here\n"
+                ));
+            }
+        }
+        if !house.is_empty() {
+            let mut house_sorted: Vec<_> = house.into_iter().collect();
+            house_sorted.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+            out.push_str("\n## House auth patterns (project-wide guard helpers)\n");
+            for (g, c) in house_sorted.iter().take(8) {
+                out.push_str(&format!("- {g} ({c} function(s))\n"));
+            }
+            if !roles_seen.is_empty() {
+                let mut rs: Vec<_> = roles_seen.into_iter().collect();
+                rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                let names: Vec<String> = rs
+                    .into_iter()
+                    .take(10)
+                    .map(|(r, c)| format!("{r} ({c})"))
+                    .collect();
+                out.push_str(&format!("roles referenced: {}\n", names.join(", ")));
+            }
+        } else {
+            out.push_str(
+                "\n## House auth patterns\nNo guard calls detected anywhere — either the \
+                 project predates this extraction (re-run update_project) or authorization \
+                 is enforced purely via web.config (see map_auth_config).\n",
+            );
+        }
+        out.push_str(&format!(
+            "\napp settings defined in config files: {app_settings_count}\n\
+             next: map_auth_config for web.config authorization rules; \
+             get_table_schema for each settings table; trace_state_usage for role/session keys.\n"
+        ));
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// One call: a weak user story in, an implementation brief out.
+    pub async fn handle_plan_user_story(
+        &self,
+        req: crate::models::PlanUserStoryRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if req.story.trim().is_empty() {
+            return Err(McpError::invalid_params("story must not be empty", None));
+        }
+        let concepts: Vec<String> = match &req.concepts {
+            Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
+            _ => extract_story_concepts(&req.story),
+        };
+
+        let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
+        out.push_str(&format!("concepts: {}\n", concepts.join(", ")));
+
+        // Per-concept footprint (trimmed to keep the brief readable).
+        for concept in &concepts {
+            let sub = self
+                .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
+                    project_id: req.project_id.clone(),
+                    concept: concept.clone(),
+                    max_per_group: 5,
+                })
+                .await?;
+            if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
+                let trimmed: String = text
+                    .text
+                    .lines()
+                    .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
+                    .take(30)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                out.push_str(&format!("\n{trimmed}\n"));
+            }
+        }
+
+        // Pattern exemplars for the story's action.
+        let sub = self
+            .handle_find_implementation_pattern(crate::models::FindImplementationPatternRequest {
+                project_id: req.project_id.clone(),
+                pattern_query: concepts.join(" "),
+                max_examples: 2,
+            })
+            .await?;
+        if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
+            let trimmed: String = text
+                .text
+                .lines()
+                .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
+                .take(35)
+                .collect::<Vec<_>>()
+                .join("\n");
+            out.push_str(&format!("\n{trimmed}\n"));
+        }
+
+        // Guards & settings overview (house patterns + settings tables).
+        let sub = self
+            .handle_map_guards_and_settings(crate::models::MapGuardsAndSettingsRequest {
+                project_id: req.project_id.clone(),
+                scope: None,
+            })
+            .await?;
+        if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
+            let mut lines: Vec<&str> = Vec::new();
+            let mut keep = false;
+            for l in text.text.lines() {
+                if l.starts_with("## House auth patterns")
+                    || l.starts_with("## Settings-shaped tables")
+                {
+                    keep = true;
+                }
+                if l.starts_with("next:") || l.starts_with("---") {
+                    keep = false;
+                }
+                if keep {
+                    lines.push(l);
+                }
+                if lines.len() > 25 {
+                    break;
+                }
+            }
+            if !lines.is_empty() {
+                out.push_str(&format!("\n{}\n", lines.join("\n")));
+            }
+        }
+
+        out.push_str(
+            "\n## Checklist (work through ALL of it — partial implementations are how \
+             features ship without their admin page)\n\
+             - [ ] Storage: does the new value/entity follow the house pattern above \
+             (web.config key vs settings-table row)? Mirror the exemplar.\n\
+             - [ ] Admin/config UI: where do users SET this? Find the page that manages \
+             the sibling setting and extend it (or clone its pattern).\n\
+             - [ ] Enforcement: apply the new rule at EVERY touchpoint listed in the \
+             concept footprint above — uploads, edits, imports, APIs.\n\
+             - [ ] Guards: match the house auth patterns — call map_guards_and_settings \
+             with scope=<your service/page> and fix any UNGUARDED finding.\n\
+             - [ ] Messages/UX: error/validation text wherever the rule can reject input.\n\
+             - [ ] Then run: find_similar_changes(files=<your planned file list>) and \
+             close every 'MISSING from your set' item.\n\
+             - [ ] Per touched method: check_edit_safety. Before commit: pre_commit_review.\n",
+        );
+        let gen_ = self
+            .get_active_generation(&req.project_id)
+            .await
+            .unwrap_or(1);
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+#[cfg(test)]
+mod guards_settings_tests {
+    use super::*;
+
+    #[test]
+    fn settings_table_names_match_generic_shapes() {
+        assert!(is_settings_table_name("ss_systemsettings"));
+        assert!(is_settings_table_name("EmailSettings"));
+        assert!(is_settings_table_name("app_config"));
+        assert!(is_settings_table_name("UserOptions"));
+        assert!(!is_settings_table_name("Orders"));
+        assert!(!is_settings_table_name("Photos"));
+    }
+
+    #[test]
+    fn story_concepts_skip_stopwords_and_keep_domain_terms() {
+        let c = extract_story_concepts(
+            "As an admin I would like to set minimum number of photos required",
+        );
+        assert_eq!(c, vec!["photos".to_string()]);
+
+        let c2 = extract_story_concepts("Allow adding users to a company via the public api");
+        assert!(c2.contains(&"company".to_string()), "got {c2:?}");
+        assert!(!c2.contains(&"users".to_string()), "users is generic");
+    }
+}
