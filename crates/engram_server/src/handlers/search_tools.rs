@@ -165,11 +165,13 @@ impl Engram {
         out.push_str(&format!("active_generation: {gen_}\n"));
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
-                "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nscore: {:.3}\n",
+                "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
                 i + 1,
                 h.doc_id,
                 h.chunk_id,
                 h.path,
+                h.start_line,
+                h.end_line,
                 h.score
             ));
 
@@ -182,7 +184,9 @@ impl Engram {
                     let limit = req.sanitized_max_content_chars_per_result();
                     if content.chars().count() > limit {
                         out.push_str(&content.chars().take(limit).collect::<String>());
-                        out.push_str("... (truncated)");
+                        out.push_str(&format!(
+                            "... [truncated at {limit} chars — call get_chunk(doc_id) for the full chunk]"
+                        ));
                     } else {
                         out.push_str(&content);
                     }
@@ -191,6 +195,11 @@ impl Engram {
             } else if let Some(sn) = &h.snippet {
                 out.push_str("snippet:\n");
                 out.push_str(sn);
+                if h.snippet_truncated {
+                    out.push_str(
+                        " ... [snippet truncated — call get_chunk(doc_id) for the full chunk]",
+                    );
+                }
                 out.push('\n');
             }
         }
@@ -245,10 +254,12 @@ impl Engram {
 
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
-                "[{}] similarity={:.4} path={} chunk_id={}\n",
+                "[{}] similarity={:.4} path={} lines={}-{} chunk_id={}\n",
                 i + 1,
                 h.score,
                 h.path,
+                h.start_line,
+                h.end_line,
                 h.chunk_id
             ));
 
