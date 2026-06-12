@@ -1346,11 +1346,37 @@ pub fn top_co_change_pairs(
         let w = best.entry(key).or_default();
         *w = (*w).max(e.weight);
     }
-    let mut pairs: Vec<(String, String, u32)> =
-        best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
-    pairs.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
-    pairs.truncate(limit);
-    pairs
+    let pairs: Vec<(String, String, u32)> = best.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+
+    // Merge path-spelling variants from repo restructures: git history
+    // records the path as of each commit, so the same physical file can
+    // appear as both "Site/modules/map/map.js" and "modules/map/map.js".
+    // Two paths are the same file when one is a '/'-boundary tail of the
+    // other. Keep the longer spelling, sum the co-change counts.
+    fn tails_equal(p: &str, q: &str) -> bool {
+        let (long, short) = if p.len() >= q.len() { (p, q) } else { (q, p) };
+        long == short || long.ends_with(&format!("/{short}"))
+    }
+    let mut merged: Vec<(String, String, u32)> = Vec::with_capacity(pairs.len());
+    for (a, b, w) in pairs {
+        if let Some(existing) = merged.iter_mut().find(|(ea, eb, _)| {
+            (tails_equal(ea, &a) && tails_equal(eb, &b))
+                || (tails_equal(ea, &b) && tails_equal(eb, &a))
+        }) {
+            existing.2 += w;
+            if a.len() > existing.0.len() && tails_equal(&existing.0, &a) {
+                existing.0 = a;
+            }
+            if b.len() > existing.1.len() && tails_equal(&existing.1, &b) {
+                existing.1 = b;
+            }
+            continue;
+        }
+        merged.push((a, b, w));
+    }
+    merged.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
+    merged.truncate(limit);
+    merged
 }
 
 fn render_co_change_pairs(pairs: &[(String, String, u32)]) -> String {
@@ -2708,6 +2734,16 @@ Read docs/internal.md first.
         ];
         let pairs = top_co_change_pairs(&edges, 20);
         assert_eq!(pairs.len(), 2);
+        // Path-spelling variants (repo restructure) must merge: same pair
+        // recorded under "Site/x.vb" and "x.vb" sums into one row.
+        let variant_edges = vec![
+            edge("Site/App_Code/api.vb", "Site/modules/map/map.js", 200),
+            edge("App_Code/api.vb", "modules/map/map.js", 46),
+        ];
+        let merged = top_co_change_pairs(&variant_edges, 20);
+        assert_eq!(merged.len(), 1, "spelling variants must merge: {merged:?}");
+        assert_eq!(merged[0].2, 246, "weights sum across spellings");
+        assert!(merged[0].0.starts_with("Site/"), "longer spelling wins");
         assert_eq!(
             pairs[0],
             ("a.aspx".to_string(), "a.aspx.vb".to_string(), 41)
