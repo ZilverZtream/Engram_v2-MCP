@@ -442,5 +442,27 @@ interaction is materially better and the graph is trustworthy.
 - **2026-06-12 iter 3 — get_gis_inventory tool**: map API usage grouped by
   library.class with call sites/files/modern equivalents + per-file map configs +
   WMS/XYZ/Esri layer inventory, from existing spatial_call/gis_config extraction.
-- **next**: index_git_history on OciusX (6,761 commits; history_docs=0 → unlocks
-  temporal coupling, find_similar_changes, harvest_reverted_commits).
+- **2026-06-12 iter 4 — get_gis_inventory verified live**: 489 real call sites with
+  per-(library,class) counts matching grep ground truth exactly (Marker 40, Point 73,
+  Polygon 13); call-site counts preserved through edge dedup via count metadata.
+- **2026-06-12 iter 5 — JS phantom-source fix**: all 12 JS bridge emitters sourced
+  edges from file:{basename} (disconnected phantoms). Now the "file" sentinel ->
+  ingest substitutes the true rel path. *Verified: full paths in GIS inventory.*
+- **2026-06-12 iter 6 — real embeddings**: deployed config flipped to Ollama
+  nomic-embed-text (768-dim); 28k OciusX chunks embedded for real semantic search.
+- **2026-06-12 iter 7 — git history indexed**: 6,761 commits -> 1,307,942 temporal
+  edges, 15 reverts. find_similar_changes verified on real PRs (page+codebehind+
+  App_Code companions). co_change_pairs + auth_summary now populate the generated
+  CLAUDE.md (verified: api-broker.vb <-> map.js 246 co-changes; 5 exact role
+  literals; checkisuserinrole 66x).
+- **2026-06-12 iter 8 — scan scoping**: 1.3M temporal edges made full-table scans
+  toxic; list_structural_edges + phase-2 per-kind scans skip them.
+- **2026-06-12 iter 9 — tools**: find_connection_path (#14), find_dependency_cycles
+  (#20), resolve_graph_edges; access-layer first-match hazard fixed (#11); blast
+  polymorphism weight (#15); file Contains edges (#16); fallback tagging (#18);
+  centrality cache fixed (#41).
+- **2026-06-12 iter 10 — vendor gating**: bower_components/node_modules/*.min.js no
+  longer feed the graph (font-awesome bare-name phantoms). Reindex died from
+  load-starved Ollama (-> 16c queued, timeout 30->120s); recovery chain running.
+- **in progress**: CachedEmbedder (content-hash embed cache, wired but uncompiled —
+  awaits quiet machine); verify vendor-gated reindex + rerun history.
