@@ -476,8 +476,7 @@ impl HybridSearchEngine {
                     if cancel.is_cancelled() {
                         break;
                     }
-                    let batch_vecs =
-                        self.embedder.embed_batch_cancellable(chunk, cancel).await?;
+                    let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
                     vectors.extend(batch_vecs);
                 }
             }
@@ -502,9 +501,7 @@ impl HybridSearchEngine {
                 crate::vector::upsert_vectors(&table, vec![batch])
                     .await
                     .map_err(|e| {
-                        anyhow::anyhow!(
-                            "LanceDB vector upsert failed — retry to repair: {e:#}"
-                        )
+                        anyhow::anyhow!("LanceDB vector upsert failed — retry to repair: {e:#}")
                     })?;
             }
         }
@@ -1848,16 +1845,14 @@ impl HybridSearchEngine {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let (snippet, snippet_truncated) = match doc
-                .get_first(self.fields.content)
-                .and_then(|v| v.as_str())
-            {
-                Some(s) => {
-                    let (sn, truncated) = snippet_of(s, SNIPPET_MAX_CHARS);
-                    (Some(sn), truncated)
-                }
-                None => (None, false),
-            };
+            let (snippet, snippet_truncated) =
+                match doc.get_first(self.fields.content).and_then(|v| v.as_str()) {
+                    Some(s) => {
+                        let (sn, truncated) = snippet_of(s, SNIPPET_MAX_CHARS);
+                        (Some(sn), truncated)
+                    }
+                    None => (None, false),
+                };
             let start_line = doc
                 .get_first(self.fields.start_line)
                 .and_then(|v| v.as_u64())
@@ -1942,9 +1937,9 @@ impl HybridSearchEngine {
                 parser.set_conjunction_by_default();
                 parser.parse_query(&escape_tantivy_literal(&q.text))?
             }
-            unknown => anyhow::bail!(
-                "unknown fts_mode '{unknown}': must be strict, loose, or regex"
-            ),
+            unknown => {
+                anyhow::bail!("unknown fts_mode '{unknown}': must be strict, loose, or regex")
+            }
         };
 
         let pid_q = TermQuery::new(
@@ -2850,7 +2845,10 @@ mod p0_core_loop_tests {
             semantic_quality_for_backend("remote"),
             SemanticQuality::Semantic
         );
-        assert_eq!(semantic_quality_for_backend("fts_only"), SemanticQuality::Off);
+        assert_eq!(
+            semantic_quality_for_backend("fts_only"),
+            SemanticQuality::Off
+        );
         assert_eq!(
             semantic_quality_for_backend("local"),
             SemanticQuality::DegradedTrigram

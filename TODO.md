@@ -14,14 +14,14 @@ Effort: **S** = hours, **M** = days, **L** = a week+.
 
 These degrade or improve *every single interaction*. Nothing below matters until these are right.
 
-- [ ] **1. Return line numbers and untruncated snippets from search** (M)
+- [x] **1. Return line numbers and untruncated snippets from search** (M) — *done 2026-06-12: HybridHit carries start/end_line + snippet_truncated; vector hits backfilled from Tantivy; truncation markers name get_chunk.*
   `engram_index/src/hybrid.rs`, `handlers/search_tools.rs`. Search hits omit
   `start_line`/`end_line` and truncate snippets at ~300 chars. An agent that can't jump
   straight to the location must spend a second tool call (and re-read the file) for every
   hit. Every result should carry: path, line range, symbol name + kind, full chunk text
   (or an explicit `truncated: true` + a handle to fetch the rest).
 
-- [ ] **2. Ship real semantic embeddings by default — or degrade honestly** (M)
+- [x] **2. Ship real semantic embeddings by default — or degrade honestly** (M) — *done 2026-06-12 (degrade-honestly branch): SemanticQuality labeling in search/vector/project_health + startup warning; also fixed embedding_backend=ollama being rejected at engine construction. Bundling a real local model remains open (see P2).*
   `engram_core/src/config.rs`, `engram_ml/`. The default `local` backend is a
   non-semantic projection/trigram embedder, so default installs get vector search that
   *looks* like it works but returns noise — worse than no vector search, because hybrid
@@ -30,7 +30,7 @@ These degrade or improve *every single interaction*. Nothing below matters until
   hybrid weights to ~100% lexical, (b) report `"semantic_search": "degraded"` in every
   search response and in `get_capabilities`.
 
-- [ ] **3. Tame the 114-tool surface** (M)
+- [x] **3. Tame the 114-tool surface** (M) — *done 2026-06-12: all descriptions rewritten (returns + when-to-use + related tool), 33 tools tagged [.NET legacy], trigger_rem_cycle marked deprecated alias, ServerInfo.instructions now a which-tool-when guide. Dynamic per-project gating deferred to P2 #24.*
   `engram_server/src/tools.rs`, `capabilities.rs`. 114 tools with terse descriptions is
   beyond what any model selects among reliably; the best tools get lost. Three moves:
   (a) rewrite every description to state *when to use it, what it returns, what to use
@@ -39,7 +39,7 @@ These degrade or improve *every single interaction*. Nothing below matters until
   WebForms/migration tools behind project type so a Rust project sees ~50 relevant tools,
   not 114 (see #28).
 
-- [ ] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L)
+- [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial 2026-06-12: utils::envelope footer + labeled truncation markers on the hot read tools (search_memory, vector_search, get_chunk, find_symbol_references, grep_project). Remaining: max_tokens request param, cursors, and rollout to the other ~180 handlers.*
   All 13 handler files (~193 handlers). Responses are heterogeneous markdown/text with
   silent truncation (`graph_tools.rs` hardcoded limits, `access_layer_tools.rs` 30KB+
   contexts, unbounded migration reports). Define one envelope: optional `max_tokens`
@@ -47,26 +47,26 @@ These degrade or improve *every single interaction*. Nothing below matters until
   `output_json` consistently available. An agent's context is its scarcest resource;
   silent truncation is the worst failure mode because the agent doesn't know it's missing data.
 
-- [ ] **5. Staleness metadata on every response** (S)
+- [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
   detect it — it just gets wrong answers confidently. Add `index_age`/`generation`/
   `dirty_files_pending` to a standard response footer and a cheap `get_index_freshness` tool.
 
-- [ ] **6. True incremental reindex in the file watcher** (M)
+- [x] **6. True incremental reindex in the file watcher** (M) — *done 2026-06-12 (re-scoped): update path was already fingerprint-incremental; the real cost was re-hashing every stat-matching file. Now trusts mtime+size (opt-out via verify_unchanged_hashes), debounce configurable (watch_debounce_secs). Remaining per-generation copy-forward cost belongs to #36 (git/index perf).*
   `engram_server/src/actors/watcher.rs`. Any file change currently triggers a full
   `update_project`; channel saturation loses file specificity; 5s debounce is hardcoded.
   Reindex only the changed files (the generation model already supports this), keep the
   file list across overflow, make debounce configurable. This is the difference between a
   brain that's always current and one that's minutes behind during active editing.
 
-- [ ] **7. Actionable error messages with recovery hints** (M)
+- [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
   `error.rs` + all handlers. "doc_id not found" / wrong `project_id` / unindexed project
   errors give no next step. Every error an agent can hit should say what to do:
   "project_id 'X' unknown — call list_projects", "node not found — try resolve_symbol
   with name='Foo'". Agents recover from good errors in one turn; bad errors burn three.
 
-- [ ] **8. One identity system across tools** (M)
+- [x] **8. One identity system across tools** (M) — *done 2026-06-12: search hits carry symbols + node_ids; new resolve_id tool accepts node_id/name/FQN/doc_id and surfaces ambiguity as a candidate list.*
   `models/requests.rs`, `graph_tools.rs`, `search_tools.rs`. Search returns `doc_id`,
   graph tools want `node_id` or `fqn`, with no conversion path. Output of tool A must be
   directly valid input to tool B: include `node_id` + `fqn` in search hits where resolvable,

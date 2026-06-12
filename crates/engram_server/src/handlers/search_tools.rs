@@ -249,9 +249,7 @@ impl Engram {
             if let Some(syms) = symbols_by_path.get(h.path.as_str()) {
                 let overlapping: Vec<String> = syms
                     .iter()
-                    .filter(|(_, _, _, s, e)| {
-                        line_ranges_overlap(h.start_line, h.end_line, *s, *e)
-                    })
+                    .filter(|(_, _, _, s, e)| line_ranges_overlap(h.start_line, h.end_line, *s, *e))
                     .take(3)
                     .map(|(name, ty, id, _, _)| format!("{name} ({ty}) node_id={id}"))
                     .collect();

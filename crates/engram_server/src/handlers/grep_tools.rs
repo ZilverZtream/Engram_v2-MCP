@@ -115,11 +115,7 @@ impl Engram {
 /// Default Markdown rendering. We keep it dense — each match is one
 /// line with file:line:col plus the line content; context lines are
 /// indented so a scanning reader can still pick out the match.
-fn render_markdown(
-    r: &engram_index::grep::GrepResult,
-    pattern: &str,
-    regex: bool,
-) -> String {
+fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: bool) -> String {
     use std::fmt::Write as _;
     let mut out = String::with_capacity(1024 + r.matches.len() * 128);
     let tier_label = match r.tier_used {
