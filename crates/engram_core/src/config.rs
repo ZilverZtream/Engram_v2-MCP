@@ -83,6 +83,19 @@ pub struct Config {
     #[serde(default = "default_max_commits_per_watch")]
     pub max_commits_per_watch: usize,
 
+    /// Seconds the file watcher waits after the last filesystem event before
+    /// triggering an incremental update. Lower = fresher index, more churn.
+    /// Default 5.
+    #[serde(default = "default_watch_debounce_secs")]
+    pub watch_debounce_secs: u64,
+
+    /// When true, files whose mtime+size match the indexed values are still
+    /// Blake3-hashed during change detection (pre-P0 behaviour). Default
+    /// false: trust the stat signature — same tradeoff as git's stat cache —
+    /// which makes watcher updates O(file stats) instead of O(repo bytes).
+    #[serde(default)]
+    pub verify_unchanged_hashes: bool,
+
     /// Tantivy IndexWriter heap budget in bytes.
     /// Controls segment merge frequency — larger values reduce merges for big repos.
     /// Default 50 MB. Set higher (150_000_000) for repos with 100k+ files.
@@ -318,6 +331,10 @@ fn default_max_commits_per_watch() -> usize {
     50
 }
 
+fn default_watch_debounce_secs() -> u64 {
+    5
+}
+
 fn default_tantivy_writer_memory() -> usize {
     50_000_000 // 50 MB
 }
@@ -477,6 +494,8 @@ impl Default for Config {
             max_concurrent_jobs: default_max_concurrent_jobs(),
             max_chunks_per_file: default_max_chunks_per_file(),
             max_commits_per_watch: default_max_commits_per_watch(),
+            watch_debounce_secs: default_watch_debounce_secs(),
+            verify_unchanged_hashes: false,
             tantivy_writer_memory: default_tantivy_writer_memory(),
             mmr_oversampling: default_mmr_oversampling(),
             max_parse_concurrency: default_max_parse_concurrency(),

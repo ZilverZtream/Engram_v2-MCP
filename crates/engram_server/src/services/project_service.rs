@@ -191,6 +191,14 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
     report
 }
 
+/// P0-6: whether a stored (mtime, size) pair is a trustworthy "unchanged"
+/// signal on its own. Zero values mean the metadata was never recorded (or
+/// the platform couldn't produce it), so a stat match proves nothing and the
+/// caller must fall back to content hashing.
+pub(crate) fn stat_match_is_trustworthy(stored_mtime: u64, stored_size: u64) -> bool {
+    stored_mtime != 0 && stored_size != 0
+}
+
 /// Compute incremental changes between on-disk files and graph-stored file metadata.
 pub async fn get_incremental_changes(
     state: &AppState,
@@ -198,6 +206,7 @@ pub async fn get_incremental_changes(
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
+    let verify_hashes = state.cfg.verify_unchanged_hashes;
     // 1. Scan disk
     let root_clone = root.to_path_buf();
     let exts_owned: Vec<String> = exts.iter().map(|s| s.to_string()).collect();
@@ -276,7 +285,14 @@ pub async fn get_incremental_changes(
                         .map(|s| s.to_string());
 
                     if stored_mtime == mtime && stored_size == size {
-                        if let Some(ref sh) = stored_hash {
+                        // P0-6: a matching (mtime, size) pair is the same
+                        // signal git's stat cache trusts. Re-hashing every
+                        // matching file made each watcher tick O(repo bytes);
+                        // hash verification is now opt-in via
+                        // verify_unchanged_hashes in engram_mcp.yaml.
+                        if !verify_hashes && stat_match_is_trustworthy(stored_mtime, stored_size) {
+                            is_changed = false;
+                        } else if let Some(ref sh) = stored_hash {
                             match stream_hash(&p) {
                                 Some(ref current_hash) if current_hash == sh => {
                                     is_changed = false;
@@ -410,4 +426,29 @@ pub async fn inject_repo_rules(
     }
     header.push('\n');
     header + content
+}
+
+#[cfg(test)]
+mod p0_stat_trust_tests {
+    use super::stat_match_is_trustworthy;
+
+    /// P0-6: a recorded (mtime, size) pair is trustworthy on its own.
+    #[test]
+    fn nonzero_stat_pair_is_trustworthy() {
+        assert!(stat_match_is_trustworthy(1_700_000_000, 4096));
+    }
+
+    /// P0-6: zero mtime means "never recorded" — must force a hash check,
+    /// otherwise files indexed before stat tracking would never re-index.
+    #[test]
+    fn zero_mtime_is_not_trustworthy() {
+        assert!(!stat_match_is_trustworthy(0, 4096));
+    }
+
+    /// P0-6: zero size is ambiguous (empty file vs missing metadata); fall
+    /// back to hashing — hashing an empty file costs nothing anyway.
+    #[test]
+    fn zero_size_is_not_trustworthy() {
+        assert!(!stat_match_is_trustworthy(1_700_000_000, 0));
+    }
 }

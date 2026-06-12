@@ -29,7 +29,9 @@ pub async fn run_watcher(
     // Internal channel to receive notify events
     let (tx_notify, mut rx_notify) = mpsc::channel::<(String, notify::Result<notify::Event>)>(8192);
 
-    let debounce_duration = Duration::from_secs(5);
+    // P0-6: debounce is configurable (watch_debounce_secs, default 5);
+    // clamp to ≥1s so a zero config value cannot busy-spin the update loop.
+    let debounce_duration = Duration::from_secs(state.cfg.watch_debounce_secs.max(1));
     let mut ticker = tokio::time::interval(Duration::from_millis(500));
 
     // Initialization: Restore enabled watchers from registry
