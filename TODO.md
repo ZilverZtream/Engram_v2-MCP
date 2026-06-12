@@ -477,3 +477,10 @@ interaction is materially better and the graph is trustworthy.
   (font-awesome phantom eliminated). find_dependency_cycles on real data: 31
   components, top = 39-function cycle in map.js. Driver shutdown fixed (stale
   tantivy lock killed follow-on phases).
+- **2026-06-12 iter 14 — history failure triple-fixed, FULL BRAIN COMPLETE**: error
+  masking removed (consumer root error surfaces) -> revealed LockBusy -> bulk-writer
+  retry -> revealed Ollama 400 on oversized history docs (50k diffs / 200k
+  anti-pattern vs 2048-token context) -> 8k-char clamp + truncate:true + 16c
+  degrade-not-die vectors. *Verified on 9933d04d: 6,761 commits, 1,307,942 temporal
+  edges, diagnostic ok, 163,816 vectors = full corpus embedded, history in ~9 min.
+  Final state: 49,470 nodes / 1.35M edges / 163,815 docs, all green.*
