@@ -602,3 +602,94 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 }
+
+impl Engram {
+    /// TODO-20: inventory of dependency cycles (strongly-connected
+    /// components) — the places where one-module-at-a-time migration
+    /// plans break.
+    pub async fn handle_find_dependency_cycles(
+        &self,
+        req: crate::models::FindDependencyCyclesRequest,
+    ) -> Result<CallToolResult, McpError> {
+        crate::handlers::validate_project_id(&req.project_id)?;
+        let _ = self.ensure_project_record(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let min_size = req.min_size.max(2);
+        let cycles = tokio::task::spawn_blocking(move || {
+            engram_graph::analysis::find_dependency_cycles(&graph, &pid, min_size)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        if cycles.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No dependency cycles of size >= {min_size} found over Calls/Dependency/Imports \
+                 edges. Module extraction order is unconstrained by cycles."
+            ))]));
+        }
+
+        let total = cycles.len();
+        let mut out = format!(
+            "# Dependency cycles ({total} component(s), size >= {min_size})\n\
+             Members of a cycle cannot be migrated independently — extract the whole \
+             component or break an edge first.\n\n"
+        );
+        let graph2 = self.state.graph.clone();
+        let pid2 = req.project_id.clone();
+        let shown: Vec<_> = cycles.into_iter().take(req.limit.clamp(1, 100)).collect();
+        let named = tokio::task::spawn_blocking(move || {
+            shown
+                .into_iter()
+                .map(|c| {
+                    let names: Vec<String> = c
+                        .members
+                        .iter()
+                        .take(12)
+                        .map(|id| {
+                            graph2
+                                .get_node(&pid2, id)
+                                .ok()
+                                .flatten()
+                                .map(|n| format!("{} ({})", n.name, n.file_path))
+                                .unwrap_or_else(|| id.clone())
+                        })
+                        .collect();
+                    (c, names)
+                })
+                .collect::<Vec<_>>()
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        for (i, (c, names)) in named.iter().enumerate() {
+            let kinds: Vec<&str> = c.binding_kinds.iter().map(|k| k.as_str()).collect();
+            out.push_str(&format!(
+                "## Cycle {} — {} member(s), bound by {}\n",
+                i + 1,
+                c.members.len(),
+                kinds.join(" + ")
+            ));
+            for n in names {
+                out.push_str(&format!("- {n}\n"));
+            }
+            if c.members.len() > 12 {
+                out.push_str(&format!("- ... and {} more\n", c.members.len() - 12));
+            }
+            out.push('\n');
+        }
+        if total > named.len() {
+            out.push_str(&format!(
+                "... and {} more component(s)\n",
+                total - named.len()
+            ));
+        }
+        out.push_str(
+            "next: blast_radius on the largest cycle's members; suggest_migration_boundaries \
+             treats each cycle as one unit.\n",
+        );
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}

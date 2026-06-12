@@ -547,6 +547,27 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
+/// TODO-20: dependency cycle (SCC) inventory.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindDependencyCyclesRequest {
+    pub project_id: String,
+    /// Smallest component size to report. Default 2 (any real cycle).
+    #[serde(default = "default_cycle_min_size")]
+    pub min_size: usize,
+    /// Maximum components to report. Default 20.
+    #[serde(default = "default_cycle_limit")]
+    pub limit: usize,
+}
+
+pub fn default_cycle_min_size() -> usize {
+    2
+}
+
+pub fn default_cycle_limit() -> usize {
+    20
+}
+
 /// TODO-14: shortest connection path between two graph identities.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

@@ -493,6 +493,82 @@ pub fn find_path(
     Ok(bfs(true))
 }
 
+// ── Dependency cycles / SCCs (TODO-20) ───────────────────────────────────────
+
+/// A strongly-connected component of the dependency graph: every member
+/// reaches every other member. Cycles are exactly where naive
+/// strangler-fig migration plans fail — you cannot extract one member
+/// without the others.
+#[derive(Debug, Clone)]
+pub struct DependencyCycle {
+    pub members: Vec<String>,
+    /// Edge kinds observed inside the cycle (what binds it together).
+    pub binding_kinds: Vec<EdgeKind>,
+}
+
+/// Find strongly-connected components over dependency-like edges
+/// (Calls, Dependency, Imports). Statistical and hierarchical kinds are
+/// excluded — temporal coupling is not a build-order constraint and
+/// Contains cannot cycle. Returns components of size >= `min_size`,
+/// largest first.
+pub fn find_dependency_cycles(
+    store: &GraphStore,
+    project_id: &str,
+    min_size: usize,
+) -> anyhow::Result<Vec<DependencyCycle>> {
+    const CYCLE_KINDS: [EdgeKind; 3] = [EdgeKind::Calls, EdgeKind::Dependency, EdgeKind::Imports];
+
+    let mut graph: DiGraph<String, EdgeKind> = DiGraph::new();
+    let mut idx: HashMap<String, NodeIndex> = HashMap::new();
+    let mut get_idx =
+        |g: &mut DiGraph<String, EdgeKind>, m: &mut HashMap<String, NodeIndex>, id: &str| {
+            if let Some(i) = m.get(id) {
+                *i
+            } else {
+                let i = g.add_node(id.to_string());
+                m.insert(id.to_string(), i);
+                i
+            }
+        };
+
+    for kind in CYCLE_KINDS {
+        for e in store.list_edges_by_kind(project_id, kind.clone(), usize::MAX)? {
+            // Placeholder targets are unresolved externals — they cannot
+            // participate in a real cycle.
+            if e.target_id.starts_with("::") {
+                continue;
+            }
+            let s = get_idx(&mut graph, &mut idx, &e.source_id);
+            let t = get_idx(&mut graph, &mut idx, &e.target_id);
+            graph.add_edge(s, t, e.edge_kind.clone());
+        }
+    }
+
+    let sccs = petgraph::algo::tarjan_scc(&graph);
+    let mut out = Vec::new();
+    for comp in sccs {
+        if comp.len() < min_size.max(2) {
+            continue;
+        }
+        let member_set: std::collections::HashSet<NodeIndex> = comp.iter().copied().collect();
+        let mut kinds: Vec<EdgeKind> = Vec::new();
+        for &n in &comp {
+            for edge in graph.edges(n) {
+                use petgraph::visit::EdgeRef;
+                if member_set.contains(&edge.target()) && !kinds.contains(edge.weight()) {
+                    kinds.push(edge.weight().clone());
+                }
+            }
+        }
+        out.push(DependencyCycle {
+            members: comp.iter().map(|&n| graph[n].clone()).collect(),
+            binding_kinds: kinds,
+        });
+    }
+    out.sort_by(|a, b| b.members.len().cmp(&a.members.len()));
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1009,5 +1085,49 @@ mod tests {
             .is_none(),
             "two unrelated functions in one file must not be 'connected' via membership"
         );
+    }
+
+    // ── find_dependency_cycles tests (TODO-20) ───────────────────────────
+
+    #[test]
+    fn detects_call_cycle_and_ignores_acyclic() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        // a -> b -> c -> a (cycle), d -> a (acyclic feeder)
+        path_edge(&store, "a", "b", EdgeKind::Calls);
+        path_edge(&store, "b", "c", EdgeKind::Calls);
+        path_edge(&store, "c", "a", EdgeKind::Calls);
+        path_edge(&store, "d", "a", EdgeKind::Calls);
+
+        let cycles = find_dependency_cycles(&store, "proj", 2).unwrap();
+        assert_eq!(cycles.len(), 1);
+        let mut members = cycles[0].members.clone();
+        members.sort();
+        assert_eq!(members, vec!["a", "b", "c"]);
+        assert!(cycles[0].binding_kinds.contains(&EdgeKind::Calls));
+    }
+
+    #[test]
+    fn mutual_imports_cycle_detected_temporal_ignored() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_edge(&store, "m1", "m2", EdgeKind::Imports);
+        path_edge(&store, "m2", "m1", EdgeKind::Imports);
+        // Temporal pair must NOT count as a cycle.
+        path_edge(&store, "t1", "t2", EdgeKind::TemporalCoupling);
+        path_edge(&store, "t2", "t1", EdgeKind::TemporalCoupling);
+
+        let cycles = find_dependency_cycles(&store, "proj", 2).unwrap();
+        assert_eq!(cycles.len(), 1, "only the Imports cycle counts");
+        assert!(cycles[0].members.contains(&"m1".to_string()));
+    }
+
+    #[test]
+    fn placeholder_targets_do_not_form_cycles() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_edge(&store, "x", "::Ghost", EdgeKind::Calls);
+        let cycles = find_dependency_cycles(&store, "proj", 2).unwrap();
+        assert!(cycles.is_empty());
     }
 }
