@@ -103,7 +103,7 @@ they feed blast radius, edit safety, and the ADP gates.
   tools silently use the first. Return the candidate list with namespaces and require/let
   the agent disambiguate. Silent wrong-target resolution is how agents edit the wrong class.
 
-- [ ] **12. Confidence metadata on edges, threaded into tools and ADP gate 1** (M)
+- [~] **12. Confidence metadata on edges, threaded into tools and ADP gate 1** (M) - *partial 2026-06-13: ingest target-binding stamps resolution+confidence (exact_same_file 0.98 ... batch_unique_any_terminal 0.35); find_path/find_connection_path surface LOW CONFIDENCE warnings on weak hops. Remaining: blast-radius weighting, resolve_symbol_edges step stamping, ADP gate 1 consumption.*
   All extractors, `ingest_service.rs`, `cognitive_tools.rs`. A bare-name App_Code match
   and an FQN-verified call currently look identical. Add `confidence` +
   `resolution_method` to edge metadata; show it in graph/blast-radius output; feed

@@ -324,12 +324,18 @@ pub async fn process_ingest_stats(
     // absent-or-ambiguous; the caller then emits a "::name" placeholder so
     // the post-ingest resolve_symbol_edges pass (which sees the whole graph,
     // not just this batch) can rewire it.
+    // TODO-12: every resolution carries (confidence, method) so consumers
+    // can tell an FQN-verified binding from a bare-name guess. Terminal-
+    // segment keys and any-kind matches are progressively less trustworthy —
+    // a JS `Map` call binding to a class named `ConfigSettings.Map` is the
+    // canonical false positive this exposes.
     let resolve_batch_symbol = |raw: &str,
                                 prefer_path: &str,
                                 prefer_kind: Option<&str>|
-     -> Option<String> {
+     -> Option<(String, f32, &'static str)> {
         let terminal = raw.rsplit('.').next().unwrap_or(raw);
         for key in [raw, terminal] {
+            let via_terminal = !std::ptr::eq(key, raw) && key != raw;
             let Some(cands) = symbols_by_name.get(key) else {
                 continue;
             };
@@ -340,14 +346,29 @@ pub async fn process_ingest_stats(
                 .find(|c| kind_ok(c))
                 .or_else(|| same_file.first())
             {
-                return Some(rebuild_symbol_id(**c));
+                let (conf, method) = if via_terminal {
+                    (0.85, "batch_same_file_terminal")
+                } else {
+                    (0.9, "batch_same_file")
+                };
+                return Some((rebuild_symbol_id(**c), conf, method));
             }
             let kind_matches: Vec<&SymEntry> = cands.iter().filter(|c| kind_ok(c)).collect();
             if kind_matches.len() == 1 {
-                return Some(rebuild_symbol_id(*kind_matches[0]));
+                let (conf, method) = if via_terminal {
+                    (0.55, "batch_unique_kind_terminal")
+                } else {
+                    (0.7, "batch_unique_kind")
+                };
+                return Some((rebuild_symbol_id(*kind_matches[0]), conf, method));
             }
             if cands.len() == 1 {
-                return Some(rebuild_symbol_id(cands[0]));
+                let (conf, method) = if via_terminal {
+                    (0.35, "batch_unique_any_terminal")
+                } else {
+                    (0.5, "batch_unique_any")
+                };
+                return Some((rebuild_symbol_id(cands[0]), conf, method));
             }
         }
         None
@@ -427,6 +448,7 @@ pub async fn process_ingest_stats(
                 rel_path.as_str(),
                 Some(edge.source_kind.as_str()),
             )
+            .map(|(id, _, _)| id)
             .unwrap_or_else(|| {
                 let fqn = if edge.source_name.contains('.') {
                     Some(edge.source_name.as_str())
@@ -447,6 +469,10 @@ pub async fn process_ingest_stats(
             })
         };
 
+        // TODO-12: how the TARGET endpoint was bound (None = file/page/etc.
+        // structural ids, trusted-line rebuilds, or placeholders resolved in
+        // the post-pass).
+        let mut target_resolution: Option<(f32, &'static str)> = None;
         let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
         {
             let path = if edge.target_name == "file" {
@@ -566,10 +592,12 @@ pub async fn process_ingest_stats(
                     })
             });
             if let Some(id) = exact_same_file {
+                target_resolution = Some((0.98, "exact_same_file"));
                 id
-            } else if let Some(id) =
+            } else if let Some((id, conf, method)) =
                 resolve_batch_symbol(&edge.target_name, rel_path.as_str(), Some(kind.as_str()))
             {
+                target_resolution = Some((conf, method));
                 id
             } else if let Some(line) = edge.target_start_line {
                 let fqn = if edge.target_name.contains('.') {
@@ -768,6 +796,30 @@ pub async fn process_ingest_stats(
             );
         }
 
+        let metadata = {
+            let mut obj =
+                serde_json::Map::with_capacity(edge.metadata.as_ref().map_or(0, |m| m.len()) + 2);
+            if let Some(m) = edge.metadata.as_ref() {
+                for (k, v) in m {
+                    obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+                }
+            }
+            if let Some((conf, method)) = target_resolution {
+                obj.insert(
+                    "resolution".into(),
+                    serde_json::Value::String(method.into()),
+                );
+                obj.insert(
+                    "confidence".into(),
+                    serde_json::Value::String(format!("{conf:.2}")),
+                );
+            }
+            if obj.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(obj))
+            }
+        };
         edges.push(engram_graph::Edge {
             source_id,
             target_id,
@@ -776,13 +828,7 @@ pub async fn process_ingest_stats(
             edge_kind,
             weight: 1,
             generation,
-            metadata: edge.metadata.as_ref().map(|m| {
-                let mut obj = serde_json::Map::with_capacity(m.len());
-                for (k, v) in m {
-                    obj.insert(k.clone(), serde_json::Value::String(v.clone()));
-                }
-                serde_json::Value::Object(obj)
-            }),
+            metadata,
             updated_at_ms: now_ms(),
         });
     }
