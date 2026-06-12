@@ -181,6 +181,11 @@ pub struct StateSummary {
     /// Top-5 state keys by total read+write fan-in — cited so the reader
     /// sees the highest-traffic state surface at a glance.
     pub top_keys: Vec<(String, usize)>,
+    /// TODO-17: Session[variableName]-style accesses the extractor could
+    /// not resolve to a literal key. Non-zero means the key inventory
+    /// above is a LOWER BOUND, not the full surface.
+    #[allow(dead_code)]
+    pub unresolved_accesses: usize,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -1203,6 +1208,15 @@ fn render_state_and_data(
             strong.push(format!(
                 "Session is the dominant state surface ({} keys vs {} ViewState). Prefer existing session keys over introducing new ones — the highest-traffic keys listed below are strong reuse candidates.",
                 s.session_keys, s.viewstate_keys
+            ));
+        }
+        if s.unresolved_accesses > 0 {
+            mandatory.push(format!(
+                "**{}** state accesses use a VARIABLE key (`Session[someVar]`) that static \
+                 extraction cannot resolve — the key inventory below is a lower bound. \
+                 Before renaming/removing any state key, grep for dynamic access patterns \
+                 in the touching files.",
+                s.unresolved_accesses
             ));
         }
         if !s.top_keys.is_empty() {
@@ -2713,6 +2727,7 @@ Read docs/internal.md first.
                 application_keys: 1,
                 cross_page_chains: 2,
                 top_keys: vec![("CartID".into(), 15), ("UserId".into(), 10)],
+                unresolved_accesses: 0,
             }),
             None, // no DB summary
             None, // no auth summary
@@ -2812,6 +2827,7 @@ Read docs/internal.md first.
                 application_keys: 1,
                 cross_page_chains: 154,
                 top_keys: vec![("fjAdvancedFilter".into(), 15)],
+                unresolved_accesses: 47,
             }),
             Some(&DbSummary {
                 table_count: 192,

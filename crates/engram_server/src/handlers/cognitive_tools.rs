@@ -3192,8 +3192,41 @@ impl Engram {
                     application_keys: application,
                     cross_page_chains: r.cross_page_chains,
                     top_keys: by_fanin,
+                    unresolved_accesses: 0, // filled below
                 }
             })
+        };
+        // TODO-17: dynamic-key accesses make the inventory a lower bound —
+        // count them so the generated rules say so.
+        let state_summary = match state_summary {
+            Some(mut s) => {
+                let g = graph.clone();
+                let p = pid.clone();
+                let unresolved = tokio::task::spawn_blocking(move || {
+                    let r = g
+                        .list_edges_by_kind(
+                            &p,
+                            engram_graph::EdgeKind::UnresolvedStateRead,
+                            usize::MAX,
+                        )
+                        .map(|v| v.len())
+                        .unwrap_or(0);
+                    let w = g
+                        .list_edges_by_kind(
+                            &p,
+                            engram_graph::EdgeKind::UnresolvedStateWrite,
+                            usize::MAX,
+                        )
+                        .map(|v| v.len())
+                        .unwrap_or(0);
+                    r + w
+                })
+                .await
+                .unwrap_or(0);
+                s.unresolved_accesses = unresolved;
+                Some(s)
+            }
+            None => None,
         };
 
         // ── 8. Database summary (only if db_table nodes exist) ────────
