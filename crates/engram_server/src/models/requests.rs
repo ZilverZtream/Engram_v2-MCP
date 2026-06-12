@@ -469,6 +469,54 @@ pub struct MapGuardsAndSettingsRequest {
     pub scope: Option<String>,
 }
 
+/// One external review finding (CTO comment, SonarQube issue, CodeRabbit nit).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+pub struct ReviewFindingIn {
+    /// Project-relative file the finding applies to (optional).
+    #[serde(default)]
+    pub file: Option<String>,
+    /// Rule/check identifier (e.g. "csharpsquid:S2076", "cto:always-audit").
+    #[serde(default)]
+    pub rule: Option<String>,
+    /// The finding text — what was wrong and what to do instead.
+    pub message: String,
+    /// blocker|critical|major|minor|info (free-form accepted).
+    #[serde(default)]
+    pub severity: Option<String>,
+}
+
+/// Ingest external review findings into the anti-pattern index so
+/// immune_check / pre_commit_review catch the same mistake next time.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IngestReviewFindingsRequest {
+    pub project_id: String,
+    /// Findings as a list (CTO comments, manual entries).
+    #[serde(default)]
+    pub findings: Option<Vec<ReviewFindingIn>>,
+    /// Raw SonarQube issues export JSON (`{"issues":[...]}` shape from
+    /// /api/issues/search). Parsed in addition to `findings`.
+    #[serde(default)]
+    pub sonarqube_json: Option<String>,
+    /// Promote blocker/critical findings with a file to repo rules. Default true.
+    #[serde(default = "default_true")]
+    pub promote_rules: bool,
+}
+
+/// Generate the Claude Code integration pack (workflow rules + reminder hooks).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GenerateAgentIntegrationRequest {
+    pub project_id: String,
+    /// Write the files into the project's .claude/ directory (never
+    /// overwrites an existing settings.json). Default false: return contents.
+    #[serde(default)]
+    pub write_files: bool,
+    /// Generate Windows (PowerShell) hook commands. Default true.
+    #[serde(default = "default_true")]
+    pub windows: bool,
+}
+
 /// Planning: one-call implementation brief for a (one-line) user story.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

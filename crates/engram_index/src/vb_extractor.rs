@@ -651,6 +651,39 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     }
                 }
             }
+        } else if (lower.starts_with("inherits ") || lower.starts_with("implements "))
+            && !ty.is_empty()
+        {
+            // Type hierarchy: class-level Inherits / Implements statements.
+            let is_implements = lower.starts_with("implements ");
+            let list = &line[if is_implements { 11 } else { 9 }..];
+            for raw_base in list.split(',') {
+                let base = raw_base
+                    .split('(')
+                    .next()
+                    .unwrap_or(raw_base)
+                    .trim()
+                    .trim_start_matches("Global.")
+                    .trim();
+                if base.is_empty() {
+                    continue;
+                }
+                edges.push(ExtractedEdge {
+                    source_name: ty.clone(),
+                    source_kind: "class".to_string(),
+                    source_start_line: line_no,
+                    source_language: "vb".to_string(),
+                    target_name: base.to_string(),
+                    target_kind: Some("class".to_string()),
+                    target_start_line: None,
+                    kind: if is_implements {
+                        "implements_interface".to_string()
+                    } else {
+                        "inherits_from".to_string()
+                    },
+                    metadata: None,
+                });
+            }
         } else if lower.starts_with("imports ") {
             let target = line[8..].trim().to_string();
             edges.push(ExtractedEdge {

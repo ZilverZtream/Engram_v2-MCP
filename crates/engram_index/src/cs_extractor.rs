@@ -64,6 +64,11 @@ static RE_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)\b(?:isinrole|isuserinrole)\s*\(\s*"([^"]+)""#)
         .expect("valid role literal regex")
 });
+/// Base list on a class declaration: `class Orders : PageBase, IAuditable {`.
+static RE_CLASS_BASES: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bclass\s+[A-Za-z_][A-Za-z0-9_]*(?:\s*<[^>{:]*>)?\s*:\s*([^{]+)")
+        .expect("valid base list regex")
+});
 
 pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     let extractor = SymbolExtractor::new();
@@ -92,6 +97,50 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
 
         if let Some(c) = RE_CLASS.captures(line) {
             class_name = c.get(1).map(|m| m.as_str()).unwrap_or_default().to_string();
+
+            // Type hierarchy: base classes and interfaces from the base list.
+            // Interface heuristic is the .NET naming convention (leading
+            // 'I' + uppercase); everything else is treated as the base class.
+            if let Some(bases) = RE_CLASS_BASES
+                .captures(line)
+                .and_then(|b| b.get(1).map(|m| m.as_str()))
+            {
+                for raw_base in bases.split(',') {
+                    // Strip generic args + whitespace; keep dotted names.
+                    let base = raw_base
+                        .split(['<', '('])
+                        .next()
+                        .unwrap_or(raw_base)
+                        .trim()
+                        .trim_end_matches('{')
+                        .trim();
+                    if base.is_empty() || class_name.is_empty() {
+                        continue;
+                    }
+                    let terminal = base.rsplit('.').next().unwrap_or(base);
+                    let is_interface = terminal.len() >= 2
+                        && terminal.starts_with('I')
+                        && terminal
+                            .chars()
+                            .nth(1)
+                            .is_some_and(|c| c.is_ascii_uppercase());
+                    edges.push(ExtractedEdge {
+                        source_name: class_name.clone(),
+                        source_kind: "class".to_string(),
+                        source_start_line: line_no,
+                        source_language: "cs".to_string(),
+                        target_name: base.to_string(),
+                        target_kind: Some("class".to_string()),
+                        target_start_line: None,
+                        kind: if is_interface {
+                            "implements_interface".to_string()
+                        } else {
+                            "inherits_from".to_string()
+                        },
+                        metadata: None,
+                    });
+                }
+            }
         }
 
         if let Some(c) = RE_CTOR.captures(line) {
@@ -482,5 +531,56 @@ namespace App {
             .as_ref()
             .and_then(|m| m.get("permission_checks"));
         assert!(unguarded.is_none(), "ListUsers has no guards");
+    }
+}
+
+#[cfg(test)]
+mod hierarchy_tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn cs_base_list_splits_class_vs_interfaces() {
+        let code = r#"
+namespace App {
+    public class OrdersPage : PageBase, IAuditable {
+        public void Load() {}
+    }
+}"#;
+        let (_, edges) = extract_cs(Path::new("OrdersPage.aspx.cs"), code);
+        let inherits: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "inherits_from")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert_eq!(inherits, vec!["PageBase"]);
+        let implements: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "implements_interface")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert_eq!(implements, vec!["IAuditable"]);
+    }
+
+    #[test]
+    fn cs_generic_base_and_qualified_interface() {
+        let code = "public class Repo : BaseRepo<Order>, System.IDisposable { }";
+        let (_, edges) = extract_cs(Path::new("Repo.cs"), code);
+        let inherits: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "inherits_from")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert_eq!(inherits, vec!["BaseRepo"], "generic args stripped");
+        let implements: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "implements_interface")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert_eq!(
+            implements,
+            vec!["System.IDisposable"],
+            "interface detection uses the terminal segment"
+        );
     }
 }

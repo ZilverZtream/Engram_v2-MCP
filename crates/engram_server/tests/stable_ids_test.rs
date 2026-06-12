@@ -188,6 +188,21 @@ namespace MyApp {
         Some("MyApp.Order"),
         "class FQN must survive reindex"
     );
+
+    // Eager graph retention: the gen-1 node at the old declaration line must
+    // be purged by update_project itself (memory namespace is
+    // KeepLatestOnly), not left for the scheduled GC — otherwise every
+    // watcher-triggered save leaves phantom duplicates that blast radius and
+    // concept footprints count.
+    let printjob_nodes: Vec<_> = nodes_v2
+        .iter()
+        .filter(|n| n.node_type == "function" && n.name == "PrintJob")
+        .collect();
+    assert_eq!(
+        printjob_nodes.len(),
+        1,
+        "stale-generation node must be purged on update: {printjob_nodes:?}"
+    );
 }
 
 #[tokio::test]

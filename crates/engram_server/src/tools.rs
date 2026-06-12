@@ -190,6 +190,26 @@ impl Engram {
         self.handle_plan_user_story(params.0).await
     }
 
+    #[tool(
+        description = "Generate the Claude Code integration pack for a project: .claude/rules/engram-workflow.md (the mandated planning/safety loop) and .claude/settings.json reminder hooks that re-inject the workflow at edit/stop time. write_files=true installs them into the project (never overwrites an existing settings.json). Run once per project after indexing."
+    )]
+    pub async fn generate_agent_integration(
+        &self,
+        params: Parameters<GenerateAgentIntegrationRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_generate_agent_integration(params.0).await
+    }
+
+    #[tool(
+        description = "Feed external review findings into Engram's anti-pattern memory: pass CTO/manual findings as a list and/or a SonarQube issues export JSON. What a reviewer caught once is then caught automatically by immune_check, pre_commit_review's gates, and get_chunk rule injection. Blocker/critical file-scoped findings auto-promote to repo rules. Run after every review cycle."
+    )]
+    pub async fn ingest_review_findings(
+        &self,
+        params: Parameters<IngestReviewFindingsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_review_findings(params.0).await
+    }
+
     // ---- Search + chunks ----
 
     #[tool(

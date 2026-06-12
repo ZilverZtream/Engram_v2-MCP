@@ -109,6 +109,12 @@ pub enum EdgeKind {
     /// Code reads a configuration/app setting (web.config appSettings key,
     /// My.Settings member, or a settings accessor helper).
     ReadsSetting,
+    /// Class inherits from a base class (C# `: Base`, VB `Inherits Base`).
+    /// Distinct from the webforms page→codebehind "inherits" raw kind,
+    /// which maps to Contains.
+    InheritsFrom,
+    /// Class implements an interface (C# `: IFoo`, VB `Implements IFoo`).
+    Implements,
 }
 
 impl EdgeKind {
@@ -154,6 +160,8 @@ impl EdgeKind {
         EdgeKind::ObservedRuntimeControl,
         EdgeKind::ObservedRuntimeSql,
         EdgeKind::ReadsSetting,
+        EdgeKind::InheritsFrom,
+        EdgeKind::Implements,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -199,6 +207,8 @@ impl EdgeKind {
             EdgeKind::ObservedRuntimeControl => "observed_runtime_control",
             EdgeKind::ObservedRuntimeSql => "observed_runtime_sql",
             EdgeKind::ReadsSetting => "reads_setting",
+            EdgeKind::InheritsFrom => "inherits_from",
+            EdgeKind::Implements => "implements_interface",
         }
     }
 
@@ -245,6 +255,8 @@ impl EdgeKind {
             "observed_runtime_control" => Some(EdgeKind::ObservedRuntimeControl),
             "observed_runtime_sql" => Some(EdgeKind::ObservedRuntimeSql),
             "reads_setting" => Some(EdgeKind::ReadsSetting),
+            "inherits_from" => Some(EdgeKind::InheritsFrom),
+            "implements_interface" => Some(EdgeKind::Implements),
             _ => None,
         }
     }
@@ -1531,6 +1543,184 @@ impl GraphStore {
         Ok(())
     }
 
+    /// Remove stale-generation nodes (and edges touching them) for the given
+    /// file paths ONLY. Safe after an INCREMENTAL update: only files that
+    /// were re-extracted this generation are eligible, so unchanged files —
+    /// whose nodes legitimately keep older generations until a full reindex —
+    /// are never touched. (The global `purge_old_generations` is only safe
+    /// when every file was re-indexed at `active_generation`.)
+    pub fn purge_stale_nodes_for_paths(
+        &self,
+        project_id: &str,
+        paths: &std::collections::HashSet<String>,
+        active_generation: u64,
+    ) -> anyhow::Result<(usize, usize)> {
+        if paths.is_empty() {
+            return Ok((0, 0));
+        }
+        let prefix = format!("{project_id}\0");
+        const BATCH_SIZE: usize = 1000;
+
+        // Phase 1: stale nodes belonging to the re-indexed files. Also build
+        // a successor map (file, name, type) → current-generation node_id so
+        // cross-file edges into a moved symbol can be REMAPPED instead of
+        // severed (unchanged files are not re-extracted, so their edges
+        // would otherwise dangle when a callee's declaration line shifts).
+        let mut removed_node_ids: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut removed_identity: std::collections::HashMap<String, (String, String, String)> =
+            std::collections::HashMap::new();
+        let mut successors: std::collections::HashMap<(String, String, String), String> =
+            std::collections::HashMap::new();
+        let node_keys_to_remove = {
+            let rtx = self.db.begin_read()?;
+            let nt = rtx.open_table(NODES)?;
+            let mut keys = Vec::new();
+            for r in nt.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let n: Node = bincode::deserialize(v.value())?;
+                if !paths.contains(n.file_path.as_str()) {
+                    continue;
+                }
+                let identity = (
+                    n.file_path.as_str().to_string(),
+                    n.name.clone(),
+                    n.node_type.clone(),
+                );
+                if n.generation == active_generation {
+                    successors.insert(identity, n.node_id.clone());
+                    continue;
+                }
+                let stale = match engram_core::get_policy(&n.namespace).map(|p| p.retention) {
+                    Ok(engram_core::NamespaceRetention::KeepLatestOnly) => true,
+                    Ok(engram_core::NamespaceRetention::KeepLastGenerations(n_keep)) => {
+                        n.generation < active_generation.saturating_sub(n_keep as u64 - 1)
+                    }
+                    _ => false,
+                };
+                if stale {
+                    removed_identity.insert(n.node_id.clone(), identity);
+                    removed_node_ids.insert(n.node_id);
+                    keys.push(k.value().to_string());
+                }
+            }
+            keys
+        };
+        let nodes_removed = node_keys_to_remove.len();
+        for chunk in node_keys_to_remove.chunks(BATCH_SIZE) {
+            let wtx = self.db.begin_write()?;
+            {
+                let mut nt = wtx.open_table(NODES)?;
+                for k in chunk {
+                    nt.remove(k.as_str())?;
+                }
+            }
+            wtx.commit()?;
+        }
+
+        // Phase 2: stale-generation edges touching a removed node. Each is
+        // either REMAPPED (every removed endpoint has a same-identity
+        // successor in the new generation — typical for cross-file edges
+        // into a symbol whose line shifted) or dropped (the symbol is gone).
+        // Current-generation edges always reference current-generation node
+        // ids, so generation-filtering keeps live wiring intact.
+        let (edge_keys_to_remove, remapped_edges) = {
+            let rtx = self.db.begin_read()?;
+            let et = rtx.open_table(EDGES)?;
+            let mut keys = Vec::new();
+            let mut remapped: Vec<Edge> = Vec::new();
+            for r in et.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                let e: Edge = bincode::deserialize(v.value())?;
+                if e.generation == active_generation
+                    || (!removed_node_ids.contains(&e.source_id)
+                        && !removed_node_ids.contains(&e.target_id))
+                {
+                    continue;
+                }
+                keys.push(k.value().to_string());
+
+                let map_endpoint = |id: &str| -> Option<String> {
+                    if !removed_node_ids.contains(id) {
+                        return Some(id.to_string());
+                    }
+                    removed_identity
+                        .get(id)
+                        .and_then(|identity| successors.get(identity))
+                        .cloned()
+                };
+                if let (Some(src), Some(tgt)) =
+                    (map_endpoint(&e.source_id), map_endpoint(&e.target_id))
+                {
+                    let mut ne = e.clone();
+                    ne.source_id = src;
+                    ne.target_id = tgt;
+                    ne.generation = active_generation;
+                    remapped.push(ne);
+                }
+            }
+            (keys, remapped)
+        };
+        let edges_removed = edge_keys_to_remove.len();
+        for chunk in edge_keys_to_remove.chunks(BATCH_SIZE) {
+            let wtx = self.db.begin_write()?;
+            {
+                let mut et = wtx.open_table(EDGES)?;
+                let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+                let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+                for k in chunk {
+                    let parts: Vec<&str> = k.splitn(4, '\0').collect();
+                    if parts.len() == 4
+                        && let Some(ek) = EdgeKind::parse(parts[1])
+                    {
+                        let out_prefix = adj_key(project_id, &ek, parts[2]);
+                        adj_out_t.remove((out_prefix.as_str(), parts[3]))?;
+                        let in_prefix = adj_key(project_id, &ek, parts[3]);
+                        adj_in_t.remove((in_prefix.as_str(), parts[2]))?;
+                    }
+                    et.remove(k.as_str())?;
+                }
+            }
+            wtx.commit()?;
+        }
+
+        // Re-insert the remapped edges (after deletions, so a remap whose key
+        // collides with a deleted key survives).
+        for chunk in remapped_edges.chunks(BATCH_SIZE) {
+            let wtx = self.db.begin_write()?;
+            {
+                let mut et = wtx.open_table(EDGES)?;
+                let mut adj_out_t = wtx.open_table(ADJ_OUT)?;
+                let mut adj_in_t = wtx.open_table(ADJ_IN)?;
+                for e in chunk {
+                    let ekey = edge_key(project_id, &e.edge_kind, &e.source_id, &e.target_id);
+                    let val = bincode::serialize(e)?;
+                    et.insert(ekey.as_str(), val.as_slice())?;
+                    let adj_val = encode_adj_value(e.weight, e.updated_at_ms);
+                    let out_prefix = adj_key(project_id, &e.edge_kind, &e.source_id);
+                    adj_out_t.insert(
+                        (out_prefix.as_str(), e.target_id.as_str()),
+                        adj_val.as_slice(),
+                    )?;
+                    let in_prefix = adj_key(project_id, &e.edge_kind, &e.target_id);
+                    adj_in_t.insert(
+                        (in_prefix.as_str(), e.source_id.as_str()),
+                        adj_val.as_slice(),
+                    )?;
+                }
+            }
+            wtx.commit()?;
+        }
+
+        Ok((nodes_removed, edges_removed))
+    }
+
     // ── BFS: find_ui_paths (parent-map, no Vec cloning) ──────────────────────
 
     /// Find paths from a start node to any SQL nodes.
@@ -2248,7 +2438,9 @@ mod tests {
                 | EdgeKind::FillsRegion
                 | EdgeKind::ObservedRuntimeControl
                 | EdgeKind::ObservedRuntimeSql
-                | EdgeKind::ReadsSetting => all_set.contains(&ek),
+                | EdgeKind::ReadsSetting
+                | EdgeKind::InheritsFrom
+                | EdgeKind::Implements => all_set.contains(&ek),
             }
         };
 

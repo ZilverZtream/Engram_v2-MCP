@@ -1564,6 +1564,114 @@ impl Engram {
             }
         }
 
+        // ── House conventions: auth, settings model, base-class hubs ────────
+        // One additional scan; this is what tells a fresh agent HOW this
+        // codebase does things, not just what it contains.
+        {
+            let graph = self.state.graph.clone();
+            let pid_conv = pid.clone();
+            let (guards, roles, settings_tables, app_settings, top_bases) =
+                tokio::task::spawn_blocking(move || {
+                    let nodes = graph
+                        .query_nodes(&pid_conv, None, None, None, 50_000)
+                        .unwrap_or_default();
+                    let mut guards: std::collections::HashMap<String, usize> = Default::default();
+                    let mut roles: std::collections::HashMap<String, usize> = Default::default();
+                    let mut settings_tables: Vec<String> = Vec::new();
+                    let mut app_settings = 0usize;
+                    let mut base_ids: Vec<(String, String)> = Vec::new();
+                    for n in &nodes {
+                        if n.node_type == "function" {
+                            if let Some(checks) = n
+                                .metadata
+                                .as_ref()
+                                .and_then(|m| m.get("permission_checks"))
+                                .and_then(|v| v.as_str())
+                            {
+                                for g in checks.split(';').filter(|g| !g.is_empty()) {
+                                    *guards.entry(g.to_string()).or_default() += 1;
+                                }
+                            }
+                            if let Some(r) = n
+                                .metadata
+                                .as_ref()
+                                .and_then(|m| m.get("guard_roles"))
+                                .and_then(|v| v.as_str())
+                            {
+                                for role in r.split(';').filter(|r| !r.is_empty()) {
+                                    *roles.entry(role.to_string()).or_default() += 1;
+                                }
+                            }
+                        } else if n.node_type == "app_setting" {
+                            app_settings += 1;
+                        } else if n.node_type == "db_table"
+                            && crate::handlers::planning_tools::is_settings_table_name(&n.name)
+                        {
+                            settings_tables.push(n.name.clone());
+                        } else if matches!(n.node_type.as_str(), "class" | "interface") {
+                            base_ids.push((n.node_id.clone(), n.name.clone()));
+                        }
+                    }
+                    // Most-inherited types: incoming InheritsFrom/Implements.
+                    let mut top_bases: Vec<(String, usize)> = Vec::new();
+                    for (id, name) in base_ids.iter().take(2000) {
+                        let inherit_in = graph
+                            .find_incoming_edges(&pid_conv, Some(EdgeKind::InheritsFrom), id, 200)
+                            .map(|v| v.len())
+                            .unwrap_or(0)
+                            + graph
+                                .find_incoming_edges(&pid_conv, Some(EdgeKind::Implements), id, 200)
+                                .map(|v| v.len())
+                                .unwrap_or(0);
+                        if inherit_in > 0 {
+                            top_bases.push((name.clone(), inherit_in));
+                        }
+                    }
+                    top_bases.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                    top_bases.truncate(8);
+                    (guards, roles, settings_tables, app_settings, top_bases)
+                })
+                .await
+                .unwrap_or_default();
+
+            if !guards.is_empty() || app_settings > 0 || !settings_tables.is_empty() {
+                out.push_str("\n--- House Conventions ---\n");
+                if !guards.is_empty() {
+                    let mut gs: Vec<_> = guards.into_iter().collect();
+                    gs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                    let names: Vec<String> = gs
+                        .into_iter()
+                        .take(5)
+                        .map(|(g, c)| format!("{g} ({c})"))
+                        .collect();
+                    out.push_str(&format!("  auth guards: {}\n", names.join(", ")));
+                }
+                if !roles.is_empty() {
+                    let mut rs: Vec<_> = roles.into_iter().collect();
+                    rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+                    let names: Vec<String> = rs.into_iter().take(8).map(|(r, _)| r).collect();
+                    out.push_str(&format!("  roles: {}\n", names.join(", ")));
+                }
+                out.push_str(&format!("  app settings (config files): {app_settings}\n"));
+                if !settings_tables.is_empty() {
+                    out.push_str(&format!(
+                        "  settings tables: {}\n",
+                        settings_tables.join(", ")
+                    ));
+                }
+                out.push_str(
+                    "  details: map_guards_and_settings | start any story with plan_user_story\n",
+                );
+            }
+            if !top_bases.is_empty() {
+                out.push_str("\n--- Most-Inherited Types (edit with care — every derived class is blast radius) ---\n");
+                for (name, c) in &top_bases {
+                    out.push_str(&format!("  {name} <- {c} derived/implementing type(s)\n"));
+                }
+            }
+        }
+
+        out.push_str(&self.freshness_footer(&pid, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
