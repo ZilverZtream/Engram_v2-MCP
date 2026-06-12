@@ -436,10 +436,19 @@ impl Engram {
                     Some(n) => (n.node_id.as_str(), n.node_type.as_str()),
                     None => (src_id.as_str(), "unresolved"),
                 };
+                // Show the FQN alongside the location-based node_id — that's
+                // the name humans and agents actually identify symbols by.
+                let fqn_suffix = src_node
+                    .as_ref()
+                    .and_then(|n| n.metadata.as_ref())
+                    .and_then(|m| m.get("fqn"))
+                    .and_then(|v| v.as_str())
+                    .map(|f| format!(" ({f})"))
+                    .unwrap_or_default();
 
                 out.push_str(&format!(
-                    "- {} [{}] (weight: {weight}) - {reason_str}\n",
-                    display_id, display_type
+                    "- {}{} [{}] (weight: {weight}) - {reason_str}\n",
+                    display_id, fqn_suffix, display_type
                 ));
             }
 
@@ -727,14 +736,13 @@ impl Engram {
         let mut trace_used_fallback = false;
         let mut trace_candidate_count: usize = 0;
         let mut unresolved_candidates: Vec<String> = Vec::new();
-        if self
+        let start_missing = self
             .state
             .graph
             .get_node(&req.project_id, &start_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .is_none()
-            && let Some(ref ctrl) = req.control_id
-        {
+            .is_none();
+        if start_missing && let Some(ref ctrl) = req.control_id {
             match self
                 .state
                 .graph
@@ -750,6 +758,27 @@ impl Engram {
                 ResolveResult::Ambiguous(candidates) => {
                     return Err(McpError::invalid_params(
                         format_ambiguous_symbol_error(ctrl, &candidates),
+                        None,
+                    ));
+                }
+                ResolveResult::NotFound => {}
+            }
+        } else if start_missing && let Some(ref handler) = req.handler_fqn {
+            // Symbol node IDs are location-based; an FQN start point must be
+            // resolved via resolve_symbol (exact name → metadata fqn →
+            // terminal segment).
+            match self
+                .state
+                .graph
+                .resolve_symbol(&req.project_id, handler, Some("function"), None)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            {
+                ResolveResult::Unique(node) => {
+                    start_id = node.node_id;
+                }
+                ResolveResult::Ambiguous(candidates) => {
+                    return Err(McpError::invalid_params(
+                        format_ambiguous_symbol_error(handler, &candidates),
                         None,
                     ));
                 }
@@ -932,11 +961,21 @@ impl Engram {
                     node.end_line
                 );
 
+                // Prefer the metadata FQN for display: node IDs are
+                // location-based, but humans and agents identify handlers by
+                // their fully-qualified name.
+                let display_name = node
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("fqn"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(&node.name);
+
                 let indent = "  ".repeat(step);
                 out.push_str(&format!(
                     "{indent}Step {}: {} [{}] ({}) - {} | evidence: {}\n",
                     step + 1,
-                    node.name,
+                    display_name,
                     label,
                     node.node_id,
                     justification,
@@ -1009,6 +1048,10 @@ impl Engram {
         let edge_kinds = vec![
             engram_graph::EdgeKind::Contains,
             engram_graph::EdgeKind::Dependency,
+            // Raw `calls` edges map to their own kind (restored through the
+            // ingest pipeline) — without it the trace stops at the handler
+            // and never shows downstream calls.
+            engram_graph::EdgeKind::Calls,
         ];
 
         for start_id in start_nodes {

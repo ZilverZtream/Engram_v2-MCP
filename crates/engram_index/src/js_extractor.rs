@@ -606,12 +606,23 @@ fn emit_ajax_edge(
         meta.insert("ajax_target_method".into(), method.clone());
     }
 
+    // Route-style endpoints (no service extension) keep their absolute-route
+    // shape: "/api/customer/search" is a route identity, not a file path.
+    let target_name = if target_kind == "endpoint"
+        && (raw_url.starts_with('/') || raw_url.starts_with("~/"))
+        && !path_part.starts_with('/')
+    {
+        format!("/{path_part}")
+    } else {
+        path_part
+    };
+
     edges.push(ExtractedEdge {
         source_name: file_name.to_string(),
         source_kind: "file".to_string(),
         source_start_line: line,
         source_language: "javascript".to_string(),
-        target_name: path_part,
+        target_name,
         target_kind: Some(target_kind.to_string()),
         target_start_line: None,
         kind: "api_call".to_string(),

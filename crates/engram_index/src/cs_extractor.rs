@@ -273,7 +273,7 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
     }
 }
 
-fn classify_cs_sql(sql: &str) -> (String, &'static str) {
+pub(crate) fn classify_cs_sql(sql: &str) -> (String, &'static str) {
     let trimmed = sql.trim();
     if trimmed.is_empty() {
         return ("sql:inline:empty".into(), "inline_sql");

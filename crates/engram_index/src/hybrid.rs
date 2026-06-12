@@ -476,6 +476,26 @@ impl HybridSearchEngine {
                     if cancel.is_cancelled() {
                         break;
                     }
+                    // X1-7f9b / X2-embmem: same admission-control protocol as the
+                    // index_docs embed path — per-batch budget headroom check,
+                    // released BEFORE the await so the guard never spans a
+                    // suspension point (a slow remote embedder must not starve
+                    // other allocations for the round-trip duration).
+                    let estimated_embed_bytes = chunk.iter().map(|t| t.len() as u64).sum::<u64>()
+                        + (chunk.len() as u64 * self.embedder.dimension() as u64 * 4);
+                    let _embed_guard = self
+                        .memory_budget
+                        .as_ref()
+                        .map(|budget| {
+                            AllocationGuard::try_new(
+                                budget,
+                                estimated_embed_bytes,
+                                Subsystem::LanceDb,
+                                "embedding batch",
+                            )
+                        })
+                        .transpose()?;
+                    drop(_embed_guard);
                     let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
                     vectors.extend(batch_vecs);
                 }
