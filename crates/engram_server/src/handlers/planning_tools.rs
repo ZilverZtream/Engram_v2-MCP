@@ -1683,6 +1683,10 @@ impl Engram {
                     )
                 })
                 .collect();
+            // Edges without gis_library metadata are config/layer references
+            // (file → gis_config node), not API call sites — the configs and
+            // layer sections already cover them.
+            let rows: Vec<_> = rows.into_iter().filter(|r| !r.0.is_empty()).collect();
             let spatial_total: usize = rows.iter().map(|r| r.4.max(1)).sum();
             (configs, layers, group_spatial_calls(&rows), spatial_total)
         })
