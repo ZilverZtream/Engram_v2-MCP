@@ -156,7 +156,11 @@ fn build_prompt(input: &CurationInput) -> String {
     let mut candidates_json = String::new();
     let _ = writeln!(candidates_json, "[");
     for (i, c) in input.candidates.iter().enumerate() {
-        let comma = if i + 1 < input.candidates.len() { "," } else { "" };
+        let comma = if i + 1 < input.candidates.len() {
+            ","
+        } else {
+            ""
+        };
         let _ = writeln!(
             candidates_json,
             "  {{\"id\": {id:?}, \"text\": {text:?}, \"evidence\": {ev:?}, \"source\": {src:?}}}{comma}",
@@ -218,10 +222,8 @@ fn parse_response(raw: &str, candidates: &[CurationCandidate]) -> Option<Vec<Cri
         return None;
     }
 
-    let by_id: std::collections::HashMap<&str, &CurationCandidate> = candidates
-        .iter()
-        .map(|c| (c.id.as_str(), c))
-        .collect();
+    let by_id: std::collections::HashMap<&str, &CurationCandidate> =
+        candidates.iter().map(|c| (c.id.as_str(), c)).collect();
 
     let mut out: Vec<CriticalRule> = Vec::with_capacity(parsed.rules.len());
     for r in parsed.rules {
@@ -234,12 +236,10 @@ fn parse_response(raw: &str, candidates: &[CurationCandidate]) -> Option<Vec<Cri
             .get(r.id.as_str())
             .map(|c| source_from_str(&c.source))
             .unwrap_or(RuleSource::RepoRule);
-        let evidence = r.rationale.filter(|s| !s.trim().is_empty()).map(|s| {
-            format!(
-                "({s}) [LLM-curated from {orig_id}]",
-                orig_id = r.id
-            )
-        });
+        let evidence = r
+            .rationale
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| format!("({s}) [LLM-curated from {orig_id}]", orig_id = r.id));
         // The LLM gets the deterministic candidate list as input and
         // only rewrites what made it through the render threshold, so
         // its output carries the same empirical weight as the source
@@ -267,10 +267,16 @@ fn parse_cached(cached_raw: &str, candidates: &[CurationCandidate]) -> Option<Ve
 fn strip_json_fences(s: &str) -> String {
     let trimmed = s.trim();
     // ```json { … } ``` → { … }
-    if let Some(rest) = trimmed.strip_prefix("```json").and_then(|s| s.strip_suffix("```")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("```json")
+        .and_then(|s| s.strip_suffix("```"))
+    {
         return rest.trim().to_string();
     }
-    if let Some(rest) = trimmed.strip_prefix("```").and_then(|s| s.strip_suffix("```")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("```")
+        .and_then(|s| s.strip_suffix("```"))
+    {
         return rest.trim().to_string();
     }
     trimmed.to_string()
@@ -307,8 +313,8 @@ pub fn prepare_candidates(rules: &[CriticalRule]) -> Vec<CurationCandidate> {
             // Prefer the upstream id (cr_*, immune_*) when present —
             // keeps the LLM's response traceable. Otherwise fall
             // back to a synthetic positional id.
-            let id = extract_upstream_id(r.evidence.as_deref())
-                .unwrap_or_else(|| format!("local-{i}"));
+            let id =
+                extract_upstream_id(r.evidence.as_deref()).unwrap_or_else(|| format!("local-{i}"));
             CurationCandidate {
                 id,
                 text: r.text.clone(),
@@ -333,11 +339,8 @@ fn extract_upstream_id(evidence: Option<&str>) -> Option<String> {
             let abs = search_from + rel;
             // Require a token boundary before the prefix so we
             // don't match `something_cr_foo` mid-word.
-            let at_boundary = abs == 0
-                || matches!(
-                    ev.as_bytes()[abs - 1],
-                    b'(' | b',' | b' ' | b'\t' | b'\n'
-                );
+            let at_boundary =
+                abs == 0 || matches!(ev.as_bytes()[abs - 1], b'(' | b',' | b' ' | b'\t' | b'\n');
             if at_boundary {
                 // Scan forward to the end of the id — stop at any
                 // non-[a-z0-9_] byte.
@@ -395,7 +398,10 @@ mod tests {
     #[test]
     fn extract_upstream_id_finds_immune_prefix() {
         let e = "(immune_8133c13312ab)";
-        assert_eq!(extract_upstream_id(Some(e)), Some("immune_8133c13312ab".into()));
+        assert_eq!(
+            extract_upstream_id(Some(e)),
+            Some("immune_8133c13312ab".into())
+        );
     }
 
     #[test]
