@@ -1069,14 +1069,24 @@ impl Engram {
                     let pid_for_resolve = pid.clone();
                     let resolve_result = tokio::time::timeout(
                         std::time::Duration::from_secs(600),
-                        tokio::task::spawn_blocking(move || graph_for_resolve.resolve_symbol_edges(&pid_for_resolve)),
+                        tokio::task::spawn_blocking(move || {
+                            graph_for_resolve.resolve_symbol_edges(&pid_for_resolve)
+                        }),
                     )
                     .await;
                     match resolve_result {
-                        Ok(Ok(Ok(n))) => tracing::info!(project_id = %pid, resolved = n, "index_project[job]: resolve_symbol_edges complete"),
-                        Ok(Ok(Err(e))) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges failed: {e:#}"),
-                        Ok(Err(e)) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges panicked: {e}"),
-                        Err(_) => tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges timed out after 600s — skipping"),
+                        Ok(Ok(Ok(n))) => {
+                            tracing::info!(project_id = %pid, resolved = n, "index_project[job]: resolve_symbol_edges complete")
+                        }
+                        Ok(Ok(Err(e))) => {
+                            tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges failed: {e:#}")
+                        }
+                        Ok(Err(e)) => {
+                            tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges panicked: {e}")
+                        }
+                        Err(_) => {
+                            tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges timed out after 600s — skipping")
+                        }
                     }
                     let report = engram.generate_indexing_report(stats);
                     let _ = engram
@@ -1859,7 +1869,9 @@ impl Engram {
         // Optional disk drift check: count tracked files modified after the
         // last completed index.
         let mut dirty_files: Option<usize> = None;
-        if req.check_disk && let Some(last_ms) = last_index_ms {
+        if req.check_disk
+            && let Some(last_ms) = last_index_ms
+        {
             let exts = ProjectType::from_registry_str(&rec.project_type)
                 .map(exts_for_project_type_enum)
                 .unwrap_or_else(|| exts_for_project_type(&rec.project_type));

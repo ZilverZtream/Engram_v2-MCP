@@ -2890,7 +2890,10 @@ async fn lexical_hits_carry_line_range_and_labeled_snippet_truncation() {
     // snippet must be truncated at a line boundary.
     let long_line = "let alpha_needle_value = compute_alpha_needle_value();";
     let long_content = vec![long_line; 20].join("\n");
-    assert!(long_content.len() > 600, "test premise: content > 600 chars");
+    assert!(
+        long_content.len() > 600,
+        "test premise: content > 600 chars"
+    );
 
     let mut long_doc = make_doc("d-long", "src/long.rs", "memory", &long_content);
     long_doc.start_line = 41;
@@ -2914,7 +2917,10 @@ async fn lexical_hits_carry_line_range_and_labeled_snippet_truncation() {
         .iter()
         .find(|h| h.path.as_str() == "src/long.rs")
         .expect("hit for src/long.rs");
-    assert_eq!(long_hit.start_line, 41, "start_line must come from the index");
+    assert_eq!(
+        long_hit.start_line, 41,
+        "start_line must come from the index"
+    );
     assert_eq!(long_hit.end_line, 60, "end_line must come from the index");
     assert!(
         long_hit.snippet_truncated,
