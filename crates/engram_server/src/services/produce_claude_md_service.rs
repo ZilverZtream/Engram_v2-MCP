@@ -2853,6 +2853,11 @@ Read docs/internal.md first.
             md.contains("trace_state_usage"),
             "cross-page-chains rule must point at `trace_state_usage`:\n{md}"
         );
+        // TODO-17: dynamic-key accesses must render as a lower-bound warning.
+        assert!(
+            md.contains("47") && md.contains("VARIABLE key"),
+            "unresolved-access count must surface as a mandatory rule:\n{md}"
+        );
         // The central DB table rule must name the table.
         assert!(
             md.contains("fj_fiberjobb"),
