@@ -292,18 +292,25 @@ pub async fn process_ingest_stats(
         "ui_container",
         "control_layout",
     ];
-    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32); // (path, kind, name, line)
+    // (path, kind, name, line, arity from symbol metadata when known)
+    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32, Option<u32>);
     let mut symbols_by_name: std::collections::HashMap<&str, Vec<SymEntry>> =
         std::collections::HashMap::new();
     for (sym_path, sym) in &stats.symbols {
         if NON_SYMBOL_KINDS.contains(&sym.kind.as_str()) {
             continue;
         }
+        let arity = sym
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("arity"))
+            .and_then(|s| s.parse::<u32>().ok());
         let entry: SymEntry = (
             sym_path.as_str(),
             sym.kind.as_str(),
             sym.name.as_str(),
             sym.start_line,
+            arity,
         );
         symbols_by_name
             .entry(sym.name.as_str())
@@ -318,6 +325,13 @@ pub async fn process_ingest_stats(
     }
     let rebuild_symbol_id =
         |e: SymEntry| -> String { engram_core::ids::NodeId::symbol(e.1, None, e.0, e.2, e.3).0 };
+    // TODO-13: call-site argument count, when the extractor recorded it.
+    let edge_call_arity = |edge: &engram_index::ExtractedEdge| -> Option<u32> {
+        edge.metadata
+            .as_ref()
+            .and_then(|m| m.get("args"))
+            .and_then(|s| s.parse::<u32>().ok())
+    };
     // Resolve a possibly-qualified name to a real symbol node in this batch:
     // same-file exact/terminal match first, then unique kind-matching
     // cross-file candidate, then unique candidate of any kind. None means
@@ -331,7 +345,8 @@ pub async fn process_ingest_stats(
     // canonical false positive this exposes.
     let resolve_batch_symbol = |raw: &str,
                                 prefer_path: &str,
-                                prefer_kind: Option<&str>|
+                                prefer_kind: Option<&str>,
+                                prefer_arity: Option<u32>|
      -> Option<(String, f32, &'static str)> {
         let terminal = raw.rsplit('.').next().unwrap_or(raw);
         for key in [raw, terminal] {
@@ -340,7 +355,18 @@ pub async fn process_ingest_stats(
                 continue;
             };
             let kind_ok = |c: &SymEntry| prefer_kind.is_none_or(|k| c.1.eq_ignore_ascii_case(k));
+            // TODO-13: a candidate matches arity when both sides know it.
+            let arity_ok = |c: &SymEntry| match (prefer_arity, c.4) {
+                (Some(want), Some(have)) => want == have,
+                _ => false,
+            };
             let same_file: Vec<&SymEntry> = cands.iter().filter(|c| c.0 == prefer_path).collect();
+            // Same-file overloads: an arity match beats the first name hit.
+            if same_file.len() > 1
+                && let Some(c) = same_file.iter().find(|c| kind_ok(c) && arity_ok(c))
+            {
+                return Some((rebuild_symbol_id(**c), 0.92, "batch_same_file_arity"));
+            }
             if let Some(c) = same_file
                 .iter()
                 .find(|c| kind_ok(c))
@@ -354,6 +380,19 @@ pub async fn process_ingest_stats(
                 return Some((rebuild_symbol_id(**c), conf, method));
             }
             let kind_matches: Vec<&SymEntry> = cands.iter().filter(|c| kind_ok(c)).collect();
+            // Cross-file: exactly one arity-matching candidate wins over an
+            // otherwise-ambiguous set.
+            if kind_matches.len() > 1 {
+                let arity_matches: Vec<&&SymEntry> =
+                    kind_matches.iter().filter(|c| arity_ok(c)).collect();
+                if arity_matches.len() == 1 {
+                    return Some((
+                        rebuild_symbol_id(**arity_matches[0]),
+                        0.75,
+                        "batch_arity_match",
+                    ));
+                }
+            }
             if kind_matches.len() == 1 {
                 let (conf, method) = if via_terminal {
                     (0.55, "batch_unique_kind_terminal")
@@ -447,6 +486,7 @@ pub async fn process_ingest_stats(
                 &edge.source_name,
                 rel_path.as_str(),
                 Some(edge.source_kind.as_str()),
+                None,
             )
             .map(|(id, _, _)| id)
             .unwrap_or_else(|| {
@@ -594,9 +634,12 @@ pub async fn process_ingest_stats(
             if let Some(id) = exact_same_file {
                 target_resolution = Some((0.98, "exact_same_file"));
                 id
-            } else if let Some((id, conf, method)) =
-                resolve_batch_symbol(&edge.target_name, rel_path.as_str(), Some(kind.as_str()))
-            {
+            } else if let Some((id, conf, method)) = resolve_batch_symbol(
+                &edge.target_name,
+                rel_path.as_str(),
+                Some(kind.as_str()),
+                edge_call_arity(edge),
+            ) {
                 target_resolution = Some((conf, method));
                 id
             } else if let Some(line) = edge.target_start_line {
