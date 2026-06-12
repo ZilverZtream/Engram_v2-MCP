@@ -1677,10 +1677,28 @@ fn extract_esri_arcgis(
 /// Remove duplicate edges with the same `(source_name, target_name, kind)` triple.
 /// Keeps the first occurrence (lowest line number).
 fn dedup_edges(edges: &mut Vec<ExtractedEdge>) {
-    let mut seen = HashSet::with_capacity(edges.len());
-    edges.retain(|e| {
+    // Count occurrences per (source, target, kind) first so the surviving
+    // edge can carry the true call-site count (ingest collapses duplicate
+    // keys, which would otherwise silently lose multiplicity).
+    let mut counts: HashMap<String, u32> = HashMap::with_capacity(edges.len());
+    for e in edges.iter() {
         let key = format!("{}|{}|{}", e.source_name, e.target_name, e.kind);
-        seen.insert(key)
+        *counts.entry(key).or_insert(0) += 1;
+    }
+    let mut seen = HashSet::with_capacity(edges.len());
+    edges.retain_mut(|e| {
+        let key = format!("{}|{}|{}", e.source_name, e.target_name, e.kind);
+        if !seen.insert(key.clone()) {
+            return false;
+        }
+        if let Some(&n) = counts.get(&key)
+            && n > 1
+        {
+            e.metadata
+                .get_or_insert_with(Default::default)
+                .insert("count".to_string(), n.to_string());
+        }
+        true
     });
 }
 
@@ -2071,6 +2089,46 @@ mod tests {
             spatial
                 .iter()
                 .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "google_maps")
+        );
+    }
+
+    #[test]
+    fn duplicate_spatial_calls_collapse_with_count_metadata() {
+        let js = r#"
+            var a = new google.maps.LatLng(1, 2);
+            var b = new google.maps.LatLng(3, 4);
+            var c = new google.maps.LatLng(5, 6);
+            var m = new google.maps.Marker({ position: a });
+        "#;
+        let (_, edges) = extract_js(&test_path("counts.js"), js);
+        let latlng: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "spatial_call"
+                    && e.metadata
+                        .as_ref()
+                        .is_some_and(|m| m.get("map_class").is_some_and(|c| c == "LatLng"))
+            })
+            .collect();
+        assert_eq!(latlng.len(), 1, "duplicates collapse to one edge");
+        assert_eq!(
+            latlng[0].metadata.as_ref().unwrap().get("count").unwrap(),
+            "3",
+            "surviving edge carries the call-site count"
+        );
+        let marker: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "spatial_call"
+                    && e.metadata
+                        .as_ref()
+                        .is_some_and(|m| m.get("map_class").is_some_and(|c| c == "Marker"))
+            })
+            .collect();
+        assert_eq!(marker.len(), 1);
+        assert!(
+            marker[0].metadata.as_ref().unwrap().get("count").is_none(),
+            "single occurrence gets no count metadata"
         );
     }
 

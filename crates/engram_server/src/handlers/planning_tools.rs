@@ -1568,18 +1568,22 @@ pub(crate) type GisUsageRow = (
     std::collections::BTreeSet<String>,
 );
 
-/// Group raw spatial-call rows (library, class, modern_equivalent, file)
-/// into per-(library, class) usage rows sorted by call-site count.
-pub(crate) fn group_spatial_calls(rows: &[(String, String, String, String)]) -> Vec<GisUsageRow> {
+/// Group raw spatial-call rows (library, class, modern_equivalent, file,
+/// call-site count) into per-(library, class) usage rows sorted by count.
+/// The count comes from the extractor's `count` edge metadata (ingest
+/// collapses duplicate edge keys, so multiplicity rides in metadata).
+pub(crate) fn group_spatial_calls(
+    rows: &[(String, String, String, String, usize)],
+) -> Vec<GisUsageRow> {
     let mut grouped: BTreeMap<
         (String, String),
         (String, usize, std::collections::BTreeSet<String>),
     > = BTreeMap::new();
-    for (lib, class, modern, file) in rows {
+    for (lib, class, modern, file, count) in rows {
         let e = grouped
             .entry((lib.clone(), class.clone()))
             .or_insert_with(|| (modern.clone(), 0, Default::default()));
-        e.1 += 1;
+        e.1 += (*count).max(1);
         if !file.is_empty() {
             e.2.insert(file.clone());
         }
@@ -1650,8 +1654,7 @@ impl Engram {
             let spatial = graph
                 .list_edges_by_kind(&pid, EdgeKind::SpatialCall, 100_000)
                 .unwrap_or_default();
-            let spatial_total = spatial.len();
-            let rows: Vec<(String, String, String, String)> = spatial
+            let rows: Vec<(String, String, String, String, usize)> = spatial
                 .iter()
                 .map(|e| {
                     let m = e.metadata.as_ref();
@@ -1661,6 +1664,11 @@ impl Engram {
                             .unwrap_or("")
                             .to_string()
                     };
+                    let count = m
+                        .and_then(|m| m.get("count"))
+                        .and_then(|v| v.as_str())
+                        .and_then(|s| s.parse::<usize>().ok())
+                        .unwrap_or(1);
                     let file = e
                         .source_id
                         .strip_prefix("file:")
@@ -1671,9 +1679,11 @@ impl Engram {
                         get("map_class"),
                         get("modern_equivalent"),
                         file,
+                        count,
                     )
                 })
                 .collect();
+            let spatial_total: usize = rows.iter().map(|r| r.4.max(1)).sum();
             (configs, layers, group_spatial_calls(&rows), spatial_total)
         })
         .await
@@ -1761,32 +1771,38 @@ impl Engram {
 mod gis_inventory_tests {
     use super::group_spatial_calls;
 
-    fn row(lib: &str, class: &str, modern: &str, file: &str) -> (String, String, String, String) {
-        (lib.into(), class.into(), modern.into(), file.into())
+    fn row(
+        lib: &str,
+        class: &str,
+        modern: &str,
+        file: &str,
+        count: usize,
+    ) -> (String, String, String, String, usize) {
+        (lib.into(), class.into(), modern.into(), file.into(), count)
     }
 
     #[test]
-    fn groups_by_library_and_class_sorted_by_count() {
+    fn groups_by_library_and_class_summing_counts() {
         let rows = vec![
-            row("google_maps", "Polygon", "MapLibre fill layer", "a.js"),
-            row("google_maps", "Polygon", "MapLibre fill layer", "b.js"),
-            row("google_maps", "Polygon", "MapLibre fill layer", "a.js"),
-            row("leaflet", "TileLayer", "MapLibre raster source", "c.js"),
+            // a.js has 5 Polygon call sites collapsed into one edge with count=5
+            row("google_maps", "Polygon", "MapLibre fill layer", "a.js", 5),
+            row("google_maps", "Polygon", "MapLibre fill layer", "b.js", 1),
+            row("leaflet", "TileLayer", "MapLibre raster source", "c.js", 1),
         ];
         let grouped = group_spatial_calls(&rows);
         assert_eq!(grouped.len(), 2);
         assert_eq!(grouped[0].0, "google_maps");
         assert_eq!(grouped[0].1, "Polygon");
-        assert_eq!(grouped[0].3, 3, "three call sites");
+        assert_eq!(grouped[0].3, 6, "5 + 1 call sites");
         assert_eq!(grouped[0].4.len(), 2, "two distinct files");
         assert_eq!(grouped[1].0, "leaflet");
     }
 
     #[test]
-    fn empty_files_are_not_counted_and_empty_input_is_empty() {
+    fn zero_count_clamps_to_one_and_empty_inputs_handled() {
         assert!(group_spatial_calls(&[]).is_empty());
-        let grouped = group_spatial_calls(&[row("esri", "FeatureLayer", "", "")]);
-        assert_eq!(grouped[0].3, 1);
+        let grouped = group_spatial_calls(&[row("esri", "FeatureLayer", "", "", 0)]);
+        assert_eq!(grouped[0].3, 1, "count 0 clamps to 1");
         assert!(grouped[0].4.is_empty(), "empty file string is dropped");
     }
 }
