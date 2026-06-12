@@ -149,8 +149,12 @@ impl Engram {
         });
 
         if hits.is_empty() {
+            // P0-7: an empty result with no guidance burns agent turns.
             return Ok(CallToolResult::success(vec![Content::text(
-                "result: no_hits",
+                "result: no_hits\n\
+                 hints: try fts_mode=\"loose\" (OR-of-terms) or a shorter query; \
+                 check the namespace (default \"memory\"); call get_index_freshness \
+                 to verify the index is current; grep_project finds exact literals.",
             )]));
         }
 
@@ -321,8 +325,9 @@ impl Engram {
         let Some((path, lang, content, start_line, end_line)) = doc else {
             return Err(McpError::invalid_params(
                 format!(
-                    "doc_id '{}' not found in project '{}'",
-                    req.doc_id, req.project_id
+                    "doc_id '{}' not found in project '{}' (namespace '{}', generation {}). \
+                     doc_ids are generation-scoped — re-run search_memory to get current ones.",
+                    req.doc_id, req.project_id, req.namespace, gen_
                 ),
                 None,
             ));
@@ -611,7 +616,10 @@ impl Engram {
 
         if hits.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "No references found.",
+                "No references found (graph and lexical search both empty). \
+                 hints: check spelling/casing of the symbol; try search_memory with \
+                 fts_mode=\"loose\"; call get_index_freshness if the symbol was \
+                 added recently.",
             )]));
         }
 
