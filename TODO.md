@@ -133,7 +133,7 @@ they feed blast radius, edit safety, and the ADP gates.
   `blast_radius_service.rs`. No weight for inheritance fan-out (depends on #9). Also make
   the 1–10 score decomposable in output: which edges, which files, why.
 
-- [ ] **16. File-level Contains edges** (S)
+- [x] **16. File-level Contains edges** (S) - *done 2026-06-12: ingest synthesizes file->symbol Contains edges (metadata containment=file) for all location-based symbols; blast radius skips them in density/handles scoring (regression test).*
   `store.rs`, `blast_radius_service.rs`. Containment stops at class level; blast radius
   re-derives file membership by string-comparing `file_path`. Emit File→Symbol edges and
   drop the workaround; fixes systematic undercounting of file-level impact.
