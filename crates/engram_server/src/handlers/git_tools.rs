@@ -401,6 +401,10 @@ impl Engram {
             let mut anti_batch_bytes: usize = 0;
             let newest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
             let oldest_processed_oid: Cell<Option<Oid>> = Cell::new(None);
+            // Phase flag: watermark bookkeeping differs between the forward
+            // walk (oldest→newest) and the backfill walk (newest→oldest).
+            let in_backfill: Cell<bool> = Cell::new(false);
+            let backfill_oldest_oid: Cell<Option<Oid>> = Cell::new(None);
             // Only need last ~10 commits for revert detection — cap at 12.
             let mut commit_history: VecDeque<Oid> = VecDeque::with_capacity(12);
             let mut processed_total = 0usize;
@@ -420,9 +424,18 @@ impl Engram {
 
             let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
                 progress_cb(curr, total);
-                newest_processed_oid.set(Some(oid));
-                if oldest_processed_oid.get().is_none() {
-                    oldest_processed_oid.set(Some(oid));
+                if in_backfill.get() {
+                    // Backfill walks newest→oldest: the LAST processed oid is
+                    // the new oldest watermark. Never touch the forward
+                    // (newest) watermark here — overwriting it with an old
+                    // commit would make the next incremental run re-process
+                    // (and double-count) everything newer.
+                    backfill_oldest_oid.set(Some(oid));
+                } else {
+                    newest_processed_oid.set(Some(oid));
+                    if oldest_processed_oid.get().is_none() {
+                        oldest_processed_oid.set(Some(oid));
+                    }
                 }
                 commit_history.push_back(oid);
                 if commit_history.len() > 12 {
@@ -666,7 +679,13 @@ impl Engram {
             let backfill_processed = if remaining > 0
                 && matches!(mode, GitHistoryMode::Backfill | GitHistoryMode::Both)
             {
-                let backfill_start = oldest_processed_oid.get().or(start_backfill);
+                // The PERSISTED oldest watermark takes precedence: on an
+                // incremental run the forward walk only covered new commits,
+                // and starting backfill from this run's oldest would re-walk
+                // (and double-count temporal couplings for) every commit
+                // already indexed in previous runs.
+                let backfill_start = start_backfill.or(oldest_processed_oid.get());
+                in_backfill.set(true);
                 GitWalker::walk_older_commits_streaming(
                     &repo,
                     backfill_start,
@@ -681,7 +700,10 @@ impl Engram {
 
             let commits_processed = processed_total + backfill_processed;
             let effective_last_oid = newest_processed_oid.get().or(stop);
-            let effective_oldest_oid = oldest_processed_oid.get().or(start_backfill);
+            let effective_oldest_oid = backfill_oldest_oid
+                .get()
+                .or(start_backfill)
+                .or(oldest_processed_oid.get());
 
             // ── Final edge flush ─────────────────────────────────────
             if !edge_accum.is_empty() {

@@ -1,12 +1,40 @@
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::mpsc;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{LazyLock, Mutex, OnceLock};
 use std::time::Duration;
+
+// SQL detection for the fallback extractor. The Roslyn sidecar emits richer
+// SQL edges, but when it is unavailable the fallback must still keep the
+// DB half of the graph wired — losing sql_calls edges silently disconnects
+// stored procedures from their VB callers.
+static RE_VB_SQL_CMD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)New\s+SqlCommand\s*\(\s*"([^"]*)""#).expect("valid VB SqlCommand regex")
+});
+static RE_VB_COMMAND_TEXT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)CommandText\s*=\s*"([^"]*)""#).expect("valid VB CommandText regex")
+});
+// Qualified call sites (Foo.Bar(...)). The optional "New" capture lets us
+// skip constructor invocations without lookbehind support.
+static RE_VB_QUALIFIED_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(New\s+)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+)\s*\(")
+        .expect("valid VB qualified call regex")
+});
+/// Heads of qualified names that are framework/state noise, not project calls.
+const VB_CALL_HEAD_STOPWORDS: [&str; 10] = [
+    "me", "my", "mybase", "string", "convert", "integer", "double", "math", "response", "request",
+];
+// Designer-style control fields: `Protected WithEvents btnSave As ...Button`.
+// Parity with the C# tree-sitter pass, which maps designer fields to
+// control_ref symbols so they merge with the page's control nodes.
+static RE_VB_WITHEVENTS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\bWithEvents\s+([A-Za-z_]\w*)\s+As\b").expect("valid VB WithEvents regex")
+});
 
 struct Sidecar {
     child: Child,
@@ -340,12 +368,16 @@ pub fn extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
     }
 }
 
-fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     // Lightweight fallback if sidecar isn't available.
     let mut symbols = Vec::new();
     let mut edges = Vec::new();
     let mut ns = String::new();
     let mut ty = String::new();
+    // FQN of the enclosing Sub/Function — sql_calls edges must name their
+    // real source symbol (matching the FQN-named node minted below) or fall
+    // back to the "file" sentinel.
+    let mut current_method: Option<String> = None;
 
     let mut add_symbol =
         |name: String, kind: &str, line: u32, metadata: Option<HashMap<String, String>>| {
@@ -362,6 +394,67 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
         let line_no = idx as u32 + 1;
         let line = raw_line.trim();
         let lower = line.to_ascii_lowercase();
+
+        // SQL detection runs on every line (independent of the declaration
+        // branches below): New SqlCommand("...") and .CommandText = "...".
+        for sql_cap in RE_VB_SQL_CMD
+            .captures_iter(line)
+            .chain(RE_VB_COMMAND_TEXT.captures_iter(line))
+        {
+            let sql = sql_cap.get(1).map(|m| m.as_str()).unwrap_or("");
+            if sql.trim().is_empty() {
+                continue;
+            }
+            let (target_name, target_kind) = crate::cs_extractor::classify_cs_sql(sql);
+            let mut meta = HashMap::new();
+            meta.insert(
+                "sql_snippet".to_string(),
+                sql.chars().take(200).collect::<String>(),
+            );
+            edges.push(ExtractedEdge {
+                source_name: current_method.clone().unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name,
+                target_kind: Some(target_kind.to_string()),
+                target_start_line: None,
+                kind: "sql_calls".to_string(),
+                metadata: Some(meta),
+            });
+        }
+
+        // Qualified call edges (Foo.Bar(...)) inside method bodies keep the
+        // handler → DAL → SQL chain connected when the sidecar is absent.
+        // Targets go out unresolved (target_kind: None → "::name") so the
+        // post-ingest resolver matches them by terminal segment.
+        if let Some(ref method_fqn) = current_method {
+            for c in RE_VB_QUALIFIED_CALL.captures_iter(line) {
+                if c.get(1).is_some() {
+                    continue; // constructor: New Foo.Bar(...)
+                }
+                let callee = c.get(2).map(|m| m.as_str()).unwrap_or("");
+                let head = callee.split('.').next().unwrap_or("").to_ascii_lowercase();
+                if callee.is_empty() || VB_CALL_HEAD_STOPWORDS.contains(&head.as_str()) {
+                    continue;
+                }
+                edges.push(ExtractedEdge {
+                    source_name: method_fqn.clone(),
+                    source_kind: "function".to_string(),
+                    source_start_line: line_no,
+                    source_language: "vb".to_string(),
+                    target_name: callee.to_string(),
+                    target_kind: None,
+                    target_start_line: None,
+                    kind: "calls".to_string(),
+                    metadata: None,
+                });
+            }
+        }
+
+        if lower.starts_with("end sub") || lower.starts_with("end function") {
+            current_method = None;
+        }
 
         if lower.starts_with("namespace ") {
             ns = line
@@ -393,6 +486,24 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
                     kind: "contains".to_string(),
                     metadata: None,
                 });
+            }
+        } else if let Some(we) = RE_VB_WITHEVENTS.captures(line) {
+            if let Some(name_m) = we.get(1) {
+                let name = name_m.as_str().to_string();
+                add_symbol(name.clone(), "control_ref", line_no, None);
+                if !ty.is_empty() {
+                    edges.push(ExtractedEdge {
+                        source_name: ty.clone(),
+                        source_kind: "class".to_string(),
+                        source_start_line: line_no,
+                        source_language: "vb".to_string(),
+                        target_name: name,
+                        target_kind: Some("control_ref".to_string()),
+                        target_start_line: Some(line_no),
+                        kind: "contains".to_string(),
+                        metadata: None,
+                    });
+                }
             }
         } else if lower.contains(" sub ")
             || lower.starts_with("sub ")
@@ -450,6 +561,7 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
                         metadata: None,
                     });
                 }
+                current_method = Some(fqn.clone());
                 if let Some(handles_pos) = lower.find(" handles ") {
                     let handles = &line[handles_pos + 9..];
                     for part in handles.split(',') {
@@ -475,7 +587,12 @@ fn fallback_extract_vb(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<
         } else if lower.starts_with("imports ") {
             let target = line[8..].trim().to_string();
             edges.push(ExtractedEdge {
-                source_name: path.display().to_string(),
+                // "file" sentinel: ingest substitutes the file's project-relative
+                // path. Passing path.display() here put an ABSOLUTE path into
+                // the edge source, which process_ingest_stats rejects with a
+                // bail! — aborting ingestion of the ENTIRE batch for any VB
+                // project containing a single Imports statement.
+                source_name: "file".to_string(),
                 source_kind: "file".to_string(),
                 source_start_line: line_no,
                 source_language: "vb".to_string(),

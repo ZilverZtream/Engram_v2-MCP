@@ -250,6 +250,89 @@ pub async fn process_ingest_stats(
         });
     }
 
+    // ── GRAPH-WIRE: batch symbol lookup for edge endpoints ───────────────────
+    // Edge endpoints MUST reproduce the exact node IDs minted in the symbol
+    // loop above (location-based: sym:{kind}:{path}:{name}:{line}). Extractors
+    // frequently put an FQN in source/target names and a call-site (or no)
+    // line on the edge; rebuilding an ID from those fields alone mints
+    // phantom endpoints that match no node and silently disconnect calls,
+    // SQL, and event wiring (regression introduced when node IDs switched to
+    // the location-based scheme). This lookup finds the declaring
+    // (path, kind, name, line) for a short name or an FQN's terminal segment.
+    const NON_SYMBOL_KINDS: [&str; 8] = [
+        "page",
+        "control",
+        "control_ref",
+        "db_table",
+        "db_column",
+        "global_state",
+        "ui_container",
+        "control_layout",
+    ];
+    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32); // (path, kind, name, line)
+    let mut symbols_by_name: std::collections::HashMap<&str, Vec<SymEntry>> =
+        std::collections::HashMap::new();
+    for (sym_path, sym) in &stats.symbols {
+        if NON_SYMBOL_KINDS.contains(&sym.kind.as_str()) {
+            continue;
+        }
+        let entry: SymEntry = (
+            sym_path.as_str(),
+            sym.kind.as_str(),
+            sym.name.as_str(),
+            sym.start_line,
+        );
+        symbols_by_name
+            .entry(sym.name.as_str())
+            .or_default()
+            .push(entry);
+        // FQN-named symbols are also reachable via their terminal segment.
+        if let Some(term) = sym.name.rsplit('.').next()
+            && term != sym.name
+        {
+            symbols_by_name.entry(term).or_default().push(entry);
+        }
+    }
+    let rebuild_symbol_id = |e: SymEntry| -> String {
+        engram_core::ids::NodeId::symbol(e.1, None, e.0, e.2, e.3).0
+    };
+    // Resolve a possibly-qualified name to a real symbol node in this batch:
+    // same-file exact/terminal match first, then unique kind-matching
+    // cross-file candidate, then unique candidate of any kind. None means
+    // absent-or-ambiguous; the caller then emits a "::name" placeholder so
+    // the post-ingest resolve_symbol_edges pass (which sees the whole graph,
+    // not just this batch) can rewire it.
+    let resolve_batch_symbol =
+        |raw: &str, prefer_path: &str, prefer_kind: Option<&str>| -> Option<String> {
+            let terminal = raw.rsplit('.').next().unwrap_or(raw);
+            for key in [raw, terminal] {
+                let Some(cands) = symbols_by_name.get(key) else {
+                    continue;
+                };
+                let kind_ok = |c: &SymEntry| {
+                    prefer_kind.is_none_or(|k| c.1.eq_ignore_ascii_case(k))
+                };
+                let same_file: Vec<&SymEntry> =
+                    cands.iter().filter(|c| c.0 == prefer_path).collect();
+                if let Some(c) = same_file
+                    .iter()
+                    .find(|c| kind_ok(c))
+                    .or_else(|| same_file.first())
+                {
+                    return Some(rebuild_symbol_id(**c));
+                }
+                let kind_matches: Vec<&SymEntry> =
+                    cands.iter().filter(|c| kind_ok(c)).collect();
+                if kind_matches.len() == 1 {
+                    return Some(rebuild_symbol_id(*kind_matches[0]));
+                }
+                if cands.len() == 1 {
+                    return Some(rebuild_symbol_id(cands[0]));
+                }
+            }
+            None
+        };
+
     let mut edges = Vec::with_capacity(stats.edges.len());
     for (rel_path, edge) in &stats.edges {
         if !is_safe_project_relative_path(rel_path.as_str()) {
@@ -315,22 +398,33 @@ pub async fn process_ingest_stats(
             }
             engram_core::ids::NodeId::control(page_path, control_id).0
         } else {
-            let fqn = if edge.source_name.contains('.') {
-                Some(edge.source_name.as_str())
-            } else {
-                edge.metadata
-                    .as_ref()
-                    .and_then(|m| m.get("source_fqn"))
-                    .map(|s| s.as_str())
-            };
-            engram_core::ids::NodeId::symbol(
-                edge.source_kind.as_str(),
-                fqn,
-                rel_path.as_str(),
+            // GRAPH-WIRE: prefer the real declaring node from this batch —
+            // extractors put FQNs (e.g. "MyApp.Data.LoadData") and call-site
+            // lines here, which otherwise rebuild into phantom endpoints that
+            // match no node minted in the symbol loop.
+            resolve_batch_symbol(
                 &edge.source_name,
-                edge.source_start_line,
+                rel_path.as_str(),
+                Some(edge.source_kind.as_str()),
             )
-            .0
+            .unwrap_or_else(|| {
+                let fqn = if edge.source_name.contains('.') {
+                    Some(edge.source_name.as_str())
+                } else {
+                    edge.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("source_fqn"))
+                        .map(|s| s.as_str())
+                };
+                engram_core::ids::NodeId::symbol(
+                    edge.source_kind.as_str(),
+                    fqn,
+                    rel_path.as_str(),
+                    &edge.source_name,
+                    edge.source_start_line,
+                )
+                .0
+            })
         };
 
         let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
@@ -361,7 +455,31 @@ pub async fn process_ingest_stats(
                 .and_then(|m| m.get("control_id"))
                 .map(|s| s.as_str())
                 .unwrap_or(edge.target_name.as_str());
-            engram_core::ids::NodeId::control(rel_path.as_str(), control_id).0
+            // GRAPH-WIRE: control nodes are keyed by their PAGE path. Map
+            // codebehind/designer files to the page; for non-page sources
+            // (JS/TS bridge edges like __doPostBack) the owning page is
+            // unknown here — emit a ::placeholder for resolve_symbol_edges
+            // instead of a phantom control ID keyed by the referencing file.
+            let path_str = rel_path.as_str();
+            let page_path = if let Some(idx) = path_str.find(".aspx.") {
+                &path_str[..idx + 5]
+            } else if let Some(idx) = path_str.find(".ascx.") {
+                &path_str[..idx + 5]
+            } else if let Some(idx) = path_str.find(".master.") {
+                &path_str[..idx + 7]
+            } else {
+                path_str
+            };
+            let lower = page_path.to_ascii_lowercase();
+            let is_page_file = lower.ends_with(".aspx")
+                || lower.ends_with(".ascx")
+                || lower.ends_with(".master");
+            let sanitized_control = control_id.trim().replace('\0', "");
+            if is_page_file || sanitized_control.is_empty() {
+                engram_core::ids::NodeId::control(page_path, control_id).0
+            } else {
+                format!("::{}", sanitized_control)
+            }
         } else if edge.target_kind.as_deref() == Some("control_ref") {
             let path_str = rel_path.as_str();
             let page_path = if let Some(idx) = path_str.find(".designer.") {
@@ -389,6 +507,11 @@ pub async fn process_ingest_stats(
             || edge.target_name.starts_with("column:")
         {
             edge.target_name.clone()
+        } else if edge.target_kind.as_deref() == Some("endpoint") {
+            // Web API / route targets get a stable virtual route node
+            // (parity with sql: targets) — there is no source-file
+            // declaration for them to bind to.
+            format!("route:{}", edge.target_name.trim())
         } else if edge.target_kind.as_deref() == Some("db_table") {
             engram_core::ids::NodeId::table(&edge.target_name).0
         } else if edge.target_kind.as_deref() == Some("db_column") {
@@ -400,22 +523,57 @@ pub async fn process_ingest_stats(
                 .unwrap_or("unknown");
             engram_core::ids::NodeId::column(table, &edge.target_name).0
         } else if let Some(kind) = &edge.target_kind {
-            let fqn = if edge.target_name.contains('.') {
-                Some(edge.target_name.as_str())
-            } else {
-                edge.metadata
-                    .as_ref()
-                    .and_then(|m| m.get("fqn"))
-                    .map(|s| s.as_str())
-            };
-            engram_core::ids::NodeId::symbol(
-                kind.as_str(),
-                fqn,
-                rel_path.as_str(),
+            // GRAPH-WIRE: precedence for symbol targets —
+            //  1. exact same-file (name, line) batch match: overload-precise
+            //     when the extractor knew the declaration site AND named the
+            //     symbol exactly as its node;
+            //  2. batch resolution: handles FQN-vs-short-name mismatches
+            //     (tree-sitter contains edges carry FQN target names while
+            //     nodes are short-named; the VB fallback is the inverse);
+            //  3. trusted-line mint: same-file targets that are not regular
+            //     symbols in this batch;
+            //  4. ::placeholder for the post-ingest resolver — never a
+            //     phantom location ID under the SOURCE file's path.
+            let exact_same_file = edge.target_start_line.and_then(|line| {
+                symbols_by_name.get(edge.target_name.as_str()).and_then(|cands| {
+                    cands
+                        .iter()
+                        .find(|c| c.0 == rel_path.as_str() && c.2 == edge.target_name && c.3 == line)
+                        .map(|c| rebuild_symbol_id(*c))
+                })
+            });
+            if let Some(id) = exact_same_file {
+                id
+            } else if let Some(id) = resolve_batch_symbol(
                 &edge.target_name,
-                edge.target_start_line.unwrap_or(0),
-            )
-            .0
+                rel_path.as_str(),
+                Some(kind.as_str()),
+            ) {
+                id
+            } else if let Some(line) = edge.target_start_line {
+                let fqn = if edge.target_name.contains('.') {
+                    Some(edge.target_name.as_str())
+                } else {
+                    edge.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .map(|s| s.as_str())
+                };
+                engram_core::ids::NodeId::symbol(
+                    kind.as_str(),
+                    fqn,
+                    rel_path.as_str(),
+                    &edge.target_name,
+                    line,
+                )
+                .0
+            } else {
+                let sanitized = edge.target_name.trim().replace('\0', "");
+                if sanitized.is_empty() {
+                    anyhow::bail!("process_ingest_stats: empty symbol target name");
+                }
+                format!("::{}", sanitized)
+            }
         } else {
             let sanitized = edge.target_name.trim().replace('\0', "");
             if sanitized.is_empty() {
@@ -423,6 +581,22 @@ pub async fn process_ingest_stats(
             }
             format!("::{}", sanitized)
         };
+
+        // Virtual nodes for route targets (Web API endpoints hit from JS).
+        if target_id.starts_with("route:") && seen_virtual_node_ids.insert(target_id.clone()) {
+            nodes.push(engram_graph::Node {
+                node_id: target_id.clone(),
+                node_type: "route_handler".into(),
+                name: edge.target_name.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                language: language.into(),
+                file_path: (**rel_path).clone(),
+                start_line: edge.target_start_line.unwrap_or(0),
+                end_line: edge.target_start_line.unwrap_or(0),
+                generation,
+                metadata: metadata_to_json(&edge.metadata),
+            });
+        }
 
         // Virtual nodes for SQL targets
         if target_id.starts_with("sql:") && seen_virtual_node_ids.insert(target_id.clone()) {
