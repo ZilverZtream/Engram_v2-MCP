@@ -32,7 +32,7 @@ pub use paths::RelPath;
 pub use security::{
     PathContext, safe_join, safe_open_read, safe_read_to_string, validate_key_component,
 };
-pub use types::{EngramError, Result, guess_language};
+pub use types::{EngramError, Result, guess_language, is_vendor_path};
 
 pub use registry::{JobRecord, MemorySection, ProjectRecord, Registry, RepoRule, WatchRecord};
 
