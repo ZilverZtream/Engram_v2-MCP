@@ -352,6 +352,7 @@ impl Engram {
                 std::collections::HashMap::new();
             const TANTIVY_COMMIT_EVERY: usize = 1000;
             const VECTOR_FLUSH_EVERY: usize = 500;
+            let mut unembedded_docs: usize = 0;
 
             while let Some(batch) = doc_rx.recv().await {
                 if cancel_consumer.is_cancelled() {
@@ -375,25 +376,50 @@ impl Engram {
                 }
 
                 // Flush any namespace queue that hit the threshold.
+                // 16c: vector failures degrade (docs stay searchable via
+                // tantivy) — they must not kill a multi-thousand-commit
+                // walk. Count and report instead.
                 for (_ns, queue) in vector_queues.iter_mut() {
                     if queue.len() >= VECTOR_FLUSH_EVERY {
                         let vq = std::mem::take(queue);
-                        search_consumer
+                        if let Err(e) = search_consumer
                             .embed_and_upsert_vectors(&pid_consumer, &vq, &cancel_consumer)
-                            .await?;
+                            .await
+                        {
+                            unembedded_docs += vq.len();
+                            tracing::warn!(
+                                "history vector batch failed ({} docs, total unembedded {}): {e:#}",
+                                vq.len(),
+                                unembedded_docs
+                            );
+                        }
                     }
                 }
             }
 
-            // Final vector flush — each namespace separately.
+            // Final vector flush — each namespace separately; same
+            // degrade-not-die policy.
             if !cancel_consumer.is_cancelled() {
                 for (_ns, queue) in vector_queues.drain() {
                     if !queue.is_empty() {
-                        search_consumer
+                        if let Err(e) = search_consumer
                             .embed_and_upsert_vectors(&pid_consumer, &queue, &cancel_consumer)
-                            .await?;
+                            .await
+                        {
+                            unembedded_docs += queue.len();
+                            tracing::warn!(
+                                "history final vector flush failed ({} docs): {e:#}",
+                                queue.len()
+                            );
+                        }
                     }
                 }
+            }
+            if unembedded_docs > 0 {
+                tracing::warn!(
+                    "history indexing completed with {unembedded_docs} doc(s) unembedded — \
+                     lexical search covers them; rerun index_git_history to backfill vectors"
+                );
             }
 
             // finish() commits + waits for merge threads (the one expensive call).

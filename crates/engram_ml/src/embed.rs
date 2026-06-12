@@ -393,6 +393,23 @@ impl Embedder for OllamaEmbedder {
     }
 }
 
+/// Maximum characters sent to the embedding endpoint per text. nomic-embed
+/// runs a 2048-token context (~8k chars); oversized inputs (50k-char diffs,
+/// 200k-char anti-pattern docs) make Ollama return 400 Bad Request and the
+/// content beyond the head adds no retrieval value anyway. Char-boundary
+/// safe truncation.
+fn clamp_for_embedding(text: &str) -> &str {
+    const MAX_EMBED_CHARS: usize = 8_000;
+    if text.len() <= MAX_EMBED_CHARS {
+        return text;
+    }
+    let mut end = MAX_EMBED_CHARS;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
 /// Shared HTTP helper for Ollama /api/embed with exponential-backoff retry.
 async fn embed_via_ollama(
     client: &reqwest::Client,
@@ -413,7 +430,8 @@ async fn embed_via_ollama(
     let url = format!("{base_url}/api/embed");
     let body = serde_json::json!({
         "model": model,
-        "input": [text],
+        "input": [clamp_for_embedding(text)],
+        "truncate": true,
     });
 
     let mut last_err: Option<anyhow::Error> = None;
@@ -477,9 +495,11 @@ async fn embed_batch_via_ollama(
         ]);
     }
     let url = format!("{base_url}/api/embed");
+    let clamped: Vec<&str> = texts.iter().map(|t| clamp_for_embedding(t)).collect();
     let body = serde_json::json!({
         "model": model,
-        "input": texts,
+        "input": clamped,
+        "truncate": true,
     });
 
     let mut last_err: Option<anyhow::Error> = None;
@@ -562,9 +582,11 @@ async fn embed_batch_via_ollama_cancellable(
         return Ok(vec![emb]);
     }
     let url = format!("{base_url}/api/embed");
+    let clamped: Vec<&str> = texts.iter().map(|t| clamp_for_embedding(t)).collect();
     let body = serde_json::json!({
         "model": model,
-        "input": texts,
+        "input": clamped,
+        "truncate": true,
     });
 
     let mut last_err: Option<anyhow::Error> = None;
