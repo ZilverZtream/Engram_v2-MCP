@@ -96,7 +96,9 @@ impl MetaCategory {
             Self::SubmitChangesOwnership => {
                 "Only call `SubmitChanges()` when you OWN the DataContext (`db Is Nothing`)"
             }
-            Self::ReturnAfterRedirect => "Always add `Return` on the line after `SafeRedirect(...)`",
+            Self::ReturnAfterRedirect => {
+                "Always add `Return` on the line after `SafeRedirect(...)`"
+            }
             Self::BulkTeamAttribution => {
                 "In bulk operations, team id comes from each row's own `iop_createdbyteamId`, NOT from the current user"
             }
@@ -204,23 +206,59 @@ fn classify_text(text: &str) -> MetaCategory {
         ),
         (
             MetaCategory::PermissionCheck,
-            &["canreadviaapi", "permission check", "checkread", "checkisuserinrole", "authorize", "unauthorized", "access control"],
+            &[
+                "canreadviaapi",
+                "permission check",
+                "checkread",
+                "checkisuserinrole",
+                "authorize",
+                "unauthorized",
+                "access control",
+            ],
         ),
         (
             MetaCategory::ReturnAfterRedirect,
-            &["safe redirect", "saferedirect", "response.redirect", "after redirect", "missing return"],
+            &[
+                "safe redirect",
+                "saferedirect",
+                "response.redirect",
+                "after redirect",
+                "missing return",
+            ],
         ),
         (
             MetaCategory::BulkTeamAttribution,
-            &["team attribution", "iop_createdbyteamid", "bulk create", "stamp the team", "stamp team", "current user's team"],
+            &[
+                "team attribution",
+                "iop_createdbyteamid",
+                "bulk create",
+                "stamp the team",
+                "stamp team",
+                "current user's team",
+            ],
         ),
         (
             MetaCategory::XssSanitize,
-            &["innerhtml", "xss", "sanitize", "escape html", "html: true", "prevent xss", "html injection"],
+            &[
+                "innerhtml",
+                "xss",
+                "sanitize",
+                "escape html",
+                "html: true",
+                "prevent xss",
+                "html injection",
+            ],
         ),
         (
             MetaCategory::ErrorCallback,
-            &["error callback", "missing callback", "api.ajax", "spinner", "missing error handler", "missing error"],
+            &[
+                "error callback",
+                "missing callback",
+                "api.ajax",
+                "spinner",
+                "missing error handler",
+                "missing error",
+            ],
         ),
         (
             MetaCategory::NullGuard,
@@ -268,7 +306,14 @@ fn classify_text(text: &str) -> MetaCategory {
         ),
         (
             MetaCategory::DebugLeftovers,
-            &["console.log", "debug statement", "debug=\"true\"", "remove debug", "debug leftover", "temporary diagnostic"],
+            &[
+                "console.log",
+                "debug statement",
+                "debug=\"true\"",
+                "remove debug",
+                "debug leftover",
+                "temporary diagnostic",
+            ],
         ),
     ];
     for (cat, keywords) in TABLE {
@@ -299,7 +344,7 @@ fn is_noise_rule(text: &str) -> bool {
     let lower = text.to_ascii_lowercase();
     const NOISE: &[&str] = &[
         // Cosmetic fixes — not durable code-writing guidance.
-        "typo",                 // "fix typo" / "typo in" / "Typo:" — collapsed.
+        "typo", // "fix typo" / "typo in" / "Typo:" — collapsed.
         "rename the ",
         "rename for clarity",
         "stylelint",
@@ -372,7 +417,12 @@ fn tighten_immune_text(text: &str, file_pattern: &str, revert_hash: Option<&str>
     // — the "instead" half usually contains the prescription, but
     // the "because" half contains the rationalisation; we want the
     // prescription.
-    for split in [" Instead, developers", " Instead,", " Developers should", " Instead"] {
+    for split in [
+        " Instead, developers",
+        " Instead,",
+        " Developers should",
+        " Instead",
+    ] {
         if let Some(idx) = stripped.find(split) {
             let after = stripped[idx..].trim_start_matches(split).trim_start();
             if !after.is_empty() {
@@ -385,7 +435,11 @@ fn tighten_immune_text(text: &str, file_pattern: &str, revert_hash: Option<&str>
     // after the prefix strip removed the preceding "because ".
     if let Some(first) = stripped.chars().next() {
         if first.is_ascii_lowercase() {
-            stripped = format!("{}{}", first.to_ascii_uppercase(), &stripped[first.len_utf8()..]);
+            stripped = format!(
+                "{}{}",
+                first.to_ascii_uppercase(),
+                &stripped[first.len_utf8()..]
+            );
         }
     }
     // Build the citation suffix. Revert hash wins — it's the single
@@ -484,7 +538,9 @@ pub fn run_pipeline(raw: Vec<RawRule>, threshold: RenderThreshold) -> PipelineOu
     // apply the threshold filter the same way.
     for r in other {
         let passes = match (r.fix_rate, r.pr_count) {
-            (Some(rate), Some(prs)) => rate >= threshold.min_fix_rate && prs >= threshold.min_pr_count,
+            (Some(rate), Some(prs)) => {
+                rate >= threshold.min_fix_rate && prs >= threshold.min_pr_count
+            }
             // Immune + plain repo-rule entries always pass — they
             // aren't CodeRabbit-sourced and don't carry aggregate
             // stats.
@@ -682,7 +738,9 @@ mod tests {
             MetaCategory::NullGuard
         );
         assert_eq!(
-            classify_text("Guard navigation-property access before loading supplementary form fields."),
+            classify_text(
+                "Guard navigation-property access before loading supplementary form fields."
+            ),
             MetaCategory::NullGuard
         );
         assert_eq!(
@@ -720,13 +778,49 @@ mod tests {
         // Simulate a handful of token-level null-guard clusters
         // split by Jaccard — the meta-clusterer must collapse them.
         let raw = vec![
-            mk_raw("cr_1", "Apply null-coalescing guard to iok_benamning.", 3, 1.0, RuleSource::CodeRabbit),
-            mk_raw("cr_2", "Potential null reference on _divMarkerTypes.", 2, 1.0, RuleSource::CodeRabbit),
-            mk_raw("cr_3", "Guard against missing DOM element.", 2, 0.5, RuleSource::CodeRabbit),
-            mk_raw("cr_4", "Return an empty list instead of Nothing.", 3, 0.67, RuleSource::CodeRabbit),
-            mk_raw("cr_5", "Guard navigation-property access.", 2, 1.0, RuleSource::CodeRabbit),
+            mk_raw(
+                "cr_1",
+                "Apply null-coalescing guard to iok_benamning.",
+                3,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_2",
+                "Potential null reference on _divMarkerTypes.",
+                2,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_3",
+                "Guard against missing DOM element.",
+                2,
+                0.5,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_4",
+                "Return an empty list instead of Nothing.",
+                3,
+                0.67,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_5",
+                "Guard navigation-property access.",
+                2,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
         ];
-        let out = run_pipeline(raw, RenderThreshold { min_fix_rate: 0.6, min_pr_count: 3 });
+        let out = run_pipeline(
+            raw,
+            RenderThreshold {
+                min_fix_rate: 0.6,
+                min_pr_count: 3,
+            },
+        );
         let null_rules: Vec<_> = out
             .root_rules
             .iter()
@@ -750,7 +844,13 @@ mod tests {
         let raw = vec![
             // Fix rate 50% with 7 PRs — below threshold, should go
             // to overflow.
-            mk_raw("cr_low", "Remove duplicate search box markup.", 7, 0.5, RuleSource::CodeRabbit),
+            mk_raw(
+                "cr_low",
+                "Remove duplicate search box markup.",
+                7,
+                0.5,
+                RuleSource::CodeRabbit,
+            ),
             // This one would otherwise meta-cluster, but the noise
             // filter drops it first. Good — that's the pipeline.
         ];
@@ -869,9 +969,7 @@ mod tests {
             "minified-edit immune rule must be filtered as noise"
         );
         let raw = "The diff shows a file being added with duplicate, malformed header lines.";
-        assert!(
-            render_immune_rule_text(raw, "immune_def67890", "Site/foo.vb").is_none()
-        );
+        assert!(render_immune_rule_text(raw, "immune_def67890", "Site/foo.vb").is_none());
     }
 
     #[test]
@@ -898,9 +996,27 @@ mod tests {
         // the severity-driven sort: null-guard (rank 1), permission
         // check (rank 1) come before localization (rank 4).
         let raw = vec![
-            mk_raw("cr_loc", "Text is in the wrong language, use resx.", 3, 1.0, RuleSource::CodeRabbit),
-            mk_raw("cr_null", "Guard against null DOM element.", 5, 1.0, RuleSource::CodeRabbit),
-            mk_raw("cr_perm", "Permission check missing on api controller.", 4, 1.0, RuleSource::CodeRabbit),
+            mk_raw(
+                "cr_loc",
+                "Text is in the wrong language, use resx.",
+                3,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_null",
+                "Guard against null DOM element.",
+                5,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
+            mk_raw(
+                "cr_perm",
+                "Permission check missing on api controller.",
+                4,
+                1.0,
+                RuleSource::CodeRabbit,
+            ),
         ];
         let out = run_pipeline(raw, RenderThreshold::default());
         // All three should now survive because Localization is no
@@ -911,20 +1027,35 @@ mod tests {
             out.root_rules
         );
         assert!(
-            out.root_rules.iter().any(|r| r.text.contains("permission check")),
+            out.root_rules
+                .iter()
+                .any(|r| r.text.contains("permission check")),
             "permission-check rule expected: {:#?}",
             out.root_rules
         );
         assert!(
-            out.root_rules.iter().any(|r| r.text.contains("hardcoded English")),
+            out.root_rules
+                .iter()
+                .any(|r| r.text.contains("hardcoded English")),
             "localization rule expected (regression guard): {:#?}",
             out.root_rules
         );
         // Sort order: severity-1 categories must appear before the
         // severity-4 localization entry.
-        let null_idx = out.root_rules.iter().position(|r| r.text.contains("Null-guard")).unwrap();
-        let loc_idx = out.root_rules.iter().position(|r| r.text.contains("hardcoded English")).unwrap();
-        assert!(null_idx < loc_idx, "data-correctness rank must come before ergonomic rank");
+        let null_idx = out
+            .root_rules
+            .iter()
+            .position(|r| r.text.contains("Null-guard"))
+            .unwrap();
+        let loc_idx = out
+            .root_rules
+            .iter()
+            .position(|r| r.text.contains("hardcoded English"))
+            .unwrap();
+        assert!(
+            null_idx < loc_idx,
+            "data-correctness rank must come before ergonomic rank"
+        );
     }
 
     #[test]
@@ -945,7 +1076,13 @@ mod tests {
 
     #[test]
     fn pipeline_summary_is_non_empty_and_readable() {
-        let raw = vec![mk_raw("cr_1", "Typo in comment.", 3, 1.0, RuleSource::CodeRabbit)];
+        let raw = vec![mk_raw(
+            "cr_1",
+            "Typo in comment.",
+            3,
+            1.0,
+            RuleSource::CodeRabbit,
+        )];
         let out = run_pipeline(raw, RenderThreshold::default());
         assert!(out.summary.contains("raw"));
         assert!(out.summary.contains("noise filter"));
