@@ -219,6 +219,8 @@ internal sealed class AstEmitter
             var fqn = ComposeName(name);
             var methodStartLine = Line(tree, node);
             var metadata = new Dictionary<string, string>();
+            // TODO-13: parameter count enables arity-aware call resolution.
+            metadata["arity"] = (stmt.ParameterList?.Parameters.Count ?? 0).ToString();
             if (stmt.Modifiers.Any(m => m.Kind() == SyntaxKind.AsyncKeyword))
                 metadata["async"] = "true";
             if (Lifecycle(name) is { } life)
@@ -307,6 +309,9 @@ internal sealed class AstEmitter
                 var callSiteLine = Line(tree, inv);
                 var invocationMetadata = ResolveInvocationMetadata(inv) ?? new Dictionary<string, string>();
                 invocationMetadata["call_site_line"] = callSiteLine.ToString();
+                // TODO-13: argument count lets the resolver prefer the
+                // matching overload instead of the first name hit.
+                invocationMetadata["args"] = (inv.ArgumentList?.Arguments.Count ?? 0).ToString();
                 edges.Add(new EdgeDto
                 {
                     SourceName = fqn,
