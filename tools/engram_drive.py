@@ -168,4 +168,10 @@ elif phase == "tool":
     print(tool(name, targs)[:cap])
 
 proc.stdin.close()
-proc.terminate()
+try:
+    # Graceful: EOF on stdin lets the server drop writers/locks cleanly.
+    # terminate() mid-cleanup leaves a stale tantivy writer lock that makes
+    # the NEXT phase's bulk writer fail ("index consumer dropped").
+    proc.wait(timeout=20)
+except subprocess.TimeoutExpired:
+    proc.terminate()
