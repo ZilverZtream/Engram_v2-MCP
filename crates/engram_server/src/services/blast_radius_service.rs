@@ -783,6 +783,12 @@ pub fn format_report(report: &BlastRadiusReport) -> String {
         }
     }
 
+    out.push_str(
+        "\nnext: check_edit_safety per method you will touch; \
+         find_symbol_references(<symbol>) to enumerate callers; \
+         begin_edit_session(planned_files=[...]) before editing.\n",
+    );
+
     out
 }
 

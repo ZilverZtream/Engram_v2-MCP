@@ -287,6 +287,10 @@ impl Engram {
             }
         }
 
+        out.push_str(
+            "next: get_chunk(doc_id) for full source; resolve_id(<symbol>) to enter \
+             the graph; get_concept_footprint(<domain term>) for ALL touchpoints.\n",
+        );
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
@@ -682,6 +686,10 @@ impl Engram {
 
         if found_in_graph {
             let mut text = out.trim().to_string();
+            out.push_str(
+                "next: detect_incomplete_changes(edited_files=[...]) if you plan to edit \
+             these files; check_edit_safety(<method>) before changing the symbol.\n",
+            );
             text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }

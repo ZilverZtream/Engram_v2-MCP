@@ -277,7 +277,7 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   `access_layer_tools.rs`. `get_method_info` × 10 = 10 round trips. Accept arrays in the
   hot read tools (method info, node lookups, doc fetches) with a shared token budget.
 
-- [ ] **34. Next-tool hints in every response** (S–M)
+- [~] **34. Next-tool hints in every response** (S–M) - *hot-path tier done 2026-06-13: success-path next: footers on search_memory (-> get_chunk/resolve_id/concept_footprint), find_symbol_references (-> detect_incomplete_changes/check_edit_safety), blast radius report (-> edit_safety/references/begin_edit_session); planning tools already had them; error paths covered by P0 #7. Long tail (~60 specialty tools) remains.*
   Some tools have `Next:` recommendations; most don't. Standardize a `next_tools` field —
   this is how agents discover the long tail of the surface organically.
 
