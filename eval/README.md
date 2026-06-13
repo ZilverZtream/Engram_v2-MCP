@@ -54,9 +54,17 @@ never touched).
     `graph_search` + `graph_centrality_rerank`
   - `S10_cochange_funnel` — concept + search seed → similar + couplings +
     incomplete + rerank
-- **Phase 2 — full code-gen + A/B.** Drive the model through the winning
-  sequence; LLM-judge the diff + mandate-compliance (ABSOLUTE-TRUTH doc) vs the
-  merged PR. A/B: Model-alone vs Model+Engram → the delta is Engram's value.
+- **Phase 2 — code-gen A/B (in-session Opus agents).** Per story, two Opus 4.8
+  agents (spawned in-session via the Workflow tool — Claude Code subscription, no
+  API) implement the story from the SAME base-commit code, US-only input: one
+  **alone** (plain Read/Grep/Glob exploration), one **+Engram** (also given the
+  validated 3-arm ensemble as a dossier). An Opus judge scores each arm's
+  proposal — file-recall + implementation closeness (1-5) — against the real
+  merged diff. Harness: `phase2_prep.py` (index at base → ensemble → dossier +
+  worktrees), `phase2_build_run.py` (bake story data into the run script — the
+  workflow `args` global is unreliable with `scriptPath`), `phase2_workflow.js`
+  (the A/B + judge). Agents read the worktree/dossier/diff (no writes, no git) so
+  there are no permission stalls.
 
 ## Metrics
 - **recall_modified_page** *(headline / tournament winner)* — of the PR's
@@ -164,3 +172,48 @@ eventually touched, given only the user story.
   files: best 0.15). Retrieval finds the hubs; the long tail needs reasoning.
 - Seeding uses per-keyword `search_memory` + `vector_search` to route around the
   apostrophe bug (TODO P0-0, now fixed) and the multi-word lexical limitation.
+
+## Phase-2 results (2026-06-13, 5-story Opus A/B)
+
+Stories: 1933 (invoice filters), 1908 (upload map-marker icons), 1967 (resources
+in multitenant — a BUG), 1937 (camera icon), 1974 (geospatial export).
+
+| | alone (no Engram) | +Engram dossier |
+|---|---|---|
+| mean impl_score (1-5) | **3.2** | 2.6 |
+| mean file_recall | **0.46** | 0.33 |
+| per-story wins | 3 | 2 |
+
+On average the dossier was **slightly net-negative**, but the aggregate hides the
+real result — **Engram's value is conditional on story type**, and one story
+(1967) dominates the mean:
+
+- **Companion-completeness / feature stories → Engram WINS.** PR 1908 (upload
+  icons): alone localized only 3 of 7 languages and added a spurious
+  `ConfigSettings.vb`; Engram's **git co-change signal surfaced the full
+  7-language `.resx` family** ("usually changed together") → recall 0.56 → **1.00**,
+  impl 3 → 4. The forgotten-companion catch is exactly Engram's promise. PR 1933
+  also a modest Engram win (recall 0.08 → 0.17, impl 3 → 4).
+- **Misdiagnosable bug-fixes → Engram can HURT.** PR 1967 (a tenant-access bug):
+  the no-Engram agent *traced* the real read-side filter near-verbatim (recall
+  **1.00**, impl **5**); the Engram agent **anchored on the ranked dossier and
+  diagnosed a plausible-but-wrong save-side file** not in the real PR (recall
+  0.14, impl 2). A "relevant files" list steers root-cause work toward
+  pattern-matching and away from causal tracing.
+
+**Anchoring is the central risk.** The first 1933 run had the Engram agent
+declare "nothing else needs touching" and ignore a file it *had* listed at rank
+22. Reframing the dossier — flat, layer-grouped, "non-exhaustive starting map,
+implement EVERY layer, don't stop early" instead of a numbered ranking — lifted
+its impl quality (2 → 4 on 1933) but did not fully eliminate the effect.
+
+**Product implication / recommended use:** hand Engram's dossier to an agent as
+an **advisory complement** that augments (never replaces) exploration; lead with
+the **co-change/companion** signal (its strongest, most differentiated value).
+For feature/CRUD work, surface the companion set aggressively. For bug-fixes,
+present Engram output as orientation only and require the agent to trace
+causality — do not let a ranked list short-circuit root-cause analysis.
+
+Caveat: n=5, real model variance; this is a directional pilot, not a powered
+study. The mechanisms above are diagnosed per-story (not aggregate noise), which
+is what makes them actionable.
