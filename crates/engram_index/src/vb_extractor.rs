@@ -963,6 +963,31 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     method.truncate(p);
                 }
                 let mut meta = HashMap::new();
+                // TODO-13: parameter count from the signature line so the
+                // degraded path also feeds arity-aware resolution. Counts
+                // top-level commas inside the first paren group; nested
+                // parens (generics, defaults) are tracked by depth.
+                if let Some(open) = line.find('(') {
+                    let mut depth = 0i32;
+                    let mut args: u32 = 0;
+                    let mut saw_content = false;
+                    for ch in line[open..].chars() {
+                        match ch {
+                            '(' => depth += 1,
+                            ')' => {
+                                depth -= 1;
+                                if depth == 0 {
+                                    break;
+                                }
+                            }
+                            ',' if depth == 1 => args += 1,
+                            c if depth >= 1 && !c.is_whitespace() => saw_content = true,
+                            _ => {}
+                        }
+                    }
+                    let arity = if saw_content { args + 1 } else { 0 };
+                    meta.insert("arity".to_string(), arity.to_string());
+                }
                 if lower.contains("async ") {
                     meta.insert("async".to_string(), "true".to_string());
                 }
@@ -1163,6 +1188,34 @@ mod tests {
                 s.name
             );
         }
+    }
+
+    #[test]
+    fn fallback_records_arity_from_signature() {
+        let code = "Class Foo
+  Public Sub NoArgs()
+  End Sub
+  Public Function TwoArgs(ByVal a As Integer, b As String) As Boolean
+  End Function
+  Public Sub Defaulted(Optional ByVal x As List(Of String) = Nothing)
+  End Sub
+End Class";
+        let (symbols, _) = super::fallback_extract_vb_for_test(Path::new("a.vb"), code);
+        let arity_of = |name: &str| -> Option<String> {
+            symbols
+                .iter()
+                .find(|s| s.name.contains(name))
+                .and_then(|s| s.metadata.as_ref())
+                .and_then(|m| m.get("arity"))
+                .cloned()
+        };
+        assert_eq!(arity_of("NoArgs").as_deref(), Some("0"));
+        assert_eq!(arity_of("TwoArgs").as_deref(), Some("2"));
+        assert_eq!(
+            arity_of("Defaulted").as_deref(),
+            Some("1"),
+            "nested parens (List(Of String)) must not inflate the count"
+        );
     }
 
     #[test]
