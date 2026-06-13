@@ -34,6 +34,7 @@ def story_entry(pr):
         diff = diff[:CAP] + f"\n\n... [diff truncated at {CAP} chars of {len(diff)} total]\n"
     diff_path = os.path.join(P2, f"pr{pr}_merged.diff")
     open(diff_path, "w", encoding="utf-8").write(diff)
+    rich = os.path.join(P2, f"pr{pr}_dossier_rich.md")
     return {
         "pr_id": m["pr_id"],
         "title": m["story"]["title"],
@@ -42,6 +43,7 @@ def story_entry(pr):
         "worktree": m["worktree_engram"],
         "worktree_alone": m["worktree_alone"],
         "dossier_path": m["dossier_path"],
+        "dossier_rich_path": rich if os.path.exists(rich) else m["dossier_path"],
         "modified_files": mods,
         "merged_diff_path": diff_path,
     }
@@ -51,9 +53,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prs", nargs="+", type=int)
     ap.add_argument("--out", default="_run_all.js")
+    ap.add_argument("--template", default=TEMPLATE,
+                    help="workflow template .js (default 2-arm phase2_workflow.js)")
     args = ap.parse_args()
     stories = [story_entry(pr) for pr in args.prs]
-    tpl = open(TEMPLATE, encoding="utf-8").read()
+    tpl = open(args.template, encoding="utf-8").read()
     marker = "let STORIES = null // INJECTED_STORIES"
     assert marker in tpl, "injection marker not found in template"
     out = tpl.replace(marker, "let STORIES = " + json.dumps(stories) + " // INJECTED_STORIES")
