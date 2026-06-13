@@ -435,6 +435,14 @@ value is accuracy, this is the biggest meta-gap.
   VARIABLE key ... lower bound" (#17), arity + confidence stamps in index (#12/#13),
   blast radius discounts bare-name callers.
 
+- **2026-06-13 iter 16 — accuracy program complete (#11-#19) + true co-change revealed**:
+  language-aware binding (#19), C#/fallback arity (#13 done), dynamic SQL on both
+  extraction tiers (#17 done, sidecar-path gap caught BY the verification cycle),
+  16d crash-idempotent temporal walks. Full cycle now 13 min. Streaming co-change
+  over all 1.3M edges revealed the biased-sample lie: true top pairs are
+  text.*.resx bundles (2,463) and map.js <-> qtyManager.ts (2,632) — the prior
+  246/1112 numbers were key-order sampling artifacts. calls stable at 74,289.
+
 ## Suggested sequencing
 
 **Week 1–2 (quick wins, mostly S):** #1, #5, #7, #11, #15, #16, #18, #34, #40, #41, #44, #47, #54, #56, #60, #63
