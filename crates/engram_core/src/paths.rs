@@ -1,6 +1,27 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
+
+/// TODO-47: canonicalizing a root is a syscall; roots are stable per project,
+/// so memoize. Maps a root path -> its canonical form (None = canonicalize
+/// failed, e.g. root doesn't exist; we then skip the symlink fallback).
+static CANON_ROOT_CACHE: LazyLock<Mutex<HashMap<PathBuf, Option<PathBuf>>>> =
+    LazyLock::new(Default::default);
+
+fn canonical_root(root: &Path) -> Option<PathBuf> {
+    if let Ok(cache) = CANON_ROOT_CACHE.lock()
+        && let Some(hit) = cache.get(root)
+    {
+        return hit.clone();
+    }
+    let canon = std::fs::canonicalize(root).ok();
+    if let Ok(mut cache) = CANON_ROOT_CACHE.lock() {
+        cache.insert(root.to_path_buf(), canon.clone());
+    }
+    canon
+}
 
 /// A project-relative path that is guaranteed to use `/` as a separator.
 /// It is normalized upon creation to remove leading/trailing slashes and convert `\` to `/`.
@@ -49,15 +70,39 @@ impl RelPath {
     }
 
     /// Create a RelPath from an absolute path relative to a root.
+    ///
+    /// TODO-47: lexical `strip_prefix` fails when the root is a symlink and
+    /// the walker yields canonicalized paths (or vice versa), silently
+    /// dropping every file. We try the fast lexical strip first, then fall
+    /// back to stripping against the canonicalized root, then against both
+    /// sides canonicalized — paying the syscall cost only on the rare
+    /// symlinked-root path, never on the common case.
     pub fn from_relative(root: &Path, path: &Path) -> Option<Self> {
-        let rel = path.strip_prefix(root).ok()?;
-        if rel
-            .components()
-            .any(|c| matches!(c, std::path::Component::ParentDir))
-        {
-            return None;
+        fn finalize(rel: &Path) -> Option<RelPath> {
+            if rel
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+            {
+                return None;
+            }
+            Some(RelPath::new(&rel.to_string_lossy()))
         }
-        Some(Self::new(&rel.to_string_lossy()))
+
+        // Fast path: pure lexical prefix (no syscalls).
+        if let Ok(rel) = path.strip_prefix(root) {
+            return finalize(rel);
+        }
+
+        // Symlink fallback: strip against the canonical root.
+        let canon_root = canonical_root(root)?;
+        if let Ok(rel) = path.strip_prefix(&canon_root) {
+            return finalize(rel);
+        }
+
+        // Last resort: canonicalize the path too (handles a symlinked path
+        // under a canonical root). Bounded to the failure case only.
+        let canon_path = std::fs::canonicalize(path).ok()?;
+        canon_path.strip_prefix(&canon_root).ok().and_then(finalize)
     }
 
     pub fn as_str(&self) -> &str {
@@ -74,6 +119,17 @@ impl RelPath {
 
     pub fn file_name(&self) -> Option<&str> {
         self.0.rsplit('/').next()
+    }
+
+    /// TODO-47: the internal form is always `/`-separated for portability.
+    /// For user-facing error/log messages about a real on-disk path, render
+    /// with the platform separator so Windows users see familiar `\`.
+    pub fn to_native_string(&self) -> String {
+        if std::path::MAIN_SEPARATOR == '/' {
+            self.0.clone()
+        } else {
+            self.0.replace('/', std::path::MAIN_SEPARATOR_STR)
+        }
     }
 }
 
@@ -111,6 +167,33 @@ mod tests {
         assert_eq!(RelPath::new("/foo/bar/").as_str(), "foo/bar");
         assert_eq!(RelPath::new(r"\foo\bar\").as_str(), "foo/bar");
         assert_eq!(RelPath::new("foo/bar").as_str(), "foo/bar");
+    }
+
+    #[test]
+    fn from_relative_recovers_under_canonical_mismatch() {
+        // TODO-47: canonicalize() yields a form (Windows extended-length
+        // prefix, macOS /private/tmp) that does NOT lexically strip against
+        // the plain root, exercising the symlink/canonical fallback without
+        // needing real symlinks.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let root = tmp.path();
+        let file = root.join("sub/file.rs");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, "x").unwrap();
+
+        let canon_file = std::fs::canonicalize(&file).unwrap();
+        let rel = RelPath::from_relative(root, &canon_file)
+            .expect("canonical fallback must recover the rel path");
+        assert_eq!(rel.as_str(), "sub/file.rs");
+    }
+
+    #[test]
+    fn to_native_string_uses_platform_separator() {
+        let rel = RelPath::new("a/b/c.rs");
+        assert_eq!(rel.as_str(), "a/b/c.rs", "internal form stays slash");
+        let sep = std::path::MAIN_SEPARATOR;
+        let expected = format!("a{sep}b{sep}c.rs");
+        assert_eq!(rel.to_native_string(), expected);
     }
 
     #[test]
