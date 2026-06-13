@@ -910,6 +910,92 @@ impl GraphStore {
             .and_then(|s| s.parse::<f32>().ok()))
     }
 
+    /// Delete every edge of one kind for a project (EDGES + both adjacency
+    /// tables). 16d: a git-history walk that dies mid-run leaves temporal
+    /// increments behind; the rerun re-walks from scratch and double-counts.
+    /// A fresh walk (no watermark) clears prior statistical edges first so
+    /// crash-reruns are idempotent.
+    pub fn delete_edges_of_kind(&self, project_id: &str, kind: &EdgeKind) -> anyhow::Result<usize> {
+        const BATCH: usize = 5_000;
+        let edge_prefix = format!("{project_id}\0{}\0", kind.as_str());
+        let mut removed = 0usize;
+        loop {
+            let keys: Vec<String> = {
+                let rtx = self.db.begin_read()?;
+                let et = rtx.open_table(EDGES)?;
+                let mut v = Vec::with_capacity(BATCH);
+                for r in et.range(edge_prefix.as_str()..)? {
+                    let (k, _) = r?;
+                    if !k.value().starts_with(&edge_prefix) {
+                        break;
+                    }
+                    v.push(k.value().to_string());
+                    if v.len() >= BATCH {
+                        break;
+                    }
+                }
+                v
+            };
+            if keys.is_empty() {
+                break;
+            }
+            let wtx = self.db.begin_write()?;
+            {
+                let mut et = wtx.open_table(EDGES)?;
+                for k in &keys {
+                    et.remove(k.as_str())?;
+                }
+            }
+            wtx.commit()?;
+            removed += keys.len();
+        }
+
+        // Adjacency mirrors: tuple keys whose first element is
+        // "{pid}\0{kind}\0{node}" — prefix-match on the kind segment.
+        let adj_prefix = format!("{project_id}\0{}\0", kind.as_str());
+        for which in 0..2 {
+            loop {
+                let keys: Vec<(String, String)> = {
+                    let rtx = self.db.begin_read()?;
+                    let at = if which == 0 {
+                        rtx.open_table(ADJ_OUT)?
+                    } else {
+                        rtx.open_table(ADJ_IN)?
+                    };
+                    let mut v = Vec::with_capacity(BATCH);
+                    for r in at.range((adj_prefix.as_str(), "")..)? {
+                        let (k, _) = r?;
+                        let (pfx, other) = k.value();
+                        if !pfx.starts_with(&adj_prefix) {
+                            break;
+                        }
+                        v.push((pfx.to_string(), other.to_string()));
+                        if v.len() >= BATCH {
+                            break;
+                        }
+                    }
+                    v
+                };
+                if keys.is_empty() {
+                    break;
+                }
+                let wtx = self.db.begin_write()?;
+                {
+                    let mut at = if which == 0 {
+                        wtx.open_table(ADJ_OUT)?
+                    } else {
+                        wtx.open_table(ADJ_IN)?
+                    };
+                    for (a, b) in &keys {
+                        at.remove(&(a.as_str(), b.as_str()))?;
+                    }
+                }
+                wtx.commit()?;
+            }
+        }
+        Ok(removed)
+    }
+
     /// Batched variant of [`Self::get_edge_confidence`]: one read
     /// transaction for the whole set. Blast radius checks confidence for
     /// every incoming edge of a target — per-edge transactions made the
