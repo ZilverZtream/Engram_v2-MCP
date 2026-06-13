@@ -309,7 +309,9 @@ def main():
         else:
             pid, idx_wt, idx_secs, _ = rp.setup_index(eng, rec)
             print(f"  indexed in {idx_secs:.0f}s")
-            remove_worktree(idx_wt)          # index persists in data_dir; drop the build worktree
+            # KEEP the index worktree: co-change tools (find_similar_changes,
+            # search_history, detect_incomplete_changes) re-walk the git repo at
+            # rec.directory at QUERY time — removing it silently zeroes co-change.
             imap[str(args.pr)] = pid
             _save_map(imap)                   # KEEP the project — do NOT delete (reusable)
         t0 = time.time()

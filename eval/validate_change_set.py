@@ -24,7 +24,12 @@ def main():
         print(f"no kept index for PR {pr}")
         return
     man = json.load(open(os.path.join(P2, f"pr{pr}.json"), encoding="utf-8"))
-    story = man["story"]["title"]
+    s = man["story"]
+    story = s["title"]
+    if s.get("description"):
+        story += "\n\n" + s["description"]
+    if s.get("acceptance"):
+        story += "\n\nAcceptance:\n" + s["acceptance"]
     real = [canon(cf["path"]) for cf in man["ground_truth"]["changed_files"]
             if "add" not in (cf.get("change", "") or "").lower()
             and "rename" not in (cf.get("change", "") or "").lower()]
