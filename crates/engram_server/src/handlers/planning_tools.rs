@@ -1264,6 +1264,8 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
   every item under "MISSING from your set".
 
 ## Before every commit
+- `detect_incomplete_changes(edited_files=[...])` — history and state wiring
+  name the files you forgot. Touch them or justify each one.
 - `pre_commit_review(diff_source="staged")` — fix or explicitly justify every
   finding (eleven gates, including guard_parity).
 - If results ever look stale: `get_index_freshness`, then `update_project`.
@@ -1278,13 +1280,13 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
 pub(crate) fn render_hooks_json(windows: bool) -> String {
     let (edit_cmd, stop_cmd) = if windows {
         (
-            "powershell -NoProfile -Command \"Write-Output 'ENGRAM: source file changed. Before moving on: check_edit_safety for each touched method; map_guards_and_settings(scope=<file>) if you added/changed an endpoint. Before commit: pre_commit_review(staged) + find_similar_changes.'\"",
-            "powershell -NoProfile -Command \"if (git status --porcelain 2>$null) { Write-Output 'ENGRAM: uncommitted changes present. Run pre_commit_review(diff_source=staged) and find_similar_changes(files=<changed files>) before finishing.' }\"",
+            "powershell -NoProfile -Command \"Write-Output 'ENGRAM: source file changed. Before moving on: check_edit_safety for each touched method; map_guards_and_settings(scope=<file>) if you added/changed an endpoint. Before commit: detect_incomplete_changes(edited_files) + pre_commit_review(staged).'\"",
+            "powershell -NoProfile -Command \"if (git status --porcelain 2>$null) { Write-Output 'ENGRAM: uncommitted changes present. Run detect_incomplete_changes(edited_files=<changed files>) and pre_commit_review(diff_source=staged) before finishing.' }\"",
         )
     } else {
         (
-            "echo 'ENGRAM: source file changed. Before moving on: check_edit_safety for each touched method; map_guards_and_settings(scope=<file>) if you added/changed an endpoint. Before commit: pre_commit_review(staged) + find_similar_changes.'",
-            "sh -c 'if [ -n \"$(git status --porcelain 2>/dev/null)\" ]; then echo \"ENGRAM: uncommitted changes present. Run pre_commit_review(diff_source=staged) and find_similar_changes(files=<changed files>) before finishing.\"; fi'",
+            "echo 'ENGRAM: source file changed. Before moving on: check_edit_safety for each touched method; map_guards_and_settings(scope=<file>) if you added/changed an endpoint. Before commit: detect_incomplete_changes(edited_files) + pre_commit_review(staged).'",
+            "sh -c 'if [ -n \"$(git status --porcelain 2>/dev/null)\" ]; then echo \"ENGRAM: uncommitted changes present. Run detect_incomplete_changes(edited_files=<changed files>) and pre_commit_review(diff_source=staged) before finishing.\"; fi'",
         )
     };
     let v = serde_json::json!({
