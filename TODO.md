@@ -457,6 +457,12 @@ value is accuracy, this is the biggest meta-gap.
   plan_user_story -> begin_edit_session -> check_edit_safety ->
   complete_edit_session -> pre_commit_review.
 
+- **2026-06-13 iter 19 — ask_codebase live + #34 hot-path hints**: all three probed
+  intents route correctly on OciusX (impact: CheckIsUserInRole callers enumerated;
+  usage: ss_systemsettings refs; explain: clustering search+footprint); eval
+  regression 9/10 unchanged. search/references/blast now chain into the session
+  workflow via next: hints. P3 surface complete: one front door + full lifecycle.
+
 ## Suggested sequencing
 
 **Week 1–2 (quick wins, mostly S):** #1, #5, #7, #11, #15, #16, #18, #34, #40, #41, #44, #47, #54, #56, #60, #63
