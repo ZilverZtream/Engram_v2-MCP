@@ -1707,6 +1707,7 @@ impl Engram {
             _ => extract_story_concepts(&req.story),
         };
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
 
         // Concept arm — typed footprint of each domain concept.
         for c in &concepts {
@@ -1721,14 +1722,18 @@ impl Engram {
             {
                 for p in change_set_paths(&t.text) {
                     if !engram_core::is_vendor_path(&p) {
+                        if !prov.contains_key(&p) {
+                            seed_order.push(p.clone());
+                        }
                         prov.entry(p).or_default().insert("concept");
                     }
                 }
             }
         }
 
-        // Co-change arm — confirm/expand real companions from a high-confidence seed.
-        let seed: Vec<String> = prov.keys().take(12).cloned().collect();
+        // Co-change arm — confirm/expand real companions from the strongest concept
+        // hits (relevance order, not alphabetical).
+        let seed: Vec<String> = seed_order.iter().take(12).cloned().collect();
         if !seed.is_empty() {
             let mut texts: Vec<String> = Vec::new();
             if let Ok(r) = self
@@ -1760,6 +1765,48 @@ impl Engram {
                         prov.entry(p).or_default().insert("cochange");
                     }
                 }
+            }
+        }
+
+        // Family expansion — add deterministic .NET companions that EXIST in the
+        // index: code-behind/designer of a page, and the full .resx language set.
+        // Generic framework patterns, not per-repo. Match prefix-insensitively
+        // (the "Site/" web-root prefix is stripped on both sides).
+        if let Ok(meta) = self.state.graph.list_file_node_metadata(&req.project_id) {
+            let strip = |p: &str| -> String {
+                let p = p.replace('\\', "/").to_lowercase();
+                p.strip_prefix("site/").unwrap_or(&p).to_string()
+            };
+            let index: Vec<String> = meta.iter().map(|(rp, _)| strip(rp.as_str())).collect();
+            let index_set: HashSet<&String> = index.iter().collect();
+            let mut fam: Vec<(String, BTreeSet<&'static str>)> = Vec::new();
+            for (p, sigs) in &prov {
+                let ps = strip(p);
+                if ps.ends_with(".aspx") || ps.ends_with(".ascx") {
+                    for ext in [".vb", ".cs", ".designer.vb", ".designer.cs"] {
+                        let sib = format!("{ps}{ext}");
+                        if index_set.contains(&sib) {
+                            fam.push((sib, sigs.clone()));
+                        }
+                    }
+                }
+                if ps.ends_with(".resx")
+                    && let Some(slash) = ps.rfind('/')
+                {
+                    let dir = &ps[..slash + 1];
+                    let stem = ps[slash + 1..].split('.').next().unwrap_or("");
+                    if !stem.is_empty() {
+                        let want = format!("{dir}{stem}");
+                        for f in &index {
+                            if f.starts_with(&want) && f.ends_with(".resx") {
+                                fam.push((f.clone(), sigs.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+            for (k, v) in fam {
+                prov.entry(k).or_default().extend(v);
             }
         }
 
