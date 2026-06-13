@@ -427,10 +427,11 @@ value is accuracy, this is the biggest meta-gap.
   Services review found clusters of TODOs and partially-wired repair logic
   (`integrity_service` repair paths). Triage: fix, ticket, or delete.
 
-- [ ] **63. Repo hygiene** (S)
-  Commit or ignore `tools/vb_roslyn_sidecar/obj/`, decide fate of `.superpowers/` and
-  stray `fix_defaults.ps1`; `full_project_migration_service` exists as both file and
-  directory module — pick one.
+- [x] **63. Repo hygiene** (S) - *done 2026-06-13: sidecar obj/ and .superpowers/ now
+  gitignored; removed tracked one-off scratch script fix_defaults.ps1.
+  full_project_migration_service.rs + dir is the STANDARD Rust module layout (the .rs
+  declares pub mod model / mod analyzers / mod llm_enhancement / mod rendering living in
+  the dir) — idiomatic, not ambiguous; left as-is.*
 
 ---
 
