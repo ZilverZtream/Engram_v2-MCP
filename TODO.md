@@ -450,6 +450,13 @@ value is accuracy, this is the biggest meta-gap.
   mandated by the generated workflow + hooks (installed into OciusX). Dynamic SQL
   verified on sidecar path (real ADO hit in copycodelist.aspx.vb).
 
+- **2026-06-13 iter 18 — #29 + #48 shipped and live**: edit-session bookends verified
+  on OciusX (begin on map.js returns the 5-partner expectation brief upfront);
+  golden-query retrieval scorecard baseline 9/10 hit@5 (RoQ miss = sensitivity
+  marker); workflow pack with bookends installed. Engram lifecycle now complete:
+  plan_user_story -> begin_edit_session -> check_edit_safety ->
+  complete_edit_session -> pre_commit_review.
+
 ## Suggested sequencing
 
 **Week 1–2 (quick wins, mostly S):** #1, #5, #7, #11, #15, #16, #18, #34, #40, #41, #44, #47, #54, #56, #60, #63
