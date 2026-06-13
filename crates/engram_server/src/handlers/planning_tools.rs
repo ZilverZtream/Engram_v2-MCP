@@ -1556,6 +1556,159 @@ mod review_ingest_tests {
     }
 }
 
+impl Engram {
+    /// TODO-29: the loop-closing check. Given the files an agent edited,
+    /// report what history and the graph say should ALSO have changed:
+    /// strong co-change partners left untouched, and state keys whose other
+    /// readers/writers live outside the edit set.
+    pub async fn handle_detect_incomplete_changes(
+        &self,
+        req: crate::models::DetectIncompleteChangesRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if req.edited_files.is_empty() {
+            return Err(McpError::invalid_params(
+                "edited_files must not be empty".to_string(),
+                None,
+            ));
+        }
+        let _ps = self.ensure_project_runtime(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let edited: Vec<String> = req
+            .edited_files
+            .iter()
+            .map(|f| f.replace('\\', "/"))
+            .collect();
+        let max_partners = req.max_partners.clamp(1, 20);
+
+        let (partner_findings, state_findings) = tokio::task::spawn_blocking(move || {
+            let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
+            // A path counts as "covered" if any edited path tail-matches it
+            // (handles Site/-prefix spelling variants from history).
+            let covered = |path: &str| -> bool {
+                let p = path.to_lowercase();
+                edited_set.iter().any(|e| {
+                    e == &p
+                        || e.ends_with(&format!("/{p}"))
+                        || p.ends_with(&format!("/{}", e.as_str()))
+                })
+            };
+
+            // ── Co-change partners not in the edit set ──────────────────
+            let mut partner_findings: Vec<(String, String, u32)> = Vec::new();
+            for f in &edited {
+                let fid = format!("file:{f}");
+                let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500) else {
+                    continue;
+                };
+                let mut partners: Vec<(String, u32)> = neigh
+                    .into_iter()
+                    .filter_map(|(nid, w)| nid.strip_prefix("file:").map(|p| (p.to_string(), w)))
+                    .collect();
+                partners.sort_by(|a, b| b.1.cmp(&a.1));
+                for (partner, weight) in partners.into_iter().take(max_partners) {
+                    // Weak couplings are noise; demand real history.
+                    if weight < 5 || covered(&partner) {
+                        continue;
+                    }
+                    partner_findings.push((f.clone(), partner, weight));
+                }
+            }
+            partner_findings.sort_by(|a, b| b.2.cmp(&a.2));
+            partner_findings.dedup_by(|a, b| a.1 == b.1);
+            partner_findings.truncate(15);
+
+            // ── State keys shared with untouched files ──────────────────
+            // Symbols in edited files -> state targets -> other touchers.
+            let mut state_findings: Vec<(String, String)> = Vec::new();
+            let mut seen_keys: HashSet<String> = HashSet::new();
+            let nodes = graph
+                .query_nodes(&pid, None, None, None, 50_000)
+                .unwrap_or_default();
+            let edited_symbol_ids: Vec<String> = nodes
+                .iter()
+                .filter(|n| covered(n.file_path.as_str()))
+                .map(|n| n.node_id.clone())
+                .collect();
+            let node_file: std::collections::HashMap<&str, &str> = nodes
+                .iter()
+                .map(|n| (n.node_id.as_str(), n.file_path.as_str()))
+                .collect();
+            for sid in edited_symbol_ids.iter().take(500) {
+                for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                    let Ok(neigh) = graph.neighbors(&pid, kind, sid, 20) else {
+                        continue;
+                    };
+                    for (state_id, _) in neigh {
+                        if !state_id.starts_with("state:") || !seen_keys.insert(state_id.clone()) {
+                            continue;
+                        }
+                        // Other touchers of this key outside the edit set.
+                        let Ok(touchers) =
+                            graph.find_incoming_edges_with_kind(&pid, None, &state_id, 100)
+                        else {
+                            continue;
+                        };
+                        let outside: Vec<&str> = touchers
+                            .iter()
+                            .filter_map(|(src, _, _)| node_file.get(src.as_str()).copied())
+                            .filter(|f| !covered(f))
+                            .take(3)
+                            .collect();
+                        if !outside.is_empty() {
+                            state_findings.push((
+                                state_id
+                                    .strip_prefix("state:")
+                                    .unwrap_or(&state_id)
+                                    .to_string(),
+                                outside.join(", "),
+                            ));
+                        }
+                    }
+                }
+            }
+            state_findings.truncate(10);
+            (partner_findings, state_findings)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        let mut out = String::from("# Edit completeness check\n");
+        if partner_findings.is_empty() && state_findings.is_empty() {
+            out.push_str(
+                "\nNo strong couplings point outside your edit set. History and state \
+                 wiring are consistent with a complete change.\n",
+            );
+        } else {
+            if !partner_findings.is_empty() {
+                out.push_str("\n## Co-change partners you did NOT touch\n");
+                out.push_str(
+                    "History says these files change together with yours — verify each:\n",
+                );
+                for (edited, partner, weight) in &partner_findings {
+                    out.push_str(&format!(
+                        "- `{partner}` ({weight} co-changes with `{edited}`)\n"
+                    ));
+                }
+            }
+            if !state_findings.is_empty() {
+                out.push_str("\n## Shared state with untouched files\n");
+                for (key, files) in &state_findings {
+                    out.push_str(&format!(
+                        "- state key `{key}` is also read/written in: {files}\n"
+                    ));
+                }
+            }
+        }
+        out.push_str("\nnext: pre_commit_review before committing; find_similar_changes for companion-artifact patterns.\n");
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
 // ── get_gis_inventory ────────────────────────────────────────────────────────
 
 /// One grouped row of spatial-call usage: (library, map class, modern
