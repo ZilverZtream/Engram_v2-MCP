@@ -118,7 +118,7 @@ they feed blast radius, edit safety, and the ADP gates.
   (Identified during the 2026-06-12 edge-endpoint wiring fix; not needed for the test
   suite but improves precision on real multi-page projects like OciusX.)
 
-- [~] **13. Overload/arity-aware call resolution** (M–L) - *core done 2026-06-13: sidecar emits arity on methods + args on call sites; batch resolver prefers arity matches (batch_same_file_arity 0.92, batch_arity_match 0.75) with end-to-end ingest test. Remaining: fallback/C# extractor arity, post-pass arity preference.*
+- [x] **13. Overload/arity-aware call resolution** (M–L) - *done 2026-06-13: sidecar arity+args, VB fallback arity (depth-aware), tree-sitter arity for C#/Rust/Python (named param children); resolver prefers arity matches with stamped methods. Post-pass arity preference deferred (placeholder edges rarely carry args). Was: core done 2026-06-13: sidecar emits arity on methods + args on call sites; batch resolver prefers arity matches (batch_same_file_arity 0.92, batch_arity_match 0.75) with end-to-end ingest test. Remaining: fallback/C# extractor arity, post-pass arity preference.*
   `parsing.rs`, `cs_extractor.rs`, `vb_extractor.rs`. Calls resolve by bare name to the
   first `MyMethod`, regardless of signature. Store arity (cheap, tree-sitter gives it) and
   prefer arity matches; record `ambiguous_overload` when unsure.

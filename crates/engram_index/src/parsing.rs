@@ -755,6 +755,23 @@ impl SymbolExtractor {
                     meta.insert("lifecycle_sequence".into(), seq.to_string());
                 }
 
+                // TODO-13: parameter count for arity-aware call resolution.
+                // Grammars expose the list under `parameters` (C#, Rust,
+                // Python, ...) or `parameter_list`; count named children,
+                // skipping comments.
+                if kind == "function"
+                    && let Some(params) = node
+                        .child_by_field_name("parameters")
+                        .or_else(|| node.child_by_field_name("parameter_list"))
+                {
+                    let mut cursor = params.walk();
+                    let count = params
+                        .named_children(&mut cursor)
+                        .filter(|c| !c.kind().contains("comment"))
+                        .count();
+                    meta.insert("arity".into(), count.to_string());
+                }
+
                 symbols.push(ExtractedSymbol {
                     name: name.clone(),
                     kind: kind.to_string(),
@@ -859,6 +876,34 @@ mod tests {
         fn assert_sync<T: Sync>() {}
         assert_send::<CompiledQueries>();
         assert_sync::<CompiledQueries>();
+    }
+
+    #[test]
+    fn csharp_methods_record_arity() {
+        let code = r#"
+namespace App {
+    public class Svc {
+        public void Save() {}
+        public void Save(int id, string name) {}
+        public int Sum(int a, int b, int c) { return a + b + c; }
+    }
+}"#;
+        let extractor = SymbolExtractor::new();
+        let (symbols, _) = extractor.extract(std::path::Path::new("svc.cs"), code);
+        let arities: Vec<String> = symbols
+            .iter()
+            .filter(|s| s.kind == "function")
+            .filter_map(|s| {
+                s.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("arity"))
+                    .cloned()
+                    .map(|a| format!("{}:{}", s.name, a))
+            })
+            .collect();
+        assert!(arities.contains(&"Save:0".to_string()), "got {arities:?}");
+        assert!(arities.contains(&"Save:2".to_string()), "got {arities:?}");
+        assert!(arities.contains(&"Sum:3".to_string()), "got {arities:?}");
     }
 
     #[test]
@@ -1052,7 +1097,10 @@ mod query_compile_tests {
         assert!(q.c.is_some(), "c query failed to compile");
         assert!(q.cpp.is_some(), "c++ query failed to compile");
         assert!(q.cs_ns.is_some(), "c# namespace query failed to compile");
-        assert!(q.java_ns.is_some(), "java namespace query failed to compile");
+        assert!(
+            q.java_ns.is_some(),
+            "java namespace query failed to compile"
+        );
         assert!(q.go_ns.is_some(), "go namespace query failed to compile");
         assert!(q.rust_mod.is_some(), "rust mod query failed to compile");
         assert!(q.ts_ns.is_some(), "typescript ns query failed to compile");
