@@ -430,6 +430,49 @@ async fn hybrid_lexical_search_empty_project_returns_empty() {
     assert!(hits.is_empty(), "empty project must return 0 hits");
 }
 
+/// ENG-2026-FTS-APOS: a query containing an apostrophe (contraction) must not
+/// make lexical_search error. Tantivy's query parser treats `'` as a grammar
+/// token, so before escaping it, parse_query returned Err(SyntaxError) — which
+/// propagated out of lexical_search and aborted the whole hybrid search()
+/// before the vector arm ran. Found via the OciusX eval: NL stories like "The
+/// camera icon doesn't go back to dimmed" returned 0 hits from search_memory.
+#[tokio::test]
+async fn lexical_search_tolerates_apostrophe_in_query() {
+    let tmp = tempfile::TempDir::new().expect("tempdir");
+    let engine = open_engine(&tmp).await;
+    let cancel = CancellationToken::new();
+
+    engine
+        .index_docs(
+            "proj-apos",
+            &[make_doc(
+                "d1",
+                "src/camera.rs",
+                "functions",
+                "fn dim_camera() { /* the icon doesn't go back to dimmed */ }",
+            )],
+            &cancel,
+        )
+        .await
+        .expect("index");
+
+    for mode in ["loose", "strict"] {
+        let mut q = fts_query("proj-apos", "functions", "camera doesn't dim");
+        q.fts_mode = mode.into();
+        let hits = engine.lexical_search(&q).unwrap_or_else(|e| {
+            panic!("lexical_search must not error on an apostrophe query ({mode}): {e}")
+        });
+        // loose (OR-of-terms) must match on "camera"/"dim"; strict is
+        // best-effort under the trigram tokenizer but must at least not error.
+        if mode == "loose" {
+            assert!(
+                !hits.is_empty(),
+                "loose query containing an apostrophe must return hits, got 0"
+            );
+        }
+    }
+}
+
 /// lexical_search must not return docs from a different project.
 #[tokio::test]
 async fn hybrid_lexical_search_project_isolation() {

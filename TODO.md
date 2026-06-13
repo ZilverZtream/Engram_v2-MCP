@@ -14,6 +14,9 @@ Effort: **S** = hours, **M** = days, **L** = a week+.
 
 These degrade or improve *every single interaction*. Nothing below matters until these are right.
 
+- [ ] **0. Escape the apostrophe in `escape_tantivy_literal` — NL queries with contractions hard-error** (S) — *found 2026-06-13 via OciusX eval; root cause confirmed by reproduction.*
+  `engram_index/src/hybrid.rs:2738`. `escape_tantivy_literal` escapes `+|-&!(){}[]^"~*?:\/<>` but **not** `'`. Tantivy 0.24.2's `QueryParser` treats `'` as a grammar token, so any query containing a contraction (`doesn't`, `can't`, `user's`) returns `Err(Syntax Error)` from `parse_query`. That error propagates out of `lexical_search`, and in `search()` (hybrid.rs:2598) it aborts the whole hybrid call *before* the vector arm runs — so `search_memory`, `ask_codebase`, and `graph_search` all return 0/error for natural-language questions with an apostrophe (single-word/apostrophe-free queries are unaffected, which masks it). Fix: add `'` to the escape match arm at :2738. Regression test in `hybrid_search_behavioral_tests.rs`: index a doc with `doesn't`, assert `lexical_search` AND full `search()` return `Ok(non-empty)` in loose+strict for a query containing a contraction (today both return `Err`). Verified by repro: pre-fix the title parse-errors; post-fix returns hits.
+
 - [x] **1. Return line numbers and untruncated snippets from search** (M) — *done 2026-06-12: HybridHit carries start/end_line + snippet_truncated; vector hits backfilled from Tantivy; truncation markers name get_chunk.*
   `engram_index/src/hybrid.rs`, `handlers/search_tools.rs`. Search hits omit
   `start_line`/`end_line` and truncate snippets at ~300 chars. An agent that can't jump
