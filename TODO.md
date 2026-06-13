@@ -443,6 +443,13 @@ value is accuracy, this is the biggest meta-gap.
   text.*.resx bundles (2,463) and map.js <-> qtyManager.ts (2,632) — the prior
   246/1112 numbers were key-order sampling artifacts. calls stable at 74,289.
 
+- **2026-06-13 iter 17 — detect_incomplete_changes LIVE (the original ask, closed)**:
+  editing map.js alone now reports, with evidence: qtyManager.ts (877 co-changes),
+  map.aspx (748), index.vbhtml (656), ioMarkerTypeFilterManager.ts (538), vsMap.ts
+  (441) — the 'forgot the other places' detector deployed, tested 3-ways, and
+  mandated by the generated workflow + hooks (installed into OciusX). Dynamic SQL
+  verified on sidecar path (real ADO hit in copycodelist.aspx.vb).
+
 ## Suggested sequencing
 
 **Week 1–2 (quick wins, mostly S):** #1, #5, #7, #11, #15, #16, #18, #34, #40, #41, #44, #47, #54, #56, #60, #63
