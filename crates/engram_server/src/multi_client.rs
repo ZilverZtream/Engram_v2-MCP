@@ -161,10 +161,7 @@ impl LockHandle {
 /// Write the primary's metadata to the sibling `.engram.primary`
 /// file. The lock file and metadata file are distinct so proxies
 /// can read metadata without fighting the OS lock.
-pub fn write_primary_metadata(
-    metadata_path: &Path,
-    meta: &LockMetadata,
-) -> anyhow::Result<()> {
+pub fn write_primary_metadata(metadata_path: &Path, meta: &LockMetadata) -> anyhow::Result<()> {
     // Atomic rename pattern: write to `<path>.tmp`, rename onto
     // target. Never leaves a half-written metadata file behind even
     // if the process is killed mid-write.
@@ -274,7 +271,19 @@ pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
     let lock_path = derive_lock_path(&data_dir);
     let socket_path = match &cfg.multi_client_socket_path {
         Some(custom) => PathBuf::from(custom),
-        None => derive_socket_path(&data_dir),
+        None => {
+            // TODO-38: on Windows the IPC channel is a named pipe, not a
+            // filesystem socket. Carry its name through the same
+            // socket_path field (metadata + listener + proxy all read it).
+            #[cfg(windows)]
+            {
+                PathBuf::from(derive_pipe_name(&data_dir))
+            }
+            #[cfg(not(windows))]
+            {
+                derive_socket_path(&data_dir)
+            }
+        }
     };
 
     let metadata_path = derive_metadata_path(&data_dir);
@@ -325,7 +334,8 @@ async fn run_primary(
     // Cleanup orphaned jobs — same as legacy main().
     {
         let reg = state.registry.clone();
-        if let Ok(Ok(count)) = tokio::task::spawn_blocking(move || reg.cleanup_orphaned_jobs()).await
+        if let Ok(Ok(count)) =
+            tokio::task::spawn_blocking(move || reg.cleanup_orphaned_jobs()).await
         {
             if count > 0 {
                 tracing::info!("Aborted {count} orphaned jobs.");
@@ -442,7 +452,10 @@ fn remove_stale_socket(socket_path: &Path) -> anyhow::Result<()> {
             // whatever socket is there is leftover from a crashed
             // primary. Safe to remove.
             std::fs::remove_file(socket_path).map_err(|e| {
-                anyhow::anyhow!("failed to remove stale socket {}: {e}", socket_path.display())
+                anyhow::anyhow!(
+                    "failed to remove stale socket {}: {e}",
+                    socket_path.display()
+                )
             })?;
         }
     }
@@ -509,13 +522,128 @@ async fn spawn_socket_listener(
         });
         Ok(handle)
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        // TODO-38: named-pipe transport. Named pipes differ from Unix
+        // sockets — a server instance accepts exactly one client via
+        // `connect()`, so we create the next instance after each
+        // connection to keep accepting. The lock file already guarantees
+        // a single primary, so `first_pipe_instance(true)` on the first
+        // create just asserts that invariant.
+        use tokio::net::windows::named_pipe::ServerOptions;
+        let pipe_name = socket_path.to_string_lossy().into_owned();
+        let mut server = ServerOptions::new()
+            .first_pipe_instance(true)
+            .create(&pipe_name)
+            .map_err(|e| anyhow::anyhow!("failed to create named pipe {pipe_name}: {e}"))?;
+        let handle = tokio::spawn(async move {
+            loop {
+                tokio::select! {
+                    _ = shutdown.cancelled() => break,
+                    conn = server.connect() => {
+                        match conn {
+                            Ok(()) => {
+                                // `server` is now bound to this client; spin
+                                // up the next instance to accept the following
+                                // one (without first_pipe_instance — an
+                                // instance already exists).
+                                let connected = server;
+                                server = match ServerOptions::new().create(&pipe_name) {
+                                    Ok(s) => s,
+                                    Err(e) => {
+                                        tracing::error!(
+                                            "failed to create next named-pipe instance: {e}"
+                                        );
+                                        // Still serve the client we have.
+                                        let state_c = state.clone();
+                                        let active_c = active.clone();
+                                        let shutdown_c = shutdown.clone();
+                                        if active
+                                            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |c| {
+                                                (c < MAX_CONCURRENT_SESSIONS).then_some(c + 1)
+                                            })
+                                            .is_ok()
+                                        {
+                                            tokio::spawn(async move {
+                                                serve_pipe_session(connected, state_c, shutdown_c)
+                                                    .await;
+                                                active_c.fetch_sub(1, Ordering::SeqCst);
+                                            });
+                                        }
+                                        break;
+                                    }
+                                };
+                                let reserved = active.fetch_update(
+                                    Ordering::SeqCst,
+                                    Ordering::SeqCst,
+                                    |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+                                );
+                                if reserved.is_err() {
+                                    tracing::warn!(
+                                        cap = MAX_CONCURRENT_SESSIONS,
+                                        "rejecting named-pipe connection — concurrent-session cap hit"
+                                    );
+                                    drop(connected);
+                                    continue;
+                                }
+                                let state_c = state.clone();
+                                let active_c = active.clone();
+                                let shutdown_c = shutdown.clone();
+                                tokio::spawn(async move {
+                                    serve_pipe_session(connected, state_c, shutdown_c).await;
+                                    active_c.fetch_sub(1, Ordering::SeqCst);
+                                });
+                            }
+                            Err(e) => {
+                                tracing::warn!("named-pipe connect error: {e}");
+                                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        Ok(handle)
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = (socket_path, state, active, shutdown);
         anyhow::bail!(
-            "multi-client mode on non-Unix platforms is a v0.8 follow-up; \
+            "multi-client mode is unsupported on this platform; \
              set `multi_client: false` in engram_mcp.yaml to run the legacy single-client path"
         );
+    }
+}
+
+#[cfg(windows)]
+async fn serve_pipe_session(
+    pipe: tokio::net::windows::named_pipe::NamedPipeServer,
+    state: crate::state::AppState,
+    shutdown: tokio_util::sync::CancellationToken,
+) {
+    use rmcp::ServiceExt as _;
+    // NamedPipeServer is a duplex AsyncRead+AsyncWrite; split into halves
+    // and hand to rmcp's transport adapter — same shape as the stdio /
+    // Unix-socket paths.
+    let (read, write) = tokio::io::split(pipe);
+    let transport = (read, write);
+    let engram = crate::tools::Engram::new(state);
+    let service = match engram.serve(transport).await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("named-pipe session handshake failed: {e}");
+            return;
+        }
+    };
+    tokio::select! {
+        // On cancel, the waiting() future (which owns/borrows `service`) is
+        // dropped, which tears the rmcp session down — no explicit drop.
+        _ = shutdown.cancelled() => {}
+        result = service.waiting() => {
+            if let Err(e) = result {
+                tracing::warn!("named-pipe session ended with error: {e}");
+            }
+        }
     }
 }
 
@@ -657,14 +785,80 @@ async fn run_proxy(metadata_path: PathBuf, socket_path: PathBuf) -> anyhow::Resu
         );
         forward_stdio_to_socket(sock).await
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        // TODO-38: connect to the primary's named pipe. ERROR_PIPE_BUSY
+        // (231) means all instances are momentarily taken — retry briefly.
+        // ERROR_FILE_NOT_FOUND (2) means no primary is listening (it
+        // crashed after writing the lock); surface a clear retry hint.
+        use tokio::net::windows::named_pipe::ClientOptions;
+        let pipe_name = sock_path.to_string_lossy().into_owned();
+        // The primary writes its metadata BEFORE the (potentially slow)
+        // AppState init that precedes binding the pipe — so for a large
+        // index there is a startup window where the metadata exists but the
+        // listener isn't up yet. Both ERROR_PIPE_BUSY (231, all instances
+        // momentarily taken) and ERROR_FILE_NOT_FOUND (2, primary still
+        // starting) are transient: retry until the deadline, then treat a
+        // persistently-absent pipe as a crashed primary.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let client = loop {
+            match ClientOptions::new().open(&pipe_name) {
+                Ok(c) => break c,
+                Err(e) if matches!(e.raw_os_error(), Some(231) | Some(2)) => {
+                    if std::time::Instant::now() >= deadline {
+                        anyhow::bail!(
+                            "engram_server: primary (pid {pid}) is not listening on named                              pipe {pipe_name} after 30s — it may have crashed. Restart your                              MCP client to spawn a fresh primary.",
+                            pid = meta.pid
+                        );
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        };
+        tracing::info!(
+            primary_pid = meta.pid,
+            pipe = %pipe_name,
+            "engram_server: proxy mode (named pipe)"
+        );
+        forward_stdio_to_pipe(client).await
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = sock_path;
         anyhow::bail!(
-            "multi-client mode on non-Unix platforms is a v0.8 follow-up; \
+            "multi-client mode is unsupported on this platform; \
              set `multi_client: false` in engram_mcp.yaml to run the legacy single-client path"
         );
     }
+}
+
+#[cfg(windows)]
+async fn forward_stdio_to_pipe(
+    pipe: tokio::net::windows::named_pipe::NamedPipeClient,
+) -> anyhow::Result<()> {
+    use tokio::io::AsyncWriteExt;
+    // Byte-transparent passthrough between our stdio and the primary's
+    // named pipe — mirror of forward_stdio_to_socket.
+    let (mut pipe_read, mut pipe_write) = tokio::io::split(pipe);
+    let mut stdin = tokio::io::stdin();
+    let mut stdout = tokio::io::stdout();
+    let up = async {
+        let res = tokio::io::copy(&mut stdin, &mut pipe_write).await;
+        pipe_write.shutdown().await.ok();
+        res.map(|_| ()).map_err(anyhow::Error::from)
+    };
+    let down = async {
+        tokio::io::copy(&mut pipe_read, &mut stdout)
+            .await
+            .map(|_| ())
+            .map_err(anyhow::Error::from)
+    };
+    tokio::select! {
+        r = up => { r.ok(); }
+        r = down => { r.ok(); }
+    }
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -719,6 +913,54 @@ async fn forward_stdio_to_socket(sock: tokio::net::UnixStream) -> anyhow::Result
 mod tests {
     use super::*;
 
+    // TODO-38: the named-pipe transport must round-trip bytes the same way
+    // the Unix-socket path does. Exercises ServerOptions/ClientOptions +
+    // tokio::io::split exactly as serve_pipe_session / forward_stdio_to_pipe.
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn named_pipe_transport_round_trips() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::net::windows::named_pipe::{ClientOptions, ServerOptions};
+
+        // pid-unique pipe name via the production deriver (no literals).
+        let tag_path = std::path::PathBuf::from(format!("npt-{}", std::process::id()));
+        let pipe_name = derive_pipe_name(&tag_path);
+        let server = ServerOptions::new()
+            .first_pipe_instance(true)
+            .create(&pipe_name)
+            .expect("create named pipe server");
+
+        let srv = tokio::spawn(async move {
+            server.connect().await.expect("server connect");
+            let (mut r, mut w) = tokio::io::split(server);
+            let mut buf = [0u8; 4];
+            r.read_exact(&mut buf).await.expect("server read");
+            for b in buf.iter_mut() {
+                b.make_ascii_uppercase();
+            }
+            w.write_all(&buf).await.expect("server write");
+            w.flush().await.ok();
+        });
+
+        // Client connect with ERROR_PIPE_BUSY (231) retry, mirroring run_proxy.
+        let client = loop {
+            match ClientOptions::new().open(&pipe_name) {
+                Ok(c) => break c,
+                Err(e) if e.raw_os_error() == Some(231) => {
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                }
+                Err(e) => panic!("client open failed: {e}"),
+            }
+        };
+        let (mut cr, mut cw) = tokio::io::split(client);
+        cw.write_all(b"ping").await.expect("client write");
+        cw.flush().await.ok();
+        let mut got = [0u8; 4];
+        cr.read_exact(&mut got).await.expect("client read");
+        assert_eq!(&got, b"PING", "round-trip through the named pipe");
+        srv.await.expect("server task");
+    }
+
     #[test]
     fn lock_metadata_roundtrip() {
         let m = LockMetadata {
@@ -741,8 +983,7 @@ mod tests {
 
     #[test]
     fn lock_metadata_parse_tolerates_extra_fields_and_ws() {
-        let text =
-            "pid = 7\nstarted_at_ms=100\nprotocol_version=1\nfuture_field=ignored\nsocket=/x/y.sock\n";
+        let text = "pid = 7\nstarted_at_ms=100\nprotocol_version=1\nfuture_field=ignored\nsocket=/x/y.sock\n";
         let parsed = LockMetadata::parse(text).expect("must parse");
         assert_eq!(parsed.pid, 7);
         assert_eq!(parsed.socket_path, "/x/y.sock");
@@ -829,18 +1070,36 @@ mod tests {
         let res = active.fetch_update(
             std::sync::atomic::Ordering::SeqCst,
             std::sync::atomic::Ordering::SeqCst,
-            |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+            |c| {
+                if c < MAX_CONCURRENT_SESSIONS {
+                    Some(c + 1)
+                } else {
+                    None
+                }
+            },
         );
         assert!(res.is_ok());
-        assert_eq!(active.load(std::sync::atomic::Ordering::SeqCst), MAX_CONCURRENT_SESSIONS);
+        assert_eq!(
+            active.load(std::sync::atomic::Ordering::SeqCst),
+            MAX_CONCURRENT_SESSIONS
+        );
         // At cap — next attempt must fail without mutating.
         let res = active.fetch_update(
             std::sync::atomic::Ordering::SeqCst,
             std::sync::atomic::Ordering::SeqCst,
-            |c| if c < MAX_CONCURRENT_SESSIONS { Some(c + 1) } else { None },
+            |c| {
+                if c < MAX_CONCURRENT_SESSIONS {
+                    Some(c + 1)
+                } else {
+                    None
+                }
+            },
         );
         assert!(res.is_err());
-        assert_eq!(active.load(std::sync::atomic::Ordering::SeqCst), MAX_CONCURRENT_SESSIONS);
+        assert_eq!(
+            active.load(std::sync::atomic::Ordering::SeqCst),
+            MAX_CONCURRENT_SESSIONS
+        );
     }
 
     #[tokio::test]
@@ -913,10 +1172,7 @@ mod tests {
         let long = "a".repeat(200);
         let long_dir = PathBuf::from(format!("/tmp/{long}"));
         let p = derive_socket_path(&long_dir);
-        assert!(
-            p.starts_with("/tmp/"),
-            "expected /tmp fallback, got {p:?}"
-        );
+        assert!(p.starts_with("/tmp/"), "expected /tmp fallback, got {p:?}");
         assert!(p.to_string_lossy().contains("engram-"));
     }
 }

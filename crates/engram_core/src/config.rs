@@ -235,7 +235,7 @@ pub struct Config {
     /// and proxy their stdio over a local socket. When `false` (default
     /// during v0.7 rollout), every process opens its own storage — the
     /// legacy single-client model.
-    #[serde(default)]
+    #[serde(default = "default_multi_client")]
     pub multi_client: bool,
 
     /// How long (seconds) a multi-client primary stays up with zero
@@ -434,6 +434,15 @@ fn default_multi_client_idle_secs() -> u64 {
     300
 }
 
+/// TODO-38: multi-client is the default now that the named-pipe (Windows)
+/// and Unix-socket transports both work. A lone client just becomes the
+/// primary serving its own stdio; extra CLI windows proxy to it instead of
+/// fighting over the exclusive redb/tantivy locks. Opt out with
+/// `multi_client: false` in engram_mcp.yaml.
+fn default_multi_client() -> bool {
+    true
+}
+
 fn default_adp_evidence_depth() -> String {
     "standard".into()
 }
@@ -523,7 +532,7 @@ impl Default for Config {
             adp_max_blast_radius: default_adp_max_blast_radius(),
             adp_rollout_phase: default_adp_rollout_phase(),
             adp_kill_switch: false,
-            multi_client: false,
+            multi_client: true,
             multi_client_idle_timeout_secs: default_multi_client_idle_secs(),
             multi_client_socket_path: None,
             adp_default_evidence_depth: default_adp_evidence_depth(),
