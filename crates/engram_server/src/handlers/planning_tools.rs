@@ -1731,8 +1731,38 @@ impl Engram {
             }
         }
 
+        // History arm — commit-message search surfaces the files of past similar
+        // changes (the universal co-change signal; carries stories whose real
+        // files share no concept keyword). Golden tier.
+        if let Ok(r) = self
+            .handle_search_history(crate::models::SearchHistoryRequest {
+                project_id: req.project_id.clone(),
+                query: req.story.clone(),
+                file_filter: None,
+                exclude_paths: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                limit: 12,
+                fts_mode: crate::models::FtsMode::Loose,
+                use_mmr: false,
+                max_content_chars: 0,
+            })
+            .await
+            && let Some(t) = r.content.first().and_then(|x| x.as_text())
+        {
+            for p in change_set_paths(&t.text) {
+                if !engram_core::is_vendor_path(&p) {
+                    if !prov.contains_key(&p) {
+                        seed_order.push(p.clone());
+                    }
+                    prov.entry(p).or_default().insert("history");
+                }
+            }
+        }
+
         // Co-change arm — confirm/expand real companions from the strongest concept
-        // hits (relevance order, not alphabetical).
+        // + history hits (relevance order, not alphabetical).
         let seed: Vec<String> = seed_order.iter().take(12).cloned().collect();
         if !seed.is_empty() {
             let mut texts: Vec<String> = Vec::new();
