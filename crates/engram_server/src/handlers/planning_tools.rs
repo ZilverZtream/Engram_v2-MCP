@@ -767,6 +767,36 @@ mod tests {
         assert_eq!(dir_ext_shape("menu.xml").as_deref(), Some("*.xml"));
         assert_eq!(dir_ext_shape("Makefile"), None);
     }
+
+    #[test]
+    fn change_set_paths_captures_build_output_dirs() {
+        // A build-output directory named `~.js/` itself ends in a code
+        // extension. The extractor must greedily capture the FULL file, not
+        // truncate to the directory — the bug that silently dropped co-change's
+        // strongest partner (map.js) from every change set.
+        let p = change_set_paths(
+            "- `modules/map/~.js/map.js` (45 co-changes with `Site/x/map.aspx`)",
+        );
+        assert!(p.contains(&"modules/map/~.js/map.js".to_string()), "{p:?}");
+        assert!(p.contains(&"site/x/map.aspx".to_string()), "{p:?}");
+        // `.css` is a recognized extension and survives a `~.css/` dir.
+        assert_eq!(
+            change_set_paths("- modules/map/~.css/map.css"),
+            vec!["modules/map/~.css/map.css".to_string()]
+        );
+        // Compound extensions still resolve to the longest valid match.
+        assert_eq!(
+            change_set_paths("foo/page.aspx.vb changed"),
+            vec!["foo/page.aspx.vb".to_string()]
+        );
+        // A trailing sentence period must not be swallowed into the path.
+        assert_eq!(
+            change_set_paths("see modules/foo.cs."),
+            vec!["modules/foo.cs".to_string()]
+        );
+        // A bare filename with no directory is still dropped (keep filter).
+        assert!(change_set_paths("map.js").is_empty());
+    }
 }
 
 // ── map_guards_and_settings + plan_user_story ────────────────────────────────
@@ -1572,8 +1602,14 @@ mod review_ingest_tests {
 /// (prose paths AND `kind:PATH:name:line` node-ids). Compound .NET code-behind
 /// extensions are matched first so `foo.aspx.vb` is not truncated to `foo.aspx`.
 fn change_set_paths(text: &str) -> Vec<String> {
+    // GREEDY match (`*`, not `*?`): consume the whole path-char run, then
+    // backtrack to the LAST valid extension. Lazy matching stopped at the first
+    // extension-like token — e.g. a build-output directory named `~.js/` looks
+    // like a `.js` file, so `modules/map/~.js/map.js` truncated to the dir.
+    // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
+    // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\-]*?\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
@@ -1628,7 +1664,7 @@ fn render_change_set(
         ("Client (TypeScript / JavaScript)", &[".ts", ".tsx", ".js", ".jsx"]),
         ("Resources (.resx — translate EVERY language)", &[".resx"]),
         ("Data (SQL)", &[".sql"]),
-        ("Markup / styles / config", &[".html", ".config", ".vbhtml", ".cshtml"]),
+        ("Markup / styles / config", &[".html", ".css", ".config", ".vbhtml", ".cshtml"]),
     ];
     let layer_of = |p: &str| -> usize {
         for (i, (_, exts)) in LAYERS.iter().enumerate() {
