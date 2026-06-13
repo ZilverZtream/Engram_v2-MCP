@@ -98,6 +98,14 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "begin_edit_session",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
+        key: "complete_edit_session",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_agent_integration",
         status: CapabilityStatus::Implemented,
     },

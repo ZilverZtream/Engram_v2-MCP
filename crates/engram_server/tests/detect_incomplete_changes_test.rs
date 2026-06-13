@@ -209,3 +209,82 @@ async fn untouched_partner_and_state_key_surface() {
         "complete edit set must pass clean:\n{text3}"
     );
 }
+
+#[tokio::test]
+async fn session_bookends_track_scope_drift() {
+    let (_tmp, state, engram, pid) = setup().await;
+    use engram_graph::EdgeKind;
+
+    let g = &state.graph;
+    g.upsert_nodes(
+        &pid,
+        &[
+            file_node("file:a.aspx", "a.aspx"),
+            file_node("file:a.aspx.vb", "a.aspx.vb"),
+        ],
+    )
+    .unwrap();
+    g.upsert_edges(
+        &pid,
+        &[edge(
+            "file:a.aspx",
+            "file:a.aspx.vb",
+            EdgeKind::TemporalCoupling,
+            30,
+        )],
+    )
+    .unwrap();
+
+    // Open: plan both files — the brief should be CLEAN (plan covers the pair).
+    let open = engram
+        .begin_edit_session(Parameters(engram_server::models::BeginEditSessionRequest {
+            project_id: pid.clone(),
+            planned_files: vec!["a.aspx".into(), "a.aspx.vb".into()],
+            story: Some("test change".into()),
+        }))
+        .await
+        .unwrap();
+    let open_text = text_of(&open);
+    assert!(open_text.contains("Edit session OPEN"), "{open_text}");
+    assert!(
+        open_text.contains("consistent with a complete change"),
+        "planned pair covers the coupling:
+{open_text}"
+    );
+
+    // Close having edited only ONE file: drift + partner finding must show.
+    let close = engram
+        .complete_edit_session(Parameters(
+            engram_server::models::CompleteEditSessionRequest {
+                project_id: pid.clone(),
+                edited_files: vec!["a.aspx".into()],
+            },
+        ))
+        .await
+        .unwrap();
+    let close_text = text_of(&close);
+    assert!(
+        close_text.contains("Planned but NOT edited") && close_text.contains("a.aspx.vb"),
+        "scope drift must name the dropped file:
+{close_text}"
+    );
+    assert!(
+        close_text.contains("30 co-changes"),
+        "completeness check runs on the actual set:
+{close_text}"
+    );
+
+    // Session consumed: completing again errors.
+    let again = engram
+        .complete_edit_session(Parameters(
+            engram_server::models::CompleteEditSessionRequest {
+                project_id: pid.clone(),
+                edited_files: vec!["a.aspx".into()],
+            },
+        ))
+        .await;
+    assert!(
+        again.is_err(),
+        "second complete must report no open session"
+    );
+}
