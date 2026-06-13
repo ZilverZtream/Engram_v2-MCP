@@ -318,6 +318,23 @@ impl DocStore {
         Ok(Some(de_bincode_or_json(v.value())?))
     }
 
+    /// All fingerprints for a project in ONE range scan (TODO-46): the
+    /// per-call freshness check was list_tracked_paths + N point reads.
+    pub fn list_fingerprints(&self, project_id: &str) -> anyhow::Result<Vec<FileFingerprint>> {
+        let prefix = format!("{}\0", project_id);
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(FILE_FINGERPRINT)?;
+        let mut out = Vec::new();
+        for r in t.range(prefix.as_str()..)? {
+            let (k, v) = r?;
+            if !k.value().starts_with(&prefix) {
+                break;
+            }
+            out.push(de_bincode_or_json(v.value())?);
+        }
+        Ok(out)
+    }
+
     /// Batch-store fingerprints.
     pub fn set_fingerprints(
         &self,
@@ -689,6 +706,43 @@ mod tests {
         let (_dir, store) = open_temp_store();
         let got = store.get_fingerprint("proj1", "src/missing.rs").unwrap();
         assert!(got.is_none(), "missing fingerprint must return None");
+    }
+
+    // ── 8b. list_fingerprints batch scan (TODO-46) ───────────────────────────
+
+    #[test]
+    fn list_fingerprints_returns_only_project_scoped() {
+        let (_dir, store) = open_temp_store();
+        let fps_a = [
+            FileFingerprint {
+                rel_path: "src/a.rs".into(),
+                size: 1,
+                mtime_ms: 10,
+                file_hash: "ha".into(),
+            },
+            FileFingerprint {
+                rel_path: "src/b.rs".into(),
+                size: 2,
+                mtime_ms: 20,
+                file_hash: "hb".into(),
+            },
+        ];
+        let fps_other = [FileFingerprint {
+            rel_path: "src/c.rs".into(),
+            size: 3,
+            mtime_ms: 30,
+            file_hash: "hc".into(),
+        }];
+        store.set_fingerprints("proj1", &fps_a).unwrap();
+        store.set_fingerprints("proj2", &fps_other).unwrap();
+
+        let mut got = store.list_fingerprints("proj1").unwrap();
+        got.sort_by(|x, y| x.rel_path.cmp(&y.rel_path));
+        assert_eq!(got.len(), 2, "only proj1 fingerprints, not proj2's");
+        assert_eq!(got[0].rel_path, "src/a.rs");
+        assert_eq!(got[1].rel_path, "src/b.rs");
+        // A project with no fingerprints yields an empty list.
+        assert!(store.list_fingerprints("proj3").unwrap().is_empty());
     }
 
     // ── 9. count_docs_by_namespace ────────────────────────────────────────────

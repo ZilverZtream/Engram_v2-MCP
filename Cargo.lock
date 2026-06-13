@@ -1832,6 +1832,7 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-schema",
+ "async-trait",
  "bincode",
  "blake3",
  "engram_core",

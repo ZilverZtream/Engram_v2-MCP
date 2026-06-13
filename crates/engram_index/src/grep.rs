@@ -161,16 +161,30 @@ pub fn check_freshness(
     namespace: &str,
     project_root: &Path,
 ) -> anyhow::Result<Vec<String>> {
-    let tracked = docstore.list_tracked_paths(project_id, namespace)?;
+    // TODO-46: agents fire grep bursts (many calls within seconds); the
+    // O(files) stat sweep is recomputed at most once per TTL per project.
+    const FRESHNESS_TTL: std::time::Duration = std::time::Duration::from_secs(10);
+    static CACHE: std::sync::LazyLock<
+        std::sync::Mutex<
+            std::collections::HashMap<(String, String), (std::time::Instant, Vec<String>)>,
+        >,
+    > = std::sync::LazyLock::new(Default::default);
+    let cache_key = (project_id.to_string(), namespace.to_string());
+    if let Ok(c) = CACHE.lock()
+        && let Some((at, stale)) = c.get(&cache_key)
+        && at.elapsed() < FRESHNESS_TTL
+    {
+        return Ok(stale.clone());
+    }
+
+    // One fingerprint range scan instead of list_tracked_paths + N point
+    // reads (TODO-46).
+    let _ = namespace; // fingerprints are project-scoped
+    let fingerprints = docstore.list_fingerprints(project_id)?;
     let mut stale: Vec<String> = Vec::new();
-    for rel_path in tracked {
+    for fp in fingerprints {
+        let rel_path = fp.rel_path.clone();
         let abs = project_root.join(&rel_path);
-        let Ok(Some(fp)) = docstore.get_fingerprint(project_id, &rel_path) else {
-            // Missing fingerprint = not meaningfully tracked; skip
-            // rather than flagging it as stale (keeps the warning
-            // actionable).
-            continue;
-        };
         let meta = match std::fs::metadata(&abs) {
             Ok(m) => m,
             Err(_) => {
@@ -189,6 +203,9 @@ pub fn check_freshness(
         if disk_size != fp.size || disk_mtime_ms != fp.mtime_ms {
             stale.push(rel_path);
         }
+    }
+    if let Ok(mut c) = CACHE.lock() {
+        c.insert(cache_key, (std::time::Instant::now(), stale.clone()));
     }
     Ok(stale)
 }
@@ -270,17 +287,7 @@ pub(crate) fn extract_literal_anchor(pattern: &str) -> Option<String> {
                 // `\d`, `\w`, `\s`, assertions, back-refs — not literal.
                 if matches!(
                     next,
-                    'd' | 'D'
-                        | 's'
-                        | 'S'
-                        | 'w'
-                        | 'W'
-                        | 'b'
-                        | 'B'
-                        | 'A'
-                        | 'z'
-                        | 'Z'
-                        | '0'..='9'
+                    'd' | 'D' | 's' | 'S' | 'w' | 'W' | 'b' | 'B' | 'A' | 'z' | 'Z' | '0'..='9'
                 ) {
                     if current.len() > best.len() {
                         best.clone_from(&current);
@@ -338,8 +345,7 @@ pub fn grep(
     let stale_paths = match q.freshness {
         FreshnessMode::Off => Vec::new(),
         FreshnessMode::Strict | FreshnessMode::Warn => {
-            check_freshness(docstore, &q.project_id, &q.namespace, project_root)
-                .unwrap_or_default()
+            check_freshness(docstore, &q.project_id, &q.namespace, project_root).unwrap_or_default()
         }
     };
     let index_stale_warning = if stale_paths.is_empty() {
@@ -939,13 +945,19 @@ mod tests {
 
     #[test]
     fn literal_anchor_extracts_longest_run() {
-        assert_eq!(extract_literal_anchor("SubmitChanges").as_deref(), Some("SubmitChanges"));
+        assert_eq!(
+            extract_literal_anchor("SubmitChanges").as_deref(),
+            Some("SubmitChanges")
+        );
         // `foo` and `bar` tie at 3 chars — extractor keeps the first.
         // Both are valid anchors from a correctness standpoint.
         let anchor = extract_literal_anchor("foo.*bar").unwrap();
         assert!(anchor == "foo" || anchor == "bar");
         // When lengths differ, the longer one wins.
-        assert_eq!(extract_literal_anchor("foobar.*xyz").as_deref(), Some("foobar"));
+        assert_eq!(
+            extract_literal_anchor("foobar.*xyz").as_deref(),
+            Some("foobar")
+        );
     }
 
     #[test]
@@ -985,7 +997,10 @@ mod tests {
     fn literal_anchor_breaks_run_on_character_class_escapes() {
         // `\d` is a metaclass — should split the literal run.
         assert_eq!(extract_literal_anchor(r"foo\d+bar").as_deref(), Some("foo"));
-        assert_eq!(extract_literal_anchor(r"foobar\d").as_deref(), Some("foobar"));
+        assert_eq!(
+            extract_literal_anchor(r"foobar\d").as_deref(),
+            Some("foobar")
+        );
     }
 
     #[test]
