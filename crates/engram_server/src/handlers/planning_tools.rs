@@ -1259,7 +1259,11 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
    guards and settings handling for ANY new endpoint or admin operation.
 
 ## Before and after editing
+- `begin_edit_session(planned_files=[...])` BEFORE the first edit — the
+  expectation brief names the couplings your plan must cover.
 - Before modifying a method: `get_method_edit_context` or `check_edit_safety`.
+- `complete_edit_session(edited_files=[...])` when done — scope drift +
+  completeness in one call.
 - After choosing your file set: `find_similar_changes(files=[...])` and close
   every item under "MISSING from your set".
 
