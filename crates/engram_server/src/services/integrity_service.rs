@@ -263,7 +263,7 @@ pub async fn check_project_integrity_with_policy(
         }
     }
 
-    let overall_healthy = mismatches.is_empty() || repairs.iter().all(|r| r.success);
+    let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs);
 
     Ok(IntegrityCheckResult {
         project_id: project_id.to_string(),
@@ -292,6 +292,15 @@ fn summarize_samples<K: AsRef<str>>(samples: impl IntoIterator<Item = (K, String
 ///
 /// Exposed as `pub` so integration tests can call the production detection
 /// path directly instead of re-implementing it (which risks logic drift).
+/// A project is healthy only when there are no mismatches, or every
+/// detected mismatch was actually repaired. The prior inline form
+/// `repairs.iter().all(|r| r.success)` returned true vacuously when
+/// `repairs` was empty (auto_repair off), masking real unrepaired
+/// mismatches as "healthy" (observed live on OciusX).
+pub fn compute_overall_healthy(mismatch_count: usize, repairs: &[RepairOutcome]) -> bool {
+    mismatch_count == 0 || (repairs.len() == mismatch_count && repairs.iter().all(|r| r.success))
+}
+
 pub fn build_integrity_mismatches(
     tantivy_count: u64,
     docstore_count: u64,
@@ -317,7 +326,7 @@ pub fn build_integrity_mismatches(
         .filter(|(id, _)| !docstore_map.contains_key(*id))
         .map(|(id, path)| (id.clone(), path.clone()))
         .collect();
-    if !tantivy_orphans.is_empty() {
+    if docstore_count > 0 && !tantivy_orphans.is_empty() {
         mismatches.push(IntegrityMismatch {
             kind: MismatchKind::TantivyOrphan,
             description: format!(
@@ -335,7 +344,7 @@ pub fn build_integrity_mismatches(
         .filter(|(id, _)| !tantivy_map.contains_key(*id))
         .map(|(id, path)| (id.clone(), path.clone()))
         .collect();
-    if !docstore_orphans.is_empty() {
+    if docstore_count > 0 && !docstore_orphans.is_empty() {
         mismatches.push(IntegrityMismatch {
             kind: MismatchKind::DocstoreOrphan,
             description: format!(
@@ -664,6 +673,73 @@ mod tests {
                 .any(|m| m.kind == MismatchKind::VectorShortfall),
             "small shortfall under the floor must not flag: {mismatches:?}"
         );
+    }
+
+    #[test]
+    fn empty_docstore_does_not_orphan_all_tantivy_docs() {
+        // OciusX-validated regression: production indexing never populates
+        // the per-doc DOC_BY_ID table, so docstore_count is 0 for every real
+        // project. With the orphan checks ungated this flagged ALL tantivy
+        // docs as orphans. Empty docstore => orphan axis untracked, no flag.
+        let tdocs = vec![
+            tdoc("memory", "a", "a.rs"),
+            tdoc("memory", "b", "b.rs"),
+            tdoc("memory", "c", "c.rs"),
+        ];
+        let mismatches = build_integrity_mismatches(3, 0, 3, false, &tdocs, &[]);
+        assert!(
+            !mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::TantivyOrphan),
+            "empty docstore must not orphan all tantivy docs: {mismatches:?}"
+        );
+        assert!(
+            !mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::DocstoreOrphan),
+            "no docstore orphans when docstore is empty: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn populated_docstore_still_detects_orphans() {
+        // The gate only suppresses the EMPTY case; a populated docstore
+        // still surfaces a genuine tantivy orphan.
+        let tdocs = vec![tdoc("memory", "a", "a.rs"), tdoc("memory", "b", "b.rs")];
+        let ddocs = vec![ddoc("memory", "a", "a.rs")];
+        let mismatches = build_integrity_mismatches(2, 1, 0, false, &tdocs, &ddocs);
+        assert!(
+            mismatches
+                .iter()
+                .any(|m| m.kind == MismatchKind::TantivyOrphan),
+            "populated docstore must still detect the real orphan: {mismatches:?}"
+        );
+    }
+
+    #[test]
+    fn overall_healthy_requires_repaired_or_no_mismatches() {
+        let ok = RepairOutcome {
+            mismatch_kind: MismatchKind::VectorShortfall,
+            action: "vector_reindex".into(),
+            success: true,
+            items_repaired: 1,
+        };
+        let bad = RepairOutcome {
+            success: false,
+            ..ok.clone()
+        };
+
+        // No mismatches => healthy.
+        assert!(compute_overall_healthy(0, &[]));
+        // Unrepaired mismatch (auto_repair off => empty repairs) => UNHEALTHY
+        // (the vacuous-truth bug fixed here).
+        assert!(!compute_overall_healthy(1, &[]));
+        // All mismatches repaired => healthy.
+        assert!(compute_overall_healthy(1, std::slice::from_ref(&ok)));
+        // A failed repair => unhealthy.
+        assert!(!compute_overall_healthy(1, std::slice::from_ref(&bad)));
+        // Fewer repairs than mismatches => unhealthy.
+        assert!(!compute_overall_healthy(2, std::slice::from_ref(&ok)));
     }
 
     #[test]

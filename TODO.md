@@ -491,6 +491,14 @@ interaction is materially better and the graph is trustworthy.
 **Month 3+:** remaining P1 deep accuracy (L items), P3 workflow tools, P5 eval harness
 (start earlier if ranking changes land — don't tune retrieval blind).
 
+- [ ] **64. Populate DOC_BY_ID for real docstore cross-validation** (M)
+  Found 2026-06-13 via live OciusX integrity check: production indexing never writes the
+  per-doc DOC_BY_ID table (only fingerprints + file mappings), so the integrity check's
+  docstore axis is inert — count_docs_for_project is always 0 and the tantivy/docstore
+  orphan checks are now gated off (see #45/#39 commit). To get TRUE per-doc
+  cross-validation, write DocRecords during index_docs (cost: ~N records/index) OR drop
+  the docstore axis entirely and document that integrity is tantivy↔vector↔graph only.
+
 ---
 
 ## Loop log (continuous improvement, validated against OciusX)
