@@ -1797,26 +1797,40 @@ impl Engram {
             }
         }
 
-        // Co-change arm — confirm/expand real companions. Seed HISTORY hits first
-        // (the strongest co-change anchors), then the rest in relevance order, so
-        // history-carried stories aren't crowded out of the seed by concept hits.
-        let mut seed: Vec<String> = prov
+        // Co-change arm — confirm/expand real companions. HISTORY hits rank
+        // first (the strongest co-change anchors), then concept hits in
+        // relevance order, so history-carried stories aren't crowded out.
+        //
+        // The two co-change tools have opposite economics, so they get
+        // different seed widths:
+        //  • find_similar_changes RE-WALKS GIT (slow) → seed it NARROW (top 12).
+        //  • detect_incomplete_changes is a graph-neighbour lookup (cheap) and
+        //    SELF-FILTERING: a file with no strong (weight≥5) co-change history
+        //    returns nothing. So seed it BROAD. A central file — e.g. a settings
+        //    store — can rank deep in concept order yet be the ONLY anchor that
+        //    pulls in the tight companion family the story needs (the full .resx
+        //    language set + the SQL seed migration). Tangential anchors cost one
+        //    lookup and contribute nothing; the tool's internal weight-sort and
+        //    cap bound the output regardless of how wide we seed. Generic: any
+        //    framework where a hub file co-changes with a consistent satellite set.
+        let mut ranked: Vec<String> = prov
             .iter()
             .filter(|(_, s)| s.contains("history"))
             .map(|(p, _)| p.clone())
             .collect();
         for p in &seed_order {
-            if !seed.contains(p) {
-                seed.push(p.clone());
+            if !ranked.contains(p) {
+                ranked.push(p.clone());
             }
         }
-        let seed: Vec<String> = seed.into_iter().take(12).collect();
-        if !seed.is_empty() {
+        if !ranked.is_empty() {
+            let fsc_seed: Vec<String> = ranked.iter().take(12).cloned().collect();
+            let dic_seed: Vec<String> = ranked.iter().take(40).cloned().collect();
             let mut texts: Vec<String> = Vec::new();
             if let Ok(r) = self
                 .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
                     project_id: req.project_id.clone(),
-                    files: seed.clone(),
+                    files: fsc_seed,
                     max_commits: 800,
                     top: 8,
                 })
@@ -1828,8 +1842,8 @@ impl Engram {
             if let Ok(r) = self
                 .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
                     project_id: req.project_id.clone(),
-                    edited_files: seed.clone(),
-                    max_partners: 8,
+                    edited_files: dic_seed,
+                    max_partners: 12,
                 })
                 .await
                 && let Some(t) = r.content.first().and_then(|x| x.as_text())
@@ -1920,6 +1934,24 @@ impl Engram {
 
         let (partner_findings, state_findings) = tokio::task::spawn_blocking(move || {
             let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
+            // TemporalCoupling nodes are keyed by REAL git case, but callers
+            // (e.g. get_change_set's path extractor) may pass lowercased paths.
+            // An exact-match neighbour lookup then silently misses every
+            // PascalCase file — i.e. most .NET class files (SystemSettingStore.vb
+            // etc.), the very hub files whose co-change family the caller needs.
+            // Resolve each edited path to its real-case node id once. Generic:
+            // any case-insensitive caller against a case-sensitive graph.
+            let real_case: HashMap<String, String> = graph
+                .list_file_node_metadata(&pid)
+                .map(|m| {
+                    m.into_iter()
+                        .map(|(rp, _)| {
+                            let r = rp.as_str().replace('\\', "/");
+                            (r.to_lowercase(), r)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
             // A path counts as "covered" if any edited path tail-matches it
             // (handles Site/-prefix spelling variants from history).
             let covered = |path: &str| -> bool {
@@ -1934,7 +1966,11 @@ impl Engram {
             // ── Co-change partners not in the edit set ──────────────────
             let mut partner_findings: Vec<(String, String, u32)> = Vec::new();
             for f in &edited {
-                let fid = format!("file:{f}");
+                let resolved = real_case
+                    .get(&f.to_lowercase())
+                    .map(String::as_str)
+                    .unwrap_or(f.as_str());
+                let fid = format!("file:{resolved}");
                 let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500) else {
                     continue;
                 };
