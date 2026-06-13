@@ -10,7 +10,7 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::IngestCodeReviewHistoryRequest;
 use crate::services::code_review_ingest_service::{
-    ingest_code_review_history as svc_ingest, IngestConfig, IngestSource,
+    IngestConfig, IngestSource, ingest_code_review_history as svc_ingest,
 };
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
