@@ -322,9 +322,11 @@ specs already written.
   Degrade visibly ("LLM unavailable — returning deterministic summary only") and make
   backend/model explicitly configurable.
 
-- [ ] **43. Replace panics on safety-critical service paths with errors** (S–M)
-  Services layer review found `panic!`/`unwrap` on paths reachable from tool calls. A
-  panic in a tool call looks like a dead server to the client.
+- [x] **43. Replace panics on safety-critical service paths with errors** (S–M) - *triaged
+  + closed 2026-06-13: full services sweep found ONLY infallible patterns (compile-time
+  Regex::new expects in LazyLock statics, group-0 capture expects) plus one max_by_key
+  unwrap on a fixed array (now unwrap_or). The prior hardening phases (18/S9/EXH) had
+  already eliminated the reachable class; TODO entry was stale.*
 
 - [x] **44. Fix job-cancellation checkpoint marking** (S) - *verified already fixed
   2026-06-13 (ENG-AUD-P1-0005 hardening): result captured at all 3 call sites, failure
