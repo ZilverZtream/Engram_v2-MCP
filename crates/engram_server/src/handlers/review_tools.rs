@@ -13,8 +13,8 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
-    render_json, render_markdown, resolve_diff_source, run_pre_commit_review, ReviewConfig,
-    Severity,
+    ReviewConfig, Severity, render_json, render_markdown, resolve_diff_source,
+    run_pre_commit_review,
 };
 use crate::services::project_service::{ensure_project_record, get_active_generation};
 use crate::tools::Engram;
@@ -41,7 +41,9 @@ impl Engram {
 
         if diff_text.trim().is_empty() {
             let body = "No changes detected in the requested diff. Nothing to review.";
-            return Ok(CallToolResult::success(vec![Content::text(body.to_string())]));
+            return Ok(CallToolResult::success(vec![Content::text(
+                body.to_string(),
+            )]));
         }
 
         let config = ReviewConfig {
@@ -75,9 +77,8 @@ impl Engram {
 
         let body = if config.output_json {
             let payload = render_json(findings, files_analysed, gates_run, elapsed_ms);
-            serde_json::to_string_pretty(&payload).map_err(|e| {
-                McpError::internal_error(format!("json render: {e}"), None)
-            })?
+            serde_json::to_string_pretty(&payload)
+                .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
             render_markdown(&findings, files_analysed, gates_run, elapsed_ms)
         };

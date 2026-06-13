@@ -9,7 +9,7 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::ExplainChangeRequest;
 use crate::services::explain_change_service::{
-    explain_change as svc_explain, ExplainChangeConfig, SubjectStyle,
+    ExplainChangeConfig, SubjectStyle, explain_change as svc_explain,
 };
 use crate::services::project_service::{ensure_project_record, get_active_generation};
 use crate::tools::Engram;
@@ -66,9 +66,8 @@ impl Engram {
                     "pr_description": rendered.pr_description,
                     "changelog_entry": rendered.changelog_entry,
                 });
-                serde_json::to_string_pretty(&payload).map_err(|e| {
-                    McpError::internal_error(format!("json render: {e}"), None)
-                })?
+                serde_json::to_string_pretty(&payload)
+                    .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
             }
             _ => {
                 // Markdown bundle — commit message, PR description,
