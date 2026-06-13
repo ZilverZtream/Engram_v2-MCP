@@ -299,7 +299,9 @@ pub fn is_test_path(path: &str) -> bool {
     let lower = path.replace('\\', "/").to_ascii_lowercase();
     let fname = lower.rsplit('/').next().unwrap_or(&lower);
     // Rust / Python / Go
-    if fname.starts_with("test_") || fname.ends_with("_test.rs") || fname.ends_with("_test.go")
+    if fname.starts_with("test_")
+        || fname.ends_with("_test.rs")
+        || fname.ends_with("_test.go")
         || fname.ends_with("_test.py")
     {
         return true;
@@ -317,8 +319,11 @@ pub fn is_test_path(path: &str) -> bool {
         return true;
     }
     // .NET / Java
-    if fname.ends_with("tests.cs") || fname.ends_with("tests.vb") || fname.ends_with("test.cs")
-        || fname.ends_with("test.java") || fname.ends_with("tests.java")
+    if fname.ends_with("tests.cs")
+        || fname.ends_with("tests.vb")
+        || fname.ends_with("test.cs")
+        || fname.ends_with("test.java")
+        || fname.ends_with("tests.java")
     {
         return true;
     }
@@ -494,7 +499,9 @@ pub fn parse_unified_diff(diff_text: &str) -> Vec<DiffFile> {
         }
 
         // Content lines inside a hunk.
-        let Some(hunk) = current_hunk.as_mut() else { continue };
+        let Some(hunk) = current_hunk.as_mut() else {
+            continue;
+        };
         hunk.body.push(raw_line.to_string());
 
         if let Some(rest) = raw_line.strip_prefix('+') {
@@ -748,12 +755,14 @@ fn publish_casing(
     if total < 3 {
         return;
     }
+    // Infallible on a fixed-size bucket array, but make it airtight: an
+    // empty iterator yields a harmless default instead of a panic.
     let (idx, count) = buckets
         .iter()
         .enumerate()
         .max_by_key(|(_, c)| **c)
         .map(|(i, c)| (i, *c))
-        .unwrap();
+        .unwrap_or((0, 0));
     let value = match idx {
         0 => "PascalCase",
         1 => "camelCase",
@@ -926,9 +935,8 @@ fn extract_ts_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
     static ANGLE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         Regex::new(r"<(?:HTML\w+|SVG\w+|any|unknown|[A-Z]\w*(?:\s*\[\s*\])?)>[\w\(]").ok()
     });
-    static AS_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"\bas\s+(?:HTML\w+|SVG\w+|[A-Z]\w*(?:\s*\[\s*\])?)\b").ok()
-    });
+    static AS_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"\bas\s+(?:HTML\w+|SVG\w+|[A-Z]\w*(?:\s*\[\s*\])?)\b").ok());
     let angle = ANGLE_RE
         .as_ref()
         .map(|re| re.find_iter(content).count())
@@ -983,7 +991,11 @@ fn extract_js_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
     let sng = content.matches('\'').count() / 2;
     let tot = dbl + sng;
     if tot >= 10 {
-        let (winner, count) = if dbl > sng { ("double", dbl) } else { ("single", sng) };
+        let (winner, count) = if dbl > sng {
+            ("double", dbl)
+        } else {
+            ("single", sng)
+        };
         let frac = count as f32 / tot as f32;
         if frac >= 0.7 {
             out.push(DetectedConvention {
@@ -1069,14 +1081,18 @@ fn extract_js_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
 
 fn extract_sql_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
     // Keyword casing.
-    let upper = ["SELECT ", "FROM ", "INSERT ", "UPDATE ", "DELETE ", "WHERE ", "JOIN "]
-        .iter()
-        .map(|k| content.matches(k).count())
-        .sum::<usize>();
-    let lower = ["select ", "from ", "insert ", "update ", "delete ", "where ", "join "]
-        .iter()
-        .map(|k| content.matches(k).count())
-        .sum::<usize>();
+    let upper = [
+        "SELECT ", "FROM ", "INSERT ", "UPDATE ", "DELETE ", "WHERE ", "JOIN ",
+    ]
+    .iter()
+    .map(|k| content.matches(k).count())
+    .sum::<usize>();
+    let lower = [
+        "select ", "from ", "insert ", "update ", "delete ", "where ", "join ",
+    ]
+    .iter()
+    .map(|k| content.matches(k).count())
+    .sum::<usize>();
     let tot = upper + lower;
     if tot >= 5 {
         let (winner, count) = if upper > lower {
@@ -1195,7 +1211,10 @@ pub fn aggregate_findings(
             let gate_list = {
                 let mut v: Vec<&&str> = gates.iter().collect();
                 v.sort();
-                v.iter().map(|g| format!("`{g}`")).collect::<Vec<_>>().join(", ")
+                v.iter()
+                    .map(|g| format!("`{g}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             };
             // Take the highest severity already reported on this file and
             // escalate one step (Style → Info, Info → Warning, Warning →
@@ -1226,10 +1245,7 @@ pub fn aggregate_findings(
                      is a strong signal the change deserves extra scrutiny."
                         .to_string(),
                 )
-                .with_evidence(vec![format!(
-                    "gates = {}",
-                    gate_list.replace('`', "")
-                )]),
+                .with_evidence(vec![format!("gates = {}", gate_list.replace('`', ""))]),
             );
         }
     }
@@ -1296,8 +1312,7 @@ fn attach_diff_snippets(findings: &mut [ReviewFinding], diff_files: &[DiffFile])
                     // removed line — include only if sandwiched inside
                     // the window
                     if let Some(last) = picks.last() {
-                        let last_ln: Option<usize> =
-                            last[..8].trim().parse().ok();
+                        let last_ln: Option<usize> = last[..8].trim().parse().ok();
                         if let Some(l) = last_ln
                             && (l as isize - target_line as isize).abs() <= 2
                         {
@@ -1689,10 +1704,7 @@ impl SharedGateData {
 /// Build a `parent_dir → [file_path]` index for every file node in the
 /// project. Called once per review so Gate 8 (new-file convention)
 /// doesn't hit the graph on every added file.
-fn build_files_by_parent(
-    graph: &GraphStore,
-    project_id: &str,
-) -> HashMap<String, Vec<String>> {
+fn build_files_by_parent(graph: &GraphStore, project_id: &str) -> HashMap<String, Vec<String>> {
     let nodes = graph
         .query_nodes(project_id, Some("file"), None, None, 50_000)
         .unwrap_or_default();
