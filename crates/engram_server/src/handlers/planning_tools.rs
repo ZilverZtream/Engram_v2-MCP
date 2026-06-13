@@ -1761,9 +1761,20 @@ impl Engram {
             }
         }
 
-        // Co-change arm — confirm/expand real companions from the strongest concept
-        // + history hits (relevance order, not alphabetical).
-        let seed: Vec<String> = seed_order.iter().take(12).cloned().collect();
+        // Co-change arm — confirm/expand real companions. Seed HISTORY hits first
+        // (the strongest co-change anchors), then the rest in relevance order, so
+        // history-carried stories aren't crowded out of the seed by concept hits.
+        let mut seed: Vec<String> = prov
+            .iter()
+            .filter(|(_, s)| s.contains("history"))
+            .map(|(p, _)| p.clone())
+            .collect();
+        for p in &seed_order {
+            if !seed.contains(p) {
+                seed.push(p.clone());
+            }
+        }
+        let seed: Vec<String> = seed.into_iter().take(12).collect();
         if !seed.is_empty() {
             let mut texts: Vec<String> = Vec::new();
             if let Ok(r) = self
