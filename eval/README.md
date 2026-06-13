@@ -217,3 +217,33 @@ causality — do not let a ranked list short-circuit root-cause analysis.
 Caveat: n=5, real model variance; this is a directional pilot, not a powered
 study. The mechanisms above are diagnosed per-story (not aggregate noise), which
 is what makes them actionable.
+
+## Data-quality fix — Engram flipped from hurting to helping (2026-06-13)
+
+The Phase-2 v1 result (Engram HURT, impl 2.6 vs 3.2) was traced to Engram's
+*supplied data*, not the model: the dossier was ~93-100% noise — real files were
+single-signal (co-change/concept) and **buried by a signal-COUNT ranking + a
+global top-40 cap**, so the agent anchored on noise. Generic fixes (no OciusX
+hardcoding): co-change-first tiered ranking (history/co-change = golden, never
+cut), co-change *confirmation* (promote files that historically co-shipped with a
+high-confidence seed), framework-generic family expansion (.NET code-behind +
+full .resx set), and a vendor/min.js filter in `get_concept_footprint` (the one
+real Engram-side change).
+
+**A/B trajectory (engram impl_score, 5-story Opus, vs alone ~2.6-3.2):**
+
+| config | dossier recall | engram impl |
+|---|---|---|
+| v1 (signal-count rank, cap 40) | ~0.10 | 2.6 — *Engram hurt* |
+| **co-change-first + family + denoise (45cf172)** | 0.70 | **3.2 — Engram helps (+0.6 to +1.2 swing)** |
+| + temporal-coupling expansion | 0.75 | 2.4 — regressed (flood) |
+| tighter cap-8/top-6 | 0.55 | — (recall regressed; real files cut) |
+
+**Lesson: dossier *recall* is the wrong optimization target — precision /
+signal-to-noise drives the agent's implementation quality.** Both "more recall"
+(temporal flood) and "less" (aggressive cap) regressed; the co-change-confirmed,
+family-complete, denoised set at cap-18 is the sweet spot. `45cf172` is the
+proven recipe. Remaining frontier (NOT solved by more retrieval): the agent's
+execution ceiling (~3.2 even with good files) and bug root-cause causal tracing.
+Next: port the proven recipe into Engram as a native generic `get_change_set`
+capability, and run a larger-N A/B for statistical confidence.
