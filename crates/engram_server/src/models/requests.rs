@@ -547,6 +547,29 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
+/// TODO-29: open an edit session — snapshot intent before editing.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BeginEditSessionRequest {
+    pub project_id: String,
+    /// Files you INTEND to edit.
+    pub planned_files: Vec<String>,
+    /// Optional one-line description of the change.
+    #[serde(default)]
+    pub story: Option<String>,
+}
+
+/// TODO-29: close an edit session — verify completeness against intent.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CompleteEditSessionRequest {
+    pub project_id: String,
+    /// Files actually edited. When omitted, the session's planned set is
+    /// checked as-is.
+    #[serde(default)]
+    pub edited_files: Vec<String>,
+}
+
 /// TODO-29: edit-completeness check over an edited file set.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

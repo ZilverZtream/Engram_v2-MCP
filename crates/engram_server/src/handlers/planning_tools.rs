@@ -1711,6 +1711,142 @@ impl Engram {
     }
 }
 
+const EDIT_SESSION_META_KEY: &str = "edit_session_v1";
+
+impl Engram {
+    /// TODO-29: open the edit-session bookend. Persists intent and returns
+    /// the expectation brief (partners + state couplings of the planned
+    /// files) BEFORE any line changes — so the agent knows the blast
+    /// surface going in, not after.
+    pub async fn handle_begin_edit_session(
+        &self,
+        req: crate::models::BeginEditSessionRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if req.planned_files.is_empty() {
+            return Err(McpError::invalid_params(
+                "planned_files must not be empty".to_string(),
+                None,
+            ));
+        }
+        let session = serde_json::json!({
+            "planned_files": req.planned_files,
+            "story": req.story,
+            "started_ms": crate::utils::now_ms(),
+        });
+        let reg = self.state.registry.clone();
+        let pid = req.project_id.clone();
+        let payload = session.to_string();
+        tokio::task::spawn_blocking(move || reg.set_meta(&pid, EDIT_SESSION_META_KEY, &payload))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+        // The expectation brief is the same engine, run on the PLANNED set:
+        // anything it reports now is coupling the agent should plan for.
+        let brief = self
+            .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+                project_id: req.project_id.clone(),
+                edited_files: req.planned_files.clone(),
+                max_partners: 5,
+            })
+            .await?;
+        let brief_text = brief
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "# Edit session OPEN\nplanned files: {}\n\n## Expectation brief \
+             (couplings of your planned set — plan for these now)\n{}\n\
+             next: edit; then complete_edit_session(edited_files=[...]) before committing.\n",
+            req.planned_files.join(", "),
+            brief_text
+        ))]))
+    }
+
+    /// TODO-29: close the bookend — completeness check against the actual
+    /// edit set plus drift vs the original plan, then clear the session.
+    pub async fn handle_complete_edit_session(
+        &self,
+        req: crate::models::CompleteEditSessionRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let reg = self.state.registry.clone();
+        let pid = req.project_id.clone();
+        let stored = tokio::task::spawn_blocking(move || reg.get_meta(&pid, EDIT_SESSION_META_KEY))
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let Some(stored) = stored.filter(|s| !s.trim().is_empty()) else {
+            return Err(McpError::invalid_params(
+                "no open edit session — call begin_edit_session first (or use \
+                 detect_incomplete_changes directly for a stateless check)"
+                    .to_string(),
+                None,
+            ));
+        };
+        let session: serde_json::Value = serde_json::from_str(&stored)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let planned: Vec<String> = session["planned_files"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let edited = if req.edited_files.is_empty() {
+            planned.clone()
+        } else {
+            req.edited_files.clone()
+        };
+
+        // Plan drift: planned-but-not-edited is the silent scope shrink that
+        // reviews catch late.
+        let edited_lower: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
+        let unedited_plan: Vec<&String> = planned
+            .iter()
+            .filter(|f| !edited_lower.contains(&f.to_lowercase()))
+            .collect();
+
+        let check = self
+            .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+                project_id: req.project_id.clone(),
+                edited_files: edited.clone(),
+                max_partners: 5,
+            })
+            .await?;
+        let check_text = check
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.clone()))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // Session consumed either way — completing twice is a usage error.
+        let reg2 = self.state.registry.clone();
+        let pid2 = req.project_id.clone();
+        tokio::task::spawn_blocking(move || reg2.set_meta(&pid2, EDIT_SESSION_META_KEY, ""))
+            .await
+            .ok();
+
+        let mut out = String::from("# Edit session COMPLETE\n");
+        if !unedited_plan.is_empty() {
+            out.push_str("\n## Planned but NOT edited (scope drift — confirm intentional)\n");
+            for f in unedited_plan {
+                out.push_str(&format!("- {f}\n"));
+            }
+        }
+        out.push_str("\n");
+        out.push_str(&check_text);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
 // ── get_gis_inventory ────────────────────────────────────────────────────────
 
 /// One grouped row of spatial-call usage: (library, map class, modern

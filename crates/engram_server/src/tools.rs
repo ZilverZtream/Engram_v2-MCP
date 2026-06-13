@@ -211,6 +211,26 @@ impl Engram {
     }
 
     #[tool(
+        description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief — co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
+    )]
+    pub async fn begin_edit_session(
+        &self,
+        params: Parameters<BeginEditSessionRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_begin_edit_session(params.0).await
+    }
+
+    #[tool(
+        description = "Close the edit session: reports scope drift (planned-but-unedited files) plus the full completeness check on what you actually edited. Run before pre_commit_review."
+    )]
+    pub async fn complete_edit_session(
+        &self,
+        params: Parameters<CompleteEditSessionRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_complete_edit_session(params.0).await
+    }
+
+    #[tool(
         description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review, find_similar_changes."
     )]
     pub async fn detect_incomplete_changes(
