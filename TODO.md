@@ -341,9 +341,12 @@ specs already written.
   cache keyed (project, namespace) so agent grep bursts don't re-stat the corpus each
   call. Batch-scan test pins project scoping.*
 
-- [ ] **47. Symlinked roots + Windows path-separator polish** (S)
-  `engram_core/src/paths.rs`. `strip_prefix` fails under symlinked roots; error messages
-  show `/` on Windows.
+- [x] **47. Symlinked roots + Windows path-separator polish** (S) - *done 2026-06-13:
+  from_relative now falls back to canonical-root stripping (root canonicalized once,
+  memoized in CANON_ROOT_CACHE) then both-sides-canonical, paying syscalls only on the
+  rare symlink-mismatch path; fixes silent file drops under symlinked roots.
+  RelPath::to_native_string renders `\` on Windows for user-facing messages. 2 tests
+  (canonical-mismatch fallback via canonicalize() prefix, native separator).*
 
 ---
 
