@@ -160,6 +160,38 @@ elif phase == "verify":
         "story": "As an admin I would like to set minimum number of photos required",
     })[:1800])
 
+elif phase == "eval":
+    # TODO-48: golden-query retrieval scorecard against the live index.
+    # Each query lists substrings; a hit = any top-5 result path contains
+    # any expected substring. Usage: ... eval <project_id>
+    pid = sys.argv[2]
+    GOLDEN = [
+        ("minimum number of photos required", ["marker", "api-images"], "photos story"),
+        ("upload image for map marker", ["api-images"], "image upload api"),
+        ("check if user is in role", ["checkisuserinrole", "shared", "security"], "house guard"),
+        ("system settings stored in database", ["systemsettings"], "settings table access"),
+        ("google maps marker clustering", ["map"], "gis surface"),
+        ("session timeout configuration", ["web.config", "global", "session"], "session config"),
+        ("save reporting of quantities entry", ["Roq", "roq", "qty"], "RoQ feature"),
+        ("SAML single sign on", ["SAML", "saml"], "auth integration"),
+        ("delete installation plan", ["instplan", "installation"], "installations"),
+        ("customer specific multi tenant filter", ["tenant", "instance"], "multitenancy"),
+    ]
+    hits = 0
+    for query, expected, note in GOLDEN:
+        out = tool("search_memory", {
+            "query": query, "project_id": pid, "max_results": 5,
+        })
+        paths = [l.split("path: ", 1)[1] for l in out.splitlines() if l.startswith("path: ")]
+        ok = any(any(e.lower() in pth.lower() for e in expected) for pth in paths)
+        hits += 1 if ok else 0
+        mark = "HIT " if ok else "MISS"
+        print(f"[{mark}] {note}: '{query}'")
+        if not ok:
+            for pth in paths[:3]:
+                print(f"        got: {pth}")
+    print(f"\nscore: {hits}/{len(GOLDEN)} hit@5")
+
 elif phase == "tool":
     # Generic: python engram_drive.py tool <tool_name> '<json_args>' [max_chars]
     name = sys.argv[2]

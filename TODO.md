@@ -348,7 +348,7 @@ There is currently no ground-truth evaluation that search or the graph return *c
 answers — only behavioral tests that they return *something*. For a tool whose whole
 value is accuracy, this is the biggest meta-gap.
 
-- [ ] **48. Retrieval eval harness with golden query sets** (M)
+- [~] **48. Retrieval eval harness with golden query sets** (M) - *live tier done 2026-06-13: engram_drive.py eval phase — 10 OciusX golden queries (each grounded in loop-verified facts) scored hit@5 against the deployed index. Baseline: 9/10 (miss: RoQ controller — ranking sensitivity marker). CI fixture-corpus tier remains.*
   Per fixture project: N queries ("where is login validated?") with expected files/symbols;
   measure precision@k / MRR in `benchmark-ci.yml`. Without this, every ranking change
   (#2, P0 items) is flying blind.
