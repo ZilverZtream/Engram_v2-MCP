@@ -14,6 +14,7 @@ US-only / read-only: the dossier is built from the user story alone; ground_trut
 import argparse
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -235,23 +236,31 @@ def expand_families(prov, wt):
 
 
 def build_dossier(eng, pid, rec, wt):
-    """3-arm ensemble -> prov(canon->signals) + raw_of(canon->engram path); drop
-    vendor noise; CO-CHANGE-confirm companions (precision); framework-generic
-    family expansion; rank co-change-first per layer. Returns (md, prov)."""
-    prov, raw_of = {}, {}
-    for label, fn in ARMS:
-        try:
-            for p in fn(eng, pid, rec):       # p = engram-format path (e.g. site/...)
-                c = canon(p)
-                if not _is_noise(c):
-                    prov.setdefault(c, set()).add(label)
-                    raw_of.setdefault(c, p)
-        except Exception as e:
-            print(f"  arm {label} error: {str(e)[:120]}", file=sys.stderr)
-    n_cc = expand_cochange(eng, pid, prov, raw_of)
-    n_fam = expand_families(prov, wt)
-    print(f"  prov: {len(prov)} files (+{n_cc} co-change, +{n_fam} family), noise filtered")
-    md = render_dossier(rec["story"]["title"], list(prov.items()))
+    """Single source of truth: the native get_change_set tool — the exact
+    artifact an agent calls in production. Its markdown IS the dossier the
+    engram arm reads (concept + history + co-change + .NET family expansion +
+    vendor denoise, co-change-first ranked, completeness checklist), so the A/B
+    measures the real product and inherits every get_change_set fix (greedy
+    path extraction, case-insensitive co-change, broad self-filtering seed).
+    Parse its output into prov(canon->signals) for the prov.json dump.
+    Returns (md, prov)."""
+    s = rec["story"]
+    story = s["title"]
+    if s.get("description"):
+        story += "\n\n" + s["description"]
+    if s.get("acceptance"):
+        story += "\n\nAcceptance:\n" + s["acceptance"]
+    md = eng.tool("get_change_set", {"project_id": pid, "story": story})
+    if "TOOL_ERROR" in md:
+        print(f"  get_change_set error: {md[:160]}", file=sys.stderr)
+        return md, {}
+    prov = {}
+    for m in re.finditer(r"^- `([^`]+)`\s*\[([^\]]*)\]", md, re.M):
+        c = canon(m.group(1))
+        if not _is_noise(c):
+            prov.setdefault(c, set()).update(t for t in m.group(2).split("|") if t)
+    n_golden = sum(1 for sig in prov.values() if sig & {"history", "cochange"})
+    print(f"  change_set: {len(prov)} files ({n_golden} golden co-change/history)")
     return md, prov
 
 
