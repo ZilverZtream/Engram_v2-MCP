@@ -336,8 +336,10 @@ specs already written.
 - [ ] **45. LanceDB integrity sentinels** (M)
   `integrity_service.rs` covers Tantivy+Redb only; vector-store corruption is invisible.
 
-- [ ] **46. grep_project freshness cost** (M)
-  `grep.rs` freshness check is O(files); cache fingerprints per generation.
+- [x] **46. grep_project freshness cost** (M) - *done 2026-06-13: DocStore.list_fingerprints
+  (one range scan, replaces list_tracked_paths + N point reads) + a 10s TTL freshness
+  cache keyed (project, namespace) so agent grep bursts don't re-stat the corpus each
+  call. Batch-scan test pins project scoping.*
 
 - [ ] **47. Symlinked roots + Windows path-separator polish** (S)
   `engram_core/src/paths.rs`. `strip_prefix` fails under symlinked roots; error messages
