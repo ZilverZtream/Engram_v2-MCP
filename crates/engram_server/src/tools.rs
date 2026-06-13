@@ -211,6 +211,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "ONE natural-language front door: ask anything ('what breaks if I change X?', 'where is Y used?', 'when did Z change?', 'how does W work?', or a feature request) and get routed to the right tools automatically, with provenance. START HERE when unsure which tool fits."
+    )]
+    pub async fn ask_codebase(
+        &self,
+        params: Parameters<AskCodebaseRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ask_codebase(params.0).await
+    }
+
+    #[tool(
         description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief — co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
     )]
     pub async fn begin_edit_session(

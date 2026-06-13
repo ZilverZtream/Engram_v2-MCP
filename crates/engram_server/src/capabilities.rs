@@ -98,6 +98,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "ask_codebase",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "begin_edit_session",
         status: CapabilityStatus::Implemented,
     },

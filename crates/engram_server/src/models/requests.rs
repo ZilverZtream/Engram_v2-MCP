@@ -547,6 +547,15 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
+/// TODO-28: one natural-language entry point.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AskCodebaseRequest {
+    pub project_id: String,
+    /// Any question about the codebase, in plain language.
+    pub question: String,
+}
+
 /// TODO-29: open an edit session — snapshot intent before editing.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
