@@ -18,7 +18,9 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from engram_client import Engram, add_worktree, remove_worktree, WORKTREE_ROOT  # noqa: E402
+from engram_client import (  # noqa: E402
+    Engram, add_worktree, remove_worktree, canon, extract_paths, WORKTREE_ROOT,
+)
 import run_phase1 as rp  # noqa: E402
 
 P2_WT_ROOT = os.path.join(tempfile.gettempdir(), "engram_p2_wt")
@@ -50,12 +52,35 @@ def _layer_of(path):
     return "Other"
 
 
-def render_dossier(title, rows, cap=40):
-    """rows = list of (path, signals_set). Render a FLAT, layer-grouped checklist
-    (no rank numbers) with strong anti-anchoring framing: this is a non-exhaustive
-    starting map, implement EVERY layer, follow companions, don't stop early.
-    (Ranked numbering anchored agents to the top file and suppressed exploration.)"""
-    rows = sorted(rows, key=lambda r: (-len(r[1]), r[0]))[:cap]
+# Co-change/history is the most predictive signal (it won the hard stories), so
+# treat it as golden in ranking — the OLD signal-COUNT sort buried single-signal
+# co-change files under multi-signal concept noise.
+_GOLDEN = {"history", "cochange"}
+
+
+def signal_rank_key(path, sigs):
+    s = set(sigs)
+    g = bool(s & _GOLDEN)
+    if g and len(s) >= 2:
+        tier = 0                       # co-change + corroboration
+    elif s <= _GOLDEN:
+        tier = 1                       # co-change/history alone — trust it
+    elif len(s) >= 2:
+        tier = 2                       # multi-arm (concept+graph)
+    elif s == {"concept"}:
+        tier = 3
+    elif s == {"graph"}:
+        tier = 4
+    else:
+        tier = 5
+    return (tier, path.count("/"), path)   # shallower paths (local pages) first
+
+
+def render_dossier(title, rows, per_layer_cap=18):
+    """rows = list of (path, signals_set). FLAT, layer-grouped checklist with
+    anti-anchoring framing. Cap is PER-LAYER (not a global top-N) so a flood of
+    concept-found server files can't evict the entire .resx/.sql/.ts layer — the
+    exact mechanism that dropped real companions past the old global cap=40."""
     md = [
         "# Engram analysis — candidate touchpoints",
         "",
@@ -90,28 +115,132 @@ def render_dossier(title, rows, cap=40):
         items = by_layer.get(layer)
         if not items:
             continue
+        items = sorted(items, key=lambda r: signal_rank_key(r[0], r[1]))
+        # ALWAYS keep golden (co-change/history, tier<=1) — they are high-precision
+        # and must never be evicted; cap only the concept/graph tail per layer.
+        golden = [r for r in items if signal_rank_key(r[0], r[1])[0] <= 1]
+        tail = [r for r in items if signal_rank_key(r[0], r[1])[0] >= 2][:per_layer_cap]
         md.append("")
         md.append(f"**{layer}:**")
-        for p, arms in items:
+        for p, arms in golden + tail:
             md.append(f"- `{p}`  [{'|'.join(sorted(arms))}]")
     return "\n".join(md)
 
 
-def build_dossier(eng, pid, rec):
-    """Run the 3-arm ensemble; return (markdown, ranked_files). Each file is
-    tagged with which arms surfaced it."""
-    from engram_client import canon
-    prov = {}  # canon path -> set of arm labels
+# ── noise + family expansion ────────────────────────────────────────────────
+_VENDOR = ("bower_components/", "node_modules/", "/vendor/", "vendor/",
+           "/lib/", "/libs/", "/dist/", "scripts/lib/")
+
+
+def _is_noise(p):
+    pl = p.lower()
+    if any(v in pl for v in _VENDOR):
+        return True
+    if pl.endswith((".min.js", ".min.css", ".map")):
+        return True
+    if pl.endswith(".css"):       # third-party styling rarely the change target
+        return True
+    return False
+
+
+def _wt_real(wt, canon_path):
+    """Map a canon path back to an existing worktree file (Windows FS is
+    case-insensitive, so the lowercase canon resolves). Try Site/ then root."""
+    for prefix in ("Site", ""):
+        cand = os.path.join(wt, prefix, *canon_path.split("/"))
+        if os.path.isfile(cand):
+            return cand
+    return None
+
+
+def expand_cochange(eng, pid, prov, raw_of):
+    """GENERIC precision+recall mechanism (no per-repo hardcoding): from a small
+    high-confidence seed (files corroborated by >=2 arms or by git history),
+    ask which files HISTORICALLY CO-CHANGED with them. Co-change is what tells a
+    real companion (the settings store, the resx set, the compiled bundle, the
+    other side of a bug) apart from concept-flood that never shipped together.
+    Matched files are promoted to the 'cochange' (golden) tier. This is the stage
+    to port into Engram itself as a change-set capability."""
+    seed = sorted({raw_of[c] for c, s in prov.items()
+                   if len(s) >= 2 or ("history" in s)})[:12]
+    if len(seed) < 4:                       # thin seed -> widen to top arm hits
+        seed = sorted(set(raw_of.values()))[:10]
+    if not seed:
+        return 0
+    added = 0
+    calls = [("find_similar_changes", {"files": seed, "top": 8, "max_commits": 800}),
+             ("detect_incomplete_changes", {"edited_files": seed, "max_partners": 8})]
+    for tool, extra in calls:
+        try:
+            out = eng.tool(tool, {"project_id": pid, **extra})
+            for p in extract_paths(out):
+                c = canon(p)
+                if _is_noise(c):
+                    continue
+                if c not in prov:
+                    prov[c] = {"cochange"}
+                    raw_of[c] = p
+                    added += 1
+                else:
+                    prov[c].add("cochange")   # promote concept/graph hit to golden
+        except Exception as e:
+            print(f"  cochange {tool} error: {str(e)[:100]}", file=sys.stderr)
+    return added
+
+
+def expand_families(prov, wt):
+    """Framework-generic companion expansion (not OciusX-specific) against files
+    that EXIST in the base worktree: .NET WebForms code-behind/designer siblings
+    of any surfaced page (high precision), and the full .resx localization set —
+    but the resx-set ONLY from a co-change/history-confirmed anchor, so a noisy
+    concept-only resx doesn't drag in every language. Siblings inherit signals."""
+    import glob
+    add = {}
+
+    def put(sib, sigs):
+        if sib not in prov and _wt_real(wt, sib):
+            add.setdefault(sib, set()).update(sigs)
+
+    for p, sigs in list(prov.items()):
+        pl = p.lower()
+        golden = bool(sigs & _GOLDEN)
+        if pl.endswith((".aspx", ".ascx")):
+            for ext in (".vb", ".cs", ".designer.vb", ".designer.cs"):
+                put(p + ext, sigs)
+        elif pl.endswith((".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs")):
+            put(p.rsplit(".", 1)[0], sigs)        # the markup shell
+        if pl.endswith(".resx") and golden:
+            real = _wt_real(wt, p)
+            if real:
+                d = os.path.dirname(real)
+                stem = os.path.basename(p).split(".")[0]   # text.en.resx -> text
+                for f in glob.glob(os.path.join(d, stem + "*.resx")):
+                    rel = os.path.relpath(f, wt).replace("\\", "/").lower()
+                    put(canon(rel), sigs)
+    for k, v in add.items():
+        prov.setdefault(k, set()).update(v)
+    return len(add)
+
+
+def build_dossier(eng, pid, rec, wt):
+    """3-arm ensemble -> prov(canon->signals) + raw_of(canon->engram path); drop
+    vendor noise; CO-CHANGE-confirm companions (precision); framework-generic
+    family expansion; rank co-change-first per layer. Returns (md, prov)."""
+    prov, raw_of = {}, {}
     for label, fn in ARMS:
         try:
-            for p in fn(eng, pid, rec):
-                prov.setdefault(canon(p), set()).add(label)
+            for p in fn(eng, pid, rec):       # p = engram-format path (e.g. site/...)
+                c = canon(p)
+                if not _is_noise(c):
+                    prov.setdefault(c, set()).add(label)
+                    raw_of.setdefault(c, p)
         except Exception as e:
             print(f"  arm {label} error: {str(e)[:120]}", file=sys.stderr)
-    rows = list(prov.items())
-    md = render_dossier(rec["story"]["title"], rows)
-    ranked = [p for p, _ in sorted(rows, key=lambda r: (-len(r[1]), r[0]))]
-    return md, ranked
+    n_cc = expand_cochange(eng, pid, prov, raw_of)
+    n_fam = expand_families(prov, wt)
+    print(f"  prov: {len(prov)} files (+{n_cc} co-change, +{n_fam} family), noise filtered")
+    md = render_dossier(rec["story"]["title"], list(prov.items()))
+    return md, prov
 
 
 def main():
@@ -131,8 +260,10 @@ def main():
     try:
         pid, wt, idx_secs, health = rp.setup_index(eng, rec)
         print(f"  indexed in {idx_secs:.0f}s")
-        dossier_md, ranked = build_dossier(eng, pid, rec)
-        print(f"  dossier: {len(ranked)} ranked files")
+        dossier_md, prov = build_dossier(eng, pid, rec, wt)
+        # dump raw prov for cheap re-ranking/re-rendering without re-indexing
+        with open(os.path.join(P2_DATA, f"pr{args.pr}_prov.json"), "w", encoding="utf-8") as fh:
+            json.dump({k: sorted(v) for k, v in prov.items()}, fh, indent=2)
     finally:
         if pid:
             eng.tool("delete_project", {"project_id": pid})

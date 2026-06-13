@@ -239,9 +239,15 @@ impl Engram {
             .flatten()
             .map(|(_, _, file, _)| file.as_str())
             .collect();
+        // ENG-2026-CFP-NOISE: drop vendored/minified/bundled artifacts (bower,
+        // node_modules, *.min.js, versioned jquery, …). The OciusX eval found the
+        // concept-footprint lexical layer was the dominant noise source handed to
+        // the model (precision ~5%); these generated files are never the change
+        // target and crowd out the real files.
         let lexical_only: Vec<&String> = lexical_files
             .iter()
             .filter(|f| !grouped_files.contains(f.as_str()))
+            .filter(|f| !engram_core::is_vendor_path(f))
             .collect();
 
         let total: usize = groups.values().map(Vec::len).sum();
