@@ -202,6 +202,10 @@ fn build_test_mismatches(
         tantivy_count,
         docstore_count,
         vector_count,
+        // Canary exercises orphan/divergence/overflow detection; the
+        // embeddings-expected VectorShortfall path has dedicated unit tests
+        // in integrity_service (vector_shortfall_*).
+        false,
         tantivy_docs,
         docstore_docs,
     )

@@ -306,9 +306,11 @@ specs already written.
   `multi_client.rs`. Unix-socket only; on Windows (where this repo lives!) Claude
   Desktop + Claude Code can't share a daemon.
 
-- [ ] **39. Vector/Tantivy consistency repair after partial ingest failures** (M)
-  `hybrid.rs`, `ingest.rs`. Partial failure can leave FTS and vector stores divergent,
-  silently skewing hybrid results. Detect (count sentinels per generation) and re-converge.
+- [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) - *core
+  done 2026-06-13 (via #45): the FTS>vector divergence from partial embed failure is now
+  DETECTED (VectorShortfall count sentinel) and RE-CONVERGED through the auto-repair
+  vector_only path (re-embed). Remaining: per-generation sentinel granularity and the
+  symmetric vector>FTS reconcile beyond the existing VectorOrphan overflow check.*
 
 - [x] **40. Trigger generation GC after crash recovery** (S) - *done 2026-06-13:
   AppState.gc_nudge (Notify) + third GC select branch; update_project fires it after a
@@ -333,8 +335,12 @@ specs already written.
   embedded in the job tombstone message, errors logged, persistence test in
   job_service.rs. TODO entry was stale.*
 
-- [ ] **45. LanceDB integrity sentinels** (M)
-  `integrity_service.rs` covers Tantivy+Redb only; vector-store corruption is invisible.
+- [x] **45. LanceDB integrity sentinels** (M) - *done 2026-06-13: integrity_service now
+  detects MismatchKind::VectorShortfall — when embeddings are expected (backend != fts_only)
+  but the LanceDB vector store holds far fewer entries than Tantivy (>5% and >20 absolute),
+  embeddings failed for part of the corpus and hybrid recall is silently degraded. Wired to
+  the vector_only re-embed repair. The pre-existing "masked vector=0 is invisible" canary
+  test now PROVES the fix. 3 new unit tests (flagged / fts_only-suppressed / floored).*
 
 - [x] **46. grep_project freshness cost** (M) - *done 2026-06-13: DocStore.list_fingerprints
   (one range scan, replaces list_tracked_paths + N point reads) + a 10s TTL freshness
