@@ -12,7 +12,7 @@
 //! machine), opened once per process.
 
 use engram_ml::{Embedder, Embedding};
-use redb::{Database, ReadableTable, TableDefinition};
+use redb::{Database, TableDefinition};
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
