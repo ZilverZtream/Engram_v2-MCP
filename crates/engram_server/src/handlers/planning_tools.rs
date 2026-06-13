@@ -22,7 +22,7 @@ use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 
 // ── Pure helpers ─────────────────────────────────────────────────────────────
@@ -1568,7 +1568,205 @@ mod review_ingest_tests {
     }
 }
 
+/// Extract repo-relative source-file paths from a planning tool's text output
+/// (prose paths AND `kind:PATH:name:line` node-ids). Compound .NET code-behind
+/// extensions are matched first so `foo.aspx.vb` is not truncated to `foo.aspx`.
+fn change_set_paths(text: &str) -> Vec<String> {
+    let re = regex::Regex::new(
+        r"(?i)[\w./\\-]*?\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html)\b",
+    )
+    .expect("change_set_paths regex");
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+    for m in re.find_iter(text) {
+        let mut p = m.as_str().replace('\\', "/").to_lowercase();
+        while p.contains("//") {
+            p = p.replace("//", "/");
+        }
+        let p = p.trim_start_matches('/').to_string();
+        if p.starts_with("http") || p.starts_with("c:") || p.starts_with("f:") || p.starts_with("d:") {
+            continue;
+        }
+        let keep = p.contains('/') || p.ends_with(".config") || p.ends_with(".asax");
+        if keep && seen.insert(p.clone()) {
+            out.push(p);
+        }
+    }
+    out
+}
+
+/// Co-change-first tier for ranking: history/co-change (the most predictive
+/// signal) ranks above multi-arm, above concept-only, above graph-only.
+fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
+    let golden = sigs.contains("cochange") || sigs.contains("history");
+    if golden && sigs.len() >= 2 {
+        0
+    } else if golden {
+        1
+    } else if sigs.len() >= 2 {
+        2
+    } else if sigs.contains("concept") {
+        3
+    } else {
+        4
+    }
+}
+
+/// Render the change set: layer-grouped, co-change-first, with a completeness
+/// checklist. Golden (co-change/history) files are never capped; the concept/
+/// graph tail is capped per layer so flood can't crowd out real companions.
+fn render_change_set(
+    story: &str,
+    concepts: &[String],
+    prov: &BTreeMap<String, BTreeSet<&'static str>>,
+) -> String {
+    const LAYERS: &[(&str, &[&str])] = &[
+        (
+            "Server (VB / code-behind / markup)",
+            &[".vb", ".cs", ".aspx", ".ascx", ".master", ".asmx", ".ashx", ".svc", ".asax"],
+        ),
+        ("Client (TypeScript / JavaScript)", &[".ts", ".tsx", ".js", ".jsx"]),
+        ("Resources (.resx — translate EVERY language)", &[".resx"]),
+        ("Data (SQL)", &[".sql"]),
+        ("Markup / styles / config", &[".html", ".config", ".vbhtml", ".cshtml"]),
+    ];
+    let layer_of = |p: &str| -> usize {
+        for (i, (_, exts)) in LAYERS.iter().enumerate() {
+            if exts.iter().any(|e| p.ends_with(*e)) {
+                return i;
+            }
+        }
+        LAYERS.len()
+    };
+    let mut s = String::new();
+    s.push_str("# Change set — candidate files for this story\n\n");
+    s.push_str(&format!("story: {story}\nconcepts: {}\n\n", concepts.join(", ")));
+    s.push_str(
+        "Ranked by corroboration — git CO-CHANGE / history first (files that \
+         historically shipped together with this kind of work), then concept/graph. \
+         A starting map, not exhaustive: verify each against the code and add the \
+         files it misses.\n\n",
+    );
+    s.push_str("## Completeness checklist — satisfy ALL that apply before you finish\n");
+    s.push_str(
+        "- Every page touched: edit BOTH the .aspx/.ascx markup AND its \
+         .aspx.vb/.ascx.vb code-behind (and .designer.vb if present).\n",
+    );
+    s.push_str(
+        "- Every user-facing string: update the .resx in EVERY language present, \
+         not only the default.\n",
+    );
+    s.push_str("- Every schema / setting / column change: include the SQL migration.\n");
+    s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n\n");
+    s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
+
+    let layer_names: Vec<&str> = LAYERS.iter().map(|(n, _)| *n).chain(std::iter::once("Other")).collect();
+    for (li, lname) in layer_names.iter().enumerate() {
+        let mut items: Vec<(&String, &BTreeSet<&'static str>)> =
+            prov.iter().filter(|(p, _)| layer_of(p) == li).collect();
+        if items.is_empty() {
+            continue;
+        }
+        items.sort_by(|a, b| {
+            change_set_tier(a.1)
+                .cmp(&change_set_tier(b.1))
+                .then(a.0.matches('/').count().cmp(&b.0.matches('/').count()))
+                .then(a.0.cmp(b.0))
+        });
+        s.push_str(&format!("\n**{lname}:**\n"));
+        let mut tail = 0usize;
+        for (p, sigs) in &items {
+            if change_set_tier(sigs) >= 2 {
+                tail += 1;
+                if tail > 18 {
+                    continue;
+                }
+            }
+            let labels: Vec<&str> = sigs.iter().copied().collect();
+            s.push_str(&format!("- `{p}`  [{}]\n", labels.join("|")));
+        }
+    }
+    s
+}
+
 impl Engram {
+    /// ONE call: the ranked, co-change-confirmed, family-aware change set for a
+    /// user story. The OciusX-validated recipe ported into Engram — concept
+    /// footprint + git co-change, co-change/history ranked first, vendor noise
+    /// filtered. Generic; no per-repo hardcoding.
+    pub async fn handle_get_change_set(
+        &self,
+        req: crate::models::GetChangeSetRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if req.story.trim().is_empty() {
+            return Err(McpError::invalid_params("story must not be empty", None));
+        }
+        let concepts: Vec<String> = match &req.concepts {
+            Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
+            _ => extract_story_concepts(&req.story),
+        };
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+
+        // Concept arm — typed footprint of each domain concept.
+        for c in &concepts {
+            if let Ok(r) = self
+                .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
+                    project_id: req.project_id.clone(),
+                    concept: c.clone(),
+                    max_per_group: 12,
+                })
+                .await
+                && let Some(t) = r.content.first().and_then(|x| x.as_text())
+            {
+                for p in change_set_paths(&t.text) {
+                    if !engram_core::is_vendor_path(&p) {
+                        prov.entry(p).or_default().insert("concept");
+                    }
+                }
+            }
+        }
+
+        // Co-change arm — confirm/expand real companions from a high-confidence seed.
+        let seed: Vec<String> = prov.keys().take(12).cloned().collect();
+        if !seed.is_empty() {
+            let mut texts: Vec<String> = Vec::new();
+            if let Ok(r) = self
+                .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
+                    project_id: req.project_id.clone(),
+                    files: seed.clone(),
+                    max_commits: 800,
+                    top: 8,
+                })
+                .await
+                && let Some(t) = r.content.first().and_then(|x| x.as_text())
+            {
+                texts.push(t.text.clone());
+            }
+            if let Ok(r) = self
+                .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+                    project_id: req.project_id.clone(),
+                    edited_files: seed.clone(),
+                    max_partners: 8,
+                })
+                .await
+                && let Some(t) = r.content.first().and_then(|x| x.as_text())
+            {
+                texts.push(t.text.clone());
+            }
+            for text in texts {
+                for p in change_set_paths(&text) {
+                    if !engram_core::is_vendor_path(&p) {
+                        prov.entry(p).or_default().insert("cochange");
+                    }
+                }
+            }
+        }
+
+        let out = render_change_set(req.story.trim(), &concepts, &prov);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
     /// TODO-29: the loop-closing check. Given the files an agent edited,
     /// report what history and the graph say should ALSO have changed:
     /// strong co-change partners left untouched, and state keys whose other

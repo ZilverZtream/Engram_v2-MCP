@@ -530,6 +530,22 @@ pub struct PlanUserStoryRequest {
     pub concepts: Option<Vec<String>>,
 }
 
+/// Planning: the ranked, co-change-confirmed, family-complete set of files a
+/// user story is likely to require — one call. Concept-footprint + git co-change
+/// + structural graph, fused with co-change-first ranking, .NET family expansion,
+/// and vendor-noise filtering. (Validated on the OciusX eval: this packaging flips
+/// Engram from hurting to helping a code-gen agent.)
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetChangeSetRequest {
+    pub project_id: String,
+    /// The user story, verbatim.
+    pub story: String,
+    /// Override the automatically extracted domain concepts (max 3 used).
+    #[serde(default)]
+    pub concepts: Option<Vec<String>>,
+}
+
 /// Planning: concrete exemplars of how this codebase implements a pattern.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
