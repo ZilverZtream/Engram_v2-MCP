@@ -302,9 +302,17 @@ specs already written.
   done; agents assume failure and retry. Persist per-phase progress (files done/total,
   current phase, ETA) and expose via `get_job_status`.
 
-- [ ] **38. Windows named-pipe transport for the multi-client daemon** (M)
-  `multi_client.rs`. Unix-socket only; on Windows (where this repo lives!) Claude
-  Desktop + Claude Code can't share a daemon.
+- [x] **38. Windows named-pipe transport for the multi-client daemon** (M) - *done 2026-06-13
+  (user-reported: only one CLI window could use the MCP at a time — second died on the
+  redb exclusive lock). Implemented the Windows named-pipe transport mirroring the Unix
+  path: spawn_socket_listener accept-loop (NamedPipeServer, recreate-instance-per-connection),
+  serve_pipe_session, run_proxy NamedPipeClient connect + forward_stdio_to_pipe. dispatch
+  routes the pipe name through socket_path on Windows. Hardened the proxy connect loop to
+  retry ERROR_FILE_NOT_FOUND/PIPE_BUSY for 30s (primary writes metadata BEFORE its slow
+  AppState init binds the pipe — a real startup-window race found in testing). Flipped the
+  default to multi_client=true (serde default fn, not just the struct impl). Verified live:
+  two engram_server processes share one daemon on Windows, both serve list_projects via
+  the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) - *core
   done 2026-06-13 (via #45): the FTS>vector divergence from partial embed failure is now
@@ -481,6 +489,14 @@ value is accuracy, this is the biggest meta-gap.
   usage: ss_systemsettings refs; explain: clustering search+footprint); eval
   regression 9/10 unchanged. search/references/blast now chain into the session
   workflow via next: hints. P3 surface complete: one front door + full lifecycle.
+
+- **2026-06-13 iter 20 — multi-window MCP fixed (#38) + integrity correctness, all live**:
+  user hit single-instance lock contention (only one CLI window worked). Implemented +
+  hardened Windows named-pipe daemon transport; default now multi_client=true; verified
+  two processes share one daemon on OciusX. Also: integrity false-positive TantivyOrphan
+  + overall_healthy masking fixed (live OciusX before/after), VectorShortfall detection
+  (#45/#39), grep TTL cache (#46), symlink-robust paths (#47), #62/#63 hygiene. All
+  deployed; OciusX check_integrity now genuinely clean (mismatches: []).
 
 ## Suggested sequencing
 
