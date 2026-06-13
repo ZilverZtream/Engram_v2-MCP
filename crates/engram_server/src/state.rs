@@ -84,6 +84,11 @@ pub struct AppState {
     /// Active job cancellation handles.
     pub active_jobs: Arc<RwLock<HashMap<String, tokio::task::JoinHandle<()>>>>,
 
+    /// TODO-40: on-demand GC wakeup. Crash-resume cycles accumulate stale
+    /// generations; completing a RESUMED job nudges the GC instead of
+    /// waiting up to an hour for the next tick.
+    pub gc_nudge: Arc<tokio::sync::Notify>,
+
     /// Cooperative cancellation tokens for active jobs.
     pub cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
 
@@ -202,6 +207,7 @@ impl AppState {
                 projects: Arc::new(DashMap::new()),
                 project_lru: Arc::new(DashMap::new()),
                 active_jobs: Arc::new(RwLock::new(HashMap::new())),
+                gc_nudge: Arc::new(tokio::sync::Notify::new()),
                 cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
                 active_indexing_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
                 parse_semaphore: Arc::new(Semaphore::new(parse_concurrency)),

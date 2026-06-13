@@ -18,6 +18,12 @@ pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
                 return;
             }
             _ = interval.tick() => {}
+            // TODO-40: resumed-job completion nudges an immediate sweep so
+            // crash-resume loops don't accumulate stale generations for up
+            // to an hour. The JOB1 active-count guard below still applies.
+            _ = state.gc_nudge.notified() => {
+                tracing::info!("GC: nudged (post-recovery) — running sweep now");
+            }
         }
 
         // JOB1: skip purge when any indexing job is active to avoid racing with

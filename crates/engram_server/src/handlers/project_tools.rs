@@ -1544,10 +1544,12 @@ impl Engram {
 
         // Resume from a previously interrupted job: narrow the pending-file list
         // so only files not yet processed are re-indexed.
+        let mut resumed_from_checkpoint = false;
         let changed = if let Some((_cp, rs)) = self.resumable_checkpoint(project_id, new_gen).await
         {
             if !rs.pending_files.is_empty() {
                 engram_core::metrics().checkpoints_resumed.inc();
+                resumed_from_checkpoint = true;
                 let pending_set: std::collections::HashSet<PathBuf> =
                     from_rel_paths(&dir, &rs.pending_files)
                         .into_iter()
@@ -1772,6 +1774,12 @@ impl Engram {
                     "scoped graph purge task panicked: {e}"
                 ),
             }
+        }
+
+        // TODO-40: a resumed (crash-recovered) run leaves stale generations
+        // behind — nudge the GC instead of waiting for the hourly tick.
+        if resumed_from_checkpoint {
+            self.state.gc_nudge.notify_one();
         }
 
         Ok(format!(
