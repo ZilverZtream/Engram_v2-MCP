@@ -239,7 +239,7 @@ The unbuilt AGENT_ENHANCEMENT_SPEC phases 39–45 (33 tools, zero implemented). 
 worth building — these are, in this order. (Skip ones that duplicate existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.)
 
-- [ ] **28. `ask_codebase` — one natural-language entry point (spec 43-1)** (L)
+- [~] **28. `ask_codebase` — one natural-language entry point (spec 43-1)** (L) - *v1 done 2026-06-13: heuristic 5-intent router (impact/usage/history/feature/explain) with subject extraction, composing impact_analysis, find_symbol_references, search_history, plan_user_story, search+footprint; provenance line names consulted tools. LLM-assisted routing/synthesis remains as v2.*
   Routes a question to search + graph + access-layer internally and returns a synthesized,
   cited answer. This is the single highest-leverage *new* tool: it collapses the 114-tool
   selection problem for the 80% case and makes Engram useful to agents that never learn
