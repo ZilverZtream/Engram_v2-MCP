@@ -94,6 +94,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "detect_incomplete_changes",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "generate_agent_integration",
         status: CapabilityStatus::Implemented,
     },

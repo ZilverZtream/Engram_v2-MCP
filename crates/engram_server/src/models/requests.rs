@@ -547,6 +547,22 @@ pub fn default_pattern_examples() -> usize {
     3
 }
 
+/// TODO-29: edit-completeness check over an edited file set.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DetectIncompleteChangesRequest {
+    pub project_id: String,
+    /// Project-relative paths the agent has edited (or plans to commit).
+    pub edited_files: Vec<String>,
+    /// Max co-change partners to inspect per file. Default 5.
+    #[serde(default = "default_partner_limit")]
+    pub max_partners: usize,
+}
+
+pub fn default_partner_limit() -> usize {
+    5
+}
+
 /// TODO-20: dependency cycle (SCC) inventory.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

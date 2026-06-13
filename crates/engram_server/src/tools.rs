@@ -211,6 +211,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review, find_similar_changes."
+    )]
+    pub async fn detect_incomplete_changes(
+        &self,
+        params: Parameters<DetectIncompleteChangesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_detect_incomplete_changes(params.0).await
+    }
+
+    #[tool(
         description = "GIS surface inventory: every map library/class the project uses with call-site counts, files, and modern equivalents (Google Maps/Leaflet/OpenLayers/Esri), per-file map configurations (api key, zoom, center), and the WMS/XYZ/Esri layer inventory. Call before touching any map feature; pairs with get_concept_footprint and blast_radius for the change plan."
     )]
     pub async fn get_gis_inventory(
