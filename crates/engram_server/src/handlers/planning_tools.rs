@@ -1901,6 +1901,41 @@ impl Engram {
             }
         }
 
+        // Collapse path-prefix variants. The graph stores some files under two
+        // node spellings — index_project keeps the web-root prefix
+        // (Site/App_Code/…) while index_git_history drops it (App_Code/…) — so
+        // one file can appear twice in prov with its signal tags split across
+        // the two spellings, padding the change set and weakening per-file
+        // corroboration. Merge any path that is a ONE-SEGMENT trailing suffix of
+        // a longer path (exactly the web-root-prefix pattern) into the longer,
+        // fully-qualified one, unioning tags (which can also lift the survivor's
+        // tier as it gains a second signal). Pure within-set rule — robust even
+        // when BOTH spellings exist as graph nodes; generic, no web-root name.
+        {
+            let mut keys: Vec<String> = prov.keys().cloned().collect();
+            keys.sort_by(|a, b| b.len().cmp(&a.len())); // longest first
+            let mut kept: Vec<String> = Vec::new();
+            let mut remap: HashMap<String, String> = HashMap::new();
+            for k in keys {
+                let k_segs = k.matches('/').count();
+                if let Some(longer) = kept.iter().find(|a| {
+                    a.matches('/').count() == k_segs + 1 && a.ends_with(&format!("/{k}"))
+                }) {
+                    remap.insert(k.clone(), longer.clone());
+                } else {
+                    kept.push(k);
+                }
+            }
+            if !remap.is_empty() {
+                let mut merged: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+                for (p, sigs) in std::mem::take(&mut prov) {
+                    let key = remap.get(&p).cloned().unwrap_or(p);
+                    merged.entry(key).or_default().extend(sigs);
+                }
+                prov = merged;
+            }
+        }
+
         let out = render_change_set(req.story.trim(), &concepts, &prov);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
