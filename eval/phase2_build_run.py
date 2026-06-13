@@ -35,6 +35,7 @@ def story_entry(pr):
     diff_path = os.path.join(P2, f"pr{pr}_merged.diff")
     open(diff_path, "w", encoding="utf-8").write(diff)
     rich = os.path.join(P2, f"pr{pr}_dossier_rich.md")
+    pat = os.path.join(P2, f"pr{pr}_dossier_pattern.md")
     return {
         "pr_id": m["pr_id"],
         "title": m["story"]["title"],
@@ -44,6 +45,7 @@ def story_entry(pr):
         "worktree_alone": m["worktree_alone"],
         "dossier_path": m["dossier_path"],
         "dossier_rich_path": rich if os.path.exists(rich) else m["dossier_path"],
+        "dossier_pattern_path": pat if os.path.exists(pat) else m["dossier_path"],
         "modified_files": mods,
         "merged_diff_path": diff_path,
     }
