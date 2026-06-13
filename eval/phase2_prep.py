@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from engram_client import (  # noqa: E402
@@ -243,9 +244,35 @@ def build_dossier(eng, pid, rec, wt):
     return md, prov
 
 
+INDEX_MAP = os.path.join(P2_DATA, "index_map.json")
+
+
+def _load_map():
+    try:
+        return json.load(open(INDEX_MAP, encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _save_map(m):
+    json.dump(m, open(INDEX_MAP, "w", encoding="utf-8"), indent=2)
+
+
+def _project_valid(eng, pid):
+    """True if a kept index still exists AND has content (not a partial build)."""
+    if not pid:
+        return False
+    h = eng.tool("project_health", {"project_id": pid})
+    return ("graph_nodes" in h and "lancedb_vectors" in h
+            and "TOOL_ERROR" not in h and "❌" not in h)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pr", type=int, required=True)
+    ap.add_argument("--reuse", action="store_true",
+                    help="reuse a kept index if valid (skips the ~230s re-index — "
+                         "use for dossier-logic experiments)")
     args = ap.parse_args()
     os.makedirs(P2_DATA, exist_ok=True)
     os.makedirs(P2_WT_ROOT, exist_ok=True)
@@ -254,31 +281,35 @@ def main():
     base = rec["base_commit"]
     print(f"PR {args.pr} @ base {base[:8]} — {rec['story']['title'][:60]}")
 
-    # 1. index at base + run ensemble -> dossier
+    # Agent worktrees at base — persist for the A/B agents AND serve as the
+    # base-content source for family expansion. Create only if missing.
+    wt_alone = os.path.join(P2_WT_ROOT, f"pr{args.pr}_alone")
+    wt_engram = os.path.join(P2_WT_ROOT, f"pr{args.pr}_engram")
+    for wtp in (wt_engram, wt_alone):
+        if not os.path.isdir(os.path.join(wtp, "Site")):
+            add_worktree(base, wtp)
+
     eng = Engram()
-    pid = wt = None
+    imap = _load_map()
     try:
-        pid, wt, idx_secs, health = rp.setup_index(eng, rec)
-        print(f"  indexed in {idx_secs:.0f}s")
-        dossier_md, prov = build_dossier(eng, pid, rec, wt)
-        # dump raw prov for cheap re-ranking/re-rendering without re-indexing
+        pid = imap.get(str(args.pr))
+        if args.reuse and _project_valid(eng, pid):
+            print(f"  REUSE kept index {pid} (skipped re-index)")
+        else:
+            pid, idx_wt, idx_secs, _ = rp.setup_index(eng, rec)
+            print(f"  indexed in {idx_secs:.0f}s")
+            remove_worktree(idx_wt)          # index persists in data_dir; drop the build worktree
+            imap[str(args.pr)] = pid
+            _save_map(imap)                   # KEEP the project — do NOT delete (reusable)
+        t0 = time.time()
+        dossier_md, prov = build_dossier(eng, pid, rec, wt_engram)
+        print(f"  dossier built in {time.time() - t0:.1f}s")
         with open(os.path.join(P2_DATA, f"pr{args.pr}_prov.json"), "w", encoding="utf-8") as fh:
             json.dump({k: sorted(v) for k, v in prov.items()}, fh, indent=2)
     finally:
-        if pid:
-            eng.tool("delete_project", {"project_id": pid})
-        if wt:
-            remove_worktree(wt)
-        eng.close()
+        eng.close()                          # NOTE: index kept for --reuse
 
-    # 2. create agent worktrees at base_commit (persist for the agents)
-    wt_alone = os.path.join(P2_WT_ROOT, f"pr{args.pr}_alone")
-    wt_engram = os.path.join(P2_WT_ROOT, f"pr{args.pr}_engram")
-    add_worktree(base, wt_alone)
-    add_worktree(base, wt_engram)
-    print(f"  worktrees: {wt_alone}\n             {wt_engram}")
-
-    # 3. write dossier + manifest
+    # write dossier + manifest
     dossier_path = os.path.join(P2_DATA, f"pr{args.pr}_dossier.md")
     with open(dossier_path, "w", encoding="utf-8") as fh:
         fh.write(dossier_md)
