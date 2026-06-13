@@ -311,6 +311,29 @@ impl Engram {
         .and_then(|r| r.ok())
         .flatten();
 
+        // 16d: no watermark means this is a from-scratch walk. Clear prior
+        // temporal edges so a crashed previous attempt's increments don't
+        // double-count (observed: api-broker<->map.js 246 -> 1112 after one
+        // failed + one clean run).
+        if last.is_none() {
+            let graph_clear = self.state.graph.clone();
+            let pid_clear = pid.clone();
+            let cleared = tokio::task::spawn_blocking(move || {
+                graph_clear
+                    .delete_edges_of_kind(&pid_clear, &engram_graph::EdgeKind::TemporalCoupling)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if cleared > 0 {
+                tracing::info!(
+                    project_id = %pid,
+                    cleared,
+                    "16d: cleared stale temporal edges from a prior partial walk"
+                );
+            }
+        }
+
         let cancel_clone = cancel.clone();
         let pid_clone = pid.clone();
         let graph = self.state.graph.clone();

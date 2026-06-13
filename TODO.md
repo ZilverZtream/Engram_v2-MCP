@@ -155,7 +155,7 @@ they feed blast radius, edit safety, and the ADP gates.
   embedding_request_timeout_secs 30->120 in deployed config; embed cache (in progress)
   makes retries cheap.
 
-- [ ] **16d. Temporal increments are not idempotent across partial runs** (S-M)
+- [x] **16d. Temporal increments are not idempotent across partial runs** (S-M) - *done 2026-06-13: delete_edges_of_kind (EDGES + both adjacency mirrors, batched); a fresh walk (no last_git_oid watermark) clears prior TemporalCoupling edges so crash-reruns are idempotent. Store test covers edges+adjacency+other-kind isolation.*
   A history run that dies mid-walk leaves its TemporalCoupling increments behind;
   the rerun re-walks from the last SUCCESS watermark and double-counts (observed:
   api-broker<->map.js 246 -> 1112 after one failed + one clean run). Checkpoint the

@@ -1050,6 +1050,41 @@ mod tests {
     }
 
     #[test]
+    fn delete_edges_of_kind_clears_edges_and_adjacency() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
+        path_edge(&store, "f1", "f2", EdgeKind::TemporalCoupling);
+        path_edge(&store, "f2", "f1", EdgeKind::TemporalCoupling);
+        path_edge(&store, "f1", "f2", EdgeKind::Calls);
+
+        let removed = store
+            .delete_edges_of_kind("proj", &EdgeKind::TemporalCoupling)
+            .unwrap();
+        assert_eq!(removed, 2, "both temporal directions removed");
+
+        let temporal = store
+            .list_edges_by_kind("proj", EdgeKind::TemporalCoupling, usize::MAX)
+            .unwrap();
+        assert!(temporal.is_empty(), "edges table cleared");
+        let neigh = store
+            .neighbors("proj", EdgeKind::TemporalCoupling, "f1", 10)
+            .unwrap();
+        assert!(neigh.is_empty(), "adjacency cleared");
+
+        let calls = store
+            .list_edges_by_kind("proj", EdgeKind::Calls, usize::MAX)
+            .unwrap();
+        assert_eq!(calls.len(), 1, "other kinds untouched");
+        // Idempotent re-clear.
+        assert_eq!(
+            store
+                .delete_edges_of_kind("proj", &EdgeKind::TemporalCoupling)
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
     fn path_hops_carry_resolution_confidence() {
         let tmp = tempfile::TempDir::new().unwrap();
         let store = GraphStore::open(&tmp.path().join("g.redb")).unwrap();
