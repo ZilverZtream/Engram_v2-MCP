@@ -292,8 +292,8 @@ pub async fn process_ingest_stats(
         "ui_container",
         "control_layout",
     ];
-    // (path, kind, name, line, arity from symbol metadata when known)
-    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32, Option<u32>);
+    // (path, kind, name, line, arity, language of the declaring file)
+    type SymEntry<'a> = (&'a str, &'a str, &'a str, u32, Option<u32>, &'static str);
     let mut symbols_by_name: std::collections::HashMap<&str, Vec<SymEntry>> =
         std::collections::HashMap::new();
     for (sym_path, sym) in &stats.symbols {
@@ -305,12 +305,14 @@ pub async fn process_ingest_stats(
             .as_ref()
             .and_then(|m| m.get("arity"))
             .and_then(|s| s.parse::<u32>().ok());
+        let sym_lang = engram_core::guess_language(std::path::Path::new(sym_path.as_str()));
         let entry: SymEntry = (
             sym_path.as_str(),
             sym.kind.as_str(),
             sym.name.as_str(),
             sym.start_line,
             arity,
+            sym_lang,
         );
         symbols_by_name
             .entry(sym.name.as_str())
@@ -346,8 +348,9 @@ pub async fn process_ingest_stats(
     let resolve_batch_symbol = |raw: &str,
                                 prefer_path: &str,
                                 prefer_kind: Option<&str>,
-                                prefer_arity: Option<u32>|
-     -> Option<(String, f32, &'static str)> {
+                                prefer_arity: Option<u32>,
+                                caller_lang: &str|
+     -> Option<(String, f32, &'static str, bool)> {
         let terminal = raw.rsplit('.').next().unwrap_or(raw);
         for key in [raw, terminal] {
             let via_terminal = !std::ptr::eq(key, raw) && key != raw;
@@ -362,10 +365,16 @@ pub async fn process_ingest_stats(
             };
             let same_file: Vec<&SymEntry> = cands.iter().filter(|c| c.0 == prefer_path).collect();
             // Same-file overloads: an arity match beats the first name hit.
+            let crosses = |c: &SymEntry| -> bool { c.5 != caller_lang };
             if same_file.len() > 1
                 && let Some(c) = same_file.iter().find(|c| kind_ok(c) && arity_ok(c))
             {
-                return Some((rebuild_symbol_id(**c), 0.92, "batch_same_file_arity"));
+                return Some((
+                    rebuild_symbol_id(**c),
+                    0.92,
+                    "batch_same_file_arity",
+                    crosses(c),
+                ));
             }
             if let Some(c) = same_file
                 .iter()
@@ -377,7 +386,7 @@ pub async fn process_ingest_stats(
                 } else {
                     (0.9, "batch_same_file")
                 };
-                return Some((rebuild_symbol_id(**c), conf, method));
+                return Some((rebuild_symbol_id(**c), conf, method, crosses(c)));
             }
             let kind_matches: Vec<&SymEntry> = cands.iter().filter(|c| kind_ok(c)).collect();
             // Cross-file: exactly one arity-matching candidate wins over an
@@ -390,6 +399,20 @@ pub async fn process_ingest_stats(
                         rebuild_symbol_id(**arity_matches[0]),
                         0.75,
                         "batch_arity_match",
+                        crosses(arity_matches[0]),
+                    ));
+                }
+                // TODO-19: among otherwise-ambiguous candidates, exactly one
+                // sharing the caller's LANGUAGE beats the bare-name tie —
+                // a VB call resolving into VB is far likelier than into JS.
+                let lang_matches: Vec<&&SymEntry> =
+                    kind_matches.iter().filter(|c| !crosses(c)).collect();
+                if lang_matches.len() == 1 {
+                    return Some((
+                        rebuild_symbol_id(**lang_matches[0]),
+                        0.65,
+                        "batch_same_lang",
+                        false,
                     ));
                 }
             }
@@ -399,7 +422,12 @@ pub async fn process_ingest_stats(
                 } else {
                     (0.7, "batch_unique_kind")
                 };
-                return Some((rebuild_symbol_id(*kind_matches[0]), conf, method));
+                return Some((
+                    rebuild_symbol_id(*kind_matches[0]),
+                    conf,
+                    method,
+                    crosses(kind_matches[0]),
+                ));
             }
             if cands.len() == 1 {
                 let (conf, method) = if via_terminal {
@@ -407,7 +435,12 @@ pub async fn process_ingest_stats(
                 } else {
                     (0.5, "batch_unique_any")
                 };
-                return Some((rebuild_symbol_id(cands[0]), conf, method));
+                return Some((
+                    rebuild_symbol_id(cands[0]),
+                    conf,
+                    method,
+                    crosses(&cands[0]),
+                ));
             }
         }
         None
@@ -487,8 +520,9 @@ pub async fn process_ingest_stats(
                 rel_path.as_str(),
                 Some(edge.source_kind.as_str()),
                 None,
+                language,
             )
-            .map(|(id, _, _)| id)
+            .map(|(id, _, _, _)| id)
             .unwrap_or_else(|| {
                 let fqn = if edge.source_name.contains('.') {
                     Some(edge.source_name.as_str())
@@ -513,6 +547,7 @@ pub async fn process_ingest_stats(
         // structural ids, trusted-line rebuilds, or placeholders resolved in
         // the post-pass).
         let mut target_resolution: Option<(f32, &'static str)> = None;
+        let mut target_crossed_language = false;
         let target_id = if edge.target_name == "file" || edge.target_kind.as_deref() == Some("file")
         {
             let path = if edge.target_name == "file" {
@@ -634,13 +669,19 @@ pub async fn process_ingest_stats(
             if let Some(id) = exact_same_file {
                 target_resolution = Some((0.98, "exact_same_file"));
                 id
-            } else if let Some((id, conf, method)) = resolve_batch_symbol(
+            } else if let Some((id, conf, method, crossed)) = resolve_batch_symbol(
                 &edge.target_name,
                 rel_path.as_str(),
                 Some(kind.as_str()),
                 edge_call_arity(edge),
+                language,
             ) {
+                // TODO-19: a binding that crosses a language boundary on a
+                // bare name is the weakest signal class — discount it and
+                // record the crossing.
+                let conf = if crossed { (conf * 0.8).max(0.2) } else { conf };
                 target_resolution = Some((conf, method));
+                target_crossed_language = crossed;
                 id
             } else if let Some(line) = edge.target_start_line {
                 let fqn = if edge.target_name.contains('.') {
@@ -856,6 +897,12 @@ pub async fn process_ingest_stats(
                     "confidence".into(),
                     serde_json::Value::String(format!("{conf:.2}")),
                 );
+                if target_crossed_language {
+                    obj.insert(
+                        "cross_language".into(),
+                        serde_json::Value::String("true".into()),
+                    );
+                }
             }
             if obj.is_empty() {
                 None
