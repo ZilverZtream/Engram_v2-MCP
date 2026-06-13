@@ -174,7 +174,7 @@ they feed blast radius, edit safety, and the ADP gates.
   confidence (#12) reflects it. Also: `tools/vb_roslyn_sidecar/obj/` is untracked at repo
   root — confirm the sidecar is wired, documented, and built in CI.
 
-- [ ] **19. Cross-language (C#↔VB↔ASPX) interop edges with confidence** (M)
+- [x] **19. Cross-language (C#/VB/ASPX/JS) interop edges with confidence** (M) - *done 2026-06-13: SymEntry carries declaring-file language; ambiguous bare-name ties prefer the caller's language (batch_same_lang 0.65); cross-language bindings get confidence x0.8 + cross_language=true metadata. End-to-end ingest test (VB caller binds VB over JS twin).*
   `graph_service.rs` (App_Code resolution). Same-language, bare-name matching only.
   Record language-boundary crossings explicitly with lowered confidence.
 
