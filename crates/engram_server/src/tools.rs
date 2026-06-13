@@ -271,6 +271,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "ONE call from a user story to the ranked, co-change-confirmed, family-complete SET OF FILES to change: fuses concept-footprint + git co-change + structural graph, ranks co-change/history first, expands .NET WebForms families (code-behind, designer, full .resx language set), and filters vendor/minified noise. Returns a layer-grouped change-set + a completeness checklist. Use to scope 'which files does this story touch'."
+    )]
+    pub async fn get_change_set(
+        &self,
+        params: Parameters<GetChangeSetRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_change_set(params.0).await
+    }
+
+    #[tool(
         description = "Generate the Claude Code integration pack for a project: .claude/rules/engram-workflow.md (the mandated planning/safety loop) and .claude/settings.json reminder hooks that re-inject the workflow at edit/stop time. write_files=true installs them into the project (never overwrites an existing settings.json). Run once per project after indexing."
     )]
     pub async fn generate_agent_integration(

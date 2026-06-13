@@ -106,6 +106,17 @@ def render_dossier(title, rows, per_layer_cap=18):
         "- Signals per file are shown as `[concept|history|graph]`; more signals = more "
         "corroboration, but a single-signal file can still be essential.",
         "",
+        "## Completeness checklist — satisfy ALL that apply before you finish",
+        "A partial implementation scores as a failure. For the change you make:",
+        "- **Every page touched:** edit BOTH the `.aspx`/`.ascx` markup AND its "
+        "`.aspx.vb`/`.ascx.vb` code-behind (and `.designer.vb` if present) — not just one.",
+        "- **Every user-facing string added/changed:** update the `.resx` resource in "
+        "EVERY language present (e.g. `.resx` + `.en/.de/.es/.no/.pt/.sl`), not only the default.",
+        "- **Every schema / setting / column change:** include the SQL migration script.",
+        "- **Every `.ts` you change that compiles into a committed bundle:** update the bundle.",
+        "- Before finishing, re-scan the candidate list and confirm you addressed each file "
+        "the change genuinely requires. Do not submit a core-only implementation.",
+        "",
         "## Candidate files (grouped by layer — order within a group is NOT priority)",
     ]
     by_layer = {}
