@@ -19,6 +19,17 @@ static RE_VB_SQL_CMD: LazyLock<Regex> = LazyLock::new(|| {
 static RE_VB_COMMAND_TEXT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)CommandText\s*=\s*"([^"]*)""#).expect("valid VB CommandText regex")
 });
+// TODO-17: dynamic SQL — the command text is a VARIABLE, not a literal.
+// These were silently dropped; now they emit a marked sql_calls edge so
+// reports can say "plus N dynamic SQL commands the graph can't parse".
+static RE_VB_SQL_CMD_DYN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)New\s+SqlCommand\s*\(\s*([A-Za-z_]\w*)\s*[,)]"#)
+        .expect("valid VB dynamic SqlCommand regex")
+});
+static RE_VB_COMMAND_TEXT_DYN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)CommandText\s*=\s*([A-Za-z_]\w*)\s*$"#)
+        .expect("valid VB dynamic CommandText regex")
+});
 // Qualified call sites (Foo.Bar(...)). The optional "New" capture lets us
 // skip constructor invocations without lookbehind support.
 static RE_VB_QUALIFIED_CALL: LazyLock<Regex> = LazyLock::new(|| {
@@ -809,6 +820,15 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 "sql_snippet".to_string(),
                 sql.chars().take(200).collect::<String>(),
             );
+            // TODO-17: literal head + string concat ("SELECT ... " & var)
+            // means the real statement is built at runtime — keep the edge
+            // (the head still names tables) but mark it.
+            if let Some(end) = sql_cap.get(1).map(|m| m.end())
+                && line[end..].trim_start().starts_with('"')
+                && line[end + 1..].trim_start().starts_with('&')
+            {
+                meta.insert("dynamic".to_string(), "true".to_string());
+            }
             edges.push(ExtractedEdge {
                 source_name: current_method.clone().unwrap_or_else(|| "file".to_string()),
                 source_kind: "function".to_string(),
@@ -816,6 +836,35 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 source_language: "vb".to_string(),
                 target_name,
                 target_kind: Some(target_kind.to_string()),
+                target_start_line: None,
+                kind: "sql_calls".to_string(),
+                metadata: Some(meta),
+            });
+        }
+
+        // TODO-17: dynamic SQL (variable command text) — emit a marked edge
+        // instead of dropping the access entirely.
+        for dyn_cap in RE_VB_SQL_CMD_DYN
+            .captures_iter(line)
+            .chain(RE_VB_COMMAND_TEXT_DYN.captures_iter(line))
+        {
+            let Some(ident) = dyn_cap.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            // Skip literal matches re-captured by the loose pattern.
+            if ident.eq_ignore_ascii_case("new") {
+                continue;
+            }
+            let mut meta = HashMap::new();
+            meta.insert("dynamic".to_string(), "true".to_string());
+            meta.insert("identifier".to_string(), ident.to_string());
+            edges.push(ExtractedEdge {
+                source_name: current_method.clone().unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: format!("sql:dynamic:{ident}"),
+                target_kind: Some("inline_sql".to_string()),
                 target_start_line: None,
                 kind: "sql_calls".to_string(),
                 metadata: Some(meta),
@@ -1188,6 +1237,41 @@ mod tests {
                 s.name
             );
         }
+    }
+
+    #[test]
+    fn dynamic_sql_is_marked_not_dropped() {
+        let code = "Class D
+  Sub Run()
+    Dim cmd As New SqlCommand(strSql)
+    cmd.CommandText = dynamicQuery
+  End Sub
+End Class";
+        let (_, edges) = super::fallback_extract_vb_for_test(Path::new("d.vb"), code);
+        let dyn_edges: Vec<_> = edges
+            .iter()
+            .filter(|e| {
+                e.kind == "sql_calls"
+                    && e.metadata
+                        .as_ref()
+                        .is_some_and(|m| m.get("dynamic").is_some_and(|v| v == "true"))
+            })
+            .collect();
+        assert_eq!(
+            dyn_edges.len(),
+            2,
+            "both variable-SQL sites must emit: {edges:?}"
+        );
+        assert!(
+            dyn_edges
+                .iter()
+                .any(|e| e.target_name == "sql:dynamic:strSql")
+        );
+        assert!(
+            dyn_edges
+                .iter()
+                .any(|e| e.target_name == "sql:dynamic:dynamicQuery")
+        );
     }
 
     #[test]
