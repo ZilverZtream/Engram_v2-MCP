@@ -326,9 +326,10 @@ specs already written.
   Services layer review found `panic!`/`unwrap` on paths reachable from tool calls. A
   panic in a tool call looks like a dead server to the client.
 
-- [ ] **44. Fix job-cancellation checkpoint marking** (S)
-  `job_service.rs`. Failed `mark_checkpoint_cancelled` is ignored → cancelled jobs get
-  resumed by the next agent.
+- [x] **44. Fix job-cancellation checkpoint marking** (S) - *verified already fixed
+  2026-06-13 (ENG-AUD-P1-0005 hardening): result captured at all 3 call sites, failure
+  embedded in the job tombstone message, errors logged, persistence test in
+  job_service.rs. TODO entry was stale.*
 
 - [ ] **45. LanceDB integrity sentinels** (M)
   `integrity_service.rs` covers Tantivy+Redb only; vector-store corruption is invisible.
