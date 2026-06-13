@@ -423,9 +423,13 @@ value is accuracy, this is the biggest meta-gap.
   `analyze_error_stack` (just builds a search query), `get_instrumentation_pack` —
   either deepen them or make descriptions honest so agents don't budget tokens on them.
 
-- [ ] **62. TODO/FIXME sweep through services** (S)
-  Services review found clusters of TODOs and partially-wired repair logic
-  (`integrity_service` repair paths). Triage: fix, ticket, or delete.
+- [x] **62. TODO/FIXME sweep through services** (S) - *audited clean 2026-06-13: ZERO
+  real stubs in the whole codebase (no todo!()/unimplemented!()/FIXME). integrity_service
+  is fully implemented (resolve_auto_repair, check_project_integrity[_with_policy],
+  build_integrity_mismatches, run_integrity_checker — no markers). The only service TODOs
+  are (a) scaffold_service's intentional markers EMITTED INTO generated migration code for
+  humans, and (b) TODO-NN design-rationale comments tied to completed accuracy items —
+  load-bearing docs, kept.*
 
 - [x] **63. Repo hygiene** (S) - *done 2026-06-13: sidecar obj/ and .superpowers/ now
   gitignored; removed tracked one-off scratch script fix_defaults.ps1.
