@@ -243,7 +243,26 @@ real Engram-side change).
 signal-to-noise drives the agent's implementation quality.** Both "more recall"
 (temporal flood) and "less" (aggressive cap) regressed; the co-change-confirmed,
 family-complete, denoised set at cap-18 is the sweet spot. `45cf172` is the
-proven recipe. Remaining frontier (NOT solved by more retrieval): the agent's
-execution ceiling (~3.2 even with good files) and bug root-cause causal tracing.
-Next: port the proven recipe into Engram as a native generic `get_change_set`
-capability, and run a larger-N A/B for statistical confidence.
+proven recipe.
+
+**+ Completeness guidance (best result):** adding a `.NET` completeness checklist
+to the dossier ("edit code-behind+markup, all .resx languages, the SQL, the
+bundle") lifted engram recall 0.38→0.52 and gave the cleanest A/B yet — engram
+**impl 3.2 vs alone 2.8, 0 losses** (2 wins, 3 ties; previously alone won 2).
+Ties are at the ceiling (1974 both 5/5) or the bug (1967 both fail).
+
+**Landed in Engram:** `get_change_set` — a native generic tool that runs the
+recipe server-side (concept + git co-change, co-change/history-first ranking,
+.NET family expansion via the indexed file list, vendor denoise, completeness
+checklist). Plus two real Engram fixes from this eval: the apostrophe NL-query
+crash and the `get_concept_footprint` vendor filter.
+
+Remaining frontier (NOT solved by more retrieval): the agent's execution ceiling
+(~3.2 even with good files) and bug root-cause causal tracing (PR 1967). Next:
+larger-N A/B for statistical confidence; a symptom→cause trace arm for bugs.
+
+## Efficiency note (harness)
+Each dossier experiment used to re-index all 5 base-commit projects (~20 min).
+Fixed: indexes are KEPT (`index_map.json`); `phase2_prep.py --reuse` skips the
+re-index (~20-70s); `p2_rerender.py` re-renders from the dumped `prov` instantly
+(no Engram). Same data, ~95% less wall-clock per iteration.
