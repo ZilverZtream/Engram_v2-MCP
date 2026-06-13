@@ -26,3 +26,6 @@ tools/vb_roslyn_sidecar/publish_out/
 
 # Superpowers plugin scratch (brainstorm notes, not project source)
 .superpowers/
+# eval secrets + generated data
+eval/.secrets/
+eval/data/
