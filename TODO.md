@@ -353,7 +353,7 @@ value is accuracy, this is the biggest meta-gap.
   measure precision@k / MRR in `benchmark-ci.yml`. Without this, every ranking change
   (#2, P0 items) is flying blind.
 
-- [ ] **49. Graph-accuracy eval: expected call/state/SQL edges per fixture** (M)
+- [x] **49. Graph-accuracy eval: expected call/state/SQL edges per fixture** (M) - *done 2026-06-13: graph_accuracy_eval.rs — mini legacy-app fixtures (VB+enrich, state extractor, JS bridge) with exact expected inventories: arity, guards, settings, ORM, literal+dynamic SQL, spatial counts+sentinel, DOM/postback/AJAX. Tier boundary documented (bare calls = sidecar tier).*
   Extend fixtures with ground-truth edge lists; report extraction recall/precision per
   language per extractor. Gate CI on regressions.
 
