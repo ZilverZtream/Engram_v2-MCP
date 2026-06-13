@@ -615,6 +615,36 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
         let line = raw_line.trim();
         let lower = line.to_ascii_lowercase();
 
+        // ── TODO-17: dynamic SQL on the sidecar path ───────────────────────
+        // Roslyn's SQL detection (like the fallback's) only sees string
+        // literals; variable command text was invisible in production.
+        for dyn_cap in RE_VB_SQL_CMD_DYN
+            .captures_iter(line)
+            .chain(RE_VB_COMMAND_TEXT_DYN.captures_iter(line))
+        {
+            let Some(ident) = dyn_cap.get(1).map(|m| m.as_str()) else {
+                continue;
+            };
+            if ident.eq_ignore_ascii_case("new") {
+                continue;
+            }
+            let func = enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string());
+            let mut meta = std::collections::HashMap::new();
+            meta.insert("dynamic".to_string(), "true".to_string());
+            meta.insert("identifier".to_string(), ident.to_string());
+            edges.push(ExtractedEdge {
+                source_name: func,
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: format!("sql:dynamic:{ident}"),
+                target_kind: Some("inline_sql".to_string()),
+                target_start_line: None,
+                kind: "sql_calls".to_string(),
+                metadata: Some(meta),
+            });
+        }
+
         // ── ORM table access (LINQ-to-SQL / EF) ────────────────────────────
         if !ctx_vars.is_empty() {
             for cap in RE_VB_CTX_WRITE.captures_iter(line) {
@@ -1237,6 +1267,35 @@ mod tests {
                 s.name
             );
         }
+    }
+
+    #[test]
+    fn enrich_marks_dynamic_sql_on_sidecar_path() {
+        let code = "Class D
+  Sub Run()
+    cmd.CommandText = dynQry
+  End Sub
+End Class";
+        let mut symbols = vec![crate::parsing::ExtractedSymbol {
+            name: "D.Run".to_string(),
+            kind: "function".to_string(),
+            start_line: 2,
+            end_line: 4,
+            metadata: None,
+        }];
+        let mut edges = Vec::new();
+        super::enrich_vb_source_for_test(code, &mut symbols, &mut edges);
+        let dyn_edge = edges
+            .iter()
+            .find(|e| e.target_name == "sql:dynamic:dynQry")
+            .expect("dynamic sql edge from enrichment");
+        assert_eq!(dyn_edge.source_name, "D.Run", "attributed to enclosing fn");
+        assert!(
+            dyn_edge
+                .metadata
+                .as_ref()
+                .is_some_and(|m| m.get("dynamic").is_some_and(|v| v == "true"))
+        );
     }
 
     #[test]
