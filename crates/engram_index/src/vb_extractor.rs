@@ -1222,6 +1222,21 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     (symbols, edges)
 }
 
+/// Eval/test entry to the degraded-mode extractor: deterministic (no
+/// sidecar dependency), used by the graph-accuracy eval (TODO-49) and
+/// unit tests. Not part of the indexing API.
+#[doc(hidden)]
+pub fn extract_vb_fallback_for_eval(
+    path: &Path,
+    source: &str,
+) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
+    let (mut symbols, mut edges) = fallback_extract_vb(path, source);
+    // Run the shared enrichment pass too (ORM/hierarchy/etc.) — it dedups
+    // against already-emitted edges, mirroring full pipeline behavior.
+    enrich_vb_source(source, &mut symbols, &mut edges);
+    (symbols, edges)
+}
+
 /// Test-only re-export of the degraded-mode extractor so tests can pin its
 /// behavior without depending on sidecar availability in the environment.
 #[cfg(test)]
