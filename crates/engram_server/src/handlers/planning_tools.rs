@@ -892,6 +892,29 @@ mod tests {
     }
 
     #[test]
+    fn story_concepts_add_auth_concept_when_permission_gated() {
+        // PR1913 shape: "Restricted to the Administrator role" — the auth layer
+        // (role/user model) is the most-missed file. "role" surfaces it but sits
+        // past the top-3 cutoff; the supplement must add it without displacing
+        // the domain concepts.
+        let c = extract_story_concepts(
+            "POST api/v2/roqentries/{id}/setasbilled. Restricted to the Administrator role.",
+        );
+        assert!(c.contains(&"roqentries".to_string()), "domain concept kept: {c:?}");
+        assert!(c.contains(&"role".to_string()), "auth concept added: {c:?}");
+
+        // Other auth phrasings also trigger.
+        assert!(extract_story_concepts("the endpoint requires the Export permission")
+            .contains(&"role".to_string()));
+        assert!(extract_story_concepts("only authorized managers can approve")
+            .contains(&"role".to_string()));
+
+        // No auth language -> no auth concept (no false trigger / noise).
+        let plain = extract_story_concepts("Show the invoice filter form on the report page");
+        assert!(!plain.contains(&"role".to_string()), "no spurious auth concept: {plain:?}");
+    }
+
+    #[test]
     fn transpile_pair_candidates_links_ts_and_committed_js() {
         // .ts source -> same-dir .js AND the ts/ -> ~.js/ output-dir swap.
         let c = transpile_pair_candidates("modules/map/ts/map.ts");
@@ -1069,6 +1092,24 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
             && seen.insert(c.clone())
         {
             out.push(c);
+        }
+    }
+
+    // 3. Auth/permission supplement (appended BEYOND the domain cap so it never
+    //    displaces a domain concept). When a story gates the change on a role,
+    //    permission or authorization — "restricted to the Administrator role",
+    //    "requires X permission" — the auth/permission layer (the role/user model,
+    //    authorize filters) is the file most often missed, because "admin"/
+    //    "administrator" are stopwords and "role" sits past the top-3 cutoff. The
+    //    concept `role` footprints to that layer (validated: surfaces the user/role
+    //    model) in any ASP.NET app. Generic — no per-repo names.
+    const AUTH_CUES: &[&str] =
+        &["role", "permission", "authoriz", "privilege", "access control", "rbac"];
+    let lower_story = story.to_lowercase();
+    if AUTH_CUES.iter().any(|cue| lower_story.contains(cue)) {
+        let auth = "role".to_string();
+        if seen.insert(auth.clone()) {
+            out.push(auth);
         }
     }
     out
