@@ -4,6 +4,7 @@ pub mod c;
 pub mod cpp;
 pub mod csharp;
 pub mod rust;
+pub mod vb;
 
 use serde::Serialize;
 
@@ -14,6 +15,8 @@ pub enum LanguageFamily {
     C,
     Cpp,
     Rust,
+    /// VB.NET — the primary OciusX language.
+    Vb,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -69,6 +72,10 @@ pub fn detect_language_diagnostics(
         LanguageFamily::Rust => {
             let diagnostics = rust::detect(code_files);
             LanguageDiagnosticReport::new("rust", diagnostics, code_files.len())
+        }
+        LanguageFamily::Vb => {
+            let diagnostics = vb::detect(code_files);
+            LanguageDiagnosticReport::new("vb", diagnostics, code_files.len())
         }
     }
 }
