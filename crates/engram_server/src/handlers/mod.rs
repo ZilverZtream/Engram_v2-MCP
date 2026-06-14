@@ -9,6 +9,7 @@ pub mod grep_tools;
 pub mod migration_tools;
 pub mod planning_tools;
 pub mod project_tools;
+pub mod quality_gate_tools;
 pub mod review_tools;
 pub mod search_tools;
 
