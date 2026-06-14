@@ -1308,7 +1308,18 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
   name the files you forgot. Touch them or justify each one.
 - `pre_commit_review(diff_source="staged")` — fix or explicitly justify every
   finding (eleven gates, including guard_parity).
+- `pre_push_audit(code=<your diff>, file_path=<file>)` — checks the change
+  against the team's accumulated "what to avoid" knowledge (coding rules,
+  copilot-instructions, CodeRabbit/SonarQube history, the recurring-issues
+  board). Fix every rule it surfaces before pushing — these are mistakes the
+  team has already flagged.
 - If results ever look stale: `get_index_freshness`, then `update_project`.
+
+## One-time project setup (so pre_push_audit has rules to check)
+- `ingest_quality_gates(source_path=..., source_type=...)` for each source the
+  team maintains: `copilot` (copilot-instructions.md / coding-rules markdown),
+  `coderabbit` and `sonarqube` (exported JSON findings), `board` (DevOps
+  recurring-issues export). Re-run when a source is updated.
 "#
     )
 }
