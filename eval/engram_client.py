@@ -78,7 +78,7 @@ _SRC_RE = re.compile(
     r"aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|"
     r"aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|"
     r"aspx|ascx|asax|ashx|asmx|svc|master|vb|cs|ts|tsx|js|jsx|sql|config|"
-    r"vbhtml|cshtml|resx|css|html)\b",
+    r"vbhtml|cshtml|resx|css|html|yaml|yml)\b",
     re.I,
 )
 
