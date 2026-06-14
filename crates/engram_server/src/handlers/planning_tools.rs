@@ -1316,10 +1316,18 @@ MANDATORY — the tools exist because skipping them is how regressions ship.
 - If results ever look stale: `get_index_freshness`, then `update_project`.
 
 ## One-time project setup (so pre_push_audit has rules to check)
-- `ingest_quality_gates(source_path=..., source_type=...)` for each source the
-  team maintains: `copilot` (copilot-instructions.md / coding-rules markdown),
-  `coderabbit` and `sonarqube` (exported JSON findings), `board` (DevOps
-  recurring-issues export). Re-run when a source is updated.
+- For already-GENERIC sources, `ingest_quality_gates(source_path=..., source_type=...)`:
+  `copilot` (copilot-instructions.md / coding-rules markdown) and `board` (DevOps
+  recurring-issues export) — these are conventions, store them as-is.
+- For raw FINDING corpora (a CodeRabbit or SonarQube export, often thousands of
+  file/line-specific comments), use `distill_quality_gates(source_path=...,
+  source_type=coderabbit|sonarqube)` instead. It clusters the findings and
+  LLM-summarizes them into a small set of GENERIC rules ("the team keeps shipping
+  un-parameterized SQL" -> "always parameterize") that apply to ANY change.
+  Ingesting findings 1:1 is the wrong move — a finding tied to one file/line only
+  ever helps someone editing that exact line; distillation is what makes the
+  corpus reusable. Exclude/skip findings the team marked won't-fix.
+- Re-run when a source is updated.
 "#
     )
 }
