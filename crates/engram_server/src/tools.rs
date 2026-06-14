@@ -281,6 +281,26 @@ impl Engram {
     }
 
     #[tool(
+        description = "Ingest a project's accumulated 'what to avoid' knowledge into a searchable quality_gate namespace: coding/agent rules, copilot-instructions.md (source_type=copilot|rules), CodeRabbit & SonarQube findings exports (source_type=coderabbit|sonarqube, JSON), or the DevOps recurring-issues board (source_type=board). Run once per source; pre_push_audit then checks changes against them."
+    )]
+    pub async fn ingest_quality_gates(
+        &self,
+        params: Parameters<IngestQualityGatesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_quality_gates(params.0).await
+    }
+
+    #[tool(
+        description = "Pre-push audit: given proposed code or a diff, retrieve the quality-gate rules/findings most relevant to it (from ingest_quality_gates) so an agent can fix known issues BEFORE the first push. Rules scoped to file_path rank first. Returns the rules to verify the change against."
+    )]
+    pub async fn pre_push_audit(
+        &self,
+        params: Parameters<PrePushAuditRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_pre_push_audit(params.0).await
+    }
+
+    #[tool(
         description = "Generate the Claude Code integration pack for a project: .claude/rules/engram-workflow.md (the mandated planning/safety loop) and .claude/settings.json reminder hooks that re-inject the workflow at edit/stop time. write_files=true installs them into the project (never overwrites an existing settings.json). Run once per project after indexing."
     )]
     pub async fn generate_agent_integration(

@@ -546,6 +546,43 @@ pub struct GetChangeSetRequest {
     pub concepts: Option<Vec<String>>,
 }
 
+/// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge
+/// (coding/agent rules, copilot-instructions.md, CodeRabbit/SonarQube findings,
+/// the DevOps recurring-issues board) into a searchable `quality_gate` namespace.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IngestQualityGatesRequest {
+    pub project_id: String,
+    /// Project-relative path to the source file to ingest.
+    pub source_path: String,
+    /// Source kind: copilot | rules | coderabbit | sonarqube | board | text.
+    pub source_type: String,
+    /// Reserved: re-ingesting is idempotent (rules dedup by content), so this is
+    /// currently a no-op; kept for forward compatibility.
+    #[serde(default)]
+    pub clear_existing: bool,
+}
+
+/// Stage-3 pre-push audit: retrieve the quality-gate rules most relevant to a
+/// proposed change so the agent can fix known issues BEFORE the first push.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PrePushAuditRequest {
+    pub project_id: String,
+    /// The proposed code or unified diff to audit.
+    pub code: String,
+    /// Optional path of the file being changed — rules scoped to it rank first.
+    #[serde(default)]
+    pub file_path: Option<String>,
+    /// Max rules to return (default 12, max 50).
+    #[serde(default = "default_audit_top_k")]
+    pub top_k: usize,
+}
+
+fn default_audit_top_k() -> usize {
+    12
+}
+
 /// Planning: concrete exemplars of how this codebase implements a pattern.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
