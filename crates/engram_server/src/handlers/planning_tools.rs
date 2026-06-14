@@ -100,6 +100,40 @@ pub(crate) fn bag_jaccard(a: &HashSet<String>, b: &HashSet<String>) -> f64 {
     }
 }
 
+/// Candidate transpile-partner paths for a (web-root-stripped, lowercased)
+/// path: a TypeScript source's committed `.js` bundle, or a `.js` bundle's `.ts`
+/// source. Generic transpile conventions only — a same-dir extension swap, or a
+/// single output-dir swap (`ts/` <-> `~.js/` or `js/`) with an IDENTICAL
+/// basename. The caller keeps only candidates that actually exist in the index,
+/// so over-generation here is harmless. Empty for non-TS/JS paths.
+pub(crate) fn transpile_pair_candidates(ps: &str) -> Vec<String> {
+    let build = |src_exts: &[&str], out_exts: &[&str], dir_swaps: &[(&str, &str)]| -> Vec<String> {
+        let stem = src_exts.iter().fold(ps.to_string(), |acc, e| {
+            acc.strip_suffix(e).map(str::to_string).unwrap_or(acc)
+        });
+        if stem == ps {
+            return Vec::new(); // ext didn't match (e.g. ".json" not ".js")
+        }
+        let mut bases = vec![stem.clone()];
+        for (from, to) in dir_swaps {
+            if stem.contains(from) {
+                bases.push(stem.replacen(from, to, 1));
+            }
+        }
+        bases
+            .iter()
+            .flat_map(|b| out_exts.iter().map(move |e| format!("{b}{e}")))
+            .collect()
+    };
+    if ps.ends_with(".ts") || ps.ends_with(".tsx") {
+        build(&[".tsx", ".ts"], &[".js", ".jsx"], &[("/ts/", "/~.js/"), ("/ts/", "/js/")])
+    } else if ps.ends_with(".js") || ps.ends_with(".jsx") {
+        build(&[".jsx", ".js"], &[".ts", ".tsx"], &[("/~.js/", "/ts/"), ("/js/", "/ts/")])
+    } else {
+        Vec::new()
+    }
+}
+
 /// "dir/.../*.ext" shape of a path, used to report recurring companion
 /// patterns ("Admin/*.aspx") instead of raw historical file names.
 pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
@@ -796,6 +830,25 @@ mod tests {
         );
         // A bare filename with no directory is still dropped (keep filter).
         assert!(change_set_paths("map.js").is_empty());
+    }
+
+    #[test]
+    fn transpile_pair_candidates_links_ts_and_committed_js() {
+        // .ts source -> same-dir .js AND the ts/ -> ~.js/ output-dir swap.
+        let c = transpile_pair_candidates("modules/map/ts/map.ts");
+        assert!(c.contains(&"modules/map/ts/map.js".to_string()), "{c:?}");
+        assert!(c.contains(&"modules/map/~.js/map.js".to_string()), "{c:?}");
+        assert!(c.contains(&"modules/map/js/map.js".to_string()), "{c:?}");
+        // reverse: committed bundle -> its .ts source (edit-the-bundle case).
+        let r = transpile_pair_candidates("modules/map/~.js/map.js");
+        assert!(r.contains(&"modules/map/ts/map.ts".to_string()), "{r:?}");
+        assert!(r.contains(&"modules/map/~.js/map.ts".to_string()), "{r:?}");
+        // .tsx/.jsx handled; basename preserved (incl. dotted stems).
+        assert!(transpile_pair_candidates("a/b/Grid.view.tsx")
+            .contains(&"a/b/Grid.view.js".to_string()));
+        // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
+        assert!(transpile_pair_candidates("a/b/config.json").is_empty());
+        assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
     }
 }
 
@@ -1951,6 +2004,15 @@ impl Engram {
                                 fam.push((f.clone(), sigs.clone()));
                             }
                         }
+                    }
+                }
+                // TypeScript source <-> its committed compiled JS bundle. The
+                // committed bundle MUST change with its source (a recurring recall
+                // miss: editing a .ts but forgetting the shipped .js). Only add a
+                // partner that EXISTS in the index.
+                for c in transpile_pair_candidates(&ps) {
+                    if index_set.contains(&c) {
+                        fam.push((c, sigs.clone()));
                     }
                 }
             }
