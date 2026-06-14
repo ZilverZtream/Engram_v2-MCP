@@ -40,7 +40,7 @@ fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
     vec![
         "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
-        "mjs", "cjs", "html", "htm", "css", "scss", "less",
+        "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
     ]
 }
 
@@ -48,7 +48,7 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
     vec![
         "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
-        "mjs", "cjs", "html", "htm", "css", "scss", "less",
+        "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
     ]
 }
 
@@ -379,6 +379,16 @@ mod tests {
         assert!(exts_for_project_type("c#").contains(&"cs"));
         assert!(exts_for_project_type("c++").contains(&"cpp"));
         assert!(exts_for_project_type("ansi_c").contains(&"c"));
+    }
+
+    #[test]
+    fn webforms_indexes_resx_localization_files() {
+        // .resx is central to WebForms localization (a story that touches a
+        // user-facing string edits the whole language family). It must be
+        // indexed so resx files get graph nodes and the change-set family
+        // expansion can backfill the full language set.
+        assert!(exts_for_project_type("dotnet_webforms_vb").contains(&"resx"));
+        assert!(exts_for_project_type("dotnet_webforms_cs").contains(&"resx"));
     }
 
     #[test]
