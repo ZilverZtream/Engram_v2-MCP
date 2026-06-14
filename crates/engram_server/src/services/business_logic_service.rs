@@ -495,8 +495,22 @@ pub fn detect_class_name(content: &str) -> String {
     }
 }
 
-/// Detect language from content.
-pub fn detect_language(content: &str) -> &'static str {
+/// Detect language: file EXTENSION first (authoritative), content heuristic only
+/// as a fallback for extensionless input. The old content-only sniff classified
+/// any file without `End Sub`/`End Function` as C# — so a VB file made only of
+/// properties / module-level / `ReadOnly Property … End Property` was treated as
+/// C#, skipping VB body extraction and telling the LLM the wrong language. VB is
+/// the PRIMARY language here, so that was a correctness bug.
+pub fn detect_language(file_path: &str, content: &str) -> &'static str {
+    let p = file_path.to_ascii_lowercase();
+    if p.ends_with(".vb") {
+        // covers .vb, .aspx.vb, .ascx.vb, .designer.vb
+        return "vb";
+    }
+    if p.ends_with(".cs") {
+        return "cs";
+    }
+    // Fallback for extensionless / unknown input.
     if content.contains("End Sub") || content.contains("End Function") {
         "vb"
     } else {
@@ -512,7 +526,7 @@ pub async fn analyze_file_logic(
     cached_hashes: &HashMap<String, String>,
 ) -> (FileBusinessLogic, usize, usize) {
     let class_name = detect_class_name(content);
-    let language = detect_language(content);
+    let language = detect_language(file_path, content);
 
     // Extract method names and bodies
     let method_names = extract_method_names(content);
@@ -1017,9 +1031,20 @@ public partial class OrderEntry : System.Web.UI.Page
 
     #[test]
     fn test_detect_language() {
-        assert_eq!(detect_language("Public Sub Page_Load()\nEnd Sub"), "vb");
+        // Extension is authoritative.
+        assert_eq!(detect_language("Foo.vb", ""), "vb");
+        assert_eq!(detect_language("modules/x.aspx.vb", ""), "vb");
+        assert_eq!(detect_language("Services/Bar.cs", ""), "cs");
+        // A VB file with NO Sub/Function (property/module only) must still be vb
+        // by extension — the old content sniff returned cs here (the bug).
         assert_eq!(
-            detect_language("protected void Page_Load(object sender, EventArgs e) { }"),
+            detect_language("Settings.vb", "Public ReadOnly Property Foo As String"),
+            "vb"
+        );
+        // Content fallback only when extensionless.
+        assert_eq!(detect_language("", "Public Sub Page_Load()\nEnd Sub"), "vb");
+        assert_eq!(
+            detect_language("", "protected void Page_Load(object sender, EventArgs e) { }"),
             "cs"
         );
     }

@@ -90,12 +90,15 @@ pub(crate) fn build_js_analysis(
         .iter()
         .map(|e| {
             let meta = e.metadata.as_ref();
+            // Keys MUST match what js_extractor emits: `ajax_transport` /
+            // `ajax_target_method` (the old `transport`/`method` lookups always
+            // resolved to unknown/None despite the extractor populating them).
             let transport = meta
-                .and_then(|m| m.get("transport").and_then(|v| v.as_str()))
+                .and_then(|m| m.get("ajax_transport").and_then(|v| v.as_str()))
                 .unwrap_or("unknown")
                 .to_string();
             let target_method = meta
-                .and_then(|m| m.get("method").and_then(|v| v.as_str()))
+                .and_then(|m| m.get("ajax_target_method").and_then(|v| v.as_str()))
                 .map(String::from);
             let target_type = meta
                 .and_then(|m| m.get("target_type").and_then(|v| v.as_str()))

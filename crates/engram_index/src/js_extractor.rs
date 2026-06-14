@@ -541,9 +541,10 @@ fn extract_page_methods(
         let byte_offset = cap.get(0).map(|m| m.start()).unwrap_or(0);
         let line = line_of(line_starts, byte_offset);
 
-        let mut meta = HashMap::with_capacity(2);
+        let mut meta = HashMap::with_capacity(3);
         meta.insert("ajax_transport".into(), "page_methods".into());
         meta.insert("ajax_target_method".into(), method_name.to_string());
+        meta.insert("target_type".into(), "function".into());
 
         edges.push(ExtractedEdge {
             source_name: "file".to_string(),
@@ -599,9 +600,13 @@ fn emit_ajax_edge(
         "endpoint"
     };
 
-    let mut meta = HashMap::with_capacity(3);
+    let mut meta = HashMap::with_capacity(4);
     meta.insert("ajax_transport".into(), transport.into());
     meta.insert("ajax_url".into(), raw_url.to_string());
+    // Expose the resolved endpoint kind in metadata too — the migration JS
+    // analyzer reads `target_type` from the edge (graph edges don't carry the
+    // ExtractedEdge.target_kind field), so without this it always saw "unknown".
+    meta.insert("target_type".into(), target_kind.into());
     if let Some(ref method) = method_part {
         meta.insert("ajax_target_method".into(), method.clone());
     }
@@ -666,7 +671,11 @@ fn emit_spatial_edge(
     edges: &mut Vec<ExtractedEdge>,
 ) {
     let mut meta = HashMap::with_capacity(3);
-    meta.insert("gis_library".into(), library.into());
+    // Key MUST be "library" — the GIS analyzer (full_project_migration_service/
+    // analyzers/gis.rs) reads `library` from SpatialCall edge metadata; the old
+    // "gis_library" key silently resolved every edge-derived library to
+    // "unknown". Matches the insight-metadata convention used elsewhere.
+    meta.insert("library".into(), library.into());
     meta.insert("map_class".into(), class.into());
     meta.insert(
         "modern_equivalent".into(),
@@ -1547,7 +1556,7 @@ fn extract_esri_arcgis(
             let line = line_of(line_starts, m.start());
 
             let mut meta = HashMap::with_capacity(3);
-            meta.insert("gis_library".into(), "arcgis_rest".into());
+            meta.insert("library".into(), "arcgis_rest".into());
             meta.insert("rest_service".into(), service.into());
             meta.insert(
                 "modern_equivalent".into(),
@@ -1582,7 +1591,7 @@ fn extract_esri_arcgis(
             esri_classes.push((format!("dojo:{}", module), line));
 
             let mut meta = HashMap::with_capacity(3);
-            meta.insert("gis_library".into(), "arcgis_dojo".into());
+            meta.insert("library".into(), "arcgis_dojo".into());
             meta.insert("dojo_module".into(), module.into());
             meta.insert(
                 "modern_equivalent".into(),
@@ -2088,7 +2097,7 @@ mod tests {
         assert!(
             spatial
                 .iter()
-                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "google_maps")
+                .any(|e| e.metadata.as_ref().unwrap().get("library").unwrap() == "google_maps")
         );
     }
 
@@ -2149,7 +2158,7 @@ mod tests {
         assert!(
             spatial
                 .iter()
-                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "leaflet")
+                .any(|e| e.metadata.as_ref().unwrap().get("library").unwrap() == "leaflet")
         );
     }
 
@@ -2169,7 +2178,7 @@ mod tests {
         assert!(
             spatial
                 .iter()
-                .any(|e| e.metadata.as_ref().unwrap().get("gis_library").unwrap() == "openlayers")
+                .any(|e| e.metadata.as_ref().unwrap().get("library").unwrap() == "openlayers")
         );
     }
 
@@ -2771,7 +2780,7 @@ mod tests {
                 .metadata
                 .as_ref()
                 .unwrap()
-                .get("gis_library")
+                .get("library")
                 .map(|s| s.as_str()),
             Some("google_maps")
         );

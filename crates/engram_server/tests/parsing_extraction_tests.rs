@@ -1274,20 +1274,32 @@ Module MyModule
     End Function
 End Module
 "#;
-    // Call extract_vb directly — this exercises all the cap.get(0) regex sites.
-    let (syms, _edges) = engram_index::vb_extractor::extract_vb(Path::new("module.vb"), vb_source);
-    // The extractor must not panic. Symbol extraction may be empty if tree-sitter
-    // VB query coverage is partial, but no panic is the critical invariant.
-    // If symbols are extracted, they must include at least one of the declared names.
-    if !syms.is_empty() {
-        assert!(
-            syms.iter().any(|s| s.name.contains("InitApp")
-                || s.name.contains("ComputeValue")
-                || s.name.contains("MyModule")),
-            "PARSE1-j1n4: vb_extractor extracted symbols but missed expected names; \
-             extracted: {:?}",
-            syms.iter().map(|s| &s.name).collect::<Vec<_>>()
-        );
-    }
-    // The no-panic invariant is the key test — any panic in cap.get(0) would abort here.
+    // Call extract_vb directly (no VB sidecar in the test env, so this exercises
+    // the regex fallback — the degraded path that must NOT under-extract VB).
+    let (syms, edges) = engram_index::vb_extractor::extract_vb(Path::new("module.vb"), vb_source);
+
+    // A VB `Module` is the dominant shared-code idiom. The fallback previously
+    // ignored Module entirely, so its members lost both their `Type.Member` FQN
+    // and the `contains` edge. Assert the fix unconditionally:
+    assert!(!syms.is_empty(), "vb_extractor extracted no symbols for a Module");
+    assert!(
+        syms.iter().any(|s| s.name == "MyModule" || s.name.ends_with(".MyModule")),
+        "Module type symbol missing; extracted: {:?}",
+        syms.iter().map(|s| &s.name).collect::<Vec<_>>()
+    );
+    assert!(
+        syms.iter().any(|s| s.name.contains("MyModule.InitApp")),
+        "Module member must carry the `Module.Member` FQN; extracted: {:?}",
+        syms.iter().map(|s| &s.name).collect::<Vec<_>>()
+    );
+    assert!(
+        edges.iter().any(|e| e.kind == "contains"
+            && e.source_name.contains("MyModule")
+            && e.target_name.contains("InitApp")),
+        "missing `contains` edge MyModule -> InitApp; edges: {:?}",
+        edges
+            .iter()
+            .map(|e| (&e.source_name, &e.kind, &e.target_name))
+            .collect::<Vec<_>>()
+    );
 }

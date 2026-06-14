@@ -805,6 +805,48 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
     crate::cs_extractor::annotate_guards(symbols, &guard_hits, &role_hits);
 }
 
+/// Detect a VB.NET type declaration on a line and return (graph node-kind, name).
+/// `Module`/`Structure`/`Enum` are treated as `class`-kind containers so their
+/// members get a correct `Type.Member` FQN + `contains` edge and participate in
+/// all class-based navigation/blast-radius logic; `Interface` keeps its kind.
+/// Word-boundary matched (surrounding spaces) so `Enumerable`, `X.Class`, and
+/// `End Class` don't false-positive.
+fn detect_vb_type_decl(line: &str) -> Option<(&'static str, String)> {
+    let lower = line.to_ascii_lowercase();
+    if lower.trim_start().starts_with("end ") {
+        return None;
+    }
+    const KW: &[(&str, &str)] = &[
+        ("class", "class"),
+        ("module", "class"),
+        ("structure", "class"),
+        ("interface", "interface"),
+        ("enum", "class"),
+    ];
+    for (kw, kind) in KW {
+        if lower.contains(&format!(" {kw} ")) || lower.starts_with(&format!("{kw} ")) {
+            let mut name = line
+                .split_whitespace()
+                .skip_while(|t| t.to_ascii_lowercase() != *kw)
+                .nth(1)
+                .unwrap_or_default()
+                .to_string();
+            if let Some(p) = name.find('(') {
+                name.truncate(p); // drop generic params: Foo(Of T) -> Foo
+            }
+            if name
+                .chars()
+                .next()
+                .map(|c| c.is_alphabetic() || c == '_')
+                .unwrap_or(false)
+            {
+                return Some((kind, name));
+            }
+        }
+    }
+    None
+}
+
 fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     // Lightweight fallback if sidecar isn't available.
     let mut symbols = Vec::new();
@@ -984,18 +1026,15 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 .nth(1)
                 .unwrap_or_default()
                 .to_string();
-        } else if lower.contains(" class ")
-            || lower.starts_with("class ")
-            || lower.contains(" partial class ")
-        {
-            let name = line
-                .split_whitespace()
-                .skip_while(|t| t.to_ascii_lowercase() != "class")
-                .nth(1)
-                .unwrap_or_default()
-                .to_string();
+        } else if let Some((kind, name)) = detect_vb_type_decl(line) {
+            // class / module / structure / interface / enum all open a type
+            // scope. VB.NET uses `Module` pervasively for shared utility code,
+            // and Structure/Interface/Enum were previously invisible to the
+            // fallback — so their Subs/Functions lost both their `Type.Member`
+            // FQN and the `contains` edge to their container (breaking
+            // blast-radius and contains-based navigation in degraded mode).
             ty = name.clone();
-            add_symbol(name.clone(), "class", line_no, None);
+            add_symbol(name.clone(), kind, line_no, None);
             if !ns.is_empty() {
                 edges.push(ExtractedEdge {
                     source_name: ns.clone(),
@@ -1003,7 +1042,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     source_start_line: 1,
                     source_language: "vb".to_string(),
                     target_name: name,
-                    target_kind: Some("class".to_string()),
+                    target_kind: Some(kind.to_string()),
                     target_start_line: Some(line_no),
                     kind: "contains".to_string(),
                     metadata: None,
