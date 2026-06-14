@@ -1824,8 +1824,17 @@ impl Engram {
             }
         }
         if !ranked.is_empty() {
-            let fsc_seed: Vec<String> = ranked.iter().take(12).cloned().collect();
-            let dic_seed: Vec<String> = ranked.iter().take(40).cloned().collect();
+            // Resx are family LEAVES, not co-change ANCHORS: a resource file
+            // co-changes only with its own language siblings, never with the
+            // diverse set a story spans. Indexing resx (so the family expansion
+            // can backfill the language set) floods concept matches, which can
+            // shove the real code anchor — e.g. a settings store whose history
+            // pulls the whole resx family — past the seed cap. Keep resx out of
+            // the co-change seed so code anchors keep their slots; resx still
+            // reach the change set via concept, co-change PARTNERS, and family.
+            let anchor = |p: &&String| !p.ends_with(".resx");
+            let fsc_seed: Vec<String> = ranked.iter().filter(anchor).take(12).cloned().collect();
+            let dic_seed: Vec<String> = ranked.iter().filter(anchor).take(40).cloned().collect();
             let mut texts: Vec<String> = Vec::new();
             if let Ok(r) = self
                 .handle_find_similar_changes(crate::models::FindSimilarChangesRequest {
