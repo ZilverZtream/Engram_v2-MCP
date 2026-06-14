@@ -1248,6 +1248,30 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         sym.metadata = Some(meta);
     }
 
+    // Backfill end_line for Sub/Function bodies. The line-scan emits each method
+    // with end_line == start_line (it can't know the end at the declaration
+    // line); without this every VB method shows a 1-line range in degraded
+    // (no-sidecar) mode, breaking get_method_edit_context / read-lines body
+    // retrieval. VB Subs/Functions don't nest, so each body ends at the first
+    // `End Sub`/`End Function` at-or-after its start.
+    let method_ends: Vec<u32> = source
+        .lines()
+        .enumerate()
+        .filter_map(|(i, l)| {
+            let lo = l.trim().to_ascii_lowercase();
+            (lo.starts_with("end sub") || lo.starts_with("end function"))
+                .then_some(i as u32 + 1)
+        })
+        .collect();
+    for s in &mut symbols {
+        if s.kind == "function"
+            && let Some(&end) = method_ends.iter().find(|&&e| e >= s.start_line)
+            && end > s.start_line
+        {
+            s.end_line = end;
+        }
+    }
+
     // TODO-18: tag degraded-mode output. The sidecar silently falls back to
     // this line-scan extractor on spawn/protocol failure; without a marker
     // the lower-fidelity symbols are indistinguishable from Roslyn output,
@@ -1438,6 +1462,21 @@ End Class";
         let code = "Class Foo\n Sub Bar()\n   Dim x = app?.Name\n   Dim s = $\"Hello {name}\"\n End Sub\nEnd Class";
         let (symbols, _) = extract_vb(Path::new("foo.vb"), code);
         assert!(symbols.iter().any(|s| s.name.contains("Bar")));
+    }
+
+    #[test]
+    fn fallback_backfills_method_end_line() {
+        // Degraded mode must give a real body range, not start==end (else
+        // get_method_edit_context shows a 1-line VB method).
+        let code = "Module M\n  Public Sub Bar()\n    Dim x = 1\n    x = 2\n  End Sub\nEnd Module";
+        let (symbols, _) = super::fallback_extract_vb_for_test(Path::new("m.vb"), code);
+        let bar = symbols
+            .iter()
+            .find(|s| s.name.contains("Bar"))
+            .expect("Bar extracted");
+        assert_eq!(bar.start_line, 2, "start at Sub line");
+        assert_eq!(bar.end_line, 5, "end at End Sub line");
+        assert!(bar.end_line > bar.start_line);
     }
 
     #[test]
