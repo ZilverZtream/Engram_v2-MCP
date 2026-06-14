@@ -3364,22 +3364,30 @@ impl Engram {
         prev_section = "8c2. Co-change pairs from git temporal coupling.";
         // index_git_history has run - the rules pipeline drops the section
         // when there are no pairs.
-        let co_change_pairs = {
+        let (co_change_pairs, cross_section_pairs) = {
             let graph = self.state.graph.clone();
             let p = pid.clone();
             tokio::task::spawn_blocking(move || {
                 // Stream ALL temporal edges (1.3M on OciusX) — a capped list
                 // takes the first N by key order, which biases the sample
-                // alphabetically, not by strength.
+                // alphabetically, not by strength. Accumulate BOTH the top file
+                // pairs AND the section-level rollup in one pass; the section
+                // rollup must see the full stream (the top file pairs are
+                // dominated by intra-section families like the resx set).
                 let mut best = std::collections::HashMap::new();
+                let mut xsec = std::collections::HashMap::new();
                 if let Err(e) =
                     graph.fold_edges_by_kind(&p, engram_graph::EdgeKind::TemporalCoupling, |edge| {
-                        svc::accumulate_co_change(&mut best, edge)
+                        svc::accumulate_co_change(&mut best, edge);
+                        svc::accumulate_cross_section(&mut xsec, edge);
                     })
                 {
                     tracing::warn!("co-change fold failed: {e:#}");
                 }
-                svc::finalize_co_change_pairs(best, 20)
+                (
+                    svc::finalize_co_change_pairs(best, 20),
+                    svc::finalize_cross_section(xsec, 40),
+                )
             })
             .await
             .unwrap_or_default()
@@ -3466,6 +3474,7 @@ impl Engram {
             state_summary,
             db_summary,
             co_change_pairs,
+            cross_section_pairs,
             auth_summary,
             frontend_warnings: Vec::new(),
             existing_claude_md: existing_md.clone(),

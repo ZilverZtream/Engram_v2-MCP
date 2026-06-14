@@ -223,6 +223,10 @@ pub struct ProjectSnapshot {
     pub state_summary: Option<StateSummary>,
     pub db_summary: Option<DbSummary>,
     pub co_change_pairs: Vec<(String, String, u32)>,
+    /// Section-level co-change rollup (the cross-section dependency map),
+    /// aggregated over the FULL TemporalCoupling stream, not the truncated
+    /// file pairs. Empty for single-area projects.
+    pub cross_section_pairs: Vec<(String, String, u32)>,
     pub auth_summary: Option<AuthSummary>,
     pub frontend_warnings: Vec<String>,
     pub existing_claude_md: Option<String>,
@@ -628,15 +632,15 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
             filename: "co-change-pairs.md".into(),
             content: render_co_change_pairs(&snapshot.co_change_pairs),
         });
-        // Section-level rollup of the same co-change data — the cross-area scope
-        // map ("touch area A → also need area Y"). Only emit when there is real
-        // cross-section coupling (a single-area project produces nothing here).
-        if !aggregate_cross_section(&snapshot.co_change_pairs).is_empty() {
-            files.push(RuleFile {
-                filename: "cross-section-map.md".into(),
-                content: render_cross_section_map(&snapshot.co_change_pairs),
-            });
-        }
+    }
+    // Cross-area scope map ("touch area A → also need area Y"), from the
+    // section-level rollup computed over the FULL coupling stream. Only emit
+    // when there is real cross-section coupling (single-area projects: empty).
+    if !snapshot.cross_section_pairs.is_empty() {
+        files.push(RuleFile {
+            filename: "cross-section-map.md".into(),
+            content: render_cross_section_map(&snapshot.cross_section_pairs),
+        });
     }
 
     if !snapshot.frontend_warnings.is_empty() {
@@ -1470,16 +1474,45 @@ pub fn aggregate_cross_section(pairs: &[(String, String, u32)]) -> Vec<(String, 
     out
 }
 
-/// Render the cross-section dependency map: per area, the OTHER areas it most
-/// often co-changes with. The "touch area A → you probably also need area Y
-/// (admin page, API, permissions)" map — a STANDING scope signal that the
-/// per-change find_similar_changes only gives transiently. Empty when there is
-/// no cross-section coupling.
-fn render_cross_section_map(pairs: &[(String, String, u32)]) -> String {
-    let cross = aggregate_cross_section(pairs);
+/// Streaming accumulator for SECTION-level coupling: fold one TemporalCoupling
+/// edge into an unordered (section_a, section_b) -> SUMMED weight map, skipping
+/// same-section edges. MUST run over the FULL edge stream (not the truncated
+/// top-N file pairs) — those are dominated by intra-section families (e.g. the
+/// resx localization set all co-changing) which carry no cross-area signal.
+pub fn accumulate_cross_section(
+    xsec: &mut std::collections::HashMap<(String, String), u32>,
+    e: &engram_graph::Edge,
+) {
+    let a = e.source_id.strip_prefix("file:").unwrap_or(&e.source_id);
+    let b = e.target_id.strip_prefix("file:").unwrap_or(&e.target_id);
+    let (sa, sb) = (section_of(a), section_of(b));
+    if sa == sb {
+        return;
+    }
+    let key = if sa <= sb { (sa, sb) } else { (sb, sa) };
+    *xsec.entry(key).or_default() += e.weight;
+}
+
+/// Sort section pairs by summed weight, truncate.
+pub fn finalize_cross_section(
+    xsec: std::collections::HashMap<(String, String), u32>,
+    limit: usize,
+) -> Vec<(String, String, u32)> {
+    let mut v: Vec<(String, String, u32)> =
+        xsec.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    v.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
+    v.truncate(limit);
+    v
+}
+
+/// Render the cross-section dependency map from PRE-AGGREGATED section pairs: per
+/// area, the OTHER areas it most often co-changes with. The "touch area A → you
+/// probably also need area Y (admin page, API, permissions)" map — a STANDING
+/// scope signal that per-change find_similar_changes only gives transiently.
+fn render_cross_section_map(cross: &[(String, String, u32)]) -> String {
     let mut by_section: std::collections::BTreeMap<String, Vec<(String, u32)>> =
         std::collections::BTreeMap::new();
-    for (a, b, w) in &cross {
+    for (a, b, w) in cross {
         by_section.entry(a.clone()).or_default().push((b.clone(), *w));
         by_section.entry(b.clone()).or_default().push((a.clone(), *w));
     }
@@ -2053,7 +2086,7 @@ mod tests {
         let agg = aggregate_cross_section(&pairs);
         assert_eq!(agg.len(), 1, "{agg:?}");
         assert_eq!(agg[0].2, 8); // 5 + 3, same-section 9 excluded
-        let map = render_cross_section_map(&pairs);
+        let map = render_cross_section_map(&agg);
         assert!(map.contains("app_code/redovisning") && map.contains("modules/dashboard"));
         assert!(map.contains("Changing"));
     }
