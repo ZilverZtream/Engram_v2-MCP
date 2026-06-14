@@ -915,6 +915,23 @@ mod tests {
     }
 
     #[test]
+    fn story_concepts_reject_hash_and_id_garbage() {
+        // PR1938 shape: a commit SHA + a board/username ID leaked into the story
+        // and stole the concept slots, tanking recall. They must be rejected so
+        // the real domain tokens surface.
+        let c = extract_story_concepts(
+            "patric0375 a778c06a field worker searches the RoQ code list by redovisning category",
+        );
+        assert!(!c.contains(&"a778c06a".to_string()), "commit hash must be rejected: {c:?}");
+        assert!(!c.contains(&"patric0375".to_string()), "username/id must be rejected: {c:?}");
+        // Garbage is gone; real word tokens fill the slots instead.
+        assert!(!c.is_empty() && c.iter().all(|t| t.chars().filter(char::is_ascii_digit).count() < 3),
+                "no 3+-digit garbage among concepts: {c:?}");
+        // Tokens with <3 digits (e.g. an api version) are still allowed.
+        assert!(extract_story_concepts("update the apiv2 endpoint").contains(&"apiv2".to_string()));
+    }
+
+    #[test]
     fn transpile_pair_candidates_links_ts_and_committed_js() {
         // .ts source -> same-dir .js AND the ts/ -> ~.js/ output-dir swap.
         let c = transpile_pair_candidates("modules/map/ts/map.ts");
@@ -1008,6 +1025,8 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         "remove",
         "delete",
         "handle",
+        "avoid",
+        "prevent",
         // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
         // domain concepts (they otherwise steal a top-3 slot from real tokens).
         "acceptance",
@@ -1058,7 +1077,18 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     ];
     let candidate = |w: &str| -> Option<String> {
         let lower = w.to_lowercase();
-        (lower.len() >= 4 && !STOPWORDS.contains(&lower.as_str())).then_some(lower)
+        if lower.len() < 4 || STOPWORDS.contains(&lower.as_str()) {
+            return None;
+        }
+        // Reject hash/ID garbage that leaks into PR-derived stories: commit SHAs
+        // ("a778c06a"), usernames/board IDs ("patric0375"), ticket numbers. A real
+        // domain concept almost never carries 3+ digits; such tokens otherwise
+        // steal the limited concept slots and tank recall. Generic, no per-repo
+        // names — robustness to noisy story input.
+        if lower.chars().filter(char::is_ascii_digit).count() >= 3 {
+            return None;
+        }
+        Some(lower)
     };
     let mut seen = HashSet::new();
     let mut out: Vec<String> = Vec::new();
