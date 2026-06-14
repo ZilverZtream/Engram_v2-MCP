@@ -28,6 +28,7 @@ pub enum DetectedLanguage {
     Python,
     CSharp,
     TypeScript,
+    JavaScript,
     Java,
     Go,
     Vb,
@@ -41,6 +42,7 @@ impl DetectedLanguage {
             Self::Python => "python",
             Self::CSharp => "csharp",
             Self::TypeScript => "typescript",
+            Self::JavaScript => "javascript",
             Self::Java => "java",
             Self::Go => "go",
             Self::Vb => "vbnet",
@@ -572,7 +574,12 @@ impl StyleMimicryEngine {
                 "Use named `function` declarations for top-level exports and hoisting.".into(),
             );
         }
-        if iface_count > 0 || type_alias_count > 0 {
+        // TS-only iff TS type syntax is actually present (markers OR parsed
+        // interface/type-alias nodes). A plain .js file matches js_signals and
+        // parses fine under the TS grammar, but must NOT be called TypeScript or
+        // told to "define TypeScript interfaces".
+        let is_ts = ts_signals || iface_count > 0 || type_alias_count > 0;
+        if is_ts && (iface_count > 0 || type_alias_count > 0) {
             out.push(
                 "Define explicit TypeScript interfaces/types for data shapes and API contracts."
                     .into(),
@@ -590,7 +597,11 @@ impl StyleMimicryEngine {
                     weight: out.len().min(3),
                     bullets: out,
                 },
-                DetectedLanguage::TypeScript,
+                if is_ts {
+                    DetectedLanguage::TypeScript
+                } else {
+                    DetectedLanguage::JavaScript
+                },
             ))
         }
     }
@@ -920,12 +931,12 @@ fn detect_error_handling(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             let has_try = text.contains("try {");
             let has_catch_unknown = text.contains("catch (e)") || text.contains("catch (error)");
             if has_try && has_catch_unknown {
                 Some(
-                    "Type-narrow caught exceptions; use `instanceof` checks in catch blocks."
+                    "Narrow caught errors with `instanceof` checks before handling (type-narrow in TypeScript)."
                         .into(),
                 )
             } else {
@@ -994,7 +1005,7 @@ fn detect_import_style(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             let has_import = text.contains("import ");
             let has_require = text.contains("require(");
             if has_import && !has_require {
@@ -1076,7 +1087,7 @@ fn detect_docs(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             if text.contains("/**") || text.contains("* @param") {
                 Some("Use JSDoc (`/** */`) for function documentation; keep comments brief.".into())
             } else {
@@ -1147,7 +1158,7 @@ fn detect_logging(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             if text.contains("console.log") || text.contains("console.error") {
                 Some("Replace `console.log` with a structured logger (e.g., winston, pino) in production.".into())
             } else {
@@ -1228,7 +1239,7 @@ fn detect_testing(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             if text.contains("describe(")
                 || text.contains("it(")
                 || text.contains("test(")
@@ -1310,7 +1321,7 @@ fn detect_async_patterns(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::TypeScript => {
+        DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
             let has_async = text.contains("async ") || text.contains("await ");
             let has_promise = text.contains("Promise<") || text.contains(".then(");
             if has_async {
@@ -1343,5 +1354,48 @@ fn detect_async_patterns(text: &str, lang: DetectedLanguage) -> Option<String> {
             }
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod js_ts_tests {
+    use super::*;
+
+    fn lang_of(src: &str) -> Option<String> {
+        StyleMimicryEngine::new()
+            .analyze(&[src.to_string()], Some("f"))
+            .detected_language
+    }
+
+    #[test]
+    fn plain_js_detected_as_javascript_not_typescript() {
+        // No type syntax — must be JavaScript, and must NOT advise TS interfaces.
+        // (>200 chars so the analyzer does not early-return on too-little-data.)
+        let js = "const buildMarker = (lat, lng) => ({ lat: lat, lng: lng });\n\
+                  const toLabel = (m) => m.lat + ',' + m.lng;\n\
+                  const clampZoom = (z) => Math.max(1, Math.min(20, z));\n\
+                  function renderAll(markers) {\n\
+                  \x20 return markers.map(function (m) { return toLabel(m); });\n\
+                  }\n\
+                  export const utils = { buildMarker: buildMarker, toLabel: toLabel };\n\
+                  const onClick = () => renderAll(window.markers || []);\n";
+        let g = StyleMimicryEngine::new().analyze(&[js.to_string()], Some("f.js"));
+        assert_eq!(g.detected_language.as_deref(), Some("javascript"), "{g:?}");
+        assert!(
+            !g.bullets.iter().any(|b| b.contains("TypeScript interfaces")),
+            "plain JS must not be told to define TypeScript interfaces: {:?}",
+            g.bullets
+        );
+    }
+
+    #[test]
+    fn typescript_with_types_detected_as_typescript() {
+        let ts = "interface User { id: number; name: string; readonly tag: string; }\n\
+                  const getName = (u: User): string => u.name;\n\
+                  const inc = (x: number): number => x + 1;\n\
+                  const dec = (x: number): number => x - 1;\n\
+                  export const api = { getName: getName, inc: inc, dec: dec };\n\
+                  const sum = (a: number, b: number): number => a + b;\n";
+        assert_eq!(lang_of(ts).as_deref(), Some("typescript"));
     }
 }
