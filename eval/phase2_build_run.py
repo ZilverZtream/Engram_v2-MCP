@@ -36,6 +36,10 @@ def story_entry(pr):
     open(diff_path, "w", encoding="utf-8").write(diff)
     rich = os.path.join(P2, f"pr{pr}_dossier_rich.md")
     pat = os.path.join(P2, f"pr{pr}_dossier_pattern.md")
+    prop = os.path.join(P2, f"pr{pr}_engram_proposal.json")
+    def _ctx(role):
+        f = os.path.join(P2, f"pr{pr}_ctx_{role}.md")
+        return f if os.path.exists(f) else ""
     return {
         "pr_id": m["pr_id"],
         "title": m["story"]["title"],
@@ -46,6 +50,11 @@ def story_entry(pr):
         "dossier_path": m["dossier_path"],
         "dossier_rich_path": rich if os.path.exists(rich) else m["dossier_path"],
         "dossier_pattern_path": pat if os.path.exists(pat) else m["dossier_path"],
+        "engram_proposal_path": prop if os.path.exists(prop) else "",
+        "ctx_similar_path": _ctx("similar"),
+        "ctx_ui_path": _ctx("ui"),
+        "ctx_style_path": _ctx("style"),
+        "ctx_qualitygate_path": _ctx("qualitygate"),
         "modified_files": mods,
         "merged_diff_path": diff_path,
     }

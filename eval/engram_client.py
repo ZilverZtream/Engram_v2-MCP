@@ -34,19 +34,32 @@ def build_eval_config():
     Requires no production engram_server to be running (single-writer redb lock).
     """
     os.makedirs(WORKTREE_ROOT, exist_ok=True)  # must exist for root canonicalization
+    # Optional override: point at a FRESH, small data_dir (env ENGRAM_EVAL_DATA_DIR)
+    # to avoid the 29 GB production store whose 18 GB graph redb makes startup slow
+    # (and crash-recovery after a forced kill slower still). Used by the Stage-3 QG
+    # work, which is self-contained and needs none of the production indexes.
+    data_override = os.environ.get("ENGRAM_EVAL_DATA_DIR")
+    extra_root = os.environ.get("ENGRAM_EVAL_EXTRA_ROOT")
     with open(PROD_CONFIG, encoding="utf-8") as fh:
         lines = fh.readlines()
     out, injected, saw_mc = [], False, False
     wt_yaml = WORKTREE_ROOT.replace("'", "''")
+    if data_override:
+        os.makedirs(data_override, exist_ok=True)
     for ln in lines:
         stripped = ln.strip()
         if stripped.startswith("multi_client:"):
             out.append("multi_client: false\n")
             saw_mc = True
             continue
+        if data_override and stripped.startswith("data_dir:"):
+            out.append(f"data_dir: '{data_override.replace(chr(39), chr(39) * 2)}'\n")
+            continue
         out.append(ln)
         if not injected and stripped == "allowed_roots:":
             out.append(f"  - '{wt_yaml}'\n")
+            if extra_root:
+                out.append(f"  - '{extra_root.replace(chr(39), chr(39) * 2)}'\n")
             injected = True
     if not injected:
         raise RuntimeError("could not find 'allowed_roots:' in production config")
