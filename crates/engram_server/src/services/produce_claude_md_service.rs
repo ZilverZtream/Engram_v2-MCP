@@ -628,6 +628,15 @@ pub fn render_rule_files(snapshot: &ProjectSnapshot) -> Vec<RuleFile> {
             filename: "co-change-pairs.md".into(),
             content: render_co_change_pairs(&snapshot.co_change_pairs),
         });
+        // Section-level rollup of the same co-change data — the cross-area scope
+        // map ("touch area A → also need area Y"). Only emit when there is real
+        // cross-section coupling (a single-area project produces nothing here).
+        if !aggregate_cross_section(&snapshot.co_change_pairs).is_empty() {
+            files.push(RuleFile {
+                filename: "cross-section-map.md".into(),
+                content: render_cross_section_map(&snapshot.co_change_pairs),
+            });
+        }
     }
 
     if !snapshot.frontend_warnings.is_empty() {
@@ -1419,6 +1428,88 @@ pub fn finalize_co_change_pairs(
     merged
 }
 
+/// Derive a coarse "section" (architectural area) from a file path: the first
+/// two path segments after stripping diff/web-root prefixes (a/ b/ site/ src/).
+/// Generic — groups e.g. `app_code/redovisning/...` and `modules/dashboard/...`
+/// so co-change can be aggregated by area. No per-repo names.
+pub fn section_of(path: &str) -> String {
+    let p = path.replace('\\', "/").to_lowercase();
+    let p = p
+        .strip_prefix("a/")
+        .or_else(|| p.strip_prefix("b/"))
+        .unwrap_or(&p);
+    let p = p
+        .strip_prefix("site/")
+        .or_else(|| p.strip_prefix("src/"))
+        .unwrap_or(p);
+    let segs: Vec<&str> = p.split('/').filter(|s| !s.is_empty()).collect();
+    match segs.len() {
+        0 | 1 => "root".to_string(),
+        2 => segs[0].to_string(),
+        _ => format!("{}/{}", segs[0], segs[1]),
+    }
+}
+
+/// Aggregate file-level co-change pairs into SECTION-level couplings: for each
+/// unordered (section_a, section_b) sum the co-change counts of cross-section
+/// file pairs. Same-section pairs are dropped (they carry no cross-area scope
+/// signal). Sorted by strength. This is the data behind the cross-section map.
+pub fn aggregate_cross_section(pairs: &[(String, String, u32)]) -> Vec<(String, String, u32)> {
+    let mut acc: std::collections::HashMap<(String, String), u32> = std::collections::HashMap::new();
+    for (a, b, w) in pairs {
+        let (sa, sb) = (section_of(a), section_of(b));
+        if sa == sb {
+            continue;
+        }
+        let key = if sa <= sb { (sa, sb) } else { (sb, sa) };
+        *acc.entry(key).or_default() += *w;
+    }
+    let mut out: Vec<(String, String, u32)> =
+        acc.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    out.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
+    out
+}
+
+/// Render the cross-section dependency map: per area, the OTHER areas it most
+/// often co-changes with. The "touch area A → you probably also need area Y
+/// (admin page, API, permissions)" map — a STANDING scope signal that the
+/// per-change find_similar_changes only gives transiently. Empty when there is
+/// no cross-section coupling.
+fn render_cross_section_map(pairs: &[(String, String, u32)]) -> String {
+    let cross = aggregate_cross_section(pairs);
+    let mut by_section: std::collections::BTreeMap<String, Vec<(String, u32)>> =
+        std::collections::BTreeMap::new();
+    for (a, b, w) in &cross {
+        by_section.entry(a.clone()).or_default().push((b.clone(), *w));
+        by_section.entry(b.clone()).or_default().push((a.clone(), *w));
+    }
+    let mut out = String::with_capacity(1024);
+    out.push_str(
+        "---\n# Cross-section dependency map — when you change one AREA, which OTHER areas \
+         historically change with it (aggregated from co-change).\n",
+    );
+    out.push_str(
+        "# Use this to SCOPE a change: a story touching one area usually also needs its coupled \
+         areas (admin page, API, permissions, resx). Match this scope; verify each side.\n---\n\n",
+    );
+    out.push_str("# Cross-section co-change\n\n");
+    for (section, partners) in by_section.iter() {
+        let mut ps = partners.clone();
+        ps.sort_by(|x, y| y.1.cmp(&x.1));
+        ps.truncate(5);
+        if ps.is_empty() {
+            continue;
+        }
+        let list = ps
+            .iter()
+            .map(|(s, n)| format!("`{s}` ({n})"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(out, "- Changing `{section}` → also often: {list}");
+    }
+    out
+}
+
 fn render_co_change_pairs(pairs: &[(String, String, u32)]) -> String {
     let mut out = String::with_capacity(512);
     out.push_str("---\n");
@@ -1941,6 +2032,31 @@ pub fn merge_with_existing(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn section_of_groups_by_area() {
+        assert_eq!(section_of("Site/App_Code/redovisning/code/RoQReport.vb"), "app_code/redovisning");
+        assert_eq!(section_of("site/modules/dashboard/pages/x.aspx"), "modules/dashboard");
+        assert_eq!(section_of("a/App_Code/api-v2/Controllers/X.vb"), "app_code/api-v2");
+        assert_eq!(section_of("web.config"), "root");
+    }
+
+    #[test]
+    fn cross_section_aggregates_and_drops_same_section() {
+        let pairs = vec![
+            // cross-section: redovisning <-> dashboard (summed across two file pairs)
+            ("App_Code/redovisning/a.vb".into(), "modules/dashboard/x.aspx.vb".into(), 5u32),
+            ("App_Code/redovisning/b.vb".into(), "modules/dashboard/y.aspx.vb".into(), 3u32),
+            // same-section: dropped
+            ("App_Code/redovisning/a.vb".into(), "App_Code/redovisning/c.vb".into(), 9u32),
+        ];
+        let agg = aggregate_cross_section(&pairs);
+        assert_eq!(agg.len(), 1, "{agg:?}");
+        assert_eq!(agg[0].2, 8); // 5 + 3, same-section 9 excluded
+        let map = render_cross_section_map(&pairs);
+        assert!(map.contains("app_code/redovisning") && map.contains("modules/dashboard"));
+        assert!(map.contains("Changing"));
+    }
 
     fn rule(text: &str, source: RuleSource, confidence: RuleConfidence) -> CriticalRule {
         CriticalRule {
