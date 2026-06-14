@@ -30,6 +30,7 @@ pub enum DetectedLanguage {
     TypeScript,
     Java,
     Go,
+    Vb,
     Unknown,
 }
 
@@ -42,9 +43,26 @@ impl DetectedLanguage {
             Self::TypeScript => "typescript",
             Self::Java => "java",
             Self::Go => "go",
+            Self::Vb => "vbnet",
             Self::Unknown => "unknown",
         }
     }
+}
+
+/// Lexical VB.NET detection. There is no VB tree-sitter grammar in the AST pass,
+/// so VB always fell through to `Unknown` — which then emitted Python advice
+/// (its `'''` XML-doc comments match a Python docstring check, its `logger.`
+/// calls match the Python `logging` check). VB is the dominant language in the
+/// target legacy .NET codebases, so detect it lexically from distinctive
+/// markers and route it to a real VB branch.
+fn lexical_is_vb(text: &str) -> bool {
+    const MARKERS: &[&str] = &[
+        "\nImports ", "End Sub", "End Function", "End Class", "End Module",
+        "End If", "End Namespace", " Handles ", " As Boolean", " As String",
+        " As Integer", " As New ", "''' <summary>", "Public Sub", "Private Sub",
+        "Protected Sub", "Public Function", "Private Function", "ReadOnly Property",
+    ];
+    MARKERS.iter().filter(|m| text.contains(**m)).count() >= 3
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,9 +146,15 @@ impl StyleMimicryEngine {
         let mut detection_weight = 0usize;
 
         // 1. AST-based semantic analysis (multi-language)
-        let (ast_bullets, ast_weight, detected_lang) = self.semantic_analyze(&text);
+        let (ast_bullets, ast_weight, mut detected_lang) = self.semantic_analyze(&text);
         bullets.extend(ast_bullets);
         detection_weight += ast_weight;
+
+        // VB.NET has no AST grammar here, so it arrives as Unknown and would get
+        // Python advice. Recover it lexically so the detectors use the VB branch.
+        if detected_lang == DetectedLanguage::Unknown && lexical_is_vb(&text) {
+            detected_lang = DetectedLanguage::Vb;
+        }
 
         // 2. Lexical/Text-based detections (language-agnostic and language-specific)
         if let Some(i) = detect_indent(&text) {
@@ -898,19 +922,28 @@ fn detect_error_handling(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
+        DetectedLanguage::Vb => {
+            if text.contains("Try") && text.contains("Catch") {
+                Some("Use `Try...Catch...Finally` with specific exception types; dispose resources in `Finally` (or `Using`).".into())
+            } else if text.contains("On Error ") {
+                Some("Legacy `On Error` handling present — prefer structured `Try...Catch` for new code.".into())
+            } else {
+                None
+            }
+        }
         DetectedLanguage::Unknown => {
+            // Only language-NEUTRAL signals here — never assume a specific
+            // language's idioms (the old code emitted Rust/Python advice for
+            // anything unrecognised).
             let uses_result = text.contains("Result<")
                 || text.contains("anyhow::")
                 || text.contains("thiserror::");
             let uses_qmark = text.contains('?');
-            let uses_unwrap = text.contains("unwrap(") || text.contains("expect(");
             if uses_result && uses_qmark {
                 Some(
                     "Use Result-returning APIs and propagate errors with `?` (avoid deep nesting)."
                         .into(),
                 )
-            } else if uses_unwrap {
-                Some("Avoid `unwrap()`/`expect()` in production paths; prefer explicit error handling.".into())
             } else {
                 None
             }
@@ -982,17 +1015,16 @@ fn detect_import_style(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
-        DetectedLanguage::Unknown => {
-            if text.contains("use ") && text.contains("crate::") {
-                Some("Prefer explicit imports and keep them grouped at the top.".into())
-            } else if text.contains("from ") && text.contains("import ") {
-                Some(
-                    "Prefer `from X import Y` style imports and keep them grouped at the top."
-                        .into(),
-                )
+        DetectedLanguage::Vb => {
+            if text.contains("Imports ") {
+                Some("Group `Imports` statements at the top of the file.".into())
             } else {
                 None
             }
+        }
+        DetectedLanguage::Unknown => {
+            // Language-neutral only — do not assume Python/Rust import idioms.
+            None
         }
     }
 }
@@ -1041,11 +1073,18 @@ fn detect_docs(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
+        DetectedLanguage::Vb => {
+            if text.contains("''' <summary>") || text.contains("'''") {
+                Some("Document public members with XML doc comments (`''' <summary>`).".into())
+            } else {
+                None
+            }
+        }
         DetectedLanguage::Unknown => {
+            // Neutral only. (The old `'''` check mislabelled VB XML-doc comments
+            // as Python "docstrings".)
             if text.contains("///") || text.contains("//! ") {
                 Some("Add doc comments for public functions/types.".into())
-            } else if text.contains("\"\"\"") || text.contains("''' ") {
-                Some("Use docstrings for public functions/classes.".into())
             } else {
                 None
             }
@@ -1105,7 +1144,19 @@ fn detect_logging(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
+        DetectedLanguage::Vb => {
+            if text.contains("EventLog")
+                || text.contains("Trace.")
+                || text.contains("logger.")
+                || text.contains("Logger.")
+            {
+                Some("Log significant events/errors through the project's logging facility, consistently.".into())
+            } else {
+                None
+            }
+        }
         DetectedLanguage::Unknown => {
+            // Neutral only — do not assume Python's `logging` module.
             let rust_logging = text.contains("info!")
                 || text.contains("debug!")
                 || text.contains("error!")
@@ -1113,8 +1164,6 @@ fn detect_logging(text: &str, lang: DetectedLanguage) -> Option<String> {
                 || text.contains("trace!");
             if rust_logging {
                 Some("Use structured logging macros for recording events and errors.".into())
-            } else if text.contains("logging.") || text.contains("logger.") {
-                Some("Use the `logging` module for standardized log levels.".into())
             } else {
                 None
             }
@@ -1180,15 +1229,17 @@ fn detect_testing(text: &str, lang: DetectedLanguage) -> Option<String> {
                 None
             }
         }
+        DetectedLanguage::Vb => {
+            if text.contains("<TestMethod>") || text.contains("<Test>") || text.contains("Assert.") {
+                Some("Cover logic with MSTest/NUnit tests (`<TestMethod>`/`<Test>`) using descriptive names.".into())
+            } else {
+                None
+            }
+        }
         DetectedLanguage::Unknown => {
-            if text.contains("#[test]")
-                || text.contains("#[tokio::test]")
-                || text.contains("cfg(test)")
-            {
+            // Neutral only — no Python/Rust-specific test idioms.
+            if text.contains("#[test]") || text.contains("cfg(test)") {
                 Some("Include unit tests using test attributes or test modules.".into())
-            } else if text.contains("test_") || text.contains("pytest") || text.contains("unittest")
-            {
-                Some("Use `pytest` conventions with `test_` prefixes.".into())
             } else {
                 None
             }
@@ -1263,6 +1314,13 @@ fn detect_async_patterns(text: &str, lang: DetectedLanguage) -> Option<String> {
         DetectedLanguage::Java => {
             if text.contains("CompletableFuture") || text.contains("ExecutorService") {
                 Some("Use `CompletableFuture` for async composition; prefer virtual threads (Java 21+) for blocking I/O.".into())
+            } else {
+                None
+            }
+        }
+        DetectedLanguage::Vb => {
+            if text.contains("Async Function") || text.contains("Await ") {
+                Some("Use `Async`/`Await` for I/O-bound work; suffix async methods with `Async`.".into())
             } else {
                 None
             }
