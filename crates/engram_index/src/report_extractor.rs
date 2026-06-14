@@ -480,7 +480,10 @@ pub fn extract_crystal_reports_usage(
     let source_language = match language {
         "csharp" | "cs" => "csharp".to_string(),
         "vb" | "vbnet" => "vbnet".to_string(),
-        _ => "csharp".to_string(),
+        // Preserve the caller's language instead of silently relabelling as C#.
+        // The upstream gate today only passes csharp/vbnet, but a future caller
+        // must never have VB (or any other language) mislabelled.
+        other => other.to_string(),
     };
 
     let mut has_crystal = false;
