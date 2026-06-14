@@ -3386,7 +3386,7 @@ impl Engram {
                 }
                 (
                     svc::finalize_co_change_pairs(best, 20),
-                    svc::finalize_cross_section(xsec, 40),
+                    svc::finalize_cross_section(xsec, 400),
                 )
             })
             .await

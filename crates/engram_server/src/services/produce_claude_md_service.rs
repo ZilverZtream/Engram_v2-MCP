@@ -1516,6 +1516,21 @@ fn render_cross_section_map(cross: &[(String, String, u32)]) -> String {
         by_section.entry(a.clone()).or_default().push((b.clone(), *w));
         by_section.entry(b.clone()).or_default().push((a.clone(), *w));
     }
+    let total = by_section.len().max(1);
+    // degree = number of distinct sections each section couples to.
+    let degree: std::collections::HashMap<String, usize> =
+        by_section.iter().map(|(s, ps)| (s.clone(), ps.len())).collect();
+    // Ubiquitous hubs couple to >= 60% of all sections (min 5). A partner that
+    // co-changes with almost EVERYTHING (resx labels, a dashboard) carries no
+    // scope signal — naming it once beats repeating it under every section, and
+    // it drowns out the sharp couplings that actually tell you where else to go.
+    let hub_cut = (((total as f64) * 0.6).ceil() as usize).max(5);
+    let hubs: std::collections::BTreeSet<String> = degree
+        .iter()
+        .filter(|(_, d)| **d >= hub_cut)
+        .map(|(s, _)| s.clone())
+        .collect();
+
     let mut out = String::with_capacity(1024);
     out.push_str(
         "---\n# Cross-section dependency map — when you change one AREA, which OTHER areas \
@@ -1525,17 +1540,46 @@ fn render_cross_section_map(cross: &[(String, String, u32)]) -> String {
         "# Use this to SCOPE a change: a story touching one area usually also needs its coupled \
          areas (admin page, API, permissions, resx). Match this scope; verify each side.\n---\n\n",
     );
-    out.push_str("# Cross-section co-change\n\n");
+    if !hubs.is_empty() {
+        let list = hubs
+            .iter()
+            .map(|s| format!("`{s}`"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let _ = writeln!(
+            out,
+            "# Areas that change with almost EVERYTHING — assume any change may touch these \
+             (e.g. resx labels, dashboards): {list}\n"
+        );
+    }
+    out.push_str("# Distinctive co-change (hubs above excluded — the SPECIFIC couplings)\n\n");
     for (section, partners) in by_section.iter() {
-        let mut ps = partners.clone();
-        ps.sort_by(|x, y| y.1.cmp(&x.1));
-        ps.truncate(5);
-        if ps.is_empty() {
+        if hubs.contains(section) {
+            continue; // its row would just list "everything" — covered above
+        }
+        // Rank distinctive partners by IDF-discounted weight: a partner that
+        // itself couples broadly is down-weighted vs a sharp, specific one.
+        let mut scored: Vec<(String, u32, f64)> = partners
+            .iter()
+            .filter(|(p, _)| !hubs.contains(p))
+            .map(|(p, w)| {
+                let deg = *degree.get(p).unwrap_or(&1) as f64;
+                let idf = ((total as f64 + 1.0) / deg).ln().max(0.1);
+                (p.clone(), *w, f64::from(*w) * idf)
+            })
+            .collect();
+        scored.sort_by(|x, y| {
+            y.2.partial_cmp(&x.2)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| x.0.cmp(&y.0))
+        });
+        scored.truncate(5);
+        if scored.is_empty() {
             continue;
         }
-        let list = ps
+        let list = scored
             .iter()
-            .map(|(s, n)| format!("`{s}` ({n})"))
+            .map(|(s, w, _)| format!("`{s}` ({w})"))
             .collect::<Vec<_>>()
             .join(", ");
         let _ = writeln!(out, "- Changing `{section}` → also often: {list}");
@@ -2089,6 +2133,31 @@ mod tests {
         let map = render_cross_section_map(&agg);
         assert!(map.contains("app_code/redovisning") && map.contains("modules/dashboard"));
         assert!(map.contains("Changing"));
+    }
+
+    #[test]
+    fn cross_section_names_hubs_once_and_keeps_specific_couplings() {
+        // `app_globalresources` couples to 6 distinct sections -> ubiquitous hub.
+        // `api` <-> `integration` is a SPECIFIC coupling that must survive and
+        // not be drowned out by the hub.
+        let mut agg: Vec<(String, String, u32)> = Vec::new();
+        for s in ["a", "b", "c", "d", "e", "f"] {
+            agg.push((format!("app_code/{s}"), "app_globalresources".into(), 100));
+        }
+        agg.push(("app_code/api".into(), "app_code/integration".into(), 50));
+        let map = render_cross_section_map(&agg);
+        // Hub named once in the preamble, not under every section.
+        assert!(map.contains("change with almost EVERYTHING"), "{map}");
+        assert!(map.contains("`app_globalresources`"), "{map}");
+        let hub_in_bullet = map
+            .lines()
+            .any(|l| l.starts_with("- Changing") && l.contains("app_globalresources"));
+        assert!(!hub_in_bullet, "hub leaked into a per-section bullet:\n{map}");
+        // Specific coupling preserved.
+        assert!(
+            map.contains("Changing `app_code/api`") && map.contains("`app_code/integration`"),
+            "{map}"
+        );
     }
 
     fn rule(text: &str, source: RuleSource, confidence: RuleConfidence) -> CriticalRule {
