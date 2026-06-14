@@ -187,7 +187,7 @@ impl StyleMimicryEngine {
             detection_weight += 1;
         }
 
-        if let Some(n) = detect_naming(&text) {
+        if let Some(n) = detect_naming(&text, detected_lang) {
             bullets.push(n);
             detection_weight += 1;
         }
@@ -819,7 +819,7 @@ fn detect_indent(text: &str) -> Option<String> {
     }
 }
 
-fn detect_naming(text: &str) -> Option<String> {
+fn detect_naming(text: &str, lang: DetectedLanguage) -> Option<String> {
     static SNAKE_RE: OnceLock<Regex> = OnceLock::new();
     static CAMEL_RE: OnceLock<Regex> = OnceLock::new();
     static PASCAL_RE: OnceLock<Regex> = OnceLock::new();
@@ -854,9 +854,26 @@ fn detect_naming(text: &str) -> Option<String> {
         return None;
     }
 
-    let msg = if s >= c && s >= p {
+    // VB.NET has a fixed convention; state it directly rather than voting.
+    if matches!(lang, DetectedLanguage::Vb) {
+        return Some(
+            "Use PascalCase for Subs/Functions/types and camelCase for locals (VB.NET convention)."
+                .into(),
+        );
+    }
+
+    // snake_case is idiomatic only in Rust/Python (and the language-agnostic
+    // Unknown fallback). In PascalCase/camelCase languages (C#, VB, Java,
+    // TS, JS) a snake-token plurality is almost always DB columns, embedded
+    // SQL, or comment text — not the naming convention — so never echo it back.
+    let snake_is_idiomatic = matches!(
+        lang,
+        DetectedLanguage::Rust | DetectedLanguage::Python | DetectedLanguage::Unknown
+    );
+
+    let msg = if s >= c && s >= p && snake_is_idiomatic {
         "Prefer snake_case for identifiers."
-    } else if c >= s && c >= p {
+    } else if c >= p {
         "Prefer camelCase for local identifiers."
     } else {
         "Prefer PascalCase for types, and keep naming consistent within the file."
