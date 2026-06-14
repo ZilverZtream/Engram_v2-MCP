@@ -9,6 +9,7 @@ working tree is never touched.
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -162,6 +163,31 @@ def add_worktree(base_commit, dest):
 def remove_worktree(dest):
     subprocess.run(["git", "-C", OCIUSX_REPO, "worktree", "remove", "--force", dest],
                    capture_output=True)
+
+
+def add_snapshot(base_commit, dest):
+    """Materialize OciusX at `base_commit` as a PLAIN file tree (no `.git`) via
+    `git archive`. Use this for any tree an IMPLEMENTING AGENT reads.
+
+    CRITICAL leakage fix: a linked `git worktree` shares OciusX's object store, so
+    an agent can `git -C <dest> log --all` / `git show <future-sha>` and read the
+    merged TARGET PR (the answer) — observed: agents quoting future commit hashes
+    and reproducing the exact PR. A `git archive` snapshot has no history, so the
+    agent sees only the base-state files. (The Engram INDEX worktree still uses
+    add_worktree — it legitimately needs git for co-change/history at base.)
+    """
+    if os.path.exists(dest):
+        shutil.rmtree(dest, ignore_errors=True)
+    os.makedirs(dest, exist_ok=True)
+    archive = subprocess.run(["git", "-C", OCIUSX_REPO, "archive", base_commit],
+                             capture_output=True)
+    if archive.returncode != 0:
+        raise RuntimeError(f"git archive failed: {archive.stderr[:300]!r}")
+    tar = subprocess.run(["tar", "-x", "-C", dest], input=archive.stdout,
+                         capture_output=True)
+    if tar.returncode != 0:
+        raise RuntimeError(f"tar extract failed: {tar.stderr[:300]!r}")
+    return dest
 
 
 def norm_path(p):

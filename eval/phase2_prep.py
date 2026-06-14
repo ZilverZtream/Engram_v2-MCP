@@ -21,7 +21,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from engram_client import (  # noqa: E402
-    Engram, add_worktree, remove_worktree, canon, extract_paths, WORKTREE_ROOT,
+    Engram, add_worktree, add_snapshot, remove_worktree, canon, extract_paths, WORKTREE_ROOT,
 )
 import run_phase1 as rp  # noqa: E402
 
@@ -301,13 +301,19 @@ def main():
     base = rec["base_commit"]
     print(f"PR {args.pr} @ base {base[:8]} — {rec['story']['title'][:60]}")
 
-    # Agent worktrees at base — persist for the A/B agents AND serve as the
-    # base-content source for family expansion. Create only if missing.
+    # Agent base trees — what the implementing agents read. These MUST be plain
+    # snapshots (no .git): a linked git worktree lets an agent `git log --all` the
+    # merged target PR and copy the answer (leakage). (re)create as a snapshot if
+    # missing OR if a stale leaky .git worktree is present.
     wt_alone = os.path.join(P2_WT_ROOT, f"pr{args.pr}_alone")
     wt_engram = os.path.join(P2_WT_ROOT, f"pr{args.pr}_engram")
     for wtp in (wt_engram, wt_alone):
-        if not os.path.isdir(os.path.join(wtp, "Site")):
-            add_worktree(base, wtp)
+        has_site = os.path.isdir(os.path.join(wtp, "Site"))
+        is_leaky = os.path.exists(os.path.join(wtp, ".git"))
+        if not has_site or is_leaky:
+            if is_leaky:
+                remove_worktree(wtp)  # detach the linked worktree before re-snapshotting
+            add_snapshot(base, wtp)
 
     eng = Engram()
     imap = _load_map()
