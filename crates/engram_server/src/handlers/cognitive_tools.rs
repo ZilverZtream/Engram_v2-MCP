@@ -1828,7 +1828,8 @@ impl Engram {
                 .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
 
             if let Some(method_name) = &p.method_name {
-                let language = crate::services::business_logic_service::detect_language(&content);
+                let language =
+                    crate::services::business_logic_service::detect_language(file_path, &content);
                 let class_name =
                     crate::services::business_logic_service::detect_class_name(&content);
                 let body_opt = if language == "vb" {
