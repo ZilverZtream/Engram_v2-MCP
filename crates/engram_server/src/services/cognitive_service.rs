@@ -2565,29 +2565,68 @@ fn is_common_keyword(s: &str) -> bool {
     )
 }
 
-/// Prompt template from v1 dreaming.py STYLE_ANALYSIS_PROMPT.
-const STYLE_ANALYSIS_PROMPT: &str = r#"You are a code style analyzer. You will be given recent git diffs for a file.
-Your task is to extract the coding patterns and conventions used in this file.
+/// Prompt template (from v1 dreaming.py STYLE_ANALYSIS_PROMPT), made
+/// language-aware. The original was saturated with Python examples (snake_case,
+/// try/except, `from X import Y`, docstrings) and never named the file's
+/// language, so the LLM parroted Python conventions for VB/C#/TS files. Now the
+/// language is stated up front and the prompt demands language-appropriate
+/// conventions only.
+const STYLE_ANALYSIS_PROMPT: &str = r#"You are a code style analyzer for {language} code. You will be given recent git diffs for a file written in {language}.
+Your task is to extract the coding patterns and conventions ACTUALLY used in THIS {language} file. Use ONLY conventions that are valid for {language}; never assume Python or any other language, and never invent conventions the diffs do not show.
 
-Recent changes to {file_path}:
+Recent changes to {file_path} ({language}):
 
 {diffs}
 
-Analyze the above changes and extract:
-1. Naming conventions (e.g., snake_case, camelCase, PascalCase)
-2. Common patterns (e.g., validation before DB calls, specific libraries/frameworks used)
-3. Code organization patterns (e.g., class structure, function ordering)
-4. Error handling approaches (e.g., try/except, return None, raise exceptions)
-5. Import style (e.g., from X import Y vs import X.Y)
-6. Documentation style (e.g., docstrings, inline comments)
+From the diffs above, extract (express everything in {language} terms):
+1. Naming conventions — the actual casing this file uses for types, methods/subs/functions, locals, and constants.
+2. Common patterns — validation, data access, and the specific libraries / framework APIs this file uses.
+3. Code organization — member ordering, region/section structure, file layout.
+4. Error handling — the approach this file/language actually uses.
+5. How dependencies are declared and grouped (the {language} mechanism — e.g. Imports/using/import — as the file does it).
+6. Documentation / comment style.
 
-Format your response as a concise style guide (3-5 bullet points) that could be prepended to an AI agent's context.
-Focus on actionable patterns, not generic advice.
+Format your response as a concise style guide (3-5 bullet points) to prepend to an AI agent's context.
+Focus on actionable, {language}-specific patterns this file actually demonstrates — NOT generic advice and NOT conventions from other languages.
 
 If there are insufficient changes to determine a clear pattern, respond with "INSUFFICIENT_DATA".
 
 Style Guide:
 "#;
+
+/// Human-readable language label for a path, for the style-analysis prompt.
+fn style_language_label(file_path: &str) -> &'static str {
+    let p = file_path.to_ascii_lowercase();
+    if p.ends_with(".vb") {
+        "VB.NET"
+    } else if p.ends_with(".cs") {
+        "C#"
+    } else if p.ends_with(".ts") || p.ends_with(".tsx") {
+        "TypeScript"
+    } else if p.ends_with(".js") || p.ends_with(".jsx") || p.ends_with(".mjs") || p.ends_with(".cjs") {
+        "JavaScript"
+    } else if p.ends_with(".aspx") || p.ends_with(".ascx") || p.ends_with(".master") {
+        "ASP.NET WebForms markup"
+    } else if p.ends_with(".sql") {
+        "SQL"
+    } else if p.ends_with(".py") {
+        "Python"
+    } else if p.ends_with(".rs") {
+        "Rust"
+    } else if p.ends_with(".go") {
+        "Go"
+    } else if p.ends_with(".java") {
+        "Java"
+    } else if p.ends_with(".vbhtml") || p.ends_with(".cshtml") {
+        "Razor"
+    } else if p.ends_with(".html") || p.ends_with(".htm") {
+        "HTML"
+    } else if p.ends_with(".css") || p.ends_with(".scss") || p.ends_with(".less") {
+        "CSS"
+    } else {
+        "this language"
+    }
+}
 
 async fn try_llm_style_analysis(
     state: &AppState,
@@ -2595,6 +2634,7 @@ async fn try_llm_style_analysis(
     diffs_text: &str,
 ) -> Option<String> {
     let prompt = STYLE_ANALYSIS_PROMPT
+        .replace("{language}", style_language_label(file_path))
         .replace("{file_path}", file_path)
         .replace("{diffs}", diffs_text);
 
@@ -3098,7 +3138,22 @@ fn gather_boundary_data(
 
 #[cfg(test)]
 mod tests {
-    use super::static_analyze_file_style;
+    use super::{static_analyze_file_style, style_language_label};
+
+    #[test]
+    fn style_language_label_maps_by_extension() {
+        // The LLM style prompt was emitting Python conventions for non-Python
+        // files because it was never told the language. Each file type must
+        // resolve to its real language so the prompt can constrain the LLM.
+        assert_eq!(style_language_label("App_Code/Foo.vb"), "VB.NET");
+        assert_eq!(style_language_label("Services/Bar.cs"), "C#");
+        assert_eq!(style_language_label("ts/map/x.ts"), "TypeScript");
+        assert_eq!(style_language_label("~.js/map.js"), "JavaScript");
+        assert_eq!(style_language_label("pages/x.aspx"), "ASP.NET WebForms markup");
+        assert_eq!(style_language_label("Scripts/x.sql"), "SQL");
+        assert_eq!(style_language_label("m.py"), "Python");
+        assert_ne!(style_language_label("App_Code/Foo.vb"), "Python");
+    }
 
     const OCIUSX_VB_SAMPLE: &str = r#"
 Imports System
