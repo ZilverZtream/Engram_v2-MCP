@@ -833,6 +833,20 @@ mod tests {
     }
 
     #[test]
+    fn story_concepts_prefer_distinctive_identifiers_over_crud_verbs() {
+        // PR1913 shape: the narrative preamble is generic CRUD ("update ... status"),
+        // the high-signal token is the API resource named in the endpoint path.
+        // Generic CRUD verbs must not crowd it out of the top-3 concepts.
+        let story = "As an admin I would like to be able to update RoQ invoice status \
+                     from the API.\nAcceptance:\nPOST api/v2/roqentries/{id}/setasbilled";
+        let c = extract_story_concepts(story);
+        assert!(c.contains(&"roqentries".to_string()),
+                "distinctive API resource must surface: {c:?}");
+        assert!(!c.contains(&"update".to_string()),
+                "generic CRUD verb must be demoted: {c:?}");
+    }
+
+    #[test]
     fn transpile_pair_candidates_links_ts_and_committed_js() {
         // .ts source -> same-dir .js AND the ts/ -> ~.js/ output-dir swap.
         let c = transpile_pair_candidates("modules/map/ts/map.ts");
@@ -897,6 +911,45 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         "adds",
         "new",
         "get",
+        // Generic CRUD / UI verbs: almost never the DISTINCTIVE concept (the
+        // domain noun or identifier is). Demoting them stops the narrative
+        // preamble ("update invoice status") from crowding out the high-signal
+        // token the story actually names (e.g. the API resource `roqentries`).
+        // Keep DOMAIN nouns/features (report, export, import, search, filter,
+        // map, invoice, status, …) as real concepts — only pure verbs here.
+        // NOTE: only UNAMBIGUOUS generic verbs. Deliberately NOT stopwording
+        // verbs that double as OciusX domain nouns — change ("Change Requests"),
+        // view (DB/map views), select (SQL), process (business process), create
+        // (creation flows) — to avoid hurting recall on those concepts.
+        "update",
+        "updates",
+        "modify",
+        "edit",
+        "edits",
+        "display",
+        "show",
+        "shows",
+        "manage",
+        "enable",
+        "enabled",
+        "disable",
+        "disabled",
+        "toggle",
+        "choose",
+        "save",
+        "remove",
+        "delete",
+        "handle",
+        // Story-structure / Gherkin labels and HTTP verbs: scaffolding, not
+        // domain concepts (they otherwise steal a top-3 slot from real tokens).
+        "acceptance",
+        "criteria",
+        "scenario",
+        "given",
+        "post",
+        "patch",
+        "call",
+        "calls",
         "have",
         "has",
         "when",
