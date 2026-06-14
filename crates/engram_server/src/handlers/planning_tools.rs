@@ -28,8 +28,9 @@ use std::path::PathBuf;
 // ── Pure helpers ─────────────────────────────────────────────────────────────
 
 /// Lowercase concept stems used for substring matching: the term itself,
-/// a naive singular (trailing 's' stripped), and a compacted form without
-/// separators so "code category" also matches "CodeCategory"/"code_category".
+/// a naive singular (trailing 's' stripped), the clean `ies`->`y` / `es`
+/// singular, and a compacted form without separators so "code category" also
+/// matches "CodeCategory"/"code_category".
 pub(crate) fn concept_stems(concept: &str) -> Vec<String> {
     let lower = concept.trim().to_lowercase();
     let mut stems = vec![lower.clone()];
@@ -37,6 +38,23 @@ pub(crate) fn concept_stems(concept: &str) -> Vec<String> {
         && singular.len() >= 3
     {
         stems.push(singular.to_string());
+    }
+    // Clean English plural -> singular so a PLURAL concept matches SINGULAR code
+    // identifiers: "roqentries" -> "roqentry" (matches RoqEntryService), which the
+    // naive 's'-strip ("roqentrie") misses; "categories" -> "category". Guard the
+    // base length so we never produce a tiny, over-matching stem.
+    if let Some(base) = lower.strip_suffix("ies")
+        && base.len() >= 3
+    {
+        let singular = format!("{base}y");
+        if !stems.contains(&singular) {
+            stems.push(singular);
+        }
+    } else if let Some(base) = lower.strip_suffix("es")
+        && base.len() >= 4
+        && !stems.iter().any(|s| s == base)
+    {
+        stems.push(base.to_string());
     }
     let compact: String = lower.chars().filter(|c| c.is_alphanumeric()).collect();
     if !stems.contains(&compact) && compact.len() >= 3 {
@@ -830,6 +848,20 @@ mod tests {
         );
         // A bare filename with no directory is still dropped (keep filter).
         assert!(change_set_paths("map.js").is_empty());
+    }
+
+    #[test]
+    fn concept_stems_plural_matches_singular_identifiers() {
+        // A plural concept must match singular code identifiers (the PR1913 gap:
+        // concept "roqentries" vs files RoqEntryService / RoqEntryDto).
+        let stems = concept_stems("roqentries");
+        assert!(stems.contains(&"roqentry".to_string()), "{stems:?}");
+        assert!(matches_concept("RoqEntryService", &stems));
+        assert!(matches_concept("RoqEntriesController", &stems)); // plural still matches
+        // categories -> category
+        assert!(concept_stems("categories").contains(&"category".to_string()));
+        // a singular concept is unaffected (no bogus stem corrupts matching).
+        assert!(matches_concept("InvoiceStatus", &concept_stems("invoice")));
     }
 
     #[test]
