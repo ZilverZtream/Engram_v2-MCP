@@ -1868,6 +1868,36 @@ impl Engram {
             }
         }
 
+        // Semantic arm — embedding search reaches files the LEXICAL signals miss:
+        // a new architectural layer (e.g. an api-v2 controller) with sparse git
+        // history is invisible to concept/co-change/history, but its meaning
+        // ("update RoQ invoice status from the API") still matches the story
+        // vector. Tagged "vector"; ranked LOW alone (semantic hits are noisier),
+        // so it fills the capped tail to reach those files without displacing the
+        // corroborated ones. MMR for file diversity. Generic; no per-repo logic.
+        if let Ok(r) = self
+            .handle_vector_search(crate::models::VectorSearchRequest {
+                project_id: req.project_id.clone(),
+                query: req.story.clone(),
+                namespace: "memory".to_string(),
+                top_k: 40,
+                use_mmr: true,
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                include_content: false,
+                max_content_chars: 0,
+            })
+            .await
+            && let Some(t) = r.content.first().and_then(|x| x.as_text())
+        {
+            for p in change_set_paths(&t.text) {
+                if !engram_core::is_vendor_path(&p) {
+                    prov.entry(p).or_default().insert("vector");
+                }
+            }
+        }
+
         // Family expansion — add deterministic .NET companions that EXIST in the
         // index: code-behind/designer of a page, and the full .resx language set.
         // Generic framework patterns, not per-repo. Match prefix-insensitively
