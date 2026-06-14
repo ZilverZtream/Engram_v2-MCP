@@ -1977,13 +1977,19 @@ fn render_change_set(
         s.push_str(&format!("\n**{lname}:**\n"));
         let mut tail = 0usize;
         for (p, sigs) in &items {
-            if change_set_tier(sigs) >= 2 {
+            // Top-8 vector hits ("vtop") are the cross-language semantic bridge,
+            // bounded by the vector arm — exempt them from the concept/graph tail
+            // cap so a busy layer (many concept matches) can't crowd them out
+            // (being tier-4 they'd otherwise always lose).
+            let vtop = sigs.contains("vtop");
+            if change_set_tier(sigs) >= 2 && !vtop {
                 tail += 1;
                 if tail > 18 {
                     continue;
                 }
             }
-            let labels: Vec<&str> = sigs.iter().copied().collect();
+            // Display "vtop" as "vector" — it is just a high-rank vector hit.
+            let labels: Vec<&str> = sigs.iter().map(|s| if *s == "vtop" { "vector" } else { *s }).collect();
             s.push_str(&format!("- `{p}`  [{}]\n", labels.join("|")));
         }
     }
@@ -2156,10 +2162,19 @@ impl Engram {
             .await
             && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
-            for p in change_set_paths(&t.text) {
-                if !engram_core::is_vendor_path(&p) {
-                    prov.entry(p).or_default().insert("vector");
-                }
+            // change_set_paths preserves the similarity order of the results.
+            // The TOP-8 distinct hits are the cross-LANGUAGE bridge — an English
+            // story matching Swedish/internal code identifiers that concept and
+            // co-change cannot reach — so tag them "vtop" to ALWAYS survive the
+            // render tail cap (bounded to 8 → never floods). Ranks 9+ stay plain
+            // "vector" (normal tail behaviour, so no regression where the layer
+            // had room for them).
+            for (i, p) in change_set_paths(&t.text)
+                .into_iter()
+                .filter(|p| !engram_core::is_vendor_path(p))
+                .enumerate()
+            {
+                prov.entry(p).or_default().insert(if i < 8 { "vtop" } else { "vector" });
             }
         }
 
