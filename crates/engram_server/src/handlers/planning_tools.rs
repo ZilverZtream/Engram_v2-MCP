@@ -837,11 +837,16 @@ mod tests {
         // PR1913 shape: the narrative preamble is generic CRUD ("update ... status"),
         // the high-signal token is the API resource named in the endpoint path.
         // Generic CRUD verbs must not crowd it out of the top-3 concepts.
+        // Real-shape: prose preamble BEFORE the endpoint path, so document-order
+        // alone would pick invoice/status/customer and never reach the resource.
         let story = "As an admin I would like to be able to update RoQ invoice status \
-                     from the API.\nAcceptance:\nPOST api/v2/roqentries/{id}/setasbilled";
+                     from the API. The customer pulls the RoQ data every night from their \
+                     own system and now wants to update the entries invoice status. We \
+                     handle this as a specific command rather than a CRUD endpoint. \
+                     POST api/v2/roqentries/{id}/setasbilled. Only admins may call it.";
         let c = extract_story_concepts(story);
         assert!(c.contains(&"roqentries".to_string()),
-                "distinctive API resource must surface: {c:?}");
+                "endpoint-path resource must surface despite being buried: {c:?}");
         assert!(!c.contains(&"update".to_string()),
                 "generic CRUD verb must be demoted: {c:?}");
     }
@@ -988,18 +993,42 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         "also",
         "story",
     ];
+    let candidate = |w: &str| -> Option<String> {
+        let lower = w.to_lowercase();
+        (lower.len() >= 4 && !STOPWORDS.contains(&lower.as_str())).then_some(lower)
+    };
     let mut seen = HashSet::new();
-    let mut out = Vec::new();
+    let mut out: Vec<String> = Vec::new();
+
+    // 1. High-signal first: tokens the story puts in a resource/endpoint PATH
+    //    (e.g. `api/v2/roqentries/{id}/setasbilled`) name a concrete code
+    //    resource and are almost always the exact change target — but they sit
+    //    deep in the description, past the narrative preamble, where a plain
+    //    document-order scan (top-3) never reaches them. Stories without such
+    //    paths skip this loop entirely (near-zero regression). Cap at 2 so
+    //    ordinary prose concepts still get a slot.
+    let path_re = regex::Regex::new(r"[/\\]([A-Za-z][A-Za-z0-9_]{3,})")
+        .expect("extract_story_concepts path regex");
+    for cap in path_re.captures_iter(story) {
+        if out.len() >= 2 {
+            break;
+        }
+        if let Some(c) = candidate(&cap[1])
+            && seen.insert(c.clone())
+        {
+            out.push(c);
+        }
+    }
+
+    // 2. Fill remaining slots in document order.
     for word in story.split(|c: char| !c.is_alphanumeric()) {
-        let lower = word.to_lowercase();
-        if lower.len() < 4 || STOPWORDS.contains(&lower.as_str()) {
-            continue;
-        }
-        if seen.insert(lower.clone()) {
-            out.push(lower);
-        }
         if out.len() >= 3 {
             break;
+        }
+        if let Some(c) = candidate(word)
+            && seen.insert(c.clone())
+        {
+            out.push(c);
         }
     }
     out
