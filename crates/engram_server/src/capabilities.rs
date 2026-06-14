@@ -86,6 +86,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "distill_quality_gates",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "pre_push_audit",
         status: CapabilityStatus::Implemented,
     },

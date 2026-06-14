@@ -563,6 +563,35 @@ pub struct IngestQualityGatesRequest {
     pub clear_existing: bool,
 }
 
+/// Stage-3 distillation: turn a raw finding corpus (CodeRabbit/SonarQube history)
+/// into GENERIC, deduplicated project rules via LLM summarization of clustered
+/// findings, then index them into the `quality_gate` namespace. Use this for
+/// finding corpora (coderabbit/sonarqube); use ingest_quality_gates for already-
+/// generic sources (copilot-instructions, the board).
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DistillQualityGatesRequest {
+    pub project_id: String,
+    /// Project-relative path to the raw findings source (JSON or markdown).
+    pub source_path: String,
+    /// Source kind: coderabbit | sonarqube | board | text | copilot | rules.
+    pub source_type: String,
+    /// Findings per LLM batch (clamped 10..=200, default 50).
+    #[serde(default = "default_distill_batch_size")]
+    pub batch_size: usize,
+    /// Max concurrent LLM calls (clamped 1..=12, default 6).
+    #[serde(default = "default_distill_concurrency")]
+    pub max_concurrent: usize,
+}
+
+fn default_distill_batch_size() -> usize {
+    50
+}
+
+fn default_distill_concurrency() -> usize {
+    6
+}
+
 /// Stage-3 pre-push audit: retrieve the quality-gate rules most relevant to a
 /// proposed change so the agent can fix known issues BEFORE the first push.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

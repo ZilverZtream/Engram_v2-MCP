@@ -291,6 +291,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Distill a raw finding corpus (CodeRabbit/SonarQube export, source_type=coderabbit|sonarqube, JSON) into GENERIC, deduplicated project rules and index them into the quality_gate namespace. Unlike ingest_quality_gates (1:1, file/line-scoped), this CLUSTERS thousands of findings and LLM-summarizes each cluster into reusable rules that apply to ANY change ('team keeps shipping un-parameterized SQL' -> 'always parameterize'). This is the team knowledge a user story omits. Needs a configured LLM. Use for findings corpora; use ingest_quality_gates for already-generic sources (copilot-instructions, the board)."
+    )]
+    pub async fn distill_quality_gates(
+        &self,
+        params: Parameters<DistillQualityGatesRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_distill_quality_gates(params.0).await
+    }
+
+    #[tool(
         description = "Pre-push audit: given proposed code or a diff, retrieve the quality-gate rules/findings most relevant to it (from ingest_quality_gates) so an agent can fix known issues BEFORE the first push. Rules scoped to file_path rank first. Returns the rules to verify the change against."
     )]
     pub async fn pre_push_audit(
