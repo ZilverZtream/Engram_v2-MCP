@@ -249,6 +249,135 @@ fn parse_text_rules(content: &str, category: &str, origin: &str) -> Vec<QualityR
         .collect()
 }
 
+// ───────────────────────── distillation (Stage 3) ──────────────────────────
+//
+// A raw finding corpus (thousands of CodeRabbit/Sonar comments, each tied to a
+// file+line) is the WRONG thing to retrieve by file/line — a finding on file X
+// line 42 only ever helps someone editing file X line 42. The value is in
+// GENERALIZING the corpus into a small set of reusable rules ("the team keeps
+// shipping un-parameterized SQL" -> rule "always parameterize"). Distillation =
+// cluster findings, then LLM-summarize each cluster into one generic rule. The
+// LLM call lives in the server (it owns the DreamingEngine); these are the pure
+// helpers: batching the corpus and parsing the LLM's distilled output back into
+// [`QualityRule`]s.
+
+/// One generic rule as emitted by the distillation LLM (strict JSON contract).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct DistilledRule {
+    pub rule: String,
+    #[serde(default)]
+    pub why: String,
+    #[serde(default)]
+    pub category: String,
+    #[serde(default)]
+    pub severity: String,
+    #[serde(default)]
+    pub languages: Vec<String>,
+    #[serde(default)]
+    pub evidence_count: u32,
+}
+
+/// Split a finding corpus into batches of at most `batch_size` for per-batch
+/// LLM distillation. Groups by category first so each batch is topically
+/// coherent (better generalization), falling back to insertion order.
+pub fn batch_findings(findings: &[QualityRule], batch_size: usize) -> Vec<Vec<&QualityRule>> {
+    let bs = batch_size.max(1);
+    let mut by_cat: std::collections::BTreeMap<&str, Vec<&QualityRule>> = Default::default();
+    for f in findings {
+        by_cat.entry(f.category.as_str()).or_default().push(f);
+    }
+    let mut out = Vec::new();
+    for (_cat, group) in by_cat {
+        for chunk in group.chunks(bs) {
+            out.push(chunk.to_vec());
+        }
+    }
+    out
+}
+
+/// The prompt that turns a batch of raw findings into generic rules.
+pub fn distill_prompt(findings: &[&QualityRule]) -> String {
+    let mut body = String::new();
+    for (i, f) in findings.iter().enumerate() {
+        body.push_str(&format!("{}. {}\n", i + 1, f.text.trim()));
+    }
+    format!(
+        "You are distilling a team's CODE-REVIEW HISTORY into GENERIC, reusable project rules.\n\n\
+         Below are {n} real review findings from merged pull requests. GENERALIZE them:\n\
+         - Collapse EVERY finding sharing a root cause into ONE imperative rule (e.g. ten \
+         \"wrap SqlConnection in Using\" findings -> one rule).\n\
+         - Phrase each rule so it applies to ANY future change: NO file names, NO feature names, \
+         NO PR specifics. A developer must be able to follow it blind.\n\
+         - DROP one-off findings that carry no reusable lesson (a typo in one comment, a single \
+         bespoke bug).\n\
+         - evidence_count = how many of these findings the rule covers.\n\n\
+         FINDINGS:\n{body}\n\n\
+         Return ONLY a JSON array, no prose, no markdown fences. Each element:\n\
+         {{\"rule\":\"<imperative generic rule>\",\"why\":\"<one line failure mode>\",\
+         \"category\":\"<short kebab category>\",\"severity\":\"high|medium|low\",\
+         \"languages\":[\"vbnet\"],\"evidence_count\":<int>}}",
+        n = findings.len(),
+    )
+}
+
+/// Parse the distillation LLM's output (a JSON array, possibly fenced or with
+/// surrounding prose) into [`QualityRule`]s. Robust to ```json fences and
+/// leading/trailing chatter; falls back to empty on unparseable input.
+pub fn parse_distilled_rules(raw: &str, origin: &str) -> Vec<QualityRule> {
+    let json = extract_json_array(raw);
+    let Ok(rules) = serde_json::from_str::<Vec<DistilledRule>>(&json) else {
+        return Vec::new();
+    };
+    rules
+        .into_iter()
+        .filter(|r| !r.rule.trim().is_empty())
+        .enumerate()
+        .map(|(i, r)| {
+            let category = if r.category.trim().is_empty() {
+                "distilled".to_string()
+            } else {
+                r.category.trim().to_ascii_lowercase()
+            };
+            let severity = match r.severity.trim().to_ascii_lowercase().as_str() {
+                "high" | "critical" | "blocker" => "high",
+                "low" | "info" | "minor" => "low",
+                _ => "medium",
+            }
+            .to_string();
+            let mut text = r.rule.trim().to_string();
+            if !r.why.trim().is_empty() {
+                text = format!("{text} — {}", r.why.trim());
+            }
+            if !r.languages.is_empty() {
+                text = format!("{text} [{}]", r.languages.join(","));
+            }
+            QualityRule {
+                id: format!("distilled:{origin}:{i}"),
+                text,
+                category,
+                severity,
+                path_scope: None,
+                source: origin.to_string(),
+            }
+        })
+        .collect()
+}
+
+/// Extract the outermost JSON array from an LLM response (strips ```json fences
+/// and any prose before `[` / after the matching `]`).
+fn extract_json_array(raw: &str) -> String {
+    let s = raw.trim();
+    let s = s
+        .strip_prefix("```json")
+        .or_else(|| s.strip_prefix("```"))
+        .unwrap_or(s);
+    let s = s.trim_end_matches("```").trim();
+    match (s.find('['), s.rfind(']')) {
+        (Some(a), Some(b)) if b > a => s[a..=b].to_string(),
+        _ => s.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +412,42 @@ mod tests {
         let rules = parse_quality_source(json, QualitySource::DevOpsBoard, "board.json");
         // nested ado paths are not real JSON keys here; ensure no panic + graceful empty/line fallback
         let _ = rules; // schema-dependent; the parser must not panic
+    }
+
+    #[test]
+    fn distill_parses_fenced_json_and_batches() {
+        // fenced + surrounding prose, mixed severity, languages folded into text
+        let raw = "Here are the rules:\n```json\n[\
+          {\"rule\":\"Always wrap ADO.NET disposables in a Using block\",\"why\":\"leaks connections\",\"category\":\"data-access\",\"severity\":\"high\",\"languages\":[\"vbnet\"],\"evidence_count\":12},\
+          {\"rule\":\"Compare reference types with Is Nothing, not = Nothing\",\"category\":\"\",\"severity\":\"\"}\
+        ]\n```\nThat's all.";
+        let rules = parse_distilled_rules(raw, "coderabbit");
+        assert_eq!(rules.len(), 2, "{rules:?}");
+        assert_eq!(rules[0].severity, "high");
+        assert_eq!(rules[0].category, "data-access");
+        assert!(rules[0].text.contains("Using") && rules[0].text.contains("[vbnet]"));
+        assert_eq!(rules[1].severity, "medium"); // empty -> medium
+        assert_eq!(rules[1].category, "distilled"); // empty -> distilled
+
+        let findings: Vec<QualityRule> = (0..25)
+            .map(|i| QualityRule {
+                id: format!("c:{i}"),
+                text: format!("finding {i}"),
+                category: if i % 2 == 0 { "a".into() } else { "b".into() },
+                severity: "medium".into(),
+                path_scope: None,
+                source: "cr".into(),
+            })
+            .collect();
+        let batches = batch_findings(&findings, 10);
+        // category a (13) -> 2 batches, category b (12) -> 2 batches
+        assert_eq!(batches.len(), 4, "{:?}", batches.iter().map(|b| b.len()).collect::<Vec<_>>());
+        assert!(batches.iter().all(|b| b.len() <= 10));
+    }
+
+    #[test]
+    fn distill_rejects_non_json() {
+        assert!(parse_distilled_rules("I could not produce rules.", "cr").is_empty());
     }
 
     #[test]
