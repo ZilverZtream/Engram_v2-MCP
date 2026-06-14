@@ -2205,7 +2205,11 @@ impl Engram {
         let edited: Vec<String> = req
             .edited_files
             .iter()
-            .map(|f| f.replace('\\', "/"))
+            // Normalise to forward slashes AND strip any leading "/" — callers
+            // (and PR ground-truth) often pass "/Site/...", but file node ids
+            // are "Site/..."; an unstripped leading slash silently resolves to
+            // nothing and the audit returns a false "all clear".
+            .map(|f| f.replace('\\', "/").trim_start_matches('/').to_string())
             .collect();
         let max_partners = req.max_partners.clamp(1, 20);
 
@@ -2241,7 +2245,9 @@ impl Engram {
             };
 
             // ── Co-change partners not in the edit set ──────────────────
-            let mut partner_findings: Vec<(String, String, u32)> = Vec::new();
+            // Collect raw candidates (edited_file, partner, weight); weak
+            // couplings are noise, so demand real history.
+            let mut raw: Vec<(String, String, u32)> = Vec::new();
             for f in &edited {
                 let resolved = real_case
                     .get(&f.to_lowercase())
@@ -2251,22 +2257,60 @@ impl Engram {
                 let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500) else {
                     continue;
                 };
-                let mut partners: Vec<(String, u32)> = neigh
-                    .into_iter()
-                    .filter_map(|(nid, w)| nid.strip_prefix("file:").map(|p| (p.to_string(), w)))
-                    .collect();
-                partners.sort_by(|a, b| b.1.cmp(&a.1));
-                for (partner, weight) in partners.into_iter().take(max_partners) {
-                    // Weak couplings are noise; demand real history.
-                    if weight < 5 || covered(&partner) {
+                for (nid, weight) in neigh {
+                    let Some(partner) = nid.strip_prefix("file:") else {
+                        continue;
+                    };
+                    if weight < 5 || covered(partner) {
                         continue;
                     }
-                    partner_findings.push((f.clone(), partner, weight));
+                    raw.push((f.clone(), partner.to_string(), weight));
                 }
             }
-            partner_findings.sort_by(|a, b| b.2.cmp(&a.2));
-            partner_findings.dedup_by(|a, b| a.1 == b.1);
-            partner_findings.truncate(15);
+            // Keep the single strongest coupling per partner.
+            raw.sort_by(|a, b| b.2.cmp(&a.2));
+            let mut best_per_partner: Vec<(String, String, u32)> = Vec::new();
+            {
+                let mut seen: HashSet<String> = HashSet::new();
+                for r in raw {
+                    if seen.insert(r.1.clone()) {
+                        best_per_partner.push(r);
+                    }
+                }
+            }
+            // Hub down-weighting: a partner that co-changes with a HUGE number of
+            // DISTINCT files (a global resx bundle, a shared script bundle) is
+            // touched by almost every change, so it carries no specific "you
+            // missed this companion" signal — surfacing it only adds noise and
+            // steers the agent toward the wrong family (e.g. label.resx when the
+            // change actually needs text.resx). Drop partners whose co-change
+            // DEGREE marks them ubiquitous. Generic — degree-based, the same IDF
+            // insight as the cross-section map; no per-repo names. The default
+            // is a high floor so it NO-OPS on sparse/young repos (no file reaches
+            // it) and only trims genuinely ubiquitous hubs on dense histories
+            // like this one (label.resx ~1063, text.resx ~900 get dropped;
+            // moderately-specific companions ~300-700 survive). Env-overridable.
+            let hub_degree: usize = std::env::var("ENGRAM_HUB_DEGREE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(800);
+            // Co-change degree per candidate partner (distinct neighbours).
+            let degree_of = |partner: &str| -> usize {
+                let pfid = format!("file:{partner}");
+                graph
+                    .neighbors(&pid, EdgeKind::TemporalCoupling, &pfid, 2000)
+                    .map(|v| v.len())
+                    .unwrap_or(0)
+            };
+            let mut partner_findings: Vec<(String, String, u32, usize)> = best_per_partner
+                .into_iter()
+                .map(|(e, p, w)| {
+                    let d = degree_of(&p);
+                    (e, p, w, d)
+                })
+                .filter(|(_, _, _, d)| *d < hub_degree)
+                .collect();
+            partner_findings.truncate(max_partners.max(15));
 
             // ── State keys shared with untouched files ──────────────────
             // Symbols in edited files -> state targets -> other touchers.
@@ -2335,7 +2379,7 @@ impl Engram {
                 out.push_str(
                     "History says these files change together with yours — verify each:\n",
                 );
-                for (edited, partner, weight) in &partner_findings {
+                for (edited, partner, weight, _degree) in &partner_findings {
                     out.push_str(&format!(
                         "- `{partner}` ({weight} co-changes with `{edited}`)\n"
                     ));
