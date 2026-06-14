@@ -2163,6 +2163,42 @@ impl Engram {
             }
         }
 
+        // TS -> committed JS/CSS BUNDLE via co-change. A .ts usually ships with a
+        // compiled bundle, but MANY .ts often compile into ONE module bundle with
+        // a DIFFERENT basename (map.ts/iomarker.ts/… -> map.js), so the 1:1
+        // transpile-pair expansion misses it. The bundle IS among the .ts's
+        // strongest co-change partners, but the broad 40-anchor co-change seed
+        // above buries those moderate-weight links under the partner truncation.
+        // Re-run the cheap neighbour lookup seeded with ONLY the .ts anchors so
+        // each source's committed bundle survives, and keep just the .js/.css
+        // partners (the bundles). Generic — any framework that commits compiled
+        // front-end bundles; no per-repo names.
+        let ts_anchors: Vec<String> = prov
+            .keys()
+            .filter(|p| {
+                let pl = p.to_lowercase();
+                pl.ends_with(".ts") || pl.ends_with(".tsx")
+            })
+            .cloned()
+            .collect();
+        if !ts_anchors.is_empty()
+            && let Ok(r) = self
+                .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+                    project_id: req.project_id.clone(),
+                    edited_files: ts_anchors,
+                    max_partners: 12,
+                })
+                .await
+            && let Some(t) = r.content.first().and_then(|x| x.as_text())
+        {
+            for p in change_set_paths(&t.text) {
+                let pl = p.to_lowercase();
+                if (pl.ends_with(".js") || pl.ends_with(".css")) && !engram_core::is_vendor_path(&p) {
+                    prov.entry(p).or_default().insert("cochange");
+                }
+            }
+        }
+
         // Family expansion — add deterministic .NET companions that EXIST in the
         // index: code-behind/designer of a page, and the full .resx language set.
         // Generic framework patterns, not per-repo. Match prefix-insensitively
