@@ -848,6 +848,14 @@ mod tests {
         );
         // A bare filename with no directory is still dropped (keep filter).
         assert!(change_set_paths("map.js").is_empty());
+        // OpenAPI/config specs (yaml/yml) are recognized so co-change can surface
+        // them (e.g. an API spec that co-changes with its controllers). json is
+        // deliberately NOT recognized — package.json/tsconfig.json co-change with
+        // too much to be useful signal.
+        assert_eq!(
+            change_set_paths("- `docs/openapi/ox-fiber.yaml`"),
+            vec!["docs/openapi/ox-fiber.yaml".to_string()]
+        );
     }
 
     #[test]
@@ -1795,7 +1803,7 @@ fn change_set_paths(text: &str) -> Vec<String> {
     // The class also admits `~ @ +` (legal in build-output / scoped dirs) so
     // such paths aren't fragmented into slashless pieces the `keep` filter drops.
     let re = regex::Regex::new(
-        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html)\b",
+        r"(?i)[\w./\\~@+-]*\.(?:aspx\.vb|ascx\.vb|asax\.vb|asmx\.vb|ashx\.vb|svc\.vb|master\.vb|aspx\.cs|ascx\.cs|asax\.cs|asmx\.cs|ashx\.cs|svc\.cs|master\.cs|aspx|ascx|asax|ashx|asmx|svc|master|vb|css|cs|ts|tsx|js|jsx|sql|config|vbhtml|cshtml|resx|html|yaml|yml)\b",
     )
     .expect("change_set_paths regex");
     let mut seen = HashSet::new();
