@@ -2194,27 +2194,40 @@ impl Engram {
         // each source's committed bundle survives, and keep just the .js/.css
         // partners (the bundles). Generic — any framework that commits compiled
         // front-end bundles; no per-repo names.
-        let ts_anchors: Vec<String> = prov
+        // Generalised to the whole PRESENTATION layer: markup, code's compiled
+        // bundle, and stylesheet all ship together but rarely share a basename
+        // (map.ts/iomarker.ts -> map.js; map.js <-> map.aspx/index.vbhtml/map.css;
+        // marker_edit.aspx <-> marker.edit.js), so 1:1 pairing misses them and the
+        // broad co-change seed buries the moderate-weight links. Seed the cheap
+        // neighbour lookup with ONLY the presentation anchors and keep their
+        // presentation-type partners. Hub-trim inside the tool bounds it.
+        const PRESENTATION: &[&str] =
+            &[".ts", ".tsx", ".js", ".jsx", ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".css"];
+        let pres_anchors: Vec<String> = prov
             .keys()
             .filter(|p| {
                 let pl = p.to_lowercase();
-                pl.ends_with(".ts") || pl.ends_with(".tsx")
+                PRESENTATION.iter().any(|e| pl.ends_with(e))
             })
             .cloned()
             .collect();
-        if !ts_anchors.is_empty()
+        if !pres_anchors.is_empty()
             && let Ok(r) = self
                 .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
                     project_id: req.project_id.clone(),
-                    edited_files: ts_anchors,
-                    max_partners: 12,
+                    // Wider than the per-file default: this seeds the WHOLE
+                    // presentation anchor set in one call, so a small cap would let
+                    // strong anchors' partners crowd out a specific bundle (e.g.
+                    // roqQtyManager.js, weight ~8) under truncation.
+                    edited_files: pres_anchors,
+                    max_partners: 25,
                 })
                 .await
             && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
             for p in change_set_paths(&t.text) {
                 let pl = p.to_lowercase();
-                if (pl.ends_with(".js") || pl.ends_with(".css")) && !engram_core::is_vendor_path(&p) {
+                if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p) {
                     prov.entry(p).or_default().insert("cochange");
                 }
             }
