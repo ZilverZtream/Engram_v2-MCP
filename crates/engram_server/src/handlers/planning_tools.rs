@@ -949,6 +949,50 @@ mod tests {
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
     }
+
+    #[test]
+    fn scaffold_stem_groups_a_feature_cohort() {
+        // All files of one api-v2 feature must reduce to the same entity stem so
+        // the cohort groups together. (RoqEntriesController plural, RoqEntry-In/-Out
+        // DTOs, IRoqEntryService interface.)
+        for f in [
+            "RoqEntriesController",
+            "RoqEntryService",
+            "IRoqEntryService",
+            "RoqEntry-In",
+            "RoqEntry-Out",
+            "RoqEntryQuery",
+        ] {
+            assert_eq!(scaffold_stem(f), "roqentry", "{f}");
+        }
+        // Leading-I is only stripped for an interface (I + Uppercase), not real words.
+        assert_eq!(scaffold_stem("InstallationPlan"), "installationplan");
+    }
+
+    #[test]
+    fn find_analog_cohort_picks_a_complete_feature() {
+        // Original-case paths (as the index provides them) — capital I matters.
+        let index: Vec<String> = [
+            "App_Code/api-v2/Controllers/Roq/RoqEntriesController.vb",
+            "App_Code/api-v2/Services/Roq/RoqEntryService.vb",
+            "App_Code/api-v2/Services/Roq/interfaces/IRoqEntryService.vb",
+            "App_Code/api-v2/DataTransferObjects/Roq/RoqEntry-In.vb",
+            "App_Code/api-v2/QueryParams/Roq/RoqEntryQuery.vb",
+            // an unrelated, shallow group (should not win)
+            "App_Code/grunddata/code/Projekt.vb",
+            "App_Code/grunddata/code/Detaljer.vb",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let cohort = find_analog_cohort(&index, "controller").expect("cohort");
+        let lc: Vec<String> = cohort.iter().map(|f| f.to_lowercase()).collect();
+        assert!(lc.iter().any(|f| f.contains("roqentriescontroller")), "{cohort:?}");
+        assert!(lc.iter().any(|f| f.contains("iroqentryservice")), "interface dropped: {cohort:?}");
+        assert!(cohort.len() >= 5, "{cohort:?}");
+        // cue filter: a cue absent from any cohort yields nothing.
+        assert!(find_analog_cohort(&index, "nonexistentcue").is_none());
+    }
 }
 
 // ── map_guards_and_settings + plan_user_story ────────────────────────────────
@@ -1896,6 +1940,95 @@ fn change_set_paths(text: &str) -> Vec<String> {
     out
 }
 
+/// Architectural role suffix tokens shared across enterprise codebases. Used to
+/// reduce a filename to its ENTITY stem so sibling files of one feature group
+/// together (RoqEntriesController, RoqEntryService, IRoqEntryService, RoqEntry-In
+/// all -> "roqentry"). Generic OO/enterprise vocabulary, not per-repo.
+const SCAFFOLD_ROLE_SUFFIXES: &[&str] = &[
+    "controller", "service", "repository", "manager", "provider", "factory", "handler",
+    "validator", "mapper", "builder", "helper", "extensions", "job", "worker", "listener",
+    "command", "query", "request", "response", "viewmodel", "model", "dto", "config",
+];
+
+/// Reduce a filename (no extension) to its entity stem: drop a leading interface
+/// `I` (I + Uppercase), a trailing `-In`/`-Out` DTO marker, one trailing role
+/// suffix, then singularize. Lowercased. Generic.
+fn scaffold_stem(file_no_ext: &str) -> String {
+    let mut s = file_no_ext;
+    if s.len() > 2
+        && s.starts_with('I')
+        && s.as_bytes().get(1).is_some_and(u8::is_ascii_uppercase)
+    {
+        s = &s[1..];
+    }
+    let mut lower = s.to_lowercase();
+    for marker in ["-in", "-out", "_in", "_out"] {
+        if let Some(p) = lower.strip_suffix(marker) {
+            lower = p.to_string();
+            break;
+        }
+    }
+    for suf in SCAFFOLD_ROLE_SUFFIXES {
+        if lower.len() > suf.len() + 2
+            && let Some(p) = lower.strip_suffix(suf)
+        {
+            lower = p.to_string();
+            break;
+        }
+    }
+    let lower = lower.trim_end_matches(['-', '_', '.']);
+    if let Some(p) = lower.strip_suffix("ies") {
+        format!("{p}y")
+    } else if lower.ends_with("ss") {
+        lower.to_string()
+    } else {
+        lower.strip_suffix('s').unwrap_or(lower).to_string()
+    }
+}
+
+/// Find the existing feature COHORT most useful as a scaffold template: an
+/// (area, entity-stem) whose files span >=3 distinct directories AND (when a cue
+/// token is given, e.g. "controller" for an API story) contains a file matching
+/// the cue. Returns the cohort's real file paths (the structural template the
+/// agent should mirror for a NEW feature). Generic — learns the repo's own
+/// convention; no hardcoded layout. `index` = web-root-stripped paths in their
+/// ORIGINAL case (case matters for the interface `I`-prefix detection); grouping
+/// keys are lowercased internally and the cue match is case-insensitive.
+fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
+    let cue = cue.to_lowercase();
+    let mut groups: HashMap<(String, String), (HashSet<String>, Vec<String>)> = HashMap::new();
+    for f in index {
+        let segs: Vec<&str> = f.split('/').filter(|s| !s.is_empty()).collect();
+        if segs.len() < 3 {
+            continue;
+        }
+        let area2 = format!("{}/{}", segs[0].to_lowercase(), segs[1].to_lowercase());
+        let fname = segs[segs.len() - 1];
+        let base = fname.rsplit_once('.').map(|(b, _)| b).unwrap_or(fname);
+        let stem = scaffold_stem(base); // uses original case for the I-prefix rule
+        if stem.len() < 4 {
+            continue;
+        }
+        let parent = segs[..segs.len() - 1].join("/").to_lowercase();
+        let e = groups.entry((area2, stem)).or_default();
+        e.0.insert(parent);
+        e.1.push(f.clone());
+    }
+    let mut cands: Vec<(usize, Vec<String>)> = groups
+        .into_values()
+        .filter(|(dirs, files)| {
+            dirs.len() >= 3
+                && (cue.is_empty() || files.iter().any(|f| f.to_lowercase().contains(&cue)))
+        })
+        .map(|(dirs, mut files)| {
+            files.sort();
+            (dirs.len(), files)
+        })
+        .collect();
+    cands.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.len().cmp(&a.1.len())));
+    cands.into_iter().next().map(|(_, files)| files)
+}
+
 /// Co-change-first tier for ranking: history/co-change (the most predictive
 /// signal) ranks above multi-arm, above concept-only, above graph-only.
 fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
@@ -2326,7 +2459,96 @@ impl Engram {
             }
         }
 
-        let out = render_change_set(req.story.trim(), &concepts, &prov);
+        let mut out = render_change_set(req.story.trim(), &concepts, &prov);
+
+        // Scaffold template: when the story ADDS a new API/structural feature,
+        // surface the codebase's existing feature COHORT as a template to mirror.
+        // Validated to make the agent produce complete, convention-correct new
+        // files (controller + service + interface + DTOs + query + registration)
+        // instead of an ad-hoc subset. Generic — learns the cohort from the index,
+        // no hardcoded layout.
+        {
+            let sl = req.story.to_lowercase();
+            let creation = ["add", "new ", "create", "introduce", "expose", "implement", "ability to"]
+                .iter()
+                .any(|c| sl.contains(c));
+            let api = ["api", "endpoint", "rest", "webapi", "web api"]
+                .iter()
+                .any(|c| sl.contains(c));
+            if creation && api {
+                // Original-case, web-root-stripped paths (case matters for the
+                // interface I-prefix rule inside find_analog_cohort). Dedup: the
+                // graph stores some files under two node spellings (Site/-prefixed
+                // from index_project, bare from index_git_history) which collapse
+                // to the same path here and would otherwise double every cohort row.
+                let mut index: Vec<String> = self
+                    .state
+                    .graph
+                    .list_file_node_metadata(&req.project_id)
+                    .map(|m| {
+                        m.into_iter()
+                            .map(|(rp, _)| {
+                                let p = rp.as_str().replace('\\', "/");
+                                if p.len() >= 5 && p[..5].eq_ignore_ascii_case("site/") {
+                                    p[5..].to_string()
+                                } else {
+                                    p
+                                }
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                index.sort();
+                index.dedup();
+                if let Some(cohort) = find_analog_cohort(&index, "controller") {
+                    let area = cohort
+                        .first()
+                        .map(|f| {
+                            let s: Vec<&str> = f.split('/').collect();
+                            if s.len() >= 2 {
+                                format!("{}/{}", s[0], s[1]).to_lowercase()
+                            } else {
+                                String::new()
+                            }
+                        })
+                        .unwrap_or_default();
+                    let reg: Vec<&String> = index
+                        .iter()
+                        .filter(|f| {
+                            let fl = f.to_lowercase();
+                            fl.starts_with(&area)
+                                && ["webapiconfig", "routeconfig", "startup", "global.asax"]
+                                    .iter()
+                                    .any(|r| fl.contains(r))
+                        })
+                        .collect();
+                    out.push_str(
+                        "\n## Likely a NEW feature — scaffold from the codebase's template\n",
+                    );
+                    out.push_str(
+                        "This story adds a new API/structural feature. This codebase builds such a \
+                         feature as a FIXED COHORT of files — mirror this complete existing example \
+                         for THIS story's entity (same roles, folders, naming convention):\n",
+                    );
+                    for f in cohort.iter().take(12) {
+                        out.push_str(&format!("- `{f}`\n"));
+                    }
+                    if !reg.is_empty() {
+                        out.push_str(
+                            "Register the new pieces where the codebase wires them up:\n",
+                        );
+                        for f in reg.iter().take(3) {
+                            out.push_str(&format!("- `{f}`\n"));
+                        }
+                    }
+                    out.push_str(
+                        "Create the ANALOGOUS complete set for the new entity — do NOT omit the \
+                         interface, query-params, DTOs, or the registration.\n",
+                    );
+                }
+            }
+        }
+
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
