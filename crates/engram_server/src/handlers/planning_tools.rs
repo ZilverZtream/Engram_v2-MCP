@@ -1977,19 +1977,25 @@ fn render_change_set(
         s.push_str(&format!("\n**{lname}:**\n"));
         let mut tail = 0usize;
         for (p, sigs) in &items {
-            // Top-8 vector hits ("vtop") are the cross-language semantic bridge,
-            // bounded by the vector arm — exempt them from the concept/graph tail
-            // cap so a busy layer (many concept matches) can't crowd them out
-            // (being tier-4 they'd otherwise always lose).
-            let vtop = sigs.contains("vtop");
-            if change_set_tier(sigs) >= 2 && !vtop {
+            // Exempt from the concept/graph tail cap: (1) "vtop" top-rank vector
+            // hits (the cross-language bridge, bounded by the vector arm); (2)
+            // "family" resx language siblings (an atomic localized set — never show
+            // it half-complete). Both are bounded, so they can't flood; without the
+            // exemption a busy layer's concept matches crowd them out (tier-4).
+            let exempt = sigs.contains("vtop") || sigs.contains("family");
+            if change_set_tier(sigs) >= 2 && !exempt {
                 tail += 1;
                 if tail > 18 {
                     continue;
                 }
             }
-            // Display "vtop" as "vector" — it is just a high-rank vector hit.
-            let labels: Vec<&str> = sigs.iter().map(|s| if *s == "vtop" { "vector" } else { *s }).collect();
+            // Display: "vtop" is just a high-rank vector hit; "family" is an
+            // internal completeness marker — neither belongs in the signal labels.
+            let labels: Vec<&str> = sigs
+                .iter()
+                .filter(|s| **s != "family")
+                .map(|s| if *s == "vtop" { "vector" } else { *s })
+                .collect();
             s.push_str(&format!("- `{p}`  [{}]\n", labels.join("|")));
         }
     }
@@ -2163,10 +2169,10 @@ impl Engram {
             && let Some(t) = r.content.first().and_then(|x| x.as_text())
         {
             // change_set_paths preserves the similarity order of the results.
-            // The TOP-8 distinct hits are the cross-LANGUAGE bridge — an English
+            // The TOP-12 distinct hits are the cross-LANGUAGE bridge — an English
             // story matching Swedish/internal code identifiers that concept and
             // co-change cannot reach — so tag them "vtop" to ALWAYS survive the
-            // render tail cap (bounded to 8 → never floods). Ranks 9+ stay plain
+            // render tail cap (bounded → never floods). Ranks 13+ stay plain
             // "vector" (normal tail behaviour, so no regression where the layer
             // had room for them).
             for (i, p) in change_set_paths(&t.text)
@@ -2174,7 +2180,7 @@ impl Engram {
                 .filter(|p| !engram_core::is_vendor_path(p))
                 .enumerate()
             {
-                prov.entry(p).or_default().insert(if i < 8 { "vtop" } else { "vector" });
+                prov.entry(p).or_default().insert(if i < 12 { "vtop" } else { "vector" });
             }
         }
 
@@ -2245,7 +2251,14 @@ impl Engram {
                         let want = format!("{dir}{stem}");
                         for f in &index {
                             if f.starts_with(&want) && f.ends_with(".resx") {
-                                fam.push((f.clone(), sigs.clone()));
+                                // Tag "family": a localized resx set is atomic — if
+                                // one language is in the set, ALL must be (the
+                                // completeness rule). Tagging lets render exempt the
+                                // language siblings from the per-layer tail cap, so a
+                                // seeded family is never shown half-complete.
+                                let mut fs = sigs.clone();
+                                fs.insert("family");
+                                fam.push((f.clone(), fs));
                             }
                         }
                     }
