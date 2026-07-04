@@ -833,6 +833,11 @@ pub struct FindMergedWorkRequest {
     /// How many exemplar PRs to return. Default 3.
     #[serde(default = "default_find_merged_top")]
     pub top: usize,
+    /// Point-in-time replay: only exemplars merged STRICTLY BEFORE this
+    /// date (YYYY-MM-DD). Use for leak-free evaluation or "what did the
+    /// team know at the time" questions. Omit for the full corpus.
+    #[serde(default)]
+    pub merged_before: Option<String>,
 }
 
 fn default_find_merged_top() -> usize {

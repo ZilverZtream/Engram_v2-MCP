@@ -370,6 +370,27 @@ impl Engram {
             .map(str::trim)
             .filter(|k| !k.is_empty())
             .map(str::to_lowercase);
+        let merged_before = req
+            .merged_before
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+            .map(str::to_string);
+        if let Some(d) = &merged_before
+            && (d.len() != 10
+                || !d.chars().enumerate().all(|(i, c)| {
+                    if i == 4 || i == 7 {
+                        c == '-'
+                    } else {
+                        c.is_ascii_digit()
+                    }
+                }))
+        {
+            return Err(McpError::invalid_params(
+                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
+                None,
+            ));
+        }
         let mut out = format!(
             "# How similar approved work was done — '{}'{}\n",
             req.story,
@@ -399,6 +420,19 @@ impl Engram {
                             .find(|l| l.contains("| kinds: "))
                             .is_some_and(|l| l.to_lowercase().contains(k.as_str()));
                         if !has_kind {
+                            continue;
+                        }
+                    }
+                    // Point-in-time replay / leak-free eval: drop exemplars
+                    // merged ON or AFTER the cutoff. ISO dates compare
+                    // correctly as strings against the doc's `merged:` line.
+                    if let Some(cut) = &merged_before {
+                        let leaks = content
+                            .lines()
+                            .find_map(|l| l.split("merged: ").nth(1))
+                            .and_then(|rest| rest.get(..10))
+                            .is_none_or(|d| d >= cut.as_str());
+                        if leaks {
                             continue;
                         }
                     }
