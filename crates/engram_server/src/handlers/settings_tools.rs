@@ -34,12 +34,16 @@ fn is_store_accessor(node: &engram_graph::Node) -> bool {
     // VB fallback symbols carry the WHOLE dotted path in `name` with an
     // empty/default namespace (ConfigSettings.Multitenant.IsMaster) — accept
     // when the ROOT segment carries the settings/config token.
+    // Check the whole dotted PATH before the terminal segment - store
+    // classes often sit under a namespace alias (_us.UserAccessObject.x,
+    // ConfigSettings.Multitenant.y), so the token can be in ANY parent
+    // segment, not only the first.
     let name = node.name.to_lowercase();
-    if let Some((root, _rest)) = name.split_once('.') {
-        return root.contains("setting")
-            || root.contains("config")
-            || root.contains("useraccess")
-            || root.contains("permission");
+    if let Some((path, _last)) = name.rsplit_once('.') {
+        return path.contains("setting")
+            || path.contains("config")
+            || path.contains("useraccess")
+            || path.contains("permission");
     }
     false
 }
