@@ -281,6 +281,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "QA/test-plan generator: given the changed files, derives WHAT TO TEST — the settings that fork behaviour in that code (test ON and OFF), the roles/permissions gating it (run as each role + a denial case), and the shared Session/Application keys coupling it to other pages. Turns the 'which of the 400 settings and 6 user types affect my change?' question into a concrete matrix."
+    )]
+    pub async fn derive_test_matrix(
+        &self,
+        params: Parameters<crate::models::DeriveTestMatrixRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_derive_test_matrix(params.0).await
+    }
+
+    #[tool(
         description = "One setting's complete story: where it's declared, EVERY indexed usage site (containing symbol + file:line, grouped by edge kind), and test guidance (toggle-and-exercise sites, role/permission axis, literal-sweep fallback). Use after list_settings, or whenever a change touches code gated by a setting."
     )]
     pub async fn get_setting(
