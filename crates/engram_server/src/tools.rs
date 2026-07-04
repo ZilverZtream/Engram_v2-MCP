@@ -1137,7 +1137,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "LLM-powered business-rule extraction for files/methods into queryable summaries. Requires llm_backend configured (Ollama/OpenAI); degrades to deterministic summaries offline. Query results later with query_business_logic."
+        description = "LLM-powered business-rule extraction: testable IF/THEN rules with source-line anchors and concrete refs (DB columns, Session keys, control IDs), persisted per-method into the searchable business_logic namespace. Requires llm_backend configured (Ollama/OpenAI); degrades to deterministic summaries offline. Retrieve later with query_business_logic."
     )]
     pub async fn analyze_business_logic(
         &self,
@@ -1147,7 +1147,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Query stored business-logic summaries previously produced by analyze_business_logic."
+        description = "Search stored business rules by domain concept (e.g. 'credit limit', 'checkout'). Returns full anchored rule docs (purpose, IF/THEN rules with file:line, data flow, side effects) persisted by analyze_business_logic — run that first to populate."
     )]
     pub async fn query_business_logic(
         &self,
