@@ -1154,6 +1154,18 @@ mod tests {
             super::derive_scaffold_entity("Add an API for flux capacitors", &index),
             None
         );
+        // Pass 2 (the real PR1890 shape): the story names the domain
+        // indirectly — the page DIR is markerinspection, the story only
+        // says "inspection". Needs ≥2 files under the dir.
+        let index2 = vec![
+            "modules/dashboard/pages/public/markerinspection/markerinspection.aspx".to_string(),
+            "modules/dashboard/pages/public/markerinspection/markerinspection.aspx.vb".to_string(),
+        ];
+        let got2 = super::derive_scaffold_entity(
+            "As a user I would like an inspection report API endpoint like the Inspection module",
+            &index2,
+        );
+        assert_eq!(got2.as_deref(), Some("MarkerInspection"));
     }
 
     #[test]
@@ -2311,7 +2323,49 @@ fn derive_scaffold_entity(story: &str, index: &[String]) -> Option<String> {
             }
         }
     }
-    None
+    // Pass 2: the story often names the DOMAIN indirectly ("the Inspection
+    // module in the dashboard") while the codebase dir is more specific
+    // (markerinspection). Find feature DIRECTORIES (segments with ≥2 files
+    // under them) that CONTAIN a story word; split at the matched word to
+    // recover the compound's word boundaries for PascalCasing.
+    let mut dir_counts: std::collections::HashMap<&str, usize> = Default::default();
+    for p in index {
+        if let Some((dirs, _file)) = p.rsplit_once('/') {
+            for seg in dirs.split('/') {
+                *dir_counts.entry(seg).or_default() += 1;
+            }
+        }
+    }
+    let mut best: Option<(usize, String)> = None; // (seg len, pascal)
+    for (seg, count) in dir_counts {
+        if count < 2 || seg.len() < 8 {
+            continue;
+        }
+        let seg_l = seg.to_lowercase();
+        for w in &words {
+            if w.len() < 6 || seg_l == *w || !seg_l.contains(w.as_str()) {
+                continue;
+            }
+            let idx = seg_l.find(w.as_str()).unwrap_or(0);
+            let cap = |s: &str| -> String {
+                let mut s = s.to_string();
+                if let Some(f) = s.get_mut(0..1) {
+                    f.make_ascii_uppercase();
+                }
+                s
+            };
+            let pascal = format!(
+                "{}{}{}",
+                cap(&seg_l[..idx]),
+                cap(w),
+                cap(&seg_l[idx + w.len()..])
+            );
+            if best.as_ref().is_none_or(|(l, _)| seg.len() > *l) {
+                best = Some((seg.len(), pascal));
+            }
+        }
+    }
+    best.map(|(_, p)| p)
 }
 
 /// Parameterize a scaffold template with the story's entity: rewrite each
