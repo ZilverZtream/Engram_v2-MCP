@@ -271,6 +271,26 @@ impl Engram {
     }
 
     #[tool(
+        description = "Settings catalog: EVERY setting the app has (web.config appSettings, connection strings, Session/Application/Cache keys, settings-store code accessors like ConfigSettings.*) with reader counts and top usage sites, most-read first. The 'only the PO knows the settings' problem, as a queryable database. Filter with scope=<path substring>. Drill in with get_setting."
+    )]
+    pub async fn list_settings(
+        &self,
+        params: Parameters<crate::models::ListSettingsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_list_settings(params.0).await
+    }
+
+    #[tool(
+        description = "One setting's complete story: where it's declared, EVERY indexed usage site (containing symbol + file:line, grouped by edge kind), and test guidance (toggle-and-exercise sites, role/permission axis, literal-sweep fallback). Use after list_settings, or whenever a change touches code gated by a setting."
+    )]
+    pub async fn get_setting(
+        &self,
+        params: Parameters<crate::models::GetSettingRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_get_setting(params.0).await
+    }
+
+    #[tool(
         description = "Build/refresh the merged-work corpus: walks first-parent git history (Azure DevOps 'Merged PR N:' and GitHub merge commits both carry the PR identity — no PAT needed), and indexes ONE searchable doc per merged PR/change unit: title, author, date, domains, coarse change kinds, and the complete approved file cohort. Incremental via watermark — cheap to re-run. Query with find_merged_work."
     )]
     pub async fn ingest_merged_prs(

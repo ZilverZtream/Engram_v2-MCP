@@ -757,6 +757,33 @@ pub struct RepairProjectRequest {
     pub index_antipatterns: bool,
 }
 
+// -------------------- Settings intelligence --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListSettingsRequest {
+    pub project_id: String,
+    /// Only settings declared in files whose path contains this substring.
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Max settings rendered per category. Default 100.
+    #[serde(default = "default_settings_per_category")]
+    pub max_per_category: usize,
+}
+
+fn default_settings_per_category() -> usize {
+    100
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetSettingRequest {
+    pub project_id: String,
+    /// Setting name (web.config key, connection string, Session/Application
+    /// key, or settings-store member). Exact match preferred; substring ok.
+    pub name: String,
+}
+
 // -------------------- Merged-work corpus --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
