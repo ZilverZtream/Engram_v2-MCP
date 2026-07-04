@@ -293,40 +293,54 @@ pub fn compute_blast_radius(
                 }
             }
 
-            // Single EDGES table scan — cheaper than per-symbol
-            // `neighbors` × `EdgeKind::ALL` on large files.
-            for edge in graph.list_structural_edges(project_id)? {
-                // Membership edges are not dependencies — counting them
-                // would inflate every file's incoming density by its own
-                // symbol count.
-                if edge
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("containment"))
-                    .and_then(|v| v.as_str())
-                    == Some("file")
-                {
-                    continue;
-                }
-                if contained_symbols.contains(&edge.source_id) {
-                    *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
-                }
-                if contained_symbols.contains(&edge.target_id) {
-                    *in_counts.entry(edge.edge_kind.clone()).or_default() += 1;
-                    in_sources_by_kind
-                        .entry(edge.edge_kind.clone())
-                        .or_default()
-                        .insert(edge.source_id.clone());
-                    let conf = edge
+            // O(sum of contained-symbol degrees) via the indexed
+            // edges_touching path — this was the LAST full structural-edge
+            // scan in blast radius, paid on every file-level target (and up
+            // to 20× per pre_commit_review). Dedupe by edge identity: an
+            // edge between two contained symbols is returned from BOTH
+            // endpoints, but the old single scan visited it once.
+            let mut seen_edges: HashSet<(String, String, String)> = HashSet::new();
+            for sym_id in &contained_symbols {
+                for edge in graph.edges_touching(project_id, sym_id, 1000)? {
+                    if !seen_edges.insert((
+                        edge.edge_kind.as_str().to_string(),
+                        edge.source_id.clone(),
+                        edge.target_id.clone(),
+                    )) {
+                        continue;
+                    }
+                    // Membership edges are not dependencies — counting them
+                    // would inflate every file's incoming density by its own
+                    // symbol count.
+                    if edge
                         .metadata
                         .as_ref()
-                        .and_then(|m| m.get("confidence"))
+                        .and_then(|m| m.get("containment"))
                         .and_then(|v| v.as_str())
-                        .and_then(|s| s.parse::<f32>().ok())
-                        .unwrap_or(1.0);
-                    discounted_incoming += conf.clamp(0.0, 1.0);
-                    if conf < 0.6 {
-                        low_confidence_incoming += 1;
+                        == Some("file")
+                    {
+                        continue;
+                    }
+                    if contained_symbols.contains(&edge.source_id) {
+                        *out_counts.entry(edge.edge_kind.clone()).or_default() += 1;
+                    }
+                    if contained_symbols.contains(&edge.target_id) {
+                        *in_counts.entry(edge.edge_kind.clone()).or_default() += 1;
+                        in_sources_by_kind
+                            .entry(edge.edge_kind.clone())
+                            .or_default()
+                            .insert(edge.source_id.clone());
+                        let conf = edge
+                            .metadata
+                            .as_ref()
+                            .and_then(|m| m.get("confidence"))
+                            .and_then(|v| v.as_str())
+                            .and_then(|s| s.parse::<f32>().ok())
+                            .unwrap_or(1.0);
+                        discounted_incoming += conf.clamp(0.0, 1.0);
+                        if conf < 0.6 {
+                            low_confidence_incoming += 1;
+                        }
                     }
                 }
             }
