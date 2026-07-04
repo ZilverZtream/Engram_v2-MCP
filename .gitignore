@@ -30,3 +30,5 @@ tools/vb_roslyn_sidecar/publish_out/
 eval/.secrets/
 eval/data/
 eval/__pycache__/
+
+.playwright-mcp/
