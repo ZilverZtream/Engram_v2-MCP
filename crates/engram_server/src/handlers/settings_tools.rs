@@ -257,16 +257,31 @@ impl Engram {
                 .find_incoming_edges_with_kind(&pid, None, &node.node_id, 500)
                 .unwrap_or_default();
             let mut readers: Vec<(String, String)> = Vec::new(); // (kind, label)
+            // Role/permission co-occurrence: the guards on the READER
+            // methods tell testers which user types interact with this
+            // setting/permission — the exact "settings × roles" knowledge
+            // the PO otherwise carries alone.
+            let mut co_roles: std::collections::BTreeMap<String, usize> = Default::default();
             for (src, kind, _w) in &incoming {
+                let reader_node = graph.get_node(&pid, src).ok().flatten();
                 let label = match by_id.get(src.as_str()) {
                     Some((name, file, line)) => format!("{name} — {file}:{line}"),
-                    None => match graph.get_node(&pid, src) {
-                        Ok(Some(n)) => {
+                    None => match &reader_node {
+                        Some(n) => {
                             format!("{} — {}:{}", n.name, n.file_path, n.start_line)
                         }
-                        _ => src.clone(),
+                        None => src.clone(),
                     },
                 };
+                if let Some(meta) = reader_node.as_ref().and_then(|n| n.metadata.as_ref()) {
+                    for key in ["guard_roles", "permission_checks"] {
+                        if let Some(v) = meta.get(key).and_then(|v| v.as_str()) {
+                            for g in v.split(';').filter(|g| !g.trim().is_empty()) {
+                                *co_roles.entry(g.trim().to_string()).or_default() += 1;
+                            }
+                        }
+                    }
+                }
                 readers.push((kind.as_str().to_string(), label));
             }
             readers.sort();
@@ -277,12 +292,13 @@ impl Engram {
                 node.file_path.as_str().to_string(),
                 node.start_line,
                 readers,
+                co_roles,
             ))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let (name, node_type, file, line, readers) =
+        let (name, node_type, file, line, readers, co_roles) =
             result.map_err(|e| McpError::invalid_params(e, None))?;
 
         let mut out = format!(
@@ -306,6 +322,20 @@ impl Engram {
                 }
                 if labels.len() > 30 {
                     out.push_str(&format!("  ... and {} more\n", labels.len() - 30));
+                }
+            }
+            if !co_roles.is_empty() {
+                out.push_str(&format!(
+                    "\n## Role / permission co-occurrence — {}\n\
+                     The reader methods above are ALSO gated by these checks — test \
+                     this setting as each of these user types (plus one denial case):\n",
+                    co_roles.len()
+                ));
+                let mut rows: Vec<(usize, &String)> =
+                    co_roles.iter().map(|(g, n)| (*n, g)).collect();
+                rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+                for (n, g) in rows.into_iter().take(12) {
+                    out.push_str(&format!("- `{g}` (co-occurs in {n} reader(s))\n"));
                 }
             }
             out.push_str(&format!(
