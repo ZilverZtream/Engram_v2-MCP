@@ -49,6 +49,14 @@ static RE_SQL_DAPPER: LazyLock<Regex> = LazyLock::new(|| {
 static RE_CS_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"AppSettings\s*\[\s*"([^"]+)"\s*\]"#).expect("valid appsettings regex")
 });
+// Settings-STORE property reads (ConfigSettings.Multitenant.IsMaster) —
+// parity with the VB shape; see RE_VB_SETTINGS_STORE in vb_extractor.rs.
+static RE_CS_SETTINGS_STORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b([A-Za-z_]\w*(?:Setting|Config)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
+    )
+    .expect("valid CS settings-store regex")
+});
 /// Permission-check calls by name shape: IsInRole / IsUserInRole and the
 /// custom-helper families legacy apps grow (IsXxxAdmin, CheckAccessLevel,
 /// HasPermission, RequireRole, DemandAdmin, Authorize...). Matching is on
@@ -313,6 +321,45 @@ pub fn extract_cs(path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<Extra
             });
         }
 
+        // ── Settings-store property reads (ConfigSettings.X.Y) ─────────
+        for cap in RE_CS_SETTINGS_STORE.captures_iter(line) {
+            let (Some(root), Some(tail)) = (cap.get(1), cap.get(2)) else {
+                continue;
+            };
+            let root_l = root.as_str().to_lowercase();
+            if matches!(
+                root_l.as_str(),
+                "configurationmanager" | "webconfigurationmanager" | "configurationsettings"
+            ) {
+                continue;
+            }
+            // Method calls are not settings reads.
+            let after = line[tail.end()..].trim_start();
+            if after.starts_with('(') {
+                continue;
+            }
+            let tail_l = tail.as_str().to_lowercase();
+            if tail_l == "appsettings" || tail_l.starts_with("appsettings") {
+                continue;
+            }
+            let source_name = method_ranges
+                .iter()
+                .find(|(start, end, _)| *start <= line_no && *end >= line_no)
+                .map(|(_, _, fqn)| fqn.clone())
+                .unwrap_or_else(|| "file".to_string());
+            edges.push(ExtractedEdge {
+                source_name,
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "cs".to_string(),
+                target_name: format!("{}.{}", root.as_str(), tail.as_str()),
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
         // ── Permission checks (annotated onto the enclosing method) ────
         for cap in RE_GUARD_CALL.captures_iter(line) {
             if let Some(name) = cap.get(1) {
@@ -471,6 +518,31 @@ pub(crate) fn classify_cs_sql(sql: &str) -> (String, &'static str) {
 mod guard_settings_tests {
     use super::*;
     use std::path::Path;
+
+    #[test]
+    fn cs_settings_store_reads_emit_reads_setting_edges() {
+        let code = "namespace App {\n  class P {\n    void Load() {\n      if (ConfigSettings.Multitenant.IsMaster) { }\n      var x = SystemSettingStore.General.RoqEnable;\n      var y = SettingsHelper.Load(\"skip\");\n    }\n  }\n}";
+        let (_, edges) = super::extract_cs(Path::new("p.aspx.cs"), code);
+        let settings: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "reads_setting")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            settings.contains(&"ConfigSettings.Multitenant.IsMaster"),
+            "{settings:?}"
+        );
+        assert!(
+            settings
+                .iter()
+                .any(|s| s.starts_with("SystemSettingStore.General")),
+            "{settings:?}"
+        );
+        assert!(
+            !settings.iter().any(|s| s.ends_with(".Load")),
+            "method calls excluded: {settings:?}"
+        );
+    }
 
     #[test]
     fn cs_appsettings_read_emits_reads_setting_edge() {
