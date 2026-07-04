@@ -282,6 +282,7 @@ impl Engram {
         policy: engram_git::history::MergeCommitPolicy,
         cancel: &tokio_util::sync::CancellationToken,
         mut progress_cb: Box<dyn FnMut(usize, usize) + Send>,
+        force_flag: bool,
     ) -> Result<String, McpError> {
         let project_root = PathBuf::from(directory);
         let pid = project_id.to_string();
@@ -295,7 +296,13 @@ impl Engram {
         let reg = self.state.registry.clone();
         let last = tokio::task::spawn_blocking({
             let pid = pid.clone();
-            move || reg.get_meta(&pid, "last_git_oid")
+            move || {
+                if force_flag {
+                    Ok(None)
+                } else {
+                    reg.get_meta(&pid, "last_git_oid")
+                }
+            }
         })
         .await
         .ok()
@@ -304,7 +311,13 @@ impl Engram {
         let oldest = tokio::task::spawn_blocking({
             let pid = pid.clone();
             let reg = self.state.registry.clone();
-            move || reg.get_meta(&pid, "oldest_indexed_git_oid")
+            move || {
+                if force_flag {
+                    Ok(None)
+                } else {
+                    reg.get_meta(&pid, "oldest_indexed_git_oid")
+                }
+            }
         })
         .await
         .ok()
@@ -889,6 +902,7 @@ impl Engram {
         max_commits: usize,
         mode: GitHistoryMode,
         index_antipatterns: bool,
+        force: bool,
     ) -> Result<String, McpError> {
         let job_id = Uuid::new_v4().to_string();
         let now = now_ms();
@@ -914,6 +928,7 @@ impl Engram {
 
         let state = self.state.clone();
         let job_id_for_job = job_id.clone();
+        let force_for_job = force;
         let project_id_for_job = project_id.clone();
 
         let token = tokio_util::sync::CancellationToken::new();
@@ -984,6 +999,7 @@ impl Engram {
                                 }
                             }
                         }),
+                        force_for_job,
                     )
                     .await;
 
@@ -1067,6 +1083,7 @@ impl Engram {
                     engram_git::history::MergeCommitPolicy::AllParents,
                     &cancel,
                     Box::new(|_, _| {}),
+                    req.force,
                 )
                 .await?;
             return Ok(CallToolResult::success(vec![Content::text(summary)]));
@@ -1079,6 +1096,7 @@ impl Engram {
                 req.sanitized_max_commits(),
                 req.sanitized_mode(),
                 req.index_antipatterns,
+                req.force,
             )
             .await?;
         Ok(CallToolResult::success(vec![Content::text(format!(

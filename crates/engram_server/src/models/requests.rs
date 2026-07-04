@@ -1205,6 +1205,12 @@ pub struct IndexGitHistoryRequest {
     pub project_id: String,
     #[serde(default = "default_max_commits")]
     pub max_commits: usize,
+    /// Ignore the last/oldest watermarks and re-walk history from HEAD.
+    /// Use after a wipe-reindex: the graph edges are deleted but the
+    /// watermarks survive in the registry, so a normal run reports
+    /// "fully indexed" while the temporal data is gone.
+    #[serde(default)]
+    pub force: bool,
     #[serde(default)]
     pub index_antipatterns: bool,
     #[serde(default)]

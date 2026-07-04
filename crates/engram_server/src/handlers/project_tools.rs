@@ -1378,7 +1378,8 @@ impl Engram {
                         engram_git::history::MergeCommitPolicy::AllParents,
                         &token,
                         Box::new(|_, _| {}),
-                    )
+                        false,
+            )
                     .await
                 {
                     let msg = format!("git_update_stream failed (enrichment degraded): {e:#}");
@@ -1722,6 +1723,7 @@ impl Engram {
                 engram_git::history::MergeCommitPolicy::AllParents,
                 cancel,
                 Box::new(|_, _| {}),
+                false,
             )
             .await
             .map_err(|e| anyhow::anyhow!(e.message))?;
