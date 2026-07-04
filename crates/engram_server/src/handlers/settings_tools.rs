@@ -519,6 +519,200 @@ impl Engram {
     }
 }
 
+/// Read 1-based inclusive line range from a file (best effort).
+fn read_line_range(path: &std::path::Path, start: u32, end: u32) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let s = (start.max(1) as usize) - 1;
+    let e = (end as usize).min(text.lines().count());
+    if s >= e {
+        return None;
+    }
+    Some(
+        text.lines()
+            .skip(s)
+            .take(e - s)
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
+}
+
+impl Engram {
+    /// LLM-authored wiki entry for one setting: what it controls, ON/OFF
+    /// behaviour, user-type interactions, and test implications — built
+    /// from the actual reader-method bodies and persisted to the
+    /// business_logic namespace (path-stable `__settings/<name>.md`, so
+    /// query_business_logic finds it by domain terms).
+    pub async fn handle_describe_setting(
+        &self,
+        req: crate::models::DescribeSettingRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let name_q = req.name.clone();
+        let project_dir = rec.directory.clone();
+
+        // Resolve the setting + top reader excerpts (blocking graph + disk IO).
+        let ctx = tokio::task::spawn_blocking(move || {
+            let mut nodes = graph
+                .query_nodes(
+                    &pid,
+                    None,
+                    Some(&name_q),
+                    None,
+                    crate::handlers::NODE_SCAN_LIMIT,
+                )
+                .unwrap_or_default();
+            if nodes.iter().all(|n| category(n).is_none()) && name_q.contains('.') {
+                let terminal = name_q.rsplit('.').next().unwrap_or(&name_q);
+                let dotted_lower = name_q.to_lowercase();
+                nodes = graph
+                    .query_nodes(
+                        &pid,
+                        None,
+                        Some(terminal),
+                        None,
+                        crate::handlers::NODE_SCAN_LIMIT,
+                    )
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|n| {
+                        let composite = format!("{}.{}", n.namespace, n.name).to_lowercase();
+                        composite == dotted_lower
+                            || composite.ends_with(&format!(".{dotted_lower}"))
+                            || n.name.eq_ignore_ascii_case(&name_q)
+                    })
+                    .collect();
+            }
+            let node = nodes
+                .iter()
+                .find(|n| category(n).is_some() && n.name.eq_ignore_ascii_case(&name_q))
+                .or_else(|| nodes.iter().find(|n| category(n).is_some()))
+                .cloned()
+                .ok_or_else(|| {
+                    format!("No setting matching '{name_q}'. list_settings shows the catalog.")
+                })?;
+
+            let readers = graph
+                .find_incoming_edges_with_kind(&pid, None, &node.node_id, 200)
+                .unwrap_or_default();
+            let mut excerpts: Vec<(String, String)> = Vec::new(); // (label, code)
+            for (src, _kind, _w) in readers.iter().take(30) {
+                if excerpts.len() >= 5 {
+                    break;
+                }
+                let Ok(Some(r)) = graph.get_node(&pid, src) else {
+                    continue;
+                };
+                if r.node_type != "function" {
+                    continue;
+                }
+                let Ok(abs) = engram_core::safe_join(
+                    std::path::Path::new(&project_dir),
+                    r.file_path.as_str(),
+                ) else {
+                    continue;
+                };
+                // Cap each excerpt so one giant method doesn't eat the prompt.
+                let end = r.end_line.min(r.start_line + 60);
+                if let Some(code) = read_line_range(&abs, r.start_line, end) {
+                    excerpts.push((
+                        format!("{} ({}:{})", r.name, r.file_path, r.start_line),
+                        code,
+                    ));
+                }
+            }
+            Ok::<_, String>((node.name.clone(), readers.len(), excerpts))
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::invalid_params(e, None))?;
+        let (setting_name, reader_count, excerpts) = ctx;
+
+        if excerpts.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "Setting '{setting_name}' has no readable reader-method bodies to describe \
+                 from. get_setting(name=\"{setting_name}\") lists its raw usage sites."
+            ))]));
+        }
+
+        let mut prompt = format!(
+            "You are documenting the setting `{setting_name}` for a team wiki so that \
+             developers and testers no longer depend on one person's memory. It has \
+             {reader_count} usage sites; excerpts from the most important readers follow.\n\n"
+        );
+        for (label, code) in &excerpts {
+            prompt.push_str(&format!("### {label}\n```\n{code}\n```\n\n"));
+        }
+        prompt.push_str(
+            "From THESE excerpts only (never invent behaviour you cannot see), write:\n\
+              1. WHAT IT CONTROLS: 1-2 sentences.\n\
+             2. WHEN ENABLED vs DISABLED (or per value): the concrete behaviour difference, \
+             citing the function names above.\n\
+             3. USER-TYPE INTERACTIONS: roles/permissions checked in the same code paths, if any.\n\
+             4. TEST IMPLICATIONS: what to toggle and which flows to exercise.\n\
+             Plain markdown, max ~250 words. Write 'not visible in these excerpts' where true.",
+        );
+
+        let raw = self
+            .state
+            .dreaming
+            .generate_text(&prompt, 2048, std::time::Duration::from_secs(120))
+            .await
+            .map_err(|e| {
+                McpError::internal_error(format!("LLM unavailable for describe_setting: {e}"), None)
+            })?;
+
+        // Persist (path-stable upsert) so query_business_logic finds it.
+        let doc_body = format!("# Setting: {setting_name}\n\n{raw}\n");
+        {
+            use engram_core::{ContentHash, DocIdStr, RelPath};
+            let ps = self.ensure_project_runtime(&req.project_id).await?;
+            let synthetic_path = format!("__settings/{setting_name}.md");
+            let path_hash = ContentHash::compute(synthetic_path.as_bytes());
+            let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &path_hash);
+            let chunk_id = {
+                let h = blake3::hash(synthetic_path.as_bytes());
+                let mut b = [0u8; 8];
+                b.copy_from_slice(&h.as_bytes()[..8]);
+                u64::from_le_bytes(b)
+            };
+            let content_hash = ContentHash::compute(doc_body.as_bytes());
+            let doc = engram_index::IndexDoc {
+                generation: 0,
+                chunk_id,
+                path: RelPath::new(&synthetic_path),
+                language: "markdown".into(),
+                content: doc_body.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC.into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+                doc_id: doc_id.0,
+                content_hash: content_hash.0,
+            };
+            ps.search
+                .index_docs(
+                    &req.project_id,
+                    std::slice::from_ref(&doc),
+                    &tokio_util::sync::CancellationToken::new(),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        let mut out = doc_body;
+        out.push_str(
+            "\n_(persisted — retrieve later with query_business_logic; raw sites via get_setting)_\n",
+        );
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
