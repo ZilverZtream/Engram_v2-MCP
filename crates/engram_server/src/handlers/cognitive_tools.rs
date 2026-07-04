@@ -1803,6 +1803,85 @@ impl Engram {
         Ok(CallToolResult::success(vec![Content::text(rendered)]))
     }
 
+    /// Persist analyzed business logic into the searchable `business_logic`
+    /// namespace. Without this write, `query_business_logic` searches an
+    /// empty namespace forever — the original Phase-36 wiring rendered the
+    /// analysis to the caller and dropped it on the floor.
+    ///
+    /// Doc identity is PATH-stable (derived from the synthetic path, not the
+    /// content), so re-analyzing a changed method overwrites its previous
+    /// doc instead of accumulating stale duplicates. The namespace is
+    /// GlobalMutable (generation 0, no generation filter at query time).
+    async fn persist_business_logic(
+        &self,
+        project_id: &str,
+        methods: &[crate::services::business_logic_service::MethodBusinessLogic],
+    ) -> Result<usize, McpError> {
+        use engram_core::{ContentHash, DocIdStr, RelPath};
+
+        if methods.is_empty() {
+            return Ok(0);
+        }
+        let ps = self.ensure_project_runtime(project_id).await?;
+        let namespace = engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC;
+
+        let mut docs: Vec<engram_index::IndexDoc> = Vec::with_capacity(methods.len());
+        for m in methods {
+            // Skip empty analyses (LLM unavailable/failed) — a doc with no
+            // purpose and no rules only pollutes retrieval.
+            if m.purpose.is_empty() && m.business_rules.is_empty() {
+                continue;
+            }
+            let mut content = crate::services::business_logic_service::render_method_as_doc(m);
+            content.push_str(&format!("\n_Source: {}_\n", m.file_path));
+
+            let synthetic_path = format!(
+                "__business_logic/{}/{}.md",
+                m.file_path.replace('\\', "/"),
+                m.method_name
+            );
+            // Path-stable identity: doc_id/chunk_id derive from the path so
+            // updated analyses replace (pk delete-then-add), never duplicate.
+            let path_hash = ContentHash::compute(synthetic_path.as_bytes());
+            let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &path_hash);
+            let chunk_id = {
+                let h = blake3::hash(synthetic_path.as_bytes());
+                let mut b = [0u8; 8];
+                b.copy_from_slice(&h.as_bytes()[..8]);
+                u64::from_le_bytes(b)
+            };
+            let content_hash = ContentHash::compute(content.as_bytes());
+
+            docs.push(engram_index::IndexDoc {
+                generation: 0,
+                chunk_id,
+                path: RelPath::new(&synthetic_path),
+                language: "markdown".into(),
+                content,
+                namespace: namespace.into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+                doc_id: doc_id.0,
+                content_hash: content_hash.0,
+            });
+        }
+        if docs.is_empty() {
+            return Ok(0);
+        }
+        let n = docs.len();
+        ps.search
+            .index_docs(
+                project_id,
+                &docs,
+                &tokio_util::sync::CancellationToken::new(),
+            )
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(n)
+    }
+
     pub async fn handle_analyze_business_logic(
         &self,
         p: crate::models::requests::AnalyzeBusinessLogicRequest,
@@ -1844,7 +1923,7 @@ impl Engram {
                     )
                 };
 
-                let Some((body, _start, _end, _lines)) = body_opt else {
+                let Some((body, start, _end, _lines)) = body_opt else {
                     return Ok(CallToolResult::success(vec![Content::text(format!(
                         "Method '{method_name}' not found in {file_path}"
                     ))]));
@@ -1857,17 +1936,24 @@ impl Engram {
                     &body,
                     &class_name,
                     language,
+                    start as u32,
                 )
                 .await;
+
+                let persisted = self
+                    .persist_business_logic(&p.project_id, std::slice::from_ref(&result))
+                    .await?;
 
                 if p.output_json {
                     let json = serde_json::to_string_pretty(&result)
                         .unwrap_or_else(|e| format!("JSON error: {e}"));
                     return Ok(CallToolResult::success(vec![Content::text(json)]));
                 }
-                return Ok(CallToolResult::success(vec![Content::text(
-                    crate::services::business_logic_service::render_method_as_doc(&result),
-                )]));
+                let mut md = crate::services::business_logic_service::render_method_as_doc(&result);
+                md.push_str(&format!(
+                    "\n_{persisted} doc(s) persisted to the business_logic namespace — retrieve later with query_business_logic._\n"
+                ));
+                return Ok(CallToolResult::success(vec![Content::text(md)]));
             }
 
             // File-level mode
@@ -1880,6 +1966,10 @@ impl Engram {
                 )
                 .await;
 
+            let persisted = self
+                .persist_business_logic(&p.project_id, &file_logic.methods)
+                .await?;
+
             if p.output_json {
                 let json = serde_json::to_string_pretty(&file_logic)
                     .unwrap_or_else(|e| format!("JSON error: {e}"));
@@ -1887,7 +1977,7 @@ impl Engram {
             }
 
             let mut md = format!(
-                "# Business Logic — {}\n\n*{}*\n\n- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n\n",
+                "# Business Logic — {}\n\n*{}*\n\n- Methods analyzed: {analyzed}\n- Cached (skipped): {skipped}\n- Persisted to business_logic namespace: {persisted}\n\n",
                 file_logic.class_name, file_logic.file_purpose
             );
             for m in &file_logic.methods {
@@ -1927,13 +2017,25 @@ impl Engram {
         )
         .await;
 
+        let all_methods: Vec<crate::services::business_logic_service::MethodBusinessLogic> = report
+            .file_summaries
+            .iter()
+            .flat_map(|f| f.methods.iter().cloned())
+            .collect();
+        let persisted = self
+            .persist_business_logic(&p.project_id, &all_methods)
+            .await?;
+
         if p.output_json {
             let json = serde_json::to_string_pretty(&report)
                 .unwrap_or_else(|e| format!("JSON error: {e}"));
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        let md = crate::services::business_logic_service::render_compact_markdown(&report);
+        let mut md = crate::services::business_logic_service::render_compact_markdown(&report);
+        md.push_str(&format!(
+            "\n_{persisted} method doc(s) persisted to the business_logic namespace — query with query_business_logic._\n"
+        ));
         Ok(CallToolResult::success(vec![Content::text(md)]))
     }
 
@@ -1965,10 +2067,46 @@ impl Engram {
             .search(&query, None, &tokio_util::sync::CancellationToken::new())
             .await
             .unwrap_or_default();
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Hits: {}",
-            hits.len()
-        ))]))
+
+        // Render the actual rules — the original implementation returned the
+        // literal string "Hits: N" and threw the content away, which made
+        // this tool useless to the agent regardless of extraction quality.
+        if hits.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(
+                "result: no_hits in the business_logic namespace.\n\
+                 hints: this namespace is only populated by analyze_business_logic — run it \
+                 first (file mode for one page, project mode for everything). If analysis was \
+                 already run, retry with broader domain terms.",
+            )]));
+        }
+
+        let mut out = format!("# Business-logic matches for '{}'\n", p.query);
+        for (i, h) in hits.iter().enumerate() {
+            out.push_str(&format!(
+                "\n## #{} {} (score {:.3})\n\n",
+                i + 1,
+                h.path,
+                h.score
+            ));
+            // Business-logic docs are small (~1 KB rendered markdown) —
+            // include the full stored document, not just a snippet.
+            match ps.search.get_doc_by_doc_id(
+                &p.project_id,
+                engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC,
+                0, // GlobalMutable namespace stores at generation 0
+                &h.doc_id,
+            ) {
+                Ok(Some((_, _, content, _, _))) => out.push_str(&content),
+                _ => {
+                    if let Some(sn) = &h.snippet {
+                        out.push_str(sn);
+                        out.push('\n');
+                    }
+                }
+            }
+        }
+        out.push_str(&self.freshness_footer(&p.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     pub async fn handle_dream_project(

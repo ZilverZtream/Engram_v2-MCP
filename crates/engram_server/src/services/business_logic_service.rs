@@ -21,11 +21,13 @@ use super::full_project_migration_service::{
 
 // ── Prompt Template ──────────────────────────────────────────────────────────
 
-const METHOD_ANALYSIS_PROMPT: &str = r#"Analyze this {language} method and describe its business logic in plain English.
+const METHOD_ANALYSIS_PROMPT: &str = r#"You are a business analyst reverse-engineering a legacy {language} WebForms application. Extract the TESTABLE business rules from this method. A developer must be able to re-implement each rule in a new stack without reading the original code.
 
+File: {file_path}
 Class: {class_name}
 Method: {method_name}
 
+Method body (with real source line numbers):
 ```{language_tag}
 {method_body}
 ```
@@ -33,13 +35,31 @@ Method: {method_name}
 Respond with STRICT JSON only (no markdown, no prose, no backticks).
 Use exactly these keys and keep them stable:
 {
-  "purpose": "<one sentence explaining what this method does>",
+  "purpose": "<one sentence: what this method does for the business>",
   "steps": ["<first action>", "<next action>"],
-  "business_rules": ["<business rule or condition>"],
+  "business_rules": [
+    {
+      "when": "<the exact triggering condition, quoting the real field/control/column>",
+      "then": "<the exact consequence>",
+      "source_line": <line number where the condition is checked>,
+      "refs": ["<DB table.column, Session key, control ID, or config key involved>"]
+    }
+  ],
   "data_flow": "<what data it reads/writes - table and field names>",
   "error_handling": "<error handling behavior>",
   "side_effects_detail": "<state changes: DB writes, session, UI, redirects>"
 }
+
+Rules for business_rules:
+- Each entry must be a testable WHEN/THEN pair anchored to a source_line from the numbered body above.
+- Quote concrete artifacts in refs: database columns (Orders.Total), session keys (Session("CartID")), control IDs (btnSave, txtQty), stored procedures, config keys.
+- Validation checks, permission/role gates, visibility toggles, price/date/limit calculations, and status transitions are business rules. Null checks and logging are not.
+- If the method contains no business rules, return "business_rules": [] — never invent one.
+- Use "" for any other field that does not apply — never guess.
+
+Example entry (from a different method):
+{"when": "Session(\"UserRole\") <> \"Admin\" And chkShowAll.Checked", "then": "results are filtered to CustomerId = Session(\"CustomerId\") before binding gvOrders", "source_line": 214, "refs": ["Session(\"UserRole\")", "Customers.CustomerId", "gvOrders"]}
+
 Do not include any keys other than the six keys above."#;
 
 const FILE_PURPOSE_PROMPT: &str = r#"This {language} class has the following methods:
@@ -244,13 +264,80 @@ struct LlmMethodAnalysis {
     #[serde(default)]
     steps: Vec<String>,
     #[serde(default)]
-    business_rules: Vec<String>,
+    business_rules: Vec<RuleEntry>,
     #[serde(default)]
     data_flow: String,
     #[serde(default)]
     error_handling: String,
     #[serde(default)]
     side_effects_detail: String,
+}
+
+/// A business rule as returned by the LLM. The current prompt asks for
+/// anchored WHEN/THEN objects; older prompts (and weaker models) return
+/// plain strings — accept both so a schema drift never zeroes out rules.
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum RuleEntry {
+    Structured {
+        #[serde(default)]
+        when: String,
+        #[serde(default)]
+        then: String,
+        #[serde(default)]
+        source_line: Option<u32>,
+        #[serde(default)]
+        refs: Vec<String>,
+        // Some models emit a free-text "rule" alongside/instead.
+        #[serde(default)]
+        rule: String,
+    },
+    Plain(String),
+}
+
+impl RuleEntry {
+    /// Flatten to the rich one-line form consumers store and search:
+    /// `IF <when> THEN <then> [line N] {refs: a, b}`.
+    fn to_display(&self) -> String {
+        match self {
+            RuleEntry::Plain(s) => s.trim().to_string(),
+            RuleEntry::Structured {
+                when,
+                then,
+                source_line,
+                refs,
+                rule,
+            } => {
+                let mut out = if !when.trim().is_empty() || !then.trim().is_empty() {
+                    format!("IF {} THEN {}", when.trim(), then.trim())
+                } else {
+                    rule.trim().to_string()
+                };
+                if let Some(line) = source_line {
+                    out.push_str(&format!(" [line {line}]"));
+                }
+                if !refs.is_empty() {
+                    out.push_str(&format!(" {{refs: {}}}", refs.join(", ")));
+                }
+                out
+            }
+        }
+    }
+}
+
+/// Cut the model's response down to the JSON object it was asked for.
+/// Reasoning models wrap output in `<think>…</think>`; many models add
+/// ```json fences or prose around the object. Any of those made
+/// `serde_json::from_str` fail and silently DISCARDED every extracted
+/// rule (falling back to a one-sentence summary) — so be liberal here.
+fn extract_json_object(raw: &str) -> Option<&str> {
+    let mut s = raw;
+    if let Some(end) = s.find("</think>") {
+        s = &s[end + "</think>".len()..];
+    }
+    let start = s.find('{')?;
+    let end = s.rfind('}')?;
+    (end > start).then(|| &s[start..=end])
 }
 
 /// Parse a structured LLM response into a `MethodBusinessLogic`.
@@ -261,7 +348,8 @@ pub fn parse_llm_response(
     fqn: &str,
     content_hash: &str,
 ) -> MethodBusinessLogic {
-    let (parsed, parse_diagnostic) = match serde_json::from_str::<LlmMethodAnalysis>(raw) {
+    let candidate = extract_json_object(raw).unwrap_or(raw);
+    let (parsed, parse_diagnostic) = match serde_json::from_str::<LlmMethodAnalysis>(candidate) {
         Ok(parsed) => (parsed, String::new()),
         Err(_) => (
             deterministic_summary_from_raw(raw),
@@ -269,13 +357,20 @@ pub fn parse_llm_response(
         ),
     };
 
+    let business_rules: Vec<String> = parsed
+        .business_rules
+        .iter()
+        .map(RuleEntry::to_display)
+        .filter(|r| !r.is_empty())
+        .collect();
+
     MethodBusinessLogic {
         file_path: file_path.to_string(),
         method_name: method_name.to_string(),
         fqn: fqn.to_string(),
         purpose: parsed.purpose,
         steps: parsed.steps,
-        business_rules: parsed.business_rules,
+        business_rules,
         data_flow: parsed.data_flow,
         error_handling: parsed.error_handling,
         side_effects_detail: parsed.side_effects_detail,
@@ -418,6 +513,10 @@ fn capitalize_first(s: &str) -> String {
 // ── LLM-Powered Analysis ────────────────────────────────────────────────────
 
 /// Analyze a single method's business logic using the LLM.
+///
+/// `start_line` is the 1-based line of the method's first body line in the
+/// source file; the body is sent to the model with REAL line numbers so the
+/// extracted rules carry usable `file:line` anchors.
 pub async fn analyze_method_logic(
     dreaming: &DreamingEngine,
     file_path: &str,
@@ -425,6 +524,7 @@ pub async fn analyze_method_logic(
     method_body: &str,
     class_name: &str,
     language: &str,
+    start_line: u32,
 ) -> MethodBusinessLogic {
     let body_hash = ContentHash::compute(method_body.as_bytes()).0;
     let fqn = format!("{class_name}.{method_name}");
@@ -432,15 +532,26 @@ pub async fn analyze_method_logic(
     let lang_tag = if language == "vb" { "vb.net" } else { "csharp" };
     let lang_full = if language == "vb" { "VB.NET" } else { "C#" };
 
+    let numbered_body: String = method_body
+        .lines()
+        .enumerate()
+        .map(|(i, l)| format!("{}: {l}", start_line.max(1) as usize + i))
+        .collect::<Vec<_>>()
+        .join("\n");
+
     let prompt = METHOD_ANALYSIS_PROMPT
         .replace("{language}", lang_full)
         .replace("{language_tag}", lang_tag)
+        .replace("{file_path}", file_path)
         .replace("{class_name}", class_name)
         .replace("{method_name}", method_name)
-        .replace("{method_body}", method_body);
+        .replace("{method_body}", &numbered_body);
 
+    // 3072 tokens: the old 1024 ceiling silently truncated the JSON on any
+    // sizeable Page_Load, which failed the strict parse and threw away every
+    // extracted rule.
     let raw = match dreaming
-        .generate_text(&prompt, 1024, Duration::from_secs(120))
+        .generate_text(&prompt, 3072, Duration::from_secs(120))
         .await
     {
         Ok(raw) => raw,
@@ -541,7 +652,7 @@ pub async fn analyze_file_logic(
             extract_cs_method_body(content, name)
         };
 
-        let Some((body, _start, _end, _lines)) = body_opt else {
+        let Some((body, start, _end, _lines)) = body_opt else {
             continue;
         };
 
@@ -556,8 +667,16 @@ pub async fn analyze_file_logic(
             continue;
         }
 
-        let result =
-            analyze_method_logic(dreaming, file_path, name, &body, &class_name, language).await;
+        let result = analyze_method_logic(
+            dreaming,
+            file_path,
+            name,
+            &body,
+            &class_name,
+            language,
+            start as u32,
+        )
+        .await;
         analyzed_count += 1;
         methods.push(result);
     }
@@ -931,6 +1050,56 @@ mod tests {
         assert!(result.business_rules.is_empty());
         assert!(result.data_flow.is_empty());
         assert_eq!(result.parse_diagnostic, raw);
+    }
+
+    #[test]
+    fn test_parse_llm_response_structured_rules_render_anchored() {
+        let raw = r#"{
+  "purpose": "Filters the order grid by the caller's role.",
+  "steps": ["Read role", "Bind grid"],
+  "business_rules": [
+    {"when": "Session(\"UserRole\") <> \"Admin\"",
+     "then": "grid is filtered to CustomerId = Session(\"CustomerId\")",
+     "source_line": 214,
+     "refs": ["Session(\"UserRole\")", "Customers.CustomerId", "gvOrders"]},
+    "Plain legacy-style rule survives too"
+  ],
+  "data_flow": "Reads Customers",
+  "error_handling": "",
+  "side_effects_detail": ""
+}"#;
+        let result = parse_llm_response(raw, "Orders.aspx.vb", "BindGrid", "Orders.BindGrid", "h");
+        assert_eq!(
+            result.business_rules.len(),
+            2,
+            "{:?}",
+            result.business_rules
+        );
+        let anchored = &result.business_rules[0];
+        assert!(anchored.starts_with("IF "), "{anchored}");
+        assert!(anchored.contains("THEN"), "{anchored}");
+        assert!(anchored.contains("[line 214]"), "{anchored}");
+        assert!(anchored.contains("Customers.CustomerId"), "{anchored}");
+        assert_eq!(
+            result.business_rules[1],
+            "Plain legacy-style rule survives too"
+        );
+        assert!(result.parse_diagnostic.is_empty());
+    }
+
+    #[test]
+    fn test_parse_llm_response_strips_think_and_fences() {
+        // Reasoning models (deepseek etc.) wrap output; previously this
+        // failed strict parsing and silently discarded every rule.
+        let raw = "<think>Let me analyze the method...\n{not the answer}\n</think>\n```json\n{\"purpose\": \"Validates the coupon code.\", \"business_rules\": [\"If coupon expired, reject checkout\"]}\n```";
+        let result = parse_llm_response(raw, "c.vb", "Validate", "C.Validate", "h");
+        assert_eq!(result.purpose, "Validates the coupon code.");
+        assert_eq!(result.business_rules.len(), 1);
+        assert!(
+            result.parse_diagnostic.is_empty(),
+            "{}",
+            result.parse_diagnostic
+        );
     }
 
     #[test]
