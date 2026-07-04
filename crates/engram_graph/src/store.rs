@@ -2279,6 +2279,8 @@ impl GraphStore {
 
         // node_id → file_path (for tiebreaker lookups)
         let mut node_file_paths: HashMap<String, String> = HashMap::new();
+        // node_id → name (for suffix-qualified matching)
+        let mut node_names: HashMap<String, String> = HashMap::new();
         // Exact name match
         let mut by_name: HashMap<String, SymbolMatch> = HashMap::new();
         // Terminal segment match (last dot-segment of name)
@@ -2299,6 +2301,7 @@ impl GraphStore {
                 node_count += 1;
 
                 node_file_paths.insert(node.node_id.clone(), node.file_path.as_str().to_string());
+                node_names.insert(node.node_id.clone(), node.name.clone());
 
                 // by_name: exact Node.name → node_id
                 match by_name.get_mut(&node.name) {
@@ -2478,8 +2481,49 @@ impl GraphStore {
                 }
             }
 
-            // Step 3: terminal segment fallback
+            // Step 2c: suffix-qualified match — the extracted name lacks a
+            // namespace-alias prefix the node name carries
+            // (_us.UserAccessObject.x vs UserAccessObject.x). Matching the
+            // FULL dotted name as a .-anchored suffix keeps every qualified
+            // segment and is far more trustworthy than the bare terminal
+            // fallback below. Dual-spelling duplicates (same node NAME under
+            // two file-path spellings) count as one symbol.
             let short = name.rsplit('.').next().unwrap_or(name);
+            if name.contains('.')
+                && let Some(candidates) = by_terminal.get(short)
+            {
+                let dot_name = format!(".{name}");
+                let suffixed: Vec<&String> = candidates
+                    .iter()
+                    .filter(|cid| node_names.get(*cid).is_some_and(|n| n.ends_with(&dot_name)))
+                    .collect();
+                let all_same_name = suffixed.len() > 1
+                    && suffixed
+                        .windows(2)
+                        .all(|w| node_names.get(w[0]) == node_names.get(w[1]));
+                let picked = if suffixed.len() == 1 {
+                    Some((suffixed[0].clone(), 0.8f32, "post_suffix_qualified"))
+                } else if !suffixed.is_empty() {
+                    let owned: Vec<String> = suffixed.iter().map(|s| (*s).clone()).collect();
+                    resolve_ambiguous(&owned, source_file)
+                        .map(|id| (id, 0.7, "post_suffix_samefile"))
+                        .or_else(|| {
+                            all_same_name
+                                .then(|| (owned[0].clone(), 0.7, "post_suffix_dupspelling"))
+                        })
+                } else {
+                    None
+                };
+                if let Some((target_id, conf, method)) = picked {
+                    let mut new_e = entry.edge.clone();
+                    new_e.target_id = target_id;
+                    Self::stamp_resolution(&mut new_e, method, conf);
+                    updates.push((entry.old_key.clone(), new_e));
+                    continue;
+                }
+            }
+
+            // Step 3: terminal segment fallback
             if let Some(candidates) = by_terminal.get(short) {
                 if candidates.len() == 1 {
                     let mut new_e = entry.edge.clone();
