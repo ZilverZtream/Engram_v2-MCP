@@ -3006,7 +3006,14 @@ impl Engram {
                     // Spell out the CONCRETE files to create: template rows
                     // alone made agents reverse-engineer the naming and miss
                     // pieces (PR1890: 6 new-domain files, 0 proposed).
-                    let entity_pascal: String = derive_scaffold_entity(&req.story, &index)
+                    // Ground the entity in the RANKED file set — the funnel
+                    // already knows which files this story is about. Grounding
+                    // in the whole index let any long dir containing a story
+                    // word win (live: "personalinformation" via the word
+                    // "information" from an unrelated customer quote).
+                    let ranked_paths: Vec<String> = prov.keys().cloned().collect();
+                    let entity_pascal: String = derive_scaffold_entity(&req.story, &ranked_paths)
+                        .or_else(|| derive_scaffold_entity(&req.story, &index))
                         .or_else(|| {
                             concepts
                                 .iter()
