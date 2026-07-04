@@ -2556,7 +2556,14 @@ fn render_change_set(
          not only the default.\n",
     );
     s.push_str("- Every schema / setting / column change: include the SQL migration.\n");
-    s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n\n");
+    s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n");
+    s.push_str(
+        "- Story changes DEFAULT behaviour (UI or otherwise)? Decide EXPLICITLY \
+         whether this team's convention calls for a NEW SETTING to gate it - \
+         mature codebases frequently ship behaviour changes as configurable \
+         toggles (settings store + admin UI + default), and stories rarely say \
+         so. Check how similar merged work did it (the exemplars below).\n\n",
+    );
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
     let layer_names: Vec<&str> = LAYERS
