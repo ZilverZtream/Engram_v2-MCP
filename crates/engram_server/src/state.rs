@@ -160,7 +160,7 @@ pub struct AppState {
 
 /// One walked commit: oid + summary + the files it changed. Immutable once
 /// walked, so safe to share via Arc across concurrent callers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CoChangeCommit {
     pub oid: String,
     pub summary: String,
@@ -168,7 +168,7 @@ pub struct CoChangeCommit {
 }
 
 /// Cached co-change walk for one repo state.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct CoChangeSnapshot {
     /// HEAD oid the walk was taken at — cache is valid only while it matches.
     pub head: String,

@@ -524,6 +524,15 @@ impl Engram {
         let started = std::time::Instant::now();
         let cache = self.state.co_change_cache.clone();
         let cache_key = req.project_id.clone();
+        // Disk-persisted snapshot: the in-memory cache dies with the daemon,
+        // making every cold start pay the ~24 s walk again. History is
+        // immutable, so a bincode dump keyed by HEAD oid is exact.
+        let disk_path = self
+            .state
+            .cfg
+            .data_dir
+            .join("co_change")
+            .join(format!("{}.bin", req.project_id));
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let repo = GitWalker::open_repo(&repo_dir)?;
             let head = repo
@@ -536,9 +545,20 @@ impl Engram {
             // Cache hit: same HEAD, at least as deep a walk. History is
             // immutable, so the cached (oid, summary, files) list is exact —
             // this turns a 24 s / 800-git-diff call into pure scoring.
+            let disk_load = || -> Option<std::sync::Arc<crate::state::CoChangeSnapshot>> {
+                let bytes = std::fs::read(&disk_path).ok()?;
+                let snap: crate::state::CoChangeSnapshot = bincode::deserialize(&bytes).ok()?;
+                (snap.head == head && !head.is_empty() && snap.walked >= max_commits)
+                    .then(|| std::sync::Arc::new(snap))
+            };
             let snapshot = match cache.get(&cache_key) {
                 Some(s) if s.head == head && !head.is_empty() && s.walked >= max_commits => {
                     s.clone()
+                }
+                _ if disk_load().is_some() => {
+                    let snap = disk_load().expect("checked");
+                    cache.insert(cache_key, snap.clone());
+                    snap
                 }
                 _ => {
                     let cancel = tokio_util::sync::CancellationToken::new();
@@ -579,6 +599,11 @@ impl Engram {
                         commits,
                     });
                     cache.insert(cache_key, snap.clone());
+                    // Best-effort disk persist for the next cold start.
+                    if let Ok(bytes) = bincode::serialize(snap.as_ref()) {
+                        let _ = std::fs::create_dir_all(disk_path.parent().unwrap());
+                        let _ = std::fs::write(&disk_path, bytes);
+                    }
                     snap
                 }
             };
