@@ -65,7 +65,7 @@ static RE_VB_MY_SETTINGS: LazyLock<Regex> = LazyLock::new(|| {
 // covered by the AppSettings shape above).
 static RE_VB_SETTINGS_STORE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)\b([A-Za-z_]\w*(?:Setting|Config|UserAccess|Permission)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
+        r"(?i)\b((?:[A-Za-z_]\w*)?(?:Setting|Config|UserAccess|Permission)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
     )
     .expect("valid VB settings-store regex")
 });
@@ -1419,7 +1419,7 @@ mod tests {
         // The house pattern in mature apps: static store classes, not raw
         // AppSettings("..."). Missing this shape made settings intelligence
         // blind on exactly the codebases that need it.
-        let code = "Class P\n  Public Sub Page_Load()\n    If ConfigSettings.Multitenant.IsMaster Then\n    End If\n    Dim x = SystemSettingStore.General.RoqEnableListTypeDimension\n    Dim y = ConfigurationManager.AppSettings(\"PlainKey\")\n    Dim z = SettingsHelper.Load(\"skip-method-calls\")\n  End Sub\nEnd Class";
+        let code = "Class P\n  Public Sub Page_Load()\n    If ConfigSettings.Multitenant.IsMaster Then\n    End If\n    Dim x = SystemSettingStore.General.RoqEnableListTypeDimension\n    Dim y = ConfigurationManager.AppSettings(\"PlainKey\")\n    Dim z = SettingsHelper.Load(\"skip-method-calls\")\n    If Not _us.UserAccess.CheckWrite(_us.UserAccessObject.approval_of_inspection) Then\n    End If\n  End Sub\nEnd Class";
         let (_, edges) = super::fallback_extract_vb_for_test(Path::new("p.aspx.vb"), code);
         let settings: Vec<&str> = edges
             .iter()
@@ -1442,6 +1442,17 @@ mod tests {
                 .iter()
                 .any(|s| s.contains("skip-method-calls") || s.ends_with(".Load")),
             "method calls must not become settings reads: {settings:?}"
+        );
+        // Token-INITIAL roots (UserAccessObject) regressed silently when the
+        // root pattern required a char before the token; permission reads
+        // never extracted.
+        assert!(
+            settings.contains(&"UserAccessObject.approval_of_inspection"),
+            "token-initial roots must extract: {settings:?}"
+        );
+        assert!(
+            !settings.iter().any(|s| s.ends_with(".CheckWrite")),
+            "method calls on access helpers must not extract: {settings:?}"
         );
         assert!(
             !settings
