@@ -24,7 +24,11 @@ fn is_store_accessor(node: &engram_graph::Node) -> bool {
         return false;
     }
     let ns = node.namespace.to_lowercase();
-    if ns.contains("setting") || ns.contains("configsetting") || ns.ends_with("config") {
+    if ns.contains("setting")
+        || ns.contains("configsetting")
+        || ns.ends_with("config")
+        || ns.contains("useraccess")
+    {
         return true;
     }
     // VB fallback symbols carry the WHOLE dotted path in `name` with an
@@ -32,7 +36,10 @@ fn is_store_accessor(node: &engram_graph::Node) -> bool {
     // when the ROOT segment carries the settings/config token.
     let name = node.name.to_lowercase();
     if let Some((root, _rest)) = name.split_once('.') {
-        return root.contains("setting") || root.contains("config");
+        return root.contains("setting")
+            || root.contains("config")
+            || root.contains("useraccess")
+            || root.contains("permission");
     }
     false
 }

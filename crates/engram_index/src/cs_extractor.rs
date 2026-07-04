@@ -53,7 +53,7 @@ static RE_CS_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
 // parity with the VB shape; see RE_VB_SETTINGS_STORE in vb_extractor.rs.
 static RE_CS_SETTINGS_STORE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)\b([A-Za-z_]\w*(?:Setting|Config)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
+        r"(?i)\b([A-Za-z_]\w*(?:Setting|Config|UserAccess|Permission)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
     )
     .expect("valid CS settings-store regex")
 });
