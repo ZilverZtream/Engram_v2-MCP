@@ -4910,6 +4910,7 @@ fn analyze_full_project_empty_graph_returns_complete_with_no_degraded_sections()
         &bundle,
         100,
         &CancellationToken::new(),
+        1,
     )
     .expect("analyze_full_project must succeed on empty graph");
 
@@ -4946,6 +4947,7 @@ fn consecutive_analysis_calls_reset_tls_accumulator_independently() {
         &bundle,
         50,
         &CancellationToken::new(),
+        1,
     )
     .unwrap();
     let r2 = analyze_full_project(
@@ -4955,6 +4957,7 @@ fn consecutive_analysis_calls_reset_tls_accumulator_independently() {
         &bundle,
         50,
         &CancellationToken::new(),
+        1,
     )
     .unwrap();
 
@@ -4995,6 +4998,7 @@ fn concurrent_analysis_threads_have_isolated_tls_accumulators() {
             &empty_bundle(),
             100,
             &CancellationToken::new(),
+            1,
         )
     });
     let g2 = graph2.clone();
@@ -5006,6 +5010,7 @@ fn concurrent_analysis_threads_have_isolated_tls_accumulators() {
             &empty_bundle(),
             100,
             &CancellationToken::new(),
+            1,
         )
     });
 
@@ -5058,6 +5063,7 @@ fn four_concurrent_analysis_threads_all_produce_isolated_complete_reports() {
                     &empty_bundle(),
                     50,
                     &CancellationToken::new(),
+                    1,
                 )
                 .expect("analyze_full_project must succeed");
                 // Keep tmp alive until after analyze completes.
@@ -5118,6 +5124,7 @@ fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
         &bundle,
         10,
         &CancellationToken::new(),
+        1,
     );
     assert!(
         result.is_ok(),
@@ -5199,6 +5206,7 @@ fn analysis_report_is_complete_and_degraded_sections_is_empty_are_consistent() {
         &bundle,
         10,
         &CancellationToken::new(),
+        1,
     )
     .expect("analyze_full_project must succeed");
 
@@ -5246,6 +5254,7 @@ fn analysis_returns_err_immediately_when_token_is_pre_cancelled() {
         &empty_bundle(),
         100,
         &cancel,
+        1,
     );
 
     assert!(
@@ -5349,6 +5358,7 @@ fn migration_cancellation_terminates_per_file_loop() {
             &bundle,
             30,
             &cancel_clone,
+            1,
         )
     });
 
@@ -5411,6 +5421,7 @@ public partial class MyPage : System.Web.UI.Page {
         &bundle,
         10,
         &CancellationToken::new(),
+        1,
     );
     assert!(
         result.is_ok(),
@@ -5457,6 +5468,7 @@ End Class
         &bundle,
         10,
         &CancellationToken::new(),
+        1,
     );
     assert!(
         result.is_ok(),

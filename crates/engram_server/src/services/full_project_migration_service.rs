@@ -122,6 +122,7 @@ pub fn analyze_full_project(
     bundle: &ProjectFileBundle,
     max_files: usize,
     cancel: &CancellationToken,
+    generation: u64,
 ) -> anyhow::Result<FullProjectMigrationReport> {
     // MIG1: early-exit if already cancelled before we start any work.
     if cancel.is_cancelled() {
@@ -260,6 +261,7 @@ pub fn analyze_full_project(
             fc.codebehind_content.as_deref().unwrap_or(""),
             web_config_content,
             target_stack,
+            generation,
         ) {
             Ok(dossier) => page_dossiers.push(dossier),
             Err(e) => {

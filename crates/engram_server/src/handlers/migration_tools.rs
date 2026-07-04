@@ -632,6 +632,7 @@ impl Engram {
             String::new()
         };
 
+        let gen_ = self.get_active_generation(&req.project_id).await?;
         let result = tokio::task::spawn_blocking(move || {
             crate::services::dossier_service::build_migration_dossier(
                 &graph,
@@ -641,6 +642,7 @@ impl Engram {
                 &cb_content,
                 None,
                 &target_stack,
+                gen_,
             )
         })
         .await
@@ -653,7 +655,11 @@ impl Engram {
         // existing formatter so callers get lifecycle events,
         // ViewState keys, AJAX regions, validators, auth patterns,
         // blast radius, scaffold preview, and migration steps.
-        let rendered = crate::services::dossier_service::format_migration_dossier(&result);
+        let mut rendered = crate::services::dossier_service::format_migration_dossier(&result);
+        // The largest context blob in the server shipped with ZERO staleness
+        // signal — the graph-derived sections can be stale while the
+        // disk-read markup is live.
+        rendered.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(rendered)]))
     }
 
@@ -1378,6 +1384,10 @@ impl Engram {
             let mut tokens = self.state.cancellation_tokens.write().await;
             tokens.insert(migration_job_id.clone(), cancel);
         }
+        let gen_for_task = self
+            .get_active_generation(&req.project_id)
+            .await
+            .unwrap_or(1);
         let report_result = tokio::task::spawn_blocking(move || {
             full_mig::analyze_full_project(
                 &graph,
@@ -1386,6 +1396,7 @@ impl Engram {
                 &bundle,
                 max_files,
                 &cancel_for_task,
+                gen_for_task,
             )
         })
         .await
