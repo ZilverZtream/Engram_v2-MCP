@@ -4,19 +4,20 @@
 
 ## The headline number
 
-**Engram's planning brief lifts agent file-set recall 36% → 82% aggregate** —
+**Engram's planning brief lifts agent file-set recall 31% → 84% aggregate** —
 measured leak-free (plain-file snapshot trees, git forbidden), same-day, at
-constant model (Sonnet), across five story shapes. The lift lands exactly
+constant model (Sonnet), across six story shapes. The lift lands exactly
 where stories underspecify team knowledge:
 
 | PR (story shape) | Control | + Engram brief | Lift |
 |---|---|---|---|
+| 1893 — feature on an unfamiliar surface | 0% | 100% | co-change finds what exploration misses |
 | 1890 — new API domain | 8% | 54% | 7× |
 | 1933 — UI change w/ design divergence | 17% | 83% | 5× |
-| 1905 — debugging | 29% | 93% | 3.2× |
 | 1938 — cross-cutting JS/bundles | 27% | 80% | 3× |
+| 1905 — debugging | 29% | 93% | 3.2× |
 | 1904 — fully-specified story | 100% | 100% | tie at ceiling |
-| **Aggregate** | **36%** | **82%** | — |
+| **Aggregate** | **31%** (24/77) | **84%** (65/77) | — |
 
 The better-specified the ticket, the smaller the lift; the more the change
 depends on team-convention knowledge, the bigger (up to 7×). Engram's brief
