@@ -96,5 +96,31 @@ access layer, watcher auto-enable, tool-surface pruning, dead-knob removal.
 - `cargo fmt --all` + `cargo check --all-targets` + targeted test suites
   (`engram_server`, `engram_index`); full suite is OOM-prone → targeted.
 
+## Part 3 — Found during live deployment (all fixed same day)
+
+1. **Windows handle-inheritance leak**: the daemon chain inherited the MCP
+   host's stdio pipe handles, so the host's read() never saw EOF after the
+   client died — host hung forever. Fix: SetHandleInformation clears
+   HANDLE_FLAG_INHERIT on std handles before spawning (client + launcher).
+2. **Cold daemon start on the production store takes minutes** (large redb
+   open/repair after force-kill). Mitigation: `multi_client_connect_timeout_secs`
+   raised to 600 in prod YAML; root-cause investigation deferred.
+3. **Reasoning models return empty `content`** (deepseek-v4 & co. put
+   everything in the `reasoning` channel; HTTP 200, empty answer). Fix in
+   engram_ml: OpenRouter requests send `reasoning: {enabled: false}`, and the
+   response parser salvages `reasoning`/`reasoning_content` when `content` is
+   empty.
+
+## Part 4 — Business-rules pipeline (user-reported, audited, fixed)
+
+analyze_business_logic never persisted anything and query_business_logic
+returned the literal "Hits: N". Fixed: per-method docs persisted to the
+business_logic namespace (path-stable ids, GlobalMutable gen 0), query
+renders full docs, prompt extracts WHEN/THEN rules anchored to real source
+lines with concrete refs, parser hardened (think/fence stripping, tolerant
+rule schema), max_tokens 3072. Live-verified on OciusX user_edit.aspx.vb:
+30/31 methods persisted; query "user role access permission" returned the
+admin-role-assignment guard as hit #1 with line anchors.
+
 ## Non-goals
 Networked Engram, HA failover, per-session data dirs, protocol bump.
