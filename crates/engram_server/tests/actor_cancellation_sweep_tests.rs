@@ -1,10 +1,10 @@
-#![allow(clippy::unwrap_used)]
+﻿#![allow(clippy::unwrap_used)]
 //! Static sweep: all major actor event loops must check their shutdown/cancellation
 //! token inside the main loop body.
 //!
 //! These tests perform a structural scan of the actor source files to prove that
 //! every long-running background actor uses cooperative cancellation (via
-//! `tokio::select! { _ = shutdown.cancelled() => … }` or equivalent) rather than
+//! `tokio::select! { _ = shutdown.cancelled() => â€¦ }` or equivalent) rather than
 //! relying solely on process exit.
 //!
 //! This is a compile-time-equivalent check: the source must contain the patterns
@@ -27,7 +27,7 @@ fn gc_actor_has_shutdown_check() {
     );
     assert!(
         source.contains("run_gc_scheduler"),
-        "gc.rs must export run_gc_scheduler — structural invariant"
+        "gc.rs must export run_gc_scheduler â€” structural invariant"
     );
 }
 
@@ -62,7 +62,7 @@ fn watcher_actor_has_shutdown_check() {
     assert!(
         has_cancel_check,
         "watcher.rs must check a cancellation token (.cancelled()) inside \
-         its main event loop — currently missing cooperative shutdown"
+         its main event loop â€” currently missing cooperative shutdown"
     );
     assert!(
         source.contains("tokio::select!") || source.contains("select!"),
@@ -75,9 +75,9 @@ fn watcher_actor_has_shutdown_check() {
 fn immune_actor_has_cancellation_check() {
     let source = include_str!("../src/actors/immune.rs");
 
-    // Immune actor may be a simpler actor — check for either pattern.
+    // Immune actor may be a simpler actor â€” check for either pattern.
     let has_cancel = source.contains(".cancelled()") || source.contains("CancellationToken");
-    // Some actors are synchronous helpers with no loop — they are exempt.
+    // Some actors are synchronous helpers with no loop â€” they are exempt.
     // If it has a `loop {` or `tokio::spawn`, it must have a cancellation check.
     let has_long_running = source.contains("loop {") || source.contains("tokio::spawn");
 
@@ -85,16 +85,16 @@ fn immune_actor_has_cancellation_check() {
         assert!(
             has_cancel,
             "immune.rs has a long-running loop/spawn but is missing \
-             a cancellation token check — violation"
+             a cancellation token check â€” violation"
         );
     }
-    // If no loop/spawn, it's a synchronous helper — no cancellation required.
+    // If no loop/spawn, it's a synchronous helper â€” no cancellation required.
     // Either way, the test must not panic.
 }
 
 /// The GC actor must pass its shutdown token as the FIRST arm in
 /// `tokio::select!` (biased ordering) so that shutdown is always checked before
-/// the interval tick — prevents the GC from running a full purge cycle on shutdown.
+/// the interval tick â€” prevents the GC from running a full purge cycle on shutdown.
 #[test]
 fn gc_actor_shutdown_arm_appears_before_tick() {
     let source = include_str!("../src/actors/gc.rs");
@@ -134,7 +134,7 @@ fn dreamer_actor_shutdown_arm_appears_before_tick() {
 
 /// embed_batch_cancellable in embed.rs must wrap the HTTP send() call
 /// in a tokio::select! that checks the cancellation token, so in-flight HTTP
-/// requests are interrupted on shutdown — not left to complete or timeout naturally.
+/// requests are interrupted on shutdown â€” not left to complete or timeout naturally.
 #[test]
 fn embed_batch_cancellable_wraps_http_in_select() {
     let source = include_str!("../../engram_ml/src/embed.rs");
@@ -156,7 +156,7 @@ fn embed_batch_cancellable_wraps_http_in_select() {
 }
 
 /// The main server must shut down all background actors via cancellation
-/// tokens rather than letting them be killed by process exit — structural check.
+/// tokens rather than letting them be killed by process exit â€” structural check.
 #[test]
 fn server_passes_shutdown_token_to_actors() {
     // Check that the server/main wiring passes CancellationToken to actors.
@@ -174,7 +174,7 @@ fn server_passes_shutdown_token_to_actors() {
     );
 }
 
-/// The integrity_checker actor must also receive the shutdown token —
+/// The integrity_checker actor must also receive the shutdown token â€”
 /// it is a long-running background loop that previously lacked cooperative shutdown.
 #[test]
 fn integrity_checker_has_shutdown_check() {
@@ -205,7 +205,7 @@ fn main_passes_shutdown_to_integrity_checker() {
 
     assert!(
         has_wiring,
-        "main.rs must pass shutdown token to run_integrity_checker — \
+        "main.rs must pass shutdown token to run_integrity_checker â€” \
          bare spawn without shutdown token leaves the loop unshuttable"
     );
 }
@@ -240,7 +240,7 @@ fn all_async_loops_in_server_have_cancellation_checks() {
         if has_loop && has_await {
             assert!(
                 has_cancel,
-                "{name} contains `loop {{` with `.await` but no cancellation check — \
+                "{name} contains `loop {{` with `.await` but no cancellation check â€” \
                  the loop can block shutdown indefinitely"
             );
         }
@@ -252,7 +252,7 @@ fn all_async_loops_in_server_have_cancellation_checks() {
 /// request timeout and the guard does not accumulate across batches.
 ///
 /// Structural assertion: the source must contain `_embed_guard` created inside
-/// the batch loop, alongside `embed_batch_cancellable` — proving the guard is
+/// the batch loop, alongside `embed_batch_cancellable` â€” proving the guard is
 /// released between batches (RAII drop at block end), not pinned for the job lifecycle.
 #[test]
 fn embed_memory_guard_is_scoped_to_batch_not_job() {
@@ -269,7 +269,7 @@ fn embed_memory_guard_is_scoped_to_batch_not_job() {
     assert!(
         source.contains("embed_batch_cancellable"),
         "X2-embmem-6c4p: hybrid.rs must call embed_batch_cancellable within the \
-         guard scope — proving the throughput is bounded by the cancellation token \
+         guard scope â€” proving the throughput is bounded by the cancellation token \
          (and thus by the request timeout that drives cancellation)"
     );
 
@@ -283,7 +283,7 @@ fn embed_memory_guard_is_scoped_to_batch_not_job() {
         assert!(
             distance < 2000,
             "X2-embmem-6c4p: embed guard and embed_batch_cancellable must be in the same \
-             batch loop body (within 2000 chars); actual distance: {distance} chars — \
+             batch loop body (within 2000 chars); actual distance: {distance} chars â€” \
              they may be in different scopes"
         );
     }
@@ -293,8 +293,8 @@ fn embed_memory_guard_is_scoped_to_batch_not_job() {
 /// (project_id validation or ADP check) before the job is spawned.
 ///
 /// Structural sweep across the three job-spawning handlers:
-/// 1. project_tools.rs — spawn_job_index_directory and spawn_job_update_project
-/// 2. git_tools.rs — spawn_job_git_history
+/// 1. project_tools.rs â€” spawn_job_index_directory and spawn_job_update_project
+/// 2. git_tools.rs â€” spawn_job_git_history
 ///
 /// Each must contain either `validate_project_id` / `ensure_project_record` /
 /// `safe_join` (proving the path is authenticated before the job is dispatched).
@@ -349,14 +349,14 @@ fn all_job_creation_handlers_have_authorization_gate_before_spawn() {
     );
 }
 
-/// MEM2: structural sweep — all heavy allocation sites in the ingest and search
+/// MEM2: structural sweep â€” all heavy allocation sites in the ingest and search
 /// pipelines must be wrapped with AllocationGuard to ensure the memory budget
 /// accounting is accurate.
 ///
 /// Checks that the three primary heavy-allocation paths are guarded:
-/// 1. Chunking/parse batch (hybrid.rs) — per-batch ParseBuffer guard
-/// 2. Embedding batch (hybrid.rs) — per-batch embed guard
-/// 3. Vector search oversample (hybrid.rs) — bounded top_k before fetch
+/// 1. Chunking/parse batch (hybrid.rs) â€” per-batch ParseBuffer guard
+/// 2. Embedding batch (hybrid.rs) â€” per-batch embed guard
+/// 3. Vector search oversample (hybrid.rs) â€” bounded top_k before fetch
 ///
 /// This is a structural scan; the guards being present in the source proves the
 /// allocation sites are budget-accounted rather than bypassing the AllocationGuard API.
@@ -376,10 +376,10 @@ fn mem2_heavy_allocation_paths_use_allocation_guard() {
     assert!(
         guard_count >= 2,
         "MEM2: hybrid.rs must have at least 2 AllocationGuard sites (parse batch + embed batch); \
-         found {guard_count} — one or more heavy allocation paths is unguarded"
+         found {guard_count} â€” one or more heavy allocation paths is unguarded"
     );
 
-    // 3. Vector search oversample is bounded by .min(10_000) — prevents unbounded
+    // 3. Vector search oversample is bounded by .min(10_000) â€” prevents unbounded
     //    intermediate buffer allocation even without an AllocationGuard.
     assert!(
         source.contains(".min(10_000)") || source.contains(".min(10000)"),
@@ -396,7 +396,7 @@ fn mem2_allocation_guard_is_implemented_in_core() {
 
     assert!(
         source.contains("pub struct AllocationGuard"),
-        "MEM2: AllocationGuard must be a public struct in engram_core::memory — \
+        "MEM2: AllocationGuard must be a public struct in engram_core::memory â€” \
          without a central implementation, per-crate copies could diverge"
     );
     assert!(
@@ -406,7 +406,7 @@ fn mem2_allocation_guard_is_implemented_in_core() {
     );
     assert!(
         source.contains("pub fn try_new"),
-        "MEM2: AllocationGuard::try_new must be the only way to create a guard — \
+        "MEM2: AllocationGuard::try_new must be the only way to create a guard â€” \
          forcing callers through the budget check before acquiring the allocation"
     );
 }
@@ -436,7 +436,7 @@ fn fts3_vector_disabled_degradation_path_exists_in_source() {
     // Presence of a return-empty-vec fallback is the expected pattern.
     assert!(
         source.contains("vector_search") || source.contains("vec_results"),
-        "FTS3: hybrid.rs must reference vector_search or vec_results — \
+        "FTS3: hybrid.rs must reference vector_search or vec_results â€” \
          the search merge path must handle empty vector results without panicking"
     );
 }
@@ -450,7 +450,7 @@ fn fts3_vector_disabled_degradation_path_exists_in_source() {
 fn fts3_search_handler_handles_empty_vector_results_structurally() {
     let source = include_str!("../src/handlers/search_tools.rs");
 
-    // The handler must not unwrap() on search results directly — it must handle
+    // The handler must not unwrap() on search results directly â€” it must handle
     // the case where both FTS and vector paths return empty results.
     let has_result_handling = source.contains("results.is_empty()")
         || source.contains("results.len()")
@@ -476,7 +476,7 @@ fn cancel1_dreamer_project_loop_checks_shutdown_per_iteration() {
 
     // The per-iteration cancel check must be inside the project loop.
     // We verify by checking that `is_cancelled()` appears in the source at all
-    // (we already checked `shutdown.cancelled()` for the outer select! arm) —
+    // (we already checked `shutdown.cancelled()` for the outer select! arm) â€”
     // we also need to confirm `shutdown.is_cancelled()` appears for the inner loop.
     assert!(
         source.contains("shutdown.is_cancelled()"),
@@ -508,7 +508,7 @@ fn cancel1_dreamer_shutdown_check_precedes_dream_once_in_loop() {
 /// held for the duration of a remote network call.
 ///
 /// Holding the guard across an async await ties budget accounting to network
-/// latency — a slow embedder (10s+ timeout) starves all other concurrent
+/// latency â€” a slow embedder (10s+ timeout) starves all other concurrent
 /// allocations that share the same MemoryBudget.
 #[test]
 fn x1_7f9b_embed_guard_dropped_before_await() {
@@ -578,7 +578,7 @@ fn mig1_handler_sources_completeness_header_in_markdown_output() {
 #[test]
 fn migration_report_struct_exposes_completeness_fields_for_clients() {
     // The struct moved from the monolith service file into the directory
-    // module's model.rs when the service was split — scan where it lives now.
+    // module's model.rs when the service was split â€” scan where it lives now.
     let model_src = include_str!("../src/services/full_project_migration_service/model.rs");
 
     // The struct definition must declare both fields.
@@ -603,7 +603,7 @@ fn migration_report_struct_exposes_completeness_fields_for_clients() {
     assert!(
         before_struct.contains("Serialize"),
         "FullProjectMigrationReport must derive Serialize so report_is_complete and \
-         degraded_sections appear in JSON MCP responses — clients cannot enforce \
+         degraded_sections appear in JSON MCP responses â€” clients cannot enforce \
          completeness checking if these fields are absent from the wire format"
     );
 }
@@ -630,20 +630,20 @@ fn migration_handler_json_path_serializes_full_report_including_completeness() {
         has_full_report_json,
         "migration handler JSON path must serialize the complete report with \
          serde_json::to_string_pretty(&report) so report_is_complete and \
-         degraded_sections are included in the JSON response — a stripped \
+         degraded_sections are included in the JSON response â€” a stripped \
          serialization would hide completeness state from JSON clients"
     );
 
     // The output_json flag must also be checked in the same handler (not removed).
     assert!(
         handler_src.contains("if req.output_json") || handler_src.contains("if output_json"),
-        "migration handler must check the output_json flag — without it, JSON clients \
+        "migration handler must check the output_json flag â€” without it, JSON clients \
          cannot request machine-readable report output with completeness fields"
     );
 }
 
 /// Migration completeness: the service's internal `report_is_complete` derivation
-/// must be logically tied to `degraded_sections` — complete iff no sections degraded.
+/// must be logically tied to `degraded_sections` â€” complete iff no sections degraded.
 ///
 /// This is the core invariant: if `degraded_sections` is non-empty, `report_is_complete`
 /// must be false.  Any disconnect between the two fields would allow partial reports
@@ -668,7 +668,7 @@ fn migration_service_report_is_complete_derived_from_degraded_sections() {
     assert!(
         after_assign.contains("degraded_sections"),
         "migration service must derive report_is_complete from degraded_sections \
-         (e.g. `let report_is_complete = degraded_sections.is_empty()`) — \
+         (e.g. `let report_is_complete = degraded_sections.is_empty()`) â€” \
          any other derivation risks the two fields becoming inconsistent. \
          Found near assignment: {:?}",
         &after_assign[..100.min(after_assign.len())]
@@ -692,16 +692,16 @@ fn immune_actor_project_loop_checks_shutdown_token() {
     assert!(
         source.contains("shutdown.is_cancelled()"),
         "CANCEL1-b2h7: immune actor must call shutdown.is_cancelled() inside the \
-         project scan loop — relying only on the outer select! tick check means \
+         project scan loop â€” relying only on the outer select! tick check means \
          shutdown is delayed by the full scan duration when many projects are registered"
     );
 
-    // The check must be followed by a return — pure logging without early exit
+    // The check must be followed by a return â€” pure logging without early exit
     // does not satisfy the cooperative shutdown contract.
     assert!(
         source.contains("shutdown cancelled during project scan loop"),
         "CANCEL1-b2h7: immune actor must log and return when shutdown is detected \
-         mid-loop — the log message is the observable trace for operator debugging"
+         mid-loop â€” the log message is the observable trace for operator debugging"
     );
 }
 
@@ -730,7 +730,7 @@ fn handle_update_memory_bank_registry_write_error_is_propagated_not_swallowed() 
         .or_else(|| source.find("handle_update_memory_bank"))
         .expect("REG1/MCP1: handle_update_memory_bank must exist in project_tools.rs");
 
-    // Take a window spanning the function — it's ≈ 100 lines from the start.
+    // Take a window spanning the function â€” it's â‰ˆ 100 lines from the start.
     let fn_body = &source[fn_start..fn_start + 3000.min(source.len() - fn_start)];
 
     // spawn_blocking for registry write must be present.
@@ -751,11 +751,11 @@ fn handle_update_memory_bank_registry_write_error_is_propagated_not_swallowed() 
     assert!(
         !after_pm.contains(".await\n        .ok()") && !after_pm.contains(".await.ok()"),
         "REG1/MCP1: spawn_blocking(...).await.ok() must not appear in \
-         handle_update_memory_bank — .ok() silently swallows both JoinError and \
+         handle_update_memory_bank â€” .ok() silently swallows both JoinError and \
          the registry write error, causing the handler to lie about persistence"
     );
 
-    // map_err must appear — proving both the JoinError and write error are propagated.
+    // map_err must appear â€” proving both the JoinError and write error are propagated.
     assert!(
         after_pm.contains("map_err"),
         "REG1/MCP1: handle_update_memory_bank registry write must use map_err to \
@@ -772,7 +772,7 @@ fn handle_update_memory_bank_registry_write_error_is_propagated_not_swallowed() 
     );
 }
 
-/// REG1/MCP1: per-file sweep — `spawn_blocking` calls that write to the
+/// REG1/MCP1: per-file sweep â€” `spawn_blocking` calls that write to the
 /// registry (put_memory_section, put_project, set_reindex_required,
 /// clear_reindex_required) must NOT swallow the result with `.ok()`.
 ///
@@ -840,26 +840,26 @@ fn immune_actor_mid_loop_shutdown_uses_return_not_break() {
     assert!(
         nearby.contains("return"),
         "CANCEL1-b2h7: immune actor mid-loop shutdown check must exit via `return`, \
-         not `break` — `break` would re-enter the outer loop and re-scan after shutdown; \
+         not `break` â€” `break` would re-enter the outer loop and re-scan after shutdown; \
          nearby source after is_cancelled() check: {nearby:?}"
     );
 }
 
-// ─── Automated cancellation-loop policy checker ───────────────────────────────
+// â”€â”€â”€ Automated cancellation-loop policy checker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // The policy: every `loop {` block that contains an `.await` expression MUST
 // also contain a cancellation check (`.cancelled()` or `is_cancelled()`).
 //
 // This rule is checked at three levels of granularity:
 //
-//   Level 1 — file-level sweep: if the file has `loop {` + `.await` it must
+//   Level 1 â€” file-level sweep: if the file has `loop {` + `.await` it must
 //             have at least one cancellation check (existing test above).
 //
-//   Level 2 — loop-proximity check: for each `loop {` that has `.await` within
+//   Level 2 â€” loop-proximity check: for each `loop {` that has `.await` within
 //             the following 3 000 characters, a cancellation token reference
 //             must also appear within those 3 000 characters.
 //
-//   Level 3 — select!-arm ordering: where a `tokio::select!` is used, the
+//   Level 3 â€” select!-arm ordering: where a `tokio::select!` is used, the
 //             shutdown arm must appear before the tick/event arm (checked in
 //             the ordering tests above).
 //
@@ -869,7 +869,7 @@ fn immune_actor_mid_loop_shutdown_uses_return_not_break() {
 /// within its body window, a cancellation check must also appear within that
 /// same window.
 ///
-/// "Body window" = 3 000 characters starting at `loop {` — generous enough to
+/// "Body window" = 3 000 characters starting at `loop {` â€” generous enough to
 /// cover any realistically sized actor loop body, tight enough to reject a
 /// cancellation check that is only in an unrelated function below the loop.
 #[test]
@@ -923,9 +923,9 @@ fn cancellation_policy_every_async_loop_body_has_cancel_check() {
     }
 }
 
-// ── MIG1-t7e5: migration service cancellation failpoint behavioral tests ─────
+// â”€â”€ MIG1-t7e5: migration service cancellation failpoint behavioral tests â”€â”€â”€â”€â”€
 
-/// MIG1: structural test — all 5 cancellation boundary messages must exist in the
+/// MIG1: structural test â€” all 5 cancellation boundary messages must exist in the
 /// migration service source, one per major phase.  If a boundary is removed or
 /// renamed without updating the test, this fails immediately.
 #[test]
@@ -943,7 +943,7 @@ fn migration_service_has_all_five_cancellation_boundary_messages() {
     for msg in &expected_messages {
         assert!(
             src.contains(msg),
-            "MIG1: migration service must contain cancellation boundary message {msg:?} — \
+            "MIG1: migration service must contain cancellation boundary message {msg:?} â€” \
              each major phase boundary must have a cooperative cancel check"
         );
     }
@@ -953,11 +953,11 @@ fn migration_service_has_all_five_cancellation_boundary_messages() {
     assert!(
         count >= 5,
         "MIG1: migration service must have at least 5 is_cancelled() calls (one per \
-         phase boundary); found {count} — a boundary check may have been deleted"
+         phase boundary); found {count} â€” a boundary check may have been deleted"
     );
 }
 
-/// MIG1: behavioral test — a pre-cancelled token causes analyze_full_project to
+/// MIG1: behavioral test â€” a pre-cancelled token causes analyze_full_project to
 /// return Err before any work is done (the "before start" checkpoint fires first).
 #[test]
 fn migration_analyse_returns_err_when_cancelled_before_start() {
@@ -991,12 +991,12 @@ fn migration_analyse_returns_err_when_cancelled_before_start() {
     let cancel = CancellationToken::new();
     cancel.cancel(); // pre-cancel before calling analyze_full_project
 
-    let result = analyze_full_project(&graph, "test-proj", "dotnet9", &bundle, 0, &cancel);
+    let result = analyze_full_project(&graph, "test-proj", "dotnet9", &bundle, 0, &cancel, 1);
 
     assert!(
         result.is_err(),
         "MIG1: analyze_full_project must return Err when token is pre-cancelled; \
-         got Ok — the before-start cancel check is missing or not firing"
+         got Ok â€” the before-start cancel check is missing or not firing"
     );
     let err = result.unwrap_err().to_string();
     assert!(
@@ -1005,7 +1005,7 @@ fn migration_analyse_returns_err_when_cancelled_before_start() {
     );
 }
 
-/// MIG1: structural ordering test — the 5 cancel checks must appear in source order
+/// MIG1: structural ordering test â€” the 5 cancel checks must appear in source order
 /// matching the phases: before-start < after-graph-analyses < per-file < phase32 < report-assembly.
 /// This proves no phase was accidentally reordered, which would leave an unguarded gap.
 #[test]
@@ -1028,7 +1028,7 @@ fn migration_cancellation_boundary_checks_are_in_phase_order() {
         assert!(
             pos > last_pos,
             "MIG1: cancellation boundary [{i}] {msg:?} appears at byte {pos} which is \
-             before the previous boundary at byte {last_pos} — cancel checks are out of \
+             before the previous boundary at byte {last_pos} â€” cancel checks are out of \
              phase order; a phase boundary may have been moved"
         );
         last_pos = pos;
@@ -1036,7 +1036,7 @@ fn migration_cancellation_boundary_checks_are_in_phase_order() {
 }
 
 /// CANCEL-POLICY-INDEX: hybrid.rs loops in the index crate are synchronous
-/// pagination loops (no `.await`) — they are explicitly exempt from the
+/// pagination loops (no `.await`) â€” they are explicitly exempt from the
 /// cancellation policy.  This test documents and enforces that exemption:
 /// if a future change adds `.await` inside a hybrid.rs pagination loop, this
 /// test will fail and force a deliberate decision about adding a cancel check.
@@ -1068,7 +1068,7 @@ fn hybrid_index_loops_are_synchronous_and_exempt_from_cancel_policy() {
     );
 }
 
-// ── CANCEL1: semantic cancellation coverage expansion ─────────────────────────
+// â”€â”€ CANCEL1: semantic cancellation coverage expansion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CANCEL1: the watcher actor must check the shutdown token inside its project
 /// rescan loop, not just at the outer select! boundary. Semantic check:
@@ -1087,7 +1087,7 @@ fn cancel1_watcher_inner_loop_cancel_check_has_early_exit() {
     assert!(
         after_check.contains("return") || after_check.contains("break"),
         "CANCEL1: watcher.rs shutdown.is_cancelled() check must be followed by return/break \
-         within 200 chars — pure logging without exit does not satisfy cooperative shutdown"
+         within 200 chars â€” pure logging without exit does not satisfy cooperative shutdown"
     );
 }
 
@@ -1136,9 +1136,9 @@ fn cancel1_actor_cancel_checks_are_proximate_to_await_points() {
     }
 }
 
-// ── X5: active_indexing_count correctness across job kinds ────────────────────
+// â”€â”€ X5: active_indexing_count correctness across job kinds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// X5: structural registry test — documents which spawn_job functions use
+/// X5: structural registry test â€” documents which spawn_job functions use
 /// active_indexing_count and which do not. Serves as a sentinel: any future
 /// spawn_job addition that skips the counter will require updating this test.
 #[test]
@@ -1150,7 +1150,7 @@ fn x5_spawn_job_functions_active_indexing_count_registry() {
     assert!(
         project_tools.contains("active_indexing_count"),
         "X5: project_tools.rs spawn functions must use active_indexing_count \
-         to participate in the GC race guard — missing counter means GC can \
+         to participate in the GC race guard â€” missing counter means GC can \
          purge generations while indexing is in flight"
     );
 
@@ -1159,10 +1159,10 @@ fn x5_spawn_job_functions_active_indexing_count_registry() {
     // Document it here so the gap is visible and deliberate.
     let git_uses_counter = git_tools.contains("active_indexing_count");
     if !git_uses_counter {
-        // This is expected for now — document the gap rather than failing.
+        // This is expected for now â€” document the gap rather than failing.
         // When this is fixed, remove this comment and update the assertion below.
         let _ = "X5-KNOWN-GAP: spawn_job_git_history does not increment \
-                  active_indexing_count — GC can race with in-flight git indexing jobs. \
+                  active_indexing_count â€” GC can race with in-flight git indexing jobs. \
                   Risk is lower than project indexing since git history does not write \
                   to the same generation-scoped tantivy/lancedb tables.";
     }
@@ -1173,10 +1173,10 @@ fn x5_spawn_job_functions_active_indexing_count_registry() {
     );
 }
 
-// ── CANCEL1: exhaustive async-loop coverage across all actor files ─────────────
+// â”€â”€ CANCEL1: exhaustive async-loop coverage across all actor files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CANCEL1 / Section 9: exhaustive sweep of ALL actor source files for async
-/// loop bodies. Every `loop {` or `for … {` or `while … {` that contains `.await`
+/// loop bodies. Every `loop {` or `for â€¦ {` or `while â€¦ {` that contains `.await`
 /// must also contain a cancellation check (is_cancelled() or .cancelled()).
 ///
 /// This test implements the CI-enforceable policy called for in Section 9 of
@@ -1258,7 +1258,7 @@ fn cancel1_exhaustive_async_loop_cancel_check_all_actors() {
 }
 
 /// CANCEL1 / Section 9: dreamer.rs must check cancellation inside its project
-/// analysis for-loop — not just at the outer tick select! boundary.
+/// analysis for-loop â€” not just at the outer tick select! boundary.
 /// This is the high-level semantic check; the exhaustive loop scan above is
 /// the structural proof.
 #[test]
@@ -1273,7 +1273,7 @@ fn cancel1_dreamer_for_loop_has_cancel_check_before_heavy_work() {
     assert!(
         has_cancel,
         "CANCEL1: dreamer.rs must have a cancellation check inside its project \
-         analysis loop (is_cancelled / shutdown.cancelled) — outer select! alone \
+         analysis loop (is_cancelled / shutdown.cancelled) â€” outer select! alone \
          cannot preempt long scans"
     );
 }
@@ -1291,7 +1291,7 @@ fn cancel1_gc_actor_checks_shutdown_before_purge() {
     );
 }
 
-// ── X5: active_indexing_count — git history job fix verification ───────────────
+// â”€â”€ X5: active_indexing_count â€” git history job fix verification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// X5: git_tools.rs must now use active_indexing_count so the GC race guard
 /// applies to in-flight git history indexing jobs.
@@ -1302,12 +1302,12 @@ fn x5_git_tools_now_uses_active_indexing_count() {
     assert!(
         git_tools.contains("active_indexing_count"),
         "X5: git_tools.rs must increment/decrement active_indexing_count so GC \
-         skips purge ticks while git history indexing is in flight — \
+         skips purge ticks while git history indexing is in flight â€” \
          missing counter allows GC to race with in-flight writes"
     );
 }
 
-// ── JOB1/X5: per-job-kind active_indexing_count lifecycle ────────────────────
+// â”€â”€ JOB1/X5: per-job-kind active_indexing_count lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// JOB1/X5: every spawn_job function that performs writes to the index must
 /// use active_indexing_count guards. Currently: index_directory, git_history.
@@ -1361,7 +1361,7 @@ fn job1_gc_actor_skips_purge_when_active_indexing_count_nonzero() {
     );
 }
 
-// ── X6: cancellation vs checkpoint partial-phase writes ───────────────────────
+// â”€â”€ X6: cancellation vs checkpoint partial-phase writes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// X6: the checkpoint module must have explicit cancel checks between phase
 /// writes to prevent partial-phase state when cancelled mid-operation.
@@ -1373,7 +1373,7 @@ fn x6_checkpoint_phase_writes_have_cancel_awareness() {
     // Checkpoint module must acknowledge cancel/tombstone paths.
     assert!(
         src.contains("cancelled") || src.contains("tombstone") || src.contains("CancelledWith"),
-        "X6: checkpoint.rs must handle cancellation state — partial-phase writes \
+        "X6: checkpoint.rs must handle cancellation state â€” partial-phase writes \
          after cancel must be tombstoned to prevent false resume on restart"
     );
 }
@@ -1396,7 +1396,7 @@ fn x6_cancellation_outcome_distinguishes_tombstone_variants() {
     );
 }
 
-// ── CANCEL1-r1f5: bounded cancel-check interval in actor loops ────────────────
+// â”€â”€ CANCEL1-r1f5: bounded cancel-check interval in actor loops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CANCEL1: every actor file must not have large runs of .await points without
 /// an intervening is_cancelled() check. Structural proxy: the ratio of
@@ -1427,7 +1427,7 @@ fn cancel1_actor_loops_have_sufficient_cancel_check_density() {
             assert!(
                 cancel_checks > 0,
                 "CANCEL1: {name} has {select_sites} tokio::select! site(s) but \
-                 no is_cancelled() check — actor loop may not terminate promptly"
+                 no is_cancelled() check â€” actor loop may not terminate promptly"
             );
         }
     }
@@ -1455,13 +1455,13 @@ fn cancel1_all_actor_files_declare_cancellation_token_parameter() {
     for (name, src) in actor_files {
         assert!(
             src.contains("CancellationToken") || src.contains("shutdown"),
-            "CANCEL1: {name} must accept a CancellationToken or shutdown signal — \
+            "CANCEL1: {name} must accept a CancellationToken or shutdown signal â€” \
              actor loops without cancel awareness cannot be stopped gracefully"
         );
     }
 }
 
-// ── JOB1-k2p7 / X5-h4w7: GC guard scope documentation ───────────────────────
+// â”€â”€ JOB1-k2p7 / X5-h4w7: GC guard scope documentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// JOB1/X5: the GC guard is counter-based and only covers jobs that increment
 /// `active_indexing_count`. This test documents the scope so future job types
@@ -1484,7 +1484,7 @@ fn job1_gc_guard_explicitly_scoped_to_active_indexing_count_convention() {
         assert!(
             src.contains("active_indexing_count") || src.contains("ActiveGuard"),
             "X5: {name} spawns indexing jobs and must manage active_indexing_count \
-             via RAII guard — missing guard risks premature GC purge"
+             via RAII guard â€” missing guard risks premature GC purge"
         );
     }
 }
@@ -1514,13 +1514,13 @@ fn x5_active_indexing_count_raii_guard_uses_increment_and_fetch_sub() {
             assert!(
                 has_raii,
                 "X5: {name} uses active_indexing_count but lacks RAII guard \
-                 (ActiveGuard or increment+fetch_sub pair) — counter may leak on panic"
+                 (ActiveGuard or increment+fetch_sub pair) â€” counter may leak on panic"
             );
         }
     }
 }
 
-// ── D3/JOB1-k2p7: GC/checkpoint race — structural proof ──────────────────────
+// â”€â”€ D3/JOB1-k2p7: GC/checkpoint race â€” structural proof â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// D3/JOB1: the GC actor must atomically load active_indexing_count and skip
 /// the purge tick if it is non-zero. This test is the structural proof:
@@ -1542,7 +1542,7 @@ fn job1_gc_active_count_check_precedes_purge_operation() {
         .or_else(|| src.find("cleanup"));
     if let Some(pp) = purge_pos {
         // The guard check must appear before the purge (lower character offset = earlier in file).
-        // This is a structural ordering invariant: guard → conditional → purge.
+        // This is a structural ordering invariant: guard â†’ conditional â†’ purge.
         // A reordering here would be a regression.
         assert!(
             count_pos < pp
@@ -1555,7 +1555,7 @@ fn job1_gc_active_count_check_precedes_purge_operation() {
 }
 
 /// D3/JOB1: the GC actor's active_indexing_count check must have a conditional
-/// skip path — either `continue`, `return`, or an `if > 0 { return }` pattern.
+/// skip path â€” either `continue`, `return`, or an `if > 0 { return }` pattern.
 /// This prevents GC from racing with in-flight indexing jobs even if the
 /// check is present but non-functional (e.g., `let _ = count;`).
 #[test]
@@ -1580,23 +1580,23 @@ fn job1_gc_active_count_check_has_skip_path() {
     );
 }
 
-// ── D7/CANCEL1: exhaustive await-loop coverage ────────────────────────────────
+// â”€â”€ D7/CANCEL1: exhaustive await-loop coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// D7/CANCEL1: ingest.rs uses only synchronous file I/O (no async/await loops).
 /// This means D7's requirement for cancel checks in every looped await does not
-/// apply to ingest.rs — it is a blocking module always called via spawn_blocking.
+/// apply to ingest.rs â€” it is a blocking module always called via spawn_blocking.
 /// This test documents that invariant so future async refactors add cancel checks.
 #[test]
 fn cancel1_ingest_rs_is_synchronous_and_has_no_await_loops() {
     let src = include_str!("../../engram_index/src/ingest.rs");
 
-    // ingest.rs must not use .await — it is always called from spawn_blocking.
+    // ingest.rs must not use .await â€” it is always called from spawn_blocking.
     let await_count = src.matches(".await").count();
     assert!(
         await_count == 0,
         "D7/CANCEL1: ingest.rs must remain synchronous (0 .await usages) so callers \
          can use spawn_blocking without holding async runtime threads; \
-         found {await_count} .await usages — add cancel checks if you make it async"
+         found {await_count} .await usages â€” add cancel checks if you make it async"
     );
 }
 
@@ -1619,13 +1619,13 @@ fn cancel1_job_service_has_no_looped_await_without_cancel_check() {
              every looped await must check the cancel token at least once per iteration"
         );
     }
-    // If loop_count == 0, the invariant is trivially satisfied — document this.
+    // If loop_count == 0, the invariant is trivially satisfied â€” document this.
     // Future additions of loops must add cancel checks.
 }
 
-// ── X5-j4r3: exhaustive active_indexing_count guard registry ─────────────────
+// â”€â”€ X5-j4r3: exhaustive active_indexing_count guard registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── CANCEL1-u2x9: expanded service-layer loop sweep ──────────────────────────
+// â”€â”€ CANCEL1-u2x9: expanded service-layer loop sweep â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CANCEL1-u2x9: service files that contain both `loop {` and `.await` must also
 /// contain a cancellation check. This expands the actor sweep to cover service-layer
@@ -1658,14 +1658,14 @@ fn cancel1_service_layer_looped_awaits_have_cancellation_checks() {
             assert!(
                 has_cancel,
                 "CANCEL1-u2x9: {name} has `loop {{` with `.await` but no cancellation \
-                 check — the service loop can block shutdown indefinitely. \
+                 check â€” the service loop can block shutdown indefinitely. \
                  Add a CancellationToken check inside the loop."
             );
         }
     }
 }
 
-// ── MCP1-n3v6: no TOCTOU .exists() gate before remove_dir_all ────────────────
+// â”€â”€ MCP1-n3v6: no TOCTOU .exists() gate before remove_dir_all â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MCP1-n3v6: project_tools.rs must not use a `project_dir.exists()` check as a
 /// gate before `remove_dir_all`. That check-then-act pattern is a TOCTOU race:
@@ -1681,7 +1681,7 @@ fn mcp1_project_delete_handler_does_not_use_exists_check_before_remove_dir_all()
     assert!(
         !src.contains("project_dir.exists()"),
         "MCP1-n3v6: project_tools.rs must not use project_dir.exists() as a gate \
-         before remove_dir_all — this is a TOCTOU race. Call remove_dir_all directly \
+         before remove_dir_all â€” this is a TOCTOU race. Call remove_dir_all directly \
          and ignore NotFound errors instead."
     );
 
@@ -1689,11 +1689,11 @@ fn mcp1_project_delete_handler_does_not_use_exists_check_before_remove_dir_all()
     assert!(
         src.contains("remove_dir_all"),
         "MCP1-n3v6: project_tools.rs must call remove_dir_all for project directory \
-         cleanup — the idempotent pattern is: let _ = std::fs::remove_dir_all(path)"
+         cleanup â€” the idempotent pattern is: let _ = std::fs::remove_dir_all(path)"
     );
 }
 
-// ── JOB1-b8n2: active_indexing_count scope documentation ─────────────────────
+// â”€â”€ JOB1-b8n2: active_indexing_count scope documentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// JOB1-b8n2: the GC guard `active_indexing_count` is held only by indexing-path
 /// handlers (project_tools, git_tools). This test documents which handlers are
@@ -1721,7 +1721,7 @@ fn job1_gc_guard_scope_is_limited_to_indexing_handlers() {
     for (name, src) in guarded {
         assert!(
             src.contains("active_indexing_count"),
-            "JOB1-b8n2: {name} is a guarded indexing handler — it must hold \
+            "JOB1-b8n2: {name} is a guarded indexing handler â€” it must hold \
              active_indexing_count to prevent GC from racing with in-flight writes. \
              If this guard was removed, re-evaluate the GC race window."
         );
@@ -1768,7 +1768,7 @@ fn x5_exhaustive_indexing_handler_registry_has_active_indexing_count_guards() {
         assert!(
             src.contains("active_indexing_count"),
             "X5-j4r3: {name} performs write-path indexing but does not use \
-             active_indexing_count — GC can race with in-flight writes. \
+             active_indexing_count â€” GC can race with in-flight writes. \
              Add fetch_add before the job and fetch_sub (or RAII Drop) on completion."
         );
         // Both increment and decrement must be present to prevent counter leaks.
