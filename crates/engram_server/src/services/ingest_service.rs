@@ -882,11 +882,22 @@ pub async fn process_ingest_stats(
 
         let metadata = {
             let mut obj =
-                serde_json::Map::with_capacity(edge.metadata.as_ref().map_or(0, |m| m.len()) + 2);
+                serde_json::Map::with_capacity(edge.metadata.as_ref().map_or(0, |m| m.len()) + 3);
             if let Some(m) = edge.metadata.as_ref() {
                 for (k, v) in m {
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
+            }
+            // Call-SITE anchor: the extractor's source_start_line is the line
+            // the reference occurs on (line-scanned VB fallback exactly; the
+            // enclosing-capture line otherwise). Persisting it lets
+            // find_symbol_references show WHERE each caller references the
+            // symbol instead of only who the caller is.
+            if edge.source_start_line > 0 {
+                obj.insert(
+                    "src_line".into(),
+                    serde_json::Value::String(edge.source_start_line.to_string()),
+                );
             }
             if let Some((conf, method)) = target_resolution {
                 obj.insert(

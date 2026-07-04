@@ -506,6 +506,8 @@ impl Engram {
             node_id: String,
             incoming: Vec<(String, EdgeKind, u32)>,
             outgoing: Vec<(String, EdgeKind, u32)>,
+            /// (source_id \0 kind) → call-site line, from edge metadata.
+            call_lines: std::collections::HashMap<String, u32>,
         }
 
         let graph_b = self.state.graph.clone();
@@ -593,6 +595,32 @@ impl Engram {
                 }
 
                 if !incoming.is_empty() || !outgoing.is_empty() {
+                    // Call-site anchors: the adjacency tables carry no
+                    // metadata, so fetch the full edges once (O(degree))
+                    // and lift each edge's `src_line` for rendering.
+                    let mut call_lines: std::collections::HashMap<String, u32> =
+                        std::collections::HashMap::new();
+                    if let Ok(full_edges) =
+                        graph_b.edges_touching(&project_id_b, &node.node_id, 1000)
+                    {
+                        for e in full_edges {
+                            if e.target_id != node.node_id {
+                                continue;
+                            }
+                            if let Some(line) = e
+                                .metadata
+                                .as_ref()
+                                .and_then(|m| m.get("src_line"))
+                                .and_then(|v| v.as_str())
+                                .and_then(|s| s.parse::<u32>().ok())
+                            {
+                                call_lines.insert(
+                                    format!("{}\0{}", e.source_id, e.edge_kind.as_str()),
+                                    line,
+                                );
+                            }
+                        }
+                    }
                     results.push(NodeGraphResult {
                         name: node.name,
                         node_type: node.node_type,
@@ -600,6 +628,7 @@ impl Engram {
                         node_id: node.node_id,
                         incoming,
                         outgoing,
+                        call_lines,
                     });
                 }
             }
@@ -666,11 +695,19 @@ impl Engram {
                 for (kind, refs) in &kinds_sorted {
                     out.push_str(&format!("    [{}] ({}):\n", kind, refs.len()));
                     for (src, w) in refs.iter().take(20) {
+                        // Call-SITE line (where the reference occurs), when
+                        // the edge recorded one — distinct from the caller's
+                        // declaration line in the label.
+                        let at = nr
+                            .call_lines
+                            .get(&format!("{src}\0{kind}"))
+                            .map(|l| format!(" @L{l}"))
+                            .unwrap_or_default();
                         match endpoint_labels.get(*src) {
                             Some(label) => {
-                                out.push_str(&format!("      <- {label} [{src}] (w={w})\n"))
+                                out.push_str(&format!("      <- {label}{at} [{src}] (w={w})\n"))
                             }
-                            None => out.push_str(&format!("      <- {src} (w={w})\n")),
+                            None => out.push_str(&format!("      <- {src}{at} (w={w})\n")),
                         }
                     }
                     if refs.len() > 20 {
