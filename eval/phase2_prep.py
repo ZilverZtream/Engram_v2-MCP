@@ -250,7 +250,11 @@ def build_dossier(eng, pid, rec, wt):
         story += "\n\n" + s["description"]
     if s.get("acceptance"):
         story += "\n\nAcceptance:\n" + s["acceptance"]
-    md = eng.tool("get_change_set", {"project_id": pid, "story": story})
+    args = {"project_id": pid, "story": story}
+    cd = (rec.get("closed_date") or "")[:10]
+    if cd:
+        args["merged_before"] = cd  # leak-free: the PR under test is excluded
+    md = eng.tool("get_change_set", args)
     if "TOOL_ERROR" in md:
         print(f"  get_change_set error: {md[:160]}", file=sys.stderr)
         return md, {}
