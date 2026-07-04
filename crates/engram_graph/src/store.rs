@@ -2714,6 +2714,76 @@ mod tests {
     }
 
     #[test]
+    fn edges_touching_matches_full_scan_filter() {
+        // Equivalence guard for the O(degree) rewrite: edges_touching must
+        // return exactly the edges the old code found by full-scanning
+        // list_structural_edges and filtering on source|target == node.
+        let store = test_store();
+        let pid = "p1";
+        let mk_edge =
+            |src: &str, tgt: &str, kind: EdgeKind, meta: Option<serde_json::Value>| Edge {
+                source_id: src.to_string(),
+                target_id: tgt.to_string(),
+                namespace: "memory".into(),
+                language: "vb".into(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: meta,
+                updated_at_ms: 0,
+            };
+        let edges = vec![
+            mk_edge(
+                "a",
+                "x",
+                EdgeKind::Dependency,
+                Some(serde_json::json!({"dynamic_control": true})),
+            ),
+            mk_edge("b", "x", EdgeKind::ReadsState, None),
+            mk_edge(
+                "x",
+                "c",
+                EdgeKind::SqlCalls,
+                Some(serde_json::json!({"table_inference_confidence": 0.5})),
+            ),
+            mk_edge("x", "d", EdgeKind::Contains, None),
+            // Unrelated edge — must NOT appear.
+            mk_edge("a", "b", EdgeKind::Dependency, None),
+            // Temporal — excluded by both implementations.
+            mk_edge("e", "x", EdgeKind::TemporalCoupling, None),
+        ];
+        store.upsert_edges(pid, &edges).expect("upsert");
+
+        let mut fast: Vec<(String, String, String)> = store
+            .edges_touching(pid, "x", 1000)
+            .expect("edges_touching")
+            .into_iter()
+            .map(|e| (e.edge_kind.as_str().to_string(), e.source_id, e.target_id))
+            .collect();
+        fast.sort();
+        let mut slow: Vec<(String, String, String)> = store
+            .list_structural_edges(pid)
+            .expect("full scan")
+            .into_iter()
+            .filter(|e| e.source_id == "x" || e.target_id == "x")
+            .map(|e| (e.edge_kind.as_str().to_string(), e.source_id, e.target_id))
+            .collect();
+        slow.sort();
+        assert_eq!(fast, slow, "O(degree) path must equal full-scan filter");
+        assert_eq!(fast.len(), 4, "{fast:?}");
+
+        // Metadata must survive the point-lookup path (incoming edge).
+        let with_meta = store.edges_touching(pid, "x", 1000).unwrap();
+        assert!(
+            with_meta.iter().any(|e| e
+                .metadata
+                .as_ref()
+                .is_some_and(|m| m.get("dynamic_control").is_some())),
+            "incoming edge metadata must be preserved"
+        );
+    }
+
+    #[test]
     fn edge_kind_all_is_exhaustive() {
         let all_set: std::collections::HashSet<&EdgeKind> = EdgeKind::ALL.iter().collect();
 
