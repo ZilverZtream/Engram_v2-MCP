@@ -2534,6 +2534,18 @@ fn render_change_set(
          A starting map, not exhaustive: verify each against the code and add the \
          files it misses.\n\n",
     );
+    // A live A/B showed strong planners SKIP ranked candidates whose signal
+    // they don't understand (the source page edit was ranked and still
+    // dropped). Spell out what each tag proves and raise the bar for
+    // skipping the evidence-backed ones.
+    s.push_str(
+        "Signal legend — [cochange]: this file SHIPPED TOGETHER with other \
+         candidates in past MERGED changes of this kind (strongest evidence; \
+         skipping one is an explicit decision — state why). [history]: past \
+         commits in this story's domain touched it. [concept]: name/content \
+         matches the story's concepts. [semantic]/[graph]: embedding or \
+         dependency-graph association (weakest — verify before trusting).\n\n",
+    );
     s.push_str("## Completeness checklist — satisfy ALL that apply before you finish\n");
     s.push_str(
         "- Every page touched: edit BOTH the .aspx/.ascx markup AND its \
