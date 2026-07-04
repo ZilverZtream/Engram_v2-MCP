@@ -2579,8 +2579,11 @@ pub struct GetPageContextRequest {
     pub project_id: String,
     /// Path to the .aspx/.ascx/.master file.
     pub aspx_file: String,
-    /// Include full bodies of all event handlers. Default: true.
-    #[serde(default = "default_true")]
+    /// Include full bodies of all event handlers. Default: false — a page
+    /// with 30 handlers rendered ~50K chars of source; the summary
+    /// (controls, handler signatures, effects, data layer) is what page
+    /// orientation needs. Fetch specific bodies with get_full_method_body.
+    #[serde(default)]
     pub include_method_bodies: bool,
     /// Include master page structure analysis. Default: true.
     #[serde(default = "default_true")]

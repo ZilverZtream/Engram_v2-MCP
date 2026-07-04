@@ -239,6 +239,12 @@ pub struct ProjectSnapshot {
     /// True when the graph has spatial_call edges - gates the GIS line in
     /// the <engram> tool manual.
     pub has_gis: bool,
+    /// Index generation + human date the artifact was rendered from, e.g.
+    /// `(3, "2026-07-04")`. Stamped into the output so a CLAUDE.md left on
+    /// disk carries its own staleness signal — every hot read tool has a
+    /// freshness footer, and the onboarding artifact rotting silently was
+    /// the one exception. `None` suppresses the stamp (tests).
+    pub generated_from: Option<(u64, String)>,
 }
 
 // ── Language → glob mapping ──────────────────────────────────────────────────
@@ -421,23 +427,27 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
     out.push_str("<engram>\n");
     out.push_str("This project is indexed by Engram MCP. Workflow for ANY feature or story:\n");
     out.push_str(
-        "1. `plan_user_story` - START HERE: expands a one-line story into concepts, \
-         touchpoints, exemplars, and a completion checklist\n",
+        "1. `ask_codebase` - START HERE for any question; routes to the right tool. \
+         `resolve_id` turns any name into a graph node_id\n",
     );
     out.push_str(
-        "2. `get_concept_footprint` - every place a concept lives (don't edit 2 of its 17 \
+        "2. `plan_user_story` - story => concepts, touchpoints, exemplars, checklist; \
+         then `get_change_set` for the RANKED FILE LIST to edit\n",
+    );
+    out.push_str(
+        "3. `get_concept_footprint` - every place a concept lives (don't edit 2 of its 17 \
          touchpoints)\n",
     );
-    out.push_str("3. `map_guards_and_settings` - permission checks + settings gating your area\n");
+    out.push_str("4. `map_guards_and_settings` - permission checks + settings gating your area\n");
     out.push_str(
-        "4. `find_similar_changes` - companion artifacts past changes included that yours is \
+        "5. `find_similar_changes` - companion artifacts past changes included that yours is \
          missing (admin page, menu entry)\n",
     );
     out.push_str(
-        "5. `check_edit_safety` per method + `compute_blast_radius` before large refactors; \
-         `immune_check` on danger-zone files\n",
+        "6. `get_method_edit_context` before EVERY method edit; `check_edit_safety` + \
+         `compute_blast_radius` before large refactors; `immune_check` on danger-zone files\n",
     );
-    out.push_str("6. `pre_commit_review` before every commit\n");
+    out.push_str("7. `pre_commit_review` before every commit\n");
     if snapshot.has_gis {
         out.push_str(
             "Map work: `get_gis_inventory` first - map API usage, configs, layer inventory.\n",
@@ -447,6 +457,17 @@ pub fn render_root_claude_md(snapshot: &ProjectSnapshot, max_lines: usize) -> St
         "Also: `trace_ui_event` for postbacks/handlers; `analyze_file_coding_style` before \
          writing in unfamiliar files.\n",
     );
+    out.push_str(
+        "Freshness: after editing files, run `update_project` (or `watch_project` once) so \
+         search/graph answers track your changes; `get_index_freshness` shows drift.\n",
+    );
+    if let Some((generation, date)) = &snapshot.generated_from {
+        let _ = writeln!(
+            out,
+            "This file was generated {date} from index generation {generation} — re-run \
+             `produce_claude_md` after significant changes or a reindex."
+        );
+    }
     out.push_str("</engram>\n");
 
     // Trim tail if over budget. We drop from `<engram>` backwards toward
