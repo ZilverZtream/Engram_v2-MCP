@@ -4,16 +4,23 @@
 
 ## The headline number
 
-**Engram's planning brief lifts agent file-set recall 18% → 77% (4.3×) at 97%
-precision** — measured leak-free (plain-file snapshot trees, git forbidden),
-same-day, at constant model (Sonnet), across three story shapes:
+**Engram's planning brief lifts agent file-set recall 36% → 82% aggregate** —
+measured leak-free (plain-file snapshot trees, git forbidden), same-day, at
+constant model (Sonnet), across five story shapes. The lift lands exactly
+where stories underspecify team knowledge:
 
 | PR (story shape) | Control | + Engram brief | Lift |
 |---|---|---|---|
 | 1890 — new API domain | 8% | 54% | 7× |
 | 1933 — UI change w/ design divergence | 17% | 83% | 5× |
 | 1905 — debugging | 29% | 93% | 3.2× |
-| **Aggregate** | **18%** | **77%** | **4.3×** |
+| 1938 — cross-cutting JS/bundles | 27% | 80% | 3× |
+| 1904 — fully-specified story | 100% | 100% | tie at ceiling |
+| **Aggregate** | **36%** | **82%** | — |
+
+The better-specified the ticket, the smaller the lift; the more the change
+depends on team-convention knowledge, the bigger (up to 7×). Engram's brief
+supplies exactly what the story leaves out.
 
 Sonnet + brief also **beat the frontier model running bare** on PR1905
 (93%/100% vs 86%/80%): the brief makes the cheaper model the best performer.
