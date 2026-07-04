@@ -54,6 +54,21 @@ static RE_VB_APPSETTINGS: LazyLock<Regex> = LazyLock::new(|| {
 static RE_VB_MY_SETTINGS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\bMy\.Settings\.([A-Za-z_]\w*)").expect("valid My.Settings regex")
 });
+// Settings-STORE property reads: the dominant house pattern in mature apps
+// is a static store class (ConfigSettings.Multitenant.IsMaster,
+// SystemSettingStore.General.RoqEnableListTypeDimension) — NOT raw
+// AppSettings("...") calls. Without this shape, settings intelligence
+// (list_settings / derive_test_matrix) sees zero settings on exactly the
+// codebases that need it most. Generic: root identifier must carry a
+// settings/config token; 1-3 dotted property segments; excludes the
+// ConfigurationManager/WebConfigurationManager framework roots (already
+// covered by the AppSettings shape above).
+static RE_VB_SETTINGS_STORE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b([A-Za-z_]\w*(?:Setting|Config)\w*)\.((?:[A-Za-z_]\w*\.){0,2}[A-Za-z_]\w*)\b",
+    )
+    .expect("valid VB settings-store regex")
+});
 // Permission checks by call-name shape (IsInRole, IsUserInRole, IsXxxAdmin,
 // CheckAccessLevel, HasPermission, RequireRole, DemandAdmin, Authorize...).
 static RE_VB_GUARD_CALL: LazyLock<Regex> = LazyLock::new(|| {
@@ -710,6 +725,45 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
             });
         }
 
+        // Settings-store property reads (ConfigSettings.X.Y — see the
+        // RE_VB_SETTINGS_STORE rationale above).
+        for cap in RE_VB_SETTINGS_STORE.captures_iter(line) {
+            let (Some(root), Some(tail)) = (cap.get(1), cap.get(2)) else {
+                continue;
+            };
+            let root_l = root.as_str().to_lowercase();
+            // Framework roots covered by the AppSettings shape; `My.Settings`
+            // covered above; declarations like `Dim x As ConfigSettings` are
+            // filtered by requiring a property tail (regex already does).
+            if matches!(
+                root_l.as_str(),
+                "configurationmanager" | "webconfigurationmanager" | "configurationsettings"
+            ) {
+                continue;
+            }
+            // Method calls are not settings reads: skip when `(` follows.
+            let after = line[tail.end()..].trim_start();
+            if after.starts_with('(') {
+                continue;
+            }
+            // Skip tails that are themselves store-plumbing members.
+            let tail_l = tail.as_str().to_lowercase();
+            if tail_l == "appsettings" || tail_l.starts_with("appsettings.") {
+                continue;
+            }
+            edges.push(ExtractedEdge {
+                source_name: enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: format!("{}.{}", root.as_str(), tail.as_str()),
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
         // Guard calls + role literals (annotated onto functions below).
         for cap in RE_VB_GUARD_CALL.captures_iter(line) {
             if let Some(name) = cap.get(1) {
@@ -957,6 +1011,40 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 source_start_line: line_no,
                 source_language: "vb".to_string(),
                 target_name: key.to_string(),
+                target_kind: Some("app_setting".to_string()),
+                target_start_line: None,
+                kind: "reads_setting".to_string(),
+                metadata: None,
+            });
+        }
+
+        // Settings-store property reads (ConfigSettings.X.Y) — same shape as
+        // the sidecar path; see RE_VB_SETTINGS_STORE.
+        for cap in RE_VB_SETTINGS_STORE.captures_iter(line) {
+            let (Some(root), Some(tail)) = (cap.get(1), cap.get(2)) else {
+                continue;
+            };
+            let root_l = root.as_str().to_lowercase();
+            if matches!(
+                root_l.as_str(),
+                "configurationmanager" | "webconfigurationmanager" | "configurationsettings"
+            ) {
+                continue;
+            }
+            let after = line[tail.end()..].trim_start();
+            if after.starts_with('(') {
+                continue;
+            }
+            let tail_l = tail.as_str().to_lowercase();
+            if tail_l == "appsettings" || tail_l.starts_with("appsettings.") {
+                continue;
+            }
+            edges.push(ExtractedEdge {
+                source_name: current_method.clone().unwrap_or_else(|| "file".to_string()),
+                source_kind: "function".to_string(),
+                source_start_line: line_no,
+                source_language: "vb".to_string(),
+                target_name: format!("{}.{}", root.as_str(), tail.as_str()),
                 target_kind: Some("app_setting".to_string()),
                 target_start_line: None,
                 kind: "reads_setting".to_string(),
@@ -1325,6 +1413,43 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, &'static str)> {
 mod tests {
     use super::extract_vb;
     use std::path::Path;
+
+    #[test]
+    fn settings_store_property_reads_emit_reads_setting_edges() {
+        // The house pattern in mature apps: static store classes, not raw
+        // AppSettings("..."). Missing this shape made settings intelligence
+        // blind on exactly the codebases that need it.
+        let code = "Class P\n  Public Sub Page_Load()\n    If ConfigSettings.Multitenant.IsMaster Then\n    End If\n    Dim x = SystemSettingStore.General.RoqEnableListTypeDimension\n    Dim y = ConfigurationManager.AppSettings(\"PlainKey\")\n    Dim z = SettingsHelper.Load(\"skip-method-calls\")\n  End Sub\nEnd Class";
+        let (_, edges) = super::fallback_extract_vb_for_test(Path::new("p.aspx.vb"), code);
+        let settings: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "reads_setting")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(
+            settings.contains(&"ConfigSettings.Multitenant.IsMaster"),
+            "{settings:?}"
+        );
+        assert!(
+            settings
+                .iter()
+                .any(|s| s.starts_with("SystemSettingStore.General.RoqEnable")),
+            "{settings:?}"
+        );
+        assert!(settings.contains(&"PlainKey"), "{settings:?}");
+        assert!(
+            !settings
+                .iter()
+                .any(|s| s.contains("skip-method-calls") || s.ends_with(".Load")),
+            "method calls must not become settings reads: {settings:?}"
+        );
+        assert!(
+            !settings
+                .iter()
+                .any(|s| s.starts_with("ConfigurationManager.")),
+            "framework root must stay excluded: {settings:?}"
+        );
+    }
 
     #[test]
     fn fallback_symbols_are_tagged_extraction_fallback() {
