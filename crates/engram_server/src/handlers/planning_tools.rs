@@ -2302,6 +2302,23 @@ fn derive_scaffold_entity(story: &str, index: &[String]) -> Option<String> {
         .flat_map(|p| p.split('/'))
         .map(|s| s.split('.').next().unwrap_or(s).to_lowercase())
         .collect();
+    // Candidates from BOTH passes compete; the most SPECIFIC (longest)
+    // grounded segment wins. Returning early on an exact unigram match
+    // ("inspection") hid the more specific feature dir (markerinspection).
+    let mut best: Option<(usize, String)> = None; // (segment len, pascal)
+    let mut offer = |len: usize, pascal: String| {
+        if best.as_ref().is_none_or(|(l, _)| len > *l) {
+            best = Some((len, pascal));
+        }
+    };
+    let cap = |s: &str| -> String {
+        let mut s = s.to_string();
+        if let Some(f) = s.get_mut(0..1) {
+            f.make_ascii_uppercase();
+        }
+        s
+    };
+    // Pass 1: exact story n-gram = path segment.
     for n in (1..=3usize).rev() {
         if words.len() < n {
             continue;
@@ -2309,25 +2326,16 @@ fn derive_scaffold_entity(story: &str, index: &[String]) -> Option<String> {
         for win in words.windows(n) {
             let compact: String = win.concat();
             if compact.len() >= 6 && seg_set.contains(&compact) {
-                return Some(
-                    win.iter()
-                        .map(|w| {
-                            let mut w = w.clone();
-                            if let Some(f) = w.get_mut(0..1) {
-                                f.make_ascii_uppercase();
-                            }
-                            w
-                        })
-                        .collect(),
-                );
+                offer(compact.len(), win.iter().map(|w| cap(w)).collect());
             }
         }
     }
     // Pass 2: the story often names the DOMAIN indirectly ("the Inspection
     // module in the dashboard") while the codebase dir is more specific
-    // (markerinspection). Find feature DIRECTORIES (segments with ≥2 files
-    // under them) that CONTAIN a story word; split at the matched word to
-    // recover the compound's word boundaries for PascalCasing.
+    // (markerinspection). Feature DIRECTORIES (≥2 files under them) whose
+    // name CONTAINS a story word count too — but only when the matched
+    // word covers at least half the segment, so "report" cannot claim
+    // reportingofquantities.
     let mut dir_counts: std::collections::HashMap<&str, usize> = Default::default();
     for p in index {
         if let Some((dirs, _file)) = p.rsplit_once('/') {
@@ -2336,33 +2344,27 @@ fn derive_scaffold_entity(story: &str, index: &[String]) -> Option<String> {
             }
         }
     }
-    let mut best: Option<(usize, String)> = None; // (seg len, pascal)
     for (seg, count) in dir_counts {
         if count < 2 || seg.len() < 8 {
             continue;
         }
         let seg_l = seg.to_lowercase();
         for w in &words {
-            if w.len() < 6 || seg_l == *w || !seg_l.contains(w.as_str()) {
+            if w.len() < 6
+                || seg_l == *w
+                || !seg_l.contains(w.as_str())
+                || w.len() * 2 < seg_l.len()
+            {
                 continue;
             }
             let idx = seg_l.find(w.as_str()).unwrap_or(0);
-            let cap = |s: &str| -> String {
-                let mut s = s.to_string();
-                if let Some(f) = s.get_mut(0..1) {
-                    f.make_ascii_uppercase();
-                }
-                s
-            };
             let pascal = format!(
                 "{}{}{}",
                 cap(&seg_l[..idx]),
                 cap(w),
                 cap(&seg_l[idx + w.len()..])
             );
-            if best.as_ref().is_none_or(|(l, _)| seg.len() > *l) {
-                best = Some((seg.len(), pascal));
-            }
+            offer(seg.len(), pascal);
         }
     }
     best.map(|(_, p)| p)
