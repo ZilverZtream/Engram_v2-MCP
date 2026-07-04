@@ -784,6 +784,14 @@ fn default_settings_per_category() -> usize {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct DescribeTableRequest {
+    pub project_id: String,
+    /// Table name (lowercase, as stored in the graph).
+    pub table: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DescribeSettingRequest {
     pub project_id: String,
     /// Setting name (dotted store paths like ConfigSettings.Multitenant.IsMaster work).
