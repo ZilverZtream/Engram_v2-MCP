@@ -294,9 +294,9 @@ impl Engram {
         type Entry = (String, String, String, u32); // name, node_id, file, line
         let (groups, consumers, scan_truncated) = tokio::task::spawn_blocking(move || {
             let nodes = graph
-                .query_nodes(&pid, None, None, None, 50_000)
+                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
                 .unwrap_or_default();
-            let scan_truncated = nodes.len() >= 50_000;
+            let scan_truncated = nodes.len() >= crate::handlers::NODE_SCAN_LIMIT;
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
@@ -428,7 +428,7 @@ impl Engram {
         );
         if scan_truncated {
             out.push_str(
-                "⚠ node scan hit the 50,000-node cap — touchpoints may be incomplete on this \
+                "⚠ node scan hit the node-scan cap — touchpoints may be incomplete on this \
                  graph; narrow the concept or rely on the lexical section below.\n",
             );
         }
@@ -1392,7 +1392,7 @@ impl Engram {
         let scope_b = scope.clone();
         let report = tokio::task::spawn_blocking(move || {
             let nodes = graph
-                .query_nodes(&pid, None, None, None, 50_000)
+                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
                 .unwrap_or_default();
 
             let in_scope = |file_path: &str, name: &str| -> bool {
@@ -2953,7 +2953,7 @@ impl Engram {
                 let mut state_findings: Vec<(String, String)> = Vec::new();
                 let mut seen_keys: HashSet<String> = HashSet::new();
                 let nodes = graph
-                    .query_nodes(&pid, None, None, None, 50_000)
+                    .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
                     .unwrap_or_default();
                 let edited_symbol_ids: Vec<String> = nodes
                     .iter()
@@ -3249,7 +3249,7 @@ impl Engram {
         let pid = req.project_id.clone();
         let (configs, layers, usage, spatial_total) = tokio::task::spawn_blocking(move || {
             let nodes = graph
-                .query_nodes(&pid, None, None, None, 50_000)
+                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
                 .unwrap_or_default();
 
             // Per-file map configuration facts ("gis_config:{file}:{kind}").

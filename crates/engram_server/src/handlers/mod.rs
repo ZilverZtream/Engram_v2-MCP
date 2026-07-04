@@ -17,6 +17,13 @@ pub mod settings_tools;
 
 pub mod runtime_observation_tools;
 
+/// Result cap for UNFILTERED full-graph node scans. 50k silently truncated
+/// on OciusX gen-3 (the settings-store extraction grew the graph past it) —
+/// recall loss on the catalog/footprint/guards tools. query_nodes scans the
+/// whole table regardless once no filter early-exits, so a higher cap costs
+/// only the extra deserialization of rows that were previously dropped.
+pub(crate) const NODE_SCAN_LIMIT: usize = 200_000;
+
 // ─── REG1/MCP1: Shared handler-boundary validation ───────────────────────────
 
 /// Validate a user-supplied project_id at the MCP handler boundary.

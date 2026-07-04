@@ -1669,7 +1669,13 @@ impl Engram {
             let (guards, roles, settings_tables, app_settings, top_bases) =
                 tokio::task::spawn_blocking(move || {
                     let nodes = graph
-                        .query_nodes(&pid_conv, None, None, None, 50_000)
+                        .query_nodes(
+                            &pid_conv,
+                            None,
+                            None,
+                            None,
+                            crate::handlers::NODE_SCAN_LIMIT,
+                        )
                         .unwrap_or_default();
                     let mut guards: std::collections::HashMap<String, usize> = Default::default();
                     let mut roles: std::collections::HashMap<String, usize> = Default::default();
