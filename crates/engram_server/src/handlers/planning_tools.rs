@@ -1139,6 +1139,24 @@ mod tests {
     }
 
     #[test]
+    fn derive_scaffold_entity_prefers_index_grounded_ngram() {
+        let index = vec![
+            "modules/dashboard/pages/public/markerinspection/markerinspection.aspx.vb".to_string(),
+            "App_Code/api-v2/Controllers/timeReporting/TimeReportEntriesController.vb".to_string(),
+        ];
+        let got = super::derive_scaffold_entity(
+            "Add a REST API endpoint to expose marker inspection statuses",
+            &index,
+        );
+        assert_eq!(got.as_deref(), Some("MarkerInspection"));
+        // No grounded match → None (caller falls back to concepts).
+        assert_eq!(
+            super::derive_scaffold_entity("Add an API for flux capacitors", &index),
+            None
+        );
+    }
+
+    #[test]
     fn propose_scaffold_paths_parameterizes_template() {
         let cohort = vec![
             "App_Code/api-v2/Controllers/timeReporting/TimeReportEntriesController.vb".to_string(),
@@ -2255,6 +2273,47 @@ fn scaffold_stem(file_no_ext: &str) -> String {
 /// convention; no hardcoded layout. `index` = web-root-stripped paths in their
 /// ORIGINAL case (case matters for the interface `I`-prefix detection); grouping
 /// keys are lowercased internally and the cue match is case-insensitive.
+/// Pick the scaffold entity from the story by grounding it in the index:
+/// the longest story n-gram (3→1 words) whose compact form names an
+/// existing path segment wins — a new API domain almost always mirrors an
+/// existing page/dir name (markerinspection page → MarkerInspection API),
+/// so "marker inspection" beats the bare concept "inspection".
+fn derive_scaffold_entity(story: &str, index: &[String]) -> Option<String> {
+    let words: Vec<String> = story
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() >= 3)
+        .map(str::to_string)
+        .collect();
+    let seg_set: std::collections::HashSet<String> = index
+        .iter()
+        .flat_map(|p| p.split('/'))
+        .map(|s| s.split('.').next().unwrap_or(s).to_lowercase())
+        .collect();
+    for n in (1..=3usize).rev() {
+        if words.len() < n {
+            continue;
+        }
+        for win in words.windows(n) {
+            let compact: String = win.concat();
+            if compact.len() >= 6 && seg_set.contains(&compact) {
+                return Some(
+                    win.iter()
+                        .map(|w| {
+                            let mut w = w.clone();
+                            if let Some(f) = w.get_mut(0..1) {
+                                f.make_ascii_uppercase();
+                            }
+                            w
+                        })
+                        .collect(),
+                );
+            }
+        }
+    }
+    None
+}
+
 /// Parameterize a scaffold template with the story's entity: rewrite each
 /// cohort path's domain directory (the camelCase feature dir) and basename
 /// entity stem so the agent gets the CONCRETE files to create, not just an
@@ -2891,20 +2950,23 @@ impl Engram {
                     // Spell out the CONCRETE files to create: template rows
                     // alone made agents reverse-engineer the naming and miss
                     // pieces (PR1890: 6 new-domain files, 0 proposed).
-                    let entity_pascal: String = concepts
-                        .iter()
-                        .find(|c| c.contains(' '))
-                        .or_else(|| concepts.first())
-                        .map(|c| {
-                            c.split_whitespace()
-                                .map(|w| {
-                                    let mut w = w.to_lowercase();
-                                    if let Some(f) = w.get_mut(0..1) {
-                                        f.make_ascii_uppercase();
-                                    }
-                                    w
+                    let entity_pascal: String = derive_scaffold_entity(&req.story, &index)
+                        .or_else(|| {
+                            concepts
+                                .iter()
+                                .find(|c| c.contains(' '))
+                                .or_else(|| concepts.first())
+                                .map(|c| {
+                                    c.split_whitespace()
+                                        .map(|w| {
+                                            let mut w = w.to_lowercase();
+                                            if let Some(f) = w.get_mut(0..1) {
+                                                f.make_ascii_uppercase();
+                                            }
+                                            w
+                                        })
+                                        .collect()
                                 })
-                                .collect()
                         })
                         .unwrap_or_default();
                     let proposed = propose_scaffold_paths(&cohort, &entity_pascal);
