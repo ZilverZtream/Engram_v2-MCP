@@ -2629,10 +2629,95 @@ impl Engram {
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
-        let concepts: Vec<String> = match &req.concepts {
+        let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ => extract_story_concepts(&req.story),
         };
+
+        // KB language bridge: the team's wiki/docs corpus (memory_bank
+        // sections) frequently names the same feature in BOTH the story's
+        // language and the code's (English story "resource planning" vs
+        // Swedish identifiers "resurs*"). Mine the top sections matching
+        // the story for identifier-ish tokens that (a) recur across
+        // sections, (b) are NOT already reachable from the story's own
+        // concepts, and (c) actually exist in the code graph - and add up
+        // to TWO of them as extra concepts. Generic: no language tables.
+        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+            let q = engram_index::HybridQuery {
+                project_id: req.project_id.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_MEMORY_BANK.into(),
+                generation: 0,
+                text: req.story.clone(),
+                top_k: 3,
+                fts_mode: "loose".into(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let engine = ps.search.clone();
+            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
+            let mut counts: std::collections::HashMap<String, usize> = Default::default();
+            for h in hits.iter().take(3) {
+                let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_doc_id(
+                    &req.project_id,
+                    engram_core::namespaces::NAMESPACE_MEMORY_BANK,
+                    0,
+                    &h.doc_id,
+                ) else {
+                    continue;
+                };
+                let mut seen_in_doc: std::collections::HashSet<String> = Default::default();
+                for tok in content
+                    .split(|c: char| !c.is_alphanumeric())
+                    .filter(|t| t.len() >= 5 && t.chars().all(|c| c.is_alphabetic()))
+                {
+                    let t = tok.to_lowercase();
+                    if seen_in_doc.insert(t.clone()) {
+                        *counts.entry(t).or_default() += 1;
+                    }
+                }
+            }
+            let covered = concepts.join(" ").to_lowercase();
+            let mut cands: Vec<(usize, String)> = counts
+                .into_iter()
+                .filter(|(t, n)| *n >= 2 && !covered.contains(t.as_str()))
+                .map(|(t, n)| (n, t))
+                .collect();
+            cands.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+            let graph_b = self.state.graph.clone();
+            let pid_b = req.project_id.clone();
+            let picked = tokio::task::spawn_blocking(move || {
+                let mut picked: Vec<String> = Vec::new();
+                for (_, t) in cands.into_iter().take(24) {
+                    if picked.len() >= 2 {
+                        break;
+                    }
+                    let in_code = graph_b
+                        .query_nodes(&pid_b, None, Some(&t), None, 3)
+                        .map(|v| !v.is_empty())
+                        .unwrap_or(false);
+                    if in_code {
+                        picked.push(t);
+                    }
+                }
+                picked
+            })
+            .await
+            .unwrap_or_default();
+            for t in picked {
+                if concepts.len() < 5 {
+                    concepts.push(t);
+                }
+            }
+        }
         let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
         let mut seed_order: Vec<String> = Vec::new(); // concept hits in relevance order
 
