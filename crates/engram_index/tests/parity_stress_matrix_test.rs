@@ -6,8 +6,8 @@
 
 use engram_core::paths::RelPath;
 use engram_index::{
-    vb_extractor::extract_vb, webforms::extract_webforms, ExtractedEdge, ExtractedSymbol,
-    SymbolExtractor,
+    ExtractedEdge, ExtractedSymbol, SymbolExtractor, vb_extractor::extract_vb,
+    webforms::extract_webforms,
 };
 use std::path::Path;
 

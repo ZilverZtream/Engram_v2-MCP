@@ -1281,9 +1281,13 @@ End Module
     // A VB `Module` is the dominant shared-code idiom. The fallback previously
     // ignored Module entirely, so its members lost both their `Type.Member` FQN
     // and the `contains` edge. Assert the fix unconditionally:
-    assert!(!syms.is_empty(), "vb_extractor extracted no symbols for a Module");
     assert!(
-        syms.iter().any(|s| s.name == "MyModule" || s.name.ends_with(".MyModule")),
+        !syms.is_empty(),
+        "vb_extractor extracted no symbols for a Module"
+    );
+    assert!(
+        syms.iter()
+            .any(|s| s.name == "MyModule" || s.name.ends_with(".MyModule")),
         "Module type symbol missing; extracted: {:?}",
         syms.iter().map(|s| &s.name).collect::<Vec<_>>()
     );

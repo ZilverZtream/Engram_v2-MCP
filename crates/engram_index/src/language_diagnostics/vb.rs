@@ -124,6 +124,10 @@ Public Sub LoadData()
 End Sub
 "#;
         let d = detect(&[("Foo.vb", code)]);
-        assert!(d.is_empty(), "unexpected diagnostics: {:?}", d.iter().map(|x| &x.category).collect::<Vec<_>>());
+        assert!(
+            d.is_empty(),
+            "unexpected diagnostics: {:?}",
+            d.iter().map(|x| &x.category).collect::<Vec<_>>()
+        );
     }
 }

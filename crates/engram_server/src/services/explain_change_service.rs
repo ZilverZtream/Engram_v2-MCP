@@ -31,7 +31,7 @@ use serde::Serialize;
 
 use crate::services::blast_radius_service::compute_blast_radius;
 use crate::services::pre_commit_review_service::{
-    parse_unified_diff, resolve_diff_source, is_test_path, ChangeType, DiffFile,
+    ChangeType, DiffFile, is_test_path, parse_unified_diff, resolve_diff_source,
 };
 use crate::state::AppState;
 
@@ -223,15 +223,19 @@ pub async fn explain_change(
 
     // Stage 2: gather per-file facts, concurrent with stage 3 data
     // loads where practical. Blast radius is capped at 20 files.
-    let changed_paths: HashSet<String> =
-        diff_files.iter().map(|f| f.path.clone()).collect();
+    let changed_paths: HashSet<String> = diff_files.iter().map(|f| f.path.clone()).collect();
 
     let repo_rules = state
         .registry
         .list_repo_rules(project_id)
         .unwrap_or_default();
-    let affected_files =
-        gather_affected_files(&state.graph, project_id, generation, &diff_files, &repo_rules);
+    let affected_files = gather_affected_files(
+        &state.graph,
+        project_id,
+        generation,
+        &diff_files,
+        &repo_rules,
+    );
 
     // Stage 3: classify change kind.
     let kind = classify_change_kind(&diff_files, &affected_files);
@@ -241,22 +245,12 @@ pub async fn explain_change(
 
     // Stage 5: rule alignment — search antipattern namespace for
     // matches against the added content of each file.
-    let rule_alignments = detect_rule_alignments(
-        state,
-        project_id,
-        generation,
-        &diff_files,
-        &repo_rules,
-    )
-    .await;
+    let rule_alignments =
+        detect_rule_alignments(state, project_id, generation, &diff_files, &repo_rules).await;
 
     // Stage 6: coupling notes.
-    let coupling_notes = detect_coupling_notes(
-        &state.graph,
-        project_id,
-        &diff_files,
-        &changed_paths,
-    );
+    let coupling_notes =
+        detect_coupling_notes(&state.graph, project_id, &diff_files, &changed_paths);
 
     // Stage 7: risk badge.
     let (risk_badge, risk_rationale) = compute_risk(&affected_files, &coupling_notes);
@@ -294,23 +288,14 @@ pub async fn explain_change(
 /// Pick the single best Conventional Commits kind for this diff. Rules
 /// apply top-to-bottom; first match wins. The order is deliberate so
 /// "test-only" beats "refactor" and "docs-only" beats "chore".
-pub fn classify_change_kind(
-    diff_files: &[DiffFile],
-    affected: &[AffectedFile],
-) -> ChangeKind {
+pub fn classify_change_kind(diff_files: &[DiffFile], affected: &[AffectedFile]) -> ChangeKind {
     let total = diff_files.len();
     if total == 0 {
         return ChangeKind::Chore;
     }
     let test_files = diff_files.iter().filter(|f| is_test_path(&f.path)).count();
-    let doc_files = diff_files
-        .iter()
-        .filter(|f| is_doc_path(&f.path))
-        .count();
-    let build_files = diff_files
-        .iter()
-        .filter(|f| is_build_path(&f.path))
-        .count();
+    let doc_files = diff_files.iter().filter(|f| is_doc_path(&f.path)).count();
+    let build_files = diff_files.iter().filter(|f| is_build_path(&f.path)).count();
 
     // Rule 1: dominated by test files → `test`.
     if test_files * 5 >= total * 4 {
@@ -373,10 +358,25 @@ fn is_build_path(p: &str) -> bool {
     // Dependency manifests, workflow definitions, container configs.
     matches!(
         fname,
-        "cargo.toml" | "cargo.lock" | "package.json" | "package-lock.json" | "yarn.lock"
-            | "pnpm-lock.yaml" | "pyproject.toml" | "setup.py" | "requirements.txt"
-            | "gemfile" | "gemfile.lock" | "go.mod" | "go.sum" | "dockerfile" | "makefile"
-            | "cmakelists.txt" | ".dockerignore" | ".gitignore" | "rakefile"
+        "cargo.toml"
+            | "cargo.lock"
+            | "package.json"
+            | "package-lock.json"
+            | "yarn.lock"
+            | "pnpm-lock.yaml"
+            | "pyproject.toml"
+            | "setup.py"
+            | "requirements.txt"
+            | "gemfile"
+            | "gemfile.lock"
+            | "go.mod"
+            | "go.sum"
+            | "dockerfile"
+            | "makefile"
+            | "cmakelists.txt"
+            | ".dockerignore"
+            | ".gitignore"
+            | "rakefile"
     ) || lower.contains(".github/workflows/")
         || lower.contains(".gitlab/")
         || fname.ends_with(".csproj")
@@ -445,10 +445,7 @@ fn graph_delta_counts(affected: &[AffectedFile]) -> (usize, usize) {
     // bucketing per-file change type. A file marked `Added` contributes
     // 1 "added symbol" to this count regardless of how many symbols it
     // contains. Modified files contribute to modified-symbol count.
-    let added = affected
-        .iter()
-        .filter(|f| f.change_type == "added")
-        .count();
+    let added = affected.iter().filter(|f| f.change_type == "added").count();
     let modified = affected
         .iter()
         .filter(|f| f.change_type == "modified")
@@ -508,8 +505,23 @@ pub fn detect_scope(diff_files: &[DiffFile]) -> Option<String> {
 fn is_generic_segment(s: &str) -> bool {
     matches!(
         s.to_ascii_lowercase().as_str(),
-        "src" | "lib" | "source" | "app" | "site" | "code" | "common" | "shared"
-            | "main" | "www" | "public" | "test" | "tests" | "spec" | "specs" | "doc" | "docs"
+        "src"
+            | "lib"
+            | "source"
+            | "app"
+            | "site"
+            | "code"
+            | "common"
+            | "shared"
+            | "main"
+            | "www"
+            | "public"
+            | "test"
+            | "tests"
+            | "spec"
+            | "specs"
+            | "doc"
+            | "docs"
     )
 }
 
@@ -621,7 +633,9 @@ fn path_pattern_matches(file_pattern: &str, target_path: &str) -> bool {
             }
         }
         re.push('$');
-        regex::Regex::new(&re).map(|r| r.is_match(&path)).unwrap_or(false)
+        regex::Regex::new(&re)
+            .map(|r| r.is_match(&path))
+            .unwrap_or(false)
     } else {
         path.contains(&pat)
     }
@@ -704,7 +718,11 @@ pub async fn detect_rule_alignments(
                 use_mmr: false,
             };
             let cancel = CancellationToken::new();
-            let hits = ps.search.search(&q, None, &cancel).await.unwrap_or_default();
+            let hits = ps
+                .search
+                .search(&q, None, &cancel)
+                .await
+                .unwrap_or_default();
             for h in hits {
                 if h.score < 0.5 {
                     continue;
@@ -785,10 +803,7 @@ pub fn detect_coupling_notes(
 
 // ─── Stage: risk badge ─────────────────────────────────────────────────────
 
-fn compute_risk(
-    affected: &[AffectedFile],
-    couplings: &[CouplingNote],
-) -> (&'static str, String) {
+fn compute_risk(affected: &[AffectedFile], couplings: &[CouplingNote]) -> (&'static str, String) {
     let max_blast = affected
         .iter()
         .filter_map(|f| f.blast_radius)
@@ -819,16 +834,14 @@ fn compute_risk(
             reasons.push(format!("{file_count} files changed"));
         }
         if !couplings.is_empty() {
-            reasons.push(format!(
-                "{} coupled file(s) not in diff",
-                couplings.len()
-            ));
+            reasons.push(format!("{} coupled file(s) not in diff", couplings.len()));
         }
         return ("yellow", reasons.join("; "));
     }
-    ("green", format!(
-        "{file_count} file(s) changed, max blast radius {max_blast}/10"
-    ))
+    (
+        "green",
+        format!("{file_count} file(s) changed, max blast radius {max_blast}/10"),
+    )
 }
 
 // ─── Stage: subject + body renderers ───────────────────────────────────────
@@ -881,10 +894,18 @@ fn summarise_verb_phrase(kind: ChangeKind, diff_files: &[DiffFile]) -> String {
     let focus = diff_files
         .iter()
         .find(|f| matches!(f.change_type, ChangeType::Added))
-        .or_else(|| diff_files.iter().find(|f| matches!(f.change_type, ChangeType::Modified)))
+        .or_else(|| {
+            diff_files
+                .iter()
+                .find(|f| matches!(f.change_type, ChangeType::Modified))
+        })
         .map(|f| file_stem(&f.path));
 
-    let file_word = if diff_files.len() == 1 { "file" } else { "files" };
+    let file_word = if diff_files.len() == 1 {
+        "file"
+    } else {
+        "files"
+    };
     let n = diff_files.len();
     match kind {
         ChangeKind::Feat => match focus.as_deref() {
@@ -942,7 +963,10 @@ fn render_body_bullets(
         .iter()
         .filter(|f| f.change_type == "modified")
         .count();
-    let deleted_n = affected.iter().filter(|f| f.change_type == "deleted").count();
+    let deleted_n = affected
+        .iter()
+        .filter(|f| f.change_type == "deleted")
+        .count();
     let renamed_n = affected
         .iter()
         .filter(|f| f.change_type == "renamed")
@@ -978,7 +1002,10 @@ fn render_body_bullets(
 
     // Bullet: rule alignments.
     if !rules.is_empty() {
-        let cr_rules = rules.iter().filter(|r| r.source == RuleAlignmentSource::CodeRabbit).count();
+        let cr_rules = rules
+            .iter()
+            .filter(|r| r.source == RuleAlignmentSource::CodeRabbit)
+            .count();
         let immune = rules
             .iter()
             .filter(|r| r.source == RuleAlignmentSource::Immune)
@@ -1054,7 +1081,11 @@ pub fn render_commit_message(n: &ChangeNarrative) -> String {
             if !cited.insert(r.rule_id.as_str()) {
                 continue;
             }
-            out.push_str(&format!("  {} ({})\n", r.rule_id, rule_source_label(r.source)));
+            out.push_str(&format!(
+                "  {} ({})\n",
+                r.rule_id,
+                rule_source_label(r.source)
+            ));
         }
     }
     out
@@ -1284,7 +1315,12 @@ mod tests {
     fn classify_build_config_returns_build() {
         let diff = vec![
             mk_diff(ChangeType::Modified, "Cargo.toml", &["new dep"], &[]),
-            mk_diff(ChangeType::Modified, ".github/workflows/ci.yml", &["step"], &[]),
+            mk_diff(
+                ChangeType::Modified,
+                ".github/workflows/ci.yml",
+                &["step"],
+                &[],
+            ),
         ];
         let affected = vec![
             mk_affected("Cargo.toml", "modified"),
@@ -1326,10 +1362,7 @@ mod tests {
             &["fn old_name() {}"],
         )];
         let affected = vec![mk_affected("src/service.rs", "modified")];
-        assert_eq!(
-            classify_change_kind(&diff, &affected),
-            ChangeKind::Refactor
-        );
+        assert_eq!(classify_change_kind(&diff, &affected), ChangeKind::Refactor);
     }
 
     #[test]
@@ -1379,7 +1412,12 @@ mod tests {
 
     #[test]
     fn subject_uses_conventional_prefix_by_default() {
-        let diff = vec![mk_diff(ChangeType::Added, "site/orders/service.vb", &["x"], &[])];
+        let diff = vec![mk_diff(
+            ChangeType::Added,
+            "site/orders/service.vb",
+            &["x"],
+            &[],
+        )];
         let subject = render_subject(
             ChangeKind::Feat,
             Some("orders"),
@@ -1391,13 +1429,13 @@ mod tests {
 
     #[test]
     fn subject_plain_style_uses_prose() {
-        let diff = vec![mk_diff(ChangeType::Added, "site/orders/service.vb", &["x"], &[])];
-        let subject = render_subject(
-            ChangeKind::Feat,
-            Some("orders"),
-            &diff,
-            SubjectStyle::Plain,
-        );
+        let diff = vec![mk_diff(
+            ChangeType::Added,
+            "site/orders/service.vb",
+            &["x"],
+            &[],
+        )];
+        let subject = render_subject(ChangeKind::Feat, Some("orders"), &diff, SubjectStyle::Plain);
         assert!(subject.starts_with("Added in orders:"), "got: {subject}");
     }
 

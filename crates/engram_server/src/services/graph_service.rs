@@ -223,10 +223,7 @@ pub fn resolve_app_code_globals(
         let lowered_node_type = node.node_type.to_ascii_lowercase();
         if app_code_function_kinds.contains(&lowered_node_type.as_str()) {
             let resolve_key = inferred_fqn.as_deref().unwrap_or(&node.name);
-            let terminal = resolve_key
-                .split('.')
-                .next_back()
-                .unwrap_or(resolve_key);
+            let terminal = resolve_key.split('.').next_back().unwrap_or(resolve_key);
             let terminal = strip_line_suffix(terminal);
             if !terminal.is_empty() {
                 terminal_to_fqn
@@ -385,20 +382,16 @@ pub fn resolve_app_code_globals(
         match terminal_to_fqn.get(bare_name) {
             Some(matches) if matches.len() == 1 => {
                 let matched_fqn = &matches[0];
-                let new_target_id = match graph.resolve_symbol(
-                    project_id,
-                    matched_fqn,
-                    None,
-                    source_file_path,
-                )? {
-                    ResolveResult::Unique(node) => node.node_id,
-                    _ => {
-                        unmatched += 1;
-                        fqn_not_in_node_map += 1;
-                        *ambiguous_fqn_counts.entry(matched_fqn.clone()).or_default() += 1;
-                        continue;
-                    }
-                };
+                let new_target_id =
+                    match graph.resolve_symbol(project_id, matched_fqn, None, source_file_path)? {
+                        ResolveResult::Unique(node) => node.node_id,
+                        _ => {
+                            unmatched += 1;
+                            fqn_not_in_node_map += 1;
+                            *ambiguous_fqn_counts.entry(matched_fqn.clone()).or_default() += 1;
+                            continue;
+                        }
+                    };
 
                 if edge.target_id == new_target_id {
                     continue;
@@ -431,12 +424,9 @@ pub fn resolve_app_code_globals(
                 let mut resolved_any = None;
                 let mut resolved_fqn = None;
                 for matched_fqn in matches {
-                    if let ResolveResult::Unique(node) = graph.resolve_symbol(
-                        project_id,
-                        matched_fqn,
-                        None,
-                        source_file_path,
-                    )? {
+                    if let ResolveResult::Unique(node) =
+                        graph.resolve_symbol(project_id, matched_fqn, None, source_file_path)?
+                    {
                         resolved_any = Some(node);
                         resolved_fqn = Some(matched_fqn.clone());
                         break;
@@ -460,15 +450,12 @@ pub fn resolve_app_code_globals(
                         );
                         metadata_obj.insert(
                             "resolved_target_fqn".into(),
-                            serde_json::Value::String(
-                                resolved_fqn.unwrap_or_default(),
-                            ),
+                            serde_json::Value::String(resolved_fqn.unwrap_or_default()),
                         );
 
                         let mut rewritten_edge = edge.clone();
                         rewritten_edge.target_id = new_target_id;
-                        rewritten_edge.metadata =
-                            Some(serde_json::Value::Object(metadata_obj));
+                        rewritten_edge.metadata = Some(serde_json::Value::Object(metadata_obj));
                         rewritten_edge.generation = generation;
                         rewritten_edge.updated_at_ms = now_ms();
                         rewritten_edges.push(rewritten_edge);
@@ -497,10 +484,7 @@ pub fn resolve_app_code_globals(
         let mut top: Vec<_> = ambiguous_fqn_counts.into_iter().collect();
         top.sort_by(|a, b| b.1.cmp(&a.1));
         top.truncate(10);
-        tracing::debug!(
-            "resolve_app_code_globals: top unresolved FQNs = {:?}",
-            top
-        );
+        tracing::debug!("resolve_app_code_globals: top unresolved FQNs = {:?}", top);
     }
 
     if !rewritten_edges.is_empty() {

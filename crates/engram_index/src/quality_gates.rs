@@ -44,7 +44,12 @@ pub enum QualitySource {
 
 impl QualitySource {
     pub fn from_str(s: &str) -> Option<Self> {
-        match s.trim().to_ascii_lowercase().replace(['-', ' '], "_").as_str() {
+        match s
+            .trim()
+            .to_ascii_lowercase()
+            .replace(['-', ' '], "_")
+            .as_str()
+        {
             "copilot" | "copilot_instructions" | "copilotinstructions" => {
                 Some(Self::CopilotInstructions)
             }
@@ -72,7 +77,11 @@ impl QualitySource {
 }
 
 /// Parse any quality-gate source into normalized rules.
-pub fn parse_quality_source(content: &str, source: QualitySource, origin: &str) -> Vec<QualityRule> {
+pub fn parse_quality_source(
+    content: &str,
+    source: QualitySource,
+    origin: &str,
+) -> Vec<QualityRule> {
     match source {
         QualitySource::CopilotInstructions | QualitySource::CodingRulesMd => {
             parse_markdown_rules(content, source.category(), origin)
@@ -117,8 +126,8 @@ fn parse_markdown_rules(content: &str, category: &str, origin: &str) -> Vec<Qual
         let directive = {
             let lo = line.to_ascii_lowercase();
             const KW: &[&str] = &[
-                "must ", "must not", "avoid", "don't", "do not", "always ", "never ",
-                "should ", "prefer ", "ensure ", "require", "no ",
+                "must ", "must not", "avoid", "don't", "do not", "always ", "never ", "should ",
+                "prefer ", "ensure ", "require", "no ",
             ];
             KW.iter().any(|k| lo.contains(k))
         };
@@ -158,10 +167,17 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
     let arr: Vec<serde_json::Value> = if let Some(a) = v.as_array() {
         a.clone()
     } else if let Some(o) = v.as_object() {
-        ["issues", "results", "findings", "value", "workItems", "comments"]
-            .iter()
-            .find_map(|k| o.get(*k).and_then(|x| x.as_array()).cloned())
-            .unwrap_or_default()
+        [
+            "issues",
+            "results",
+            "findings",
+            "value",
+            "workItems",
+            "comments",
+        ]
+        .iter()
+        .find_map(|k| o.get(*k).and_then(|x| x.as_array()).cloned())
+        .unwrap_or_default()
     } else {
         Vec::new()
     };
@@ -184,13 +200,29 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
 
     let mut out = Vec::new();
     for (i, f) in arr.iter().enumerate() {
-        let msg = get(f, &["message", "description", "title", "text", "fields.System.Title"]);
+        let msg = get(
+            f,
+            &[
+                "message",
+                "description",
+                "title",
+                "text",
+                "fields.System.Title",
+            ],
+        );
         let Some(text) = msg else { continue };
         let rule_key = get(f, &["rule", "ruleKey", "check", "type", "id", "category"]);
-        let sev_raw =
-            get(f, &["severity", "level", "priority", "fields.Microsoft.VSTS.Common.Priority"])
-                .unwrap_or_default()
-                .to_ascii_lowercase();
+        let sev_raw = get(
+            f,
+            &[
+                "severity",
+                "level",
+                "priority",
+                "fields.Microsoft.VSTS.Common.Priority",
+            ],
+        )
+        .unwrap_or_default()
+        .to_ascii_lowercase();
         let severity = if sev_raw.contains("block")
             || sev_raw.contains("crit")
             || sev_raw.contains("high")
@@ -206,7 +238,14 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
         };
         let path_scope = get(
             f,
-            &["file", "path", "component", "filePath", "location", "fileName"],
+            &[
+                "file",
+                "path",
+                "component",
+                "filePath",
+                "location",
+                "fileName",
+            ],
         );
         let line = get(f, &["line", "startLine", "lineNumber"]);
         let id = rule_key
@@ -385,10 +424,18 @@ mod tests {
     #[test]
     fn parses_markdown_copilot_instructions() {
         let md = "# Coding rules\n\n- Always use `Using` for disposables.\n- Avoid On Error Resume Next.\n\n## Naming\nMethods must be PascalCase.\nSome non-rule prose without a keyword.\n";
-        let rules = parse_quality_source(md, QualitySource::CopilotInstructions, "copilot-instructions.md");
+        let rules = parse_quality_source(
+            md,
+            QualitySource::CopilotInstructions,
+            "copilot-instructions.md",
+        );
         assert!(rules.len() >= 3, "{rules:?}");
         assert!(rules.iter().any(|r| r.text.contains("Using")));
-        assert!(rules.iter().any(|r| r.text.contains("[Naming]") && r.text.contains("PascalCase")));
+        assert!(
+            rules
+                .iter()
+                .any(|r| r.text.contains("[Naming]") && r.text.contains("PascalCase"))
+        );
         assert!(rules.iter().all(|r| r.category == "copilot"));
     }
 
@@ -441,7 +488,12 @@ mod tests {
             .collect();
         let batches = batch_findings(&findings, 10);
         // category a (13) -> 2 batches, category b (12) -> 2 batches
-        assert_eq!(batches.len(), 4, "{:?}", batches.iter().map(|b| b.len()).collect::<Vec<_>>());
+        assert_eq!(
+            batches.len(),
+            4,
+            "{:?}",
+            batches.iter().map(|b| b.len()).collect::<Vec<_>>()
+        );
         assert!(batches.iter().all(|b| b.len() <= 10));
     }
 
@@ -452,10 +504,22 @@ mod tests {
 
     #[test]
     fn from_str_aliases() {
-        assert_eq!(QualitySource::from_str("copilot-instructions"), Some(QualitySource::CopilotInstructions));
-        assert_eq!(QualitySource::from_str("CodeRabbit"), Some(QualitySource::CodeRabbit));
-        assert_eq!(QualitySource::from_str("sonar"), Some(QualitySource::SonarQube));
-        assert_eq!(QualitySource::from_str("board"), Some(QualitySource::DevOpsBoard));
+        assert_eq!(
+            QualitySource::from_str("copilot-instructions"),
+            Some(QualitySource::CopilotInstructions)
+        );
+        assert_eq!(
+            QualitySource::from_str("CodeRabbit"),
+            Some(QualitySource::CodeRabbit)
+        );
+        assert_eq!(
+            QualitySource::from_str("sonar"),
+            Some(QualitySource::SonarQube)
+        );
+        assert_eq!(
+            QualitySource::from_str("board"),
+            Some(QualitySource::DevOpsBoard)
+        );
         assert_eq!(QualitySource::from_str("nope"), None);
     }
 }

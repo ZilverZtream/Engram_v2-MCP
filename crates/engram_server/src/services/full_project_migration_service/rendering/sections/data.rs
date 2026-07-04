@@ -7,19 +7,22 @@
 //! identifier rewriting happened during the move, so the rendered
 //! bytes are identical to before.
 
-#![allow(unused_imports, clippy::too_many_arguments, clippy::collapsible_else_if)]
+#![allow(
+    unused_imports,
+    clippy::too_many_arguments,
+    clippy::collapsible_else_if
+)]
 
 use std::collections::BTreeMap;
 
-use super::super::super::model::*;
 use super::super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::super::db_strategy_service::FileDataAccessProfile;
 use super::super::super::super::dossier_service::MigrationDossier;
 use super::super::super::super::migration_order_service::MigrationOrderPlan;
 use super::super::super::super::state_migration_service::StateMigrationReport;
+use super::super::super::model::*;
 // Wildcard pulls in parent-level `pub(super)` helpers.
 use super::super::super::*;
-
 
 #[allow(clippy::too_many_arguments, unused_variables)]
 pub(crate) fn render_section_data_access_patterns(
@@ -95,7 +98,6 @@ pub(crate) fn render_section_data_access_patterns(
             ));
         }
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -228,7 +230,6 @@ pub(crate) fn render_section_code_behind_method_inventory(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -340,7 +341,6 @@ pub(crate) fn render_section_stored_procedure_catalog(
             md.push('\n');
         }
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -460,7 +460,6 @@ pub(crate) fn render_section_inheritance_chain_report(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -544,7 +543,6 @@ pub(crate) fn render_section_cross_layer_data_flow_chains(
             md.push('\n');
         }
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -603,5 +601,4 @@ pub(crate) fn render_section_inherited_effects(
         }
         md.push('\n');
     }
-
 }

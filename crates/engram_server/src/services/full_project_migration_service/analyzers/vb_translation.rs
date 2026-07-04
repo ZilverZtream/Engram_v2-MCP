@@ -17,14 +17,13 @@ use super::super::model::*;
 // Wildcard catches parent-module `pub(super) static` / `type` /
 // `pub(crate) fn` helpers that were left in the grandparent during
 // the Phase 2 extraction.
-use super::super::*;
 use super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::db_strategy_service::{self, FileDataAccessProfile};
 use super::super::super::dossier_service::{self, MigrationDossier};
 use super::super::super::migration_order_service::{self, MigrationOrderPlan};
 use super::super::super::pattern_detection_service;
 use super::super::super::state_migration_service::{self, StateMigrationReport};
-
+use super::super::*;
 
 pub(crate) fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTranslationReport {
     static OPTIONAL_PARAM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
@@ -376,7 +375,11 @@ pub(crate) fn analyze_vb_translation_flags(code_files: &[(&str, &str)]) -> VbTra
 /// *every* file in the project whenever `codebehind` was `None`, so the
 /// first page dossier on a project with unresolved codebehinds dumped
 /// the entire project-wide flag list into one page's section.
-pub(crate) fn flag_belongs_to_page(flag_path: &str, page_path: &str, codebehind: Option<&str>) -> bool {
+pub(crate) fn flag_belongs_to_page(
+    flag_path: &str,
+    page_path: &str,
+    codebehind: Option<&str>,
+) -> bool {
     if flag_path == page_path {
         return true;
     }

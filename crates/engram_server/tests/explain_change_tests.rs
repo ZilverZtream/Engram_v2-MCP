@@ -11,7 +11,7 @@ use engram_core::registry::RepoRule;
 use engram_graph::{Edge, EdgeKind, Node};
 
 use engram_server::services::explain_change_service::{
-    explain_change, ChangeKind, ExplainChangeConfig, SubjectStyle,
+    ChangeKind, ExplainChangeConfig, SubjectStyle, explain_change,
 };
 use engram_server::state::AppState;
 
@@ -165,8 +165,7 @@ diff --git a/Site/App_Code/dal/Orders.vb b/Site/App_Code/dal/Orders.vb
 
     // PR description mentions the immune rule in Addresses section.
     assert!(
-        rendered.pr_description.contains("🛡")
-            || rendered.pr_description.contains("immune"),
+        rendered.pr_description.contains("🛡") || rendered.pr_description.contains("immune"),
         "PR description missing immune tag; got:\n{}",
         rendered.pr_description
     );
@@ -255,7 +254,10 @@ diff --git a/a.ts b/a.ts
 
     // At least one coupling note for b.ts.
     assert!(
-        narrative.coupling_notes.iter().any(|c| c.partner_file == "b.ts"),
+        narrative
+            .coupling_notes
+            .iter()
+            .any(|c| c.partner_file == "b.ts"),
         "coupling note missing: {:#?}",
         narrative.coupling_notes
     );
@@ -304,10 +306,11 @@ diff --git a/site/orders/AuditHook.vb b/site/orders/AuditHook.vb
         include_changelog: false,
         use_llm: false,
     };
-    let (_narrative, rendered) = explain_change(&state, &project_id, &project_dir, 1, diff, &config)
-        .await
-        .unwrap()
-        .expect("narrative");
+    let (_narrative, rendered) =
+        explain_change(&state, &project_id, &project_dir, 1, diff, &config)
+            .await
+            .unwrap()
+            .expect("narrative");
 
     // Plain style uses "Added in orders: …" not "feat(orders): …".
     assert!(

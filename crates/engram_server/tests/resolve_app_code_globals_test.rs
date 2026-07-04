@@ -19,12 +19,7 @@ fn open_store(tmp: &tempfile::TempDir) -> GraphStore {
     GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open")
 }
 
-fn make_app_code_function(
-    node_id: &str,
-    name: &str,
-    file_path: &str,
-    fqn: Option<&str>,
-) -> Node {
+fn make_app_code_function(node_id: &str, name: &str, file_path: &str, fqn: Option<&str>) -> Node {
     let metadata = fqn.map(|f| {
         let mut m = serde_json::Map::new();
         m.insert("fqn".into(), serde_json::Value::String(f.to_string()));
@@ -99,14 +94,10 @@ fn rejects_path_shaped_node_id_as_fqn() {
 
     // Step 2 should resolve ::SafeRedirect via app_code_by_name lookup.
     // Verify a Dependency edge was created pointing to the target node.
-    let dep_edges = graph
-        .list_edges(pid, Some(EdgeKind::Dependency))
-        .unwrap();
+    let dep_edges = graph.list_edges(pid, Some(EdgeKind::Dependency)).unwrap();
     let resolved: Vec<_> = dep_edges
         .iter()
-        .filter(|e| {
-            e.source_id == source_node.node_id && e.target_id == target_node.node_id
-        })
+        .filter(|e| e.source_id == source_node.node_id && e.target_id == target_node.node_id)
         .collect();
 
     assert!(
@@ -182,15 +173,11 @@ fn disambiguates_by_source_file_path_with_bare_names() {
         engram_server::services::graph_service::resolve_app_code_globals(&graph, pid, 1).unwrap();
 
     // Step 3 should have rewritten the call edge.
-    let all_calls = graph
-        .list_edges(pid, Some(EdgeKind::Calls))
-        .unwrap();
+    let all_calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
 
     let rewritten: Vec<_> = all_calls
         .iter()
-        .filter(|e| {
-            e.source_id == source_node.node_id && e.target_id != call_edge.target_id
-        })
+        .filter(|e| e.source_id == source_node.node_id && e.target_id != call_edge.target_id)
         .collect();
 
     assert!(
@@ -259,14 +246,10 @@ fn resolves_with_metadata_fqn() {
     let _resolved =
         engram_server::services::graph_service::resolve_app_code_globals(&graph, pid, 1).unwrap();
 
-    let dep_edges = graph
-        .list_edges(pid, Some(EdgeKind::Dependency))
-        .unwrap();
+    let dep_edges = graph.list_edges(pid, Some(EdgeKind::Dependency)).unwrap();
     let resolved: Vec<_> = dep_edges
         .iter()
-        .filter(|e| {
-            e.source_id == source_node.node_id && e.target_id == target_node.node_id
-        })
+        .filter(|e| e.source_id == source_node.node_id && e.target_id == target_node.node_id)
         .collect();
 
     assert!(

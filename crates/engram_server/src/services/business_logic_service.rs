@@ -1044,7 +1044,10 @@ public partial class OrderEntry : System.Web.UI.Page
         // Content fallback only when extensionless.
         assert_eq!(detect_language("", "Public Sub Page_Load()\nEnd Sub"), "vb");
         assert_eq!(
-            detect_language("", "protected void Page_Load(object sender, EventArgs e) { }"),
+            detect_language(
+                "",
+                "protected void Page_Load(object sender, EventArgs e) { }"
+            ),
             "cs"
         );
     }

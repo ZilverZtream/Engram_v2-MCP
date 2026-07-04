@@ -7,19 +7,22 @@
 //! identifier rewriting happened during the move, so the rendered
 //! bytes are identical to before.
 
-#![allow(unused_imports, clippy::too_many_arguments, clippy::collapsible_else_if)]
+#![allow(
+    unused_imports,
+    clippy::too_many_arguments,
+    clippy::collapsible_else_if
+)]
 
 use std::collections::BTreeMap;
 
-use super::super::super::model::*;
 use super::super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::super::db_strategy_service::FileDataAccessProfile;
 use super::super::super::super::dossier_service::MigrationDossier;
 use super::super::super::super::migration_order_service::MigrationOrderPlan;
 use super::super::super::super::state_migration_service::StateMigrationReport;
+use super::super::super::model::*;
 // Wildcard pulls in parent-level `pub(super)` helpers.
 use super::super::super::*;
-
 
 #[allow(clippy::too_many_arguments, unused_variables)]
 pub(crate) fn render_section_migration_wave_plan(
@@ -103,7 +106,6 @@ pub(crate) fn render_section_migration_wave_plan(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -186,7 +188,6 @@ pub(crate) fn render_section_cross_cutting_concerns(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -494,7 +495,11 @@ pub(crate) fn render_section_page_by_page_dossiers(
                 .translation_flags
                 .iter()
                 .filter(|f| {
-                    analyzers::vb_translation::flag_belongs_to_page(&f.file_path, &d.file_path, d.codebehind_file.as_deref())
+                    analyzers::vb_translation::flag_belongs_to_page(
+                        &f.file_path,
+                        &d.file_path,
+                        d.codebehind_file.as_deref(),
+                    )
                 })
                 .collect();
             if !page_flags.is_empty() {
@@ -569,7 +574,6 @@ pub(crate) fn render_section_page_by_page_dossiers(
 
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -628,7 +632,6 @@ pub(crate) fn render_section_risk_assessment(
             md.push_str(&format!("- `{f}`\n"));
         }
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -675,9 +678,7 @@ pub(crate) fn render_section_business_logic_summary(
 ) {
     // ── Phase 36: Business Logic Summary ────────────────────────────────
     if !biz_logic.file_summaries.is_empty() {
-        md.push_str(&crate::services::business_logic_service::render_compact_markdown(
-            biz_logic,
-        ));
+        md.push_str(&crate::services::business_logic_service::render_compact_markdown(biz_logic));
         // Show tip only when no LLM was used (no confidence data present)
         let has_llm_data = biz_logic
             .file_summaries
@@ -690,7 +691,6 @@ pub(crate) fn render_section_business_logic_summary(
             );
         }
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -737,9 +737,10 @@ pub(crate) fn render_section_database_intelligence(
 ) {
     // ── Phase 37: Database Intelligence ──────────────────────────────────
     md.push_str(
-        &crate::services::database_intelligence_service::render_database_intelligence_markdown(db_intel),
+        &crate::services::database_intelligence_service::render_database_intelligence_markdown(
+            db_intel,
+        ),
     );
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -785,8 +786,9 @@ pub(crate) fn render_section_session_workflows(
     session_wf: &crate::services::session_workflow_service::SessionWorkflowReport,
 ) {
     // ── Phase 37: Session Workflows ─────────────────────────────────────
-    md.push_str(&crate::services::session_workflow_service::render_session_workflows_markdown(session_wf));
-
+    md.push_str(
+        &crate::services::session_workflow_service::render_session_workflows_markdown(session_wf),
+    );
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]

@@ -1459,7 +1459,8 @@ pub fn section_of(path: &str) -> String {
 /// file pairs. Same-section pairs are dropped (they carry no cross-area scope
 /// signal). Sorted by strength. This is the data behind the cross-section map.
 pub fn aggregate_cross_section(pairs: &[(String, String, u32)]) -> Vec<(String, String, u32)> {
-    let mut acc: std::collections::HashMap<(String, String), u32> = std::collections::HashMap::new();
+    let mut acc: std::collections::HashMap<(String, String), u32> =
+        std::collections::HashMap::new();
     for (a, b, w) in pairs {
         let (sa, sb) = (section_of(a), section_of(b));
         if sa == sb {
@@ -1498,8 +1499,7 @@ pub fn finalize_cross_section(
     xsec: std::collections::HashMap<(String, String), u32>,
     limit: usize,
 ) -> Vec<(String, String, u32)> {
-    let mut v: Vec<(String, String, u32)> =
-        xsec.into_iter().map(|((a, b), w)| (a, b, w)).collect();
+    let mut v: Vec<(String, String, u32)> = xsec.into_iter().map(|((a, b), w)| (a, b, w)).collect();
     v.sort_by(|x, y| y.2.cmp(&x.2).then_with(|| x.0.cmp(&y.0)));
     v.truncate(limit);
     v
@@ -1513,13 +1513,21 @@ fn render_cross_section_map(cross: &[(String, String, u32)]) -> String {
     let mut by_section: std::collections::BTreeMap<String, Vec<(String, u32)>> =
         std::collections::BTreeMap::new();
     for (a, b, w) in cross {
-        by_section.entry(a.clone()).or_default().push((b.clone(), *w));
-        by_section.entry(b.clone()).or_default().push((a.clone(), *w));
+        by_section
+            .entry(a.clone())
+            .or_default()
+            .push((b.clone(), *w));
+        by_section
+            .entry(b.clone())
+            .or_default()
+            .push((a.clone(), *w));
     }
     let total = by_section.len().max(1);
     // degree = number of distinct sections each section couples to.
-    let degree: std::collections::HashMap<String, usize> =
-        by_section.iter().map(|(s, ps)| (s.clone(), ps.len())).collect();
+    let degree: std::collections::HashMap<String, usize> = by_section
+        .iter()
+        .map(|(s, ps)| (s.clone(), ps.len()))
+        .collect();
     // Ubiquitous hubs couple to >= 60% of all sections (min 5). A partner that
     // co-changes with almost EVERYTHING (resx labels, a dashboard) carries no
     // scope signal — naming it once beats repeating it under every section, and
@@ -2112,9 +2120,18 @@ mod tests {
 
     #[test]
     fn section_of_groups_by_area() {
-        assert_eq!(section_of("Site/App_Code/redovisning/code/RoQReport.vb"), "app_code/redovisning");
-        assert_eq!(section_of("site/modules/dashboard/pages/x.aspx"), "modules/dashboard");
-        assert_eq!(section_of("a/App_Code/api-v2/Controllers/X.vb"), "app_code/api-v2");
+        assert_eq!(
+            section_of("Site/App_Code/redovisning/code/RoQReport.vb"),
+            "app_code/redovisning"
+        );
+        assert_eq!(
+            section_of("site/modules/dashboard/pages/x.aspx"),
+            "modules/dashboard"
+        );
+        assert_eq!(
+            section_of("a/App_Code/api-v2/Controllers/X.vb"),
+            "app_code/api-v2"
+        );
         assert_eq!(section_of("web.config"), "root");
     }
 
@@ -2122,10 +2139,22 @@ mod tests {
     fn cross_section_aggregates_and_drops_same_section() {
         let pairs = vec![
             // cross-section: redovisning <-> dashboard (summed across two file pairs)
-            ("App_Code/redovisning/a.vb".into(), "modules/dashboard/x.aspx.vb".into(), 5u32),
-            ("App_Code/redovisning/b.vb".into(), "modules/dashboard/y.aspx.vb".into(), 3u32),
+            (
+                "App_Code/redovisning/a.vb".into(),
+                "modules/dashboard/x.aspx.vb".into(),
+                5u32,
+            ),
+            (
+                "App_Code/redovisning/b.vb".into(),
+                "modules/dashboard/y.aspx.vb".into(),
+                3u32,
+            ),
             // same-section: dropped
-            ("App_Code/redovisning/a.vb".into(), "App_Code/redovisning/c.vb".into(), 9u32),
+            (
+                "App_Code/redovisning/a.vb".into(),
+                "App_Code/redovisning/c.vb".into(),
+                9u32,
+            ),
         ];
         let agg = aggregate_cross_section(&pairs);
         assert_eq!(agg.len(), 1, "{agg:?}");
@@ -2152,7 +2181,10 @@ mod tests {
         let hub_in_bullet = map
             .lines()
             .any(|l| l.starts_with("- Changing") && l.contains("app_globalresources"));
-        assert!(!hub_in_bullet, "hub leaked into a per-section bullet:\n{map}");
+        assert!(
+            !hub_in_bullet,
+            "hub leaked into a per-section bullet:\n{map}"
+        );
         // Specific coupling preserved.
         assert!(
             map.contains("Changing `app_code/api`") && map.contains("`app_code/integration`"),

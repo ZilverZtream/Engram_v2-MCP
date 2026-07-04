@@ -20,15 +20,21 @@ fn test_cpp_parsing() {
     println!("Symbols: {:?}", symbols);
     println!("Edges: {:?}", edges);
 
-    assert!(symbols
-        .iter()
-        .any(|s| s.name == "MyClass" && s.kind == "class"));
-    assert!(symbols
-        .iter()
-        .any(|s| s.name == "myMethod" && s.kind == "function"));
-    assert!(symbols
-        .iter()
-        .any(|s| s.name == "otherFunction" && s.kind == "function"));
+    assert!(
+        symbols
+            .iter()
+            .any(|s| s.name == "MyClass" && s.kind == "class")
+    );
+    assert!(
+        symbols
+            .iter()
+            .any(|s| s.name == "myMethod" && s.kind == "function")
+    );
+    assert!(
+        symbols
+            .iter()
+            .any(|s| s.name == "otherFunction" && s.kind == "function")
+    );
 
     // Check contains edge
     assert!(

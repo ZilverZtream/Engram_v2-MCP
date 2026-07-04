@@ -14,9 +14,9 @@ use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
 
-use super::model::*;
 use super::super::dossier_service::{self, MigrationDossier};
 use super::super::migration_order_service::{self, MigrationOrderPlan};
+use super::model::*;
 // Wildcard pulls in parent-level items (edges_or_warn helpers, etc).
 use super::*;
 
@@ -672,4 +672,3 @@ pub fn rerender_markdown_after_llm(report: &mut FullProjectMigrationReport) {
         &report.session_workflows,
     );
 }
-
