@@ -140,7 +140,48 @@ pub(crate) fn classify(question: &str) -> (Intent, String) {
             "tell me about",
         ],
     );
-    let subject = subject.trim_end_matches("work").trim().to_string();
+    // Trailing filler verbs poison the search subject: "how is
+    // authentication handled" must search "authentication", not
+    // "authentication handled". Strip iteratively — questions often stack
+    // them ("configured and managed").
+    let mut subject = subject.trim().to_string();
+    const TRAILING_FILLER: &[&str] = &[
+        "work",
+        "works",
+        "working",
+        "handled",
+        "handle",
+        "implemented",
+        "implement",
+        "done",
+        "managed",
+        "manage",
+        "configured",
+        "configure",
+        "used",
+        "defined",
+        "structured",
+        "organized",
+        "organised",
+        "here",
+        "and",
+        "or",
+    ];
+    loop {
+        let before = subject.len();
+        for f in TRAILING_FILLER {
+            let lower = subject.to_lowercase();
+            if lower.ends_with(f)
+                && lower[..lower.len() - f.len()].ends_with(|c: char| c.is_whitespace())
+            {
+                subject.truncate(subject.len() - f.len());
+                subject = subject.trim_end().to_string();
+            }
+        }
+        if subject.len() == before {
+            break;
+        }
+    }
     (
         Intent::Explain,
         if subject.is_empty() {
@@ -295,6 +336,18 @@ impl Engram {
 #[cfg(test)]
 mod tests {
     use super::{Intent, classify};
+
+    #[test]
+    fn explain_subject_drops_trailing_filler_verbs() {
+        let (intent, subject) = classify("how is authentication handled");
+        assert_eq!(intent, Intent::Explain);
+        assert_eq!(subject, "authentication");
+        let (_, subject) = classify("how is the user list configured and managed");
+        assert_eq!(subject, "the user list");
+        // Domain words that merely CONTAIN a filler stay intact.
+        let (_, subject) = classify("explain the network design");
+        assert_eq!(subject, "the network design");
+    }
 
     #[test]
     fn routes_the_five_intents() {
