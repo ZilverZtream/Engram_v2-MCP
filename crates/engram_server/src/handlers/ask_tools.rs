@@ -174,6 +174,20 @@ impl Engram {
                 .join("\n")
         };
 
+        // START-HERE contract: this tool must NEVER hard-fail on a sub-tool
+        // miss. A wrong subject guess used to propagate the sub-handler's
+        // McpError and dead-end the very first call an agent makes; now every
+        // route degrades to guidance naming the next tool to try.
+        let degrade = |tool: &str, subject: &str, e: McpError| -> String {
+            format!(
+                "No direct answer via {tool} for subject \"{subject}\" ({msg}).\n\
+                 next: resolve_id(\"{subject}\") to find the exact symbol; \
+                 search_memory(\"{subject}\") for text hits; re-ask with a more \
+                 specific symbol/file name.",
+                msg = e.message
+            )
+        };
+
         let (consulted, body) = match intent {
             Intent::Feature => {
                 let r = self
@@ -182,8 +196,11 @@ impl Engram {
                         story: req.question.clone(),
                         concepts: None,
                     })
-                    .await?;
-                ("plan_user_story", text_of(&r))
+                    .await;
+                match r {
+                    Ok(r) => ("plan_user_story", text_of(&r)),
+                    Err(e) => ("plan_user_story", degrade("plan_user_story", &subject, e)),
+                }
             }
             Intent::Impact => {
                 let r = self
@@ -193,8 +210,14 @@ impl Engram {
                         symbol_fqn: Some(subject.clone()),
                         limit: 50,
                     })
-                    .await?;
-                ("impact_analysis (blast radius)", text_of(&r))
+                    .await;
+                match r {
+                    Ok(r) => ("impact_analysis (blast radius)", text_of(&r)),
+                    Err(e) => (
+                        "impact_analysis (blast radius)",
+                        degrade("impact_analysis", &subject, e),
+                    ),
+                }
             }
             Intent::Usage => {
                 let r = self
@@ -206,8 +229,14 @@ impl Engram {
                         edge_kind_filter: None,
                         file_scope: None,
                     })
-                    .await?;
-                ("find_symbol_references", text_of(&r))
+                    .await;
+                match r {
+                    Ok(r) => ("find_symbol_references", text_of(&r)),
+                    Err(e) => (
+                        "find_symbol_references",
+                        degrade("find_symbol_references", &subject, e),
+                    ),
+                }
             }
             Intent::History => {
                 let r = self
@@ -224,8 +253,11 @@ impl Engram {
                         max_content_chars: 600,
                         use_mmr: false,
                     })
-                    .await?;
-                ("search_history", text_of(&r))
+                    .await;
+                match r {
+                    Ok(r) => ("search_history", text_of(&r)),
+                    Err(e) => ("search_history", degrade("search_history", &subject, e)),
+                }
             }
             Intent::Explain => {
                 let search = self
@@ -235,7 +267,9 @@ impl Engram {
                         max_results: 5,
                         ..Default::default()
                     })
-                    .await?;
+                    .await
+                    .map(|r| text_of(&r))
+                    .unwrap_or_else(|e| degrade("search_memory", &subject, e));
                 let footprint = self
                     .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
                         project_id: pid,
@@ -247,7 +281,7 @@ impl Engram {
                     .unwrap_or_default();
                 (
                     "search_memory + get_concept_footprint",
-                    format!("{}\n\n{}", text_of(&search), footprint),
+                    format!("{search}\n\n{footprint}"),
                 )
             }
         };

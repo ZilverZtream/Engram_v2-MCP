@@ -3618,6 +3618,7 @@ impl Engram {
             existing_claude_md: existing_md.clone(),
             coderabbit_rules_by_language,
             has_gis,
+            generated_from: Some((active_gen, crate::utils::ymd_utc(crate::utils::now_ms()))),
         };
 
         // ── 10. Render ────────────────────────────────────────────────

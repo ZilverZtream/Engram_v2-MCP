@@ -1929,6 +1929,14 @@ impl HybridSearchEngine {
             });
         }
 
+        // Same vendor demotion as the hybrid path: minified bundles match
+        // almost any identifier query on BM25 and shove app code off the page.
+        for h in &mut out {
+            if engram_core::is_vendor_path(h.path.as_str()) {
+                h.score *= 0.2;
+            }
+        }
+
         // ENG-AUD-2026-S06-001: apply the same deterministic tie-break as the
         // hybrid search path so repeated lexical_search calls for the same query
         // always return identical ordering. Tantivy's TopDocs collector sorts by
@@ -2655,6 +2663,16 @@ impl HybridSearchEngine {
             .map(|(rrf_score, mut hit)| {
                 let boost = (1.0 + hit.centrality).ln() * 0.05;
                 hit.score = rrf_score + boost;
+                // Vendored/minified assets (bower_components, node_modules,
+                // *.min.js …) are already excluded from the graph, but they
+                // stayed fully searchable and routinely outranked app code —
+                // a font-awesome bundle placed top-5 for "user role and
+                // permission management". Demote hard: still findable when
+                // the query genuinely targets vendor code (those hits have
+                // no app-code competition), never ahead of first-party code.
+                if engram_core::is_vendor_path(hit.path.as_str()) {
+                    hit.score *= 0.2;
+                }
                 hit
             })
             .collect();

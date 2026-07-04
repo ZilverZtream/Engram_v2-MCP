@@ -1366,6 +1366,12 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
             }
             md.push('\n');
         }
+        if ctx.methods.iter().all(|m| m.full_body.is_none()) && !ctx.methods.is_empty() {
+            md.push_str(
+                "(method bodies omitted — get_full_method_body(<fqn>) for one, \
+                 or re-call with include_method_bodies=true for all)\n\n",
+            );
+        }
     }
 
     // Data layer
@@ -2625,7 +2631,13 @@ impl Engram {
             );
         }
 
-        Ok(CallToolResult::success(vec![Content::text(md)]))
+        let (banner, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, Some(&req.aspx_file))
+            .await;
+        let mut out = banner.unwrap_or_default();
+        out.push_str(&md);
+        out.push_str(&footer);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     // ── 38-5: prepare_implementation_context ─────────────────────────────
@@ -2678,9 +2690,11 @@ impl Engram {
             }
 
             if candidates.is_empty() {
-                return Err(format!(
-                    "No method '{}' found in '{}'. Ensure the project is indexed.",
-                    method_name, file_path
+                return Err(method_not_found_message(
+                    &graph,
+                    &project_id,
+                    &method_name,
+                    Some(&file_path),
                 ));
             }
 
@@ -3142,9 +3156,13 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            render_implementation_context_markdown(&ctx),
-        )]))
+        let (banner, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
+            .await;
+        let mut out = banner.unwrap_or_default();
+        out.push_str(&render_implementation_context_markdown(&ctx));
+        out.push_str(&footer);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     // ── 38-6: validate_generated_code ────────────────────────────────────
@@ -4092,9 +4110,11 @@ impl Engram {
             }
 
             if candidates.is_empty() {
-                return Err(format!(
-                    "No method '{}' found in '{}'.",
-                    method_name, file_path
+                return Err(method_not_found_message(
+                    &graph,
+                    &project_id,
+                    &method_name,
+                    Some(&file_path),
                 ));
             }
 

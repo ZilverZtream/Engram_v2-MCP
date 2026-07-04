@@ -60,17 +60,112 @@ pub(crate) fn concept_stems(concept: &str) -> Vec<String> {
     if !stems.contains(&compact) && compact.len() >= 3 {
         stems.push(compact);
     }
+
+    // Multi-word concepts: the whole phrase almost never appears verbatim in
+    // identifiers ("user role and permission management" compacted to one
+    // token matched NOTHING on a codebase full of role/permission code).
+    // Add salient-word bigrams ("user role" → also "userrole") and long
+    // single words. Connectives are dropped; short single words ("user",
+    // "role") are NOT added alone — they over-match thousands of nodes.
+    const CONNECTIVES: &[&str] = &[
+        "and", "or", "of", "the", "a", "an", "to", "for", "in", "on", "with", "by", "from",
+    ];
+    let salient: Vec<&str> = lower
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() >= 3 && !CONNECTIVES.contains(w))
+        .collect();
+    if salient.len() >= 2 {
+        for pair in salient.windows(2) {
+            let spaced = format!("{} {}", pair[0], pair[1]);
+            let joined = format!("{}{}", pair[0], pair[1]);
+            for s in [spaced, joined] {
+                if !stems.contains(&s) {
+                    stems.push(s);
+                }
+            }
+        }
+        for w in &salient {
+            if w.len() >= 6 {
+                let s = w.to_string();
+                if !stems.contains(&s) {
+                    stems.push(s);
+                }
+            }
+        }
+    }
+
     stems.retain(|s| !s.is_empty());
     stems
 }
 
-/// Does `name` contain any stem, ignoring case and separators?
+/// Split an identifier into lowercase word tokens on separators (`_`, `-`,
+/// `.`, `/`, spaces) AND camelCase boundaries: `UserRoleProvider` →
+/// ["user", "role", "provider"].
+pub(crate) fn name_tokens(name: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut cur = String::new();
+    let mut prev_lower = false;
+    for c in name.chars() {
+        if !c.is_alphanumeric() {
+            if !cur.is_empty() {
+                tokens.push(cur.to_lowercase());
+                cur.clear();
+            }
+            prev_lower = false;
+            continue;
+        }
+        if c.is_uppercase() && prev_lower && !cur.is_empty() {
+            tokens.push(cur.to_lowercase());
+            cur.clear();
+        }
+        prev_lower = c.is_lowercase() || c.is_ascii_digit();
+        cur.push(c);
+    }
+    if !cur.is_empty() {
+        tokens.push(cur.to_lowercase());
+    }
+    tokens
+}
+
+/// Does `name` match any stem AT A TOKEN BOUNDARY?
+///
+/// The old raw-substring version made "order" match `reorder`,
+/// `placeholder`, and `borderColor` — false touchpoints that propagated
+/// into plan_user_story and get_change_set seeds. Now a stem matches when
+/// (a) some identifier token equals or starts with it (`order` → `orders`,
+/// NOT `reorder`), or (b) for multi-word stems, the concatenation of
+/// CONSECUTIVE tokens starting at a token boundary begins with the stem's
+/// compact form (`user role`/`userrole` → `UserRoleProvider`).
 pub(crate) fn matches_concept(name: &str, stems: &[String]) -> bool {
-    let lower = name.to_lowercase();
-    let compact: String = lower.chars().filter(|c| c.is_alphanumeric()).collect();
-    stems
-        .iter()
-        .any(|s| lower.contains(s) || compact.contains(s))
+    let tokens = name_tokens(name);
+    if tokens.is_empty() {
+        return false;
+    }
+    stems.iter().any(|s| {
+        let s_compact: String = s.chars().filter(|c| c.is_alphanumeric()).collect();
+        if s_compact.is_empty() {
+            return false;
+        }
+        // Single-token check: equality or prefix at a token start.
+        if tokens.iter().any(|t| t.starts_with(&s_compact)) {
+            return true;
+        }
+        // Multi-token check: consecutive-token concatenation from each
+        // boundary. Early-exits once the running concat outgrows the stem.
+        for start in 0..tokens.len() {
+            let mut concat = String::new();
+            for t in &tokens[start..] {
+                concat.push_str(t);
+                if concat.len() >= s_compact.len() {
+                    break;
+                }
+            }
+            if concat.starts_with(&s_compact) {
+                return true;
+            }
+        }
+        false
+    })
 }
 
 /// Token bag for change-shape similarity: full path, directory segments,
@@ -197,10 +292,11 @@ impl Engram {
         let pid = req.project_id.clone();
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
-        let (groups, consumers) = tokio::task::spawn_blocking(move || {
+        let (groups, consumers, scan_truncated) = tokio::task::spawn_blocking(move || {
             let nodes = graph
                 .query_nodes(&pid, None, None, None, 50_000)
                 .unwrap_or_default();
+            let scan_truncated = nodes.len() >= 50_000;
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
@@ -257,7 +353,7 @@ impl Engram {
             }
             consumers.sort();
             consumers.dedup();
-            (groups, consumers)
+            (groups, consumers, scan_truncated)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -330,6 +426,12 @@ impl Engram {
             stems.join(", "),
             total
         );
+        if scan_truncated {
+            out.push_str(
+                "⚠ node scan hit the 50,000-node cap — touchpoints may be incomplete on this \
+                 graph; narrow the concept or rely on the lexical section below.\n",
+            );
+        }
         let titles = [
             ("data", "## Data (tables / columns)"),
             ("sql", "## SQL (stored procs / inline)"),
@@ -1094,6 +1196,10 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         "modify",
         "edit",
         "edits",
+        "include",
+        "includes",
+        "included",
+        "including",
         "display",
         "show",
         "shows",
@@ -1486,7 +1592,8 @@ impl Engram {
         let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
         out.push_str(&format!("concepts: {}\n", concepts.join(", ")));
 
-        // Per-concept footprint (trimmed to keep the brief readable).
+        // Per-concept footprint (trimmed to keep the brief readable). One
+        // failing concept must not kill the whole brief — degrade per-concept.
         for concept in &concepts {
             let sub = self
                 .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
@@ -1494,16 +1601,26 @@ impl Engram {
                     concept: concept.clone(),
                     max_per_group: 5,
                 })
-                .await?;
-            if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
-                let trimmed: String = text
-                    .text
-                    .lines()
-                    .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
-                    .take(30)
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                out.push_str(&format!("\n{trimmed}\n"));
+                .await;
+            match sub {
+                Ok(sub) => {
+                    if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
+                        let trimmed: String = text
+                            .text
+                            .lines()
+                            .take_while(|l| !l.starts_with("next:") && !l.starts_with("---"))
+                            .take(30)
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        out.push_str(&format!("\n{trimmed}\n"));
+                    }
+                }
+                Err(e) => {
+                    out.push_str(&format!(
+                        "\n(concept '{concept}': footprint unavailable — {})\n",
+                        e.message
+                    ));
+                }
             }
         }
 
@@ -1572,6 +1689,11 @@ impl Engram {
              - [ ] Then run: find_similar_changes(files=<your planned file list>) and \
              close every 'MISSING from your set' item.\n\
              - [ ] Per touched method: check_edit_safety. Before commit: pre_commit_review.\n",
+        );
+        out.push_str(
+            "\nnext: get_change_set(story=<this story>) for the RANKED FILE LIST \
+             (concept+history+co-change+vector fused) — this brief explains the \
+             domain; that tool names the files.\n",
         );
         let gen_ = self
             .get_active_generation(&req.project_id)
@@ -2642,6 +2764,14 @@ impl Engram {
             }
         }
 
+        // The ranked file set is the single most freshness-sensitive output
+        // in the funnel: a stale index proposes the wrong files. This was
+        // the only primary funnel tool with no staleness signal.
+        let gen_ = self
+            .get_active_generation(&req.project_id)
+            .await
+            .unwrap_or(1);
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
