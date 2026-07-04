@@ -698,11 +698,17 @@ impl Engram {
                         // Call-SITE line (where the reference occurs), when
                         // the edge recorded one — distinct from the caller's
                         // declaration line in the label.
-                        let at = nr
-                            .call_lines
-                            .get(&format!("{src}\0{kind}"))
-                            .map(|l| format!(" @L{l}"))
-                            .unwrap_or_default();
+                        // Structural containment is not a call site — the
+                        // recorded line echoes the declaration and reads as
+                        // noise (@L1 on file-level edges).
+                        let at = if *kind == "contains" {
+                            String::new()
+                        } else {
+                            nr.call_lines
+                                .get(&format!("{src}\0{kind}"))
+                                .map(|l| format!(" @L{l}"))
+                                .unwrap_or_default()
+                        };
                         match endpoint_labels.get(*src) {
                             Some(label) => {
                                 out.push_str(&format!("      <- {label}{at} [{src}] (w={w})\n"))
