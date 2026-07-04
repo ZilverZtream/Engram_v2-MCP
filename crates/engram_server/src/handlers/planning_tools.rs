@@ -1139,6 +1139,44 @@ mod tests {
     }
 
     #[test]
+    fn propose_scaffold_paths_parameterizes_template() {
+        let cohort = vec![
+            "App_Code/api-v2/Controllers/timeReporting/TimeReportEntriesController.vb".to_string(),
+            "App_Code/api-v2/Services/timeReporting/TimeReportEntryService.vb".to_string(),
+            "App_Code/api-v2/Services/timeReporting/interfaces/ITimeReportEntryService.vb"
+                .to_string(),
+            "App_Code/api-v2/QueryParams/timeReporting/TimeReportEntryQuery.vb".to_string(),
+            "App_Code/api-v2/DataTransferObjects/timeReporting/TimeReportEntry-Out.vb".to_string(),
+        ];
+        let got = super::propose_scaffold_paths(&cohort, "MarkerInspection");
+        assert!(
+            got.contains(
+                &"App_Code/api-v2/Controllers/markerInspection/MarkerInspectionsController.vb"
+                    .to_string()
+            ),
+            "{got:?}"
+        );
+        assert!(got.contains(
+            &"App_Code/api-v2/Services/markerInspection/MarkerInspectionService.vb".to_string()
+        ));
+        assert!(
+            got.contains(
+                &"App_Code/api-v2/Services/markerInspection/interfaces/IMarkerInspectionService.vb"
+                    .to_string()
+            )
+        );
+        assert!(got.contains(
+            &"App_Code/api-v2/QueryParams/markerInspection/MarkerInspectionQuery.vb".to_string()
+        ));
+        assert!(
+            got.contains(
+                &"App_Code/api-v2/DataTransferObjects/markerInspection/MarkerInspection-Out.vb"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
     fn find_analog_cohort_picks_a_complete_feature() {
         // Original-case paths (as the index provides them) — capital I matters.
         let index: Vec<String> = [
@@ -2217,6 +2255,72 @@ fn scaffold_stem(file_no_ext: &str) -> String {
 /// convention; no hardcoded layout. `index` = web-root-stripped paths in their
 /// ORIGINAL case (case matters for the interface `I`-prefix detection); grouping
 /// keys are lowercased internally and the cue match is case-insensitive.
+/// Parameterize a scaffold template with the story's entity: rewrite each
+/// cohort path's domain directory (the camelCase feature dir) and basename
+/// entity stem so the agent gets the CONCRETE files to create, not just an
+/// example family to reverse-engineer. PR1890 showed agents (and the
+/// dossier recall metric) need the target paths spelled out.
+fn propose_scaffold_paths(cohort: &[String], entity_pascal: &str) -> Vec<String> {
+    if entity_pascal.is_empty() {
+        return Vec::new();
+    }
+    let mut camel = entity_pascal.to_string();
+    if let Some(c) = camel.get_mut(0..1) {
+        c.make_ascii_lowercase();
+    }
+    const ROLE_DIRS: [&str; 8] = [
+        "app_code",
+        "api-v2",
+        "controllers",
+        "services",
+        "datatransferobjects",
+        "queryparams",
+        "interfaces",
+        "site",
+    ];
+    const MARKERS: [&str; 5] = ["Controller", "Service", "Query", "-In", "-Out"];
+    let mut out = Vec::new();
+    for f in cohort {
+        let mut segs: Vec<String> = f.split('/').map(str::to_string).collect();
+        let Some(base) = segs.pop() else { continue };
+        // Replace the feature-domain directory segment.
+        for s in segs.iter_mut() {
+            if !ROLE_DIRS.contains(&s.to_lowercase().as_str())
+                && s.chars().next().is_some_and(|c| c.is_lowercase())
+            {
+                *s = camel.clone();
+            }
+        }
+        // Rewrite the basename's entity stem, keeping the role suffix.
+        let (stem, ext) = base.split_once('.').unwrap_or((base.as_str(), "vb"));
+        let mut new_base = None;
+        for m in MARKERS {
+            if let Some(idx) = stem.find(m) {
+                let prefix = &stem[..idx];
+                let iface = prefix.len() >= 2
+                    && prefix.starts_with('I')
+                    && prefix.chars().nth(1).is_some_and(|c| c.is_uppercase());
+                let plural = m == "Controller" && prefix.ends_with('s');
+                new_base = Some(format!(
+                    "{}{}{}{}.{}",
+                    if iface { "I" } else { "" },
+                    entity_pascal,
+                    if plural { "s" } else { "" },
+                    &stem[idx..],
+                    ext
+                ));
+                break;
+            }
+        }
+        let Some(nb) = new_base else { continue };
+        segs.push(nb);
+        out.push(segs.join("/"));
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
 fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
     let cue = cue.to_lowercase();
     let mut groups: HashMap<(String, String), (HashSet<String>, Vec<String>)> = HashMap::new();
@@ -2783,6 +2887,36 @@ impl Engram {
                     );
                     for f in cohort.iter().take(12) {
                         out.push_str(&format!("- `{f}`\n"));
+                    }
+                    // Spell out the CONCRETE files to create: template rows
+                    // alone made agents reverse-engineer the naming and miss
+                    // pieces (PR1890: 6 new-domain files, 0 proposed).
+                    let entity_pascal: String = concepts
+                        .iter()
+                        .find(|c| c.contains(' '))
+                        .or_else(|| concepts.first())
+                        .map(|c| {
+                            c.split_whitespace()
+                                .map(|w| {
+                                    let mut w = w.to_lowercase();
+                                    if let Some(f) = w.get_mut(0..1) {
+                                        f.make_ascii_uppercase();
+                                    }
+                                    w
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    let proposed = propose_scaffold_paths(&cohort, &entity_pascal);
+                    if !proposed.is_empty() {
+                        out.push_str(&format!(
+                            "Concrete files to CREATE for this story (entity `{entity_pascal}` \
+                             derived from the story — adjust the name if the domain calls it \
+                             something else):\n"
+                        ));
+                        for f in proposed.iter().take(12) {
+                            out.push_str(&format!("- `{f}`\n"));
+                        }
                     }
                     if !reg.is_empty() {
                         out.push_str("Register the new pieces where the codebase wires them up:\n");
