@@ -378,9 +378,7 @@ fn resolve_unique_function(
             .collect();
     }
     if candidates.is_empty() {
-        return Err(format!(
-            "No method found matching FQN '{fqn_query}'. Ensure the project is indexed."
-        ));
+        return Err(method_not_found_message(graph, project_id, fqn_query, None));
     }
     // Prefer exact name / exact metadata-FQN equality over substring hits.
     let exact: Vec<&engram_graph::Node> = candidates
@@ -427,6 +425,101 @@ fn resolve_unique_function(
         ));
     }
     Err(msg)
+}
+
+/// On a lookup miss, rank up to `max` nearest method names so the agent can
+/// self-correct in one step instead of dead-ending on "ensure the project is
+/// indexed" (which is almost never the actual problem — typos and wrong
+/// class prefixes are).
+fn suggest_similar_methods(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    query: &str,
+    file_path: Option<&str>,
+    max: usize,
+) -> Vec<String> {
+    let terminal = query.rsplit('.').next().unwrap_or(query);
+    let terminal_chars: Vec<char> = terminal.chars().collect();
+
+    // Candidate pool: prefer functions in the caller-supplied file (one
+    // scan); otherwise probe with progressively shorter name prefixes.
+    let mut pool: Vec<Node> = Vec::new();
+    if let Some(fp) = file_path {
+        pool = graph
+            .query_nodes(project_id, Some("function"), None, Some(fp), 200)
+            .unwrap_or_default();
+    }
+    if pool.is_empty() && !terminal_chars.is_empty() {
+        let lens = [
+            terminal_chars.len() * 2 / 3,
+            terminal_chars.len() / 2,
+            4usize,
+        ];
+        for len in lens {
+            let len = len.clamp(3, terminal_chars.len());
+            let prefix: String = terminal_chars.iter().take(len).collect();
+            pool = graph
+                .query_nodes(project_id, Some("function"), Some(&prefix), None, 50)
+                .unwrap_or_default();
+            if !pool.is_empty() {
+                break;
+            }
+        }
+    }
+
+    let target = terminal.to_lowercase();
+    let mut scored: Vec<(i64, String)> = pool
+        .iter()
+        .map(|n| {
+            let name = n.name.to_lowercase();
+            let mut score = 0i64;
+            if name == target {
+                score += 1000;
+            }
+            if name.contains(&target) || target.contains(&name) {
+                score += 200;
+            }
+            let common_prefix = name
+                .chars()
+                .zip(target.chars())
+                .take_while(|(a, b)| a == b)
+                .count() as i64;
+            score += common_prefix * 10;
+            score -= (name.chars().count() as i64 - target.chars().count() as i64).abs();
+            (
+                score,
+                format!("{} ({}:{})", fqn_from_node(n), n.file_path, n.start_line),
+            )
+        })
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    scored.dedup_by(|a, b| a.1 == b.1);
+    scored.into_iter().take(max).map(|(_, s)| s).collect()
+}
+
+/// Uniform miss message for method lookups: names the query, offers the
+/// nearest matches, and only then mentions indexing as a possibility.
+fn method_not_found_message(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    query: &str,
+    file_path: Option<&str>,
+) -> String {
+    let suggestions = suggest_similar_methods(graph, project_id, query, file_path, 5);
+    let mut msg = match file_path {
+        Some(fp) => format!("No method '{query}' found in '{fp}'."),
+        None => format!("No method found matching '{query}'."),
+    };
+    if suggestions.is_empty() {
+        msg.push_str(" No similar names found either — check the file path, or ensure the project is indexed (get_index_freshness).");
+    } else {
+        msg.push_str(" Did you mean:\n");
+        for s in &suggestions {
+            msg.push_str(&format!("- {s}\n"));
+        }
+        msg.push_str("Re-call with one of these exact names.");
+    }
+    msg
 }
 
 fn fqn_from_node(node: &Node) -> String {
@@ -1050,13 +1143,21 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         md.push_str("\n```\n\n");
     }
 
-    // Caller bodies
+    // Callers: compact identity lines by default; fenced bodies only when
+    // the caller opted into include_caller_bodies (source_code non-empty).
     if !ctx.caller_bodies.is_empty() {
         md.push_str(&format!(
             "## Callers ({} shown)\n\n",
             ctx.caller_bodies.len()
         ));
         for cb in &ctx.caller_bodies {
+            if cb.source_code.is_empty() {
+                md.push_str(&format!(
+                    "- `{}` — {}:{} — {}\n",
+                    cb.fqn, cb.file_path, cb.line_start, cb.how_it_calls,
+                ));
+                continue;
+            }
             let lang = if cb.file_path.to_lowercase().ends_with(".vb") {
                 "vb"
             } else {
@@ -1073,6 +1174,16 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
                 cb.source_code,
             ));
         }
+        if ctx
+            .caller_bodies
+            .first()
+            .is_some_and(|cb| cb.source_code.is_empty())
+        {
+            md.push_str(
+                "\n(caller bodies omitted — re-call with include_caller_bodies=true to read them)\n",
+            );
+        }
+        md.push('\n');
     }
 
     // VB traps
@@ -1583,13 +1694,46 @@ fn render_sql_validation_markdown(report: &SqlValidationReport) -> String {
 // ── Tool Handlers ────────────────────────────────────────────────────────────
 
 impl Engram {
+    /// Freshness envelope for access-layer responses: optional per-file
+    /// drift banner (file changed on disk AFTER the last index — the graph
+    /// line numbers these tools read bodies by may be shifted) plus the
+    /// standard one-line footer. The wall-clock footer alone cannot catch
+    /// drift caused by the agent's own edits seconds ago.
+    pub(crate) async fn access_freshness(
+        &self,
+        project_id: &str,
+        project_dir: &str,
+        rel_file: Option<&str>,
+    ) -> (Option<String>, String) {
+        let reg = self.state.registry.clone();
+        let pid = project_id.to_string();
+        let last_ms = tokio::task::spawn_blocking(move || {
+            reg.get_meta(&pid, "last_index_completed_ms")
+                .ok()
+                .flatten()
+                .and_then(|s| s.parse::<u64>().ok())
+        })
+        .await
+        .unwrap_or(None);
+        let banner = rel_file.and_then(|rf| {
+            let abs = safe_join(Path::new(project_dir), rf).ok()?;
+            crate::utils::envelope::stale_file_banner(
+                rf,
+                crate::utils::envelope::file_mtime_ms(&abs),
+                last_ms,
+            )
+        });
+        let gen_ = self.get_active_generation(project_id).await.unwrap_or(0);
+        (banner, crate::utils::envelope::footer(gen_, last_ms))
+    }
+
     // ── 38-1: get_method_info ─────────────────────────────────────────────
 
     pub async fn handle_get_method_info(
         &self,
         req: GetMethodInfoRequest,
     ) -> Result<CallToolResult, McpError> {
-        let _rec = self.ensure_project_record(&req.project_id).await?;
+        let rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let fqn_or_name = req.fqn_or_name.clone();
@@ -1611,10 +1755,12 @@ impl Engram {
                 .unwrap_or_default();
 
             if candidates.is_empty() {
-                return Err(
-                    "No methods found matching the query. Ensure the project has been indexed."
-                        .to_string(),
-                );
+                return Err(method_not_found_message(
+                    &graph,
+                    &project_id,
+                    &fqn_or_name,
+                    file_filter.as_deref(),
+                ));
             }
 
             // Build full MethodInfoResult for each match
@@ -1637,12 +1783,24 @@ impl Engram {
         }
 
         if results.len() == 1 {
-            return Ok(CallToolResult::success(vec![Content::text(
-                render_method_info_markdown(&results[0]),
-            )]));
+            let (banner, footer) = self
+                .access_freshness(
+                    &req.project_id,
+                    &rec.directory,
+                    Some(results[0].file_path.as_str()),
+                )
+                .await;
+            let mut out = banner.unwrap_or_default();
+            out.push_str(&render_method_info_markdown(&results[0]));
+            out.push_str(&footer);
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
 
-        // Multiple matches: render summary list + full detail for each
+        // Multiple matches: always render the summary table. Full detail
+        // blocks (~2 KB each, with body previews) only for small result
+        // sets — a bare name like `Page_Load` can match hundreds of
+        // methods, and rendering 500 detail blocks buries the agent.
+        const MAX_DETAILED: usize = 10;
         let mut md = format!("# {} Methods Found\n\n", results.len());
         md.push_str("| # | FQN | File | Lines | Kind | Complexity |\n");
         md.push_str("|---|-----|------|-------|------|------------|\n");
@@ -1660,11 +1818,23 @@ impl Engram {
         }
         md.push('\n');
 
-        for r in &results {
-            md.push_str("---\n\n");
-            md.push_str(&render_method_info_markdown(r));
+        if results.len() <= MAX_DETAILED {
+            for r in &results {
+                md.push_str("---\n\n");
+                md.push_str(&render_method_info_markdown(r));
+            }
+        } else {
+            md.push_str(&format!(
+                "{} matches — detail blocks omitted. Narrow with `file_path` \
+                 or a more specific FQN (e.g. `Class.Method`), then re-call.\n",
+                results.len()
+            ));
         }
 
+        let (_, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, None)
+            .await;
+        md.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(md)]))
     }
 
@@ -1790,9 +1960,17 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            render_method_body_markdown(&body_result),
-        )]))
+        let (banner, footer) = self
+            .access_freshness(
+                &req.project_id,
+                &rec.directory,
+                Some(body_result.file_path.as_str()),
+            )
+            .await;
+        let mut out = banner.unwrap_or_default();
+        out.push_str(&render_method_body_markdown(&body_result));
+        out.push_str(&footer);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     // ── 38-3: get_method_edit_context ─────────────────────────────────────
@@ -1833,10 +2011,40 @@ impl Engram {
             }
 
             if candidates.is_empty() {
-                return Err(format!(
-                    "No method '{}' found in '{}'. Ensure the project is indexed.",
-                    method_name, file_path
+                return Err(method_not_found_message(
+                    &graph,
+                    &project_id,
+                    &method_name,
+                    Some(&file_path),
                 ));
+            }
+
+            // Same-name methods in DIFFERENT classes within this file are a
+            // real ambiguity — describing the wrong one poisons the edit that
+            // follows. Same-class multiples (overloads / partial matches)
+            // keep the historical first-candidate behavior.
+            {
+                let mut namespaces: Vec<&str> =
+                    candidates.iter().map(|n| n.namespace.as_str()).collect();
+                namespaces.sort_unstable();
+                namespaces.dedup();
+                if namespaces.len() > 1 {
+                    let mut msg = format!(
+                        "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
+                        method_name,
+                        namespaces.len(),
+                        file_path
+                    );
+                    for n in candidates.iter().take(10) {
+                        msg.push_str(&format!(
+                            "- {} (lines {}-{})\n",
+                            fqn_from_node(n),
+                            n.start_line,
+                            n.end_line
+                        ));
+                    }
+                    return Err(msg);
+                }
             }
 
             let node = &candidates[0];
@@ -1853,9 +2061,13 @@ impl Engram {
                 None
             };
 
-            // 3. Caller bodies
+            // 3. Callers. Identities (fqn + location) are ALWAYS collected —
+            // an agent must know who calls the method it is about to edit.
+            // Full caller SOURCE is opt-in: with the old always-bodies
+            // behavior a well-connected method returned tens of thousands
+            // of tokens from this one section.
             let mut caller_bodies: Vec<CallerBody> = Vec::new();
-            if include_caller_bodies {
+            {
                 let callers = graph
                     .find_incoming_edges_with_kind(
                         &project_id,
@@ -1867,26 +2079,32 @@ impl Engram {
 
                 for (source_id, _kind, _weight) in callers.iter().take(max_callers) {
                     if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
-                        let Ok(src_full) =
-                            safe_join(Path::new(&project_dir), src_node.file_path.as_str())
-                        else {
-                            continue;
+                        let source_code = if include_caller_bodies {
+                            let Ok(src_full) =
+                                safe_join(Path::new(&project_dir), src_node.file_path.as_str())
+                            else {
+                                continue;
+                            };
+                            match read_lines_from_file(
+                                &src_full,
+                                src_node.start_line,
+                                src_node.end_line,
+                                0,
+                            ) {
+                                Ok((src_body, _)) => src_body,
+                                Err(_) => continue,
+                            }
+                        } else {
+                            String::new()
                         };
-                        if let Ok((src_body, _)) = read_lines_from_file(
-                            &src_full,
-                            src_node.start_line,
-                            src_node.end_line,
-                            0,
-                        ) {
-                            caller_bodies.push(CallerBody {
-                                fqn: fqn_from_node(&src_node),
-                                file_path: src_node.file_path.as_str().to_string(),
-                                line_start: src_node.start_line,
-                                line_end: src_node.end_line,
-                                source_code: src_body,
-                                how_it_calls: format!("Dependency edge → {}", method_name),
-                            });
-                        }
+                        caller_bodies.push(CallerBody {
+                            fqn: fqn_from_node(&src_node),
+                            file_path: src_node.file_path.as_str().to_string(),
+                            line_start: src_node.start_line,
+                            line_end: src_node.end_line,
+                            source_code,
+                            how_it_calls: format!("Dependency edge → {}", method_name),
+                        });
                     }
                 }
             }
@@ -2000,9 +2218,13 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            render_method_edit_context_markdown(&ctx),
-        )]))
+        let (banner, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
+            .await;
+        let mut out = banner.unwrap_or_default();
+        out.push_str(&render_method_edit_context_markdown(&ctx));
+        out.push_str(&footer);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     // ── 38-4: get_page_context ────────────────────────────────────────────

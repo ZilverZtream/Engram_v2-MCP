@@ -112,6 +112,7 @@ async fn test_incremental_indexing() {
         namespace: "memory".into(),
         query: "changed".into(),
         max_results: 5,
+        offset: 0,
         use_mmr: false,
         fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
@@ -120,7 +121,7 @@ async fn test_incremental_indexing() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
 
     let res = engram.search_memory(Parameters(search_req)).await.unwrap();
@@ -136,6 +137,7 @@ semantic: true,
         namespace: "memory".into(),
         query: "function_b".into(),
         max_results: 5,
+        offset: 0,
         use_mmr: false,
         fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
@@ -144,7 +146,7 @@ semantic: true,
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
     let res_b = engram
         .search_memory(Parameters(search_req_b))
@@ -166,6 +168,7 @@ semantic: true,
         namespace: "memory".into(),
         query: "function_c".into(),
         max_results: 5,
+        offset: 0,
         use_mmr: false,
         fts_mode: engram_server::models::FtsMode::Strict,
         include_content: true,
@@ -174,7 +177,7 @@ semantic: true,
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
     let res_c = engram
         .search_memory(Parameters(search_req_c))

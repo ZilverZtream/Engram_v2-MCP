@@ -34,6 +34,40 @@ pub fn footer(generation: u64, last_index_ms: Option<u64>) -> String {
     format!("\n---\n[engram] gen={generation} | {indexed} | stale? call get_index_freshness\n")
 }
 
+/// Prominent per-file drift warning for tools that read source from disk by
+/// GRAPH line numbers (the access layer). The wall-clock footer alone can't
+/// catch this: "indexed 2m ago" looks fine even when the agent edited the
+/// file 10 seconds ago and every line range in the graph is now shifted.
+/// Returns `None` when the file has not changed since the last index (or
+/// when either timestamp is unknown — no false alarms on missing data).
+pub fn stale_file_banner(
+    rel_path: &str,
+    file_mtime_ms: Option<u64>,
+    last_index_ms: Option<u64>,
+) -> Option<String> {
+    let (mtime, indexed) = (file_mtime_ms?, last_index_ms?);
+    if mtime <= indexed {
+        return None;
+    }
+    let now = crate::utils::now_ms();
+    Some(format!(
+        "⚠ STALE FILE: `{rel_path}` was modified {} ago — AFTER the last index ({} ago). \
+         Line numbers and bodies below may be shifted. Run update_project (or wait for \
+         the watcher) before trusting exact line ranges.\n\n",
+        age_str(now.saturating_sub(mtime)),
+        age_str(now.saturating_sub(indexed)),
+    ))
+}
+
+/// Millisecond mtime of a file, when obtainable.
+pub fn file_mtime_ms(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,5 +100,20 @@ mod tests {
     fn footer_without_metadata_is_honest() {
         let f = footer(1, None);
         assert!(f.contains("index age unknown"), "{f}");
+    }
+
+    #[test]
+    fn stale_banner_fires_only_when_file_newer_than_index() {
+        let now = crate::utils::now_ms();
+        // File edited after the index → banner.
+        let b = stale_file_banner("a/b.vb", Some(now - 5_000), Some(now - 60_000));
+        let b = b.expect("must warn when file is newer than index");
+        assert!(b.contains("STALE FILE"), "{b}");
+        assert!(b.contains("a/b.vb"), "{b}");
+        // File older than the index → silent.
+        assert!(stale_file_banner("a/b.vb", Some(now - 60_000), Some(now - 5_000)).is_none());
+        // Unknown timestamps → silent (no false alarms).
+        assert!(stale_file_banner("a/b.vb", None, Some(now)).is_none());
+        assert!(stale_file_banner("a/b.vb", Some(now), None).is_none());
     }
 }

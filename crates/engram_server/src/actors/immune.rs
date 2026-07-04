@@ -84,6 +84,87 @@ pub async fn run_immune_actor(state: AppState, shutdown: CancellationToken) {
     }
 }
 
+/// Log a missing project root at WARN exactly once per process; subsequent
+/// scans of the same dead project stay silent. Registered projects whose
+/// directories were deleted (temp eval worktrees etc.) previously produced
+/// an error line every cycle — 146 MB of log in production.
+fn warn_once_missing_root(project_id: &str, directory: &std::path::Path) {
+    static WARNED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+    let mut warned = match WARNED.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if warned.insert(project_id.to_string()) {
+        tracing::warn!(
+            project = %project_id,
+            directory = %directory.display(),
+            "immune actor: project root no longer exists — skipping this project \
+             (delete it from the registry to silence this warning)"
+        );
+    }
+}
+
+/// Fetch the project's runtime (search engine) from the LRU cache, opening
+/// it lazily on a miss. Callers must only invoke this when they actually
+/// have docs to index — opening tantivy+lancedb is expensive and evicts a
+/// live project from the cache.
+async fn get_or_open_project(
+    state: &AppState,
+    project_id: &str,
+    rec: &engram_core::ProjectRecord,
+) -> anyhow::Result<crate::state::ProjectState> {
+    if let Some(p) = state.get_project_cached(project_id) {
+        return Ok(p);
+    }
+    let tantivy_dir = state
+        .cfg
+        .data_dir
+        .join("projects")
+        .join(project_id)
+        .join("tantivy");
+    let lancedb_dir = state
+        .cfg
+        .data_dir
+        .join("projects")
+        .join(project_id)
+        .join("lancedb");
+    std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
+        anyhow::anyhow!(
+            "ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}",
+            tantivy_dir
+        )
+    })?;
+    std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
+        anyhow::anyhow!(
+            "ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}",
+            lancedb_dir
+        )
+    })?;
+
+    let search = engram_index::HybridSearchEngine::new_with_budget(
+        tantivy_dir.clone(),
+        lancedb_dir.clone(),
+        &state.cfg,
+        Some(state.memory_budget.clone()),
+    )
+    .await?;
+
+    let ps = crate::state::ProjectState {
+        info: crate::state::ProjectInfo {
+            project_id: project_id.to_string(),
+            project_name: rec.project_name.clone(),
+            project_type: rec.project_type.clone(),
+            directory: rec.directory.clone(),
+            tantivy_dir,
+            lancedb_dir,
+        },
+        search: std::sync::Arc::new(search),
+    };
+    state.put_project_cached(ps.clone()).await;
+    Ok(ps)
+}
+
 /// Scan a single project for new revert commits and index anti-patterns.
 async fn scan_project_reverts(
     state: &AppState,
@@ -107,6 +188,16 @@ async fn scan_project_reverts(
 
     let directory = std::path::PathBuf::from(&rec.directory);
 
+    // Projects whose root directory vanished (deleted worktrees, unplugged
+    // drives) used to fail EVERY cycle at git-open — but only after this
+    // function had already opened a full tantivy+lancedb engine and evicted
+    // a live project from the small LRU cache to make room. Check the
+    // cheap thing first and say it once, not every five minutes.
+    if !directory.exists() {
+        warn_once_missing_root(project_id, &directory);
+        return Ok(());
+    }
+
     // Load the watermark — last commit OID we processed for immune scanning.
     let watermark_key = "immune_watermark";
     let pid2 = project_id.to_string();
@@ -125,67 +216,6 @@ async fn scan_project_reverts(
     let stop_oid: Option<git2::Oid> = watermark_str
         .as_deref()
         .and_then(|s| git2::Oid::from_str(s).ok());
-
-    // Get the project's search engine (needed to index anti-pattern docs).
-    let project = {
-        // Try cache first, then open lazily.
-        if let Some(p) = state.get_project_cached(project_id) {
-            p
-        } else {
-            // Open search engine for this project.
-            let tantivy_dir = state
-                .cfg
-                .data_dir
-                .join("projects")
-                .join(project_id)
-                .join("tantivy");
-            let lancedb_dir = state
-                .cfg
-                .data_dir
-                .join("projects")
-                .join(project_id)
-                .join("lancedb");
-            std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
-                anyhow::anyhow!(
-                    "ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}",
-                    tantivy_dir
-                )
-            })?;
-            std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
-                anyhow::anyhow!(
-                    "ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}",
-                    lancedb_dir
-                )
-            })?;
-
-            let search = engram_index::HybridSearchEngine::new_with_budget(
-                tantivy_dir.clone(),
-                lancedb_dir,
-                &state.cfg,
-                Some(state.memory_budget.clone()),
-            )
-            .await?;
-
-            let ps = crate::state::ProjectState {
-                info: crate::state::ProjectInfo {
-                    project_id: project_id.to_string(),
-                    project_name: rec.project_name.clone(),
-                    project_type: rec.project_type.clone(),
-                    directory: rec.directory.clone(),
-                    tantivy_dir,
-                    lancedb_dir: state
-                        .cfg
-                        .data_dir
-                        .join("projects")
-                        .join(project_id)
-                        .join("lancedb"),
-                },
-                search: std::sync::Arc::new(search),
-            };
-            state.put_project_cached(ps.clone()).await;
-            ps
-        }
-    };
 
     // Everything from here is CPU-bound git I/O — run in spawn_blocking.
     //
@@ -220,84 +250,92 @@ async fn scan_project_reverts(
         return Ok(());
     }
 
-    tracing::info!(
-        project = %project_id,
-        count = anti_patterns.len(),
-        "ImmuneActor: indexing anti-pattern documents from reverts"
-    );
-
-    // Determine current generation.
-    let active_gen: u64 = {
-        let reg3 = state.registry.clone();
-        let pid4 = project_id.to_string();
-        tokio::task::spawn_blocking(move || {
-            reg3.get_meta(&pid4, "active_generation")
-                .ok()
-                .flatten()
-                .and_then(|s| s.parse::<u64>().ok())
-                .unwrap_or(1)
-        })
-        .await
-        .unwrap_or(1)
-    };
-
-    let namespace = engram_core::namespaces::NAMESPACE_ANTIPATTERN;
-    let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
-        if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
-            0
-        } else {
-            active_gen
-        }
-    } else {
-        active_gen
-    };
-
-    // CANCEL2: use the outer shutdown token so index_docs is preemptible on process shutdown.
-    // A fresh CancellationToken::new() would never be cancelled, leaving this await
-    // unresponsive during shutdown (same bug pattern fixed in scan_reverts_blocking).
-    let cancel = shutdown.clone();
-    let mut docs: Vec<IndexDoc> = Vec::new();
-
-    for ap in &anti_patterns {
-        let content = format!(
-            "# Anti-pattern from reverted commit {}\n\nFile: {}\n\n```diff\n{}\n```",
-            ap.original_commit,
-            ap.file_path.as_str(),
-            ap.diff_text,
+    // Open (or fetch from cache) the project's search engine ONLY when there
+    // is something to index. Quiet projects — the overwhelming majority of
+    // every scan cycle — never touch tantivy/lancedb and never evict a live
+    // project from the LRU cache.
+    if !anti_patterns.is_empty() {
+        tracing::info!(
+            project = %project_id,
+            count = anti_patterns.len(),
+            "ImmuneActor: indexing anti-pattern documents from reverts"
         );
 
-        let content_hash = ContentHash::compute(content.as_bytes());
-        let synthetic_path = format!(
-            "__antipatterns/{}/{}.diff",
-            ap.original_commit,
-            ap.file_path.as_str().replace('/', "_")
-        );
-        let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &content_hash);
-        let chunk_id = {
-            let h = blake3::hash(content_hash.0.as_bytes());
-            let mut b = [0u8; 8];
-            b.copy_from_slice(&h.as_bytes()[..8]);
-            u64::from_le_bytes(b)
+        let project = get_or_open_project(state, project_id, &rec).await?;
+
+        // Determine current generation.
+        let active_gen: u64 = {
+            let reg3 = state.registry.clone();
+            let pid4 = project_id.to_string();
+            tokio::task::spawn_blocking(move || {
+                reg3.get_meta(&pid4, "active_generation")
+                    .ok()
+                    .flatten()
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(1)
+            })
+            .await
+            .unwrap_or(1)
         };
 
-        docs.push(IndexDoc {
-            generation: effective_gen,
-            chunk_id,
-            path: RelPath::new(&synthetic_path),
-            language: "diff".into(),
-            content,
-            namespace: namespace.into(),
-            author: None,
-            timestamp: None,
-            start_line: 0,
-            end_line: 0,
-            doc_id: doc_id.0,
-            content_hash: content_hash.0,
-        });
-    }
+        let namespace = engram_core::namespaces::NAMESPACE_ANTIPATTERN;
+        let effective_gen = if let Ok(policy) = engram_core::get_policy(namespace) {
+            if policy.versioning == engram_core::NamespaceVersioning::GlobalMutable {
+                0
+            } else {
+                active_gen
+            }
+        } else {
+            active_gen
+        };
 
-    // Index all anti-pattern docs in one batch.
-    project.search.index_docs(&pid3, &docs, &cancel).await?;
+        // CANCEL2: use the outer shutdown token so index_docs is preemptible on process shutdown.
+        // A fresh CancellationToken::new() would never be cancelled, leaving this await
+        // unresponsive during shutdown (same bug pattern fixed in scan_reverts_blocking).
+        let cancel = shutdown.clone();
+        let mut docs: Vec<IndexDoc> = Vec::new();
+
+        for ap in &anti_patterns {
+            let content = format!(
+                "# Anti-pattern from reverted commit {}\n\nFile: {}\n\n```diff\n{}\n```",
+                ap.original_commit,
+                ap.file_path.as_str(),
+                ap.diff_text,
+            );
+
+            let content_hash = ContentHash::compute(content.as_bytes());
+            let synthetic_path = format!(
+                "__antipatterns/{}/{}.diff",
+                ap.original_commit,
+                ap.file_path.as_str().replace('/', "_")
+            );
+            let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &content_hash);
+            let chunk_id = {
+                let h = blake3::hash(content_hash.0.as_bytes());
+                let mut b = [0u8; 8];
+                b.copy_from_slice(&h.as_bytes()[..8]);
+                u64::from_le_bytes(b)
+            };
+
+            docs.push(IndexDoc {
+                generation: effective_gen,
+                chunk_id,
+                path: RelPath::new(&synthetic_path),
+                language: "diff".into(),
+                content,
+                namespace: namespace.into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+                doc_id: doc_id.0,
+                content_hash: content_hash.0,
+            });
+        }
+
+        // Index all anti-pattern docs in one batch.
+        project.search.index_docs(&pid3, &docs, &cancel).await?;
+    }
 
     // Always advance the watermark to the exact terminal OID scanned.
     // Using the first anti-pattern's commit as watermark was an approximation (ENG-AUD-S1-0003).

@@ -5,6 +5,7 @@ pub mod actors;
 pub mod capabilities;
 pub mod error;
 pub mod handlers;
+pub mod logging;
 pub mod models;
 pub mod multi_client;
 pub mod services;

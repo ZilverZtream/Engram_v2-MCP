@@ -21,6 +21,15 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
 
     let mut interval = tokio::time::interval(tick);
 
+    // Projects with activity (search sessions, watch updates) since the
+    // last idle dream pass. Dreaming consolidates recent activity into
+    // insights — a project with no new events has nothing new to
+    // consolidate. The previous behavior (dream EVERY registered project
+    // every idle window) opened a tantivy+lancedb engine per project
+    // through the small LRU cache, producing a permanent eviction storm
+    // on registries with more projects than cache slots.
+    let mut dirty_projects: std::collections::HashSet<String> = std::collections::HashSet::new();
+
     loop {
         tokio::select! {
             _ = shutdown.cancelled() => {
@@ -28,33 +37,14 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                 return;
             }
             _ = interval.tick() => {
-                if last_event.elapsed() >= idle_after {
+                if last_event.elapsed() >= idle_after && !dirty_projects.is_empty() {
                     // Skip dreaming if system is busy indexing.
                     if state.active_indexing_count.load(std::sync::atomic::Ordering::Relaxed) > 0 {
                         continue;
                     }
 
-                    // Dream over all registered projects (not just those currently in cache).
-                    let registry = state.registry.clone();
-                    let project_ids: Vec<String> = match tokio::task::spawn_blocking(move || {
-                        registry.list_projects().map(|v| v.into_iter().map(|p| p.project_id).collect::<Vec<_>>())
-                    }).await {
-                        Err(e) => {
-                            tracing::error!(
-                                "ENG-AUD-S1-0002: dreamer: spawn_blocking panicked listing projects: {e}; skipping dream cycle"
-                            );
-                            continue;
-                        }
-                        Ok(Err(e)) => {
-                            tracing::warn!(
-                                "ENG-AUD-S1-0002: dreamer: registry list_projects failed: {e}; skipping dream cycle"
-                            );
-                            continue;
-                        }
-                        Ok(Ok(v)) => v,
-                    };
-
-                    for pid in project_ids {
+                    let batch: Vec<String> = dirty_projects.drain().collect();
+                    for pid in batch {
                         // CANCEL1: check shutdown token at each project iteration so
                         // a long project list can be preempted cooperatively rather
                         // than running to completion during process shutdown.
@@ -79,13 +69,16 @@ pub async fn run_dreamer(state: AppState, mut rx: Receiver<AppEvent>, shutdown: 
                                 if let Err(e) = record_cooccurrence(&state, &project_id, &hits).await {
                                     tracing::debug!("cooccurrence error: {e:#}");
                                 }
+                                dirty_projects.insert(project_id);
                             }
                             AppEvent::TriggerDream { project_id } => {
                                 if let Err(e) = dream_once(&state, &project_id, min_edge_weight, min_cluster_size, max_clusters).await {
                                     tracing::debug!("manual dream error: {e:#}");
                                 }
                             }
-                            AppEvent::WatchUpdate { .. } => {}
+                            AppEvent::WatchUpdate { ref project_id, .. } => {
+                                dirty_projects.insert(project_id.clone());
+                            }
                             AppEvent::FullReindexRequired { project_id } => {
                                 tracing::error!(
                                     project_id = %project_id,

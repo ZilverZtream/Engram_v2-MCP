@@ -250,6 +250,30 @@ pub struct Config {
     #[serde(default)]
     pub multi_client_socket_path: Option<String>,
 
+    /// Run the multi-client primary as a DETACHED daemon process instead
+    /// of in-process inside the first client. The daemon survives the
+    /// spawning session's exit, so closing the first Claude Code window
+    /// no longer severs every other window's proxy. When `false` (or when
+    /// spawning the daemon fails), the first client becomes the primary
+    /// in-process — the pre-daemon behavior.
+    #[serde(default = "default_multi_client_daemon")]
+    pub multi_client_daemon: bool,
+
+    /// How long (seconds) a client waits for the daemon's IPC endpoint to
+    /// accept before giving up. Covers slow AppState startup on very large
+    /// stores. Default 120.
+    #[serde(default = "default_multi_client_connect_timeout_secs")]
+    pub multi_client_connect_timeout_secs: u64,
+
+    /// Append tracing output to this file (in addition to stderr). The file
+    /// is opened with OS-level shared read/write so several engram processes
+    /// (daemon + proxies) can append to the same log concurrently — unlike a
+    /// shell `2>>` redirect, which on Windows takes an exclusive handle and
+    /// makes every second MCP session fail to launch. Rotated at startup when
+    /// larger than 64 MB. `ENGRAM_LOG_FILE` overrides.
+    #[serde(default)]
+    pub log_file: Option<PathBuf>,
+
     // --- ADP vNext ---
     /// Default evidence depth: "fast", "standard", or "deep". Default: "standard".
     #[serde(default = "default_adp_evidence_depth")]
@@ -434,6 +458,14 @@ fn default_multi_client_idle_secs() -> u64 {
     300
 }
 
+fn default_multi_client_daemon() -> bool {
+    true
+}
+
+fn default_multi_client_connect_timeout_secs() -> u64 {
+    120
+}
+
 /// TODO-38: multi-client is the default now that the named-pipe (Windows)
 /// and Unix-socket transports both work. A lone client just becomes the
 /// primary serving its own stdio; extra CLI windows proxy to it instead of
@@ -535,6 +567,9 @@ impl Default for Config {
             multi_client: true,
             multi_client_idle_timeout_secs: default_multi_client_idle_secs(),
             multi_client_socket_path: None,
+            multi_client_daemon: true,
+            multi_client_connect_timeout_secs: default_multi_client_connect_timeout_secs(),
+            log_file: None,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),
