@@ -791,6 +791,61 @@ impl GraphStore {
         Ok(out)
     }
 
+    /// All STRUCTURAL edges touching `node_id` (either direction), with full
+    /// metadata, in O(degree) instead of O(all edges).
+    ///
+    /// The previous consumers of this question ran `list_structural_edges`
+    /// (a full multi-kind table scan deserializing every edge in the
+    /// project) and filtered — the dominant cost of compute_blast_radius on
+    /// large graphs, paid by check_edit_safety, the migration dossier, and
+    /// up to 20× per pre_commit_review. Outgoing edges come from an EDGES
+    /// prefix seek per kind (key layout `project\0kind\0source\0target`);
+    /// incoming edges resolve via ADJ_IN then point-lookups into EDGES.
+    /// TemporalCoupling/CoOccurrence are skipped to match
+    /// `list_structural_edges` semantics.
+    pub fn edges_touching(
+        &self,
+        project_id: &str,
+        node_id: &str,
+        per_direction_limit: usize,
+    ) -> anyhow::Result<Vec<Edge>> {
+        let rtx = self.db.begin_read()?;
+        let et = rtx.open_table(EDGES)?;
+        let mut out: Vec<Edge> = Vec::new();
+
+        // Outgoing: prefix seek per structural kind.
+        for kind in EdgeKind::ALL {
+            if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
+                continue;
+            }
+            let prefix = format!("{project_id}\0{}\0{node_id}\0", kind.as_str());
+            for r in et.range(prefix.as_str()..)? {
+                let (k, v) = r?;
+                if !k.value().starts_with(&prefix) {
+                    break;
+                }
+                out.push(bincode::deserialize(v.value())?);
+                if out.len() >= per_direction_limit {
+                    break;
+                }
+            }
+        }
+
+        // Incoming: ADJ_IN gives (source, kind); point-lookup the edge row.
+        let incoming =
+            self.find_incoming_edges_with_kind(project_id, None, node_id, per_direction_limit)?;
+        for (source_id, kind, _w) in incoming {
+            if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
+                continue;
+            }
+            let key = edge_key(project_id, &kind, &source_id, node_id);
+            if let Some(v) = et.get(key.as_str())? {
+                out.push(bincode::deserialize(v.value())?);
+            }
+        }
+        Ok(out)
+    }
+
     /// Get weighted incoming neighbors for `target_id`.
     pub fn find_incoming_edges(
         &self,
