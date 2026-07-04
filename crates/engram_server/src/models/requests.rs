@@ -768,12 +768,22 @@ pub struct SearchMemoryRequest {
     pub namespace: String,
     #[serde(default = "default_top_k")]
     pub max_results: usize,
+    /// Skip this many ranked results before returning `max_results` —
+    /// page 2 is `offset: 10`. Ranking is deterministic for a fixed
+    /// index generation, so pages don't overlap. Default: 0.
+    #[serde(default)]
+    pub offset: usize,
     #[serde(default = "default_true")]
     pub use_mmr: bool,
     /// Full-text search mode. Default: "strict".
     #[serde(default)]
     pub fts_mode: FtsMode,
-    #[serde(default = "default_true")]
+    /// Include chunk content bodies (up to `max_content_chars_per_result`
+    /// each) in every hit. Default: false — hits carry a 500-char snippet
+    /// already; fetch full source for the hits that matter via
+    /// `get_chunk(doc_id)`. Setting this true on a default 10-result
+    /// search adds ~3K tokens per call.
+    #[serde(default)]
     pub include_content: bool,
     #[serde(default = "default_max_content_chars")]
     pub max_content_chars_per_result: usize,
@@ -1441,6 +1451,14 @@ impl SearchMemoryRequest {
         self.max_results.clamp(1, MAX_SEARCH_RESULTS)
     }
 
+    /// Clamp `offset` so `offset + max_results` never exceeds the engine's
+    /// hard result cap — pages past the cap return empty rather than
+    /// re-ranking the world.
+    pub fn sanitized_offset(&self) -> usize {
+        self.offset
+            .min(MAX_SEARCH_RESULTS.saturating_sub(self.sanitized_max_results()))
+    }
+
     pub fn sanitized_max_content_chars_per_result(&self) -> usize {
         self.max_content_chars_per_result
             .clamp(1, MAX_CONTENT_CHARS_PER_RESULT)
@@ -1454,9 +1472,10 @@ impl Default for SearchMemoryRequest {
             project_id: String::new(),
             namespace: default_namespace_memory(),
             max_results: default_top_k(),
+            offset: 0,
             use_mmr: true,
             fts_mode: FtsMode::default(),
-            include_content: true,
+            include_content: false,
             max_content_chars_per_result: default_max_content_chars(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
@@ -2509,8 +2528,13 @@ pub struct GetFullMethodBodyRequest {
     pub output_json: bool,
 }
 
-fn default_max_callers_50() -> usize {
-    50
+/// Token-economy default for the pre-edit oracle: 3 callers, signatures
+/// only. `get_method_edit_context` is the tool agents are told to call
+/// before EVERY method edit; with the old defaults (50 callers, full
+/// bodies) a well-connected method returned tens of thousands of tokens
+/// per call. Agents that genuinely need caller bodies opt in explicitly.
+fn default_max_callers_3() -> usize {
+    3
 }
 
 /// "Everything I need before touching a method" — assembles method info, full body,
@@ -2530,11 +2554,14 @@ pub struct GetMethodEditContextRequest {
     /// Include the complete, untruncated method body. Default: true.
     #[serde(default = "default_true")]
     pub include_full_body: bool,
-    /// Include full bodies of the top N callers. Default: true.
-    #[serde(default = "default_true")]
+    /// Include full bodies of the top N callers. Default: false —
+    /// callers are listed as signature + file:line; set true only when
+    /// you need to read caller implementations (large output).
+    #[serde(default)]
     pub include_caller_bodies: bool,
-    /// Maximum callers to include. Default: 50.
-    #[serde(default = "default_max_callers_50")]
+    /// Maximum callers to include. Default: 3. Raise deliberately when
+    /// auditing a hot method's full fan-in.
+    #[serde(default = "default_max_callers_3")]
     pub max_callers: usize,
     /// Include business logic analysis from DocStore. Default: true.
     #[serde(default = "default_true")]

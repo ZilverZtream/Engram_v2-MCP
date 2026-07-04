@@ -333,7 +333,7 @@ impl Engram {
     // ---- Search + chunks ----
 
     #[tool(
-        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and content/snippet. Set semantic=false for exact-identifier lookups (faster, BM25-only). For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
+        description = "Hybrid lexical+vector search over indexed code/docs. Hits carry path, line range, doc_id, covering symbols (node_ids), and a 500-char snippet (include_content=true for full bodies). Page with offset. Set semantic=false for exact-identifier lookups (faster, BM25-only). For literal/regex matching prefer grep_project; for full chunk text use get_chunk."
     )]
     pub async fn search_memory(
         &self,
@@ -1291,7 +1291,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-edit oracle: assembles method info, full body, all callers, database footprint, session state flows, VB traps, sync hazards, blast radius, and business logic into one response. Call this BEFORE modifying any method."
+        description = "Pre-edit oracle: assembles method info, full body, top callers (signatures; include_caller_bodies=true for source), database footprint, session state flows, VB traps, sync hazards, blast radius, and edit-safety verdict in one response. Call this BEFORE modifying any method."
     )]
     pub async fn get_method_edit_context(
         &self,

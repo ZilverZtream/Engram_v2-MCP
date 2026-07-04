@@ -62,13 +62,18 @@ pub struct LockMetadata {
     pub started_at_ms: u64,
     pub protocol_version: u32,
     pub socket_path: String,
+    /// Crate version of the primary's binary. Informational: proxies WARN
+    /// (never refuse) on mismatch so a stale daemon left over from before a
+    /// redeploy is visible in the logs. Empty when the primary predates this
+    /// field.
+    pub version: String,
 }
 
 impl LockMetadata {
     fn serialise(&self) -> String {
         format!(
-            "pid={}\nstarted_at_ms={}\nprotocol_version={}\nsocket={}\n",
-            self.pid, self.started_at_ms, self.protocol_version, self.socket_path
+            "pid={}\nstarted_at_ms={}\nprotocol_version={}\nsocket={}\nversion={}\n",
+            self.pid, self.started_at_ms, self.protocol_version, self.socket_path, self.version
         )
     }
 
@@ -77,6 +82,7 @@ impl LockMetadata {
         let mut started_at_ms = None;
         let mut protocol_version = None;
         let mut socket_path = None;
+        let mut version = String::new();
         for line in text.lines() {
             let Some((k, v)) = line.split_once('=') else {
                 continue;
@@ -86,6 +92,7 @@ impl LockMetadata {
                 "started_at_ms" => started_at_ms = v.trim().parse().ok(),
                 "protocol_version" => protocol_version = v.trim().parse().ok(),
                 "socket" => socket_path = Some(v.trim().to_string()),
+                "version" => version = v.trim().to_string(),
                 _ => {}
             }
         }
@@ -94,6 +101,7 @@ impl LockMetadata {
             started_at_ms: started_at_ms?,
             protocol_version: protocol_version?,
             socket_path: socket_path?,
+            version,
         })
     }
 }
@@ -257,39 +265,284 @@ pub enum Role {
     Proxy,
 }
 
-/// Top-level multi-client entry point. Called from `main.rs` when
-/// `cfg.multi_client` is true. Returns when the current process should
-/// exit (either gracefully or because the MCP session closed).
-///
-/// When `cfg.multi_client` is `false`, `main.rs` continues to use the
-/// legacy single-client code path — this function is not called at
-/// all and the module imposes zero overhead.
-pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
-    let data_dir = cfg.data_dir.clone();
-    // `data_dir` must exist before we try to put a lock file in it.
-    std::fs::create_dir_all(&data_dir)?;
-    let lock_path = derive_lock_path(&data_dir);
-    let socket_path = match &cfg.multi_client_socket_path {
+/// Resolve the IPC endpoint path for a config: explicit override wins,
+/// otherwise derive from `data_dir` (named pipe on Windows, Unix socket
+/// elsewhere).
+pub fn resolve_socket_path(cfg: &Config) -> PathBuf {
+    match &cfg.multi_client_socket_path {
         Some(custom) => PathBuf::from(custom),
         None => {
-            // TODO-38: on Windows the IPC channel is a named pipe, not a
+            // On Windows the IPC channel is a named pipe, not a
             // filesystem socket. Carry its name through the same
             // socket_path field (metadata + listener + proxy all read it).
             #[cfg(windows)]
             {
-                PathBuf::from(derive_pipe_name(&data_dir))
+                PathBuf::from(derive_pipe_name(&cfg.data_dir))
             }
             #[cfg(not(windows))]
             {
-                derive_socket_path(&data_dir)
+                derive_socket_path(&cfg.data_dir)
             }
         }
-    };
+    }
+}
 
+/// Top-level multi-client entry point. Called from `main.rs` when
+/// `cfg.multi_client` is true. Returns when the current process should
+/// exit (either gracefully or because the MCP session closed).
+///
+/// Default flow (`multi_client_daemon: true`): this process NEVER opens
+/// storage. It connects to the shared detached daemon (spawning one if
+/// none is listening) and proxies its stdio over local IPC. The daemon
+/// outlives any individual MCP session, so closing the first Claude Code
+/// window no longer severs every other window's Engram connection.
+///
+/// Fallback flow (`multi_client_daemon: false`, or the daemon binary
+/// cannot be spawned): the pre-daemon behavior — lock election, winner
+/// becomes an in-process primary, losers proxy to it.
+pub async fn dispatch(cfg: Config) -> anyhow::Result<()> {
+    let data_dir = cfg.data_dir.clone();
+    // `data_dir` must exist before we try to put a lock file in it.
+    std::fs::create_dir_all(&data_dir)?;
+    let socket_path = resolve_socket_path(&cfg);
     let metadata_path = derive_metadata_path(&data_dir);
+
+    if cfg.multi_client_daemon {
+        match run_client(&cfg, &metadata_path, &socket_path).await {
+            ClientOutcome::Served(result) => return result,
+            ClientOutcome::SpawnUnavailable(e) => {
+                tracing::warn!(
+                    "could not spawn detached daemon ({e:#}); \
+                     falling back to in-process primary election"
+                );
+            }
+        }
+    }
+
+    let lock_path = derive_lock_path(&data_dir);
     match LockHandle::try_acquire(&lock_path)? {
         Some(handle) => run_primary(cfg, handle, metadata_path, socket_path).await,
         None => run_proxy(metadata_path, socket_path).await,
+    }
+}
+
+/// What happened when this process tried to act as a thin client of the
+/// shared daemon.
+enum ClientOutcome {
+    /// A session ran (successfully or not) — the process is done.
+    Served(anyhow::Result<()>),
+    /// The daemon could not even be spawned — caller should fall back to
+    /// in-process primary election so the user still gets a working server.
+    SpawnUnavailable(anyhow::Error),
+}
+
+/// Warn (once) when the daemon we connected to was built from a different
+/// crate version than this client — a stale daemon lingering after a
+/// redeploy keeps serving old behavior until it idle-exits or is killed.
+fn warn_on_version_mismatch(meta: &LockMetadata) {
+    use std::sync::atomic::AtomicBool;
+    static WARNED: AtomicBool = AtomicBool::new(false);
+    let mine = env!("CARGO_PKG_VERSION");
+    if !meta.version.is_empty() && meta.version != mine && !WARNED.swap(true, Ordering::Relaxed) {
+        tracing::warn!(
+            daemon_pid = meta.pid,
+            daemon_version = %meta.version,
+            client_version = %mine,
+            "connected to a daemon built from a different engram version — \
+             kill the daemon process (or wait for its idle exit) to pick up the new binary"
+        );
+    }
+}
+
+/// Client mode: connect to the shared daemon's IPC endpoint, spawning the
+/// daemon (detached) if nothing is listening, then forward stdio bytes.
+async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> ClientOutcome {
+    let timeout = std::time::Duration::from_secs(cfg.multi_client_connect_timeout_secs.max(5));
+    let deadline = std::time::Instant::now() + timeout;
+    let mut spawned = false;
+    loop {
+        // Prefer the endpoint advertised by the live primary's metadata —
+        // it covers custom socket paths and is written before the slow
+        // AppState init, so it appears early in the daemon's startup.
+        let effective = match read_primary_metadata(metadata_path) {
+            Ok(meta) => {
+                warn_on_version_mismatch(&meta);
+                if meta.socket_path.is_empty() {
+                    socket_path.to_path_buf()
+                } else {
+                    PathBuf::from(&meta.socket_path)
+                }
+            }
+            Err(_) => socket_path.to_path_buf(),
+        };
+
+        #[cfg(windows)]
+        {
+            use tokio::net::windows::named_pipe::ClientOptions;
+            let pipe_name = effective.to_string_lossy().into_owned();
+            match ClientOptions::new().open(&pipe_name) {
+                Ok(client) => {
+                    tracing::info!(
+                        pipe = %pipe_name,
+                        "engram_server: connected to shared daemon"
+                    );
+                    return ClientOutcome::Served(forward_stdio_to_pipe(client).await);
+                }
+                // ERROR_PIPE_BUSY (231): a listener exists but all pipe
+                // instances are momentarily taken — retry, never spawn.
+                Err(e) if e.raw_os_error() == Some(231) => {}
+                // ERROR_FILE_NOT_FOUND (2): nobody is listening (no daemon
+                // yet, or one is mid-startup before the listener binds).
+                Err(e) if e.raw_os_error() == Some(2) => {
+                    if !spawned {
+                        if let Err(spawn_err) = spawn_daemon_detached() {
+                            return ClientOutcome::SpawnUnavailable(spawn_err);
+                        }
+                        spawned = true;
+                    }
+                }
+                Err(e) => return ClientOutcome::Served(Err(e.into())),
+            }
+        }
+        #[cfg(unix)]
+        {
+            match tokio::net::UnixStream::connect(&effective).await {
+                Ok(sock) => {
+                    tracing::info!(
+                        socket = %effective.display(),
+                        "engram_server: connected to shared daemon"
+                    );
+                    return ClientOutcome::Served(forward_stdio_to_socket(sock).await);
+                }
+                Err(e) if is_missing_or_refused(&e) => {
+                    // A refused connect on a leftover socket file from a
+                    // crashed daemon blocks rebinding — clear it before the
+                    // daemon we spawn tries to listen.
+                    if e.kind() == std::io::ErrorKind::ConnectionRefused {
+                        let _ = std::fs::remove_file(&effective);
+                    }
+                    if !spawned {
+                        if let Err(spawn_err) = spawn_daemon_detached() {
+                            return ClientOutcome::SpawnUnavailable(spawn_err);
+                        }
+                        spawned = true;
+                    }
+                }
+                Err(e) => return ClientOutcome::Served(Err(e.into())),
+            }
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            let _ = (effective, &mut spawned);
+            return ClientOutcome::Served(Err(anyhow::anyhow!(
+                "multi-client daemon mode is unsupported on this platform; \
+                 set `multi_client_daemon: false` in engram_mcp.yaml"
+            )));
+        }
+
+        if std::time::Instant::now() >= deadline {
+            return ClientOutcome::Served(Err(anyhow::anyhow!(
+                "engram_server: no daemon accepted a connection on {} within {}s. \
+                 On very large stores the daemon's startup can exceed this — raise \
+                 `multi_client_connect_timeout_secs` in engram_mcp.yaml. If the \
+                 problem persists, check the daemon log (`log_file`, default \
+                 <data_dir>/engram-daemon.log) and restart your MCP client.",
+                effective.display(),
+                timeout.as_secs()
+            )));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    }
+}
+
+/// Spawn the shared daemon so that it survives this client's exit.
+///
+/// Windows: spawn a short-lived `--daemon-launcher` intermediary which
+/// spawns the real `--daemon` process DETACHED and exits immediately.
+/// The extra hop breaks the parent chain, so a host-side tree-kill of
+/// this client (taskkill /T) cannot reach the daemon.
+///
+/// Unix: spawn `--daemon` directly into its own process group; group
+/// signals aimed at the client can't touch it, and it reparents to init
+/// when this process dies.
+fn spawn_daemon_detached() -> anyhow::Result<()> {
+    let exe = std::env::current_exe()
+        .map_err(|e| anyhow::anyhow!("cannot resolve current executable: {e}"))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        cmd.arg("--daemon-launcher");
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        cmd.arg("--daemon");
+        cmd.process_group(0);
+    }
+    cmd.spawn()
+        .map_err(|e| anyhow::anyhow!("failed to spawn engram daemon: {e}"))?;
+    Ok(())
+}
+
+/// `--daemon-launcher` entry point: spawn the real daemon fully detached
+/// and exit. Runs synchronously — this process lives for milliseconds.
+pub fn run_daemon_launcher() -> anyhow::Result<()> {
+    let exe = std::env::current_exe()
+        .map_err(|e| anyhow::anyhow!("cannot resolve current executable: {e}"))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("--daemon")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+        cmd.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        cmd.process_group(0);
+    }
+    cmd.spawn()
+        .map_err(|e| anyhow::anyhow!("launcher failed to spawn daemon: {e}"))?;
+    Ok(())
+}
+
+/// `--daemon` entry point: become the shared primary if the lock is free,
+/// otherwise exit quietly (another daemon won a startup race). Serves IPC
+/// sessions only — no stdio session — and exits after
+/// `multi_client_idle_timeout_secs` with zero connected clients.
+pub async fn run_daemon(cfg: Config) -> anyhow::Result<()> {
+    let data_dir = cfg.data_dir.clone();
+    std::fs::create_dir_all(&data_dir)?;
+    let lock_path = derive_lock_path(&data_dir);
+    let socket_path = resolve_socket_path(&cfg);
+    let metadata_path = derive_metadata_path(&data_dir);
+    match LockHandle::try_acquire(&lock_path)? {
+        Some(handle) => {
+            tracing::info!(
+                pid = std::process::id(),
+                version = env!("CARGO_PKG_VERSION"),
+                "engram_server: daemon starting (won primary lock)"
+            );
+            run_primary_core(cfg, handle, metadata_path, socket_path, false).await
+        }
+        None => {
+            tracing::info!(
+                "engram_server: daemon exiting — another primary already holds the lock"
+            );
+            Ok(())
+        }
     }
 }
 
@@ -307,11 +560,23 @@ struct PrimaryState {
     shutdown: tokio_util::sync::CancellationToken,
 }
 
+/// Legacy in-process primary: serves its own stdio session AND the IPC
+/// listener. Used when daemon spawning is disabled or unavailable.
 async fn run_primary(
     cfg: Config,
     lock_handle: LockHandle,
     metadata_path: PathBuf,
     socket_path: PathBuf,
+) -> anyhow::Result<()> {
+    run_primary_core(cfg, lock_handle, metadata_path, socket_path, true).await
+}
+
+async fn run_primary_core(
+    cfg: Config,
+    lock_handle: LockHandle,
+    metadata_path: PathBuf,
+    socket_path: PathBuf,
+    serve_stdio: bool,
 ) -> anyhow::Result<()> {
     // Write primary metadata into the sibling metadata file so
     // proxies can find us without fighting the OS-level lock.
@@ -323,6 +588,7 @@ async fn run_primary(
             .unwrap_or(0),
         protocol_version: PROTOCOL_VERSION,
         socket_path: socket_path.to_string_lossy().into_owned(),
+        version: env!("CARGO_PKG_VERSION").to_string(),
     };
     write_primary_metadata(&metadata_path, &meta)?;
 
@@ -414,12 +680,19 @@ async fn run_primary(
         });
     }
 
-    // Serve the stdio session for THIS process's own MCP client.
-    // Counted as an active session so the watchdog doesn't kill us
-    // while the caller is mid-request.
-    ps.active_sessions.fetch_add(1, Ordering::SeqCst);
-    let stdio_result = crate::tools::run_stdio(state.clone()).await;
-    ps.active_sessions.fetch_sub(1, Ordering::SeqCst);
+    // Serve the stdio session for THIS process's own MCP client (legacy
+    // in-process primary only). Counted as an active session so the
+    // watchdog doesn't kill us while the caller is mid-request. A daemon
+    // has no MCP client of its own — it serves IPC sessions exclusively
+    // and lives by the idle watchdog alone.
+    let stdio_result = if serve_stdio {
+        ps.active_sessions.fetch_add(1, Ordering::SeqCst);
+        let r = crate::tools::run_stdio(state.clone()).await;
+        ps.active_sessions.fetch_sub(1, Ordering::SeqCst);
+        r
+    } else {
+        Ok(())
+    };
 
     // Wait until shutdown is actually signalled — either the idle
     // watchdog fires (active_sessions stayed 0 long enough) or a
@@ -968,6 +1241,7 @@ mod tests {
             started_at_ms: 1713200000000,
             protocol_version: PROTOCOL_VERSION,
             socket_path: "/tmp/engram-abc.sock".into(),
+            version: "9.9.9".into(),
         };
         let text = m.serialise();
         let parsed = LockMetadata::parse(&text).expect("must parse");
@@ -1021,6 +1295,7 @@ mod tests {
             started_at_ms: 42,
             protocol_version: PROTOCOL_VERSION,
             socket_path: "/tmp/s.sock".into(),
+            version: String::new(),
         };
         write_primary_metadata(&meta_path, &meta).unwrap();
         // Metadata is readable by a "proxy" even while the primary
@@ -1045,6 +1320,7 @@ mod tests {
             started_at_ms: 2,
             protocol_version: PROTOCOL_VERSION,
             socket_path: "x".into(),
+            version: String::new(),
         };
         write_primary_metadata(&meta_path, &meta).unwrap();
         // Simulating a proxy — try to read while the lock is held.
@@ -1122,6 +1398,7 @@ mod tests {
                     started_at_ms: 2,
                     protocol_version: PROTOCOL_VERSION,
                     socket_path: "/x".into(),
+                    version: String::new(),
                 },
             )
             .unwrap();

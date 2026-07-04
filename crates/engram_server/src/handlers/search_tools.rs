@@ -145,12 +145,15 @@ impl Engram {
         //    you just need to know where it lives — the semantic
         //    pipeline's vector embedding + fusion is pure overhead
         //    for that case.
+        // Pagination: rank offset+max_results and slice the page out below.
+        // Ranking is deterministic per generation, so pages don't overlap.
+        let offset = req.sanitized_offset();
         let hybrid_q = HybridQuery {
             project_id: req.project_id.clone(),
             namespace: req.namespace.clone(),
             generation: gen_,
             text: req.query.clone(),
-            top_k: req.sanitized_max_results(),
+            top_k: req.sanitized_max_results() + offset,
             fts_mode: req.fts_mode.as_str().to_owned(),
             include_path_prefixes: req.include_path_prefixes.clone(),
             exclude_path_prefixes: req.exclude_path_prefixes.clone(),
@@ -182,6 +185,10 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
         };
 
+        // Slice out the requested page. Done before the dreamer feed so
+        // co-occurrence edges reflect what the agent actually saw.
+        let hits: Vec<_> = hits.into_iter().skip(offset).collect();
+
         // Feed the dreamer co-occurrence graph (non-blocking).
         let lite: Vec<SearchHitLite> = hits
             .iter()
@@ -199,12 +206,19 @@ impl Engram {
 
         if hits.is_empty() {
             // P0-7: an empty result with no guidance burns agent turns.
-            return Ok(CallToolResult::success(vec![Content::text(
+            let msg = if offset > 0 {
+                format!(
+                    "result: no_hits (offset {offset} is past the end of the ranked results)\n\
+                     hints: lower offset, or re-run with offset=0 to see the first page."
+                )
+            } else {
                 "result: no_hits\n\
                  hints: try fts_mode=\"loose\" (OR-of-terms) or a shorter query; \
                  check the namespace (default \"memory\"); call get_index_freshness \
-                 to verify the index is current; grep_project finds exact literals.",
-            )]));
+                 to verify the index is current; grep_project finds exact literals."
+                    .to_string()
+            };
+            return Ok(CallToolResult::success(vec![Content::text(msg)]));
         }
 
         let mut out = String::new();
@@ -235,7 +249,7 @@ impl Engram {
         for (i, h) in hits.iter().enumerate() {
             out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
-                i + 1,
+                offset + i + 1,
                 h.doc_id,
                 h.chunk_id,
                 h.path,
@@ -287,10 +301,12 @@ impl Engram {
             }
         }
 
-        out.push_str(
+        out.push_str(&format!(
             "next: get_chunk(doc_id) for full source; resolve_id(<symbol>) to enter \
-             the graph; get_concept_footprint(<domain term>) for ALL touchpoints.\n",
-        );
+             the graph; get_concept_footprint(<domain term>) for ALL touchpoints; \
+             offset={} for the next page.\n",
+            offset + hits.len()
+        ));
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }

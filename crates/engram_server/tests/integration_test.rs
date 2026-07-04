@@ -68,6 +68,7 @@ async fn test_index_and_search_flow() {
 
     // 2. Search Memory
     let search_req = engram_server::SearchMemoryRequest {
+        offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "hello engram".into(),
@@ -80,7 +81,7 @@ async fn test_index_and_search_flow() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
 
     let res = engram.search_memory(Parameters(search_req)).await.unwrap();
@@ -412,6 +413,7 @@ async fn test_path_normalization() {
 
     // Verify path in search
     let search_req = engram_server::SearchMemoryRequest {
+        offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "my_function".into(),
@@ -424,7 +426,7 @@ async fn test_path_normalization() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
 
     let res = engram
@@ -543,6 +545,7 @@ async fn test_memory_bank_persistence() {
     // 4. Verify Memory Bank still searchable
     let search_mb_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory_bank".into(),
             query: "hybrid search".into(),
@@ -555,7 +558,7 @@ async fn test_memory_bank_persistence() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -633,6 +636,7 @@ async fn test_indexing_deduplication() {
 
     // 2. Search and count results
     let search_req = engram_server::SearchMemoryRequest {
+        offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "println".into(),
@@ -645,7 +649,7 @@ async fn test_indexing_deduplication() {
         exclude_path_prefixes: None,
         language_filters: None,
         metadata_filter: None,
-semantic: true,
+        semantic: true,
     };
 
     let res1 = engram
@@ -792,6 +796,7 @@ async fn test_gc_preserves_global_namespaces() {
         // I'll call search_memory to ensure it's loaded.
         engram_tmp
             .search_memory(Parameters(engram_server::SearchMemoryRequest {
+                offset: 0,
                 project_id: project_id.to_string(),
                 namespace: "memory_bank".into(),
                 query: "persist".into(),
@@ -804,7 +809,7 @@ async fn test_gc_preserves_global_namespaces() {
                 exclude_path_prefixes: None,
                 language_filters: None,
                 metadata_filter: None,
-semantic: true,
+                semantic: true,
             }))
             .await
             .unwrap();
@@ -819,6 +824,7 @@ semantic: true,
     // 5. Verify global data persisted
     let search_mb = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory_bank".into(),
             query: "persist".into(),
@@ -831,7 +837,7 @@ semantic: true,
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1183,7 +1189,7 @@ async fn test_watch_project() {
     let (state, _events_rx) = AppState::new(cfg).unwrap();
     let engram = Engram::new(state.clone());
 
-    // Start the watcher actor (shutdown token unused in tests — dropped immediately)
+    // Start the watcher actor (shutdown token unused in tests â€” dropped immediately)
     tokio::spawn(engram_server::actors::watcher::run_watcher(
         state.clone(),
         state.events_tx.subscribe(),
@@ -1240,6 +1246,7 @@ async fn test_watch_project() {
     // 5. Verify search result contains the update
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "updated".into(),
@@ -1252,7 +1259,7 @@ async fn test_watch_project() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1340,6 +1347,7 @@ async fn test_search_features() {
     // 2. Test fts_mode: regex
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "rust".into(),
@@ -1352,7 +1360,7 @@ async fn test_search_features() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1368,6 +1376,7 @@ semantic: true,
     // 3. Test include_path_prefixes
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "logic".into(),
@@ -1380,7 +1389,7 @@ semantic: true,
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1394,6 +1403,7 @@ semantic: true,
     // 4. Test language_filters
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "script".into(),
@@ -1406,7 +1416,7 @@ semantic: true,
             exclude_path_prefixes: None,
             language_filters: Some(vec!["python".into()]),
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1420,6 +1430,7 @@ semantic: true,
     // 5. Test use_mmr (verify it doesn't crash)
     let _ = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "project".into(),
@@ -1432,7 +1443,7 @@ semantic: true,
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -1493,6 +1504,7 @@ async fn test_get_chunk_hardening() {
     // 2. Search to find a chunk_id
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "println".into(),
@@ -1505,7 +1517,7 @@ async fn test_get_chunk_hardening() {
             exclude_path_prefixes: None,
             language_filters: None,
             metadata_filter: None,
-semantic: true,
+            semantic: true,
         }))
         .await
         .unwrap();
@@ -3053,6 +3065,7 @@ async fn test_dream_immune_integration() {
     // Verify antipattern search works
     let anti_search = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             query: "unsafe".into(),
             namespace: "antipattern".into(),
@@ -3490,6 +3503,7 @@ async fn test_gc_policy_preservation() {
         // Ensure project is loaded in runtime
         let _ps = engram
             .search_memory(Parameters(engram_server::SearchMemoryRequest {
+                offset: 0,
                 project_id: project_id.to_string(),
                 query: "gen".into(),
                 max_results: 1,
@@ -3507,6 +3521,7 @@ async fn test_gc_policy_preservation() {
     // 6. Verify global data (memory_bank) still exists
     let search_mb = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory_bank".into(),
             query: "persist".into(),
@@ -3529,6 +3544,7 @@ async fn test_gc_policy_preservation() {
     // 7. Verify Snapshot data (memory) from gen 2 is gone from gen 3 search
     let search_gen2 = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "gen 2".into(),
@@ -3551,6 +3567,7 @@ async fn test_gc_policy_preservation() {
     // 8. Verify Snapshot data (memory) from gen 3 is present
     let search_gen3 = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
             query: "gen 3".into(),
@@ -3646,9 +3663,7 @@ async fn test_language_aware_resolution() {
         .find(|e| e.source_id.contains("app.rs") && e.source_id.contains("main"))
         .expect("Should find rust main edge");
     assert!(
-        rust_edge
-            .target_id
-            .starts_with("sym:function:app.rs:init:"),
+        rust_edge.target_id.starts_with("sym:function:app.rs:init:"),
         "Rust main should call rust init; got {}",
         rust_edge.target_id
     );
@@ -4857,7 +4872,7 @@ async fn test_analyze_directory_coding_style() {
     );
 }
 
-// ── MIG1/D2: fault-injection and assembly tests for migration report ──────────
+// â”€â”€ MIG1/D2: fault-injection and assembly tests for migration report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn empty_bundle() -> ProjectFileBundle {
     ProjectFileBundle {
@@ -4879,7 +4894,7 @@ fn empty_bundle() -> ProjectFileBundle {
 
 /// MIG1/D2 happy path: `analyze_full_project` on an empty graph with an empty
 /// file bundle must succeed, set `report_is_complete = true`, and leave
-/// `degraded_sections` empty — proving the TLS accumulator is wired correctly
+/// `degraded_sections` empty â€” proving the TLS accumulator is wired correctly
 /// into the returned report.
 #[test]
 fn analyze_full_project_empty_graph_returns_complete_with_no_degraded_sections() {
@@ -4947,7 +4962,7 @@ fn consecutive_analysis_calls_reset_tls_accumulator_independently() {
     assert!(r1.report_is_complete, "call 1 must be complete");
     assert!(
         r2.report_is_complete,
-        "call 2 must be complete — TLS must have been reset"
+        "call 2 must be complete â€” TLS must have been reset"
     );
     assert!(
         r1.degraded_sections.is_empty(),
@@ -5068,7 +5083,7 @@ fn four_concurrent_analysis_threads_all_produce_isolated_complete_reports() {
 }
 
 /// MIG1/D2: verifies the `FileContent` and `ProjectReferenceBundle` types are
-/// usable as bundle inputs without panicking — exercises construction paths.
+/// usable as bundle inputs without panicking â€” exercises construction paths.
 #[test]
 fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
     let tmp = tempfile::TempDir::new().unwrap();
@@ -5117,7 +5132,7 @@ fn analysis_with_minimal_nonempty_bundle_does_not_panic() {
     );
 }
 
-/// MIG1-c7y2: structural check — the migration service source must contain the
+/// MIG1-c7y2: structural check â€” the migration service source must contain the
 /// `degraded_sections` and `report_is_complete` fields, and the `edges_or_warn`
 /// / `nodes_or_warn` helpers must populate the TLS accumulator when graph queries fail.
 ///
@@ -5151,7 +5166,7 @@ fn migration_report_source_has_completeness_fields_and_tls_accumulator() {
     // The report_is_complete flag must be derived from whether degraded_sections is empty.
     assert!(
         source.contains("degraded_sections.is_empty()"),
-        "MIG1-c7y2: report_is_complete must be set to degraded_sections.is_empty() — \
+        "MIG1-c7y2: report_is_complete must be set to degraded_sections.is_empty() â€” \
          any other derivation risks the two fields being out of sync"
     );
 
@@ -5159,12 +5174,12 @@ fn migration_report_source_has_completeness_fields_and_tls_accumulator() {
     assert!(
         source.contains("record_mig_degraded") || source.contains("MIG_DEGRADED"),
         "MIG1-c7y2: the migration service must call record_mig_degraded() when a graph \
-         query fails — without this, degraded_sections will always be empty even when \
+         query fails â€” without this, degraded_sections will always be empty even when \
          graph data is unavailable"
     );
 }
 
-/// MIG1-c7y2: behavioral check — `report_is_complete` and `degraded_sections`
+/// MIG1-c7y2: behavioral check â€” `report_is_complete` and `degraded_sections`
 /// are in an invariant relationship: when `report_is_complete = true`,
 /// `degraded_sections` must always be empty, and vice versa.
 ///
@@ -5191,7 +5206,7 @@ fn analysis_report_is_complete_and_degraded_sections_is_empty_are_consistent() {
     assert_eq!(
         report.report_is_complete,
         report.degraded_sections.is_empty(),
-        "MIG1-c7y2: report_is_complete must equal degraded_sections.is_empty() — \
+        "MIG1-c7y2: report_is_complete must equal degraded_sections.is_empty() â€” \
          invariant violated: is_complete={}, degraded={:?}",
         report.report_is_complete,
         report.degraded_sections
@@ -5213,7 +5228,7 @@ fn analysis_report_is_complete_and_degraded_sections_is_empty_are_consistent() {
 /// MIG1-cancel: a pre-cancelled token causes analyze_full_project to return Err
 /// immediately, proving the cooperative cancellation contract is implemented.
 ///
-/// Without this contract, in-flight migrations cannot be aborted cooperatively —
+/// Without this contract, in-flight migrations cannot be aborted cooperatively â€”
 /// callers would have to wait for the entire synchronous analysis to complete.
 #[test]
 fn analysis_returns_err_immediately_when_token_is_pre_cancelled() {
@@ -5236,7 +5251,7 @@ fn analysis_returns_err_immediately_when_token_is_pre_cancelled() {
     assert!(
         result.is_err(),
         "MIG1-cancel: pre-cancelled token must cause analyze_full_project to return Err; \
-         got Ok — cooperative cancellation contract is not implemented"
+         got Ok â€” cooperative cancellation contract is not implemented"
     );
     let err = result.unwrap_err();
     assert!(
@@ -5245,7 +5260,7 @@ fn analysis_returns_err_immediately_when_token_is_pre_cancelled() {
     );
 }
 
-/// MIG1-cancel: structural check — the migration service source must import
+/// MIG1-cancel: structural check â€” the migration service source must import
 /// and use CancellationToken, and the function must check is_cancelled().
 #[test]
 fn migration_service_source_uses_cancellation_token_at_phase_boundaries() {
@@ -5264,13 +5279,13 @@ fn migration_service_source_uses_cancellation_token_at_phase_boundaries() {
     assert!(
         source.contains("cancel: &CancellationToken"),
         "MIG1-cancel: analyze_full_project must accept cancel: &CancellationToken \
-         as a parameter — without it, cancellation is impossible"
+         as a parameter â€” without it, cancellation is impossible"
     );
 }
 
 /// MIG1-cancel: multiple phase-boundary cancel checks must exist in the source.
 ///
-/// The auditor requires "token firing in each major phase" — meaning the
+/// The auditor requires "token firing in each major phase" â€” meaning the
 /// migration service has cancel checkpoints at every major stage boundary, not
 /// just at the start. Verifies the count is at least 4 (pre-start, post-graph,
 /// per-file-loop, pre-phase32, pre-report).
@@ -5283,7 +5298,7 @@ fn migration_source_has_cancel_check_at_each_phase_boundary() {
         check_count >= 4,
         "MIG1-cancel: migration service must have cancel checks at each phase boundary \
          (pre-start, post-graph-analyses, per-file-loop, pre-phase32, pre-report); \
-         found {check_count} — some phases can't be preempted"
+         found {check_count} â€” some phases can't be preempted"
     );
 
     // Each check must be accompanied by an Err return so callers observe cancellation.
@@ -5291,7 +5306,7 @@ fn migration_source_has_cancel_check_at_each_phase_boundary() {
     assert!(
         err_after_cancel >= 4,
         "MIG1-cancel: each cancel check must return a named Err with 'MIG1: migration cancelled'; \
-         found {err_after_cancel} — callers can't distinguish cancelled from failed"
+         found {err_after_cancel} â€” callers can't distinguish cancelled from failed"
     );
 }
 
@@ -5337,7 +5352,7 @@ fn migration_cancellation_terminates_per_file_loop() {
         )
     });
 
-    // Cancel immediately — the function is synchronous so it checks cancel at the
+    // Cancel immediately â€” the function is synchronous so it checks cancel at the
     // next checkpoint (per-file loop boundary) on the same OS thread.
     cancel.cancel();
 
@@ -5354,12 +5369,12 @@ fn migration_cancellation_terminates_per_file_loop() {
         ),
         Ok(_) => {
             // If the function completed before the cancel was seen, that's also
-            // valid — the 30-file bundle may complete faster than the cancel propagates.
+            // valid â€” the 30-file bundle may complete faster than the cancel propagates.
         }
     }
 }
 
-// ── MIG1-u3r8: method body extraction graceful-fallback tests ─────────────────
+// â”€â”€ MIG1-u3r8: method body extraction graceful-fallback tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MIG1-u3r8: analyze_full_project with C# code files must not panic when method
 /// body extraction encounters methods with exotic but valid names.
@@ -5367,7 +5382,7 @@ fn migration_cancellation_terminates_per_file_loop() {
 /// The extract_cs_method_body helper uses `regex::escape` on the method name before
 /// constructing the regex, then calls `.ok()?` (after `inspect_err` logging) on the
 /// compile result, returning None gracefully if compile fails.  This test proves the
-/// full pipeline surfaces no crash for these inputs — exercising the graceful-None
+/// full pipeline surfaces no crash for these inputs â€” exercising the graceful-None
 /// fallback path through the production analyze_full_project entry point.
 #[test]
 fn analyze_full_project_with_cs_code_does_not_panic_on_exotic_method_names() {
@@ -5451,7 +5466,7 @@ End Class
     );
 }
 
-/// MIG1-u3r8: structural check — both method-body extraction helpers must use
+/// MIG1-u3r8: structural check â€” both method-body extraction helpers must use
 /// the inspect_err + ok()? pattern (not bare unwrap or ?) so regex compile failures
 /// are logged via tracing::warn! and surfaced as None rather than a panic or
 /// opaque Err propagation.
@@ -5464,7 +5479,7 @@ fn method_body_extraction_helpers_log_compile_failures_via_inspect_err() {
     let inspect_err_count = source.matches("inspect_err").count();
     assert!(
         inspect_err_count >= 2,
-        "MIG1-u3r8: migration service must have at least 2 inspect_err calls — \
+        "MIG1-u3r8: migration service must have at least 2 inspect_err calls â€” \
          one each for extract_cs_method_body and extract_vb_method_body regex compile; \
          found {inspect_err_count}"
     );
@@ -5478,7 +5493,7 @@ fn method_body_extraction_helpers_log_compile_failures_via_inspect_err() {
     );
 }
 
-// ── ADP enqueue enforcement, retrieval watcher, and vNext tests ───────────────
+// â”€â”€ ADP enqueue enforcement, retrieval watcher, and vNext tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use engram_server::services::autonomous_decision_service::{
     AdpInput, AdpVerdict, GraphImpactMetrics, ReconciliationScores, RetrievalMode, RiskProfile,
@@ -5638,10 +5653,10 @@ fn all_green_adp_input() -> AdpInput {
     }
 }
 
-// ── adp_enqueue_enforcement_tests (from adp_enqueue_enforcement_tests.rs) ─────
+// â”€â”€ adp_enqueue_enforcement_tests (from adp_enqueue_enforcement_tests.rs) â”€â”€â”€â”€â”€
 
 /// JOB1/ADP1: A safety-BLOCK verdict must propagate as AdpVerdict::Deny through
-/// the full evaluate_gates → apply_rollout_policy pipeline in Guarded mode.
+/// the full evaluate_gates â†’ apply_rollout_policy pipeline in Guarded mode.
 /// No job creation path can reach an autonomous "allow" from these inputs.
 #[test]
 fn adp_safety_deny_propagates_through_full_pipeline_guarded() {
@@ -5689,7 +5704,7 @@ fn adp_kill_switch_overrides_allow_to_deny() {
     assert_eq!(
         normal.verdict,
         AdpVerdict::Allow,
-        "JOB1: precondition — allow-input must produce Allow without kill-switch"
+        "JOB1: precondition â€” allow-input must produce Allow without kill-switch"
     );
 
     // With kill-switch, must be Deny.
@@ -5697,7 +5712,7 @@ fn adp_kill_switch_overrides_allow_to_deny() {
     assert_eq!(
         blocked.verdict,
         AdpVerdict::Deny,
-        "JOB1: kill-switch must override Allow → Deny"
+        "JOB1: kill-switch must override Allow â†’ Deny"
     );
     assert!(
         blocked.reasons.iter().any(|r| r.contains("kill-switch")),
@@ -5731,7 +5746,7 @@ fn adp_advisory_phase_overrides_deny_to_allow() {
     assert_eq!(
         advisory.verdict,
         AdpVerdict::Allow,
-        "JOB1: Advisory phase must override Deny → Allow"
+        "JOB1: Advisory phase must override Deny â†’ Allow"
     );
     assert!(
         advisory.reasons.iter().any(|r| r.contains("[ADVISORY]")),
@@ -5748,7 +5763,7 @@ fn adp_shadow_phase_overrides_deny_to_allow() {
     assert_eq!(
         shadow.verdict,
         AdpVerdict::Allow,
-        "JOB1: Shadow phase must override Deny → Allow"
+        "JOB1: Shadow phase must override Deny â†’ Allow"
     );
     assert!(
         shadow.reasons.iter().any(|r| r.contains("[SHADOW]")),
@@ -5771,12 +5786,12 @@ fn adp_allow_passes_through_guarded_mode() {
 }
 
 /// JOB1/ADP1: When no evidence is supplied, the verdict is Abstain or Deny,
-/// never Allow — proving incomplete evidence cannot trigger autonomous execution.
+/// never Allow â€” proving incomplete evidence cannot trigger autonomous execution.
 #[test]
 fn adp_abstain_inputs_never_produce_allow_in_guarded_mode() {
     let input = abstain_input();
     let raw = evaluate_gates(&input);
-    // Abstain or Deny — either is fine, just not Allow.
+    // Abstain or Deny â€” either is fine, just not Allow.
     assert_ne!(
         raw.verdict,
         AdpVerdict::Allow,
@@ -5829,7 +5844,7 @@ fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
         retrieval_production_ready: Some(true),
         retrieval_ndcg: Some(0.9),
         retrieval_recall: Some(0.9),
-        // blast_radius_risk=9 exceeds max_blast_radius_for_auto=5 → gate 5 hard-deny
+        // blast_radius_risk=9 exceeds max_blast_radius_for_auto=5 â†’ gate 5 hard-deny
         blast_radius_risk: Some(9),
         blast_radius_band: None,
         blast_radius_downstream: Some(20),
@@ -5874,7 +5889,7 @@ fn blast_radius_above_threshold_produces_deny_in_guarded_mode() {
 #[test]
 fn low_extraction_confidence_produces_deny_in_guarded_mode() {
     let input = AdpInput {
-        // confidence=0.4 < min_extraction_confidence=0.7 → gate 1 hard-deny
+        // confidence=0.4 < min_extraction_confidence=0.7 â†’ gate 1 hard-deny
         extraction_confidence: Some(0.4),
         extraction_band: Some("low".into()),
         trace_used_fallback: false,
@@ -5946,7 +5961,7 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
         blast_radius_risk: Some(2),
         blast_radius_band: None,
         blast_radius_downstream: Some(3),
-        // BLOCK verdict → gate 6 hard-deny
+        // BLOCK verdict â†’ gate 6 hard-deny
         immune_verdict: Some("BLOCK".into()),
         immune_confidence: Some(0.90),
         require_runtime_evidence: false,
@@ -5986,7 +6001,7 @@ fn immune_block_verdict_produces_deny_in_guarded_mode() {
 }
 
 /// A wave containing one deny-producing item must produce a wave-level Deny.
-/// Proves that evaluate_wave propagates any item Deny to the overall wave verdict —
+/// Proves that evaluate_wave propagates any item Deny to the overall wave verdict â€”
 /// there is no way for a single deny-blocked file to be "outvoted" by other Allow items.
 #[test]
 fn wave_with_one_deny_item_produces_wave_deny() {
@@ -5995,7 +6010,7 @@ fn wave_with_one_deny_item_produces_wave_deny() {
         wave_name: "wave-1-mixed".into(),
         items: vec![
             ("file_a.cs".into(), allow_input()),
-            ("file_b.cs".into(), deny_input()), // safety BLOCK → Deny
+            ("file_b.cs".into(), deny_input()), // safety BLOCK â†’ Deny
             ("file_c.cs".into(), allow_input()),
         ],
         cross_item_deps: 0,
@@ -6019,7 +6034,7 @@ fn wave_with_one_deny_item_produces_wave_deny() {
     );
 }
 
-// ── adp_retrieval_watcher_tests (from adp_retrieval_watcher_tests.rs) ─────────
+// â”€â”€ adp_retrieval_watcher_tests (from adp_retrieval_watcher_tests.rs) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Gate 2.5 Test 9 (AUD-2026-INV-0005): When retrieval_mode=Skipped (benchmark
 /// was not run due to infra failure), the retrieval_quality gate must be marked
@@ -6068,7 +6083,7 @@ fn benchmark_infra_failure_skipped_mode_does_not_deny() {
 /// - Low-score: gate.skipped=false, gate.passed=false, contributes Deny
 #[test]
 fn adp_skipped_retrieval_differs_from_low_score_retrieval() {
-    // Case A: Skipped mode (infra failure — benchmark not run)
+    // Case A: Skipped mode (infra failure â€” benchmark not run)
     let mut skipped = all_green_adp_input();
     skipped.retrieval_mode = RetrievalMode::Skipped;
     skipped.retrieval_production_ready = None;
@@ -6108,7 +6123,7 @@ fn adp_skipped_retrieval_differs_from_low_score_retrieval() {
         "AUD-2026-INV-0005: low-quality gate must be passed=false"
     );
 
-    // Behavioral: verdicts must differ — low NDCG denies, skipped does not
+    // Behavioral: verdicts must differ â€” low NDCG denies, skipped does not
     assert_ne!(
         skip_dec.verdict, low_dec.verdict,
         "AUD-2026-INV-0005: Skipped verdict ({:?}) must differ from low-score verdict ({:?})",
@@ -6137,7 +6152,7 @@ async fn watcher_try_send_on_full_channel_returns_immediately_not_blocking() {
     tx.try_send("fill".to_string())
         .expect("first send to empty channel must succeed");
 
-    // Now saturated — must return Full immediately, never block
+    // Now saturated â€” must return Full immediately, never block
     let result = tx.try_send("overflow".to_string());
     assert!(
         matches!(result, Err(TrySendError::Full(_))),
@@ -6147,7 +6162,7 @@ async fn watcher_try_send_on_full_channel_returns_immediately_not_blocking() {
 }
 
 /// Gate 2.5 Test 12 (AUD-2026-INV-0006): Overflow events are individually
-/// countable — each overflow produces exactly one `TrySendError::Full`, making
+/// countable â€” each overflow produces exactly one `TrySendError::Full`, making
 /// overflow telemetry observable and deterministic.
 #[tokio::test]
 async fn watcher_overflow_events_are_individually_countable() {
@@ -6175,7 +6190,7 @@ async fn watcher_overflow_events_are_individually_countable() {
     );
     assert_eq!(
         overflow_count, extra_sends,
-        "AUD-2026-INV-0006: exactly {extra_sends} overflow events must be countable — \
+        "AUD-2026-INV-0006: exactly {extra_sends} overflow events must be countable â€” \
          each maps to one warn!() telemetry call in the watcher notify callback"
     );
 }
@@ -6185,7 +6200,7 @@ async fn watcher_overflow_events_are_individually_countable() {
 ///
 /// Behavioral test against the serde_json API that parse_embedding_array relies on:
 /// `Value::as_f64()` returns None for null/string/bool, and that None must map to
-/// Err — not to 0.0f32 via unwrap_or.
+/// Err â€” not to 0.0f32 via unwrap_or.
 #[test]
 fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
     // These are the three cases the fix guards against: null, string, bool
@@ -6214,12 +6229,12 @@ fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
         "Gate 2.5: JSON number must return Some from as_f64()"
     );
 
-    // Demonstrate why None → 0.0 via unwrap_or(0.0) is WRONG:
+    // Demonstrate why None â†’ 0.0 via unwrap_or(0.0) is WRONG:
     // It silently produces a zero-filled embedding that looks valid to the ADP gate.
     let silent_bad = null_val.as_f64().unwrap_or(0.0);
     assert_eq!(
         silent_bad, 0.0f64,
-        "Gate 2.5: unwrap_or(0.0) on null gives 0.0 — this is the silent false-success \
+        "Gate 2.5: unwrap_or(0.0) on null gives 0.0 â€” this is the silent false-success \
          that parse_embedding_array was fixed to reject with Err"
     );
 
@@ -6239,7 +6254,7 @@ fn embed_json_non_numeric_element_as_f64_returns_none_not_zero() {
 /// "completed" success banner.
 ///
 /// Mirrors the production `determine_job_status` / `determine_job_message` pure
-/// functions directly — no AppState, fully deterministic.
+/// functions directly â€” no AppState, fully deterministic.
 #[test]
 fn post_index_enrichment_degraded_message_describes_all_failures() {
     let warnings = [
@@ -6296,7 +6311,7 @@ fn post_index_enrichment_degraded_message_describes_all_failures() {
     );
 }
 
-// ── adp_vnext_test (from adp_vnext_test.rs) ───────────────────────────────────
+// â”€â”€ adp_vnext_test (from adp_vnext_test.rs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A v1-style input (no reconciliation, no graph_impact, no migration_class)
 /// should still produce an Allow verdict when all gates pass.
@@ -6326,7 +6341,7 @@ fn reconciliation_scores_upgrade_runtime_gate() {
         static_paths_count: 50,
     });
     let decision = evaluate_gates(&input);
-    // Reconciliation has high confirmed → runtime gate should pass
+    // Reconciliation has high confirmed â†’ runtime gate should pass
     let runtime_gate = decision
         .gate_results
         .iter()
@@ -6416,7 +6431,7 @@ fn skipped_retrieval_marks_gate_skipped() {
         .unwrap();
     assert!(
         ret_gate.skipped,
-        "Skipped retrieval mode → gate should be skipped"
+        "Skipped retrieval mode â†’ gate should be skipped"
     );
 }
 
@@ -6587,7 +6602,7 @@ fn graph_impact_metrics_are_accepted() {
         join_failed: false,
     });
     let decision = evaluate_gates(&input);
-    // Should still Allow — graph_impact is informational for the EOE layer,
+    // Should still Allow â€” graph_impact is informational for the EOE layer,
     // the pure gate pipeline uses the derived fields.
     assert_eq!(decision.verdict, AdpVerdict::Allow);
 }
@@ -6614,7 +6629,7 @@ fn evidence_depth_from_str_parses_correctly() {
 /// (e.g. `"Default.aspx"`) and `Node.file_path` set to the full project-relative
 /// path (e.g. `"modules/dashboard/Default.aspx"`). The handler used to collect
 /// markup paths from `n.name`, which meant `safe_join(project_dir, basename)`
-/// pointed at the project root where the file did not exist — every read failed
+/// pointed at the project root where the file did not exist â€” every read failed
 /// silently via `.ok()?`, `bundle.markup_files` ended up empty, and the per-page
 /// dossier loop produced zero dossiers even though 250+ ASPX pages were indexed.
 ///
