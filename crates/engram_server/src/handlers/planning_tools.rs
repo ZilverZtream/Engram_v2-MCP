@@ -3062,12 +3062,15 @@ impl Engram {
         // an accepted change (and often contain the files ranking missed).
         // merged_before keeps replays/evals leak-free (see find_merged_work).
         if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+            // With a cutoff active, most of the freshest matches get
+            // filtered - fetch deeper so older exemplars can surface.
+            let fetch_k = if req.merged_before.is_some() { 24 } else { 6 };
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
                 generation: 0,
                 text: req.story.clone(),
-                top_k: 6,
+                top_k: fetch_k,
                 fts_mode: "loose".into(),
                 include_path_prefixes: Some(vec!["pr:".into()]),
                 exclude_path_prefixes: None,
