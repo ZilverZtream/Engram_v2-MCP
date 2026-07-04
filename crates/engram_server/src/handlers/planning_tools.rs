@@ -3258,6 +3258,53 @@ impl Engram {
             }
         }
 
+        // Permission gates in the candidate set: when ranked files carry
+        // guard metadata, name the gates - a live A/B showed even strong
+        // planners miss permission-catalog changes because nothing in the
+        // brief said the surface was gated (PR1890's role.vb lesson).
+        {
+            let graph = self.state.graph.clone();
+            let pid_g = req.project_id.clone();
+            let top_files: Vec<String> = prov.keys().take(15).cloned().collect();
+            let gates = tokio::task::spawn_blocking(move || {
+                let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
+                for f in &top_files {
+                    for n in graph
+                        .query_nodes(&pid_g, None, None, Some(f), 500)
+                        .unwrap_or_default()
+                    {
+                        let Some(meta) = n.metadata.as_ref() else {
+                            continue;
+                        };
+                        for key in ["permission_checks", "guard_roles"] {
+                            if let Some(v) = meta.get(key).and_then(|v| v.as_str()) {
+                                for g in v.split(';').filter(|g| !g.trim().is_empty()) {
+                                    *gates.entry(g.trim().to_string()).or_default() += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                gates
+            })
+            .await
+            .unwrap_or_default();
+            if !gates.is_empty() {
+                out.push_str(
+                    "\n## Permission gates in the candidate set\n\
+                     These surfaces are permission/role-gated. Decide explicitly whether \
+                     your change needs a NEW permission-catalog entry (and its admin \
+                     wiring) or reuses one of these:\n",
+                );
+                let mut rows: Vec<(usize, String)> =
+                    gates.into_iter().map(|(g, n)| (n, g)).collect();
+                rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                for (n, g) in rows.into_iter().take(10) {
+                    out.push_str(&format!("- {g} ({n} gated symbol(s) in the set)\n"));
+                }
+            }
+        }
+
         // The ranked file set is the single most freshness-sensitive output
         // in the funnel: a stale index proposes the wrong files. This was
         // the only primary funnel tool with no staleness signal.
