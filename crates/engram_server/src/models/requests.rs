@@ -766,13 +766,15 @@ pub struct ListSettingsRequest {
     /// Only settings declared in files whose path contains this substring.
     #[serde(default)]
     pub scope: Option<String>,
-    /// Max settings rendered per category. Default 100.
+    /// Max settings rendered per category. Default 25 (raise up to 500 for
+    /// the exhaustive dump) — the full OciusX catalog at 100/category was
+    /// ~58K chars, too heavy for a planning-phase call.
     #[serde(default = "default_settings_per_category")]
     pub max_per_category: usize,
 }
 
 fn default_settings_per_category() -> usize {
-    100
+    25
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

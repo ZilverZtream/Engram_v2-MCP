@@ -92,14 +92,17 @@ impl Engram {
                     .find_incoming_edges_with_kind(&pid, None, &n.node_id, 200)
                     .unwrap_or_default();
                 let count = readers.len();
+                // Catalog rows show TWO exemplar readers (name:line only) —
+                // the full reader list is get_setting's job. Four full-path
+                // labels per row made the catalog a 58K-char dump.
                 let mut top: Vec<String> = readers
                     .iter()
-                    .filter_map(|(src, kind, _w)| {
-                        by_id.get(src.as_str()).map(|(name, file, line)| {
-                            format!("{name} ({file}:{line}, {})", kind.as_str())
-                        })
+                    .filter_map(|(src, _kind, _w)| {
+                        by_id
+                            .get(src.as_str())
+                            .map(|(name, _file, line)| format!("{name}:{line}"))
                     })
-                    .take(4)
+                    .take(2)
                     .collect();
                 top.dedup();
                 groups.entry(cat).or_default().push((
