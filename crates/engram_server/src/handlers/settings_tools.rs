@@ -66,9 +66,9 @@ impl Engram {
         type Entry = (String, String, usize, Vec<String>); // name, node_id, reader_count, top readers
         let (groups, truncated) = tokio::task::spawn_blocking(move || {
             let nodes = graph
-                .query_nodes(&pid, None, None, None, 50_000)
+                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
                 .unwrap_or_default();
-            let truncated = nodes.len() >= 50_000;
+            let truncated = nodes.len() >= crate::handlers::NODE_SCAN_LIMIT;
             // node_id -> (name, file, line) for reader labelling.
             let by_id: std::collections::HashMap<&str, (&str, &str, u32)> = nodes
                 .iter()
@@ -132,7 +132,7 @@ impl Engram {
                 .unwrap_or_default()
         );
         if truncated {
-            out.push_str("⚠ node scan hit the 50,000-node cap — catalog may be incomplete.\n");
+            out.push_str("⚠ node scan hit the node-scan cap — catalog may be incomplete.\n");
         }
         if total == 0 {
             out.push_str(
