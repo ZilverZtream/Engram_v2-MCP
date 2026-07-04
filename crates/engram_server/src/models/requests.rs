@@ -779,6 +779,14 @@ fn default_settings_per_category() -> usize {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct DescribeSettingRequest {
+    pub project_id: String,
+    /// Setting name (dotted store paths like ConfigSettings.Multitenant.IsMaster work).
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct DeriveTestMatrixRequest {
     pub project_id: String,
     /// The changed/planned files. The matrix derives from the settings,

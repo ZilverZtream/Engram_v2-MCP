@@ -281,6 +281,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "LLM-authored wiki entry for one setting, built from its actual reader-method bodies: what it controls, enabled-vs-disabled behaviour, user-type interactions, and test implications. Persisted so query_business_logic finds it by domain terms later. Requires llm_backend. Use get_setting for the raw usage-site list."
+    )]
+    pub async fn describe_setting(
+        &self,
+        params: Parameters<crate::models::DescribeSettingRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_describe_setting(params.0).await
+    }
+
+    #[tool(
         description = "QA/test-plan generator: given the changed files, derives WHAT TO TEST — the settings that fork behaviour in that code (test ON and OFF), the roles/permissions gating it (run as each role + a denial case), and the shared Session/Application keys coupling it to other pages. Turns the 'which of the 400 settings and 6 user types affect my change?' question into a concrete matrix."
     )]
     pub async fn derive_test_matrix(
