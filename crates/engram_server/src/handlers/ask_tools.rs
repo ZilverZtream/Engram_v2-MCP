@@ -311,6 +311,28 @@ impl Engram {
                     .await
                     .map(|r| text_of(&r))
                     .unwrap_or_else(|e| degrade("search_memory", &subject, e));
+                // Team knowledge: the ingested wiki/docs corpus and the
+                // persisted business-logic/settings wikis answer WHY/HOW
+                // domain questions code search can't — the START-HERE tool
+                // must surface them, not just code hits.
+                let mut team = String::new();
+                for ns in ["memory_bank", "business_logic"] {
+                    if let Ok(r) = self
+                        .handle_search_memory(crate::models::SearchMemoryRequest {
+                            query: subject.clone(),
+                            project_id: pid.clone(),
+                            max_results: 2,
+                            namespace: ns.to_string(),
+                            ..Default::default()
+                        })
+                        .await
+                    {
+                        let t = text_of(&r);
+                        if t.contains("#1") || t.contains("doc_id") {
+                            team.push_str(&format!("\n### team knowledge ({ns})\n{t}\n"));
+                        }
+                    }
+                }
                 let footprint = self
                     .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
                         project_id: pid,
@@ -321,8 +343,8 @@ impl Engram {
                     .map(|r| text_of(&r))
                     .unwrap_or_default();
                 (
-                    "search_memory + get_concept_footprint",
-                    format!("{search}\n\n{footprint}"),
+                    "search_memory (code + team knowledge) + get_concept_footprint",
+                    format!("{search}\n{team}\n{footprint}"),
                 )
             }
         };
