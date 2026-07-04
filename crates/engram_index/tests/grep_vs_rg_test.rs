@@ -265,12 +265,15 @@ async fn grep_term_index_beats_rg_on_ascii_identifier() {
         "fixture: {FIXTURE_FILE_COUNT} files, ~{} bytes",
         FIXTURE_FILE_COUNT * 800,
     );
-    println!("engram warm p50: {engram_p50} µs (over {} runs)", WARM_ITERATIONS);
-    println!("rg warm p50:     {rg_p50} µs (over {} runs)", WARM_ITERATIONS);
     println!(
-        "speedup: {:.2}×",
-        rg_p50 as f64 / engram_p50.max(1) as f64
+        "engram warm p50: {engram_p50} µs (over {} runs)",
+        WARM_ITERATIONS
     );
+    println!(
+        "rg warm p50:     {rg_p50} µs (over {} runs)",
+        WARM_ITERATIONS
+    );
+    println!("speedup: {:.2}×", rg_p50 as f64 / engram_p50.max(1) as f64);
 
     // Hard gate: warm Engram must beat warm rg on this class.
     assert!(
@@ -477,7 +480,11 @@ async fn grep_full_benchmark_matrix_beats_rg() {
         }
     }
 
-    assert!(failures.is_empty(), "benchmark failures:\n  {}", failures.join("\n  "));
+    assert!(
+        failures.is_empty(),
+        "benchmark failures:\n  {}",
+        failures.join("\n  ")
+    );
 }
 
 #[tokio::test]

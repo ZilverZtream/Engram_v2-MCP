@@ -458,11 +458,7 @@ pub async fn ingest_code_review_history(
     }
 
     // 4c. Graph: review_pattern nodes + AntiPattern edges.
-    let (nodes, edges) = build_graph_entities(
-        &positive_clusters,
-        &suppression_clusters,
-        gen_,
-    );
+    let (nodes, edges) = build_graph_entities(&positive_clusters, &suppression_clusters, gen_);
     stats.graph_nodes_created = nodes.len();
     stats.graph_edges_created = edges.len();
     if !nodes.is_empty() || !edges.is_empty() {
@@ -604,7 +600,10 @@ async fn fetch_azure_devops(
     // Basic auth: PAT goes in the password half of `user:pass`, user is blank.
     // Inline base64 encode — it's the only crypto-adjacent op we need and adding
     // a `base64` dep just for one header isn't worth the supply-chain footprint.
-    let auth = format!("Basic {}", base64_encode(format!(":{pat_token}").as_bytes()));
+    let auth = format!(
+        "Basic {}",
+        base64_encode(format!(":{pat_token}").as_bytes())
+    );
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()?;
@@ -663,7 +662,10 @@ async fn fetch_azure_devops(
     let mut out: Vec<RawReviewComment> = Vec::new();
     let mut skipped_incremental = 0usize;
     for pr in prs_raw {
-        let pr_id = pr.get("pullRequestId").and_then(|v| v.as_u64()).unwrap_or(0);
+        let pr_id = pr
+            .get("pullRequestId")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
         if pr_id == 0 {
             continue;
         }
@@ -697,9 +699,8 @@ async fn fetch_azure_devops(
             .unwrap_or("")
             .trim_start_matches("refs/heads/")
             .to_string();
-        let pr_url = format!(
-            "https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{pr_id}"
-        );
+        let pr_url =
+            format!("https://dev.azure.com/{org}/{project}/_git/{repo}/pullrequest/{pr_id}");
 
         // Fetch threads for this PR.
         let threads_url = format!("{base}/pullrequests/{pr_id}/threads?api-version=7.1");
@@ -740,9 +741,7 @@ async fn fetch_azure_devops(
             let cr_text: Vec<String> = comments
                 .iter()
                 .filter(|c| is_coderabbit_author(c.get("author")))
-                .filter_map(|c| {
-                    c.get("content").and_then(|v| v.as_str()).map(String::from)
-                })
+                .filter_map(|c| c.get("content").and_then(|v| v.as_str()).map(String::from))
                 .collect();
             if cr_text.is_empty() {
                 continue;
@@ -839,8 +838,7 @@ fn extract_severity_string(body: &str) -> String {
 /// Minimal standard-alphabet base64 encoder. Only used for the Azure
 /// DevOps `Basic` auth header — avoids a full `base64` crate dep.
 fn base64_encode(input: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
     let mut i = 0usize;
     while i + 3 <= input.len() {
@@ -1264,9 +1262,8 @@ fn extract_pattern_tokens(body: &str) -> Vec<String> {
 fn extract_fix_commit(body: &str) -> Option<String> {
     use std::sync::LazyLock;
     // `✅ Addressed in commits <sha>[ to <sha>]`
-    static RE: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
-        regex::Regex::new(r"Addressed in commits?\s+([a-f0-9]{7,40})").ok()
-    });
+    static RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"Addressed in commits?\s+([a-f0-9]{7,40})").ok());
     let re = RE.as_ref()?;
     re.captures(body)
         .and_then(|c| c.get(1))
@@ -1388,8 +1385,7 @@ fn cluster_rules(rules: Vec<ParsedRule>, overlap_threshold: f32) -> Vec<ReviewCl
             cluster_indices.push(new_cluster);
         }
         for idxs in cluster_indices {
-            let members: Vec<ParsedRule> =
-                idxs.iter().map(|i| bucket[*i].clone()).collect();
+            let members: Vec<ParsedRule> = idxs.iter().map(|i| bucket[*i].clone()).collect();
             out.push(build_cluster(members));
         }
     }
@@ -1452,8 +1448,8 @@ fn build_cluster(members: Vec<ParsedRule>) -> ReviewCluster {
     // Cluster-wide confidence: blend fix rate, PR-count saturation, and
     // average severity. Capped at 1.0.
     let pr_sat = (pr_ids.len() as f32 / 5.0).min(1.0);
-    let avg_sev: f32 = members.iter().map(|m| m.severity.weight()).sum::<f32>()
-        / members.len() as f32;
+    let avg_sev: f32 =
+        members.iter().map(|m| m.severity.weight()).sum::<f32>() / members.len() as f32;
     let confidence = (0.55 * fix_rate + 0.30 * pr_sat + 0.15 * avg_sev).clamp(0.0, 1.0);
 
     // Deterministic cluster id from canonical token set — stable across runs.
@@ -1501,7 +1497,12 @@ fn cluster_index_body(c: &ReviewCluster) -> String {
     body.push_str(&toks.join(", "));
 
     body.push_str("\n\nPR references: ");
-    let pr_refs: Vec<String> = c.pr_ids.iter().take(MAX_PR_REFS).map(|i| format!("#{i}")).collect();
+    let pr_refs: Vec<String> = c
+        .pr_ids
+        .iter()
+        .take(MAX_PR_REFS)
+        .map(|i| format!("#{i}"))
+        .collect();
     body.push_str(&pr_refs.join(", "));
     if c.pr_ids.len() > MAX_PR_REFS {
         body.push_str(&format!(" (+{} more)", c.pr_ids.len() - MAX_PR_REFS));
@@ -1519,11 +1520,7 @@ fn cluster_index_body(c: &ReviewCluster) -> String {
     body
 }
 
-fn build_index_docs(
-    clusters: &[ReviewCluster],
-    namespace: &str,
-    generation: u64,
-) -> Vec<IndexDoc> {
+fn build_index_docs(clusters: &[ReviewCluster], namespace: &str, generation: u64) -> Vec<IndexDoc> {
     let mut out: Vec<IndexDoc> = Vec::with_capacity(clusters.len());
     for c in clusters {
         let content = cluster_index_body(c);
@@ -1610,7 +1607,10 @@ fn build_graph_entities(
 
 fn cluster_metadata_value(c: &ReviewCluster, kind: &str) -> serde_json::Value {
     let mut map = serde_json::Map::new();
-    map.insert("source".into(), serde_json::Value::String("coderabbit".into()));
+    map.insert(
+        "source".into(),
+        serde_json::Value::String("coderabbit".into()),
+    );
     map.insert("kind".into(), serde_json::Value::String(kind.into()));
     map.insert(
         "cluster_id".into(),
@@ -1643,10 +1643,7 @@ fn cluster_metadata_value(c: &ReviewCluster, kind: &str) -> serde_json::Value {
         ),
     );
     if let Some(fc) = &c.canonical.fix_commit {
-        map.insert(
-            "fix_commit".into(),
-            serde_json::Value::String(fc.clone()),
-        );
+        map.insert("fix_commit".into(), serde_json::Value::String(fc.clone()));
     }
     serde_json::Value::Object(map)
 }
@@ -1708,10 +1705,12 @@ mod tests {
 
     #[test]
     fn extract_pattern_tokens_picks_backticks_and_pascal() {
-        let body =
-            "The static `_fillOpacityStates` cache collides across `PdfDocument` instances when WriteToDisk() runs.";
+        let body = "The static `_fillOpacityStates` cache collides across `PdfDocument` instances when WriteToDisk() runs.";
         let tokens = extract_pattern_tokens(body);
-        assert!(tokens.iter().any(|t| t == "_fillOpacityStates"), "tokens={tokens:?}");
+        assert!(
+            tokens.iter().any(|t| t == "_fillOpacityStates"),
+            "tokens={tokens:?}"
+        );
         assert!(tokens.iter().any(|t| t == "PdfDocument"));
         assert!(tokens.iter().any(|t| t == "WriteToDisk"));
     }
@@ -1817,7 +1816,11 @@ mod tests {
             make(3, &["PdfExtGState", "WriteToDisk", "ExtraTok"]),
         ];
         let clusters = cluster_rules(rules, 0.4);
-        assert_eq!(clusters.len(), 1, "expected single cluster, got {clusters:#?}");
+        assert_eq!(
+            clusters.len(),
+            1,
+            "expected single cluster, got {clusters:#?}"
+        );
         assert_eq!(clusters[0].pr_ids.len(), 3);
         assert_eq!(clusters[0].fix_rate, 1.0);
         assert!(clusters[0].confidence > 0.5);
@@ -2043,7 +2046,10 @@ mod tests {
     #[test]
     fn llm_single_letter_parser_handles_whitespace() {
         assert_eq!(parse_llm_single_letter("A"), Some(LlmResolution::Fixed));
-        assert_eq!(parse_llm_single_letter("  B "), Some(LlmResolution::Dismissed));
+        assert_eq!(
+            parse_llm_single_letter("  B "),
+            Some(LlmResolution::Dismissed)
+        );
         assert_eq!(parse_llm_single_letter("C\n"), Some(LlmResolution::Unknown));
         assert_eq!(parse_llm_single_letter("a"), Some(LlmResolution::Fixed));
         assert_eq!(parse_llm_single_letter(""), None);
@@ -2120,10 +2126,7 @@ mod tests {
     #[test]
     fn fix_rate_counts_llm_verdicts_into_math() {
         // 1 Fixed + 1 LLM-Fixed (closed) + 1 WontFix → fix_rate = 2/3.
-        let mk = |status: ThreadStatus,
-                  llm: Option<LlmResolution>,
-                  pr: u64|
-         -> ParsedRule {
+        let mk = |status: ThreadStatus, llm: Option<LlmResolution>, pr: u64| -> ParsedRule {
             ParsedRule {
                 rule_text: "r".into(),
                 pattern_tokens: vec!["TokA".into(), "TokB".into(), "TokC".into()],
@@ -2175,8 +2178,14 @@ mod tests {
 
     #[test]
     fn derive_file_pattern_handles_extensionless() {
-        assert_eq!(derive_file_pattern("Makefile"), "**/Makefile".to_ascii_lowercase());
-        assert_eq!(derive_file_pattern("/repo/Dockerfile"), "/repo/**/dockerfile");
+        assert_eq!(
+            derive_file_pattern("Makefile"),
+            "**/Makefile".to_ascii_lowercase()
+        );
+        assert_eq!(
+            derive_file_pattern("/repo/Dockerfile"),
+            "/repo/**/dockerfile"
+        );
         assert_eq!(derive_file_pattern("/x/Rakefile"), "/x/**/rakefile");
     }
 

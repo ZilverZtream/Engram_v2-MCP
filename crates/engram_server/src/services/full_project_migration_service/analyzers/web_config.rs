@@ -17,14 +17,13 @@ use super::super::model::*;
 // Wildcard catches parent-module `pub(super) static` / `type` /
 // `pub(crate) fn` helpers that were left in the grandparent during
 // the Phase 2 extraction.
-use super::super::*;
 use super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::db_strategy_service::{self, FileDataAccessProfile};
 use super::super::super::dossier_service::{self, MigrationDossier};
 use super::super::super::migration_order_service::{self, MigrationOrderPlan};
 use super::super::super::pattern_detection_service;
 use super::super::super::state_migration_service::{self, StateMigrationReport};
-
+use super::super::*;
 
 /// Extract web.config inventory: appSettings, connectionStrings, handlers,
 /// modules, customErrors, compilation, sessionState, pages.
@@ -240,7 +239,11 @@ pub(crate) fn infer_provider(cs: &str) -> String {
 }
 
 /// Find code files that reference a config key via ConfigurationManager.
-pub(crate) fn find_config_references(key: &str, section: &str, code_files: &[(&str, &str)]) -> Vec<String> {
+pub(crate) fn find_config_references(
+    key: &str,
+    section: &str,
+    code_files: &[(&str, &str)],
+) -> Vec<String> {
     let patterns = [
         format!(r#"ConfigurationManager.{section}["{key}"]"#),
         format!(r#"WebConfigurationManager.{section}["{key}"]"#),

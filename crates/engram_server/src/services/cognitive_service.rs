@@ -236,10 +236,7 @@ pub fn static_analyze_file_style(content: &str, file_path: &str) -> Vec<String> 
         static_analyze_typescript(content)
     } else if lower.ends_with(".js") || lower.ends_with(".jsx") || lower.ends_with(".mjs") {
         static_analyze_javascript(content)
-    } else if lower.ends_with(".aspx")
-        || lower.ends_with(".ascx")
-        || lower.ends_with(".master")
-    {
+    } else if lower.ends_with(".aspx") || lower.ends_with(".ascx") || lower.ends_with(".master") {
         static_analyze_aspx(content)
     } else if lower.ends_with(".sql") {
         static_analyze_sql(content)
@@ -349,11 +346,7 @@ fn count_casing(
 
 /// Format the "Naming: XxxCase (N/T). Examples: A, B, C" bullet. Returns
 /// `None` when the sample is too small or no casing dominates.
-fn format_casing_bullet(
-    label: &str,
-    counts: &CasingCounts,
-    samples: &[String],
-) -> Option<String> {
+fn format_casing_bullet(label: &str, counts: &CasingCounts, samples: &[String]) -> Option<String> {
     let (conv, count, total) = counts.dominant()?;
     let tail = if samples.is_empty() {
         String::new()
@@ -614,16 +607,17 @@ fn static_analyze_cs(content: &str) -> Vec<String> {
         .ok()
     });
     static CLASS_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?m)^\s*(?:public\s+|internal\s+|sealed\s+|abstract\s+|partial\s+)*class\s+(\w+)")
-            .ok()
+        Regex::new(
+            r"(?m)^\s*(?:public\s+|internal\s+|sealed\s+|abstract\s+|partial\s+)*class\s+(\w+)",
+        )
+        .ok()
     });
     static RECORD_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         Regex::new(r"(?m)^\s*(?:public\s+|internal\s+)*record(?:\s+struct)?\s+(\w+)").ok()
     });
     static SWITCH_EXPR_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"\bswitch\s*\{").ok());
-    static PATTERN_IS_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"\bis\s+\{").ok());
+    static PATTERN_IS_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"\bis\s+\{").ok());
 
     let mut bullets = Vec::new();
 
@@ -660,11 +654,12 @@ fn static_analyze_cs(content: &str) -> Vec<String> {
     let async_valuetask = content.matches("async ValueTask").count();
     let configure_false = content.matches(".ConfigureAwait(false)").count();
     if async_task + async_valuetask > 0 {
-        let mut note = format!(
-            "Async: `async Task` ({async_task}) / `async ValueTask` ({async_valuetask})"
-        );
+        let mut note =
+            format!("Async: `async Task` ({async_task}) / `async ValueTask` ({async_valuetask})");
         if configure_false > 0 {
-            note.push_str(&format!(", `ConfigureAwait(false)` used {configure_false} times"));
+            note.push_str(&format!(
+                ", `ConfigureAwait(false)` used {configure_false} times"
+            ));
         }
         bullets.push(note);
     }
@@ -688,8 +683,13 @@ fn static_analyze_cs(content: &str) -> Vec<String> {
     }
 
     // LINQ style — method syntax vs query syntax.
-    let linq_method = count_any(content, &[".Where(", ".Select(", ".FirstOrDefault(", ".Any("]);
-    let linq_query = content.matches("from ").count()
+    let linq_method = count_any(
+        content,
+        &[".Where(", ".Select(", ".FirstOrDefault(", ".Any("],
+    );
+    let linq_query = content
+        .matches("from ")
+        .count()
         .min(content.matches(" in ").count())
         .min(content.matches(" select ").count());
     if let Some(b) = format_popularity_bullet(
@@ -774,8 +774,7 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
     static ENUM_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"(?m)^\s*(?:export\s+)?(?:const\s+)?enum\s+(\w+)").ok());
     static ANY_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r":\s*any\b").ok());
-    static AS_ANY_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"\bas\s+any\b").ok());
+    static AS_ANY_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"\bas\s+any\b").ok());
     static AS_UNKNOWN_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"\bas\s+unknown\b").ok());
     static NON_NULL_ASSERT_RE: LazyLock<Option<Regex>> =
@@ -983,9 +982,7 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
             if let Some(m) = cap.get(1) {
                 let name = m.as_str();
                 let chars: Vec<char> = name.chars().collect();
-                let is_ipref = chars.len() >= 2
-                    && chars[0] == 'I'
-                    && chars[1].is_ascii_uppercase();
+                let is_ipref = chars.len() >= 2 && chars[0] == 'I' && chars[1].is_ascii_uppercase();
                 if is_ipref {
                     i_prefixed += 1;
                     if samples_i.len() < 3 {
@@ -1025,12 +1022,10 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
         // `<HTMLSpanElement>elem` / `<any>window` — heuristic: angle-bracket
         // name followed directly by an identifier. Avoid matching generics
         // (which have a `,` or `extends` inside).
-        Regex::new(r"<(?:HTML\w+|SVG\w+|any|unknown|[A-Z]\w*(?:\s*\[\s*\])?)>[\w\(]")
-            .ok()
+        Regex::new(r"<(?:HTML\w+|SVG\w+|any|unknown|[A-Z]\w*(?:\s*\[\s*\])?)>[\w\(]").ok()
     });
-    static AS_CAST_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"\bas\s+(?:HTML\w+|SVG\w+|[A-Z]\w*(?:\s*\[\s*\])?)\b").ok()
-    });
+    static AS_CAST_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"\bas\s+(?:HTML\w+|SVG\w+|[A-Z]\w*(?:\s*\[\s*\])?)\b").ok());
     let angle_casts = ANGLE_CAST_RE
         .as_ref()
         .map(|re| re.find_iter(content).count())
@@ -1102,18 +1097,15 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
         LazyLock::new(|| Regex::new(r#"(?m)^\s*["']use strict["']\s*;?\s*$"#).ok());
 
     // ── top-file declaration + imports (parity with VB `Module` / `Imports`) ─
-    static NAMESPACE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?m)^\s*(?:export\s+)?namespace\s+([\w.]+)").ok()
-    });
-    static MODULE_DECL_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?m)^\s*(?:export\s+)?module\s+([\w.]+)\s*\{").ok()
-    });
+    static NAMESPACE_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*(?:export\s+)?namespace\s+([\w.]+)").ok());
+    static MODULE_DECL_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*(?:export\s+)?module\s+([\w.]+)\s*\{").ok());
     static ES6_IMPORT_FROM_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         Regex::new(r#"(?m)^\s*import\s+(?:[\w*{},\s]+\s+from\s+)?['"]([^'"]+)['"]"#).ok()
     });
-    static REQUIRE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r#"require\(\s*['"]([^'"]+)['"]\s*\)"#).ok()
-    });
+    static REQUIRE_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r#"require\(\s*['"]([^'"]+)['"]\s*\)"#).ok());
 
     // ── null / guard / risk ──────────────────────────────────────────────
     static EARLY_GUARD_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
@@ -1127,14 +1119,14 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     });
     static EMPTY_CATCH_CB_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         // `.catch(() => {})` / `.catch(function(){})` — silently swallowed.
-        Regex::new(r"\.catch\(\s*(?:function\s*\([^)]*\)\s*\{\s*\}|\([^)]*\)\s*=>\s*\{\s*\})\s*\)").ok()
+        Regex::new(r"\.catch\(\s*(?:function\s*\([^)]*\)\s*\{\s*\}|\([^)]*\)\s*=>\s*\{\s*\})\s*\)")
+            .ok()
     });
     static CONSOLE_LOG_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"\bconsole\.(?:log|debug|info|warn|error)\(").ok());
 
     // ── security risks (no direct VB analogue — web-specific) ────────────
-    static EVAL_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"\beval\s*\(").ok());
+    static EVAL_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"\beval\s*\(").ok());
     static NEW_FUNCTION_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"\bnew\s+Function\s*\(").ok());
     static INNER_HTML_RE: LazyLock<Option<Regex>> =
@@ -1143,8 +1135,7 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
         LazyLock::new(|| Regex::new(r"\bdocument\.write\s*\(").ok());
 
     // ── docs / JSDoc ─────────────────────────────────────────────────────
-    static JSDOC_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"(?m)^\s*/\*\*").ok());
+    static JSDOC_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"(?m)^\s*/\*\*").ok());
 
     // ── Legacy ASP.NET WebForms bridge (fires anywhere `__doPostBack` is used) ─
     static DOPOSTBACK_RE: LazyLock<Option<Regex>> =
@@ -1158,9 +1149,8 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
         LazyLock::new(|| Regex::new(r"\bthis\._\w+\b").ok());
 
     // ── section-header comment decoration ─────────────────────────────────
-    static SECTION_HEADER_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?m)^\s*(?://|/\*)\s*[-=*]{5,}").ok()
-    });
+    static SECTION_HEADER_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?m)^\s*(?://|/\*)\s*[-=*]{5,}").ok());
 
     // ── framework signals (universal — React / Vue / Angular / Node / test / RxJS) ─
     static JSX_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
@@ -1180,7 +1170,10 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     // ── missing-await detection (async fn body scans below) ──────────────
     static ASYNC_FN_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         // Capture the function body opening brace — we'll scan forward for `await`.
-        Regex::new(r"(?m)\basync\s+(?:function\s*\w*\s*\([^)]*\)|\([^)]*\)\s*=>|\w+\s*\([^)]*\))\s*\{").ok()
+        Regex::new(
+            r"(?m)\basync\s+(?:function\s*\w*\s*\([^)]*\)|\([^)]*\)\s*=>|\w+\s*\([^)]*\))\s*\{",
+        )
+        .ok()
     });
 
     let mut bullets = Vec::new();
@@ -1219,7 +1212,10 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     // ── 2. Function naming ───────────────────────────────────────────────
     let mut fn_counts = CasingCounts::default();
     let mut fn_samples: Vec<String> = Vec::new();
-    for re in [FUNC_DECL_RE.as_ref(), ARROW_CONST_RE.as_ref()].iter().flatten() {
+    for re in [FUNC_DECL_RE.as_ref(), ARROW_CONST_RE.as_ref()]
+        .iter()
+        .flatten()
+    {
         for cap in re.captures_iter(content).take(SCAN_LIMIT) {
             if let Some(m) = cap.get(1) {
                 let name = m.as_str();
@@ -1300,7 +1296,11 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     let total_q = dbl + sng + tick;
     if total_q >= 4 {
         let (dom_label, dom_count) = {
-            let mut v = [("double `\"…\"`", dbl), ("single `'…'`", sng), ("template `` `…` ``", tick)];
+            let mut v = [
+                ("double `\"…\"`", dbl),
+                ("single `'…'`", sng),
+                ("template `` `…` ``", tick),
+            ];
             v.sort_by(|a, b| b.1.cmp(&a.1));
             v[0]
         };
@@ -1346,7 +1346,10 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     }
 
     // ── 8. DOM-access pattern + jQuery migration advice ──────────────────
-    let jquery = count_any(content, &["$(\"", "$('", "jQuery(", "$.ajax", "$.get(", "$.post("]);
+    let jquery = count_any(
+        content,
+        &["$(\"", "$('", "jQuery(", "$.ajax", "$.get(", "$.post("],
+    );
     let dom_api = count_any(
         content,
         &[
@@ -1666,7 +1669,15 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     // Detect the dominant framework(s) in use so downstream advice can be specific.
     let react_hits = count_any(
         content,
-        &["useState(", "useEffect(", "useMemo(", "useCallback(", "React.Component", "from \"react\"", "from 'react'"],
+        &[
+            "useState(",
+            "useEffect(",
+            "useMemo(",
+            "useCallback(",
+            "React.Component",
+            "from \"react\"",
+            "from 'react'",
+        ],
     );
     let jsx_hits = JSX_RE
         .as_ref()
@@ -1674,23 +1685,59 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
         .unwrap_or(0);
     let vue_hits = count_any(
         content,
-        &["defineComponent(", "createApp(", "from \"vue\"", "from 'vue'", "Vue.extend("],
+        &[
+            "defineComponent(",
+            "createApp(",
+            "from \"vue\"",
+            "from 'vue'",
+            "Vue.extend(",
+        ],
     );
     let angular_hits = count_any(
         content,
-        &["@Component(", "@Injectable(", "@NgModule(", "from \"@angular", "from '@angular"],
+        &[
+            "@Component(",
+            "@Injectable(",
+            "@NgModule(",
+            "from \"@angular",
+            "from '@angular",
+        ],
     );
     let rxjs_hits = count_any(
         content,
-        &[".pipe(", ".subscribe(", "new Observable(", "new Subject(", "from \"rxjs\"", "from 'rxjs'"],
+        &[
+            ".pipe(",
+            ".subscribe(",
+            "new Observable(",
+            "new Subject(",
+            "from \"rxjs\"",
+            "from 'rxjs'",
+        ],
     );
     let node_hits = count_any(
         content,
-        &["process.env.", "require(\"fs\")", "require('fs')", "require(\"path\")", "require('path')", "__dirname", "__filename"],
+        &[
+            "process.env.",
+            "require(\"fs\")",
+            "require('fs')",
+            "require(\"path\")",
+            "require('path')",
+            "__dirname",
+            "__filename",
+        ],
     );
     let express_hits = count_any(
         content,
-        &["express()", "app.use(", "app.get(", "app.post(", "app.listen(", "req.body", "res.send(", "res.json("],
+        &[
+            "express()",
+            "app.use(",
+            "app.get(",
+            "app.post(",
+            "app.listen(",
+            "req.body",
+            "res.send(",
+            "res.json(",
+        ],
     );
     // Test-framework patterns: bare `it(` / `test(` are too common (matches
     // `.split(`, `.init(`, etc). Require a leading whitespace + opening quote
@@ -1845,8 +1892,8 @@ fn static_analyze_aspx(content: &str) -> Vec<String> {
             "AJAX: {update_panels} `<asp:UpdatePanel>`, {timers} `<asp:Timer>` — partial-render regions"
         ));
     }
-    let has_sm = content.contains("<asp:ScriptManager")
-        || content.contains("<asp:ToolkitScriptManager");
+    let has_sm =
+        content.contains("<asp:ScriptManager") || content.contains("<asp:ToolkitScriptManager");
     if has_sm {
         bullets.push("`<asp:ScriptManager>` present".into());
     }
@@ -1874,7 +1921,9 @@ fn static_analyze_aspx(content: &str) -> Vec<String> {
     // Client-side script references.
     let script_refs = content.matches("<script src=").count();
     if script_refs > 0 {
-        bullets.push(format!("Client scripts: {script_refs} `<script src=…>` references"));
+        bullets.push(format!(
+            "Client scripts: {script_refs} `<script src=…>` references"
+        ));
     }
 
     // Validation controls.
@@ -1906,20 +1955,17 @@ fn static_analyze_sql(content: &str) -> Vec<String> {
     use regex::Regex;
     use std::sync::LazyLock;
 
-    static CREATE_TABLE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?im)\bCREATE\s+TABLE\s+(?:\[?\w+\]?\.)?\[?(\w+)\]?").ok()
-    });
+    static CREATE_TABLE_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)\bCREATE\s+TABLE\s+(?:\[?\w+\]?\.)?\[?(\w+)\]?").ok());
     static CREATE_PROC_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         Regex::new(
             r"(?im)\bCREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(?:\[?\w+\]?\.)?\[?(\w+)\]?",
         )
         .ok()
     });
-    static CREATE_VIEW_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?im)\bCREATE\s+VIEW\s+(?:\[?\w+\]?\.)?\[?(\w+)\]?").ok()
-    });
-    static PARAM_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"@(\w+)").ok());
+    static CREATE_VIEW_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?im)\bCREATE\s+VIEW\s+(?:\[?\w+\]?\.)?\[?(\w+)\]?").ok());
+    static PARAM_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"@(\w+)").ok());
 
     let mut bullets = Vec::new();
 
@@ -1961,7 +2007,9 @@ fn static_analyze_sql(content: &str) -> Vec<String> {
             if let Some(idx) = n.find('_') {
                 if idx > 0 && idx <= 6 {
                     let prefix = &n[..idx];
-                    *prefix_counts.entry(prefix.to_ascii_lowercase()).or_insert(0) += 1;
+                    *prefix_counts
+                        .entry(prefix.to_ascii_lowercase())
+                        .or_insert(0) += 1;
                 }
             }
         }
@@ -2005,12 +2053,14 @@ fn static_analyze_sql(content: &str) -> Vec<String> {
     // Schema qualification.
     let dbo_refs = content.matches("[dbo].").count() + content.matches("dbo.").count();
     if dbo_refs > 5 {
-        bullets.push(format!("Schema qualification: `dbo.` used {dbo_refs} times"));
+        bullets.push(format!(
+            "Schema qualification: `dbo.` used {dbo_refs} times"
+        ));
     }
 
     // Transaction usage.
-    let begin_tx = content.matches("BEGIN TRANSACTION").count()
-        + content.matches("BEGIN TRAN").count();
+    let begin_tx =
+        content.matches("BEGIN TRANSACTION").count() + content.matches("BEGIN TRAN").count();
     let commit = content.matches("COMMIT").count();
     let rollback = content.matches("ROLLBACK").count();
     if begin_tx + commit + rollback > 0 {
@@ -2072,8 +2122,9 @@ fn static_analyze_python(content: &str) -> Vec<String> {
         LazyLock::new(|| Regex::new(r"(?m)^\s*(?:async\s+)?def\s+(\w+)\s*\(").ok());
     static CLASS_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"(?m)^\s*class\s+(\w+)").ok());
-    static TYPED_PARAM_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r":\s*(?:str|int|float|bool|list|dict|tuple|Optional|[A-Z]\w+)\b").ok());
+    static TYPED_PARAM_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r":\s*(?:str|int|float|bool|list|dict|tuple|Optional|[A-Z]\w+)\b").ok()
+    });
     static RET_ANNOT_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"->\s*[A-Za-z_][\w\[\]\s,]*:").ok());
 
@@ -2170,9 +2221,10 @@ fn static_analyze_python(content: &str) -> Vec<String> {
     // Comprehension usage.
     let list_c = content.matches("[").filter(|_| true).count(); // rough
     let _ = list_c;
-    let comp_markers = content.matches(" for ").count().saturating_sub(
-        content.matches("\nfor ").count() + content.matches("\n    for ").count(),
-    );
+    let comp_markers = content
+        .matches(" for ")
+        .count()
+        .saturating_sub(content.matches("\nfor ").count() + content.matches("\n    for ").count());
     if comp_markers > 5 {
         bullets.push(format!(
             "Comprehensions: ~{comp_markers} list/dict/set comprehensions — Pythonic style"
@@ -2187,15 +2239,14 @@ fn static_analyze_rust(content: &str) -> Vec<String> {
     use regex::Regex;
     use std::sync::LazyLock;
 
-    static FN_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"(?m)^\s*(?:pub(?:\(crate\))?\s+)?(?:async\s+)?fn\s+(\w+)").ok());
+    static FN_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r"(?m)^\s*(?:pub(?:\(crate\))?\s+)?(?:async\s+)?fn\s+(\w+)").ok()
+    });
     static TYPE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
         Regex::new(r"(?m)^\s*(?:pub(?:\(crate\))?\s+)?(?:struct|enum|trait)\s+(\w+)").ok()
     });
-    static UNSAFE_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"\bunsafe\s*\{").ok());
-    static LIFETIME_RE: LazyLock<Option<Regex>> =
-        LazyLock::new(|| Regex::new(r"<'\w+").ok());
+    static UNSAFE_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"\bunsafe\s*\{").ok());
+    static LIFETIME_RE: LazyLock<Option<Regex>> = LazyLock::new(|| Regex::new(r"<'\w+").ok());
     static TEST_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"#\[(?:test|tokio::test)\]").ok());
 
@@ -2234,7 +2285,9 @@ fn static_analyze_rust(content: &str) -> Vec<String> {
         .map(|re| re.find_iter(content).count())
         .unwrap_or(0);
     if unsafe_count > 0 {
-        bullets.push(format!("`unsafe` blocks: {unsafe_count} — requires invariant docs"));
+        bullets.push(format!(
+            "`unsafe` blocks: {unsafe_count} — requires invariant docs"
+        ));
     }
 
     // Lifetimes.
@@ -2252,7 +2305,9 @@ fn static_analyze_rust(content: &str) -> Vec<String> {
         .map(|re| re.find_iter(content).count())
         .unwrap_or(0);
     if tests > 0 {
-        bullets.push(format!("Tests: {tests} `#[test]` / `#[tokio::test]` functions"));
+        bullets.push(format!(
+            "Tests: {tests} `#[test]` / `#[tokio::test]` functions"
+        ));
     }
 
     // Async runtime.
@@ -2292,7 +2347,9 @@ fn static_analyze_rust(content: &str) -> Vec<String> {
         .filter(|l| l.trim_start().starts_with("use "))
         .count();
     if use_lines >= 5 {
-        bullets.push(format!("`use` statements: {use_lines} — group `std`, external, crate"));
+        bullets.push(format!(
+            "`use` statements: {use_lines} — group `std`, external, crate"
+        ));
     }
 
     bullets
@@ -2303,9 +2360,8 @@ fn static_analyze_go(content: &str) -> Vec<String> {
     use regex::Regex;
     use std::sync::LazyLock;
 
-    static FUNC_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        Regex::new(r"(?m)^func\s+(?:\([^)]*\)\s+)?(\w+)\s*\(").ok()
-    });
+    static FUNC_RE: LazyLock<Option<Regex>> =
+        LazyLock::new(|| Regex::new(r"(?m)^func\s+(?:\([^)]*\)\s+)?(\w+)\s*\(").ok());
     static TYPE_RE: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r"(?m)^type\s+(\w+)\s+(?:struct|interface|func|\w)").ok());
 
@@ -2327,14 +2383,18 @@ fn static_analyze_go(content: &str) -> Vec<String> {
     // Error handling idiom — `if err != nil`.
     let err_check = content.matches("if err != nil").count();
     if err_check > 0 {
-        bullets.push(format!("Error checks: {err_check} `if err != nil` patterns"));
+        bullets.push(format!(
+            "Error checks: {err_check} `if err != nil` patterns"
+        ));
     }
 
     // Interfaces + channels.
     let interfaces = content.matches(" interface {").count();
     let channels = content.matches("chan ").count();
     if interfaces + channels > 0 {
-        bullets.push(format!("Interfaces: {interfaces}, channels: {channels} — concurrency idioms"));
+        bullets.push(format!(
+            "Interfaces: {interfaces}, channels: {channels} — concurrency idioms"
+        ));
     }
 
     // Goroutines.
@@ -2475,7 +2535,9 @@ fn static_analyze_generic(content: &str) -> Vec<String> {
                 "Line length: P90 = {p90} chars — tight line budget (≤80)"
             ));
         } else if p90 >= 120 {
-            bullets.push(format!("Line length: P90 = {p90} chars — wide style (>120)"));
+            bullets.push(format!(
+                "Line length: P90 = {p90} chars — wide style (>120)"
+            ));
         }
     }
 
@@ -2603,7 +2665,11 @@ fn style_language_label(file_path: &str) -> &'static str {
         "C#"
     } else if p.ends_with(".ts") || p.ends_with(".tsx") {
         "TypeScript"
-    } else if p.ends_with(".js") || p.ends_with(".jsx") || p.ends_with(".mjs") || p.ends_with(".cjs") {
+    } else if p.ends_with(".js")
+        || p.ends_with(".jsx")
+        || p.ends_with(".mjs")
+        || p.ends_with(".cjs")
+    {
         "JavaScript"
     } else if p.ends_with(".aspx") || p.ends_with(".ascx") || p.ends_with(".master") {
         "ASP.NET WebForms markup"
@@ -3149,7 +3215,10 @@ mod tests {
         assert_eq!(style_language_label("Services/Bar.cs"), "C#");
         assert_eq!(style_language_label("ts/map/x.ts"), "TypeScript");
         assert_eq!(style_language_label("~.js/map.js"), "JavaScript");
-        assert_eq!(style_language_label("pages/x.aspx"), "ASP.NET WebForms markup");
+        assert_eq!(
+            style_language_label("pages/x.aspx"),
+            "ASP.NET WebForms markup"
+        );
         assert_eq!(style_language_label("Scripts/x.sql"), "SQL");
         assert_eq!(style_language_label("m.py"), "Python");
         assert_ne!(style_language_label("App_Code/Foo.vb"), "Python");
@@ -3826,8 +3895,7 @@ export class AppComponent {
         let bullets = static_analyze_file_style(sample, "app.component.ts");
         let joined = bullets.join(" | ");
         assert!(
-            joined.contains("Dependency injection")
-                && joined.contains("parameter-property DI"),
+            joined.contains("Dependency injection") && joined.contains("parameter-property DI"),
             "Angular constructor DI must be flagged, got: {joined}"
         );
     }

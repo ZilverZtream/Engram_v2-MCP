@@ -17,14 +17,13 @@ use super::super::model::*;
 // Wildcard catches parent-module `pub(super) static` / `type` /
 // `pub(crate) fn` helpers that were left in the grandparent during
 // the Phase 2 extraction.
-use super::super::*;
 use super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::db_strategy_service::{self, FileDataAccessProfile};
 use super::super::super::dossier_service::{self, MigrationDossier};
 use super::super::super::migration_order_service::{self, MigrationOrderPlan};
 use super::super::super::pattern_detection_service;
 use super::super::super::state_migration_service::{self, StateMigrationReport};
-
+use super::super::*;
 
 pub(crate) fn build_report_summary(
     graph: &Arc<GraphStore>,

@@ -7,19 +7,22 @@
 //! identifier rewriting happened during the move, so the rendered
 //! bytes are identical to before.
 
-#![allow(unused_imports, clippy::too_many_arguments, clippy::collapsible_else_if)]
+#![allow(
+    unused_imports,
+    clippy::too_many_arguments,
+    clippy::collapsible_else_if
+)]
 
 use std::collections::BTreeMap;
 
-use super::super::super::model::*;
 use super::super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::super::db_strategy_service::FileDataAccessProfile;
 use super::super::super::super::dossier_service::MigrationDossier;
 use super::super::super::super::migration_order_service::MigrationOrderPlan;
 use super::super::super::super::state_migration_service::StateMigrationReport;
+use super::super::super::model::*;
 // Wildcard pulls in parent-level `pub(super)` helpers.
 use super::super::super::*;
-
 
 #[allow(clippy::too_many_arguments, unused_variables)]
 pub(crate) fn render_section_service_endpoints(
@@ -164,7 +167,6 @@ pub(crate) fn render_section_service_endpoints(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -351,7 +353,6 @@ pub(crate) fn render_section_javascript_typescript_client_side_dependencies(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -492,7 +493,6 @@ pub(crate) fn render_section_gis_spatial_analysis(
         }
         md.push('\n');
     }
-
 }
 
 #[allow(clippy::too_many_arguments, unused_variables)]
@@ -611,5 +611,4 @@ pub(crate) fn render_section_jquery_ecosystem_inventory(
             md.push('\n');
         }
     }
-
 }

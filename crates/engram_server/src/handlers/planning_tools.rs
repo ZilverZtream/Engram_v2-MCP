@@ -144,9 +144,17 @@ pub(crate) fn transpile_pair_candidates(ps: &str) -> Vec<String> {
             .collect()
     };
     if ps.ends_with(".ts") || ps.ends_with(".tsx") {
-        build(&[".tsx", ".ts"], &[".js", ".jsx"], &[("/ts/", "/~.js/"), ("/ts/", "/js/")])
+        build(
+            &[".tsx", ".ts"],
+            &[".js", ".jsx"],
+            &[("/ts/", "/~.js/"), ("/ts/", "/js/")],
+        )
     } else if ps.ends_with(".js") || ps.ends_with(".jsx") {
-        build(&[".jsx", ".js"], &[".ts", ".tsx"], &[("/~.js/", "/ts/"), ("/js/", "/ts/")])
+        build(
+            &[".jsx", ".js"],
+            &[".ts", ".tsx"],
+            &[("/~.js/", "/ts/"), ("/js/", "/ts/")],
+        )
     } else {
         Vec::new()
     }
@@ -826,9 +834,8 @@ mod tests {
         // extension. The extractor must greedily capture the FULL file, not
         // truncate to the directory — the bug that silently dropped co-change's
         // strongest partner (map.js) from every change set.
-        let p = change_set_paths(
-            "- `modules/map/~.js/map.js` (45 co-changes with `Site/x/map.aspx`)",
-        );
+        let p =
+            change_set_paths("- `modules/map/~.js/map.js` (45 co-changes with `Site/x/map.aspx`)");
         assert!(p.contains(&"modules/map/~.js/map.js".to_string()), "{p:?}");
         assert!(p.contains(&"site/x/map.aspx".to_string()), "{p:?}");
         // `.css` is a recognized extension and survives a `~.css/` dir.
@@ -885,10 +892,14 @@ mod tests {
                      handle this as a specific command rather than a CRUD endpoint. \
                      POST api/v2/roqentries/{id}/setasbilled. Only admins may call it.";
         let c = extract_story_concepts(story);
-        assert!(c.contains(&"roqentries".to_string()),
-                "endpoint-path resource must surface despite being buried: {c:?}");
-        assert!(!c.contains(&"update".to_string()),
-                "generic CRUD verb must be demoted: {c:?}");
+        assert!(
+            c.contains(&"roqentries".to_string()),
+            "endpoint-path resource must surface despite being buried: {c:?}"
+        );
+        assert!(
+            !c.contains(&"update".to_string()),
+            "generic CRUD verb must be demoted: {c:?}"
+        );
     }
 
     #[test]
@@ -900,18 +911,28 @@ mod tests {
         let c = extract_story_concepts(
             "POST api/v2/roqentries/{id}/setasbilled. Restricted to the Administrator role.",
         );
-        assert!(c.contains(&"roqentries".to_string()), "domain concept kept: {c:?}");
+        assert!(
+            c.contains(&"roqentries".to_string()),
+            "domain concept kept: {c:?}"
+        );
         assert!(c.contains(&"role".to_string()), "auth concept added: {c:?}");
 
         // Other auth phrasings also trigger.
-        assert!(extract_story_concepts("the endpoint requires the Export permission")
-            .contains(&"role".to_string()));
-        assert!(extract_story_concepts("only authorized managers can approve")
-            .contains(&"role".to_string()));
+        assert!(
+            extract_story_concepts("the endpoint requires the Export permission")
+                .contains(&"role".to_string())
+        );
+        assert!(
+            extract_story_concepts("only authorized managers can approve")
+                .contains(&"role".to_string())
+        );
 
         // No auth language -> no auth concept (no false trigger / noise).
         let plain = extract_story_concepts("Show the invoice filter form on the report page");
-        assert!(!plain.contains(&"role".to_string()), "no spurious auth concept: {plain:?}");
+        assert!(
+            !plain.contains(&"role".to_string()),
+            "no spurious auth concept: {plain:?}"
+        );
     }
 
     #[test]
@@ -922,11 +943,21 @@ mod tests {
         let c = extract_story_concepts(
             "patric0375 a778c06a field worker searches the RoQ code list by redovisning category",
         );
-        assert!(!c.contains(&"a778c06a".to_string()), "commit hash must be rejected: {c:?}");
-        assert!(!c.contains(&"patric0375".to_string()), "username/id must be rejected: {c:?}");
+        assert!(
+            !c.contains(&"a778c06a".to_string()),
+            "commit hash must be rejected: {c:?}"
+        );
+        assert!(
+            !c.contains(&"patric0375".to_string()),
+            "username/id must be rejected: {c:?}"
+        );
         // Garbage is gone; real word tokens fill the slots instead.
-        assert!(!c.is_empty() && c.iter().all(|t| t.chars().filter(char::is_ascii_digit).count() < 3),
-                "no 3+-digit garbage among concepts: {c:?}");
+        assert!(
+            !c.is_empty()
+                && c.iter()
+                    .all(|t| t.chars().filter(char::is_ascii_digit).count() < 3),
+            "no 3+-digit garbage among concepts: {c:?}"
+        );
         // Tokens with <3 digits (e.g. an api version) are still allowed.
         assert!(extract_story_concepts("update the apiv2 endpoint").contains(&"apiv2".to_string()));
     }
@@ -943,8 +974,10 @@ mod tests {
         assert!(r.contains(&"modules/map/ts/map.ts".to_string()), "{r:?}");
         assert!(r.contains(&"modules/map/~.js/map.ts".to_string()), "{r:?}");
         // .tsx/.jsx handled; basename preserved (incl. dotted stems).
-        assert!(transpile_pair_candidates("a/b/Grid.view.tsx")
-            .contains(&"a/b/Grid.view.js".to_string()));
+        assert!(
+            transpile_pair_candidates("a/b/Grid.view.tsx")
+                .contains(&"a/b/Grid.view.js".to_string())
+        );
         // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
@@ -987,8 +1020,14 @@ mod tests {
         .collect();
         let cohort = find_analog_cohort(&index, "controller").expect("cohort");
         let lc: Vec<String> = cohort.iter().map(|f| f.to_lowercase()).collect();
-        assert!(lc.iter().any(|f| f.contains("roqentriescontroller")), "{cohort:?}");
-        assert!(lc.iter().any(|f| f.contains("iroqentryservice")), "interface dropped: {cohort:?}");
+        assert!(
+            lc.iter().any(|f| f.contains("roqentriescontroller")),
+            "{cohort:?}"
+        );
+        assert!(
+            lc.iter().any(|f| f.contains("iroqentryservice")),
+            "interface dropped: {cohort:?}"
+        );
         assert!(cohort.len() >= 5, "{cohort:?}");
         // cue filter: a cue absent from any cohort yields nothing.
         assert!(find_analog_cohort(&index, "nonexistentcue").is_none());
@@ -1177,8 +1216,14 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     //    "administrator" are stopwords and "role" sits past the top-3 cutoff. The
     //    concept `role` footprints to that layer (validated: surfaces the user/role
     //    model) in any ASP.NET app. Generic — no per-repo names.
-    const AUTH_CUES: &[&str] =
-        &["role", "permission", "authoriz", "privilege", "access control", "rbac"];
+    const AUTH_CUES: &[&str] = &[
+        "role",
+        "permission",
+        "authoriz",
+        "privilege",
+        "access control",
+        "rbac",
+    ];
     let lower_story = story.to_lowercase();
     if AUTH_CUES.iter().any(|cue| lower_story.contains(cue)) {
         let auth = "role".to_string();
@@ -1929,7 +1974,11 @@ fn change_set_paths(text: &str) -> Vec<String> {
             p = p.replace("//", "/");
         }
         let p = p.trim_start_matches('/').to_string();
-        if p.starts_with("http") || p.starts_with("c:") || p.starts_with("f:") || p.starts_with("d:") {
+        if p.starts_with("http")
+            || p.starts_with("c:")
+            || p.starts_with("f:")
+            || p.starts_with("d:")
+        {
             continue;
         }
         let keep = p.contains('/') || p.ends_with(".config") || p.ends_with(".asax");
@@ -1945,9 +1994,29 @@ fn change_set_paths(text: &str) -> Vec<String> {
 /// together (RoqEntriesController, RoqEntryService, IRoqEntryService, RoqEntry-In
 /// all -> "roqentry"). Generic OO/enterprise vocabulary, not per-repo.
 const SCAFFOLD_ROLE_SUFFIXES: &[&str] = &[
-    "controller", "service", "repository", "manager", "provider", "factory", "handler",
-    "validator", "mapper", "builder", "helper", "extensions", "job", "worker", "listener",
-    "command", "query", "request", "response", "viewmodel", "model", "dto", "config",
+    "controller",
+    "service",
+    "repository",
+    "manager",
+    "provider",
+    "factory",
+    "handler",
+    "validator",
+    "mapper",
+    "builder",
+    "helper",
+    "extensions",
+    "job",
+    "worker",
+    "listener",
+    "command",
+    "query",
+    "request",
+    "response",
+    "viewmodel",
+    "model",
+    "dto",
+    "config",
 ];
 
 /// Reduce a filename (no extension) to its entity stem: drop a leading interface
@@ -1955,9 +2024,7 @@ const SCAFFOLD_ROLE_SUFFIXES: &[&str] = &[
 /// suffix, then singularize. Lowercased. Generic.
 fn scaffold_stem(file_no_ext: &str) -> String {
     let mut s = file_no_ext;
-    if s.len() > 2
-        && s.starts_with('I')
-        && s.as_bytes().get(1).is_some_and(u8::is_ascii_uppercase)
+    if s.len() > 2 && s.starts_with('I') && s.as_bytes().get(1).is_some_and(u8::is_ascii_uppercase)
     {
         s = &s[1..];
     }
@@ -2057,12 +2124,20 @@ fn render_change_set(
     const LAYERS: &[(&str, &[&str])] = &[
         (
             "Server (VB / code-behind / markup)",
-            &[".vb", ".cs", ".aspx", ".ascx", ".master", ".asmx", ".ashx", ".svc", ".asax"],
+            &[
+                ".vb", ".cs", ".aspx", ".ascx", ".master", ".asmx", ".ashx", ".svc", ".asax",
+            ],
         ),
-        ("Client (TypeScript / JavaScript)", &[".ts", ".tsx", ".js", ".jsx"]),
+        (
+            "Client (TypeScript / JavaScript)",
+            &[".ts", ".tsx", ".js", ".jsx"],
+        ),
         ("Resources (.resx — translate EVERY language)", &[".resx"]),
         ("Data (SQL)", &[".sql"]),
-        ("Markup / styles / config", &[".html", ".css", ".config", ".vbhtml", ".cshtml"]),
+        (
+            "Markup / styles / config",
+            &[".html", ".css", ".config", ".vbhtml", ".cshtml"],
+        ),
     ];
     let layer_of = |p: &str| -> usize {
         for (i, (_, exts)) in LAYERS.iter().enumerate() {
@@ -2074,7 +2149,10 @@ fn render_change_set(
     };
     let mut s = String::new();
     s.push_str("# Change set — candidate files for this story\n\n");
-    s.push_str(&format!("story: {story}\nconcepts: {}\n\n", concepts.join(", ")));
+    s.push_str(&format!(
+        "story: {story}\nconcepts: {}\n\n",
+        concepts.join(", ")
+    ));
     s.push_str(
         "Ranked by corroboration — git CO-CHANGE / history first (files that \
          historically shipped together with this kind of work), then concept/graph. \
@@ -2094,7 +2172,11 @@ fn render_change_set(
     s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n\n");
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
-    let layer_names: Vec<&str> = LAYERS.iter().map(|(n, _)| *n).chain(std::iter::once("Other")).collect();
+    let layer_names: Vec<&str> = LAYERS
+        .iter()
+        .map(|(n, _)| *n)
+        .chain(std::iter::once("Other"))
+        .collect();
     for (li, lname) in layer_names.iter().enumerate() {
         let mut items: Vec<(&String, &BTreeSet<&'static str>)> =
             prov.iter().filter(|(p, _)| layer_of(p) == li).collect();
@@ -2313,7 +2395,9 @@ impl Engram {
                 .filter(|p| !engram_core::is_vendor_path(p))
                 .enumerate()
             {
-                prov.entry(p).or_default().insert(if i < 12 { "vtop" } else { "vector" });
+                prov.entry(p)
+                    .or_default()
+                    .insert(if i < 12 { "vtop" } else { "vector" });
             }
         }
 
@@ -2334,8 +2418,9 @@ impl Engram {
         // broad co-change seed buries the moderate-weight links. Seed the cheap
         // neighbour lookup with ONLY the presentation anchors and keep their
         // presentation-type partners. Hub-trim inside the tool bounds it.
-        const PRESENTATION: &[&str] =
-            &[".ts", ".tsx", ".js", ".jsx", ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".css"];
+        const PRESENTATION: &[&str] = &[
+            ".ts", ".tsx", ".js", ".jsx", ".aspx", ".ascx", ".master", ".vbhtml", ".cshtml", ".css",
+        ];
         let pres_anchors: Vec<String> = prov
             .keys()
             .filter(|p| {
@@ -2360,7 +2445,8 @@ impl Engram {
         {
             for p in change_set_paths(&t.text) {
                 let pl = p.to_lowercase();
-                if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p) {
+                if PRESENTATION.iter().any(|e| pl.ends_with(e)) && !engram_core::is_vendor_path(&p)
+                {
                     prov.entry(p).or_default().insert("cochange");
                 }
             }
@@ -2441,9 +2527,10 @@ impl Engram {
             let mut remap: HashMap<String, String> = HashMap::new();
             for k in keys {
                 let k_segs = k.matches('/').count();
-                if let Some(longer) = kept.iter().find(|a| {
-                    a.matches('/').count() == k_segs + 1 && a.ends_with(&format!("/{k}"))
-                }) {
+                if let Some(longer) = kept
+                    .iter()
+                    .find(|a| a.matches('/').count() == k_segs + 1 && a.ends_with(&format!("/{k}")))
+                {
                     remap.insert(k.clone(), longer.clone());
                 } else {
                     kept.push(k);
@@ -2469,9 +2556,17 @@ impl Engram {
         // no hardcoded layout.
         {
             let sl = req.story.to_lowercase();
-            let creation = ["add", "new ", "create", "introduce", "expose", "implement", "ability to"]
-                .iter()
-                .any(|c| sl.contains(c));
+            let creation = [
+                "add",
+                "new ",
+                "create",
+                "introduce",
+                "expose",
+                "implement",
+                "ability to",
+            ]
+            .iter()
+            .any(|c| sl.contains(c));
             let api = ["api", "endpoint", "rest", "webapi", "web api"]
                 .iter()
                 .any(|c| sl.contains(c));
@@ -2534,9 +2629,7 @@ impl Engram {
                         out.push_str(&format!("- `{f}`\n"));
                     }
                     if !reg.is_empty() {
-                        out.push_str(
-                            "Register the new pieces where the codebase wires them up:\n",
-                        );
+                        out.push_str("Register the new pieces where the codebase wires them up:\n");
                         for f in reg.iter().take(3) {
                             out.push_str(&format!("- `{f}`\n"));
                         }

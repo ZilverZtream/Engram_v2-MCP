@@ -177,7 +177,11 @@ End Namespace
         "settings read must attach to the enclosing function: {edges:?}"
     );
     let meta = symbols[1].metadata.as_ref().expect("guard metadata");
-    assert!(meta.get("permission_checks").unwrap().contains("isuserinrole"));
+    assert!(
+        meta.get("permission_checks")
+            .unwrap()
+            .contains("isuserinrole")
+    );
     assert_eq!(meta.get("guard_roles").map(String::as_str), Some("Admin"));
 }
 
@@ -226,7 +230,12 @@ End Namespace
         .expect("fiberjobb access expected");
     assert_eq!(fiberjobb.source_name, "LoadAndSave");
     assert_eq!(
-        fiberjobb.metadata.as_ref().unwrap().get("access").map(String::as_str),
+        fiberjobb
+            .metadata
+            .as_ref()
+            .unwrap()
+            .get("access")
+            .map(String::as_str),
         Some("readwrite"),
         "From-query + InsertOnSubmit = readwrite"
     );
@@ -235,7 +244,12 @@ End Namespace
         .find(|e| e.target_name == "ss_systemsettings")
         .expect("settings table access expected");
     assert_eq!(
-        settings.metadata.as_ref().unwrap().get("access").map(String::as_str),
+        settings
+            .metadata
+            .as_ref()
+            .unwrap()
+            .get("access")
+            .map(String::as_str),
         Some("read")
     );
     // Non-context member access must not produce table edges.

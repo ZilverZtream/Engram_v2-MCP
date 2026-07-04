@@ -91,8 +91,7 @@ pub use llm_enhancement::{
 // test builds so a release build doesn't warn about unused items.
 #[cfg(test)]
 use llm_enhancement::{
-    build_page_llm_prompt, dossier_llm_priority, parse_page_llm_response,
-    select_dossiers_for_llm,
+    build_page_llm_prompt, dossier_llm_priority, parse_page_llm_response, select_dossiers_for_llm,
 };
 
 /// (parent_class, file_path, methods, state_writes, base_calls) per class.
@@ -327,24 +326,34 @@ pub fn analyze_full_project(
 
     let gis_analysis = analyzers::gis::build_gis_analysis(graph, project_id, target_stack);
 
-    let classic_asp = analyzers::classic_asp::build_classic_asp_summary(graph, project_id, &bundle.classic_asp_files);
+    let classic_asp = analyzers::classic_asp::build_classic_asp_summary(
+        graph,
+        project_id,
+        &bundle.classic_asp_files,
+    );
 
     let reports = analyzers::reports::build_report_summary(graph, project_id, &bundle.report_files);
 
     // ── 3b. Phase 33 analyses ──────────────────────────────────────────────
 
     // Gap 1: Code-behind method inventory
-    let method_inventories = analyzers::methods::build_method_inventories(graph, project_id, capped);
+    let method_inventories =
+        analyzers::methods::build_method_inventories(graph, project_id, capped);
 
     // Gap 2: Third-party control detection
-    let third_party_controls = analyzers::third_party::build_third_party_control_summary(&bundle.markup_files);
+    let third_party_controls =
+        analyzers::third_party::build_third_party_control_summary(&bundle.markup_files);
 
     // Gap 3: Dependency inventory
-    let dependency_inventory = analyzers::dependencies::build_dependency_inventory(&bundle.project_references);
+    let dependency_inventory =
+        analyzers::dependencies::build_dependency_inventory(&bundle.project_references);
 
     // Gap 4: Caching inventory
-    let caching_inventory =
-        analyzers::caching::build_caching_inventory(&bundle.markup_files, &code_refs, &bundle.code_files);
+    let caching_inventory = analyzers::caching::build_caching_inventory(
+        &bundle.markup_files,
+        &code_refs,
+        &bundle.code_files,
+    );
 
     // Gap 5: URL routing
     let url_routing = analyzers::routing::extract_url_routing(
@@ -397,7 +406,8 @@ pub fn analyze_full_project(
             if dependency_inventory.total_packages == 0 {
                 // Convert legacy to NuGet info for unified reporting
                 for lp in &legacy_pkgs {
-                    let (repl, ver, notes, cat) = analyzers::dependencies::lookup_modern_replacement(&lp.package_id);
+                    let (repl, ver, notes, cat) =
+                        analyzers::dependencies::lookup_modern_replacement(&lp.package_id);
                     dependency_inventory.nuget_packages.push(NuGetPackageInfo {
                         name: lp.package_id.clone(),
                         version: Some(lp.version.clone()),
@@ -420,13 +430,16 @@ pub fn analyze_full_project(
             dependency_inventory.legacy_packages.extend(legacy_pkgs);
         }
     }
-    dependency_inventory.binding_redirects = analyzers::dependencies::extract_binding_redirects(web_config_content);
+    dependency_inventory.binding_redirects =
+        analyzers::dependencies::extract_binding_redirects(web_config_content);
 
     // Ticket 6a: Config transforms
-    let config_transforms = analyzers::config_transforms::parse_config_transforms(&bundle.config_transform_files);
+    let config_transforms =
+        analyzers::config_transforms::parse_config_transforms(&bundle.config_transform_files);
 
     // Ticket 6b: Master page region mapping
-    let master_page_regions = analyzers::master_pages::build_master_page_region_map(&bundle.master_files, capped);
+    let master_page_regions =
+        analyzers::master_pages::build_master_page_region_map(&bundle.master_files, capped);
 
     // Ticket 6c: Resource file inventory
     let resource_inventory = analyzers::resources::build_resource_inventory(&bundle.resx_files);
@@ -451,8 +464,12 @@ pub fn analyze_full_project(
         engram_index::jquery_inventory::build_jquery_inventory(&js_refs, &markup_refs);
 
     // Cross-layer AJAX→Handler→Data tracing
-    let cross_layer_traces =
-        analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_refs);
+    let cross_layer_traces = analyzers::cross_layer::build_cross_layer_traces(
+        &js_analysis,
+        &sp_catalog,
+        &service_endpoints,
+        &code_refs,
+    );
 
     // ── 4. Cross-cutting aggregation ──────────────────────────────────────
 
@@ -684,18 +701,9 @@ pub fn analyze_full_project(
 
 // ── Per-page LLM Enhancement ─────────────────────────────────────────────────
 
-
-
-
-
-
-
 // ── Ticket 37.1: Async LLM Enhancement Pass ──────────────────────────────────
 
-
-
 // ── Cross-cutting aggregation ─────────────────────────────────────────────────
-
 
 // ── Phase 32: Pre-compiled regex statics ──────────────────────────────────────
 // Each function in this section previously compiled between 1 and 19 Regex
@@ -806,41 +814,23 @@ pub(super) static RPT_DATASOURCE_RE: std::sync::LazyLock<Regex> = std::sync::Laz
 
 // ── Phase 32: Analysis functions ──────────────────────────────────────────────
 
-
-
-
-
-
 // ── Global.asax analysis ──────────────────────────────────────────────────────
-
-
 
 // ── Service endpoint summary ──────────────────────────────────────────────────
 
-
-
 // ── Anti-pattern summary ──────────────────────────────────────────────────────
-
 
 // ── JavaScript / jQuery analysis ──────────────────────────────────────────────
 
-
 // ── GIS / Spatial analysis ────────────────────────────────────────────────────
-
-
 
 // ── Classic ASP summary ───────────────────────────────────────────────────────
 
-
 // ── Report summary ────────────────────────────────────────────────────────────
-
 
 // ── Phase 33 analysis functions ────────────────────────────────────────────────
 
 // ── Gap 1: Code-behind method inventory ─────────────────────────────────────
-
-
-
 
 /// Fallback: extract method signatures directly from code-behind text using regex.
 pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
@@ -1010,34 +1000,19 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
     methods
 }
 
-
 // ── Gap 2: Third-party control detection ────────────────────────────────────
-
-
-
 
 // ── Gap 3: Dependency inventory ─────────────────────────────────────────────
 
-
-
-
 // ── Gap 4: Caching inventory ────────────────────────────────────────────────
-
 
 // ── Gap 5: URL routing/rewrite rules ────────────────────────────────────────
 
-
-
 // ── Gap 6: VB.NET → C# translation flags ───────────────────────────────────
-
-
 
 // ── Gap 7: Multi-tenancy detection ──────────────────────────────────────────
 
-
 // ── Gap 8: Email & background job detection ─────────────────────────────────
-
-
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────
 
@@ -1047,20 +1022,20 @@ pub(crate) fn extract_methods_from_content(content: &str) -> Vec<MethodInfo> {
 
 // ── Phase 34: Stored Procedure Catalog Builder ───────────────────────────────
 
-
-
 // ── Phase 34: Inheritance Chain Resolution ───────────────────────────────────
 
-pub(super) static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(
+pub(super) static VB_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(
         r"(?im)^\s*(?:Public\s+)?(?:Partial\s+)?Class\s+(\w+)\s*(?:\r?\n\s*)?Inherits\s+(\w[\w.]*)",
     )
     .expect("vb_class_inherits")
-});
-pub(super) static CS_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?im)^\s*(?:public\s+)?(?:partial\s+)?class\s+(\w+)\s*:\s*(\w[\w.]*)")
-        .expect("cs_class_inherits")
-});
+    });
+pub(super) static CS_CLASS_INHERITS_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r"(?im)^\s*(?:public\s+)?(?:partial\s+)?class\s+(\w+)\s*:\s*(\w[\w.]*)")
+            .expect("cs_class_inherits")
+    });
 pub(super) static VB_METHOD_DEF_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?im)^\s*(?:Protected\s+)?(?:Overrides\s+)?(?:Overridable\s+)?(?:Public\s+)?(?:Private\s+)?(?:Friend\s+)?(?:Shared\s+)?(?:Async\s+)?(?:Sub|Function)\s+(\w+)").expect("vb_method_def")
 });
@@ -1076,9 +1051,10 @@ pub(super) static CS_CALLS_BASE_RE: std::sync::LazyLock<Regex> =
 pub(super) static SESSION_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)Session\s*[\(\[]\s*"(\w+)"\s*[\)\]]\s*="#).expect("session_write")
 });
-pub(super) static INHERITS_DIRECTIVE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)Inherits\s*=\s*"([^"]+)""#).expect("inherits_directive")
-});
+pub(super) static INHERITS_DIRECTIVE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)Inherits\s*=\s*"([^"]+)""#).expect("inherits_directive")
+    });
 
 const LIFECYCLE_METHODS: &[&str] = &[
     "Page_Load",
@@ -1102,7 +1078,6 @@ const LIFECYCLE_METHODS: &[&str] = &[
     "Render",
 ];
 
-
 // ── Phase 35: Inherited effect propagation ───────────────────────────────────
 
 // Effect detection regexes for method bodies
@@ -1114,19 +1089,18 @@ pub(super) static EFFECT_REDIRECT_RE: std::sync::LazyLock<Regex> = std::sync::La
     Regex::new(r"(?i)\b(?:Response\.Redirect|Server\.Transfer|Response\.RedirectPermanent)\b")
         .expect("effect_redirect")
 });
-pub(super) static EFFECT_CONTROL_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?i)\b(?:\w+\.(?:Text|Visible|Enabled|DataSource|DataBind|SelectedValue|SelectedIndex|Items)\s*=)")
+pub(super) static EFFECT_CONTROL_WRITE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(
+    || {
+        Regex::new(r"(?i)\b(?:\w+\.(?:Text|Visible|Enabled|DataSource|DataBind|SelectedValue|SelectedIndex|Items)\s*=)")
         .expect("effect_control_write")
-});
+    },
+);
 pub(super) static EFFECT_HTTP_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"(?i)\b(?:Response\.Write|Response\.ContentType|Response\.AddHeader|Response\.Cookies)\b",
     )
     .expect("effect_http")
 });
-
-
-
 
 // ── Phase 35: Cross-Layer AJAX→Handler→Data Tracing ──────────────────────────
 
@@ -1139,22 +1113,19 @@ pub(super) static HANDLER_TABLE_RE: std::sync::LazyLock<Regex> = std::sync::Lazy
         .expect("handler_table")
 });
 
-
 struct UrlParts {
     file_part: String,
     method_part: Option<String>,
 }
 
-
-
-
 // ── Phase 34: packages.config Parser ─────────────────────────────────────────
 
 // packages.config element regex — matches the entire <package ... /> tag
 // regardless of attribute order. Individual attributes are extracted inside.
-pub(super) static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r"(?is)<package\s+([^>]+?)/>").expect("pkg_config_element")
-});
+pub(super) static PKG_CONFIG_ELEMENT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r"(?is)<package\s+([^>]+?)/>").expect("pkg_config_element")
+    });
 pub(super) static PKG_ATTR_ID_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)\bid\s*=\s*"([^"]+)""#).expect("pkg_attr_id"));
 pub(super) static PKG_ATTR_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
@@ -1166,7 +1137,6 @@ pub(super) static PKG_ATTR_TFM_RE: std::sync::LazyLock<Regex> = std::sync::LazyL
 pub(super) static PKG_ATTR_DEV_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bdevelopmentDependency\s*=\s*"true""#).expect("pkg_attr_dev")
 });
-
 
 // ── Phase 34: Binding Redirect Parser ────────────────────────────────────────
 
@@ -1186,7 +1156,6 @@ pub(super) static BR_OLD_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLoc
 pub(super) static BR_NEW_VER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)\bnewVersion\s*=\s*"([^"]+)""#).expect("br_new_ver")
 });
-
 
 // ── Phase 34: Method Body Extraction ─────────────────────────────────────────
 
@@ -1409,7 +1378,6 @@ pub(crate) fn extract_cs_method_body(
     Some((body.to_string(), start_line, end_line, line_count))
 }
 
-
 // ── Phase 34 second-pass: LazyLock statics for compute_complexity_score ──────
 // Pre-compiled regexes avoid recompiling 18 patterns on every method body.
 
@@ -1466,7 +1434,6 @@ pub(super) static CX_SQL_ADAPTER_RE: std::sync::LazyLock<Regex> =
 pub(super) static CX_SESSION_RE: std::sync::LazyLock<Regex> =
     std::sync::LazyLock::new(|| Regex::new(r#"(?i)Session\s*[\(\[]"#).expect("valid regex"));
 
-
 // ── Phase 34: Config Transform Parser ────────────────────────────────────────
 
 pub(super) static XDT_TRANSFORM_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
@@ -1489,25 +1456,26 @@ pub(super) static XDT_DEBUG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock
     Regex::new(r#"(?i)<compilation[^>]*debug\s*=\s*"(true|false)""#).expect("xdt_debug")
 });
 
-
 // ── Phase 34: Master Page Region Mapping ─────────────────────────────────────
 
-pub(super) static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)""#)
-        .expect("content_placeholder")
-});
+pub(super) static CONTENT_PLACEHOLDER_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)""#)
+            .expect("content_placeholder")
+    });
 pub(super) static CONTENT_FILLS_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r#"(?i)<asp:Content\s+[^>]*ContentPlaceHolderID\s*=\s*"([^"]+)""#)
         .expect("content_fills")
 });
-pub(super) static MASTER_PAGE_FILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).expect("master_page_file")
-});
-pub(super) static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
-    Regex::new(r#"(?is)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)"[^>]*>\s*\S"#)
-        .expect("placeholder_default")
-});
-
+pub(super) static MASTER_PAGE_FILE_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?i)MasterPageFile\s*=\s*"([^"]+)""#).expect("master_page_file")
+    });
+pub(super) static PLACEHOLDER_DEFAULT_RE: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| {
+        Regex::new(r#"(?is)<asp:ContentPlaceHolder\s+[^>]*ID\s*=\s*"([^"]+)"[^>]*>\s*\S"#)
+            .expect("placeholder_default")
+    });
 
 // ── Phase 34: Resource File (.resx) Inventory ────────────────────────────────
 
@@ -1520,7 +1488,6 @@ pub(super) static RESX_FILE_REF_RE: std::sync::LazyLock<Regex> = std::sync::Lazy
 pub(super) static RESX_LANG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"\.([a-z]{2}(?:-[A-Z]{2})?)\.resx$").expect("resx_lang")
 });
-
 
 /// Convert epoch days (since 1970-01-01) to (year, month, day).
 pub(crate) fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
@@ -2222,7 +2189,8 @@ Module GlobalHelpers
     End Sub
 End Module
 "#;
-        let flags = analyzers::vb_translation::analyze_vb_translation_flags(&[("Helpers.vb", vb_code)]);
+        let flags =
+            analyzers::vb_translation::analyze_vb_translation_flags(&[("Helpers.vb", vb_code)]);
         assert!(!flags.translation_flags.is_empty());
         assert!(
             flags
@@ -2245,7 +2213,8 @@ Public Class Legacy
     End Sub
 End Class
 "#;
-        let flags = analyzers::vb_translation::analyze_vb_translation_flags(&[("Legacy.vb", vb_code)]);
+        let flags =
+            analyzers::vb_translation::analyze_vb_translation_flags(&[("Legacy.vb", vb_code)]);
         assert_eq!(flags.dynamic_dispatch.option_strict_off_files, 1);
         assert_eq!(flags.dynamic_dispatch.methods_with_dynamic_dispatch, 1);
         assert_eq!(flags.dynamic_dispatch.object_var_count, 1);
@@ -2274,7 +2243,10 @@ ThreadPool.QueueUserWorkItem(Sub(state)
     ProcessBatch()
 End Sub)
 "#;
-        let report = analyzers::background_jobs::detect_background_job_patterns(&[("Worker.vb", code)], None);
+        let report = analyzers::background_jobs::detect_background_job_patterns(
+            &[("Worker.vb", code)],
+            None,
+        );
         assert!(report.has_background_jobs);
         assert!(report.uses_thread_pool);
     }
@@ -2316,7 +2288,8 @@ End Sub)
 Dim tenantId As String = CStr(Session("TenantId"))
 Dim conn As String = GetConnectionForTenant(tenantId)
 "#;
-        let report = analyzers::multi_tenancy::detect_multi_tenancy(None, &[("Data.vb", code)], None);
+        let report =
+            analyzers::multi_tenancy::detect_multi_tenancy(None, &[("Data.vb", code)], None);
         assert!(!report.detection_evidence.is_empty());
     }
 
@@ -2538,7 +2511,10 @@ cmd.ExecuteReader();
         let sql = r#"
 CREATE PROCEDURE dbo.OldUnusedProc AS SELECT 1
 "#;
-        let catalog = analyzers::sp_catalog::build_sp_catalog(&[("sp/unused.sql".to_string(), sql.to_string())], &[]);
+        let catalog = analyzers::sp_catalog::build_sp_catalog(
+            &[("sp/unused.sql".to_string(), sql.to_string())],
+            &[],
+        );
         assert_eq!(catalog.uncalled_procedures.len(), 1);
         assert!(catalog.procedures[0].called_from.is_empty());
     }
@@ -2551,7 +2527,10 @@ DECLARE @sql nvarchar(max)
 SET @sql = 'SELECT * FROM Products WHERE ' + @Filter
 EXEC sp_executesql @sql
 "#;
-        let catalog = analyzers::sp_catalog::build_sp_catalog(&[("sp/dyn.sql".to_string(), sql.to_string())], &[]);
+        let catalog = analyzers::sp_catalog::build_sp_catalog(
+            &[("sp/dyn.sql".to_string(), sql.to_string())],
+            &[],
+        );
         assert!(catalog.procedures[0].has_dynamic_sql);
         assert!(
             catalog.procedures[0]
@@ -3273,8 +3252,10 @@ var cart = Session["cart"];
     <add key="Environment" value="Production" xdt:Transform="SetAttributes" xdt:Locator="Match(key)" />
   </appSettings>
 </configuration>"#;
-        let report =
-            analyzers::config_transforms::parse_config_transforms(&[("web.Release.config".to_string(), transform.to_string())]);
+        let report = analyzers::config_transforms::parse_config_transforms(&[(
+            "web.Release.config".to_string(),
+            transform.to_string(),
+        )]);
         assert_eq!(report.environments.len(), 1);
         assert_eq!(report.environments[0].name, "Release");
         assert!(report.total_transforms > 0);
@@ -3316,8 +3297,10 @@ var cart = Session["cart"];
     <add name="MainDb" connectionString="Server=staging-db;Database=App;" xdt:Transform="SetAttributes" xdt:Locator="Match(name)" />
   </connectionStrings>
 </configuration>"#;
-        let report =
-            analyzers::config_transforms::parse_config_transforms(&[("web.Staging.config".to_string(), staging.to_string())]);
+        let report = analyzers::config_transforms::parse_config_transforms(&[(
+            "web.Staging.config".to_string(),
+            staging.to_string(),
+        )]);
         assert_eq!(report.environments[0].name, "Staging");
     }
 
@@ -3657,7 +3640,8 @@ public class BasePage : System.Web.UI.Page {
         };
         let code_files: Vec<(&str, &str)> =
             vec![("PageA.aspx.cs", code), ("BasePage.cs", base_code)];
-        let report = analyzers::inheritance::resolve_inheritance_chains(&code_files, &[markup_a, markup_b]);
+        let report =
+            analyzers::inheritance::resolve_inheritance_chains(&code_files, &[markup_a, markup_b]);
 
         // Check that PageA's chain exists and has scoped methods
         let chain_a = report.chains.iter().find(|c| c.page_file == "PageA.aspx");
@@ -3911,7 +3895,8 @@ Public Class MyPage
 End Class
 "#;
         // Page_Load should NOT have SQL_Access effect
-        let page_load_effects = analyzers::methods::extract_effects_from_nearby_content(content, "Page_Load");
+        let page_load_effects =
+            analyzers::methods::extract_effects_from_nearby_content(content, "Page_Load");
         assert!(
             !page_load_effects.iter().any(|e| e.contains("SQL")),
             "Page_Load should NOT have SQL_Access (SQL is in btnQuery_Click), got: {:?}",
@@ -3919,7 +3904,8 @@ End Class
         );
 
         // btnQuery_Click SHOULD have SQL_Access
-        let btn_effects = analyzers::methods::extract_effects_from_nearby_content(content, "btnQuery_Click");
+        let btn_effects =
+            analyzers::methods::extract_effects_from_nearby_content(content, "btnQuery_Click");
         assert!(
             btn_effects.iter().any(|e| e.contains("SQL")),
             "btnQuery_Click SHOULD have SQL_Access, got: {:?}",
@@ -4209,8 +4195,12 @@ public class MapData : WebService {
 "#,
         )];
 
-        let traces =
-            analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &code_files);
+        let traces = analyzers::cross_layer::build_cross_layer_traces(
+            &js_analysis,
+            &sp_catalog,
+            &service_endpoints,
+            &code_files,
+        );
 
         assert!(!traces.chains.is_empty(), "should have at least one chain");
         assert!(
@@ -4259,7 +4249,12 @@ public class MapData : WebService {
             total_endpoints: 0,
         };
 
-        let traces = analyzers::cross_layer::build_cross_layer_traces(&js_analysis, &sp_catalog, &service_endpoints, &[]);
+        let traces = analyzers::cross_layer::build_cross_layer_traces(
+            &js_analysis,
+            &sp_catalog,
+            &service_endpoints,
+            &[],
+        );
 
         assert!(
             traces.chains.is_empty(),
@@ -4273,7 +4268,9 @@ public class MapData : WebService {
 
     #[test]
     fn cross_layer_url_parts_extraction() {
-        let parts = analyzers::cross_layer::extract_url_parts("Services/MapData.asmx/GetPolygons?bounds=1,2,3,4");
+        let parts = analyzers::cross_layer::extract_url_parts(
+            "Services/MapData.asmx/GetPolygons?bounds=1,2,3,4",
+        );
         assert_eq!(parts.file_part, "MapData.asmx");
         assert_eq!(parts.method_part.as_deref(), Some("GetPolygons"));
 

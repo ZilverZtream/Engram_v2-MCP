@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use engram_core::config::Config;
 use engram_server::services::code_review_ingest_service::{
-    ingest_code_review_history, IngestConfig, IngestSource,
+    IngestConfig, IngestSource, ingest_code_review_history,
 };
 use engram_server::services::project_service::ensure_project_record;
 use engram_server::state::AppState;
@@ -71,13 +71,7 @@ fn write_fixture_jsonl(tmp: &tempfile::TempDir, records: &[serde_json::Value]) -
     path
 }
 
-fn mk_record(
-    pr: u64,
-    status: &str,
-    file: &str,
-    severity: &str,
-    body: &str,
-) -> serde_json::Value {
+fn mk_record(pr: u64, status: &str, file: &str, severity: &str, body: &str) -> serde_json::Value {
     serde_json::json!({
         "pr_id": pr,
         "pr_title": format!("PR {pr}"),
@@ -120,7 +114,13 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         check on `gQtyManager` would harden the `validate` path.";
 
     let fixture = vec![
-        mk_record(1, "fixed", "/Site/Export/GisPdfExport.vb", "major", body_fix),
+        mk_record(
+            1,
+            "fixed",
+            "/Site/Export/GisPdfExport.vb",
+            "major",
+            body_fix,
+        ),
         mk_record(
             2,
             "fixed",

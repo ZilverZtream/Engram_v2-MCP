@@ -1259,8 +1259,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         .enumerate()
         .filter_map(|(i, l)| {
             let lo = l.trim().to_ascii_lowercase();
-            (lo.starts_with("end sub") || lo.starts_with("end function"))
-                .then_some(i as u32 + 1)
+            (lo.starts_with("end sub") || lo.starts_with("end function")).then_some(i as u32 + 1)
         })
         .collect();
     for s in &mut symbols {

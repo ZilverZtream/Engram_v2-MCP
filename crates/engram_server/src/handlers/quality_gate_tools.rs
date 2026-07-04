@@ -271,7 +271,10 @@ impl Engram {
             let origin = origin.clone();
             handles.push(tokio::spawn(async move {
                 let _permit = s.acquire().await.ok()?;
-                match d.generate_text(&prompt, 2000, Duration::from_secs(120)).await {
+                match d
+                    .generate_text(&prompt, 2000, Duration::from_secs(120))
+                    .await
+                {
                     Ok(raw) => Some(parse_distilled_rules(&raw, &origin)),
                     Err(e) => {
                         tracing::warn!("distill batch LLM call failed: {e:#}");

@@ -1013,7 +1013,10 @@ pub fn format_decision(decision: &AdpDecision) -> String {
                 .get(g.as_str())
                 .map(|gr| gr.detail.as_str())
                 .unwrap_or("(no detail)");
-            let conf = by_name.get(g.as_str()).map(|gr| gr.confidence).unwrap_or(0.0);
+            let conf = by_name
+                .get(g.as_str())
+                .map(|gr| gr.confidence)
+                .unwrap_or(0.0);
             out.push_str(&format!(
                 "{}. **`{}`** (confidence {:.2}) — {}\n",
                 i + 1,
@@ -1021,7 +1024,10 @@ pub fn format_decision(decision: &AdpDecision) -> String {
                 conf,
                 detail
             ));
-            out.push_str(&format!("   _Recommended:_ {}\n", recommendation_for_gate(g)));
+            out.push_str(&format!(
+                "   _Recommended:_ {}\n",
+                recommendation_for_gate(g)
+            ));
         }
         out.push('\n');
     }
@@ -1884,7 +1890,9 @@ mod tests {
         assert!(recommendation_for_gate("evidence_sufficiency").contains("characterization_tests"));
         assert!(recommendation_for_gate("anti_pattern").contains("immune_check"));
         assert!(recommendation_for_gate("safety_policy").contains("CLAUDE.md"));
-        assert!(recommendation_for_gate("extraction_confidence").contains("get_extraction_confidence"));
+        assert!(
+            recommendation_for_gate("extraction_confidence").contains("get_extraction_confidence")
+        );
         // Unknown gate names fall back to the generic hint.
         let fallback = recommendation_for_gate("totally_unknown_gate");
         assert!(

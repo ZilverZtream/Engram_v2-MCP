@@ -17,16 +17,17 @@ use super::super::model::*;
 // Wildcard catches parent-module `pub(super) static` / `type` /
 // `pub(crate) fn` helpers that were left in the grandparent during
 // the Phase 2 extraction.
-use super::super::*;
 use super::super::super::auth_config_service::AuthConfigMap;
 use super::super::super::db_strategy_service::{self, FileDataAccessProfile};
 use super::super::super::dossier_service::{self, MigrationDossier};
 use super::super::super::migration_order_service::{self, MigrationOrderPlan};
 use super::super::super::pattern_detection_service;
 use super::super::super::state_migration_service::{self, StateMigrationReport};
+use super::super::*;
 
-
-pub(crate) fn build_dependency_inventory(project_refs: &[ProjectReferenceBundle]) -> DependencyInventory {
+pub(crate) fn build_dependency_inventory(
+    project_refs: &[ProjectReferenceBundle],
+) -> DependencyInventory {
     let mut target_frameworks: Vec<String> = Vec::new();
     let mut all_packages: Vec<NuGetPackageInfo> = Vec::new();
     let mut all_assemblies: Vec<AssemblyRefInfo> = Vec::new();
@@ -387,7 +388,9 @@ pub(crate) fn lookup_modern_replacement(
     }
 }
 
-pub(crate) fn lookup_assembly_replacement(assembly: &str) -> (Option<&'static str>, Option<&'static str>) {
+pub(crate) fn lookup_assembly_replacement(
+    assembly: &str,
+) -> (Option<&'static str>, Option<&'static str>) {
     match assembly.to_lowercase().as_str() {
         "system.web" => (
             None,

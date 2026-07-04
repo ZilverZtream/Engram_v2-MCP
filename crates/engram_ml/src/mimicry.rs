@@ -59,10 +59,25 @@ impl DetectedLanguage {
 /// markers and route it to a real VB branch.
 fn lexical_is_vb(text: &str) -> bool {
     const MARKERS: &[&str] = &[
-        "\nImports ", "End Sub", "End Function", "End Class", "End Module",
-        "End If", "End Namespace", " Handles ", " As Boolean", " As String",
-        " As Integer", " As New ", "''' <summary>", "Public Sub", "Private Sub",
-        "Protected Sub", "Public Function", "Private Function", "ReadOnly Property",
+        "\nImports ",
+        "End Sub",
+        "End Function",
+        "End Class",
+        "End Module",
+        "End If",
+        "End Namespace",
+        " Handles ",
+        " As Boolean",
+        " As String",
+        " As Integer",
+        " As New ",
+        "''' <summary>",
+        "Public Sub",
+        "Private Sub",
+        "Protected Sub",
+        "Public Function",
+        "Private Function",
+        "ReadOnly Property",
     ];
     MARKERS.iter().filter(|m| text.contains(**m)).count() >= 3
 }
@@ -1258,7 +1273,8 @@ fn detect_testing(text: &str, lang: DetectedLanguage) -> Option<String> {
             }
         }
         DetectedLanguage::Vb => {
-            if text.contains("<TestMethod>") || text.contains("<Test>") || text.contains("Assert.") {
+            if text.contains("<TestMethod>") || text.contains("<Test>") || text.contains("Assert.")
+            {
                 Some("Cover logic with MSTest/NUnit tests (`<TestMethod>`/`<Test>`) using descriptive names.".into())
             } else {
                 None
@@ -1348,7 +1364,10 @@ fn detect_async_patterns(text: &str, lang: DetectedLanguage) -> Option<String> {
         }
         DetectedLanguage::Vb => {
             if text.contains("Async Function") || text.contains("Await ") {
-                Some("Use `Async`/`Await` for I/O-bound work; suffix async methods with `Async`.".into())
+                Some(
+                    "Use `Async`/`Await` for I/O-bound work; suffix async methods with `Async`."
+                        .into(),
+                )
             } else {
                 None
             }
@@ -1382,7 +1401,9 @@ mod js_ts_tests {
         let g = StyleMimicryEngine::new().analyze(&[js.to_string()], Some("f.js"));
         assert_eq!(g.detected_language.as_deref(), Some("javascript"), "{g:?}");
         assert!(
-            !g.bullets.iter().any(|b| b.contains("TypeScript interfaces")),
+            !g.bullets
+                .iter()
+                .any(|b| b.contains("TypeScript interfaces")),
             "plain JS must not be told to define TypeScript interfaces: {:?}",
             g.bullets
         );
