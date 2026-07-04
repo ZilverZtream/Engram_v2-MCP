@@ -683,6 +683,7 @@ impl Engram {
         validate_project_id(&req.project_id)?;
         let _ = self.ensure_project_runtime(&req.project_id).await?;
 
+        let project_id_outer = req.project_id.clone();
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
@@ -737,10 +738,11 @@ impl Engram {
                 for (writer_id, weight) in &writers {
                     if let Ok(Some(node)) = graph.get_node(&req.project_id, writer_id) {
                         out.push_str(&format!(
-                            "- {} [{}] in {} (weight: {})\n",
+                            "- {} [{}] in {}:{} (weight: {})\n",
                             node.name,
                             node.node_type,
                             node.file_path.as_str(),
+                            node.start_line,
                             weight
                         ));
                     } else {
@@ -766,10 +768,11 @@ impl Engram {
                 for (reader_id, weight) in &readers {
                     if let Ok(Some(node)) = graph.get_node(&req.project_id, reader_id) {
                         out.push_str(&format!(
-                            "- {} [{}] in {} (weight: {})\n",
+                            "- {} [{}] in {}:{} (weight: {})\n",
                             node.name,
                             node.node_type,
                             node.file_path.as_str(),
+                            node.start_line,
                             weight
                         ));
                     } else {
@@ -779,6 +782,11 @@ impl Engram {
             } else {
                 out.push_str("### Readers\nNo readers found.\n");
             }
+            out.push_str(
+                "\nnext: writers before readers when changing the shape of this value; \
+                 detect_incomplete_changes(edited_files=[...]) after editing any \
+                 subset of these sites — shared state is the classic missed-companion.\n",
+            );
 
             Ok(out)
         })
@@ -786,7 +794,13 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e, None))?;
 
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        let mut result = out;
+        let gen_ = self
+            .get_active_generation(&project_id_outer)
+            .await
+            .unwrap_or(1);
+        result.push_str(&self.freshness_footer(&project_id_outer, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(result)]))
     }
 
     pub async fn handle_trace_ui_event(
@@ -869,8 +883,19 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if paths.is_empty() {
+            // The MOST COMMON legacy case is a handler that never reaches
+            // SQL (or wiring the extractor missed) — a bare dead-end here
+            // wasted the agent's most likely follow-up moves.
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No paths found from {start_id} to any SQL nodes within {} hops.",
+                "No paths found from {start_id} to any SQL nodes within {} hops.\n\
+                 next steps to trace it anyway:\n\
+                 - raise max_hops (deep pages often need 4)\n\
+                 - find_symbol_references(<the handler>) — the data access may live \
+                 in a helper the handler calls\n\
+                 - trace_ui_action(control_id=...) for the DOM/AJAX side of the wiring\n\
+                 - if the control lives on a MasterPage/UserControl, trace from THAT \
+                 file's handler instead\n\
+                 - grep_project(\"<control id>\") to see every literal wiring site",
                 req.max_hops
             ))]));
         }
