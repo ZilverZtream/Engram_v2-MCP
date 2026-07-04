@@ -394,11 +394,10 @@ pub fn compute_blast_radius(
     let script_injection_score = normalize_score(script_count, 5);
 
     // Runtime uncertainty: dynamic UI, late binding, and probabilistic SQL/table inference.
-    let touching_edges = graph
-        .list_structural_edges(project_id)?
-        .into_iter()
-        .filter(|edge| edge.source_id == target_id || edge.target_id == target_id)
-        .collect::<Vec<_>>();
+    // O(degree) adjacency lookup — this used to be a full structural-edge
+    // table scan on EVERY call (the dominant cost of check_edit_safety and
+    // the per-file loop in pre_commit_review on large graphs).
+    let touching_edges = graph.edges_touching(project_id, target_id, 1000)?;
 
     let node_meta = node.as_ref().and_then(|n| n.metadata.as_ref());
     let mut dynamic_ui_signals = usize::from(meta_bool(node_meta, "dynamic_control"));
