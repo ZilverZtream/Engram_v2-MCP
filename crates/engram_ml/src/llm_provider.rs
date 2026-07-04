@@ -368,6 +368,13 @@ pub struct OpenAiCompatibleProvider {
     api_base: String,
     model: String,
     extra_headers: HeaderMap,
+    /// Ask the gateway to turn OFF hidden chain-of-thought for hybrid
+    /// reasoning models (OpenRouter `reasoning: {enabled: false}`).
+    /// Without this, models like deepseek-v4 spend the entire max_tokens
+    /// budget on reasoning and return an EMPTY `message.content` with
+    /// HTTP 200 — which we surfaced as "returned empty content" failures.
+    /// Only set for OpenRouter; plain OpenAI rejects unknown params.
+    disable_reasoning: bool,
 }
 
 impl OpenAiCompatibleProvider {
@@ -378,11 +385,17 @@ impl OpenAiCompatibleProvider {
             api_base,
             model,
             extra_headers: HeaderMap::new(),
+            disable_reasoning: false,
         }
     }
 
     pub fn with_headers(mut self, headers: HeaderMap) -> Self {
         self.extra_headers = headers;
+        self
+    }
+
+    pub fn with_reasoning_disabled(mut self) -> Self {
+        self.disable_reasoning = true;
         self
     }
 }
@@ -479,12 +492,15 @@ impl LlmProvider for OpenAiCompatibleProvider {
         }
 
         let url = format!("{}/chat/completions", self.api_base.trim_end_matches('/'));
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": options.max_tokens,
             "temperature": options.temperature,
         });
+        if self.disable_reasoning {
+            body["reasoning"] = serde_json::json!({ "enabled": false });
+        }
 
         let mut last_err: Option<LlmError> = None;
 
@@ -583,11 +599,26 @@ impl LlmProvider for OpenAiCompatibleProvider {
                 retry_exhausted: false,
                 message: e.to_string(),
             })?;
-            let text = data["choices"][0]["message"]["content"]
+            let mut text = data["choices"][0]["message"]["content"]
                 .as_str()
                 .unwrap_or("")
                 .trim()
                 .to_string();
+            if text.is_empty() {
+                // Hybrid reasoning models can put their entire output in the
+                // reasoning channel (OpenRouter: `reasoning`; deepseek native:
+                // `reasoning_content`) and leave `content` empty. Salvage it —
+                // downstream parsers extract the JSON object from prose.
+                for key in ["reasoning", "reasoning_content"] {
+                    if let Some(r) = data["choices"][0]["message"][key].as_str() {
+                        let r = r.trim();
+                        if !r.is_empty() {
+                            text = r.to_string();
+                            break;
+                        }
+                    }
+                }
+            }
             if text.is_empty() {
                 last_err = Some(LlmError::InvalidResponse {
                     provider: Some("openai".into()),
@@ -627,7 +658,8 @@ impl OpenRouterProvider {
         let base = api_base.unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
         Self {
             inner: OpenAiCompatibleProvider::new(client, api_key, base, model)
-                .with_headers(extra_headers),
+                .with_headers(extra_headers)
+                .with_reasoning_disabled(),
         }
     }
 

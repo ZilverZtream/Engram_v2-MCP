@@ -1,15 +1,24 @@
 //! Multi-client auto-daemon — see `docs/MULTI_CLIENT_AUTO_DAEMON.md`.
 //!
-//! This module owns the "am I primary or proxy?" decision at startup.
-//! When `cfg.multi_client == true`, `main.rs` delegates to
-//! [`dispatch`] instead of opening storage directly.
+//! This module owns process-role selection at startup. When
+//! `cfg.multi_client == true`, `main.rs` delegates to [`dispatch`]
+//! instead of opening storage directly.
+//!
+//! Default architecture (v0.8, `multi_client_daemon: true`): every MCP
+//! host session spawns a thin CLIENT that proxies its stdio to one
+//! shared DETACHED daemon over local IPC (Windows named pipe / Unix
+//! domain socket). The daemon owns all storage, survives any single
+//! session closing, and idle-exits when the last client disconnects.
+//! Fallback (`multi_client_daemon: false` or daemon spawn failure):
+//! lock election — the winning process becomes an in-process primary
+//! serving both its own stdio and the IPC listener; losers proxy.
 //!
 //! Goals:
 //! - Zero user-facing config change: same MCP config, same binary.
 //! - Never block two clients from running simultaneously against the
 //!   same `data_dir`.
-//! - No new networking — IPC is local only (Unix domain socket now;
-//!   Windows named pipe is a v0.8 follow-up).
+//! - Closing the first session must not sever the other sessions.
+//! - No new networking — IPC is local only.
 //!
 //! Non-goals: networked Engram, HA failover, transparent cross-primary
 //! retry. See the design doc for rationale.
