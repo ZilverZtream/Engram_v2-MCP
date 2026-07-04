@@ -24,7 +24,17 @@ fn is_store_accessor(node: &engram_graph::Node) -> bool {
         return false;
     }
     let ns = node.namespace.to_lowercase();
-    ns.contains("setting") || ns.contains("configsetting") || ns.ends_with("config")
+    if ns.contains("setting") || ns.contains("configsetting") || ns.ends_with("config") {
+        return true;
+    }
+    // VB fallback symbols carry the WHOLE dotted path in `name` with an
+    // empty/default namespace (ConfigSettings.Multitenant.IsMaster) — accept
+    // when the ROOT segment carries the settings/config token.
+    let name = node.name.to_lowercase();
+    if let Some((root, _rest)) = name.split_once('.') {
+        return root.contains("setting") || root.contains("config");
+    }
+    false
 }
 
 /// Category of a catalog entry, in render order.
@@ -544,6 +554,17 @@ mod tests {
             category(&node("property", "IsMaster", "ConfigSettings.Multitenant"))
                 .unwrap()
                 .contains("store")
+        );
+        // VB fallback shape: full dotted path in name, empty namespace.
+        assert!(
+            category(&node("property", "ConfigSettings.Multitenant.IsMaster", ""))
+                .unwrap()
+                .contains("store")
+        );
+        assert_eq!(
+            category(&node("property", "Customer.Name", "")),
+            None,
+            "non-settings dotted properties must not classify as settings"
         );
         assert_eq!(category(&node("function", "SaveUser", "UserService")), None);
         assert_eq!(category(&node("class", "Foo", "settings")), None);
