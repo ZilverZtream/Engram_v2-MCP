@@ -368,11 +368,14 @@ pub struct OpenAiCompatibleProvider {
     api_base: String,
     model: String,
     extra_headers: HeaderMap,
-    /// Ask the gateway to turn OFF hidden chain-of-thought for hybrid
-    /// reasoning models (OpenRouter `reasoning: {enabled: false}`).
-    /// Without this, models like deepseek-v4 spend the entire max_tokens
-    /// budget on reasoning and return an EMPTY `message.content` with
-    /// HTTP 200 — which we surfaced as "returned empty content" failures.
+    /// Ask the gateway to MINIMIZE hidden chain-of-thought for reasoning
+    /// models (OpenRouter `reasoning: {effort: "low"}`). Without this,
+    /// models like deepseek-v4 spend the entire max_tokens budget on
+    /// reasoning and return an EMPTY `message.content` with HTTP 200.
+    /// `enabled: false` is NOT used — endpoints with mandatory reasoning
+    /// (e.g. openai/gpt-oss-120b) reject it with HTTP 400 "Reasoning is
+    /// mandatory for this endpoint", while `effort: "low"` is accepted by
+    /// both mandatory- and optional-reasoning models (probed 2026-07-04).
     /// Only set for OpenRouter; plain OpenAI rejects unknown params.
     disable_reasoning: bool,
 }
@@ -499,7 +502,7 @@ impl LlmProvider for OpenAiCompatibleProvider {
             "temperature": options.temperature,
         });
         if self.disable_reasoning {
-            body["reasoning"] = serde_json::json!({ "enabled": false });
+            body["reasoning"] = serde_json::json!({ "effort": "low" });
         }
 
         let mut last_err: Option<LlmError> = None;
