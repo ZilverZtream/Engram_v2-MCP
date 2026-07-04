@@ -218,6 +218,7 @@ impl Engram {
         }
 
         let file_path_for_confidence = req.file_path.clone();
+        let project_id_outer = req.project_id.clone();
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let target_id = if let Some(ref fqn) = req.symbol_fqn {
@@ -268,6 +269,12 @@ impl Engram {
             let mut incoming = graph
                 .find_incoming_edges_with_kind(&req.project_id, None, &target_id, capped_limit)
                 .map_err(|e| e.to_string())?;
+            // Parallel list of (kind, source, REAL target) triples for the
+            // confidence batch lookup — kept in lockstep with `incoming`.
+            let mut conf_triples: Vec<(engram_graph::EdgeKind, String, String)> = incoming
+                .iter()
+                .map(|(src, kind, _)| (kind.clone(), src.clone(), target_id.clone()))
+                .collect();
 
             // File-level transitive aggregation — mirrors what
             // `compute_blast_radius` does in `blast_radius_service.rs`.
@@ -323,26 +330,36 @@ impl Engram {
                 );
 
                 if !contained.is_empty() {
-                    let all_edges = graph
-                        .list_edges(&req.project_id, None)
-                        .map_err(|e| e.to_string())?;
-                    let scanned = all_edges.len();
+                    // O(sum of in-degrees) via ADJ_IN per contained symbol —
+                    // this used to be `list_edges(None)`, a full scan of
+                    // EVERY edge in the project on each file-level call.
                     let mut added = 0usize;
-                    for edge in all_edges {
-                        if contained.contains(&edge.target_id)
-                            && edge.source_id != target_id
-                            // Do not re-include intra-file Contains
-                            // edges (namespace → class, class →
-                            // function) as "dependents" — those are
-                            // structural parent relationships, not
-                            // inbound usages.
-                            && !(contained.contains(&edge.source_id)
-                                && edge.edge_kind == engram_graph::EdgeKind::Contains)
-                        {
-                            incoming.push((edge.source_id, edge.edge_kind, edge.weight));
+                    'agg: for sym_id in &contained {
+                        let Ok(sym_incoming) = graph.find_incoming_edges_with_kind(
+                            &req.project_id,
+                            None,
+                            sym_id,
+                            200,
+                        ) else {
+                            continue;
+                        };
+                        for (src, kind, weight) in sym_incoming {
+                            if src == target_id {
+                                continue;
+                            }
+                            // Do not re-include intra-file Contains edges
+                            // (namespace → class, class → function) as
+                            // "dependents" — structural parents, not usages.
+                            if contained.contains(&src)
+                                && kind == engram_graph::EdgeKind::Contains
+                            {
+                                continue;
+                            }
+                            conf_triples.push((kind.clone(), src.clone(), sym_id.clone()));
+                            incoming.push((src, kind, weight));
                             added += 1;
                             if incoming.len() >= capped_limit {
-                                break;
+                                break 'agg;
                             }
                         }
                     }
@@ -350,7 +367,6 @@ impl Engram {
                         project_id = %req.project_id,
                         target_id = %target_id,
                         contained_symbols = contained.len(),
-                        edges_scanned = scanned,
                         transitive_added = added,
                         "impact_analysis: file-level transitive aggregation"
                     );
@@ -358,25 +374,57 @@ impl Engram {
             }
 
             if incoming.is_empty() {
-                return Ok(format!("No dependent nodes found for {target_id}."));
+                return Ok(format!(
+                    "No dependent nodes found for {target_id}.\n\
+                     next: find_symbol_references(<name>) for a lexical fallback; \
+                     resolve_id(<name>) to check you targeted the right node; \
+                     get_index_freshness if the code is newer than the index."
+                ));
             }
             let incoming_edge_count = incoming.len();
+
+            // Same phantom-edge discount blast_radius applies (TODO-12):
+            // bare-name bindings (app JS calling `new Map()` hitting a class
+            // named Map) carry extraction confidence < 1.0 — without the
+            // discount they inflate the dependent list at full weight.
+            let confidences: Vec<f32> = graph
+                .get_edge_confidences(&req.project_id, &conf_triples)
+                .map(|v| {
+                    v.into_iter()
+                        .map(|c| c.unwrap_or(1.0).clamp(0.0, 1.0))
+                        .collect()
+                })
+                .unwrap_or_else(|_| vec![1.0; incoming.len()]);
 
             let mut out = format!("Impact Analysis for {target_id}:\n\n");
             out.push_str("Nodes that depend on or are related to this:\n");
 
-            let mut grouped: std::collections::HashMap<String, (Vec<engram_graph::EdgeKind>, u32)> =
+            type Grouped = (Vec<engram_graph::EdgeKind>, u32, f32);
+            let mut grouped: std::collections::HashMap<String, Grouped> =
                 std::collections::HashMap::new();
-            for (src_id, kind, weight) in incoming {
-                let entry = grouped.entry(src_id).or_insert((Vec::new(), 0));
+            for (i, (src_id, kind, weight)) in incoming.into_iter().enumerate() {
+                let conf = confidences.get(i).copied().unwrap_or(1.0);
+                let entry = grouped.entry(src_id).or_insert((Vec::new(), 0, 1.0));
                 entry.0.push(kind);
                 if weight > entry.1 {
                     entry.1 = weight;
                 }
+                if conf < entry.2 {
+                    entry.2 = conf;
+                }
             }
 
             let mut sorted: Vec<_> = grouped.into_iter().collect();
-            sorted.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            // Confident dependents first; low-confidence (bare-name) ones
+            // are still listed but demoted and tagged, not silently counted
+            // at full strength.
+            sorted.sort_by(|a, b| {
+                let a_low = a.1.2 < 0.6;
+                let b_low = b.1.2 < 0.6;
+                a_low
+                    .cmp(&b_low)
+                    .then_with(|| b.1.1.cmp(&a.1.1))
+            });
 
             tracing::info!(
                 project_id = %req.project_id,
@@ -387,7 +435,8 @@ impl Engram {
             );
 
             let mut unresolved_count = 0usize;
-            for (src_id, (kinds, weight)) in sorted {
+            let mut low_conf_count = 0usize;
+            for (src_id, (kinds, weight, min_conf)) in sorted {
                 let src_node = graph
                     .get_node(&req.project_id, &src_id)
                     .map_err(|e| e.to_string())?;
@@ -446,12 +495,25 @@ impl Engram {
                     .map(|f| format!(" ({f})"))
                     .unwrap_or_default();
 
+                let conf_tag = if min_conf < 0.6 {
+                    low_conf_count += 1;
+                    format!(" ⚠ low-confidence match ({min_conf:.2}) — likely bare-name collision")
+                } else {
+                    String::new()
+                };
                 out.push_str(&format!(
-                    "- {}{} [{}] (weight: {weight}) - {reason_str}\n",
+                    "- {}{} [{}] (weight: {weight}) - {reason_str}{conf_tag}\n",
                     display_id, fqn_suffix, display_type
                 ));
             }
 
+            if low_conf_count > 0 {
+                out.push_str(&format!(
+                    "\n({low_conf_count} dependent(s) are LOW-CONFIDENCE bare-name matches — \
+                     demoted to the bottom; verify with grep_project before treating them \
+                     as real callers.)\n"
+                ));
+            }
             if unresolved_count > 0 {
                 out.push_str(&format!(
                     "\n(Note: {unresolved_count} source edges pointed at node_ids with no persisted node record. \
@@ -459,6 +521,10 @@ impl Engram {
                      were not. The entries above are still real dependencies.)\n"
                 ));
             }
+            out.push_str(
+                "\nnext: compute_blast_radius(<symbol>) for the risk score + seam candidates; \
+                 check_edit_safety(<method>) before editing.\n",
+            );
 
             Ok(out)
         })
@@ -472,6 +538,11 @@ impl Engram {
             let lang = engram_core::guess_language(std::path::Path::new(fp));
             result.push_str(&self.confidence_footer(&rel, lang));
         }
+        let gen_ = self
+            .get_active_generation(&project_id_outer)
+            .await
+            .unwrap_or(1);
+        result.push_str(&self.freshness_footer(&project_id_outer, gen_).await);
 
         Ok(CallToolResult::success(vec![Content::text(result)]))
     }
