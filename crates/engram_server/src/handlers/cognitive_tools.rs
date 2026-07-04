@@ -3024,7 +3024,7 @@ impl Engram {
         let mut out = format!(
             "# Blast Radius Analysis: {}\n\n\
              **Overall Risk**: {}/10 ({})\n\
-             **Total Downstream**: {} (incoming: {}, outgoing: {})\n",
+             **Direct dependents (1-hop, NOT transitive)**: {} (incoming: {}, outgoing: {})\n",
             report.target,
             report.migration_risk,
             report.risk_band,

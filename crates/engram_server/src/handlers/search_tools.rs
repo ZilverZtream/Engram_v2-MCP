@@ -633,6 +633,18 @@ impl Engram {
         // Format output from the non-blocking data collected above.
         let mut out = String::with_capacity(4096);
 
+        // Same-name collisions are the norm in legacy WebForms (every page
+        // has a Page_Load). Say up front how many DISTINCT symbols matched
+        // so the agent scrolls with intent instead of assuming one match.
+        if graph_results.len() > 1 {
+            out.push_str(&format!(
+                "⚠ {} distinct symbols match \"{}\" — results for each below. \
+                 Narrow with file_scope, or use the node_id of the one you mean.\n\n",
+                graph_results.len(),
+                req.symbol_name
+            ));
+        }
+
         for nr in &graph_results {
             out.push_str(&format!(
                 "Symbol: {} ({}) in {}\n  node_id: {}\n",
