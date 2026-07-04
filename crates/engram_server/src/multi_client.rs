@@ -455,6 +455,27 @@ async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> C
     }
 }
 
+/// Windows: strip HANDLE_FLAG_INHERIT from this process's std handles so
+/// a spawned child cannot inherit them. Without this, the daemon ends up
+/// holding a copy of the MCP host's stdio PIPE handles (host → client →
+/// launcher → daemon all inherit), and the host's `read()` on the client's
+/// stdout NEVER returns EOF — even after the client exits — because the
+/// long-lived daemon still holds the pipe's write end. Observed in
+/// production: the MCP host hung forever after the client timed out.
+#[cfg(windows)]
+fn unset_std_handle_inheritance() {
+    use std::os::windows::io::AsRawHandle as _;
+    const HANDLE_FLAG_INHERIT: u32 = 0x1;
+    unsafe extern "system" {
+        fn SetHandleInformation(handle: *mut core::ffi::c_void, mask: u32, flags: u32) -> i32;
+    }
+    unsafe {
+        let _ = SetHandleInformation(std::io::stdin().as_raw_handle(), HANDLE_FLAG_INHERIT, 0);
+        let _ = SetHandleInformation(std::io::stdout().as_raw_handle(), HANDLE_FLAG_INHERIT, 0);
+        let _ = SetHandleInformation(std::io::stderr().as_raw_handle(), HANDLE_FLAG_INHERIT, 0);
+    }
+}
+
 /// Spawn the shared daemon so that it survives this client's exit.
 ///
 /// Windows: spawn a short-lived `--daemon-launcher` intermediary which
@@ -466,6 +487,8 @@ async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> C
 /// signals aimed at the client can't touch it, and it reparents to init
 /// when this process dies.
 fn spawn_daemon_detached() -> anyhow::Result<()> {
+    #[cfg(windows)]
+    unset_std_handle_inheritance();
     let exe = std::env::current_exe()
         .map_err(|e| anyhow::anyhow!("cannot resolve current executable: {e}"))?;
     let mut cmd = std::process::Command::new(exe);
@@ -494,6 +517,8 @@ fn spawn_daemon_detached() -> anyhow::Result<()> {
 /// `--daemon-launcher` entry point: spawn the real daemon fully detached
 /// and exit. Runs synchronously — this process lives for milliseconds.
 pub fn run_daemon_launcher() -> anyhow::Result<()> {
+    #[cfg(windows)]
+    unset_std_handle_inheritance();
     let exe = std::env::current_exe()
         .map_err(|e| anyhow::anyhow!("cannot resolve current executable: {e}"))?;
     let mut cmd = std::process::Command::new(exe);
