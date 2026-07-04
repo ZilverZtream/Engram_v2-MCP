@@ -161,9 +161,29 @@ impl Engram {
         let name_q = req.name.clone();
 
         let result = tokio::task::spawn_blocking(move || {
-            let nodes = graph
+            let mut nodes = graph
                 .query_nodes(&pid, None, Some(&name_q), None, 50_000)
                 .unwrap_or_default();
+            // Store-read settings live as PROPERTY nodes named by their
+            // terminal segment (IsMaster) inside the store class namespace
+            // (ConfigSettings.Multitenant) — a dotted query like
+            // `ConfigSettings.Multitenant.IsMaster` matches no node NAME.
+            // Retry on the terminal segment and keep only nodes whose
+            // namespace+name composite equals the dotted query.
+            if nodes.iter().all(|n| category(n).is_none()) && name_q.contains('.') {
+                let terminal = name_q.rsplit('.').next().unwrap_or(&name_q);
+                let dotted_lower = name_q.to_lowercase();
+                nodes = graph
+                    .query_nodes(&pid, None, Some(terminal), None, 50_000)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|n| {
+                        let composite = format!("{}.{}", n.namespace, n.name).to_lowercase();
+                        composite == dotted_lower
+                            || composite.ends_with(&format!(".{dotted_lower}"))
+                    })
+                    .collect();
+            }
             let mut candidates: Vec<&engram_graph::Node> =
                 nodes.iter().filter(|n| category(n).is_some()).collect();
             // Exact name beats substring hits.
