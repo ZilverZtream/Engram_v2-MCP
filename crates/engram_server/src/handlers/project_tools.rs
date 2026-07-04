@@ -2087,6 +2087,33 @@ impl Engram {
                 )
             })?;
 
+        // Placeholder rewiring: index_project runs this after every
+        // index; the repair path skipped it, silently leaving ALL
+        // cross-file "::" edges unresolved after a wipe-reindex.
+        {
+            let graph = self.state.graph.clone();
+            let pid_r = pid.clone();
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(600),
+                tokio::task::spawn_blocking(move || graph.resolve_symbol_edges(&pid_r)),
+            )
+            .await
+            {
+                Ok(Ok(Ok(n))) => {
+                    tracing::info!(project_id = %pid, resolved = n, "repair_project: resolve_symbol_edges complete");
+                }
+                Ok(Ok(Err(e))) => {
+                    tracing::warn!(project_id = %pid, "repair_project: resolve_symbol_edges failed: {e:#}");
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!(project_id = %pid, "repair_project: resolve_symbol_edges panicked: {e}");
+                }
+                Err(_) => {
+                    tracing::warn!(project_id = %pid, "repair_project: resolve_symbol_edges timed out after 600s");
+                }
+            }
+        }
+
         Ok(CallToolResult::success(vec![Content::text(format!(
             "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}",
             stats.files, stats.chunks
