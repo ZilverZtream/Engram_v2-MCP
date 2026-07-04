@@ -3053,6 +3053,17 @@ impl Engram {
                         "Create the ANALOGOUS complete set for the new entity — do NOT omit the \
                          interface, query-params, DTOs, or the registration.\n",
                     );
+                    out.push_str(
+                        "Beyond the cohort, check the WIRING a live A/B showed even \
+                         strong planners miss: (1) permission/role definitions - if \
+                         the endpoint is permission-gated, the role catalog file \
+                         defining those permissions changes too; (2) the dashboard \
+                         page showing the same data - its filter handlers define \
+                         your query parameters and often need a shared-service \
+                         refactor; (3) DTO VARIANTS - mirror the template's -Out \
+                         naming per projection (Item-Out, StatusLog-Out), not one \
+                         generic DTO.\n",
+                    );
                 }
             }
         }
