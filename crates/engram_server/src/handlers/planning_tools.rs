@@ -2541,12 +2541,17 @@ fn render_change_set(
     s.push_str(
         "Signal legend — [cochange]: this file SHIPPED TOGETHER with other \
          candidates in past MERGED changes of this kind (strongest evidence; \
-         skipping one is an explicit decision — state why). [history]: past \
+         skipping one requires POSITIVE evidence of irrelevance grounded in the code - and a .ts with its committed .js bundle listed together is part of the change until PROVEN otherwise (a live A/B dismissed exactly that pair as bleed-through; it was real)). [history]: past \
          commits in this story's domain touched it. [concept]: name/content \
          matches the story's concepts. [semantic]/[graph]: embedding or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
-    s.push_str("## Completeness checklist — satisfy ALL that apply before you finish\n");
+    s.push_str(
+        "## Completeness checklist - REQUIRED decision points\n\
+         Treat EACH item below as a decision you must make and state \
+         explicitly (the highest-scoring plans in live A/Bs stated every \
+         decision; silent omissions were the top failure mode):\n",
+    );
     s.push_str(
         "- Every page touched: edit BOTH the .aspx/.ascx markup AND its \
          .aspx.vb/.ascx.vb code-behind (and .designer.vb if present).\n",
