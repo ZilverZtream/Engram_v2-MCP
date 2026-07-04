@@ -522,41 +522,75 @@ impl Engram {
         let input_set: HashSet<String> = input_files.iter().map(|f| f.to_lowercase()).collect();
 
         let started = std::time::Instant::now();
+        let cache = self.state.co_change_cache.clone();
+        let cache_key = req.project_id.clone();
         let result = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let repo = GitWalker::open_repo(&repo_dir)?;
-            let cancel = tokio_util::sync::CancellationToken::new();
-            let oids = GitWalker::walk_older_commits(
-                &repo,
-                None,
-                max_commits,
-                MergeCommitPolicy::FirstParentOnly,
-                &cancel,
-            )?;
+            let head = repo
+                .head()
+                .ok()
+                .and_then(|h| h.target())
+                .map(|o| o.to_string())
+                .unwrap_or_default();
 
-            let mut scored: Vec<(f64, String, String, Vec<String>)> = Vec::new();
-            let scanned = oids.len();
-            for oid in oids {
-                let Ok(changes) = GitWalker::files_changed_in_commit(&repo, oid) else {
-                    continue;
-                };
-                // Bulk commits (vendoring, formatting) are shape noise.
-                if changes.len() > 80 || changes.is_empty() {
-                    continue;
+            // Cache hit: same HEAD, at least as deep a walk. History is
+            // immutable, so the cached (oid, summary, files) list is exact —
+            // this turns a 24 s / 800-git-diff call into pure scoring.
+            let snapshot = match cache.get(&cache_key) {
+                Some(s) if s.head == head && !head.is_empty() && s.walked >= max_commits => {
+                    s.clone()
                 }
-                let files: Vec<String> = changes
-                    .iter()
-                    .map(|c| c.path().as_str().replace('\\', "/"))
-                    .collect();
-                let score = bag_jaccard(&input_bag, &path_token_bag(&files));
+                _ => {
+                    let cancel = tokio_util::sync::CancellationToken::new();
+                    let oids = GitWalker::walk_older_commits(
+                        &repo,
+                        None,
+                        max_commits,
+                        MergeCommitPolicy::FirstParentOnly,
+                        &cancel,
+                    )?;
+                    let mut commits = Vec::with_capacity(oids.len());
+                    for oid in oids {
+                        let Ok(changes) = GitWalker::files_changed_in_commit(&repo, oid) else {
+                            continue;
+                        };
+                        // Bulk commits (vendoring, formatting) are shape noise.
+                        if changes.len() > 80 || changes.is_empty() {
+                            continue;
+                        }
+                        let files: Vec<String> = changes
+                            .iter()
+                            .map(|c| c.path().as_str().replace('\\', "/"))
+                            .collect();
+                        let summary = repo
+                            .find_commit(oid)
+                            .ok()
+                            .and_then(|c| c.summary().map(|s| s.to_string()))
+                            .unwrap_or_default();
+                        commits.push(crate::state::CoChangeCommit {
+                            oid: oid.to_string(),
+                            summary,
+                            files,
+                        });
+                    }
+                    let snap = std::sync::Arc::new(crate::state::CoChangeSnapshot {
+                        head,
+                        walked: max_commits,
+                        commits,
+                    });
+                    cache.insert(cache_key, snap.clone());
+                    snap
+                }
+            };
+
+            let scanned = snapshot.walked;
+            let mut scored: Vec<(f64, String, String, Vec<String>)> = Vec::new();
+            for c in &snapshot.commits {
+                let score = bag_jaccard(&input_bag, &path_token_bag(&c.files));
                 if score <= 0.0 {
                     continue;
                 }
-                let summary = repo
-                    .find_commit(oid)
-                    .ok()
-                    .and_then(|c| c.summary().map(|s| s.to_string()))
-                    .unwrap_or_default();
-                scored.push((score, oid.to_string(), summary, files));
+                scored.push((score, c.oid.clone(), c.summary.clone(), c.files.clone()));
             }
             scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
             scored.truncate(top);
@@ -2806,161 +2840,186 @@ impl Engram {
             .collect();
         let max_partners = req.max_partners.clamp(1, 20);
 
-        let (partner_findings, state_findings) = tokio::task::spawn_blocking(move || {
-            let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
-            // TemporalCoupling nodes are keyed by REAL git case, but callers
-            // (e.g. get_change_set's path extractor) may pass lowercased paths.
-            // An exact-match neighbour lookup then silently misses every
-            // PascalCase file — i.e. most .NET class files (SystemSettingStore.vb
-            // etc.), the very hub files whose co-change family the caller needs.
-            // Resolve each edited path to its real-case node id once. Generic:
-            // any case-insensitive caller against a case-sensitive graph.
-            let real_case: HashMap<String, String> = graph
-                .list_file_node_metadata(&pid)
-                .map(|m| {
-                    m.into_iter()
-                        .map(|(rp, _)| {
-                            let r = rp.as_str().replace('\\', "/");
-                            (r.to_lowercase(), r)
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            // A path counts as "covered" if any edited path tail-matches it
-            // (handles Site/-prefix spelling variants from history).
-            let covered = |path: &str| -> bool {
-                let p = path.to_lowercase();
-                edited_set.iter().any(|e| {
-                    e == &p
-                        || e.ends_with(&format!("/{p}"))
-                        || p.ends_with(&format!("/{}", e.as_str()))
-                })
-            };
-
-            // ── Co-change partners not in the edit set ──────────────────
-            // Collect raw candidates (edited_file, partner, weight); weak
-            // couplings are noise, so demand real history.
-            let mut raw: Vec<(String, String, u32)> = Vec::new();
-            for f in &edited {
-                let resolved = real_case
-                    .get(&f.to_lowercase())
-                    .map(String::as_str)
-                    .unwrap_or(f.as_str());
-                let fid = format!("file:{resolved}");
-                let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500) else {
-                    continue;
+        let (partner_findings, state_findings, unresolved_inputs) =
+            tokio::task::spawn_blocking(move || {
+                let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
+                // TemporalCoupling nodes are keyed by REAL git case, but callers
+                // (e.g. get_change_set's path extractor) may pass lowercased paths.
+                // An exact-match neighbour lookup then silently misses every
+                // PascalCase file — i.e. most .NET class files (SystemSettingStore.vb
+                // etc.), the very hub files whose co-change family the caller needs.
+                // Resolve each edited path to its real-case node id once. Generic:
+                // any case-insensitive caller against a case-sensitive graph.
+                let real_case: HashMap<String, String> = graph
+                    .list_file_node_metadata(&pid)
+                    .map(|m| {
+                        m.into_iter()
+                            .map(|(rp, _)| {
+                                let r = rp.as_str().replace('\\', "/");
+                                (r.to_lowercase(), r)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                // A path counts as "covered" if any edited path tail-matches it
+                // (handles Site/-prefix spelling variants from history).
+                let covered = |path: &str| -> bool {
+                    let p = path.to_lowercase();
+                    edited_set.iter().any(|e| {
+                        e == &p
+                            || e.ends_with(&format!("/{p}"))
+                            || p.ends_with(&format!("/{}", e.as_str()))
+                    })
                 };
-                for (nid, weight) in neigh {
-                    let Some(partner) = nid.strip_prefix("file:") else {
-                        continue;
-                    };
-                    if weight < 5 || covered(partner) {
-                        continue;
-                    }
-                    raw.push((f.clone(), partner.to_string(), weight));
-                }
-            }
-            // Keep the single strongest coupling per partner.
-            raw.sort_by(|a, b| b.2.cmp(&a.2));
-            let mut best_per_partner: Vec<(String, String, u32)> = Vec::new();
-            {
-                let mut seen: HashSet<String> = HashSet::new();
-                for r in raw {
-                    if seen.insert(r.1.clone()) {
-                        best_per_partner.push(r);
-                    }
-                }
-            }
-            // Hub down-weighting: a partner that co-changes with a HUGE number of
-            // DISTINCT files (a global resx bundle, a shared script bundle) is
-            // touched by almost every change, so it carries no specific "you
-            // missed this companion" signal — surfacing it only adds noise and
-            // steers the agent toward the wrong family (e.g. label.resx when the
-            // change actually needs text.resx). Drop partners whose co-change
-            // DEGREE marks them ubiquitous. Generic — degree-based, the same IDF
-            // insight as the cross-section map; no per-repo names. The default
-            // is a high floor so it NO-OPS on sparse/young repos (no file reaches
-            // it) and only trims genuinely ubiquitous hubs on dense histories
-            // like this one (label.resx ~1063, text.resx ~900 get dropped;
-            // moderately-specific companions ~300-700 survive). Env-overridable.
-            let hub_degree: usize = std::env::var("ENGRAM_HUB_DEGREE")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(800);
-            // Co-change degree per candidate partner (distinct neighbours).
-            let degree_of = |partner: &str| -> usize {
-                let pfid = format!("file:{partner}");
-                graph
-                    .neighbors(&pid, EdgeKind::TemporalCoupling, &pfid, 2000)
-                    .map(|v| v.len())
-                    .unwrap_or(0)
-            };
-            let mut partner_findings: Vec<(String, String, u32, usize)> = best_per_partner
-                .into_iter()
-                .map(|(e, p, w)| {
-                    let d = degree_of(&p);
-                    (e, p, w, d)
-                })
-                .filter(|(_, _, _, d)| *d < hub_degree)
-                .collect();
-            partner_findings.truncate(max_partners.max(15));
 
-            // ── State keys shared with untouched files ──────────────────
-            // Symbols in edited files -> state targets -> other touchers.
-            let mut state_findings: Vec<(String, String)> = Vec::new();
-            let mut seen_keys: HashSet<String> = HashSet::new();
-            let nodes = graph
-                .query_nodes(&pid, None, None, None, 50_000)
-                .unwrap_or_default();
-            let edited_symbol_ids: Vec<String> = nodes
-                .iter()
-                .filter(|n| covered(n.file_path.as_str()))
-                .map(|n| n.node_id.clone())
-                .collect();
-            let node_file: std::collections::HashMap<&str, &str> = nodes
-                .iter()
-                .map(|n| (n.node_id.as_str(), n.file_path.as_str()))
-                .collect();
-            for sid in edited_symbol_ids.iter().take(500) {
-                for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
-                    let Ok(neigh) = graph.neighbors(&pid, kind, sid, 20) else {
+                // ── Co-change partners not in the edit set ──────────────────
+                // Collect raw candidates (edited_file, partner, weight); weak
+                // couplings are noise, so demand real history.
+                let mut raw: Vec<(String, String, u32)> = Vec::new();
+                let mut unresolved_inputs: Vec<String> = Vec::new();
+                for f in &edited {
+                    let resolved = match real_case.get(&f.to_lowercase()) {
+                        Some(r) => r.as_str(),
+                        None => {
+                            // A completeness tool that silently skips an input
+                            // file can print "looks complete" while having seen
+                            // NOTHING — flag it instead.
+                            unresolved_inputs.push(f.clone());
+                            f.as_str()
+                        }
+                    };
+                    let fid = format!("file:{resolved}");
+                    let Ok(neigh) = graph.neighbors(&pid, EdgeKind::TemporalCoupling, &fid, 500)
+                    else {
                         continue;
                     };
-                    for (state_id, _) in neigh {
-                        if !state_id.starts_with("state:") || !seen_keys.insert(state_id.clone()) {
-                            continue;
-                        }
-                        // Other touchers of this key outside the edit set.
-                        let Ok(touchers) =
-                            graph.find_incoming_edges_with_kind(&pid, None, &state_id, 100)
-                        else {
+                    for (nid, weight) in neigh {
+                        let Some(partner) = nid.strip_prefix("file:") else {
                             continue;
                         };
-                        let outside: Vec<&str> = touchers
-                            .iter()
-                            .filter_map(|(src, _, _)| node_file.get(src.as_str()).copied())
-                            .filter(|f| !covered(f))
-                            .take(3)
-                            .collect();
-                        if !outside.is_empty() {
-                            state_findings.push((
-                                state_id
-                                    .strip_prefix("state:")
-                                    .unwrap_or(&state_id)
-                                    .to_string(),
-                                outside.join(", "),
-                            ));
+                        if weight < 5 || covered(partner) {
+                            continue;
+                        }
+                        raw.push((f.clone(), partner.to_string(), weight));
+                    }
+                }
+                // Keep the single strongest coupling per partner.
+                raw.sort_by(|a, b| b.2.cmp(&a.2));
+                let mut best_per_partner: Vec<(String, String, u32)> = Vec::new();
+                {
+                    let mut seen: HashSet<String> = HashSet::new();
+                    for r in raw {
+                        if seen.insert(r.1.clone()) {
+                            best_per_partner.push(r);
                         }
                     }
                 }
-            }
-            state_findings.truncate(10);
-            (partner_findings, state_findings)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                // Hub down-weighting: a partner that co-changes with a HUGE number of
+                // DISTINCT files (a global resx bundle, a shared script bundle) is
+                // touched by almost every change, so it carries no specific "you
+                // missed this companion" signal — surfacing it only adds noise and
+                // steers the agent toward the wrong family (e.g. label.resx when the
+                // change actually needs text.resx). Drop partners whose co-change
+                // DEGREE marks them ubiquitous. Generic — degree-based, the same IDF
+                // insight as the cross-section map; no per-repo names. The default
+                // is a high floor so it NO-OPS on sparse/young repos (no file reaches
+                // it) and only trims genuinely ubiquitous hubs on dense histories
+                // like this one (label.resx ~1063, text.resx ~900 get dropped;
+                // moderately-specific companions ~300-700 survive). Env-overridable.
+                let hub_degree: usize = std::env::var("ENGRAM_HUB_DEGREE")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(800);
+                // Co-change degree per candidate partner (distinct neighbours).
+                let degree_of = |partner: &str| -> usize {
+                    let pfid = format!("file:{partner}");
+                    graph
+                        .neighbors(&pid, EdgeKind::TemporalCoupling, &pfid, 2000)
+                        .map(|v| v.len())
+                        .unwrap_or(0)
+                };
+                let mut partner_findings: Vec<(String, String, u32, usize)> = best_per_partner
+                    .into_iter()
+                    .map(|(e, p, w)| {
+                        let d = degree_of(&p);
+                        (e, p, w, d)
+                    })
+                    .filter(|(_, _, _, d)| *d < hub_degree)
+                    .collect();
+                partner_findings.truncate(max_partners);
+
+                // ── State keys shared with untouched files ──────────────────
+                // Symbols in edited files -> state targets -> other touchers.
+                let mut state_findings: Vec<(String, String)> = Vec::new();
+                let mut seen_keys: HashSet<String> = HashSet::new();
+                let nodes = graph
+                    .query_nodes(&pid, None, None, None, 50_000)
+                    .unwrap_or_default();
+                let edited_symbol_ids: Vec<String> = nodes
+                    .iter()
+                    .filter(|n| covered(n.file_path.as_str()))
+                    .map(|n| n.node_id.clone())
+                    .collect();
+                let node_file: std::collections::HashMap<&str, &str> = nodes
+                    .iter()
+                    .map(|n| (n.node_id.as_str(), n.file_path.as_str()))
+                    .collect();
+                for sid in edited_symbol_ids.iter().take(500) {
+                    for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                        let Ok(neigh) = graph.neighbors(&pid, kind, sid, 20) else {
+                            continue;
+                        };
+                        for (state_id, _) in neigh {
+                            if !state_id.starts_with("state:")
+                                || !seen_keys.insert(state_id.clone())
+                            {
+                                continue;
+                            }
+                            // Other touchers of this key outside the edit set.
+                            let Ok(touchers) =
+                                graph.find_incoming_edges_with_kind(&pid, None, &state_id, 100)
+                            else {
+                                continue;
+                            };
+                            let outside: Vec<&str> = touchers
+                                .iter()
+                                .filter_map(|(src, _, _)| node_file.get(src.as_str()).copied())
+                                .filter(|f| !covered(f))
+                                .take(3)
+                                .collect();
+                            if !outside.is_empty() {
+                                state_findings.push((
+                                    state_id
+                                        .strip_prefix("state:")
+                                        .unwrap_or(&state_id)
+                                        .to_string(),
+                                    outside.join(", "),
+                                ));
+                            }
+                        }
+                    }
+                }
+                state_findings.truncate(10);
+                (partner_findings, state_findings, unresolved_inputs)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut out = String::from("# Edit completeness check\n");
+        if !unresolved_inputs.is_empty() {
+            out.push_str(&format!(
+                "\n⚠ {} of your edited files were NOT found in the index ({}) — typo, \
+                 moved, or not yet indexed. Findings below may be incomplete; run \
+                 update_project if the files are new.\n",
+                unresolved_inputs.len(),
+                unresolved_inputs
+                    .iter()
+                    .take(5)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
         if partner_findings.is_empty() && state_findings.is_empty() {
             out.push_str(
                 "\nNo strong couplings point outside your edit set. History and state \

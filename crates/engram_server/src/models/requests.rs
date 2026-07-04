@@ -757,6 +757,42 @@ pub struct RepairProjectRequest {
     pub index_antipatterns: bool,
 }
 
+// -------------------- Merged-work corpus --------------------
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct IngestMergedPrsRequest {
+    pub project_id: String,
+    /// Max first-parent commits to walk on the FIRST ingest (later runs are
+    /// incremental from a watermark). Default 5000.
+    #[serde(default = "default_pr_ingest_max_commits")]
+    pub max_commits: usize,
+}
+
+fn default_pr_ingest_max_commits() -> usize {
+    5000
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindMergedWorkRequest {
+    pub project_id: String,
+    /// Story/task description or domain terms (matched against PR titles,
+    /// bodies, file paths, and domains).
+    pub story: String,
+    /// Ultra-coarse change-kind filter: ui-markup | ui-code | js | database |
+    /// settings | resources | api | backend. Omit for all kinds.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// How many exemplar PRs to return. Default 3.
+    #[serde(default = "default_find_merged_top")]
+    pub top: usize,
+}
+
+fn default_find_merged_top() -> usize {
+    3
+}
+
 // -------------------- Search --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

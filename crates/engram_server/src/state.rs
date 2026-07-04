@@ -139,6 +139,16 @@ pub struct AppState {
     /// is removed by the background task when it finishes.
     pub pagerank_inflight: Arc<DashSet<String>>,
 
+    /// Per-project cache of the git co-change walk (commit → changed files).
+    ///
+    /// `find_similar_changes` (also the co-change arm of `get_change_set`)
+    /// used to re-diff up to 800 commits on EVERY call — 24 s measured live
+    /// on OciusX. History is immutable, so the walk result is cached keyed
+    /// by the repo's HEAD oid: repeat calls skip git entirely until a new
+    /// commit lands, and the long-lived shared daemon amortises the one
+    /// slow walk across every connected session. Key: project_id.
+    pub co_change_cache: Arc<DashMap<String, Arc<CoChangeSnapshot>>>,
+
     /// ADP1: Runtime kill-switch for autonomous decisions.
     ///
     /// Initialised from OR(config.adp_kill_switch, registry-persisted value)
@@ -146,6 +156,27 @@ pub struct AppState {
     /// Handlers that invoke the ADP pipeline read this flag rather than the
     /// (immutable) Config field, allowing runtime toggle without a restart.
     pub adp_kill_switch: Arc<std::sync::atomic::AtomicBool>,
+}
+
+/// One walked commit: oid + summary + the files it changed. Immutable once
+/// walked, so safe to share via Arc across concurrent callers.
+#[derive(Debug, Clone)]
+pub struct CoChangeCommit {
+    pub oid: String,
+    pub summary: String,
+    pub files: Vec<String>,
+}
+
+/// Cached co-change walk for one repo state.
+#[derive(Debug)]
+pub struct CoChangeSnapshot {
+    /// HEAD oid the walk was taken at — cache is valid only while it matches.
+    pub head: String,
+    /// How many commits the walk covered (the sanitized max_commits used).
+    pub walked: usize,
+    /// Oldest→newest is NOT guaranteed; consumers score per-commit and don't
+    /// depend on order beyond what the walker produced.
+    pub commits: Vec<CoChangeCommit>,
 }
 
 impl AppState {
@@ -218,6 +249,7 @@ impl AppState {
                 migration_progress: Arc::new(migration_progress),
                 pagerank_cache: Arc::new(DashMap::new()),
                 pagerank_inflight: Arc::new(DashSet::new()),
+                co_change_cache: Arc::new(DashMap::new()),
                 adp_kill_switch: Arc::new(std::sync::atomic::AtomicBool::new(
                     effective_kill_switch,
                 )),

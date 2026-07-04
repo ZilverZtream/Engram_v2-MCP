@@ -271,6 +271,26 @@ impl Engram {
     }
 
     #[tool(
+        description = "Build/refresh the merged-work corpus: walks first-parent git history (Azure DevOps 'Merged PR N:' and GitHub merge commits both carry the PR identity — no PAT needed), and indexes ONE searchable doc per merged PR/change unit: title, author, date, domains, coarse change kinds, and the complete approved file cohort. Incremental via watermark — cheap to re-run. Query with find_merged_work."
+    )]
+    pub async fn ingest_merged_prs(
+        &self,
+        params: Parameters<crate::models::IngestMergedPrsRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_ingest_merged_prs(params.0).await
+    }
+
+    #[tool(
+        description = "How was similar APPROVED work done here? Searches the merged-PR corpus (ingest_merged_prs) by story/domain terms, optionally filtered by coarse change kind (ui-markup|ui-code|js|database|settings|resources|api|backend), and returns the top exemplar PRs with their complete shipped file cohorts — proven patterns to mirror when planning or implementing."
+    )]
+    pub async fn find_merged_work(
+        &self,
+        params: Parameters<crate::models::FindMergedWorkRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_find_merged_work(params.0).await
+    }
+
+    #[tool(
         description = "ONE call from a user story to the ranked, co-change-confirmed, family-complete SET OF FILES to change: fuses concept-footprint + git co-change + structural graph, ranks co-change/history first, expands .NET WebForms families (code-behind, designer, full .resx language set), and filters vendor/minified noise. Returns a layer-grouped change-set + a completeness checklist. Use to scope 'which files does this story touch'."
     )]
     pub async fn get_change_set(

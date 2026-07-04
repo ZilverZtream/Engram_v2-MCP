@@ -144,19 +144,33 @@ fn render_markdown(r: &engram_index::grep::GrepResult, pattern: &str, regex: boo
         return out;
     }
     out.push_str("## Matches\n\n");
+    // A hit inside a minified/generated line used to dump the ENTIRE line —
+    // thousands of chars per match. Cap every rendered line; the file:line:col
+    // anchor stays exact so the agent can fetch more via get_chunk.
+    fn clip(s: &str) -> std::borrow::Cow<'_, str> {
+        const MAX: usize = 300;
+        if s.chars().count() <= MAX {
+            return std::borrow::Cow::Borrowed(s);
+        }
+        let clipped: String = s.chars().take(MAX).collect();
+        std::borrow::Cow::Owned(format!("{clipped}…[+{} chars]", s.chars().count() - MAX))
+    }
     for m in &r.matches {
         for (i, before) in m.context_before.iter().enumerate() {
             let ln = (m.line as usize).saturating_sub(m.context_before.len() - i);
-            let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, before);
+            let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(before));
         }
         let _ = writeln!(
             out,
             "**{}:{}:{}**: {}",
-            m.file_path, m.line, m.column, m.line_text
+            m.file_path,
+            m.line,
+            m.column,
+            clip(&m.line_text)
         );
         for (i, after) in m.context_after.iter().enumerate() {
             let ln = m.line as usize + i + 1;
-            let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, after);
+            let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(after));
         }
         out.push('\n');
     }
