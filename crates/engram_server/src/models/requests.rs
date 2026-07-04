@@ -809,6 +809,11 @@ pub struct GetSettingRequest {
 #[serde(deny_unknown_fields)]
 pub struct IngestMergedPrsRequest {
     pub project_id: String,
+    /// Ignore the incremental watermark and re-walk/re-render the whole
+    /// corpus (stable pr:<id> pks make this an in-place upsert). Use after
+    /// upgrades that change the PR doc format or generation scheme.
+    #[serde(default)]
+    pub rebuild: bool,
     /// Max first-parent commits to walk on the FIRST ingest (later runs are
     /// incremental from a watermark). Default 5000.
     #[serde(default = "default_pr_ingest_max_commits")]

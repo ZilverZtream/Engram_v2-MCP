@@ -192,9 +192,16 @@ impl Engram {
             tokio::task::spawn_blocking(move || reg.get_meta(&pid, watermark_key).ok().flatten())
                 .await
                 .unwrap_or(None);
-        let stop_oid = watermark
-            .as_deref()
-            .and_then(|s| git2::Oid::from_str(s).ok());
+        // rebuild=true ignores the watermark: re-walk and re-render the whole
+        // corpus (stable pr:<id> pks make this an in-place upsert). Needed
+        // after doc-format/generation changes.
+        let stop_oid = if req.rebuild {
+            None
+        } else {
+            watermark
+                .as_deref()
+                .and_then(|s| git2::Oid::from_str(s).ok())
+        };
 
         let repo_dir = std::path::PathBuf::from(&rec.directory);
         type PrUnit = (String, String, String, u64, String, Vec<String>);
@@ -269,7 +276,12 @@ impl Engram {
             let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &path_hash);
             let content_hash = ContentHash::compute(content.as_bytes());
             docs.push(engram_index::IndexDoc {
-                generation: gen_,
+                // Generation 0 (the GlobalMutable pattern): pr:<id> paths are
+                // stable, so gen-0 pks give overwrite semantics AND survive
+                // project reindexes. Ingesting at the live generation broke
+                // every get_doc lookup (and the kind/date filters with it)
+                // the moment the project was reindexed past that gen.
+                generation: 0,
                 chunk_id: {
                     let h = blake3::hash(synthetic_path.as_bytes());
                     let mut b = [0u8; 8];
@@ -400,16 +412,34 @@ impl Engram {
                 .unwrap_or_default()
         );
         let mut shown = 0usize;
+        // A rebuilt corpus can briefly hold the same PR at two generations
+        // (gen-0 + a legacy gen) — same doc_id, two pks. Render each once.
+        let mut seen_doc_ids: std::collections::HashSet<&str> = Default::default();
         for h in &hits {
             if shown >= top {
                 break;
             }
-            match ps.search.get_doc_by_doc_id(
+            if !seen_doc_ids.insert(h.doc_id.as_str()) {
+                continue;
+            }
+            // PR docs live at generation 0 (stable pks; see ingest). Fall
+            // back to the live generation for corpora ingested before that
+            // change so old installs keep working until a rebuild.
+            let fetched = match ps.search.get_doc_by_doc_id(
                 &req.project_id,
                 engram_core::namespaces::NAMESPACE_HISTORY,
-                gen_,
+                0,
                 &h.doc_id,
             ) {
+                Ok(Some(d)) => Ok(Some(d)),
+                _ => ps.search.get_doc_by_doc_id(
+                    &req.project_id,
+                    engram_core::namespaces::NAMESPACE_HISTORY,
+                    gen_,
+                    &h.doc_id,
+                ),
+            };
+            match fetched {
                 Ok(Some((_, _, content, _, _))) => {
                     // Ultra-coarse kind filter: match against the doc's
                     // `kinds:` line so "database" only returns exemplars
