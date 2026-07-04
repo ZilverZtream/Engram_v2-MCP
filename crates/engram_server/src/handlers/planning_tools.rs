@@ -2558,7 +2558,14 @@ fn render_change_set(
     );
     s.push_str(
         "- Every user-facing string: update the .resx in EVERY language present, \
-         not only the default.\n",
+         not only the default - and use the resx FAMILY the ranked candidates \
+         show (co-change evidence names the exact family, e.g. text vs label \
+         vs control); do not add families on principle.\n",
+    );
+    s.push_str(
+        "- UI look/feel changes: check whether the surface pulls page-specific \
+         stylesheets (map.css-style files) - cross-cutting UI work in this \
+         codebase frequently ships CSS alongside the TS/bundles.\n",
     );
     s.push_str("- Every schema / setting / column change: include the SQL migration.\n");
     s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n");
