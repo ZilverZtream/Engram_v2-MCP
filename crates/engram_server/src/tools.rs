@@ -281,6 +281,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "LLM wiki for one database table: the domain entity it represents, key columns, who reads/writes it, and test implications - built from the graph plus accessor-method excerpts. Persisted so query_business_logic finds it. Requires llm_backend."
+    )]
+    pub async fn describe_table(
+        &self,
+        params: Parameters<crate::models::DescribeTableRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_describe_table(params.0).await
+    }
+
+    #[tool(
         description = "LLM-authored wiki entry for one setting, built from its actual reader-method bodies: what it controls, enabled-vs-disabled behaviour, user-type interactions, and test implications. Persisted so query_business_logic finds it by domain terms later. Requires llm_backend. Use get_setting for the raw usage-site list."
     )]
     pub async fn describe_setting(

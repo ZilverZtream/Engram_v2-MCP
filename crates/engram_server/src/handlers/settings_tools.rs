@@ -754,6 +754,160 @@ impl Engram {
     }
 }
 
+impl Engram {
+    /// LLM wiki for one DATABASE TABLE — the domain-entity layer: what the
+    /// table represents, its columns, who reads/writes it, and test
+    /// implications. Built from the graph (HasColumn + incoming
+    /// QueriesTable/SqlCalls) plus accessor-method excerpts; persisted
+    /// path-stably (__tables/<name>.md) like the setting wikis.
+    pub async fn handle_describe_table(
+        &self,
+        req: crate::models::DescribeTableRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let table = req.table.trim().to_lowercase();
+        let project_dir = rec.directory.clone();
+
+        let ctx = tokio::task::spawn_blocking(move || {
+            let node_id = engram_core::ids::NodeId::table(&table).0;
+            let node = graph
+                .get_node(&pid, &node_id)
+                .ok()
+                .flatten()
+                .ok_or_else(|| {
+                    format!(
+                        "No table '{table}' in the graph. analyze_database_intelligence \
+                     lists tables; names are lowercase."
+                    )
+                })?;
+            let mut columns: Vec<String> = graph
+                .neighbors(&pid, engram_graph::EdgeKind::HasColumn, &node_id, 100)
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|(cid, _)| cid.rsplit(':').next().map(str::to_string))
+                .collect();
+            columns.sort();
+            columns.dedup();
+            let incoming = graph
+                .find_incoming_edges_with_kind(&pid, None, &node_id, 200)
+                .unwrap_or_default();
+            let mut excerpts: Vec<(String, String)> = Vec::new();
+            for (src, _k, _w) in incoming.iter().take(40) {
+                if excerpts.len() >= 6 {
+                    break;
+                }
+                let Ok(Some(r)) = graph.get_node(&pid, src) else {
+                    continue;
+                };
+                if r.node_type != "function" {
+                    continue;
+                }
+                let Ok(abs) = engram_core::safe_join(
+                    std::path::Path::new(&project_dir),
+                    r.file_path.as_str(),
+                ) else {
+                    continue;
+                };
+                let end = r.end_line.min(r.start_line + 50);
+                if let Some(code) = read_line_range(&abs, r.start_line, end) {
+                    excerpts.push((
+                        format!("{} ({}:{})", r.name, r.file_path, r.start_line),
+                        code,
+                    ));
+                }
+            }
+            Ok::<_, String>((node.name.clone(), columns, incoming.len(), excerpts))
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::invalid_params(e, None))?;
+        let (tname, columns, accessor_count, excerpts) = ctx;
+
+        if excerpts.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "Table '{tname}' has no readable accessor bodies to describe from. \
+                 get_sp_details / analyze_database_intelligence give the raw structure."
+            ))]));
+        }
+
+        let mut prompt = format!(
+            "You are documenting the database table `{tname}` for a team wiki. \
+             It has {} known column(s): {}. {} code accessor(s); excerpts from \
+             the most important follow.\n\n",
+            columns.len(),
+            columns.join(", "),
+            accessor_count
+        );
+        for (label, code) in &excerpts {
+            prompt.push_str(&format!("### {label}\n```\n{code}\n```\n\n"));
+        }
+        prompt.push_str(
+            "From THESE excerpts only (never invent), write:\n\
+             1. WHAT THE TABLE REPRESENTS: the domain entity, 1-2 sentences.\n\
+             2. KEY COLUMNS: meanings you can actually see in the code.\n\
+             3. WHO READS/WRITES IT: the workflows in the excerpts (cite functions).\n\
+             4. TEST IMPLICATIONS: what to seed/verify when changes touch it.\n\
+             Plain markdown, max ~250 words. Say 'not visible in these excerpts' where true.",
+        );
+
+        let raw = self
+            .state
+            .dreaming
+            .generate_text(&prompt, 2048, std::time::Duration::from_secs(120))
+            .await
+            .map_err(|e| {
+                McpError::internal_error(format!("LLM unavailable for describe_table: {e}"), None)
+            })?;
+
+        let doc_body = format!("# Table: {tname}\n\n{raw}\n");
+        {
+            use engram_core::{ContentHash, DocIdStr, RelPath};
+            let ps = self.ensure_project_runtime(&req.project_id).await?;
+            let synthetic_path = format!("__tables/{tname}.md");
+            let path_hash = ContentHash::compute(synthetic_path.as_bytes());
+            let doc_id = DocIdStr::compute(&synthetic_path, 0, 0, &path_hash);
+            let chunk_id = {
+                let h = blake3::hash(synthetic_path.as_bytes());
+                let mut b = [0u8; 8];
+                b.copy_from_slice(&h.as_bytes()[..8]);
+                u64::from_le_bytes(b)
+            };
+            let content_hash = ContentHash::compute(doc_body.as_bytes());
+            let doc = engram_index::IndexDoc {
+                generation: 0,
+                chunk_id,
+                path: RelPath::new(&synthetic_path),
+                language: "markdown".into(),
+                content: doc_body.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_BUSINESS_LOGIC.into(),
+                author: None,
+                timestamp: None,
+                start_line: 0,
+                end_line: 0,
+                doc_id: doc_id.0,
+                content_hash: content_hash.0,
+            };
+            ps.search
+                .index_docs(
+                    &req.project_id,
+                    std::slice::from_ref(&doc),
+                    &tokio_util::sync::CancellationToken::new(),
+                )
+                .await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        }
+
+        let mut out = doc_body;
+        out.push_str("\n_(persisted — retrieve later with query_business_logic)_\n");
+        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
