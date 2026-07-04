@@ -539,6 +539,11 @@ pub struct PlanUserStoryRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetChangeSetRequest {
     pub project_id: String,
+    /// Point-in-time replay: only surface approved exemplars merged
+    /// STRICTLY BEFORE this date (YYYY-MM-DD). Keeps evaluations and
+    /// historical replays leak-free. Omit for the full corpus.
+    #[serde(default)]
+    pub merged_before: Option<String>,
     /// The user story, verbatim.
     pub story: String,
     /// Override the automatically extracted domain concepts (max 3 used).

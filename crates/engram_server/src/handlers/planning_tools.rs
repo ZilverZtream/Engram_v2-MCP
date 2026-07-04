@@ -3057,6 +3057,77 @@ impl Engram {
             }
         }
 
+        // Approved-work exemplars: the top merged PRs matching this story are
+        // direct evidence for the proposal — their cohorts show the SHAPE of
+        // an accepted change (and often contain the files ranking missed).
+        // merged_before keeps replays/evals leak-free (see find_merged_work).
+        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+            let q = engram_index::HybridQuery {
+                project_id: req.project_id.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
+                generation: 0,
+                text: req.story.clone(),
+                top_k: 6,
+                fts_mode: "loose".into(),
+                include_path_prefixes: Some(vec!["pr:".into()]),
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let engine = ps.search.clone();
+            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
+            let cutoff = req
+                .merged_before
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty());
+            let mut shown = 0usize;
+            for h in &hits {
+                if shown >= 2 {
+                    break;
+                }
+                let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_doc_id(
+                    &req.project_id,
+                    engram_core::namespaces::NAMESPACE_HISTORY,
+                    0,
+                    &h.doc_id,
+                ) else {
+                    continue;
+                };
+                if let Some(cut) = cutoff {
+                    let leaks = content
+                        .lines()
+                        .find_map(|l| l.split("merged: ").nth(1))
+                        .and_then(|rest| rest.get(..10))
+                        .is_none_or(|d| d >= cut);
+                    if leaks {
+                        continue;
+                    }
+                }
+                if shown == 0 {
+                    out.push_str("\n## Approved exemplars — how similar merged work was shaped\n");
+                }
+                shown += 1;
+                let head: String = content.chars().take(500).collect();
+                out.push_str(&format!("{}\n", head.trim_end()));
+                if content.chars().count() > 500 {
+                    out.push_str("(truncated)\n");
+                }
+            }
+            if shown > 0 {
+                out.push_str(
+                    "next: find_merged_work(story=...) for the complete approved file cohorts.\n",
+                );
+            }
+        }
+
         // The ranked file set is the single most freshness-sensitive output
         // in the funnel: a stale index proposes the wrong files. This was
         // the only primary funnel tool with no staleness signal.
