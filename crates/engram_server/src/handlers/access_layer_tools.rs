@@ -4084,7 +4084,7 @@ impl Engram {
         &self,
         req: CheckEditSafetyRequest,
     ) -> Result<CallToolResult, McpError> {
-        let _rec = self.ensure_project_record(&req.project_id).await?;
+        let rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let file_path = req.file_path.clone();
@@ -4116,6 +4116,33 @@ impl Engram {
                     &method_name,
                     Some(&file_path),
                 ));
+            }
+
+            // A safety VERDICT for the wrong method is worse than no verdict:
+            // refuse when the name matches methods in different classes and
+            // no class_name was given (same guard as get_method_edit_context).
+            {
+                let mut namespaces: Vec<&str> =
+                    candidates.iter().map(|n| n.namespace.as_str()).collect();
+                namespaces.sort_unstable();
+                namespaces.dedup();
+                if namespaces.len() > 1 {
+                    let mut msg = format!(
+                        "AMBIGUOUS: '{}' exists in {} classes in '{}'. Re-call with class_name set:\n",
+                        method_name,
+                        namespaces.len(),
+                        file_path
+                    );
+                    for n in candidates.iter().take(10) {
+                        msg.push_str(&format!(
+                            "- {} (lines {}-{})\n",
+                            fqn_from_node(n),
+                            n.start_line,
+                            n.end_line
+                        ));
+                    }
+                    return Err(msg);
+                }
             }
 
             let node = &candidates[0];
@@ -4176,7 +4203,17 @@ impl Engram {
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(md)]))
+        md.push_str(
+            "\nnext: find_symbol_references(<method>) for the caller list; \
+             get_method_edit_context before making the edit.\n",
+        );
+        let (banner, footer) = self
+            .access_freshness(&req.project_id, &rec.directory, Some(&req.file_path))
+            .await;
+        let mut out = banner.unwrap_or_default();
+        out.push_str(&md);
+        out.push_str(&footer);
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 }
 

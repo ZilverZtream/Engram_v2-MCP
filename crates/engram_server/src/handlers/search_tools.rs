@@ -701,9 +701,12 @@ impl Engram {
         }
 
         if found_in_graph {
+            // The next-step hint used to be appended to the WRONG buffer
+            // (`out`, after `text` was snapshotted) — composed, then thrown
+            // away. Agents never saw the pointer into the verification loop.
             let mut text = out.trim().to_string();
-            out.push_str(
-                "next: detect_incomplete_changes(edited_files=[...]) if you plan to edit \
+            text.push_str(
+                "\nnext: detect_incomplete_changes(edited_files=[...]) if you plan to edit \
              these files; check_edit_safety(<method>) before changing the symbol.\n",
             );
             text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
