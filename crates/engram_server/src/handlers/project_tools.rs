@@ -2036,6 +2036,25 @@ impl Engram {
         if req.wipe_and_reindex {
             self.state.projects.remove(&pid);
             self.state.graph.delete_project_data(&pid).ok();
+            // The wipe deletes graph/search data but ingest WATERMARKS live
+            // in the registry and would survive - leaving tools like
+            // index_git_history / ingest_merged_prs claiming 'fully
+            // indexed' over a hole (three live incidents on 2026-07-04).
+            // Clear them so the next ingest rebuilds from scratch.
+            {
+                let reg = self.state.registry.clone();
+                let pid_wm = pid.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    for key in [
+                        "last_git_oid",
+                        "oldest_indexed_git_oid",
+                        "pr_ingest_watermark",
+                    ] {
+                        let _ = reg.set_meta(&pid_wm, key, "");
+                    }
+                })
+                .await;
+            }
         }
 
         let ps = self.ensure_project_runtime(&pid).await?;
