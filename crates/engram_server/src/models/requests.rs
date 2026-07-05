@@ -880,6 +880,11 @@ pub struct IngestMergedPrsRequest {
     /// incremental from a watermark). Default 5000.
     #[serde(default = "default_pr_ingest_max_commits")]
     pub max_commits: usize,
+    /// Leak-free replay: only ingest commits merged STRICTLY BEFORE this
+    /// date (YYYY-MM-DD). Point-in-time eval snapshots use this so the
+    /// corpus (and every gate mining it) knows nothing past the snapshot.
+    #[serde(default)]
+    pub merged_before: Option<String>,
 }
 
 fn default_pr_ingest_max_commits() -> usize {

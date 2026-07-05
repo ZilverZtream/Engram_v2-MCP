@@ -1585,6 +1585,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 rebuild: false,
                 max_commits: 500,
+                merged_before: None,
             })
             .await
         {

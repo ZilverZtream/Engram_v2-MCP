@@ -183,6 +183,29 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let max_commits = req.max_commits.clamp(1, 20_000);
+        // Leak-free cutoff (point-in-time eval snapshots): lexical ISO-date
+        // comparison, the same convention find_merged_work uses query-side.
+        let merged_before: Option<String> = req
+            .merged_before
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+            .map(str::to_string);
+        if let Some(d) = &merged_before
+            && (d.len() != 10
+                || !d.chars().enumerate().all(|(i, c)| {
+                    if i == 4 || i == 7 {
+                        c == '-'
+                    } else {
+                        c.is_ascii_digit()
+                    }
+                }))
+        {
+            return Err(McpError::invalid_params(
+                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
+                None,
+            ));
+        }
 
         // Incremental: only walk commits newer than the watermark.
         let watermark_key = "pr_ingest_watermark";
@@ -238,6 +261,7 @@ impl Engram {
 
         let repo_dir = std::path::PathBuf::from(&rec.directory);
         type PrUnit = (String, String, String, u64, String, Vec<String>);
+        let cutoff = merged_before.clone();
         let (units, terminal, root_note): (Vec<PrUnit>, Option<String>, &'static str) =
             tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
                 let repo = GitWalker::open_repo(&repo_dir)?;
@@ -282,6 +306,13 @@ impl Engram {
                     let message = commit.message().unwrap_or("").to_string();
                     let author = commit.author().name().unwrap_or("unknown").to_string();
                     let timestamp = commit.time().seconds().max(0) as u64;
+                    // Leak-free cutoff: skip anything merged on/after the
+                    // snapshot date (strictly-before semantics).
+                    if let Some(cutoff) = &cutoff
+                        && crate::utils::ymd_utc(timestamp * 1000).as_str() >= cutoff.as_str()
+                    {
+                        continue;
+                    }
                     let short: String = oid.to_string().chars().take(10).collect();
                     let (pr_id, title) = parse_pr_identity(&summary, &short);
                     // Body = message minus the summary line.
@@ -357,7 +388,12 @@ impl Engram {
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         }
 
-        if let Some(t) = terminal {
+        // A cutoff ingest must NOT advance the watermark: the walk visited
+        // post-cutoff commits but skipped their units, and marking them
+        // ingested would silently exclude them from any later full ingest.
+        if merged_before.is_none()
+            && let Some(t) = terminal
+        {
             let reg = self.state.registry.clone();
             let pid = req.project_id.clone();
             let _ =
