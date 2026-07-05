@@ -2326,8 +2326,45 @@ impl Engram {
             }
         }
 
+        // A wipe-reindex is a FULL index: record the GC graph-purge
+        // baseline here too (index_project's paths already do) — without
+        // it the periodic GC skips graph purging forever on repaired
+        // stores.
+        {
+            let reg = self.state.registry.clone();
+            let pid_full = pid.clone();
+            let gen_str = new_gen.to_string();
+            let _ = tokio::task::spawn_blocking(move || {
+                reg.set_meta(&pid_full, "last_full_index_generation", &gen_str)
+            })
+            .await;
+        }
+
+        // The wipe also destroyed TemporalCoupling edges, and nothing here
+        // re-walks git history — observed live as the temporal gate
+        // silently dropping from 45 findings to 0 after a repair. Chain
+        // the re-walk as a background job (watermarks were cleared by the
+        // wipe, so this rebuilds the full history).
+        let git_note = match self
+            .handle_index_git_history(crate::models::IndexGitHistoryRequest {
+                project_id: pid.clone(),
+                max_commits: 10_000,
+                force: false,
+                index_antipatterns: false,
+                mode: Some(crate::models::GitHistoryMode::Forward),
+                wait: false,
+            })
+            .await
+        {
+            Ok(_) => "git history re-walk started (background) — temporal edges restore shortly",
+            Err(_) => {
+                "WARNING: git history re-walk could not be started — run index_git_history \
+                 to restore temporal edges"
+            }
+        };
+
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}",
+            "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}\n{git_note}",
             stats.files, stats.chunks
         ))]))
     }
