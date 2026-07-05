@@ -3156,6 +3156,8 @@ impl Engram {
     /// user story. The OciusX-validated recipe ported into Engram — concept
     /// footprint + git co-change, co-change/history ranked first, vendor noise
     /// filtered. Generic; no per-repo hardcoding.
+    /// With `pat_token`, auto-fetches a referenced ADO work item for input
+    /// parity (see `extract_work_item_id` / `fetch_ado_work_item`).
     pub async fn handle_get_change_set(
         &self,
         req: crate::models::GetChangeSetRequest,
@@ -3170,6 +3172,28 @@ impl Engram {
         // searches, the temporal/thin-bug triggers, scaffold detection, and
         // the rendered brief — sees what the developers actually received.
         let mut req = req;
+        // Auto-fetch: story references a work-item id, caller supplied a
+        // per-call PAT, and refresh_corpora saved the org/project
+        // coordinates. Silent degrade on any failure — the dossier still
+        // builds from the story alone.
+        if req.work_item_text.is_none()
+            && let Some(pat) = req.pat_token.take()
+            && let Some(wi_id) = extract_work_item_id(&req.story)
+        {
+            let reg = self.state.registry.clone();
+            let pid = req.project_id.clone();
+            let coords = tokio::task::spawn_blocking(move || {
+                let org = reg.get_meta(&pid, "ado_org").ok().flatten();
+                let project = reg.get_meta(&pid, "ado_project").ok().flatten();
+                org.zip(project)
+            })
+            .await
+            .ok()
+            .flatten();
+            if let Some((org, project)) = coords {
+                req.work_item_text = fetch_ado_work_item(&org, &project, wi_id, &pat).await;
+            }
+        }
         if let Some(wi) = req.work_item_text.take() {
             let wi = wi.trim();
             if !wi.is_empty() {
@@ -4676,6 +4700,106 @@ impl Engram {
     }
 }
 
+/// Work-item id from a story: "#847", "Bug 847", "US 1234", "AB#847".
+/// Requires an id-ish keyword or # so bare numbers in prose don't match.
+pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
+    use std::sync::LazyLock;
+    static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?i)(?:\b(?:bug|us|user story|story|item|task|ab)\s*#?\s*|#)(\d{2,7})\b",
+        )
+        .expect("valid regex")
+    });
+    RE.captures(story)
+        .and_then(|c| c.get(1))
+        .and_then(|m| m.as_str().parse().ok())
+}
+
+/// Fetch an ADO work item's full text (title + description/repro +
+/// acceptance criteria, HTML stripped). None on ANY failure — callers
+/// degrade to the story alone.
+async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Option<String> {
+    let url =
+        format!("https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0");
+    let auth = base64_encode(format!(":{pat}").as_bytes());
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Basic {auth}"))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        tracing::info!(id, status = %resp.status(), "work-item auto-fetch failed");
+        return None;
+    }
+    let v: serde_json::Value = resp.json().await.ok()?;
+    let f = v.get("fields")?;
+    let get = |k: &str| f.get(k).and_then(|x| x.as_str()).unwrap_or("");
+    let title = get("System.Title");
+    let wtype = get("System.WorkItemType");
+    let desc = {
+        let d = get("System.Description");
+        if d.is_empty() {
+            get("Microsoft.VSTS.TCM.ReproSteps")
+        } else {
+            d
+        }
+    };
+    let accept = get("Microsoft.VSTS.Common.AcceptanceCriteria");
+    let mut out = format!("[{wtype} #{id}] {title}\n\n{}", strip_html(desc));
+    if !accept.is_empty() {
+        out.push_str(&format!("\n\nAcceptance criteria:\n{}", strip_html(accept)));
+    }
+    Some(out)
+}
+
+/// Standard base64 (RFC 4648) for the Basic-auth header — avoids pulling
+/// the `base64` crate into the direct dependency tree for one call site.
+pub(crate) fn base64_encode(bytes: &[u8]) -> String {
+    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let n = (u32::from(chunk[0]) << 16)
+            | (u32::from(chunk.get(1).copied().unwrap_or(0)) << 8)
+            | u32::from(chunk.get(2).copied().unwrap_or(0));
+        out.push(T[(n >> 18) as usize & 63] as char);
+        out.push(T[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            T[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            T[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
+/// Minimal HTML-to-text for ADO rich-text fields.
+pub(crate) fn strip_html(html: &str) -> String {
+    use std::sync::LazyLock;
+    static BR: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"(?i)<br\s*/?>|</(?:p|div|li|tr)>").expect("valid"));
+    static TAG: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"<[^>]+>").expect("valid"));
+    let s = BR.replace_all(html, "\n");
+    let s = TAG.replace_all(&s, "");
+    s.replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .trim()
+        .to_string()
+}
+
 /// Extract (section, file) obligations from a get_change_set dossier's
 /// text: every project-relative source-file reference inside a markdown
 /// section, attributed to that section's heading. Pure text-level —
@@ -4708,6 +4832,43 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
         }
     }
     out
+}
+
+#[cfg(test)]
+mod work_item_tests {
+    use super::{base64_encode, extract_work_item_id, strip_html};
+
+    #[test]
+    fn extracts_ids_from_common_forms() {
+        assert_eq!(extract_work_item_id("Bug #847: Can't assign"), Some(847));
+        assert_eq!(
+            extract_work_item_id("fix bug 847 in tenant mode"),
+            Some(847)
+        );
+        assert_eq!(extract_work_item_id("US 1234 as a user I want"), Some(1234));
+        assert_eq!(extract_work_item_id("AB#847 regression"), Some(847));
+        assert_eq!(extract_work_item_id("resolves #55"), Some(55));
+        assert_eq!(extract_work_item_id("supports 7 languages"), None);
+        assert_eq!(extract_work_item_id("no ids here"), None);
+    }
+
+    #[test]
+    fn base64_matches_rfc_vectors() {
+        assert_eq!(base64_encode(b""), "");
+        assert_eq!(base64_encode(b"f"), "Zg==");
+        assert_eq!(base64_encode(b"fo"), "Zm8=");
+        assert_eq!(base64_encode(b"foo"), "Zm9v");
+        assert_eq!(base64_encode(b":secret-pat"), "OnNlY3JldC1wYXQ=");
+    }
+
+    #[test]
+    fn strip_html_flattens_ado_richtext() {
+        let h = "<div>Issue</div><p>In multi-tenant mode, resources &amp; tasks<br/>fail.</p>";
+        let t = strip_html(h);
+        assert!(t.contains("Issue"));
+        assert!(t.contains("resources & tasks"));
+        assert!(!t.contains('<'));
+    }
 }
 
 #[cfg(test)]

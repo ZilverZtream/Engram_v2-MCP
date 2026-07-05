@@ -1610,6 +1610,21 @@ impl Engram {
                 req.ado_repo.clone(),
             ) {
                 (Some(org), Some(project), Some(repo)) => {
+                    // Persist the NON-SECRET ADO coordinates (org/project —
+                    // never the PAT, per the stance above) so
+                    // get_change_set's work-item auto-fetch can default
+                    // them when a caller supplies a per-call PAT.
+                    {
+                        let reg = self.state.registry.clone();
+                        let pid = req.project_id.clone();
+                        let (o, p) = (org.clone(), project.clone());
+                        tokio::task::spawn_blocking(move || {
+                            reg.set_meta(&pid, "ado_org", &o).ok();
+                            reg.set_meta(&pid, "ado_project", &p).ok();
+                        })
+                        .await
+                        .ok();
+                    }
                     match self
                         .handle_ingest_code_review_history(
                             crate::models::IngestCodeReviewHistoryRequest {
