@@ -2684,10 +2684,11 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
     out
 }
 
-/// Files worth scanning for symmetric sibling controls/handlers: the top
-/// provisional files by corroboration tier that can actually CONTAIN
-/// control/function nodes. Encodes two live traps (the PR1933 regression
-/// where the section silently vanished):
+/// Top provisional files by corroboration tier that can actually CONTAIN
+/// graph nodes (controls/functions/classes) — the shared "top-N files worth
+/// a node scan" pick for every dossier section that queries per-file nodes
+/// (symmetric siblings, permission gates, …). Encodes two live traps (the
+/// PR1933 regression where the sibling section silently vanished):
 ///  • extension filter — resource/data files carry golden tags too (a
 ///    localized .resx family inherits its seed's co-change signal, making
 ///    every language sibling tier 0) and `App_GlobalResources/…` sorts
@@ -2697,7 +2698,7 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
 ///    story's strongest file (e.g. cochange|history|vector) is scanned before
 ///    single-corroboration peers instead of being buried by BTreeMap
 ///    alphabetical order ("site/…" sorts last).
-fn symmetric_sibling_scan_files(
+fn top_node_bearing_files(
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
     take: usize,
 ) -> Vec<String> {
@@ -2887,7 +2888,7 @@ mod symmetric_sibling_tests {
             "app_code/shared-code/configsettings.vb".into(),
             BTreeSet::from(["cochange"]),
         );
-        let files = symmetric_sibling_scan_files(&prov, 10);
+        let files = top_node_bearing_files(&prov, 10);
         assert!(
             files
                 .iter()
@@ -2901,6 +2902,47 @@ mod symmetric_sibling_tests {
             "site/modules/dashboard/pages/public/producedq/producedq.aspx.vb"
         );
         assert!(files.contains(&"app_code/shared-code/configsettings.vb".to_string()));
+    }
+
+    #[test]
+    fn permission_scan_top_files_survive_resx_flood() {
+        // The permission-gates section shape: it used to take the first 15
+        // prov keys ALPHABETICALLY, so a localized resx family (16 languages,
+        // App_GlobalResources/… sorts before every code path) consumed the
+        // entire node-scan budget — resx files carry no permission_checks/
+        // guard_roles metadata, and the section silently vanished. The shared
+        // pick must skip the flood and keep the node-bearing code files.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for lang in [
+            "cs", "da", "de", "en", "es", "et", "fi", "fr", "it", "lt", "lv", "nl", "no", "pl",
+            "pt", "sv",
+        ] {
+            prov.insert(
+                format!("App_GlobalResources/producedq.aspx.{lang}.resx"),
+                BTreeSet::from(["cochange", "family"]),
+            );
+        }
+        prov.insert(
+            "site/app_code/security/role.vb".into(),
+            BTreeSet::from(["cochange", "concept"]),
+        );
+        prov.insert(
+            "site/modules/dashboard/pages/public/producedq/producedq.aspx".into(),
+            BTreeSet::from(["cochange", "history"]),
+        );
+        prov.insert(
+            "scripts/map/mapfilters.ts".into(),
+            BTreeSet::from(["concept"]),
+        );
+        let files = top_node_bearing_files(&prov, 15);
+        assert!(files.iter().all(|f| !f.ends_with(".resx")), "{files:?}");
+        assert!(files.contains(&"site/app_code/security/role.vb".to_string()));
+        assert!(
+            files.contains(
+                &"site/modules/dashboard/pages/public/producedq/producedq.aspx".to_string()
+            )
+        );
+        assert!(files.contains(&"scripts/map/mapfilters.ts".to_string()));
     }
 }
 
@@ -3618,7 +3660,7 @@ impl Engram {
             // "Top" = corroboration tier, then MORE signals, restricted to
             // files that can hold control/function nodes (see the helper's
             // doc for the two live traps this avoids).
-            let top_files = symmetric_sibling_scan_files(&prov, 10);
+            let top_files = top_node_bearing_files(&prov, 10);
             let graph = self.state.graph.clone();
             let pid_s = req.project_id.clone();
             tokio::task::spawn_blocking(move || {
@@ -3907,7 +3949,13 @@ impl Engram {
         {
             let graph = self.state.graph.clone();
             let pid_g = req.project_id.clone();
-            let top_files: Vec<String> = prov.keys().take(15).cloned().collect();
+            // Same trap as the sibling scan: a plain `prov.keys().take(15)` is
+            // BTreeMap-alphabetical, so the App_GlobalResources/*.resx family
+            // (tier-0 via inherited co-change) ate the whole scan budget and
+            // the gated code files (role.vb, *.aspx.vb) were never queried —
+            // the section silently vanished. Pick node-bearing code files,
+            // strongest corroboration first.
+            let top_files = top_node_bearing_files(&prov, 15);
             let gates = tokio::task::spawn_blocking(move || {
                 let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
                 for f in &top_files {
