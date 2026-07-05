@@ -228,6 +228,12 @@ pub async fn get_incremental_changes(
         let mut changed = Vec::new();
         let mut deleted = Vec::new();
         let mut db_map = std::collections::HashMap::new();
+        // Why-changed samples for the first few files — the one signal
+        // that distinguishes "genuinely edited" from a broken
+        // fingerprint write→read cycle (a file that re-indexes on EVERY
+        // update shows up here as node_missing / meta_none /
+        // stat_mismatch with identical values run after run).
+        let mut change_reasons: Vec<String> = Vec::new();
 
         for (file_path, metadata) in db_file_meta {
             db_map.insert(file_path, metadata);
@@ -275,6 +281,7 @@ pub async fn get_incremental_changes(
 
             if let Some(db_meta) = db_map.remove(&rel) {
                 let mut is_changed = true;
+                let mut reason = "meta_none".to_string();
 
                 if let Some(meta) = db_meta {
                     let stored_mtime = meta.get("mtime").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -283,6 +290,11 @@ pub async fn get_incremental_changes(
                         .get("file_hash")
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string());
+                    reason = format!(
+                        "stat stored=({stored_mtime},{stored_size}) disk=({mtime},{size}) \
+                         hash_stored={}",
+                        stored_hash.is_some()
+                    );
 
                     if stored_mtime == mtime && stored_size == size {
                         // P0-6: a matching (mtime, size) pair is the same
@@ -319,15 +331,30 @@ pub async fn get_incremental_changes(
                 }
 
                 if is_changed {
+                    if change_reasons.len() < 10 {
+                        change_reasons.push(format!("{} [{reason}]", rel.as_str()));
+                    }
                     changed.push(p);
                 }
             } else {
+                if change_reasons.len() < 10 {
+                    change_reasons.push(format!("{} [node_missing]", rel.as_str()));
+                }
                 changed.push(p);
             }
         }
 
         for (rel, _metadata) in db_map {
             deleted.push(rel);
+        }
+
+        if !changed.is_empty() {
+            tracing::info!(
+                changed = changed.len(),
+                deleted = deleted.len(),
+                sample = ?change_reasons,
+                "incremental change scan"
+            );
         }
 
         (changed, deleted)
