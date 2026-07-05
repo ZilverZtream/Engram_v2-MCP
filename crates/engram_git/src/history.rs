@@ -60,8 +60,46 @@ impl GitWalker {
         policy: MergeCommitPolicy,
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<Vec<Oid>> {
+        Self::walk_new_commits_from(repo, None, stop_oid, max, policy, cancel)
+    }
+
+    /// Resolve the "approved history" walk root: the remote default branch
+    /// (origin/HEAD, falling back to origin/master then origin/main) when
+    /// present, else `None` (callers fall back to HEAD). Corpora that
+    /// present themselves as MERGED/APPROVED work must not ingest a
+    /// checked-out feature branch's unapproved commits — observed live: an
+    /// in-flight dialog implementation surfaced as "how similar approved
+    /// work was done".
+    pub fn approved_history_root(repo: &Repository) -> Option<Oid> {
+        for name in [
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/master",
+            "refs/remotes/origin/main",
+        ] {
+            if let Ok(r) = repo.find_reference(name)
+                && let Ok(resolved) = r.resolve()
+                && let Some(oid) = resolved.target()
+            {
+                return Some(oid);
+            }
+        }
+        None
+    }
+
+    /// `walk_new_commits` with an explicit root commit (`None` = HEAD).
+    pub fn walk_new_commits_from(
+        repo: &Repository,
+        root: Option<Oid>,
+        stop_oid: Option<Oid>,
+        max: usize,
+        policy: MergeCommitPolicy,
+        cancel: &tokio_util::sync::CancellationToken,
+    ) -> anyhow::Result<Vec<Oid>> {
         let mut revwalk = repo.revwalk()?;
-        revwalk.push_head()?;
+        match root {
+            Some(oid) => revwalk.push(oid)?,
+            None => revwalk.push_head()?,
+        }
         revwalk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
         if policy == MergeCommitPolicy::FirstParentOnly {
             revwalk.simplify_first_parent()?;

@@ -205,12 +205,23 @@ impl Engram {
 
         let repo_dir = std::path::PathBuf::from(&rec.directory);
         type PrUnit = (String, String, String, u64, String, Vec<String>);
-        let (units, terminal): (Vec<PrUnit>, Option<String>) =
+        let (units, terminal, root_note): (Vec<PrUnit>, Option<String>, &'static str) =
             tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
                 let repo = GitWalker::open_repo(&repo_dir)?;
                 let cancel = tokio_util::sync::CancellationToken::new();
-                let oids = GitWalker::walk_new_commits(
+                // Walk the REMOTE DEFAULT branch, not the checkout: this
+                // corpus presents itself as merged/APPROVED work, and a
+                // checked-out feature branch would leak in-flight commits
+                // into it (observed live with an unmerged dialog PR).
+                let root = GitWalker::approved_history_root(&repo);
+                let root_note = if root.is_some() {
+                    "origin default branch"
+                } else {
+                    "HEAD (no origin default branch found)"
+                };
+                let oids = GitWalker::walk_new_commits_from(
                     &repo,
+                    root,
                     stop_oid,
                     max_commits,
                     MergeCommitPolicy::FirstParentOnly,
@@ -248,7 +259,7 @@ impl Engram {
                         .to_string();
                     units.push((pr_id, title, author, timestamp, body, files));
                 }
-                Ok((units, terminal))
+                Ok((units, terminal, root_note))
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -323,6 +334,7 @@ impl Engram {
         let mut out = format!(
             "# Merged-work corpus updated\n\
              change units indexed: {indexed} ({pr_count} merged PRs, {direct_count} direct commits)\n\
+             walk root: {root_note}\n\
              namespace: history (docs `pr:<id>`)\n\
              next: find_merged_work(story=\"...\") to see how similar approved work was done.\n"
         );
