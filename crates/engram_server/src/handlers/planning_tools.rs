@@ -3055,6 +3055,29 @@ fn render_change_set(
              state their interaction (mutually exclusive / mirrored / independent).\n",
         );
     }
+    // Arm-B run 3 autopsy (PR1967): given a bare bug title, the agent
+    // committed to its FIRST plausible root cause, then dismissed every
+    // other candidate relative to that theory — while the real fix
+    // spanned all 7 sibling call sites of the resource-selector family.
+    // Thin bug reports get an explicit anti-confirmation-loop guard.
+    let story_lower = story.to_lowercase();
+    let bugish = [
+        "bug", "fix", "can't", "cant ", "cannot", "doesn't", "does not", "fails", "broken",
+        "error", "issue", "wrong",
+    ]
+    .iter()
+    .any(|t| story_lower.contains(t));
+    if bugish && story.chars().count() < 400 {
+        s.push_str(
+            "- THIN BUG REPORT (short story, no acceptance criteria): do NOT commit \
+             to the first plausible root cause. Enumerate ALL plausible causes across \
+             the candidate files BEFORE editing; bugs reported this thinly are usually \
+             a defect CLASS, not a single site — after locating the culprit function, \
+             list its callers and sibling call sites (the same pattern invoked \
+             elsewhere) and check EVERY one for the same defect. Record why each \
+             sibling does or does not need the fix.\n",
+        );
+    }
     // Arm-B run 2 autopsy (PR1933): the agent read the soft version of
     // this line, reasoned "unconditional UX improvement", and skipped the
     // setting — the PO gated it. When the corpus shows a real house
