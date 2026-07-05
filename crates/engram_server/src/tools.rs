@@ -480,6 +480,16 @@ impl Engram {
         self.handle_read_memory_bank(params.0).await
     }
 
+    #[tool(
+        description = "Generate a SUPPORT-audience knowledge base: one card per product feature (taxonomy from ingested end-user docs sections `docs/**/<feature>/index`), each with role visibility, the docs' purpose/workflow prose, and code-derived business rules. write_to_disk=true writes <project>/support-kb/*.md (engram-owned, regenerated wholesale). Feeds support agents, a RAG support assistant, or email-support drafting."
+    )]
+    pub async fn produce_support_kb(
+        &self,
+        params: Parameters<crate::models::ProduceSupportKbRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_produce_support_kb(params.0).await
+    }
+
     #[tool(description = "Delete one memory bank section by name.")]
     pub async fn delete_memory_bank(
         &self,
