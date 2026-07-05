@@ -1528,6 +1528,18 @@ impl HybridSearchEngine {
                         } else {
                             extractor.extract(p, &text)
                         };
+                        // Language-generic pass: "must update in N places"
+                        // comments are machine-readable sync contracts —
+                        // extracted here so the review's SyncContractGate can
+                        // assert when a diff touches a subset of the listed
+                        // sites. Vendor files excluded with the rest.
+                        let syms = if is_vendor {
+                            syms
+                        } else {
+                            let mut syms = syms;
+                            syms.extend(crate::parsing::detect_sync_contracts(&text));
+                            syms
+                        };
                         for s in &syms {
                             local_stats.symbols.push((arc_rel.clone(), s.clone()));
                         }
