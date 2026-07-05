@@ -39,6 +39,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(TestCoverageGate),
         Box::new(SecretLeakageGate),
         Box::new(GuardParityGate),
+        Box::new(UnwiredGate),
     ]
 }
 
@@ -1928,6 +1929,268 @@ impl Gate for SecretLeakageGate {
     }
 }
 
+// ─── Gate 12: Unwired code ──────────────────────────────────────────────────
+//
+// A function the diff ADDS that nothing references — no call/reference in
+// any added line across the whole diff, and no caller on a same-named
+// function node in the graph — is "implemented but never wired": the
+// classic mid-feature gap where a mandated permission check or handler
+// exists as code but nothing invokes it. Detection is language-generic
+// (VB Sub/Function, TS/JS `function` declarations, visibility-qualified
+// class methods) and framework-aware: event handlers (`Handles`),
+// lifecycle methods, overrides/interface implementations, WebMethods and
+// attribute-routed endpoints are all externally invoked and excluded.
+
+pub struct UnwiredGate;
+
+/// A function definition found in the diff's added lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AddedFunction {
+    pub file: String,
+    pub name: String,
+    /// New-file line number of the definition.
+    pub line: usize,
+}
+
+static RE_VB_FN_DEF: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)^\s*(?:(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Overloads|MustOverride|NotOverridable|Async|Iterator)\s+)*(?:Sub|Function)\s+([A-Za-z_]\w*)\s*\(",
+    )
+    .expect("valid regex")
+});
+
+static RE_TSJS_FN_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(")
+        .expect("valid regex")
+});
+
+// Class methods only when they carry an explicit visibility modifier —
+// bare `name(args) {` matches too much (object literals, control flow).
+static RE_TSJS_METHOD_DEF: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"^\s*(?:public|private|protected)\s+(?:static\s+)?(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(",
+    )
+    .expect("valid regex")
+});
+
+/// Names the framework (not project code) invokes — never "unwired".
+static RE_FRAMEWORK_INVOKED_NAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(Page_|Application_|Session_|New$|Finalize$|Dispose$|constructor$|InitializeComponent$|Main$)")
+        .expect("valid regex")
+});
+
+fn is_vb_path(path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    p.ends_with(".vb") || p.ends_with(".aspx") || p.ends_with(".ascx") || p.ends_with(".asmx")
+}
+
+fn is_tsjs_path(path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    p.ends_with(".ts") || p.ends_with(".js") || p.ends_with(".tsx") || p.ends_with(".jsx")
+}
+
+/// Match an added line as a function definition, returning the name.
+fn added_line_fn_def(path: &str, line: &str) -> Option<String> {
+    let re_hit = |re: &Regex| re.captures(line).map(|c| c[1].to_string());
+    if is_vb_path(path) {
+        re_hit(&RE_VB_FN_DEF)
+    } else if is_tsjs_path(path) {
+        re_hit(&RE_TSJS_FN_DECL).or_else(|| re_hit(&RE_TSJS_METHOD_DEF))
+    } else {
+        None
+    }
+}
+
+/// True when the definition is invoked by the framework / runtime rather
+/// than by project code: event wiring (`Handles`, possibly on the VB
+/// continuation line), overrides / interface implementations, lifecycle
+/// names, and attribute-routed endpoints (`<WebMethod>`, `[HttpGet]`, …)
+/// declared on the preceding lines.
+fn def_is_externally_invoked(
+    name: &str,
+    def_line: &str,
+    next_line: Option<&str>,
+    prev_lines: &[&str],
+) -> bool {
+    static RE_HANDLES: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\bHandles\s").expect("valid regex"));
+    static RE_DISPATCHED: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?i)\b(Overrides|Implements)\b").expect("valid regex"));
+    static RE_ROUTED_ATTR: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)(<\s*WebMethod|\[\s*WebMethod|\[\s*Http(Get|Post|Put|Delete|Patch)|\[\s*Route|<\s*ScriptMethod)")
+            .expect("valid regex")
+    });
+    if RE_FRAMEWORK_INVOKED_NAME.is_match(name) {
+        return true;
+    }
+    if RE_HANDLES.is_match(def_line) || RE_DISPATCHED.is_match(def_line) {
+        return true;
+    }
+    if let Some(next) = next_line
+        && def_line.trim_end().ends_with('_')
+        && RE_HANDLES.is_match(next)
+    {
+        return true;
+    }
+    prev_lines.iter().any(|l| RE_ROUTED_ATTR.is_match(l))
+}
+
+/// Extract added-function candidates that nothing in the diff references:
+/// scan every diff file's added lines for definitions, drop framework-
+/// invoked ones, then drop any whose name appears (word-boundary,
+/// case-insensitive) on any OTHER added line across the whole diff —
+/// including markup (`OnClick="Name"`), `AddressOf Name`, and calls added
+/// by sibling files. The graph-caller backstop lives in the gate's `run`.
+pub(crate) fn unwired_candidates(diff_files: &[DiffFile]) -> Vec<AddedFunction> {
+    // Pass 1: collect definitions (bounded — a generated or vendored
+    // mega-file must not turn this into an O(n²) scan).
+    const MAX_DEFS: usize = 80;
+    let mut defs: Vec<AddedFunction> = Vec::new();
+    // (file, line) of every definition line per lowercased name — a second
+    // definition of the same name (VB partial class, overload) is NOT a
+    // reference.
+    let mut def_lines: HashMap<String, Vec<(String, usize)>> = HashMap::new();
+    for df in diff_files {
+        if df.is_binary || matches!(df.change_type, ChangeType::Deleted) || is_test_path(&df.path) {
+            continue;
+        }
+        // Line-number → position map for prev/next lookups within the
+        // added block (attribute lines / continuation lines only count
+        // when they were added alongside the definition — good enough).
+        let by_line: HashMap<usize, &str> = df
+            .added_lines
+            .iter()
+            .map(|(n, s)| (*n, s.as_str()))
+            .collect();
+        for (n, line) in &df.added_lines {
+            let Some(name) = added_line_fn_def(&df.path, line) else {
+                continue;
+            };
+            def_lines
+                .entry(name.to_ascii_lowercase())
+                .or_default()
+                .push((df.path.clone(), *n));
+            if defs.len() >= MAX_DEFS {
+                continue;
+            }
+            let next = by_line.get(&(n + 1)).copied();
+            let prev: Vec<&str> = (1..=2)
+                .filter_map(|d| n.checked_sub(d).and_then(|m| by_line.get(&m).copied()))
+                .collect();
+            if def_is_externally_invoked(&name, line, next, &prev) {
+                continue;
+            }
+            defs.push(AddedFunction {
+                file: df.path.clone(),
+                name,
+                line: *n,
+            });
+        }
+    }
+    if defs.is_empty() {
+        return defs;
+    }
+
+    // Pass 2: reference scan. A candidate survives only when NO added
+    // line anywhere in the diff mentions its name outside definition
+    // lines of that same name.
+    defs.retain(|cand| {
+        let re = match Regex::new(&format!(r"(?i)\b{}\b", regex::escape(&cand.name))) {
+            Ok(r) => r,
+            Err(_) => return false,
+        };
+        let own_defs = def_lines
+            .get(&cand.name.to_ascii_lowercase())
+            .cloned()
+            .unwrap_or_default();
+        for df in diff_files {
+            if df.is_binary {
+                continue;
+            }
+            for (n, line) in &df.added_lines {
+                if !re.is_match(line) {
+                    continue;
+                }
+                if own_defs.iter().any(|(f, l)| f == &df.path && l == n) {
+                    continue; // the definition itself (or a partial/overload twin)
+                }
+                return false; // referenced somewhere — wired.
+            }
+        }
+        true
+    });
+    defs
+}
+
+#[async_trait]
+impl Gate for UnwiredGate {
+    fn name(&self) -> &'static str {
+        "unwired"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let mut findings = Vec::new();
+        // Bounded graph lookups — a huge WIP diff shouldn't turn the
+        // backstop into dozens of scans.
+        for cand in unwired_candidates(ctx.diff_files).into_iter().take(25) {
+            // Graph backstop: a same-named function already known to the
+            // graph with at least one caller (pre-existing overload,
+            // partial-class twin, or a markup-wired handler the indexer
+            // recovered) is not unwired.
+            let nodes = ctx
+                .graph
+                .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10)
+                .unwrap_or_default();
+            let has_graph_caller = nodes
+                .iter()
+                .filter(|n| n.name.eq_ignore_ascii_case(&cand.name))
+                .any(|n| {
+                    !crate::handlers::incoming_caller_edges(
+                        &ctx.graph,
+                        ctx.project_id,
+                        &n.node_id,
+                        1,
+                    )
+                    .is_empty()
+                });
+            if has_graph_caller {
+                continue;
+            }
+            findings.push(
+                ReviewFinding::new(
+                    Severity::Info,
+                    "unwired",
+                    cand.file.clone(),
+                    format!(
+                        "Added function `{}` is never referenced in this diff",
+                        cand.name
+                    ),
+                    format!(
+                        "`{}` is defined in `{}` but no added line in this diff calls, \
+                         binds, or registers it, and the code graph knows no caller. \
+                         Implemented-but-never-wired is the classic mid-feature gap — \
+                         a mandated check or handler that exists as code but never runs. \
+                         If it's a deliberate API for a follow-up change, say so in the \
+                         commit message.",
+                        cand.name, cand.file
+                    ),
+                    format!(
+                        "Wire `{}` to its caller (event registration, route, call site) \
+                         or defer the definition to the change that uses it.",
+                        cand.name
+                    ),
+                )
+                .with_lines(vec![cand.line])
+                .with_next_tool(format!(
+                    "find_symbol_references(project_id=\"{}\", symbol_name=\"{}\")",
+                    ctx.project_id, cand.name
+                )),
+            );
+        }
+        Ok(findings)
+    }
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1936,6 +2199,173 @@ mod tests {
     use crate::services::pre_commit_review_service::{
         Severity, parse_unified_diff, stable_finding_id,
     };
+
+    fn mk_df(path: &str, added: &[(usize, &str)]) -> DiffFile {
+        DiffFile {
+            path: path.into(),
+            change_type: ChangeType::Modified,
+            added_lines: added.iter().map(|(n, s)| (*n, s.to_string())).collect(),
+            removed_lines: Vec::new(),
+            added_content: added.iter().map(|(_, s)| *s).collect::<Vec<_>>().join("\n"),
+            removed_content: String::new(),
+            hunks: Vec::new(),
+            is_binary: false,
+        }
+    }
+
+    #[test]
+    fn unwired_candidates_flags_unreferenced_vb_sub() {
+        let diff = vec![mk_df(
+            "Site/App_Code/gate.vb",
+            &[
+                (10, "Public Sub CheckCrGate(ByVal id As Integer)"),
+                (11, "    ' enforce the PO-mandated block"),
+                (12, "End Sub"),
+            ],
+        )];
+        let c = unwired_candidates(&diff);
+        assert_eq!(c.len(), 1, "unreferenced added Sub must be flagged");
+        assert_eq!(c[0].name, "CheckCrGate");
+        assert_eq!(c[0].line, 10);
+    }
+
+    #[test]
+    fn unwired_candidates_skips_functions_referenced_in_diff() {
+        let diff = vec![
+            mk_df(
+                "Site/App_Code/gate.vb",
+                &[
+                    (10, "Public Sub CheckCrGate(ByVal id As Integer)"),
+                    (11, "End Sub"),
+                ],
+            ),
+            mk_df(
+                "Site/App_Code/caller.vb",
+                &[(5, "        CheckCrGate(marker.Id)")],
+            ),
+        ];
+        assert!(
+            unwired_candidates(&diff).is_empty(),
+            "a call site anywhere in the diff wires the function"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_skips_handles_lifecycle_and_overrides() {
+        let diff = vec![mk_df(
+            "Site/page.aspx.vb",
+            &[
+                (
+                    5,
+                    "Protected Sub btnSave_Click(s As Object, e As EventArgs) Handles btnSave.Click",
+                ),
+                (6, "End Sub"),
+                (7, "Private Sub Page_Load(s As Object, e As EventArgs)"),
+                (8, "End Sub"),
+                (9, "Protected Overrides Sub OnInit(e As EventArgs)"),
+                (10, "End Sub"),
+                (11, "Protected Sub HandleIt(s As Object, e As EventArgs) _"),
+                (12, "    Handles btnOther.Click"),
+                (13, "End Sub"),
+            ],
+        )];
+        assert!(
+            unwired_candidates(&diff).is_empty(),
+            "framework-invoked definitions must never be flagged"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_skips_attribute_routed_endpoints() {
+        let diff = vec![mk_df(
+            "Site/App_Code/svc.vb",
+            &[
+                (3, "    <WebMethod()> _"),
+                (
+                    4,
+                    "    Public Function GetData(ByVal id As Integer) As String",
+                ),
+                (5, "    End Function"),
+            ],
+        )];
+        assert!(
+            unwired_candidates(&diff).is_empty(),
+            "attribute-routed endpoints are externally invoked"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_markup_reference_counts_as_wired() {
+        let diff = vec![
+            mk_df(
+                "Site/page.aspx.vb",
+                &[
+                    (20, "Protected Sub SaveIt(s As Object, e As EventArgs)"),
+                    (21, "End Sub"),
+                ],
+            ),
+            mk_df(
+                "Site/page.aspx",
+                &[(
+                    8,
+                    r#"<asp:Button ID="btn" OnClick="SaveIt" runat="server" />"#,
+                )],
+            ),
+        ];
+        assert!(
+            unwired_candidates(&diff).is_empty(),
+            "markup wiring added in the diff counts as a reference"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_tsjs_defs_and_same_file_reference() {
+        let diff = vec![mk_df(
+            "Site/ts/map/gate.ts",
+            &[
+                (3, "    private computeGate(id: number): boolean {"),
+                (4, "        return id > 0;"),
+                (5, "    }"),
+                (6, "function helper(x: number) {"),
+                (7, "    return x;"),
+                (8, "}"),
+                (9, "const y = helper(2);"),
+            ],
+        )];
+        let c = unwired_candidates(&diff);
+        let names: Vec<&str> = c.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["computeGate"],
+            "helper is called on line 9; computeGate is not referenced anywhere"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_partial_class_twin_def_is_not_a_reference() {
+        let diff = vec![
+            mk_df(
+                "Site/App_Code/a.vb",
+                &[
+                    (10, "Public Sub Orphan(ByVal x As Integer)"),
+                    (11, "End Sub"),
+                ],
+            ),
+            mk_df(
+                "Site/App_Code/b.vb",
+                &[
+                    (30, "Public Sub Orphan(ByVal x As String)"),
+                    (31, "End Sub"),
+                ],
+            ),
+        ];
+        let c = unwired_candidates(&diff);
+        assert_eq!(
+            c.len(),
+            2,
+            "an overload/partial twin DEFINITION must not count as a reference"
+        );
+    }
 
     #[test]
     fn destructive_patterns_match_known_snippets() {
