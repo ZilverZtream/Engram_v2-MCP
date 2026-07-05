@@ -2211,6 +2211,52 @@ static PRODUCT_QUERY_STOPWORDS: &[&str] = &[
     "json", "xml", "www", "inc", "lib", "bin", "obj", "the", "and", "for", "new", "api", "web",
 ];
 
+/// Word-boundary containment on lowercased text, byte-level (panic-free
+/// on any UTF-8). The match must start at a hard boundary (no prefix —
+/// `ata` must not match inside `data`) but tolerates a short trailing
+/// suffix of ≤2 alphanumeric chars so simple plural/inflection forms
+/// still count (`marker` matches `markers`, `setting` matches
+/// `settings`, Swedish `-en`/`-ar` endings).
+pub(crate) fn contains_word(haystack_lower: &str, word: &str) -> bool {
+    if word.is_empty() {
+        return false;
+    }
+    let h = haystack_lower.as_bytes();
+    let w = word.as_bytes();
+    if w.len() > h.len() {
+        return false;
+    }
+    for i in 0..=(h.len() - w.len()) {
+        if &h[i..i + w.len()] != w {
+            continue;
+        }
+        if i > 0 && h[i - 1].is_ascii_alphanumeric() {
+            continue;
+        }
+        let mut j = i + w.len();
+        while j < h.len() && h[j].is_ascii_alphanumeric() {
+            j += 1;
+        }
+        if j - (i + w.len()) <= 2 {
+            return true;
+        }
+    }
+    false
+}
+
+/// How much of the diff-derived query a knowledge-base section actually
+/// covers: (matched count, total count, matched words).
+pub(crate) fn query_overlap(content: &str, query: &str) -> (usize, usize, Vec<String>) {
+    let lc = content.to_lowercase();
+    let words: Vec<&str> = query.split_whitespace().collect();
+    let matched: Vec<String> = words
+        .iter()
+        .filter(|w| contains_word(&lc, w))
+        .map(|s| s.to_string())
+        .collect();
+    (matched.len(), words.len(), matched)
+}
+
 /// Split an identifier into lowercase words on case boundaries and
 /// non-alphanumeric separators: `ChangeRequestMarker` → change request
 /// marker; `api-broker` → api broker; `io_pr_iom` → io pr iom.
@@ -2313,8 +2359,14 @@ impl Gate for ProductIntentGate {
             .await
             .unwrap_or_default();
 
-        let mut findings = Vec::new();
-        for h in hits.into_iter().filter(|h| h.score > 0.4).take(3) {
+        // Hybrid scores are RRF (rank-fusion) values — ~0.03 at rank 1
+        // regardless of match quality — so an absolute score threshold
+        // cannot separate "this section describes the touched area" from
+        // "this was merely the least-bad hit". Judge relevance by TERM
+        // OVERLAP against the actual section content instead: what
+        // fraction of the diff-derived words the section text contains.
+        let mut scored: Vec<(String, f32, Vec<String>, f32)> = Vec::new();
+        for h in hits.into_iter().take(5) {
             let raw = h.path.as_str();
             let section = raw.strip_prefix("memory_bank:").unwrap_or(raw).to_string();
             // Engram-internal bookkeeping sections (index reports) are
@@ -2322,6 +2374,27 @@ impl Gate for ProductIntentGate {
             if section.starts_with("engram/") {
                 continue;
             }
+            let content = ps
+                .search
+                .get_doc_by_doc_id(ctx.project_id, "memory_bank", ctx.generation, &h.doc_id)
+                .ok()
+                .flatten()
+                .map(|(_, _, c, _, _)| c)
+                .unwrap_or_default();
+            if content.is_empty() {
+                continue;
+            }
+            let (matched_n, total_n, matched) = query_overlap(&content, &query);
+            let overlap = matched_n as f32 / total_n.max(1) as f32;
+            if matched_n >= 4 && overlap >= 0.25 {
+                scored.push((section, overlap, matched, h.score));
+            }
+        }
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(3);
+
+        let mut findings = Vec::new();
+        for (section, overlap, matched, rrf) in scored {
             findings.push(
                 ReviewFinding::new(
                     Severity::Info,
@@ -2329,11 +2402,12 @@ impl Gate for ProductIntentGate {
                     section.clone(),
                     format!("Recorded product/domain knowledge may apply: `{section}`"),
                     format!(
-                        "The team knowledge base section `{section}` matches this diff's \
-                         touched areas (score {:.2}). It may record a product decision, \
-                         domain rule, or constraint this change must honor — read it \
-                         before merging.",
-                        h.score
+                        "The team knowledge base section `{section}` covers {:.0}% of \
+                         this diff's touched-area terms ({}). It may record a product \
+                         decision, domain rule, or constraint this change must honor — \
+                         read it before merging.",
+                        overlap * 100.0,
+                        matched.join(", ")
                     ),
                     "Read the section and confirm the change matches the recorded \
                      decision; if the decision is stale, update the memory bank instead \
@@ -2341,7 +2415,9 @@ impl Gate for ProductIntentGate {
                         .to_string(),
                 )
                 .with_evidence(vec![
-                    format!("score = {:.3}", h.score),
+                    format!("term_overlap = {overlap:.2}"),
+                    format!("matched_terms = {}", matched.join(", ")),
+                    format!("rrf_score = {rrf:.3}"),
                     format!("query = {query}"),
                 ])
                 .with_next_tool(format!(
@@ -2374,6 +2450,30 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn contains_word_boundaries_and_suffix_tolerance() {
+        // Hard prefix boundary: `ata` must not match inside `data`.
+        assert!(!contains_word("the data layer", "ata"));
+        // Exact word matches.
+        assert!(contains_word("create a change request here", "request"));
+        // Short inflection suffixes (≤2 alnum) still match.
+        assert!(contains_word("all markers on the map", "marker"));
+        assert!(contains_word("system settings page", "setting"));
+        // Long suffixes do not (`mark` vs `marketplace`).
+        assert!(!contains_word("the marketplace listing", "mark"));
+        // Multibyte content must not panic and still match cleanly.
+        assert!(contains_word("skapa begäran för markören åäö", "begäran"));
+    }
+
+    #[test]
+    fn query_overlap_counts_matched_terms() {
+        let content = "Change requests track modifications; markers on the map link to them.";
+        let (m, t, words) = query_overlap(content, "change request marker map billing");
+        assert_eq!(t, 5);
+        assert_eq!(m, 4, "matched: {words:?}");
+        assert!(!words.contains(&"billing".to_string()));
     }
 
     #[test]
