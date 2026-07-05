@@ -384,6 +384,24 @@ pub struct IndexProjectRequest {
 #[serde(deny_unknown_fields)]
 pub struct RefreshCorporaRequest {
     pub project_id: String,
+    /// Optional Azure DevOps PAT. When present (together with the three
+    /// ado_* fields), a fourth refresh stage runs: incremental
+    /// code-review-history ingest (anti-pattern clusters + wontFix
+    /// suppressions) continuing from the registry's last_pr_id marker —
+    /// repeat calls only process new PRs. The token is never logged and
+    /// never persisted; omitting it skips the stage (the corpora then
+    /// rot until the next explicit ingest_code_review_history call).
+    #[serde(default)]
+    pub pat_token: Option<String>,
+    /// Azure DevOps organisation (required when pat_token is set).
+    #[serde(default)]
+    pub ado_org: Option<String>,
+    /// Azure DevOps project (required when pat_token is set).
+    #[serde(default)]
+    pub ado_project: Option<String>,
+    /// Azure DevOps repository (required when pat_token is set).
+    #[serde(default)]
+    pub ado_repo: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

@@ -1565,6 +1565,65 @@ impl Engram {
             Err(e) => out.push_str(&format!("\n## merged-PR corpus\nFAILED: {}\n", e.message)),
         }
 
+        // Stage 4 (opt-in): code-review corpora — anti-pattern clusters +
+        // wontFix suppressions. Only with a caller-supplied PAT (never
+        // persisted, so the stage can't run unattended without one).
+        // Incremental via the registry's last_pr_id marker: repeat calls
+        // only process PRs newer than the last ingest.
+        if let Some(pat) = req.pat_token.clone() {
+            match (
+                req.ado_org.clone(),
+                req.ado_project.clone(),
+                req.ado_repo.clone(),
+            ) {
+                (Some(org), Some(project), Some(repo)) => {
+                    match self
+                        .handle_ingest_code_review_history(
+                            crate::models::IngestCodeReviewHistoryRequest {
+                                project_id: req.project_id.clone(),
+                                source: "azure_devops".into(),
+                                file_path: None,
+                                pat_token: Some(pat),
+                                org: Some(org),
+                                project: Some(project),
+                                repo: Some(repo),
+                                max_prs: Some(200),
+                                min_fix_rate: 0.5,
+                                token_overlap_threshold: 0.4,
+                                force_full_rescan: false,
+                                use_llm_for_ambiguous: false,
+                                promote_min_fix_rate: 0.7,
+                                promote_min_prs: 3,
+                            },
+                        )
+                        .await
+                    {
+                        Ok(r) => {
+                            let t = text_of(&r);
+                            out.push_str(&format!(
+                                "\n## code-review corpora\n{}\n",
+                                t.lines().take(6).collect::<Vec<_>>().join("\n")
+                            ));
+                        }
+                        Err(e) => out.push_str(&format!(
+                            "\n## code-review corpora\nFAILED: {}\n",
+                            e.message
+                        )),
+                    }
+                }
+                _ => out.push_str(
+                    "\n## code-review corpora\nSKIPPED: pat_token provided without \
+                     ado_org/ado_project/ado_repo\n",
+                ),
+            }
+        } else {
+            out.push_str(
+                "\nnote: code-review corpora (anti-patterns + wontFix suppressions) \
+                 refresh only when pat_token+ado_* are provided — they otherwise \
+                 age until the next ingest_code_review_history call.\n",
+            );
+        }
+
         out.push_str(
             "\nnote: quality gates (board/CodeRabbit) refresh via \
              ingest_quality_gates on newly fetched sources; KB wikis regenerate \
