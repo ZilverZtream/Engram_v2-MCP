@@ -307,7 +307,13 @@ impl Engram {
         .await
         .ok()
         .and_then(|r| r.ok())
-        .flatten();
+        .flatten()
+        // A wipe clears the watermark by writing "" (Registry has no
+        // delete_meta). Blank must read as ABSENT everywhere — Some("")
+        // previously skipped the from-scratch edge-clear while the
+        // stop-oid parse silently degraded to a full re-walk: double-
+        // counted temporal weights on every refresh after a wipe.
+        .filter(|s: &String| !s.trim().is_empty());
         let oldest = tokio::task::spawn_blocking({
             let pid = pid.clone();
             let reg = self.state.registry.clone();
@@ -322,7 +328,8 @@ impl Engram {
         .await
         .ok()
         .and_then(|r| r.ok())
-        .flatten();
+        .flatten()
+        .filter(|s: &String| !s.trim().is_empty());
 
         // 16d: no watermark means this is a from-scratch walk. Clear prior
         // temporal edges so a crashed previous attempt's increments don't
@@ -1069,6 +1076,13 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
 
         if req.wait {
+            // Serialize behind any in-flight update_project: its git stage
+            // persists last_git_oid on completion, and reading the watermark
+            // mid-flight re-walks (and double-counts) the same window.
+            let _update_guard = self
+                .state
+                .acquire_project_update_lock(&req.project_id)
+                .await;
             let active_gen = self.get_active_generation(&req.project_id).await?;
             let cancel = tokio_util::sync::CancellationToken::new();
             let mode = req.sanitized_mode();
