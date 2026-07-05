@@ -573,6 +573,14 @@ pub struct GetChangeSetRequest {
     /// Override the automatically extracted domain concepts (max 3 used).
     #[serde(default)]
     pub concepts: Option<Vec<String>>,
+    /// The FULL work-item text (bug report / US description / acceptance
+    /// criteria) when the story references one. Input parity is the #1
+    /// one-shot lever measured (arm-B run 3 vs 4: F1 22 -> 71 from this
+    /// alone): a bare title under-determines the fix; the full item names
+    /// the defect class. Merged into concept extraction and rendered as
+    /// its own dossier section.
+    #[serde(default)]
+    pub work_item_text: Option<String>,
 }
 
 /// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge
