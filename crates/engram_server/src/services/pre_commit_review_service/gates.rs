@@ -17,7 +17,8 @@ use engram_core::registry::RepoRule;
 
 use super::{
     ChangeType, ConventionCategory, DetectedConvention, DiffFile, Gate, GateContext, ReviewFinding,
-    Severity, file_node_id, is_test_path, read_file_content,
+    Severity, file_node_id, is_test_path, path_suffix_match, read_file_content,
+    resolve_partner_to_current,
 };
 
 use crate::services::blast_radius_service::compute_blast_radius;
@@ -96,8 +97,12 @@ impl Gate for GuardParityGate {
             if RE_GP_GUARD.is_match(&df.added_content) {
                 continue;
             }
-            // Sibling evidence: guards used elsewhere in the same file on disk.
-            let disk = std::fs::read_to_string(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            // Sibling evidence: guards used elsewhere in the same file on
+            // disk. Lossy-decode — a stray non-UTF-8 byte anywhere in a
+            // legacy file must not silently blank out `disk` (and thus
+            // hide real sibling guards) or, worse, propagate a hard error.
+            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk = String::from_utf8_lossy(&disk_bytes);
             let sibling_guards = guard_names_in(&disk);
             if sibling_guards.is_empty() {
                 // No guard convention in this file — parity can't be judged
@@ -892,6 +897,12 @@ impl Gate for TemporalGate {
         let strong_threshold = base_threshold * 4;
 
         let mut findings = Vec::new();
+        // Current-tree file paths (already loaded once per review, see
+        // `GateContext::files_by_parent`) — used to re-anchor HISTORICAL
+        // partner spellings (pre-restructure paths in co-change history,
+        // e.g. `App_Code/x.vb` vs `Site/App_Code/x.vb`) to the spelling
+        // that actually exists today.
+        let current_files: Vec<String> = ctx.files_by_parent.values().flatten().cloned().collect();
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted | ChangeType::Added) {
                 continue;
@@ -901,15 +912,42 @@ impl Gate for TemporalGate {
                 .graph
                 .neighbors(ctx.project_id, EdgeKind::TemporalCoupling, &node_id, 20)
                 .unwrap_or_default();
+            // Multiple historical spellings can resolve to the same
+            // current file — emit each partner once per diff file
+            // (neighbors are weight-sorted, so the strongest wins).
+            let mut emitted: HashSet<String> = HashSet::new();
             for (neighbor_id, weight) in neighbors {
                 if weight < base_threshold {
                     continue;
                 }
-                let neighbor_path = neighbor_id
-                    .strip_prefix("file:")
-                    .unwrap_or(&neighbor_id)
-                    .to_string();
-                if ctx.changed_paths.contains(&neighbor_path) {
+                let raw_neighbor = neighbor_id.strip_prefix("file:").unwrap_or(&neighbor_id);
+                // Suffix-aware membership: a historical spelling counts as
+                // "in the diff" when it component-suffix-matches any
+                // changed path — this is what fixes the false "not in
+                // diff" positives on restructured repos.
+                if ctx
+                    .changed_paths
+                    .iter()
+                    .any(|p| path_suffix_match(p, raw_neighbor))
+                {
+                    continue;
+                }
+                // Never emit a partner path that doesn't exist in the
+                // current tree; when the historical spelling resolves to
+                // an existing file, emit the CURRENT spelling instead.
+                let Some(neighbor_path) =
+                    resolve_partner_to_current(raw_neighbor, &current_files, ctx.project_dir)
+                else {
+                    continue;
+                };
+                if ctx
+                    .changed_paths
+                    .iter()
+                    .any(|p| path_suffix_match(p, &neighbor_path))
+                {
+                    continue;
+                }
+                if !emitted.insert(neighbor_path.clone()) {
                     continue;
                 }
                 let pct = if ctx.total_commits > 0 {
@@ -1586,6 +1624,9 @@ impl Gate for TestCoverageGate {
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
         let mut findings = Vec::new();
         let any_test_in_diff = ctx.diff_files.iter().any(|f| is_test_path(&f.path));
+        // Current-tree paths for resolving historical partner spellings —
+        // see TemporalGate for the rationale.
+        let current_files: Vec<String> = ctx.files_by_parent.values().flatten().cloned().collect();
         for df in ctx.diff_files {
             if df.is_binary
                 || matches!(df.change_type, ChangeType::Deleted)
@@ -1602,7 +1643,7 @@ impl Gate for TestCoverageGate {
                 .graph
                 .neighbors(ctx.project_id, EdgeKind::TemporalCoupling, &node_id, 30)
                 .unwrap_or_default();
-            let coupled_tests: Vec<(String, u32)> = neighbors
+            let coupled_tests_raw: Vec<(String, u32)> = neighbors
                 .into_iter()
                 .filter(|(id, _)| {
                     let p = id.strip_prefix("file:").unwrap_or(id);
@@ -1611,12 +1652,24 @@ impl Gate for TestCoverageGate {
                 .map(|(id, w)| (id.strip_prefix("file:").unwrap_or(&id).to_string(), w))
                 .collect();
 
-            let has_coupled_test_in_diff = coupled_tests
+            // Suffix-aware membership — history may carry a pre-restructure
+            // spelling of a test file that IS in the diff.
+            let has_coupled_test_in_diff = coupled_tests_raw
                 .iter()
-                .any(|(p, _)| ctx.changed_paths.contains(p));
+                .any(|(p, _)| ctx.changed_paths.iter().any(|c| path_suffix_match(c, p)));
             if has_coupled_test_in_diff {
                 continue;
             }
+
+            // Only ever suggest test files that exist in the current tree,
+            // under their current spelling — never a stale one.
+            let coupled_tests: Vec<(String, u32)> = coupled_tests_raw
+                .iter()
+                .filter_map(|(p, w)| {
+                    resolve_partner_to_current(p, &current_files, ctx.project_dir)
+                        .map(|cp| (cp, *w))
+                })
+                .collect();
 
             if !coupled_tests.is_empty() {
                 let (best_path, best_weight) = coupled_tests
