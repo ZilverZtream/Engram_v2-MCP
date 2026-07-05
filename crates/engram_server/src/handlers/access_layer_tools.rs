@@ -522,15 +522,38 @@ fn method_not_found_message(
     msg
 }
 
+/// True when `node.namespace` holds a SEARCH-namespace constant
+/// ("memory", "history", …) rather than a declaring type. Nodes minted
+/// by the main ingest carry the search namespace there while their NAME
+/// is already fully qualified — rendering it produced headers like
+/// `Method: memory._ata.huvud.CreateFromMarkers` / `Class: memory`.
+fn is_search_namespace(ns: &str) -> bool {
+    engram_core::namespaces::KNOWN_NAMESPACES.contains(&ns)
+}
+
 fn fqn_from_node(node: &Node) -> String {
     // The node's namespace often holds the class name, and name holds the method.
-    // Build: namespace.name (skip namespace if it's "default" or empty).
+    // Build: namespace.name (skip namespace if it's "default", empty, or a
+    // search-namespace constant — the name is already qualified then).
     let ns = node.namespace.trim();
-    if ns.is_empty() || ns == "default" {
+    if ns.is_empty() || ns == "default" || is_search_namespace(ns) {
         node.name.clone()
     } else {
         format!("{}.{}", ns, node.name)
     }
+}
+
+/// Extract the declaring class for a node: from the namespace when it
+/// carries a type, else from the qualified NAME's second-to-last dot
+/// segment (`_ata.huvud.CreateFromMarkers` → `huvud`).
+fn class_of_node(node: &Node) -> String {
+    let ns = node.namespace.trim();
+    if !ns.is_empty() && ns != "default" && !is_search_namespace(ns) {
+        return class_from_namespace(ns);
+    }
+    let mut parts = node.name.rsplit('.');
+    parts.next(); // method segment
+    parts.next().unwrap_or("").to_string()
 }
 
 /// Extract class name from an FQN-like namespace string.
@@ -725,7 +748,7 @@ fn build_method_info_from_node(
     MethodInfoResult {
         fqn,
         file_path: node.file_path.as_str().to_string(),
-        class_name: class_from_namespace(&node.namespace),
+        class_name: class_of_node(node),
         method_name: node.name.clone(),
         signature: if signature.is_empty() {
             node.name.clone()

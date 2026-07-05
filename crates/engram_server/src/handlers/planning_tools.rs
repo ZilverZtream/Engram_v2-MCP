@@ -4357,10 +4357,13 @@ fn node_meta_csv(node: &engram_graph::Node, key: &str) -> Vec<String> {
 }
 
 /// "Class.Method" display name for a function node — the namespace usually
-/// holds the class; skip it when empty or the parser default.
+/// holds the class; skip it when empty, the parser default, or a SEARCH
+/// namespace constant ("memory", …) that ingest stores there while the
+/// name is already fully qualified (rendering it produced
+/// `memory._ata.ChangeRequestMarker.Create`).
 fn node_display_name(node: &engram_graph::Node) -> String {
     let ns = node.namespace.trim();
-    if ns.is_empty() || ns == "default" {
+    if ns.is_empty() || ns == "default" || engram_core::namespaces::KNOWN_NAMESPACES.contains(&ns) {
         node.name.clone()
     } else {
         format!("{}.{}", ns, node.name)
