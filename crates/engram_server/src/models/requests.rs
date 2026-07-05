@@ -581,6 +581,13 @@ pub struct GetChangeSetRequest {
     /// its own dossier section.
     #[serde(default)]
     pub work_item_text: Option<String>,
+    /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
+    /// references an id (e.g. "Bug #847") and `work_item_text` is not
+    /// provided. Per-call only — never persisted (same stance as
+    /// refresh_corpora). Org/project default from the coordinates saved
+    /// by the last refresh_corpora stage-4 run.
+    #[serde(default)]
+    pub pat_token: Option<String>,
 }
 
 /// Stage-3 quality gates: ingest a project's accumulated "what to avoid" knowledge
