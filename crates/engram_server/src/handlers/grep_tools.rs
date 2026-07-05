@@ -55,6 +55,22 @@ impl Engram {
             }
         };
 
+        // Fail closed on unknown namespaces too — a typo'd namespace
+        // previously returned 0 matches SILENTLY (knowledge-pack pilot
+        // 2026-07-06: "code"/"source"/"files"/"project" all no-op'd and
+        // read as "no results"). Source code lives in "memory", the
+        // default.
+        if !engram_core::namespaces::KNOWN_NAMESPACES.contains(&req.namespace.as_str()) {
+            return Err(McpError::invalid_params(
+                format!(
+                    "grep_project: unknown namespace '{}'. Valid: {}. Source code lives in 'memory' (the default — omit the parameter to search it).",
+                    req.namespace,
+                    engram_core::namespaces::KNOWN_NAMESPACES.join(", ")
+                ),
+                None,
+            ));
+        }
+
         // Open the DocStore — one handle per request keeps the code
         // simple. Redb holds its own concurrency guarantees.
         let docstore_path = self
