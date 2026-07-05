@@ -413,7 +413,28 @@ impl GraphStore {
             for n in nodes {
                 validate_key_component("node_id", &n.node_id)?;
                 let key = format!("{project_id}\0{}", n.node_id);
-                let val = bincode::serialize(n)?;
+                // Metadata-preserving upsert: many writers create nodes only
+                // as edge endpoints (dreamer, explain-change) and carry
+                // metadata: None. A last-writer-wins overwrite nulled the
+                // ingest fingerprints (mtime/size/hash) on file nodes, so
+                // change detection re-indexed the same ~1000 files on every
+                // update_project forever. Absent metadata means "no opinion",
+                // not "clear".
+                let val = if n.metadata.is_none() {
+                    let existing_meta = nt
+                        .get(key.as_str())?
+                        .and_then(|g| bincode::deserialize::<Node>(g.value()).ok())
+                        .and_then(|old| old.metadata);
+                    if let Some(meta) = existing_meta {
+                        let mut merged = n.clone();
+                        merged.metadata = Some(meta);
+                        bincode::serialize(&merged)?
+                    } else {
+                        bincode::serialize(n)?
+                    }
+                } else {
+                    bincode::serialize(n)?
+                };
                 nt.insert(key.as_str(), val.as_slice())?;
             }
         }
@@ -445,7 +466,23 @@ impl GraphStore {
                 let mut nt = wtx.open_table(NODES)?;
                 for n in nodes {
                     let key = format!("{project_id}\0{}", n.node_id);
-                    let val = bincode::serialize(n)?;
+                    // Same metadata-preserving rule as upsert_nodes: absent
+                    // metadata must not clear an existing record's metadata.
+                    let val = if n.metadata.is_none() {
+                        let existing_meta = nt
+                            .get(key.as_str())?
+                            .and_then(|g| bincode::deserialize::<Node>(g.value()).ok())
+                            .and_then(|old| old.metadata);
+                        if let Some(meta) = existing_meta {
+                            let mut merged = n.clone();
+                            merged.metadata = Some(meta);
+                            bincode::serialize(&merged)?
+                        } else {
+                            bincode::serialize(n)?
+                        }
+                    } else {
+                        bincode::serialize(n)?
+                    };
                     nt.insert(key.as_str(), val.as_slice())?;
                 }
             }
