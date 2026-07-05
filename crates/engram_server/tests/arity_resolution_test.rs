@@ -115,6 +115,97 @@ async fn call_with_args_binds_to_matching_overload() {
 }
 
 #[tokio::test]
+async fn signature_shaped_roslyn_target_resolves_cross_file() {
+    // Regression: the VB Roslyn sidecar emitted call targets WITH the
+    // parameter type list ("_x.Cls.Save(Integer, String)") while method
+    // definitions are bare ("_x.Cls.Save") — every cross-file call stayed a
+    // :: placeholder. The batch resolver must strip the signature before
+    // deriving lookup keys.
+    let tmp = tempdir().unwrap();
+    let root = tmp.path();
+    std::fs::write(root.join("a.vb"), "' a").unwrap();
+
+    let cfg = Config {
+        allowed_roots: vec![root.to_path_buf()],
+        data_dir: root.join("engram_data"),
+        max_project_files: Some(100),
+        max_project_bytes: Some(1024 * 1024),
+        embedding_backend: "fts_only".into(),
+        max_concurrent_jobs: 2,
+        ..Default::default()
+    };
+    std::fs::create_dir_all(&cfg.data_dir).unwrap();
+    let (state, _rx) = AppState::new(cfg).unwrap();
+    let engram = engram_server::Engram::new(state.clone());
+
+    engram
+        .index_project(Parameters(engram_server::IndexProjectRequest {
+            directory: root.to_string_lossy().to_string(),
+            project_name: "SigStripTest".into(),
+            project_type: engram_server::models::ProjectType::General,
+            wait: true,
+            dedupe_by_directory: false,
+        }))
+        .await
+        .unwrap();
+    let project_id = state.registry.list_projects().unwrap()[0]
+        .project_id
+        .clone();
+
+    let mut stats = engram_index::IngestStats::default();
+    let callee_path = engram_core::RelPath::new("io/cls.vb");
+    let caller_path = engram_core::RelPath::new("pages/edit.vb");
+    stats.symbols.push((
+        std::sync::Arc::new(callee_path.clone()),
+        sym("_x.Cls.Save", 10, 2),
+    ));
+    stats.symbols.push((
+        std::sync::Arc::new(caller_path.clone()),
+        sym("DoEdit", 5, 0),
+    ));
+
+    stats.edges.push((
+        std::sync::Arc::new(caller_path.clone()),
+        engram_index::ExtractedEdge {
+            source_name: "DoEdit".to_string(),
+            source_kind: "function".to_string(),
+            source_start_line: 6,
+            source_language: "vb".to_string(),
+            target_name: "_x.Cls.Save(Integer, String)".to_string(),
+            target_kind: Some("function".to_string()),
+            target_start_line: None,
+            kind: "calls".to_string(),
+            metadata: None,
+        },
+    ));
+
+    engram
+        .process_ingest_stats_for_test(&project_id, 1, &stats)
+        .await
+        .unwrap();
+
+    let edges = state
+        .graph
+        .list_edges(&project_id, Some(engram_graph::EdgeKind::Calls))
+        .unwrap();
+    let call = edges
+        .iter()
+        .find(|e| e.source_id.contains("DoEdit"))
+        .expect("call edge exists");
+
+    assert!(
+        !call.target_id.starts_with("::"),
+        "signature-shaped target must not stay a placeholder, got {}",
+        call.target_id
+    );
+    assert!(
+        call.target_id.contains("cls.vb"),
+        "must bind to the bare-named definition in cls.vb, got {}",
+        call.target_id
+    );
+}
+
+#[tokio::test]
 async fn same_language_candidate_beats_cross_language_tie() {
     let tmp = tempdir().unwrap();
     let root = tmp.path();

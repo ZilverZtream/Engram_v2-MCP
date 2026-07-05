@@ -351,6 +351,11 @@ pub async fn process_ingest_stats(
                                 prefer_arity: Option<u32>,
                                 caller_lang: &str|
      -> Option<(String, f32, &'static str, bool)> {
+        // Defensive: Roslyn-bound call targets can arrive signature-shaped
+        // ("Ns.Cls.Save(Integer, String)") while definition names are bare —
+        // strip the parameter list before deriving lookup keys (arity
+        // already travels separately in metadata["args"]).
+        let raw = raw.split('(').next().unwrap_or(raw).trim_end();
         let terminal = raw.rsplit('.').next().unwrap_or(raw);
         for key in [raw, terminal] {
             let via_terminal = !std::ptr::eq(key, raw) && key != raw;
