@@ -2957,6 +2957,7 @@ fn render_change_set(
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
     temporal_section: Option<&str>,
     sibling_section: Option<&str>,
+    setting_prior: Option<(usize, usize)>,
 ) -> String {
     const LAYERS: &[(&str, &[&str])] = &[
         (
@@ -3054,13 +3055,32 @@ fn render_change_set(
              state their interaction (mutually exclusive / mirrored / independent).\n",
         );
     }
-    s.push_str(
-        "- Story changes DEFAULT behaviour (UI or otherwise)? Decide EXPLICITLY \
-         whether this team's convention calls for a NEW SETTING to gate it - \
-         mature codebases frequently ship behaviour changes as configurable \
-         toggles (settings store + admin UI + default), and stories rarely say \
-         so. Check how similar merged work did it (the exemplars below).\n\n",
-    );
+    // Arm-B run 2 autopsy (PR1933): the agent read the soft version of
+    // this line, reasoned "unconditional UX improvement", and skipped the
+    // setting — the PO gated it. When the corpus shows a real house
+    // preference, state it as the DEFAULT, not a question.
+    match setting_prior {
+        Some((matched, scanned)) if matched * 10 >= scanned * 3 => {
+            s.push_str(&format!(
+                "- Story changes DEFAULT behaviour (UI or otherwise)? HOUSE PRIOR \
+                 (corpus-mined): {matched} of {scanned} sampled merged PRs shipped \
+                 system-setting changes alongside their feature. This team gates \
+                 behaviour changes behind settings — DEFAULT TO ADDING ONE (settings \
+                 store entry + localized descriptions in EVERY language resx + the \
+                 settings SQL script) unless the story explicitly says the change is \
+                 unconditional.\n\n"
+            ));
+        }
+        _ => {
+            s.push_str(
+                "- Story changes DEFAULT behaviour (UI or otherwise)? Decide EXPLICITLY \
+                 whether this team's convention calls for a NEW SETTING to gate it - \
+                 mature codebases frequently ship behaviour changes as configurable \
+                 toggles (settings store + admin UI + default), and stories rarely say \
+                 so. Check how similar merged work did it (the exemplars below).\n\n",
+            );
+        }
+    }
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
     let layer_names: Vec<&str> = LAYERS
@@ -3717,12 +3737,81 @@ impl Engram {
             .flatten()
         };
 
+        // House-prior mining: the team's revealed preference on setting-
+        // gating, from the merged-PR corpus (>=2 "setting"-named files in
+        // one PR's shipped list = a settings change: store + resx family
+        // or resx + sql). Degrades to the soft decision line when the
+        // corpus is absent or the sample is thin.
+        let setting_prior: Option<(usize, usize)> =
+            if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+                let hq = engram_index::hybrid::HybridQuery {
+                    project_id: req.project_id.to_string(),
+                    namespace: "history".into(),
+                    // GlobalMutable namespace — generation filter is inert.
+                    generation: 0,
+                    text: "settings setting configuration toggle".into(),
+                    top_k: 50,
+                    fts_mode: "loose".into(),
+                    include_path_prefixes: None,
+                    exclude_path_prefixes: None,
+                    language_filters: None,
+                    author_filter: None,
+                    date_after: None,
+                    date_before: None,
+                    use_mmr: false,
+                };
+                let cancel = tokio_util::sync::CancellationToken::new();
+                match ps.search.search(&hq, None, &cancel).await {
+                    Ok(hits) => {
+                        let mut scanned = 0usize;
+                        let mut matched = 0usize;
+                        for h in hits {
+                            if !h.path.as_str().starts_with("pr:") {
+                                continue;
+                            }
+                            let Some((_, _, content, _, _)) =
+                                ps.search.get_doc_by_pk(&h.pk).ok().flatten()
+                            else {
+                                continue;
+                            };
+                            let files =
+                            crate::services::pre_commit_review_service::gates::parse_pr_doc_files(
+                                &content,
+                            );
+                            if files.is_empty() {
+                                continue;
+                            }
+                            scanned += 1;
+                            let n = files
+                                .iter()
+                                .filter(|f| {
+                                    let fl = f.to_lowercase();
+                                    fl.rsplit('/').next().unwrap_or(&fl).contains("setting")
+                                })
+                                .count();
+                            if n >= 2 {
+                                matched += 1;
+                            }
+                        }
+                        if scanned >= 10 {
+                            Some((matched, scanned))
+                        } else {
+                            None
+                        }
+                    }
+                    Err(_) => None,
+                }
+            } else {
+                None
+            };
+
         let mut out = render_change_set(
             req.story.trim(),
             &concepts,
             &prov,
             temporal_section.as_deref(),
             sibling_section.as_deref(),
+            setting_prior,
         );
 
         // Scaffold template: when the story ADDS a new API/structural feature,
