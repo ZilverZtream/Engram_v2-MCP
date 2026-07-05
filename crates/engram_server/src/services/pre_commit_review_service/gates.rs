@@ -2020,6 +2020,10 @@ pub(crate) struct AddedFunction {
     pub name: String,
     /// New-file line number of the definition.
     pub line: usize,
+    /// Enclosing class/module when its declaration was visible in the
+    /// added lines (always for Added files; often absent for Modified
+    /// files whose class header is outside the hunks).
+    pub class_name: Option<String>,
 }
 
 static RE_VB_FN_DEF: LazyLock<Regex> = LazyLock::new(|| {
@@ -2132,7 +2136,24 @@ pub(crate) fn unwired_candidates(diff_files: &[DiffFile]) -> Vec<AddedFunction> 
             .iter()
             .map(|(n, s)| (*n, s.as_str()))
             .collect();
+        // Enclosing-class tracking: the last class/module declaration seen
+        // in the added lines before a definition. Gives the graph backstop
+        // class context so a common name like `Create` is only suppressed
+        // by same-class graph nodes, not by any class's `Create` that
+        // happens to have callers (live FN: 5 of 6 orphaned methods in a
+        // NEW class escaped because other classes' same-named members had
+        // callers).
+        static RE_CLASS_DECL: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(
+                r"(?i)^\s*(?:(?:public|private|friend|protected|partial|export|abstract|static|sealed|notinheritable|mustinherit)\s+)*(?:class|module)\s+([A-Za-z_$][\w$]*)",
+            )
+            .expect("valid regex")
+        });
+        let mut last_class: Option<(usize, String)> = None;
         for (n, line) in &df.added_lines {
+            if let Some(cap) = RE_CLASS_DECL.captures(line) {
+                last_class = Some((*n, cap[1].to_string()));
+            }
             let Some(name) = added_line_fn_def(&df.path, line) else {
                 continue;
             };
@@ -2154,6 +2175,10 @@ pub(crate) fn unwired_candidates(diff_files: &[DiffFile]) -> Vec<AddedFunction> 
                 file: df.path.clone(),
                 name,
                 line: *n,
+                class_name: last_class
+                    .as_ref()
+                    .filter(|(cl, _)| cl < n)
+                    .map(|(_, c)| c.clone()),
             });
         }
     }
@@ -2215,10 +2240,21 @@ impl Gate for UnwiredGate {
             // while the diff regex captures the bare member name — match on
             // the last dot-segment or the whole name, else a wired function
             // gets a false "never referenced" (live FP: StartTransaction had
-            // 5 Calls edges and was still flagged).
+            // 5 Calls edges and was still flagged). When the candidate's
+            // enclosing CLASS is known, only same-class (or same-file) nodes
+            // may suppress — a common name like `Create` must not be
+            // suppressed by some other class's `Create` that has callers.
             let has_graph_caller = nodes
                 .iter()
                 .filter(|n| bare_name_matches(&n.name, &cand.name))
+                .filter(|n| match &cand.class_name {
+                    Some(cls) => {
+                        let qualified = format!("{}.", cls.to_lowercase());
+                        n.name.to_lowercase().contains(&qualified)
+                            || path_suffix_match(n.file_path.as_str(), &cand.file)
+                    }
+                    None => true,
+                })
                 .any(|n| {
                     !crate::handlers::incoming_caller_edges(
                         &ctx.graph,
@@ -2302,6 +2338,11 @@ impl Gate for SyncContractGate {
 
     fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
         let mut findings = Vec::new();
+        // The same contract comment is often COPIED to every listed site
+        // (verified live: the 3-place marker-import contract exists in all
+        // three files) — dedup by normalized site-set so one violation
+        // yields one finding, not one per copy.
+        let mut seen_site_sets: HashSet<String> = HashSet::new();
         let contracts = ctx
             .graph
             .query_nodes(ctx.project_id, Some("sync_contract"), None, None, 300)
@@ -2317,6 +2358,11 @@ impl Gate for SyncContractGate {
                 .filter(|s| !s.is_empty())
                 .collect();
             if sites.len() < 2 {
+                continue;
+            }
+            let mut set_key: Vec<String> = sites.iter().map(|s| s.to_lowercase()).collect();
+            set_key.sort();
+            if !seen_site_sets.insert(set_key.join("||")) {
                 continue;
             }
             let mut touched: Vec<String> = Vec::new();
@@ -2912,6 +2958,31 @@ mod tests {
             names,
             vec!["computeGate"],
             "helper is called on line 9; computeGate is not referenced anywhere"
+        );
+    }
+
+    #[test]
+    fn unwired_candidates_capture_enclosing_class() {
+        let diff = vec![mk_df(
+            "Site/App_Code/ata/code/ChangeRequestMarker.vb",
+            &[
+                (5, "Public Class ChangeRequestMarker"),
+                (
+                    10,
+                    "Public Shared Function Create(ath_id As Integer) As Integer",
+                ),
+                (11, "End Function"),
+                (20, "End Class"),
+            ],
+        )];
+        let c = unwired_candidates(&diff);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].name, "Create");
+        assert_eq!(
+            c[0].class_name.as_deref(),
+            Some("ChangeRequestMarker"),
+            "enclosing class must be captured so common names only get \
+             suppressed by same-class graph nodes"
         );
     }
 
