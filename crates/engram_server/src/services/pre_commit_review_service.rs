@@ -2029,8 +2029,13 @@ pub async fn run_pre_commit_review(
         &'static str,
         tokio::task::JoinHandle<anyhow::Result<Vec<ReviewFinding>>>,
     )> = Vec::new();
-    let mut async_gate: Option<Box<dyn Gate>> = None;
+    let mut async_gates: Vec<Box<dyn Gate>> = Vec::new();
     let mut gates_run = 0usize;
+
+    // Gates that perform hybrid search must run on the async runtime
+    // (they await the search engine); everything else is sync and goes
+    // to spawn_blocking for true parallelism.
+    const ASYNC_GATES: &[&str] = &["antipattern", "product_intent"];
 
     for gate in gates::all_gates() {
         let name = gate.name();
@@ -2039,11 +2044,8 @@ pub async fn run_pre_commit_review(
         }
         gates_run += 1;
 
-        // The antipattern gate is the only one that must run async (it
-        // performs hybrid search). Everything else is sync — hand it to
-        // spawn_blocking for true parallelism.
-        if name == "antipattern" {
-            async_gate = Some(gate);
+        if ASYNC_GATES.contains(&name) {
+            async_gates.push(gate);
             continue;
         }
         let shared = shared.clone();
@@ -2072,17 +2074,17 @@ pub async fn run_pre_commit_review(
     };
 
     let async_future = async {
-        let Some(gate) = async_gate else {
-            return Vec::new();
-        };
-        let ctx = shared.as_borrowed(state);
-        match gate.run_async(&ctx).await {
-            Ok(fs) => fs,
-            Err(e) => {
-                tracing::warn!(gate = gate.name(), "pre_commit_review gate failed: {e}");
-                Vec::new()
+        let mut out: Vec<ReviewFinding> = Vec::new();
+        for gate in async_gates {
+            let ctx = shared.as_borrowed(state);
+            match gate.run_async(&ctx).await {
+                Ok(fs) => out.extend(fs),
+                Err(e) => {
+                    tracing::warn!(gate = gate.name(), "pre_commit_review gate failed: {e}");
+                }
             }
         }
+        out
     };
 
     let (sync_findings, async_findings) = tokio::join!(sync_future, async_future);
