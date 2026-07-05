@@ -490,7 +490,27 @@ impl Gate for StyleGate {
             if conventions.is_empty() {
                 continue;
             }
-            findings.extend(check_style_compliance(df, &conventions));
+            let checked = check_style_compliance(df, &conventions);
+            // Generated files (designer/partial-class output, or anything
+            // carrying a generated-code header) get their Style-class
+            // findings collapsed to a single skip notice — indentation and
+            // naming there come from the generator, not a developer. Any
+            // non-Style finding from the same check (e.g. "On Error Resume
+            // Next reintroduced") is a real bug regardless of who wrote the
+            // file, so it always survives.
+            let is_generated =
+                super::is_generated_filename(&df.path) || super::has_generated_header(&full);
+            if is_generated {
+                let (style, other): (Vec<_>, Vec<_>) = checked
+                    .into_iter()
+                    .partition(|f| f.severity == Severity::Style);
+                findings.extend(other);
+                findings.extend(super::apply_generated_exemption(
+                    "style", &df.path, true, style,
+                ));
+            } else {
+                findings.extend(checked);
+            }
         }
         Ok(findings)
     }
@@ -1479,6 +1499,8 @@ impl Gate for NewFileGate {
                 .unwrap_or_default();
 
             if sibling_names.len() >= 3 {
+                let mut style_findings: Vec<ReviewFinding> = Vec::new();
+
                 // Extension consistency.
                 let file_ext = extension(&df.path);
                 let sibling_exts: HashMap<String, usize> = count_extensions(&sibling_names);
@@ -1491,7 +1513,7 @@ impl Gate for NewFileGate {
                         && file_ext != top_ext
                         && top_count >= sibling_names.len() / 2
                     {
-                        findings.push(ReviewFinding::new(
+                        style_findings.push(ReviewFinding::new(
                             Severity::Style,
                             "new_file",
                             df.path.clone(),
@@ -1515,7 +1537,7 @@ impl Gate for NewFileGate {
                 if let Some(p) = prefix {
                     let fname = df.path.rsplit('/').next().unwrap_or(&df.path);
                     if !fname.starts_with(&p) {
-                        findings.push(ReviewFinding::new(
+                        style_findings.push(ReviewFinding::new(
                             Severity::Style,
                             "new_file",
                             df.path.clone(),
@@ -1527,6 +1549,22 @@ impl Gate for NewFileGate {
                             format!("Rename `{fname}` → `{p}{fname}` or similar."),
                         ));
                     }
+                }
+
+                if !style_findings.is_empty() {
+                    // Same exemption as StyleGate: a generated new file
+                    // (e.g. a scaffolded `.designer.vb` sibling) doesn't
+                    // get naming/extension nits — `added_content` on an
+                    // Added file IS the whole file, so the header-marker
+                    // check needs no extra disk read.
+                    let is_generated = super::is_generated_filename(&df.path)
+                        || super::has_generated_header(&df.added_content);
+                    findings.extend(super::apply_generated_exemption(
+                        "new_file",
+                        &df.path,
+                        is_generated,
+                        style_findings,
+                    ));
                 }
             }
 
