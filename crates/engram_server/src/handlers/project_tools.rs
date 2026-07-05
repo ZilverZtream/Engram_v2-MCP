@@ -2146,6 +2146,7 @@ impl Engram {
                     for key in [
                         "last_git_oid",
                         "oldest_indexed_git_oid",
+                        "git_backfill_complete",
                         "pr_ingest_watermark",
                     ] {
                         let _ = reg.set_meta(&pid_wm, key, "");

@@ -330,6 +330,28 @@ impl Engram {
         .and_then(|r| r.ok())
         .flatten()
         .filter(|s: &String| !s.trim().is_empty());
+        // Completion sentinel: set once a walk has reached the ROOT commit
+        // (or exhausted the revwalk below the anchor). While set, backfill
+        // short-circuits instead of re-anchoring and re-walking (and
+        // double-counting temporal weights for) the oldest window on every
+        // run. Blank reads as absent (wipe clears via ""); force ignores it.
+        let backfill_complete = tokio::task::spawn_blocking({
+            let pid = pid.clone();
+            let reg = self.state.registry.clone();
+            move || {
+                if force_flag {
+                    Ok(None)
+                } else {
+                    reg.get_meta(&pid, "git_backfill_complete")
+                }
+            }
+        })
+        .await
+        .ok()
+        .and_then(|r| r.ok())
+        .flatten()
+        .filter(|s: &String| !s.trim().is_empty())
+        .is_some();
 
         // 16d: no watermark means this is a from-scratch walk. Clear prior
         // temporal edges so a crashed previous attempt's increments don't
@@ -491,6 +513,10 @@ impl Engram {
             // walk (oldest→newest) and the backfill walk (newest→oldest).
             let in_backfill: Cell<bool> = Cell::new(false);
             let backfill_oldest_oid: Cell<Option<Oid>> = Cell::new(None);
+            // Set when either walk processes a ROOT commit (zero parents):
+            // the walk physically reached the beginning of history, so
+            // backfill is complete and must not re-anchor/re-walk again.
+            let reached_root: Cell<bool> = Cell::new(false);
             // Only need last ~10 commits for revert detection — cap at 12.
             let mut commit_history: VecDeque<Oid> = VecDeque::with_capacity(12);
             let mut processed_total = 0usize;
@@ -511,12 +537,20 @@ impl Engram {
             let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
                 progress_cb(curr, total);
                 if in_backfill.get() {
-                    // Backfill walks newest→oldest: the LAST processed oid is
-                    // the new oldest watermark. Never touch the forward
+                    // Backfill STREAMS oldest→newest (walk_older_commits
+                    // reverses the newest→oldest revwalk output), so the
+                    // FIRST processed oid is the batch's deepest commit and
+                    // the correct new oldest watermark. Taking the LAST
+                    // processed oid (old bug) pinned the watermark one commit
+                    // below the previous anchor, so every subsequent backfill
+                    // re-walked the whole remaining tail and double-counted
+                    // its temporal-coupling weights. Never touch the forward
                     // (newest) watermark here — overwriting it with an old
                     // commit would make the next incremental run re-process
                     // (and double-count) everything newer.
-                    backfill_oldest_oid.set(Some(oid));
+                    if backfill_oldest_oid.get().is_none() {
+                        backfill_oldest_oid.set(Some(oid));
+                    }
                 } else {
                     newest_processed_oid.set(Some(oid));
                     if oldest_processed_oid.get().is_none() {
@@ -604,6 +638,9 @@ impl Engram {
 
                 // ── Index commit message ─────────────────────────────
                 let commit = repo.find_commit(oid)?;
+                if commit.parent_count() == 0 {
+                    reached_root.set(true);
+                }
                 let msg = commit.message().unwrap_or("").to_string();
                 let author = commit.author().name().unwrap_or("unknown").to_string();
                 let timestamp = commit.time().seconds();
@@ -762,27 +799,50 @@ impl Engram {
             processed_total += forward_processed;
 
             let remaining = max_commits.saturating_sub(processed_total);
+            let mut backfill_ran = false;
             let backfill_processed = if remaining > 0
                 && matches!(mode, GitHistoryMode::Backfill | GitHistoryMode::Both)
             {
-                // The PERSISTED oldest watermark takes precedence: on an
-                // incremental run the forward walk only covered new commits,
-                // and starting backfill from this run's oldest would re-walk
-                // (and double-count temporal couplings for) every commit
-                // already indexed in previous runs.
-                let backfill_start = start_backfill.or(oldest_processed_oid.get());
-                in_backfill.set(true);
-                GitWalker::walk_older_commits_streaming(
-                    &repo,
-                    backfill_start,
-                    remaining,
-                    policy,
-                    &cancel_clone,
-                    &mut process_commit,
-                )?
+                if backfill_complete {
+                    // A prior run reached the root: there is nothing older
+                    // to walk. Re-anchoring at (or near) the root would
+                    // re-walk the oldest window and double-increment its
+                    // temporal-coupling weights on every run. force=true
+                    // clears the sentinel for a deliberate re-walk.
+                    0
+                } else {
+                    // The PERSISTED oldest watermark takes precedence: on an
+                    // incremental run the forward walk only covered new commits,
+                    // and starting backfill from this run's oldest would re-walk
+                    // (and double-count temporal couplings for) every commit
+                    // already indexed in previous runs.
+                    let backfill_start = start_backfill.or(oldest_processed_oid.get());
+                    in_backfill.set(true);
+                    backfill_ran = true;
+                    GitWalker::walk_older_commits_streaming(
+                        &repo,
+                        backfill_start,
+                        remaining,
+                        policy,
+                        &cancel_clone,
+                        &mut process_commit,
+                    )?
+                }
             } else {
                 0
             };
+
+            // Termination decision: history is fully indexed once a root
+            // commit was processed, or the backfill revwalk was exhausted
+            // below the requested cap. A cancelled run proves nothing.
+            let history_exhausted = history_fully_indexed(
+                cancel_clone.is_cancelled(),
+                backfill_complete,
+                reached_root.get(),
+                backfill_ran,
+                backfill_processed,
+                remaining,
+            );
 
             let commits_processed = processed_total + backfill_processed;
             let effective_last_oid = newest_processed_oid.get().or(stop);
@@ -820,17 +880,25 @@ impl Engram {
             drop(doc_tx);
 
             let diagnostic = if commits_processed == 0 {
-                match mode {
-                    GitHistoryMode::Forward => {
-                        "No new commits at HEAD past last_oid. To backfill older history, set mode='backfill' or mode='both'."
-                    }
-                    GitHistoryMode::Backfill => {
-                        "No older commits were found beyond oldest_indexed_oid. History backfill may already be complete."
-                    }
-                    GitHistoryMode::Both => {
-                        "No new HEAD commits and no older commits found; repository history appears fully indexed."
+                if history_exhausted
+                    && matches!(mode, GitHistoryMode::Backfill | GitHistoryMode::Both)
+                {
+                    "history fully indexed; the walk previously reached the root commit and there is nothing older to backfill. Use force=true to re-walk from scratch."
+                } else {
+                    match mode {
+                        GitHistoryMode::Forward => {
+                            "No new commits at HEAD past last_oid. To backfill older history, set mode='backfill' or mode='both'."
+                        }
+                        GitHistoryMode::Backfill => {
+                            "No older commits were found beyond oldest_indexed_oid. History backfill may already be complete."
+                        }
+                        GitHistoryMode::Both => {
+                            "No new HEAD commits and no older commits found; repository history appears fully indexed."
+                        }
                     }
                 }
+            } else if history_exhausted {
+                "history fully indexed (walk reached the root commit); future backfill runs will short-circuit."
             } else if commits_processed >= max_commits {
                 "max_commits cap reached; re-run with mode='both' to continue indexing remaining history."
             } else {
@@ -838,7 +906,7 @@ impl Engram {
             };
 
             Ok(format!(
-                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\ndiagnostic: {}",
+                "git_update:\ncommits_processed: {}\ntemporal_edges_added: {}\nreverted_commits: {}\nantipattern_docs: {}\nlast_oid: {}\noldest_indexed_oid: {}\nbackfill_complete: {}\ndiagnostic: {}",
                 commits_processed,
                 temporal_edges,
                 reverts,
@@ -847,6 +915,7 @@ impl Engram {
                 effective_oldest_oid
                     .map(|o: Oid| o.to_string())
                     .unwrap_or_else(|| "<none>".into()),
+                history_exhausted,
                 diagnostic
             ))
         })
@@ -898,6 +967,23 @@ impl Engram {
                 .await
                 .ok();
             }
+        }
+        // Persist the backfill-completion sentinel: once a walk has reached
+        // the root commit there is nothing older to index, so subsequent
+        // backfill runs short-circuit instead of re-walking (and
+        // double-counting) the oldest window. force=true clears a stale
+        // sentinel when this run did not re-confirm completion (blank ==
+        // absent; Registry has no delete_meta).
+        let backfill_complete_now = summary
+            .lines()
+            .any(|l| l.trim() == "backfill_complete: true");
+        if backfill_complete_now || force_flag {
+            let reg2 = self.state.registry.clone();
+            let pid2 = project_id.to_string();
+            let val = if backfill_complete_now { "1" } else { "" };
+            tokio::task::spawn_blocking(move || reg2.set_meta(&pid2, "git_backfill_complete", val))
+                .await
+                .ok();
         }
 
         Ok(summary)
@@ -1618,6 +1704,30 @@ impl Engram {
     }
 }
 
+/// Decide whether repository history is now fully indexed, i.e. the
+/// backfill leg can permanently short-circuit (`git_backfill_complete`).
+///
+/// True when a ROOT commit (zero parents) was processed — the walk
+/// physically cannot go further back — or when the backfill revwalk was
+/// exhausted below its requested cap (nothing older exists beyond the
+/// anchor). A cancelled run proves nothing: it only preserves the prior
+/// sentinel state (a mid-cancel batch may have processed the root first —
+/// walk order is oldest→newest — while newer commits of the batch remain
+/// unindexed).
+pub(crate) fn history_fully_indexed(
+    cancelled: bool,
+    already_complete: bool,
+    reached_root: bool,
+    backfill_ran: bool,
+    backfill_processed: usize,
+    backfill_requested: usize,
+) -> bool {
+    if cancelled {
+        return already_complete;
+    }
+    already_complete || reached_root || (backfill_ran && backfill_processed < backfill_requested)
+}
+
 fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
     tracing::warn!(
         operation = operation,
@@ -1633,7 +1743,46 @@ fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+    use super::history_fully_indexed;
     use super::is_safe_zip_member_path;
+
+    #[test]
+    fn backfill_complete_when_walk_reaches_root_commit() {
+        // A root commit was processed mid-run (even at the exact cap).
+        assert!(history_fully_indexed(false, false, true, true, 5000, 5000));
+        // Root reached during the forward leg of a from-scratch walk.
+        assert!(history_fully_indexed(false, false, true, false, 0, 0));
+    }
+
+    #[test]
+    fn backfill_complete_when_revwalk_exhausted_below_cap() {
+        // Backfill yielded fewer commits than requested: nothing older left.
+        assert!(history_fully_indexed(false, false, false, true, 1682, 5000));
+        // Backfill yielded zero beyond the anchor: already at the root.
+        assert!(history_fully_indexed(false, false, false, true, 0, 5000));
+    }
+
+    #[test]
+    fn backfill_not_complete_when_cap_reached_without_root() {
+        // Exactly at the cap, no root seen: more history may remain.
+        assert!(!history_fully_indexed(
+            false, false, false, true, 5000, 5000
+        ));
+        // Forward-only incremental run proves nothing about older history.
+        assert!(!history_fully_indexed(false, false, false, false, 0, 0));
+    }
+
+    #[test]
+    fn backfill_sentinel_sticky_and_cancel_safe() {
+        // Sentinel already set: a short-circuited run keeps it set.
+        assert!(history_fully_indexed(false, true, false, false, 0, 5000));
+        // Cancelled run never NEWLY concludes completion (batch order is
+        // oldest→newest, so the root may be processed before newer commits
+        // of the same batch)...
+        assert!(!history_fully_indexed(true, false, true, true, 100, 5000));
+        // ...but also never clears an existing sentinel.
+        assert!(history_fully_indexed(true, true, false, false, 0, 0));
+    }
 
     #[test]
     fn zip_member_path_rejects_traversal_and_absolute() {
