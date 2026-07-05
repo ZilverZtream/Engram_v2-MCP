@@ -2465,6 +2465,10 @@ impl GraphStore {
 
         for entry in &unresolved {
             let name = &entry.edge.target_id[2..]; // strip "::"
+            // Defensive: Roslyn-emitted call targets can be signature-shaped
+            // ("Ns.Cls.Save(Integer, String)") while node names are bare —
+            // strip the parameter list before deriving name/terminal keys.
+            let name = name.split('(').next().unwrap_or(name).trim_end();
             let source_file = node_file_paths.get(&entry.edge.source_id);
 
             // Step 1: exact name match

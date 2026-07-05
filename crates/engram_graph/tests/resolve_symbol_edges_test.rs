@@ -338,6 +338,88 @@ fn resolves_via_edge_metadata_fqn_when_name_is_ambiguous_across_files() {
 }
 
 #[test]
+fn signature_shaped_target_resolves_after_param_strip() {
+    // Roslyn sidecar builds emitted call targets WITH the parameter list
+    // ("_x.Cls.Save(Integer, String)") while node names are bare
+    // ("_x.Cls.Save") — the resolver must strip the signature before
+    // deriving name/terminal keys or the edge stays a :: placeholder.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-signature-strip";
+
+    let target = make_node("sym:function:x.vb:_x.Cls.Save:5", "_x.Cls.Save", "x.vb");
+    let source = make_node("sym:function:y.vb:Caller:1", "Caller", "y.vb");
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_call(&source.node_id, "::_x.Cls.Save(Integer, String)")],
+        )
+        .unwrap();
+
+    let resolved = graph.resolve_symbol_edges(pid).unwrap();
+    assert_eq!(resolved, 1, "signature-shaped target must resolve");
+
+    let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
+    assert_eq!(rewritten[0].target_id, target.node_id);
+    let meta = rewritten[0].metadata.as_ref().expect("stamped metadata");
+    assert_eq!(
+        meta.get("resolution").and_then(|v| v.as_str()),
+        Some("post_exact_name")
+    );
+}
+
+#[test]
+fn signature_shaped_target_resolves_via_suffix_step() {
+    // Same signature-shaped target, but the node carries an extra
+    // namespace-alias prefix — after the param strip the .-anchored
+    // suffix-qualified step (not the bare terminal fallback) must bind it.
+    let tmp = tempfile::TempDir::new().unwrap();
+    let graph = open_store(&tmp);
+    let pid = "test-signature-suffix";
+
+    let target = make_node(
+        "sym:function:x.vb:App._x.Cls.Save:5",
+        "App._x.Cls.Save",
+        "x.vb",
+    );
+    let source = make_node("sym:function:y.vb:Caller:1", "Caller", "y.vb");
+    graph
+        .upsert_nodes(pid, &[target.clone(), source.clone()])
+        .unwrap();
+    graph
+        .upsert_edges(
+            pid,
+            &[make_call(&source.node_id, "::_x.Cls.Save(Integer, String)")],
+        )
+        .unwrap();
+
+    let resolved = graph.resolve_symbol_edges(pid).unwrap();
+    assert_eq!(
+        resolved, 1,
+        "signature-shaped target must resolve via suffix"
+    );
+
+    let calls = graph.list_edges(pid, Some(EdgeKind::Calls)).unwrap();
+    let rewritten: Vec<_> = calls
+        .iter()
+        .filter(|e| e.source_id == source.node_id)
+        .collect();
+    assert_eq!(rewritten[0].target_id, target.node_id);
+    let meta = rewritten[0].metadata.as_ref().expect("stamped metadata");
+    assert_eq!(
+        meta.get("resolution").and_then(|v| v.as_str()),
+        Some("post_suffix_qualified")
+    );
+}
+
+#[test]
 fn edge_metadata_fqn_misses_fall_through_to_terminal_segment() {
     let tmp = tempfile::TempDir::new().unwrap();
     let graph = open_store(&tmp);

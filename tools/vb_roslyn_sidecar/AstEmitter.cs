@@ -16,6 +16,17 @@ internal sealed class AstEmitter
             ["WScript.Shell"] = "System.Diagnostics.Process",
         };
 
+    // Qualified name WITHOUT the parameter list. Method DEFINITIONS are
+    // stored as bare dotted names ("_ata.Cls.CreateMany"), so CALL targets
+    // must match that shape or cross-file resolution never binds — the
+    // default ToDisplayString() appends "(Integer, List(Of Integer))" which
+    // fails every resolver step. Arity travels separately in metadata["args"].
+    private static readonly SymbolDisplayFormat BareQualifiedNameFormat = new(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Omitted,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.None,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType);
+
     private VisualBasicCompilation? _projectCompilation;
     private readonly Dictionary<string, SyntaxTree> _treesByPath =
         new(StringComparer.OrdinalIgnoreCase);
@@ -694,7 +705,7 @@ internal sealed class AstEmitter
                 var symbol = info.Symbol as IMethodSymbol;
                 if (symbol is not null)
                 {
-                    return symbol.ToDisplayString();
+                    return SanitizeName(symbol.ToDisplayString(BareQualifiedNameFormat));
                 }
 
                 // Fall back to raw text when no resolved symbol.
