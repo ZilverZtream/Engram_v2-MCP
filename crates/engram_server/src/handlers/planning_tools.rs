@@ -3740,67 +3740,73 @@ impl Engram {
         // House-prior mining: the team's revealed preference on setting-
         // gating, from the merged-PR corpus (>=2 "setting"-named files in
         // one PR's shipped list = a settings change: store + resx family
-        // or resx + sql). Degrades to the soft decision line when the
-        // corpus is absent or the sample is thin.
+        // or resx + sql). Enumerates the MOST RECENT 60 PR docs directly —
+        // search was the wrong transport (settings-PR text rarely contains
+        // the literal word "setting"; it hides inside compound path tokens
+        // like "systemsettings", which FTS won't split). Degrades to the
+        // soft decision line when the corpus is absent or the sample thin.
         let setting_prior: Option<(usize, usize)> =
             if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
-                let hq = engram_index::hybrid::HybridQuery {
-                    project_id: req.project_id.to_string(),
-                    namespace: "history".into(),
-                    // GlobalMutable namespace — generation filter is inert.
-                    generation: 0,
-                    text: "settings setting configuration toggle".into(),
-                    top_k: 50,
-                    fts_mode: "loose".into(),
-                    include_path_prefixes: None,
-                    exclude_path_prefixes: None,
-                    language_filters: None,
-                    author_filter: None,
-                    date_after: None,
-                    date_before: None,
-                    use_mmr: false,
-                };
-                let cancel = tokio_util::sync::CancellationToken::new();
-                match ps.search.search(&hq, None, &cancel).await {
-                    Ok(hits) => {
-                        let mut scanned = 0usize;
-                        let mut matched = 0usize;
-                        for h in hits {
-                            if !h.path.as_str().starts_with("pr:") {
-                                continue;
-                            }
-                            let Some((_, _, content, _, _)) =
-                                ps.search.get_doc_by_pk(&h.pk).ok().flatten()
-                            else {
-                                continue;
-                            };
-                            let files =
+                let search = ps.search.clone();
+                let pid = req.project_id.clone();
+                tokio::task::spawn_blocking(move || {
+                    let mut pr_docs: Vec<(u64, String)> = search
+                        .list_docs_for_project(&pid)
+                        .ok()?
+                        .into_iter()
+                        .filter(|d| {
+                            d.namespace == engram_core::namespaces::NAMESPACE_HISTORY
+                                && d.path.starts_with("pr:")
+                        })
+                        .map(|d| {
+                            let num = d.path[3..]
+                                .split(|c: char| !c.is_ascii_digit())
+                                .next()
+                                .and_then(|s| s.parse::<u64>().ok())
+                                .unwrap_or(0);
+                            (num, d.doc_id)
+                        })
+                        .collect();
+                    pr_docs.sort_by(|a, b| b.0.cmp(&a.0));
+                    let mut scanned = 0usize;
+                    let mut matched = 0usize;
+                    for (_, doc_id) in pr_docs.into_iter().take(60) {
+                        let Ok(Some((_, _, content, _, _))) = search.get_doc_by_doc_id(
+                            &pid,
+                            engram_core::namespaces::NAMESPACE_HISTORY,
+                            0,
+                            &doc_id,
+                        ) else {
+                            continue;
+                        };
+                        let files =
                             crate::services::pre_commit_review_service::gates::parse_pr_doc_files(
                                 &content,
                             );
-                            if files.is_empty() {
-                                continue;
-                            }
-                            scanned += 1;
-                            let n = files
-                                .iter()
-                                .filter(|f| {
-                                    let fl = f.to_lowercase();
-                                    fl.rsplit('/').next().unwrap_or(&fl).contains("setting")
-                                })
-                                .count();
-                            if n >= 2 {
-                                matched += 1;
-                            }
+                        if files.is_empty() {
+                            continue;
                         }
-                        if scanned >= 10 {
-                            Some((matched, scanned))
-                        } else {
-                            None
+                        scanned += 1;
+                        let n = files
+                            .iter()
+                            .filter(|f| {
+                                let fl = f.to_lowercase();
+                                fl.rsplit('/').next().unwrap_or(&fl).contains("setting")
+                            })
+                            .count();
+                        if n >= 2 {
+                            matched += 1;
                         }
                     }
-                    Err(_) => None,
-                }
+                    if scanned >= 10 {
+                        Some((matched, scanned))
+                    } else {
+                        None
+                    }
+                })
+                .await
+                .ok()
+                .flatten()
             } else {
                 None
             };
