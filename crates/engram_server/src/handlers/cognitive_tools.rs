@@ -2659,7 +2659,16 @@ impl Engram {
             };
 
             let edge_kinds: Vec<EdgeKind> = if compile_time_only {
-                vec![EdgeKind::Dependency, EdgeKind::Imports, EdgeKind::Contains]
+                // Calls is a compile-time (static call graph) edge kind — the
+                // Roslyn path stores raw call edges as `Calls`, not
+                // `Dependency`; omitting it made the compile-time traversal
+                // blind to real call edges.
+                vec![
+                    EdgeKind::Calls,
+                    EdgeKind::Dependency,
+                    EdgeKind::Imports,
+                    EdgeKind::Contains,
+                ]
             } else {
                 EdgeKind::ALL.to_vec()
             };

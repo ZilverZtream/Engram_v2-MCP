@@ -4219,15 +4219,9 @@ impl Engram {
                         full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata)
                             .to_string();
                     let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
-                    let caller_count = graph
-                        .find_incoming_edges_with_kind(
-                            &pid,
-                            Some(EdgeKind::Dependency),
-                            &node.node_id,
-                            1,
-                        )
-                        .map(|v| v.len())
-                        .unwrap_or(0);
+                    let caller_count =
+                        crate::handlers::incoming_caller_edges(&graph, &pid, &node.node_id, 1)
+                            .len();
                     if unwired_should_flag(&kind, has_handles, caller_count) {
                         unwired_findings.push((
                             node_display_name(node),
@@ -4772,5 +4766,88 @@ mod unwired_tests {
     fn methods_with_callers_are_not_flagged() {
         assert!(!unwired_should_flag("Helper", false, 1));
         assert!(!unwired_should_flag("DataAccess", false, 3));
+    }
+
+    /// Regression: call edges from the Roslyn path are stored as
+    /// `EdgeKind::Calls`, not `Dependency`. Every caller-count consumer
+    /// (this unwired filter, find_dead_methods, check_edit_safety,
+    /// get_method_info) counts through `incoming_caller_edges` — a method
+    /// whose ONLY incoming edge is a `Calls` edge must be reported as
+    /// having callers, not as dead/unwired scaffolding.
+    #[test]
+    fn calls_only_edges_count_as_callers() {
+        use crate::handlers::incoming_caller_edges;
+        use engram_graph::{Edge, EdgeKind, GraphStore};
+
+        fn edge(src: &str, tgt: &str, kind: EdgeKind) -> Edge {
+            Edge {
+                source_id: src.into(),
+                target_id: tgt.into(),
+                namespace: "memory".into(),
+                language: "vb".into(),
+                edge_kind: kind,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }
+        }
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let store = GraphStore::open(&tmp.path().join("graph.redb")).expect("open graph");
+        let pid = "callers-regression";
+
+        // A method whose only incoming edge is Calls (Roslyn call graph).
+        store
+            .upsert_edges(pid, &[edge("sym:caller", "sym:callee", EdgeKind::Calls)])
+            .expect("upsert Calls edge");
+
+        // Exactly how the unwired filter and find_dead_methods count (limit 1).
+        let caller_count = incoming_caller_edges(&store, pid, "sym:callee", 1).len();
+        assert_eq!(
+            caller_count, 1,
+            "a Calls-only incoming edge must count as a caller"
+        );
+        assert!(
+            !unwired_should_flag("Helper", false, caller_count),
+            "a method with a Calls caller is wired — must not be flagged"
+        );
+        assert_ne!(
+            caller_count, 0,
+            "find_dead_methods' zero-caller predicate must see the method as alive"
+        );
+
+        // Dependency-only callers still count (pre-existing behavior kept).
+        store
+            .upsert_edges(
+                pid,
+                &[edge(
+                    "sym:dep_caller",
+                    "sym:dep_callee",
+                    EdgeKind::Dependency,
+                )],
+            )
+            .expect("upsert Dependency edge");
+        assert_eq!(
+            incoming_caller_edges(&store, pid, "sym:dep_callee", 10).len(),
+            1,
+            "Dependency-only incoming edge must still count as a caller"
+        );
+
+        // The same caller carrying BOTH kinds deduplicates to one entry.
+        store
+            .upsert_edges(
+                pid,
+                &[
+                    edge("sym:dual", "sym:both_callee", EdgeKind::Calls),
+                    edge("sym:dual", "sym:both_callee", EdgeKind::Dependency),
+                ],
+            )
+            .expect("upsert dual-kind edges");
+        assert_eq!(
+            incoming_caller_edges(&store, pid, "sym:both_callee", 10).len(),
+            1,
+            "same source with Calls + Dependency edges is one caller, not two"
+        );
     }
 }

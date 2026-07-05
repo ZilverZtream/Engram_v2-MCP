@@ -24,6 +24,45 @@ pub mod runtime_observation_tools;
 /// only the extra deserialization of rows that were previously dropped.
 pub(crate) const NODE_SCAN_LIMIT: usize = 200_000;
 
+/// Edge kinds that mean "someone calls this method". Call edges arrive as
+/// `EdgeKind::Calls` from the Roslyn/raw call-graph path and as
+/// `EdgeKind::Dependency` from the heuristic extractors — a caller count
+/// that queries only one kind is blind to the other. (Dependency-only
+/// counting hid all 51k recovered Calls edges: get_method_info,
+/// find_dead_methods, check_edit_safety and detect_incomplete_changes all
+/// reported 0 callers for methods whose incoming edges were `Calls`.)
+pub(crate) const CALLER_EDGE_KINDS: [engram_graph::EdgeKind; 2] = [
+    engram_graph::EdgeKind::Calls,
+    engram_graph::EdgeKind::Dependency,
+];
+
+/// Incoming CALLER edges for a node across all kinds that mean "calls this"
+/// (see [`CALLER_EDGE_KINDS`]). Deduplicates by source node id — the same
+/// caller can carry both a `Calls` and a `Dependency` edge — keeping the
+/// higher-weight entry, then sorts by weight descending (matching
+/// `find_incoming_edges_with_kind` ordering) and truncates to `limit`.
+pub(crate) fn incoming_caller_edges(
+    graph: &engram_graph::GraphStore,
+    project_id: &str,
+    node_id: &str,
+    limit: usize,
+) -> Vec<(String, engram_graph::EdgeKind, u32)> {
+    let mut out: Vec<(String, engram_graph::EdgeKind, u32)> = Vec::new();
+    for kind in CALLER_EDGE_KINDS {
+        out.extend(
+            graph
+                .find_incoming_edges_with_kind(project_id, Some(kind), node_id, limit)
+                .unwrap_or_default(),
+        );
+    }
+    // Dedup by source id, keeping the higher-weight edge for each caller.
+    out.sort_by(|a, b| a.0.cmp(&b.0).then(b.2.cmp(&a.2)));
+    out.dedup_by(|next, kept| next.0 == kept.0);
+    out.sort_by(|a, b| b.2.cmp(&a.2));
+    out.truncate(limit);
+    out
+}
+
 // ─── REG1/MCP1: Shared handler-boundary validation ───────────────────────────
 
 /// Validate a user-supplied project_id at the MCP handler boundary.
