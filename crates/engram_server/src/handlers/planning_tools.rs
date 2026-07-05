@@ -16,6 +16,7 @@ use crate::handlers::validate_project_id;
 use crate::models::{
     FindImplementationPatternRequest, FindSimilarChangesRequest, GetConceptFootprintRequest,
 };
+use crate::services::full_project_migration_service as full_mig;
 use crate::tools::Engram;
 use engram_git::history::{GitWalker, MergeCommitPolicy};
 use engram_graph::EdgeKind;
@@ -4037,7 +4038,7 @@ impl Engram {
             .collect();
         let max_partners = req.max_partners.clamp(1, 20);
 
-        let (partner_findings, state_findings, unresolved_inputs) =
+        let (partner_findings, state_findings, unwired_findings, unresolved_inputs) =
             tokio::task::spawn_blocking(move || {
                 let edited_set: HashSet<String> = edited.iter().map(|f| f.to_lowercase()).collect();
                 // TemporalCoupling nodes are keyed by REAL git case, but callers
@@ -4197,7 +4198,54 @@ impl Engram {
                     }
                 }
                 state_findings.truncate(10);
-                (partner_findings, state_findings, unresolved_inputs)
+
+                // ── Implemented but never wired (0 callers) ──────────────────
+                // Real failure class: a branch adds public methods whose doc
+                // comments CLAIM callers ("Used by the X gate"), but the graph
+                // shows ZERO incoming call edges — the ruled behavior was never
+                // wired up. Generic signal: a new/changed method nobody calls
+                // is dead scaffolding or unfinished wiring; either way a
+                // reviewer must see it. Reuses find_dead_methods' exclusions —
+                // framework-invoked kinds (Lifecycle/ControlEvent/WebMethod)
+                // and Handles-clause methods never have static callers, so
+                // flagging them would be pure noise.
+                let mut unwired_findings: Vec<(String, String, u32)> = Vec::new();
+                let changed_fns = nodes
+                    .iter()
+                    .filter(|n| n.node_type == "function" && covered(n.file_path.as_str()));
+                for node in changed_fns.take(500) {
+                    let effects = node_meta_csv(node, "effects");
+                    let kind =
+                        full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata)
+                            .to_string();
+                    let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
+                    let caller_count = graph
+                        .find_incoming_edges_with_kind(
+                            &pid,
+                            Some(EdgeKind::Dependency),
+                            &node.node_id,
+                            1,
+                        )
+                        .map(|v| v.len())
+                        .unwrap_or(0);
+                    if unwired_should_flag(&kind, has_handles, caller_count) {
+                        unwired_findings.push((
+                            node_display_name(node),
+                            node.file_path.as_str().replace('\\', "/"),
+                            node.start_line,
+                        ));
+                        if unwired_findings.len() >= 10 {
+                            break;
+                        }
+                    }
+                }
+
+                (
+                    partner_findings,
+                    state_findings,
+                    unwired_findings,
+                    unresolved_inputs,
+                )
             })
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -4217,7 +4265,7 @@ impl Engram {
                     .join(", ")
             ));
         }
-        if partner_findings.is_empty() && state_findings.is_empty() {
+        if partner_findings.is_empty() && state_findings.is_empty() && unwired_findings.is_empty() {
             out.push_str(
                 "\nNo strong couplings point outside your edit set. History and state \
                  wiring are consistent with a complete change.\n",
@@ -4242,10 +4290,62 @@ impl Engram {
                     ));
                 }
             }
+            if !unwired_findings.is_empty() {
+                out.push_str("\n## Implemented but never wired (0 callers)\n");
+                out.push_str(
+                    "New/changed methods nobody calls are dead scaffolding or unfinished \
+                     wiring — verify the call sites this method was built for actually exist:\n",
+                );
+                for (name, file, line) in &unwired_findings {
+                    out.push_str(&format!("- `{name}` ({file}:{line})\n"));
+                }
+            }
         }
         out.push_str("\nnext: pre_commit_review before committing; find_similar_changes for companion-artifact patterns.\n");
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+/// Decide whether a changed function node should be flagged as "implemented
+/// but never wired". Mirrors the find_dead_methods exclusion classes:
+/// framework-invoked kinds (Lifecycle, ControlEvent, WebMethod) and methods
+/// bound via a VB `Handles` clause are invoked by the runtime, never by code,
+/// so a zero static-caller count is expected for them — flag only the rest.
+pub(crate) fn unwired_should_flag(
+    method_kind: &str,
+    has_handles_clause: bool,
+    incoming_caller_count: usize,
+) -> bool {
+    !matches!(method_kind, "Lifecycle" | "ControlEvent" | "WebMethod")
+        && !has_handles_clause
+        && incoming_caller_count == 0
+}
+
+/// Comma-separated metadata field from a graph node ("effects",
+/// "handles_clause", …) as a Vec of trimmed non-empty entries.
+fn node_meta_csv(node: &engram_graph::Node, key: &str) -> Vec<String> {
+    node.metadata
+        .as_ref()
+        .and_then(|m| m.get(key))
+        .and_then(|v| v.as_str())
+        .map(|s| {
+            s.split(',')
+                .map(|e| e.trim().to_string())
+                .filter(|e| !e.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// "Class.Method" display name for a function node — the namespace usually
+/// holds the class; skip it when empty or the parser default.
+fn node_display_name(node: &engram_graph::Node) -> String {
+    let ns = node.namespace.trim();
+    if ns.is_empty() || ns == "default" {
+        node.name.clone()
+    } else {
+        format!("{}.{}", ns, node.name)
     }
 }
 
@@ -4637,5 +4737,40 @@ mod gis_inventory_tests {
         let grouped = group_spatial_calls(&[row("esri", "FeatureLayer", "", "", 0)]);
         assert_eq!(grouped[0].3, 1, "count 0 clamps to 1");
         assert!(grouped[0].4.is_empty(), "empty file string is dropped");
+    }
+}
+
+#[cfg(test)]
+mod unwired_tests {
+    use super::unwired_should_flag;
+
+    #[test]
+    fn zero_caller_ordinary_methods_are_flagged() {
+        assert!(unwired_should_flag("Helper", false, 0));
+        assert!(unwired_should_flag("DataAccess", false, 0));
+    }
+
+    #[test]
+    fn framework_invoked_kinds_are_excluded() {
+        for kind in ["Lifecycle", "ControlEvent", "WebMethod"] {
+            assert!(
+                !unwired_should_flag(kind, false, 0),
+                "{kind} is framework-invoked — zero static callers is expected"
+            );
+        }
+    }
+
+    #[test]
+    fn handles_clause_methods_are_excluded() {
+        assert!(
+            !unwired_should_flag("Helper", true, 0),
+            "Handles-bound methods are invoked by events, not code"
+        );
+    }
+
+    #[test]
+    fn methods_with_callers_are_not_flagged() {
+        assert!(!unwired_should_flag("Helper", false, 1));
+        assert!(!unwired_should_flag("DataAccess", false, 3));
     }
 }
