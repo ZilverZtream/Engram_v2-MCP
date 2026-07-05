@@ -637,10 +637,8 @@ fn build_method_info_from_node(
     // class-qualified names (e.g., "file::ClassName.MethodName").
     let node_id_suffix2 = format!(".{}", node.name);
 
-    // Called-by: incoming Dependency edges where target matches this node
-    let called_by = graph
-        .find_incoming_edges_with_kind(project_id, Some(EdgeKind::Dependency), &node.node_id, 50)
-        .unwrap_or_default()
+    // Called-by: incoming Calls + Dependency edges where target matches this node
+    let called_by = crate::handlers::incoming_caller_edges(graph, project_id, &node.node_id, 50)
         .into_iter()
         .filter_map(|(source_id, _kind, _weight)| {
             // Resolve source node for file + line info
@@ -1909,16 +1907,14 @@ impl Engram {
                     if let Ok(target_node) = resolve_unique_function(&graph, &project_id, fqn_query)
                         .as_ref()
                     {
-                        let callers = graph
-                            .find_incoming_edges_with_kind(
-                                &project_id,
-                                Some(EdgeKind::Dependency),
-                                &target_node.node_id,
-                                max_callers,
-                            )
-                            .unwrap_or_default();
+                        let callers = crate::handlers::incoming_caller_edges(
+                            &graph,
+                            &project_id,
+                            &target_node.node_id,
+                            max_callers,
+                        );
 
-                        for (source_id, _kind, _weight) in callers.iter().take(max_callers) {
+                        for (source_id, kind, _weight) in callers.iter().take(max_callers) {
                             if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
                                 let Ok(src_full) = safe_join(Path::new(&project_dir), src_node.file_path.as_str()) else { continue };
                                 if let Ok((src_body, _)) = read_lines_from_file(
@@ -1934,7 +1930,8 @@ impl Engram {
                                         line_end: src_node.end_line,
                                         source_code: src_body,
                                         how_it_calls: format!(
-                                            "direct call (Dependency edge to {})",
+                                            "direct call ({} edge to {})",
+                                            kind.as_str(),
                                             resolved_fqn
                                         ),
                                     });
@@ -2074,16 +2071,14 @@ impl Engram {
             // of tokens from this one section.
             let mut caller_bodies: Vec<CallerBody> = Vec::new();
             {
-                let callers = graph
-                    .find_incoming_edges_with_kind(
-                        &project_id,
-                        Some(EdgeKind::Dependency),
-                        &node.node_id,
-                        max_callers,
-                    )
-                    .unwrap_or_default();
+                let callers = crate::handlers::incoming_caller_edges(
+                    &graph,
+                    &project_id,
+                    &node.node_id,
+                    max_callers,
+                );
 
-                for (source_id, _kind, _weight) in callers.iter().take(max_callers) {
+                for (source_id, kind, _weight) in callers.iter().take(max_callers) {
                     if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
                         let source_code = if include_caller_bodies {
                             let Ok(src_full) =
@@ -2109,7 +2104,7 @@ impl Engram {
                             line_start: src_node.start_line,
                             line_end: src_node.end_line,
                             source_code,
-                            how_it_calls: format!("Dependency edge → {}", method_name),
+                            how_it_calls: format!("{} edge → {}", kind.as_str(), method_name),
                         });
                     }
                 }
@@ -2386,9 +2381,19 @@ impl Engram {
             }
 
             // Runtime UI caveat detection for dynamic controls / wiring.
-            let all_dependency_edges = graph
+            // Event wiring may be recorded on either caller edge kind
+            // (Dependency from the heuristic extractors, Calls from the
+            // Roslyn path) — scan both.
+            let all_dependency_edges: Vec<_> = graph
                 .list_edges_by_kind(&project_id, EdgeKind::Dependency, 5000)
-                .unwrap_or_default();
+                .unwrap_or_default()
+                .into_iter()
+                .chain(
+                    graph
+                        .list_edges_by_kind(&project_id, EdgeKind::Calls, 5000)
+                        .unwrap_or_default(),
+                )
+                .collect();
 
             let mut dynamic_ui_evidence: Vec<String> = Vec::new();
             let mut add_handler_count = 0usize;
@@ -2711,16 +2716,14 @@ impl Engram {
             // 3. Pattern examples from callers
             let mut pattern_examples: Vec<PatternExample> = Vec::new();
             if include_pattern_examples {
-                let callers = graph
-                    .find_incoming_edges_with_kind(
-                        &project_id,
-                        Some(EdgeKind::Dependency),
-                        &node.node_id,
-                        max_pattern_examples * 2,
-                    )
-                    .unwrap_or_default();
+                let callers = crate::handlers::incoming_caller_edges(
+                    &graph,
+                    &project_id,
+                    &node.node_id,
+                    max_pattern_examples * 2,
+                );
 
-                for (source_id, _kind, _weight) in callers.iter().take(max_pattern_examples) {
+                for (source_id, kind, _weight) in callers.iter().take(max_pattern_examples) {
                     if let Ok(Some(src_node)) = graph.get_node(&project_id, source_id) {
                         let Ok(src_full) =
                             safe_join(Path::new(&project_dir), src_node.file_path.as_str())
@@ -2740,8 +2743,9 @@ impl Engram {
                                 line_end: src_node.end_line,
                                 source_code: src_body,
                                 call_pattern: format!(
-                                    "Invokes {} via Dependency edge",
-                                    method_name
+                                    "Invokes {} via {} edge",
+                                    method_name,
+                                    kind.as_str()
                                 ),
                             });
                         }
@@ -3447,15 +3451,13 @@ impl Engram {
                         .unwrap_or_default();
 
                     if let Some(orig_node) = candidates.first() {
-                        let caller_count = graph
-                            .find_incoming_edges_with_kind(
-                                &project_id,
-                                Some(EdgeKind::Dependency),
-                                &orig_node.node_id,
-                                100,
-                            )
-                            .unwrap_or_default()
-                            .len();
+                        let caller_count = crate::handlers::incoming_caller_edges(
+                            &graph,
+                            &project_id,
+                            &orig_node.node_id,
+                            100,
+                        )
+                        .len();
 
                         if caller_count > 0 {
                             let mut d = details;
@@ -3832,17 +3834,18 @@ impl Engram {
                     .unwrap_or_default();
 
                 for tm in &test_methods {
-                    // Check if this test method has a Dependency edge to our target
+                    // Check if this test method has a caller edge (Calls or
+                    // Dependency) to our target
                     let mut references_target = false;
 
                     for tc in &target_candidates {
-                        if let Ok(incoming) = graph.find_incoming_edges_with_kind(
+                        let incoming = crate::handlers::incoming_caller_edges(
+                            &graph,
                             &project_id,
-                            Some(EdgeKind::Dependency),
                             &tc.node_id,
                             500,
-                        ) && incoming.iter().any(|(src, _, _)| src == &tm.node_id)
-                        {
+                        );
+                        if incoming.iter().any(|(src, _, _)| src == &tm.node_id) {
                             references_target = true;
                             break;
                         }
@@ -3955,16 +3958,10 @@ impl Engram {
                     continue;
                 }
 
-                // Check for incoming Dependency edges (callers)
-                let caller_count = graph
-                    .find_incoming_edges_with_kind(
-                        &project_id,
-                        Some(EdgeKind::Dependency),
-                        &node.node_id,
-                        1,
-                    )
-                    .unwrap_or_default()
-                    .len();
+                // Check for incoming caller edges (Calls + Dependency)
+                let caller_count =
+                    crate::handlers::incoming_caller_edges(&graph, &project_id, &node.node_id, 1)
+                        .len();
 
                 if caller_count == 0 {
                     // L-2 fix: public methods with no static callers may still
