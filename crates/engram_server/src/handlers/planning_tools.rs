@@ -2601,6 +2601,164 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
     }
 }
 
+/// Split an identifier into lowercase tokens on camelCase, snake_case and
+/// kebab-case boundaries (plus letter/digit transitions), handling acronym
+/// runs: `ddlBillingStatusMainContractor` -> [ddl, billing, status, main,
+/// contractor]; `btn_from_date` -> [btn, from, date].
+pub(crate) fn split_symmetric_name_tokens(name: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    for part in name.split(|c: char| !c.is_alphanumeric()) {
+        if part.is_empty() {
+            continue;
+        }
+        let chars: Vec<char> = part.chars().collect();
+        let mut cur = String::new();
+        for (i, &c) in chars.iter().enumerate() {
+            let boundary = i > 0
+                && ((c.is_uppercase() && chars[i - 1].is_lowercase())
+                    // Acronym-run end: "HTMLParser" -> HTML | Parser.
+                    || (c.is_uppercase()
+                        && chars[i - 1].is_uppercase()
+                        && chars.get(i + 1).is_some_and(|n| n.is_lowercase()))
+                    || (c.is_ascii_digit() != chars[i - 1].is_ascii_digit()));
+            if boundary && !cur.is_empty() {
+                tokens.push(cur.to_lowercase());
+                cur.clear();
+            }
+            cur.push(c);
+        }
+        if !cur.is_empty() {
+            tokens.push(cur.to_lowercase());
+        }
+    }
+    tokens
+}
+
+/// Symmetric sibling pairs: two identifiers pair when their token sequences
+/// (camelCase/snake_case split) have EQUAL length and differ in EXACTLY ONE
+/// position, sharing at least 2 tokens. This is the name-shape of PAIRED
+/// WebForms/WinForms controls and handlers (Main/Sub, Left/Right, From/To,
+/// Start/End, Sender/Receiver) — a change to one side usually requires
+/// deciding the twin's behavior. Dedupes (a,b)/(b,a); capped at 6 pairs.
+pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)> {
+    const MAX_PAIRS: usize = 6;
+    let mut seen: HashSet<&str> = HashSet::new();
+    let uniq: Vec<&String> = names.iter().filter(|n| seen.insert(n.as_str())).collect();
+    let toks: Vec<Vec<String>> = uniq
+        .iter()
+        .map(|n| split_symmetric_name_tokens(n))
+        .collect();
+    let mut out: Vec<(String, String)> = Vec::new();
+    for i in 0..uniq.len() {
+        // Equal length + exactly one differing position => shared = len-1,
+        // so "share >= 2 tokens" is equivalent to len >= 3.
+        if toks[i].len() < 3 {
+            continue;
+        }
+        for j in (i + 1)..uniq.len() {
+            if out.len() >= MAX_PAIRS {
+                return out;
+            }
+            if toks[i].len() != toks[j].len() {
+                continue;
+            }
+            let diff = toks[i]
+                .iter()
+                .zip(toks[j].iter())
+                .filter(|(a, b)| a != b)
+                .count();
+            if diff == 1 {
+                out.push((uniq[i].clone(), uniq[j].clone()));
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod symmetric_sibling_tests {
+    use super::*;
+
+    fn names(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn tokenizer_splits_camel_snake_and_acronyms() {
+        assert_eq!(
+            split_symmetric_name_tokens("ddlBillingStatusMainContractor"),
+            vec!["ddl", "billing", "status", "main", "contractor"]
+        );
+        assert_eq!(
+            split_symmetric_name_tokens("btn_from_date"),
+            vec!["btn", "from", "date"]
+        );
+        assert_eq!(
+            split_symmetric_name_tokens("HTMLParser"),
+            vec!["html", "parser"]
+        );
+    }
+
+    #[test]
+    fn pairs_camel_case_one_token_apart() {
+        let pairs = symmetric_sibling_pairs(&names(&[
+            "ddlBillingStatusMainContractor",
+            "ddlBillingStatusSubContractor",
+        ]));
+        assert_eq!(
+            pairs,
+            vec![(
+                "ddlBillingStatusMainContractor".to_string(),
+                "ddlBillingStatusSubContractor".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn pairs_snake_case_one_token_apart() {
+        let pairs = symmetric_sibling_pairs(&names(&["btn_from_date", "btn_to_date"]));
+        assert_eq!(
+            pairs,
+            vec![("btn_from_date".to_string(), "btn_to_date".to_string())]
+        );
+    }
+
+    #[test]
+    fn rejects_unrelated_and_multi_token_differences() {
+        // Unrelated names: no pair.
+        assert!(symmetric_sibling_pairs(&names(&["btnSave", "gvOrders", "lblTitle"])).is_empty());
+        // Two differing token positions: no pair.
+        assert!(
+            symmetric_sibling_pairs(&names(&[
+                "ddlBillingStatusMainContractor",
+                "ddlPaymentStatusSubContractor"
+            ]))
+            .is_empty()
+        );
+        // Different token counts: no pair.
+        assert!(
+            symmetric_sibling_pairs(&names(&["btn_from_date", "btn_to_date_extra"])).is_empty()
+        );
+        // Only 2 tokens => fewer than 2 shared tokens: no pair.
+        assert!(symmetric_sibling_pairs(&names(&["btnFrom", "btnTo"])).is_empty());
+    }
+
+    #[test]
+    fn dedupes_names_and_caps_at_six_pairs() {
+        // Duplicate name must not pair with itself.
+        assert!(symmetric_sibling_pairs(&names(&["btn_from_date", "btn_from_date"])).is_empty());
+        // 8 mutually-pairing names (differ only in the middle token) would
+        // produce C(8,2)=28 ordered-deduped pairs; cap holds at 6.
+        let many: Vec<String> = (0..8).map(|i| format!("pnlFilterVariant{i}Side")).collect();
+        let pairs = symmetric_sibling_pairs(&many);
+        assert_eq!(pairs.len(), 6);
+        // (a,b)/(b,a) dedupe: every pair is emitted in input order, once.
+        for (a, b) in &pairs {
+            assert!(many.iter().position(|n| n == a) < many.iter().position(|n| n == b));
+        }
+    }
+}
+
 /// Render the change set: layer-grouped, co-change-first, with a completeness
 /// checklist. Golden (co-change/history) files are never capped; the concept/
 /// graph tail is capped per layer so flood can't crowd out real companions.
@@ -2609,6 +2767,7 @@ fn render_change_set(
     concepts: &[String],
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
     temporal_section: Option<&str>,
+    sibling_section: Option<&str>,
 ) -> String {
     const LAYERS: &[(&str, &[&str])] = &[
         (
@@ -2665,6 +2824,11 @@ fn render_change_set(
     if let Some(sec) = temporal_section {
         s.push_str(sec);
     }
+    // Symmetric-sibling section likewise renders BEFORE the checklist so the
+    // checklist's "pair(s) above" pointer is literally true.
+    if let Some(sec) = sibling_section {
+        s.push_str(sec);
+    }
     s.push_str(
         "## Completeness checklist - REQUIRED decision points\n\
          Treat EACH item below as a decision you must make and state \
@@ -2693,6 +2857,12 @@ fn render_change_set(
             "- Analytics-over-time ask (time-to-X/aging/history): check the domain \
              entity's log/history tables above — computing durations needs the \
              status-change history, and teams typically expose it.\n",
+        );
+    }
+    if sibling_section.is_some() {
+        s.push_str(
+            "- Symmetric pair(s) above: apply the change to BOTH sides or explicitly \
+             state their interaction (mutually exclusive / mirrored / independent).\n",
         );
     }
     s.push_str(
@@ -3290,11 +3460,81 @@ impl Engram {
             None
         };
 
+        // Symmetric sibling controls/handlers: WebForms/WinForms pages often
+        // contain PAIRED controls/handlers whose names differ by exactly one
+        // token (Main/Sub, Left/Right, From/To, Start/End, Sender/Receiver);
+        // a change to one usually requires deciding the interaction with the
+        // other (a live case: a merged fix made two symmetric filter panels
+        // mutually exclusive — the plan targeting one control under-specified
+        // the twin). Scan control + function nodes in the top provisional
+        // files and surface one-token-apart name pairs. Generic: name-shape
+        // scan, no per-repo names.
+        let sibling_section: Option<String> = {
+            // "Top" = the same corroboration-tier order render_change_set uses
+            // (co-change/history first), not BTreeMap alphabetical order.
+            let mut ranked: Vec<(&String, &BTreeSet<&'static str>)> = prov.iter().collect();
+            ranked.sort_by(|a, b| {
+                change_set_tier(a.1)
+                    .cmp(&change_set_tier(b.1))
+                    .then_with(|| a.0.cmp(b.0))
+            });
+            let top_files: Vec<String> = ranked
+                .into_iter()
+                .take(10)
+                .map(|(p, _)| p.clone())
+                .collect();
+            let graph = self.state.graph.clone();
+            let pid_s = req.project_id.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut rows: Vec<(String, String, String)> = Vec::new();
+                for f in &top_files {
+                    let mut names: Vec<String> = Vec::new();
+                    for nt in ["control", "function"] {
+                        for n in graph
+                            .query_nodes(&pid_s, Some(nt), None, Some(f), 500)
+                            .unwrap_or_default()
+                        {
+                            names.push(n.name);
+                        }
+                    }
+                    for (a, b) in symmetric_sibling_pairs(&names) {
+                        if rows.len() >= 8 {
+                            break;
+                        }
+                        rows.push((f.clone(), a, b));
+                    }
+                    if rows.len() >= 8 {
+                        break;
+                    }
+                }
+                if rows.is_empty() {
+                    return None;
+                }
+                let mut s = String::from(
+                    "## Symmetric sibling controls/handlers\n\
+                     These controls/handlers in the candidate files come in \
+                     NAME-SYMMETRIC pairs (names differ by exactly one token — \
+                     Main/Sub, Left/Right, From/To, Start/End). A change to one \
+                     side of a pair usually requires deciding the twin's \
+                     behavior:\n",
+                );
+                for (f, a, b) in &rows {
+                    s.push_str(&format!("- `{a}` <-> `{b}` ({f})\n"));
+                }
+                s.push('\n');
+                Some(s)
+            })
+            .await
+            .ok()
+            .flatten()
+        };
+
         let mut out = render_change_set(
             req.story.trim(),
             &concepts,
             &prov,
             temporal_section.as_deref(),
+            sibling_section.as_deref(),
         );
 
         // Scaffold template: when the story ADDS a new API/structural feature,
