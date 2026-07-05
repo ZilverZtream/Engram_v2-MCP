@@ -2854,39 +2854,57 @@ impl Gate for CoAddedFamilyGate {
                 continue; // too little history to assert a contract
             }
 
-            // Companions touched by >=60% of exemplar PRs and absent
-            // from THIS diff.
+            // Companions absent from THIS diff, in two evidence tiers:
+            // >=60% of exemplar PRs -> Warning (an asserted contract);
+            // 40-60% -> Info (a newer or situational convention — e.g. a
+            // docs rule adopted mid-history starts here until enough
+            // exemplars accumulate).
             let mut missing: Vec<(String, usize)> = companion_counts
                 .into_iter()
-                .filter(|(_, n)| *n * 10 >= exemplar_count * 6)
+                .filter(|(_, n)| *n * 10 >= exemplar_count * 4)
                 .filter(|(p, _)| !ctx.changed_paths.iter().any(|c| path_suffix_match(c, p)))
                 .collect();
             if missing.is_empty() {
                 continue;
             }
             missing.sort_by(|a, b| b.1.cmp(&a.1));
-            missing.truncate(5);
-            let list = missing
-                .iter()
-                .map(|(p, n)| format!("`{p}` ({n}/{exemplar_count} PRs)"))
-                .collect::<Vec<_>>()
-                .join(", ");
-            findings.push(ReviewFinding::new(
-                Severity::Warning,
-                "co_added_family",
-                format!("{family}/"),
-                format!("PRs adding files under {family}/ historically also touch companion files"),
-                format!(
-                    "Of {exemplar_count} merged PRs that added files under `{family}/`, \
-                     most also touched: {list}. This diff adds files there but touches \
-                     none of these companions — docs contracts, permission entries, and \
-                     registrations ride along in this family's approved history."
-                ),
-                "Check each companion: update it if the contract applies (e.g. API docs \
-                 for a new endpoint), or note why it doesn't for this change."
-                    .to_string(),
-            ));
-            if findings.len() >= 2 {
+            for (tier_min, tier_max, severity, label) in [
+                (6usize, usize::MAX, Severity::Warning, "most also touched"),
+                (4, 6, Severity::Info, "several also touched"),
+            ] {
+                let tier: Vec<&(String, usize)> = missing
+                    .iter()
+                    .filter(|(_, n)| {
+                        n * 10 >= exemplar_count * tier_min
+                            && (tier_max == usize::MAX || n * 10 < exemplar_count * tier_max)
+                    })
+                    .take(5)
+                    .collect();
+                if tier.is_empty() {
+                    continue;
+                }
+                let list = tier
+                    .iter()
+                    .map(|(p, n)| format!("`{p}` ({n}/{exemplar_count} PRs)"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                findings.push(ReviewFinding::new(
+                    severity,
+                    "co_added_family",
+                    format!("{family}/"),
+                    format!("PRs adding files under {family}/ historically touch companion files"),
+                    format!(
+                        "Of {exemplar_count} merged PRs that added files under `{family}/`, \
+                         {label}: {list}. This diff adds files there but touches none of \
+                         these companions — docs contracts, permission entries, and \
+                         registrations ride along in this family's approved history."
+                    ),
+                    "Check each companion: update it if the contract applies (e.g. API docs \
+                     for a new endpoint), or note why it doesn't for this change."
+                        .to_string(),
+                ));
+            }
+            if findings.len() >= 3 {
                 break;
             }
         }
