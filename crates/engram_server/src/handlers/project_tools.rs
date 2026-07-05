@@ -716,6 +716,25 @@ impl Engram {
                 tracing::warn!(project_id = %project_id, "ENG-AUD-2026-S08-0001: memory bank update failed (index report not persisted): {e:#}");
             }
 
+            // A FULL index wrote every live node at the current generation —
+            // record it as the graph purge baseline. The periodic GC only
+            // purges the graph against this value (never the incremental
+            // active_generation counter — unchanged files keep older-gen
+            // nodes between full indexes).
+            {
+                let reg = self.state.registry.clone();
+                let pid_full = project_id.clone();
+                let gen_full = self.get_active_generation(&project_id).await.unwrap_or(1);
+                let _ = tokio::task::spawn_blocking(move || {
+                    reg.set_meta(
+                        &pid_full,
+                        "last_full_index_generation",
+                        &gen_full.to_string(),
+                    )
+                })
+                .await;
+            }
+
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "✅ Indexed project_id: {project_id}\n\n{report}"
             ))]));
@@ -1131,6 +1150,20 @@ impl Engram {
                             "VEC1/D1: failed to clear reindex_required flag: {e:#}"
                         );
                     }
+                    // Record the graph purge baseline — see the sync path
+                    // for the rationale (GC never purges the graph against
+                    // the incremental active_generation counter).
+                    let reg_full = engram.state.registry.clone();
+                    let pid_full = pid.clone();
+                    let gen_full = engram.get_active_generation(&pid).await.unwrap_or(1);
+                    let _ = tokio::task::spawn_blocking(move || {
+                        reg_full.set_meta(
+                            &pid_full,
+                            "last_full_index_generation",
+                            &gen_full.to_string(),
+                        )
+                    })
+                    .await;
                 }
             } else if let Err(e) = res {
                 status = "failed";

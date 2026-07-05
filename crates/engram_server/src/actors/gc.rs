@@ -79,11 +79,17 @@ pub async fn run_gc_scheduler(state: AppState, shutdown: CancellationToken) {
 pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyhow::Result<()> {
     let reg = state.registry.clone();
     let pid = project_id.to_string();
-    let active_gen_opt = tokio::task::spawn_blocking(move || {
-        reg.get_meta(&pid, "active_generation")
-            .ok()
-            .flatten()
-            .and_then(|s| s.parse::<u64>().ok())
+    let (active_gen_opt, full_gen_opt) = tokio::task::spawn_blocking(move || {
+        let parse = |key: &str| {
+            reg.get_meta(&pid, key)
+                .ok()
+                .flatten()
+                .and_then(|s| s.trim().parse::<u64>().ok())
+        };
+        (
+            parse("active_generation"),
+            parse("last_full_index_generation"),
+        )
     })
     .await?;
 
@@ -97,8 +103,22 @@ pub async fn purge_project_old_gens(state: &AppState, project_id: &str) -> anyho
         return Ok(());
     };
 
-    // Purge GraphStore (always available via state)
-    state.graph.purge_old_generations(project_id, active_gen)?;
+    // Purge GraphStore — baselined on the LAST FULL INDEX generation, never
+    // the incremental counter. Incremental updates bump active_generation
+    // while leaving unchanged files' nodes at older generations (there is
+    // no graph copy-forward, unlike the search index), so purging the graph
+    // against active_generation deleted almost every node between full
+    // indexes and forced a full re-index after each daemon restart. The
+    // per-file scoped purge in update_project_impl documents the same
+    // invariant: "a GLOBAL purge is unsafe after incremental updates".
+    match full_gen_opt {
+        Some(full_gen) => state.graph.purge_old_generations(project_id, full_gen)?,
+        None => tracing::info!(
+            project_id = project_id,
+            "GC: skipping GRAPH purge — no last_full_index_generation baseline \
+             (incremental generations must not purge the graph)"
+        ),
+    }
 
     // Purge Search Index (need to load engine)
     if let Some(ps) = load_project_runtime_minimal(state, project_id).await? {
