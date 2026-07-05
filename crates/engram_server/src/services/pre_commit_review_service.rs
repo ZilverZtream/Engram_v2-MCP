@@ -1669,10 +1669,18 @@ fn collapse_style_findings(findings: Vec<ReviewFinding>) -> Vec<ReviewFinding> {
 /// everyone else's share), with a floor of 10 so a small `max_findings`
 /// doesn't starve every gate down to nothing.
 ///
+/// Only applies when the total actually exceeds `max_findings` — under
+/// budget nothing is being crowded out, and capping anyway silently
+/// deletes real findings (a gate with 39 findings would lose 6 to a
+/// 200-budget cap while the whole run emitted 75).
+///
 /// Within a gate that exceeds its share, findings are kept by severity
 /// first (a gate's own Warning/Info findings survive over its own Style
 /// spam) and then by file/title for determinism.
 fn apply_per_gate_budget(findings: Vec<ReviewFinding>, max_findings: usize) -> Vec<ReviewFinding> {
+    if findings.len() <= max_findings {
+        return findings;
+    }
     let num_gates = findings
         .iter()
         .map(|f| f.gate)
@@ -2890,6 +2898,44 @@ interface IProduct { id: number; }
             style_count < 100 && style_count >= 10,
             "the noisy gate is capped, not starved: {style_count}"
         );
+    }
+
+    #[test]
+    fn apply_per_gate_budget_noop_when_total_fits_budget() {
+        // Regression: a gate whose count exceeds max_findings/num_gates
+        // must NOT be truncated while the total is under budget — the
+        // per-gate cap exists to arbitrate a scarce budget, not to delete
+        // findings there was room for. (Live repro: temporal gate lost 6
+        // of 39 real coupling findings to a 200-budget cap while the whole
+        // review emitted only 75.)
+        let mut findings = Vec::new();
+        for i in 0..39 {
+            findings.push(ReviewFinding::new(
+                Severity::Info,
+                "temporal",
+                format!("f{i}.vb"),
+                format!("coupled finding {i}"),
+                "d",
+                "s",
+            ));
+        }
+        for i in 0..5 {
+            findings.push(ReviewFinding::new(
+                Severity::Warning,
+                "immune",
+                format!("w{i}.vb"),
+                format!("warning finding {i}"),
+                "d",
+                "s",
+            ));
+        }
+        // 44 findings, 2 gates → per-gate share would be 100, but even
+        // with a share below the noisy gate's count (e.g. max=60 → 30
+        // each) nothing may be dropped while 44 <= 60.
+        let out = apply_per_gate_budget(findings, 60);
+        assert_eq!(out.len(), 44, "under-budget totals pass through untouched");
+        let temporal = out.iter().filter(|f| f.gate == "temporal").count();
+        assert_eq!(temporal, 39, "no per-gate truncation under budget");
     }
 
     #[test]
