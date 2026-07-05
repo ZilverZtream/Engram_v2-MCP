@@ -779,6 +779,38 @@ fn build_method_info_from_node(
     }
 }
 
+/// Rough cyclomatic-complexity estimate: 1 + decision points, via a
+/// language-agnostic keyword scan (VB/C#/TS/JS). Comment lines skipped.
+/// Good enough for the green/yellow/red edit-safety thresholds that
+/// consume it — no extractor persists a real score yet.
+pub(crate) fn estimate_complexity(body: &str) -> u32 {
+    let mut score = 1u32;
+    for line in body.lines() {
+        let t = line.trim_start().to_ascii_lowercase();
+        if t.starts_with('\'') || t.starts_with("//") || t.starts_with('*') {
+            continue;
+        }
+        for kw in [
+            "if ",
+            "elseif ",
+            "else if",
+            "case ",
+            "for ",
+            "for each",
+            "foreach",
+            "while ",
+            "catch",
+            "&&",
+            "||",
+            " andalso ",
+            " orelse ",
+        ] {
+            score += t.matches(kw).count() as u32;
+        }
+    }
+    score
+}
+
 /// Read lines from a file (1-based inclusive range), with optional context.
 fn read_lines_from_file(
     file_path: &Path,
@@ -2074,7 +2106,7 @@ impl Engram {
             }
 
             let node = &candidates[0];
-            let method_info = build_method_info_from_node(node, &graph, &project_id);
+            let mut method_info = build_method_info_from_node(node, &graph, &project_id);
 
             // 2. Read full method body from disk
             let full_body = if include_full_body {
@@ -2086,6 +2118,16 @@ impl Engram {
             } else {
                 None
             };
+
+            // No extractor writes a complexity_score metadata key, so the
+            // graph value is always 0 — estimate from the body we just
+            // read so the edit-safety heuristics and the header show a
+            // real number.
+            if method_info.complexity_score == 0
+                && let Some(ref body) = full_body
+            {
+                method_info.complexity_score = estimate_complexity(body);
+            }
 
             // 3. Callers. Identities (fqn + location) are ALWAYS collected —
             // an agent must know who calls the method it is about to edit.
