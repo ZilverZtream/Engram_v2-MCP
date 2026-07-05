@@ -203,6 +203,39 @@ impl Engram {
                 .and_then(|s| git2::Oid::from_str(s).ok())
         };
 
+        if req.rebuild {
+            // Stable-pk upserts only overwrite ids that recur; a rebuild
+            // must clear the previous pr:* docs first, or stale ids from a
+            // differently-rooted walk linger and can outrank fresh docs
+            // (observed live: an unmerged branch commit stayed match #1
+            // after the approved-root fix). Scoped to pr:* paths — the
+            // history namespace also carries revert/insight docs owned by
+            // index_git_history.
+            let stale: std::collections::BTreeSet<String> = ps
+                .search
+                .list_docs_for_project(&req.project_id)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .into_iter()
+                .filter(|d| {
+                    d.namespace == engram_core::namespaces::NAMESPACE_HISTORY
+                        && d.path.starts_with("pr:")
+                })
+                .map(|d| d.path)
+                .collect();
+            if !stale.is_empty() {
+                let paths: Vec<engram_core::RelPath> =
+                    stale.iter().map(|p| engram_core::RelPath::new(p)).collect();
+                ps.search
+                    .delete_files(
+                        &req.project_id,
+                        engram_core::namespaces::NAMESPACE_HISTORY,
+                        &paths,
+                    )
+                    .await
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            }
+        }
+
         let repo_dir = std::path::PathBuf::from(&rec.directory);
         type PrUnit = (String, String, String, u64, String, Vec<String>);
         let (units, terminal, root_note): (Vec<PrUnit>, Option<String>, &'static str) =
