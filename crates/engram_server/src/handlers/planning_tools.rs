@@ -4500,9 +4500,122 @@ impl Engram {
                 out.push_str(&format!("- {f}\n"));
             }
         }
+        // Dossier-obligation reconciliation: the dossier the agent
+        // implemented from IS the contract — every file it referenced in
+        // its structured sections is an obligation. Naming the unmet ones
+        // here closes the loop that one-shot implementations were missing
+        // (agents silently skipped dossier items and nothing ever checked).
+        if let Some(ref dossier) = req.dossier {
+            let obligations = extract_dossier_obligations(dossier);
+            if !obligations.is_empty() {
+                let met: Vec<&(String, String)> = obligations
+                    .iter()
+                    .filter(|(_, f)| {
+                        edited.iter().any(|e| {
+                            crate::services::pre_commit_review_service::path_suffix_match(e, f)
+                        })
+                    })
+                    .collect();
+                let unmet: Vec<&(String, String)> = obligations
+                    .iter()
+                    .filter(|(_, f)| {
+                        !edited.iter().any(|e| {
+                            crate::services::pre_commit_review_service::path_suffix_match(e, f)
+                        })
+                    })
+                    .collect();
+                out.push_str(&format!(
+                    "\n## Dossier reconciliation ({} of {} referenced files touched)\n",
+                    met.len(),
+                    obligations.len()
+                ));
+                if !unmet.is_empty() {
+                    out.push_str(
+                        "Referenced by the dossier but NOT in your edit set — address \
+                         each or state why it doesn't apply:\n",
+                    );
+                    for (section, f) in unmet.iter().take(30) {
+                        out.push_str(&format!("- `{f}` [{section}]\n"));
+                    }
+                }
+            }
+        }
         out.push_str("\n");
         out.push_str(&check_text);
         Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+/// Extract (section, file) obligations from a get_change_set dossier's
+/// text: every project-relative source-file reference inside a markdown
+/// section, attributed to that section's heading. Pure text-level —
+/// works on any dossier the agent was handed (including leak-free eval
+/// snapshots), no emission-format coupling.
+pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)> {
+    use std::sync::LazyLock;
+    // Project-relative paths with a source-ish extension; excludes bare
+    // filenames (must contain a '/') so prose words don't match.
+    static FILE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"[\w~][\w.~-]*(?:/[\w.~-]+)+\.(?:aspx\.vb|ascx\.vb|asax\.vb|master\.vb|vb|cs|ts|tsx|js|jsx|sql|resx|aspx|ascx|master|vbhtml|cshtml|config|dbml|css)\b",
+        )
+        .expect("valid regex")
+    });
+    let mut out: Vec<(String, String)> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut section = "dossier".to_string();
+    for line in dossier.lines() {
+        let t = line.trim_start();
+        if let Some(h) = t.strip_prefix("## ") {
+            section = h.trim().chars().take(60).collect();
+            continue;
+        }
+        for m in FILE_RE.find_iter(line) {
+            let f = m.as_str().to_string();
+            if seen.insert(f.to_lowercase()) {
+                out.push((section.clone(), f));
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod dossier_obligation_tests {
+    use super::extract_dossier_obligations;
+
+    #[test]
+    fn extracts_files_per_section_dedup_case_insensitive() {
+        let dossier = "\
+# Change set\n\
+## Co-change partners\n\
+- `Site/App_Code/ata/code/huvud.vb` (21 co-changes)\n\
+- `Site/App_GlobalResources/label.resx` family\n\
+## History/log tables\n\
+accessor: Site/App_Code/installationsobjekt/code/io-iom-log.vb\n\
+## Notes\n\
+prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
+        let obs = extract_dossier_obligations(dossier);
+        let files: Vec<&str> = obs.iter().map(|(_, f)| f.as_str()).collect();
+        assert_eq!(
+            files,
+            vec![
+                "Site/App_Code/ata/code/huvud.vb",
+                "Site/App_GlobalResources/label.resx",
+                "Site/App_Code/installationsobjekt/code/io-iom-log.vb",
+            ]
+        );
+        assert_eq!(obs[0].0, "Co-change partners");
+        assert_eq!(obs[2].0, "History/log tables");
+    }
+
+    #[test]
+    fn bare_filenames_and_prose_do_not_match() {
+        let obs = extract_dossier_obligations("edit huvud.vb and the map page\nno paths here");
+        assert!(
+            obs.is_empty(),
+            "bare filenames without '/' must not count: {obs:?}"
+        );
     }
 }
 

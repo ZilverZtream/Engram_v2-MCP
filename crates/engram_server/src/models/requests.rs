@@ -688,6 +688,16 @@ pub struct CompleteEditSessionRequest {
     /// checked as-is.
     #[serde(default)]
     pub edited_files: Vec<String>,
+    /// Optional: the get_change_set dossier this implementation was based
+    /// on. When provided, the completion check RECONCILES the edited set
+    /// against the dossier's own obligations — the file references inside
+    /// its structured sections (co-change partners, resx families,
+    /// history/log tables, permission gates, sibling controls) — and
+    /// names every obligation the diff left unmet. This turns the dossier
+    /// from advice into a contract; unmet items are the classic one-shot
+    /// gaps.
+    #[serde(default)]
+    pub dossier: Option<String>,
 }
 
 /// TODO-29: edit-completeness check over an edited file set.
