@@ -422,6 +422,19 @@ fn execute_term_index(
     let mut files_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (hit, content, start_line) in hits {
+        // ENFORCE the prefix here — the engine-side include filter proved
+        // silently non-constraining on this path (live repro 2026-07-06:
+        // 75/75 results out-of-prefix). Case-insensitive: stored paths
+        // keep repo casing while callers often pass lowercased prefixes.
+        if let Some(pre) = &q.path_prefix
+            && !hit
+                .path
+                .as_str()
+                .to_lowercase()
+                .starts_with(&pre.to_lowercase())
+        {
+            continue;
+        }
         chunks_scanned += 1;
         files_seen.insert(hit.path.as_str().to_string());
         scan_chunk(
@@ -497,6 +510,17 @@ fn execute_term_narrowed(
     let mut files_seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (hit, content, start_line) in hits {
+        // Same prefix enforcement as the literal tier — the engine-side
+        // include filter is silently non-constraining here.
+        if let Some(pre) = &q.path_prefix
+            && !hit
+                .path
+                .as_str()
+                .to_lowercase()
+                .starts_with(&pre.to_lowercase())
+        {
+            continue;
+        }
         chunks_scanned += 1;
         files_seen.insert(hit.path.as_str().to_string());
         scan_chunk_with_precompiled(
