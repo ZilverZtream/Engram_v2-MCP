@@ -199,6 +199,14 @@ pub(crate) fn stat_match_is_trustworthy(stored_mtime: u64, stored_size: u64) -> 
     stored_mtime != 0 && stored_size != 0
 }
 
+/// Whether a file node's metadata carries the indexer's fingerprint
+/// (`file_hash` written alongside `mtime`/`size` by `process_ingest_stats`).
+pub(crate) fn meta_has_fingerprint(meta: &Option<serde_json::Value>) -> bool {
+    meta.as_ref()
+        .map(|v| v.get("file_hash").is_some())
+        .unwrap_or(false)
+}
+
 /// Compute incremental changes between on-disk files and graph-stored file metadata.
 pub async fn get_incremental_changes(
     state: &AppState,
@@ -236,7 +244,21 @@ pub async fn get_incremental_changes(
         let mut change_reasons: Vec<String> = Vec::new();
 
         for (file_path, metadata) in db_file_meta {
-            db_map.insert(file_path, metadata);
+            // Duplicate file-typed nodes can exist for one path (legacy
+            // `sym:file:…` parse-status shadows from before the ingest
+            // merge fix). Never let a fingerprint-less entry displace one
+            // that carries `file_hash` — that shadowing is what re-indexed
+            // 987 files on every update.
+            match db_map.entry(file_path) {
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    if !meta_has_fingerprint(e.get()) && meta_has_fingerprint(&metadata) {
+                        e.insert(metadata);
+                    }
+                }
+                std::collections::hash_map::Entry::Vacant(v) => {
+                    v.insert(metadata);
+                }
+            }
         }
 
         // Hash a file if it is ≤100 MB; returns None for oversized files.
@@ -480,5 +502,22 @@ mod p0_stat_trust_tests {
     #[test]
     fn zero_size_is_not_trustworthy() {
         assert!(!stat_match_is_trustworthy(1_700_000_000, 0));
+    }
+
+    /// A parse-status metadata blob (sidecar `sym:file:` shadow) must not
+    /// count as a fingerprint; the real indexer blob must.
+    #[test]
+    fn meta_has_fingerprint_distinguishes_shadow_from_real() {
+        use super::meta_has_fingerprint;
+        let shadow = Some(serde_json::json!({
+            "fqn": "file", "is_designer": "false",
+            "parse_error_count": "0", "parse_success": "true"
+        }));
+        let real = Some(serde_json::json!({
+            "mtime": 1_700_000_000u64, "size": 4096u64, "file_hash": "abc"
+        }));
+        assert!(!meta_has_fingerprint(&shadow));
+        assert!(!meta_has_fingerprint(&None));
+        assert!(meta_has_fingerprint(&real));
     }
 }

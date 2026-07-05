@@ -114,6 +114,15 @@ pub async fn process_ingest_stats(
         });
     }
 
+    // node_id → index of the fingerprint-carrying file nodes pushed above,
+    // so per-file status symbols can MERGE into them instead of minting a
+    // shadow node.
+    let file_node_index: std::collections::HashMap<String, usize> = nodes
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n.node_id.clone(), i))
+        .collect();
+
     let mut file_contains_edges: Vec<engram_graph::Edge> = Vec::new();
     for (rel_path, sym) in &stats.symbols {
         if !is_safe_project_relative_path(rel_path.as_str()) {
@@ -121,6 +130,30 @@ pub async fn process_ingest_stats(
                 "process_ingest_stats: unsafe relative path in symbols: {}",
                 rel_path.as_str()
             );
+        }
+
+        if sym.kind == "file" {
+            // The sidecar's per-file parse-status symbol (parse_success,
+            // parse_error_count, is_designer). It used to mint a SECOND
+            // node_type="file" node (`sym:file:…`) for the same path;
+            // readers that key file nodes by path then saw the parse-status
+            // metadata instead of the fingerprint metadata (redb key order
+            // puts `sym:` after `file:`), so the incremental change scan
+            // read stored=(0,0) for every sidecar-parsed file and re-indexed
+            // all of them on every update, forever. Merge into the real
+            // file node instead.
+            let fid = engram_core::ids::NodeId::file(rel_path.as_str()).0;
+            if let (Some(&i), Some(m)) = (file_node_index.get(&fid), &sym.metadata) {
+                let mut obj = match nodes[i].metadata.take() {
+                    Some(serde_json::Value::Object(o)) => o,
+                    _ => serde_json::Map::new(),
+                };
+                for (k, v) in m.iter() {
+                    obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+                }
+                nodes[i].metadata = Some(serde_json::Value::Object(obj));
+            }
+            continue;
         }
 
         let language = engram_core::guess_language(std::path::Path::new(rel_path.as_str()));
