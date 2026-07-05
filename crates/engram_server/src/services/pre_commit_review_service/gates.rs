@@ -2000,6 +2000,18 @@ impl Gate for SecretLeakageGate {
 
 pub struct UnwiredGate;
 
+/// True when a graph node's (possibly class-qualified) name refers to
+/// the same member as a bare identifier from the diff: exact match, or
+/// the last `.`-segment matches ("api.StartTransaction" vs
+/// "StartTransaction"), case-insensitive.
+pub(crate) fn bare_name_matches(node_name: &str, bare: &str) -> bool {
+    node_name.eq_ignore_ascii_case(bare)
+        || node_name
+            .rsplit('.')
+            .next()
+            .is_some_and(|last| last.eq_ignore_ascii_case(bare))
+}
+
 /// A function definition found in the diff's added lines.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct AddedFunction {
@@ -2198,9 +2210,14 @@ impl Gate for UnwiredGate {
                 .graph
                 .query_nodes(ctx.project_id, Some("function"), Some(&cand.name), None, 10)
                 .unwrap_or_default();
+            // VB/C# member nodes carry QUALIFIED names ("api.StartTransaction")
+            // while the diff regex captures the bare member name — match on
+            // the last dot-segment or the whole name, else a wired function
+            // gets a false "never referenced" (live FP: StartTransaction had
+            // 5 Calls edges and was still flagged).
             let has_graph_caller = nodes
                 .iter()
-                .filter(|n| n.name.eq_ignore_ascii_case(&cand.name))
+                .filter(|n| bare_name_matches(&n.name, &cand.name))
                 .any(|n| {
                     !crate::handlers::incoming_caller_edges(
                         &ctx.graph,
@@ -2529,6 +2546,27 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn bare_name_matches_qualified_and_exact() {
+        assert!(bare_name_matches(
+            "api.StartTransaction",
+            "StartTransaction"
+        ));
+        assert!(bare_name_matches("StartTransaction", "starttransaction"));
+        assert!(bare_name_matches(
+            "Ns.Class.AnyLinkedMarker",
+            "AnyLinkedMarker"
+        ));
+        assert!(!bare_name_matches(
+            "api.StartTransactionAsync",
+            "StartTransaction"
+        ));
+        assert!(!bare_name_matches(
+            "api.RestartTransaction",
+            "StartTransaction"
+        ));
     }
 
     #[test]
