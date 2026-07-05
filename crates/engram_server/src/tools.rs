@@ -46,6 +46,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "One-call corpus freshness: incrementally refreshes the file index, git history (temporal coupling), and the merged-PR exemplar corpus in sequence. Watermark-incremental - a no-change repo returns in seconds. Run at session start or after pulling to keep Engram's knowledge current."
+    )]
+    pub async fn refresh_corpora(
+        &self,
+        params: Parameters<crate::models::RefreshCorporaRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_refresh_corpora(params.0).await
+    }
+
+    #[tool(
         description = "Incrementally re-index changed files and refresh git intelligence. Cheap when little changed. Use when get_index_freshness reports drift; watch_project automates this."
     )]
     pub async fn update_project(
