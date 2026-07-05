@@ -2714,19 +2714,29 @@ impl Gate for ProductIntentGate {
 // gate mines the PR docs' "Files shipped together" lists directly.
 // Generic for any repo with an ingested merged-PR corpus.
 
-/// Parent-directory family key for an added file: the parent dir,
-/// lowercased, leading `site/` stripped (PR-corpus paths carry no
-/// Site/ prefix). None for files at depth < 2 (no meaningful family).
-pub(crate) fn family_key(path: &str) -> Option<String> {
+/// Directory family keys for an added file: the parent dir AND the
+/// grandparent dir (both lowercased, leading `site/` stripped —
+/// PR-corpus paths carry no Site/ prefix), each requiring >=2 path
+/// segments. The grandparent matters because a new cohort usually
+/// lives in a brand-new LEAF dir (api-v2/Controllers/markerInspection
+/// was itself added by its PR) — the exemplar history exists one
+/// level up (api-v2/Controllers). The >=3-exemplar filter downstream
+/// picks whichever level actually has history.
+pub(crate) fn family_keys(path: &str) -> Vec<String> {
     let norm = path.replace('\\', "/").to_lowercase();
-    let norm = norm.strip_prefix("site/").unwrap_or(&norm);
-    let (parent, _) = norm.rsplit_once('/')?;
-    if !parent.contains('/') {
-        // Single-segment parents ("docs", "src") are too coarse to
-        // define a cohort family.
-        return None;
+    let norm = norm.strip_prefix("site/").unwrap_or(&norm).to_string();
+    let mut out = Vec::new();
+    let mut current = norm.as_str();
+    for _ in 0..2 {
+        let Some((parent, _)) = current.rsplit_once('/') else {
+            break;
+        };
+        if parent.contains('/') {
+            out.push(parent.to_string());
+        }
+        current = parent;
     }
-    Some(parent.to_string())
+    out
 }
 
 /// Parse the file list out of a merged-PR corpus doc: `- path` lines
@@ -2765,11 +2775,8 @@ impl Gate for CoAddedFamilyGate {
         // is about introducing new cohort members, not editing old ones.
         let mut families: BTreeSet<String> = BTreeSet::new();
         for df in ctx.diff_files {
-            if matches!(df.change_type, ChangeType::Added)
-                && !df.is_binary
-                && let Some(fam) = family_key(&df.path)
-            {
-                families.insert(fam);
+            if matches!(df.change_type, ChangeType::Added) && !df.is_binary {
+                families.extend(family_keys(&df.path));
             }
         }
         if families.is_empty() {
@@ -2783,8 +2790,13 @@ impl Gate for CoAddedFamilyGate {
             return Ok(Vec::new());
         };
 
+        // Shallower families first — they aggregate the cohort history
+        // (a brand-new leaf dir has none by definition).
+        let mut ordered: Vec<String> = families.into_iter().collect();
+        ordered.sort_by_key(|f| (f.matches('/').count(), f.clone()));
+
         let mut findings = Vec::new();
-        for family in families.into_iter().take(3) {
+        for family in ordered.into_iter().take(4) {
             // Lexical search over the PR corpus for docs referencing the
             // family dir; loose mode tokenizes the path segments.
             let hq = engram_index::hybrid::HybridQuery {
@@ -3167,13 +3179,16 @@ mod tests {
     }
 
     #[test]
-    fn family_key_strips_site_and_requires_depth() {
+    fn family_keys_emit_parent_and_grandparent() {
         assert_eq!(
-            family_key("Site/App_Code/api-v2/Controllers/markerInspection/X.vb").as_deref(),
-            Some("app_code/api-v2/controllers/markerinspection")
+            family_keys("Site/App_Code/api-v2/Controllers/markerInspection/X.vb"),
+            vec![
+                "app_code/api-v2/controllers/markerinspection".to_string(),
+                "app_code/api-v2/controllers".to_string(),
+            ]
         );
-        assert_eq!(family_key("docs/readme.md"), None);
-        assert_eq!(family_key("X.vb"), None);
+        assert!(family_keys("docs/readme.md").is_empty());
+        assert!(family_keys("X.vb").is_empty());
     }
 
     #[test]
