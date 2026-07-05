@@ -2399,7 +2399,7 @@ impl Gate for ProductIntentGate {
         // OVERLAP against the actual section content instead: what
         // fraction of the diff-derived words the section text contains.
         let mut scored: Vec<(String, f32, Vec<String>, f32)> = Vec::new();
-        tracing::debug!(
+        tracing::info!(
             gate = "product_intent",
             hit_count = hits.len(),
             query = %query,
@@ -2426,7 +2426,7 @@ impl Gate for ProductIntentGate {
                 .unwrap_or_default();
             let (matched_n, total_n, matched) = query_overlap(&content, &query);
             let overlap = matched_n as f32 / total_n.max(1) as f32;
-            tracing::debug!(
+            tracing::info!(
                 gate = "product_intent",
                 section = %section,
                 content_len = content.len(),
