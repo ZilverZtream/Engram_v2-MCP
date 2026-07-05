@@ -17,6 +17,7 @@ use crate::models::{
     FindImplementationPatternRequest, FindSimilarChangesRequest, GetConceptFootprintRequest,
 };
 use crate::services::full_project_migration_service as full_mig;
+use crate::services::pre_commit_review_service::{path_suffix_match, resolve_partner_to_current};
 use crate::tools::Engram;
 use engram_git::history::{GitWalker, MergeCommitPolicy};
 use engram_graph::EdgeKind;
@@ -4025,6 +4026,8 @@ impl Engram {
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
 
+        let rec = self.ensure_project_record(&req.project_id).await?;
+        let project_dir = PathBuf::from(&rec.directory);
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let edited: Vec<String> = req
@@ -4059,21 +4062,23 @@ impl Engram {
                             .collect()
                     })
                     .unwrap_or_default();
-                // A path counts as "covered" if any edited path tail-matches it
-                // (handles Site/-prefix spelling variants from history).
-                let covered = |path: &str| -> bool {
-                    let p = path.to_lowercase();
-                    edited_set.iter().any(|e| {
-                        e == &p
-                            || e.ends_with(&format!("/{p}"))
-                            || p.ends_with(&format!("/{}", e.as_str()))
-                    })
-                };
+                // A path counts as "covered" if any edited path suffix-matches
+                // it, component-aligned (handles Site/-prefix spelling
+                // variants from pre-restructure history). Shared logic with
+                // pre_commit_review's temporal gate — see
+                // `pre_commit_review_service::path_suffix_match`.
+                let covered =
+                    |path: &str| -> bool { edited_set.iter().any(|e| path_suffix_match(e, path)) };
+                // Current-tree spellings — co-change partners from history
+                // may predate a repo restructure and must be re-anchored to
+                // the file that exists today (or dropped entirely).
+                let current_files: Vec<String> = real_case.values().cloned().collect();
 
                 // ── Co-change partners not in the edit set ──────────────────
-                // Collect raw candidates (edited_file, partner, weight); weak
-                // couplings are noise, so demand real history.
-                let mut raw: Vec<(String, String, u32)> = Vec::new();
+                // Collect raw candidates (edited_file, current-tree partner,
+                // weight, raw graph spelling); weak couplings are noise, so
+                // demand real history.
+                let mut raw: Vec<(String, String, u32, String)> = Vec::new();
                 let mut unresolved_inputs: Vec<String> = Vec::new();
                 for f in &edited {
                     let resolved = match real_case.get(&f.to_lowercase()) {
@@ -4098,16 +4103,32 @@ impl Engram {
                         if weight < 5 || covered(partner) {
                             continue;
                         }
-                        raw.push((f.clone(), partner.to_string(), weight));
+                        // Never emit a historical spelling: re-anchor the
+                        // partner to its current-tree file, or drop it when
+                        // the file no longer exists under any spelling. This
+                        // is also what surfaces genuine gaps that a raw
+                        // string comparison used to suppress (the partner
+                        // wasn't textually equal to anything covered, but
+                        // wasn't textually equal to anything real either).
+                        let Some(current) =
+                            resolve_partner_to_current(partner, &current_files, &project_dir)
+                        else {
+                            continue;
+                        };
+                        if covered(&current) {
+                            continue;
+                        }
+                        raw.push((f.clone(), current, weight, partner.to_string()));
                     }
                 }
-                // Keep the single strongest coupling per partner.
+                // Keep the single strongest coupling per (current-tree)
+                // partner — multiple historical spellings collapse here.
                 raw.sort_by(|a, b| b.2.cmp(&a.2));
-                let mut best_per_partner: Vec<(String, String, u32)> = Vec::new();
+                let mut best_per_partner: Vec<(String, String, u32, String)> = Vec::new();
                 {
                     let mut seen: HashSet<String> = HashSet::new();
                     for r in raw {
-                        if seen.insert(r.1.clone()) {
+                        if seen.insert(r.1.to_lowercase()) {
                             best_per_partner.push(r);
                         }
                     }
@@ -4128,9 +4149,12 @@ impl Engram {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(800);
-                // Co-change degree per candidate partner (distinct neighbours).
-                let degree_of = |partner: &str| -> usize {
-                    let pfid = format!("file:{partner}");
+                // Co-change degree per candidate partner (distinct
+                // neighbours). Must use the RAW graph spelling — the
+                // TemporalCoupling adjacency is keyed by whatever spelling
+                // existed at commit time, not the re-anchored current path.
+                let degree_of = |raw_partner: &str| -> usize {
+                    let pfid = format!("file:{raw_partner}");
                     graph
                         .neighbors(&pid, EdgeKind::TemporalCoupling, &pfid, 2000)
                         .map(|v| v.len())
@@ -4138,9 +4162,9 @@ impl Engram {
                 };
                 let mut partner_findings: Vec<(String, String, u32, usize)> = best_per_partner
                     .into_iter()
-                    .map(|(e, p, w)| {
-                        let d = degree_of(&p);
-                        (e, p, w, d)
+                    .map(|(e, current, w, raw_partner)| {
+                        let d = degree_of(&raw_partner);
+                        (e, current, w, d)
                     })
                     .filter(|(_, _, _, d)| *d < hub_degree)
                     .collect();

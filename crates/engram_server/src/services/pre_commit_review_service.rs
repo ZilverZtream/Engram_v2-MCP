@@ -592,8 +592,16 @@ pub fn resolve_diff_source(project_dir: &Path, diff_input: &str) -> anyhow::Resu
         "head" => git_diff_head(project_dir),
         path if path.ends_with(".patch") || path.ends_with(".diff") => {
             let p = project_dir.join(path);
-            std::fs::read_to_string(&p)
-                .map_err(|e| anyhow::anyhow!("failed to read diff file {}: {e}", p.display()))
+            // Legacy codebases routinely contain non-UTF-8 bytes (a single
+            // cp1252/latin-1 curly-quote byte in a vendored JS bundle is
+            // enough). `read_to_string` hard-fails on the FIRST such byte
+            // ("stream did not contain valid UTF-8") and kills the WHOLE
+            // review — read raw bytes and decode lossily (U+FFFD
+            // replacement) instead. A mangled character in one hunk beats
+            // no review at all.
+            let bytes = std::fs::read(&p)
+                .map_err(|e| anyhow::anyhow!("failed to read diff file {}: {e}", p.display()))?;
+            Ok(String::from_utf8_lossy(&bytes).into_owned())
         }
         other => Ok(other.to_string()),
     }
@@ -611,9 +619,11 @@ fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
             ' ' | '+' | '-' => text.push(origin),
             _ => {}
         }
-        if let Ok(s) = std::str::from_utf8(line.content()) {
-            text.push_str(s);
-        }
+        // Lossy on purpose: a non-UTF-8 byte in one file's hunk must not
+        // silently DROP that diff line (the old `from_utf8` + `if let Ok`
+        // skipped it entirely) — decode with U+FFFD so line accounting
+        // stays correct for legacy sources.
+        text.push_str(&String::from_utf8_lossy(line.content()));
         true
     })?;
     Ok(text)
@@ -1763,9 +1773,109 @@ pub fn file_node_id(file_path: &str) -> String {
 
 /// Look up a file's full content from disk, relative to the project dir.
 /// Returns None if the read fails (e.g. deleted / not on disk yet).
+///
+/// Decodes lossily: legacy sources with stray cp1252/latin-1 bytes must
+/// degrade to U+FFFD, not vanish from every gate that reads file content.
 pub fn read_file_content(project_dir: &Path, rel_path: &str) -> Option<String> {
     let p = project_dir.join(rel_path);
-    std::fs::read_to_string(p).ok()
+    std::fs::read(p)
+        .ok()
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+}
+
+// ─── Co-change / temporal path identity ─────────────────────────────────────
+//
+// Git history (TemporalCoupling edges, co-change counts) is keyed by
+// whatever path spelling existed AT COMMIT TIME. When a repo gets
+// restructured (e.g. everything moved under `Site/`), history keeps the
+// OLD spelling (`App_Code/x.vb`) even though the file now lives at
+// `Site/App_Code/x.vb`. Comparing those raw strings against the current
+// diff's paths produces two failure modes:
+//
+// 1. False positive: a partner that IS in the diff (under the current
+//    spelling) gets reported as "not in diff" because the strings don't
+//    match character-for-character.
+// 2. Suppressed true positive: a partner path built from the stale
+//    spelling doesn't exist anywhere in the current tree, so an agent
+//    who acts on the finding can't find the file it names.
+//
+// The two helpers below are the single, shared fix for both gates.rs
+// (pre_commit_review's TemporalGate / TestCoverageGate) and
+// handle_detect_incomplete_changes (planning_tools.rs) — every co-change
+// partner check in the codebase should route through these rather than
+// re-implementing raw string comparison.
+
+/// Component-aligned, ASCII-case-insensitive path-suffix identity.
+///
+/// Two paths refer to the same file when one is a path-suffix of the
+/// other, aligned on a `/` component boundary — so `App_Code/x.vb`
+/// matches `Site/App_Code/x.vb`, but `Code/x.vb` does NOT match
+/// `App_Code/x.vb` (that's a partial path component, not a real prefix,
+/// and must never be treated as the same file).
+pub fn path_suffix_match(a: &str, b: &str) -> bool {
+    fn norm(p: &str) -> String {
+        p.replace('\\', "/").trim_start_matches('/').to_string()
+    }
+    fn suffix_eq(long: &str, short: &str) -> bool {
+        let lb = long.as_bytes();
+        let sb = short.as_bytes();
+        if sb.is_empty() || lb.len() < sb.len() {
+            return false;
+        }
+        let split = lb.len() - sb.len();
+        // Byte-wise ASCII-case-insensitive compare — panic-free on any
+        // (even non-char-boundary) split, and Windows-friendly casing.
+        if !lb[split..].eq_ignore_ascii_case(sb) {
+            return false;
+        }
+        // Component alignment: the suffix must start at the beginning of
+        // the path or right after a separator — this is what rejects
+        // `Code/x.vb` matching `App_Code/x.vb`.
+        split == 0 || lb[split - 1] == b'/'
+    }
+    let a = norm(a);
+    let b = norm(b);
+    suffix_eq(&a, &b) || suffix_eq(&b, &a)
+}
+
+/// Resolve a (possibly historical) co-change partner path to its
+/// current-tree spelling, or `None` when the file no longer exists.
+///
+/// - a current-tree file that suffix-matches the historical spelling
+///   wins, and the CURRENT spelling is returned — never the stale one.
+///   Ties break to the shortest match, then lexicographically smallest,
+///   so resolution is deterministic.
+/// - when the index has no match, a direct disk probe keeps a genuinely
+///   existing partner alive even against a stale/partial graph.
+/// - otherwise the partner is gone from the tree entirely — callers
+///   must drop it rather than emit a path nothing on disk answers to.
+pub fn resolve_partner_to_current(
+    partner: &str,
+    current_files: &[String],
+    project_dir: &Path,
+) -> Option<String> {
+    let mut best: Option<&str> = None;
+    for cf in current_files {
+        if !path_suffix_match(partner, cf) {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some(b) => cf.len() < b.len() || (cf.len() == b.len() && cf.as_str() < b),
+        };
+        if better {
+            best = Some(cf.as_str());
+        }
+    }
+    if let Some(b) = best {
+        return Some(b.replace('\\', "/"));
+    }
+    let cleaned = partner.replace('\\', "/");
+    let cleaned = cleaned.trim_start_matches('/').to_string();
+    if project_dir.join(&cleaned).is_file() {
+        return Some(cleaned);
+    }
+    None
 }
 
 // Re-export commonly-used items for the gates module.
@@ -1895,5 +2005,147 @@ interface IProduct { id: number; }
         let f3 = ReviewFinding::new(Severity::Info, "c", "foo.rs", "x3", "", "fix");
         let finalised = aggregate_findings(vec![f1, f2, f3], &[], Severity::Style, 100);
         assert!(finalised.iter().any(|f| f.gate == "corroboration"));
+    }
+
+    // ── P0: lossy decode on non-UTF-8 file content ──────────────────────
+
+    #[test]
+    fn resolve_diff_source_lossy_decodes_invalid_utf8_patch_file() {
+        let dir = std::env::temp_dir().join(format!("engram_p0_lossy_diff_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let patch_path = dir.join("bad.patch");
+        // A single cp1252 0x92 byte (curly apostrophe) is invalid UTF-8 on
+        // its own — this is the exact byte class that killed the whole
+        // review with "stream did not contain valid UTF-8" before the fix.
+        let mut bytes =
+            b"diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+don\x92t crash\n".to_vec();
+        std::fs::write(&patch_path, &bytes).unwrap();
+
+        let result = resolve_diff_source(&dir, "bad.patch");
+        assert!(
+            result.is_ok(),
+            "lossy decode must never fail on invalid UTF-8: {result:?}"
+        );
+        let text = result.unwrap();
+        assert!(
+            text.contains('\u{FFFD}'),
+            "invalid byte should decode to U+FFFD"
+        );
+        assert!(
+            text.contains("don"),
+            "surrounding valid content must survive"
+        );
+        assert!(
+            text.contains("t crash"),
+            "surrounding valid content must survive"
+        );
+
+        bytes.clear(); // silence unused-mut-after-write lints on some toolchains
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn read_file_content_lossy_decodes_invalid_utf8() {
+        let dir = std::env::temp_dir().join(format!("engram_p0_lossy_read_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("legacy.js"), b"var s = \x92curly\x92;").unwrap();
+
+        let content = read_file_content(&dir, "legacy.js");
+        assert!(content.is_some(), "must not fail on non-UTF-8 bytes");
+        let content = content.unwrap();
+        assert!(content.contains('\u{FFFD}'));
+        assert!(content.contains("curly"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ── P1: component-aligned path-suffix identity ──────────────────────
+
+    #[test]
+    fn path_suffix_match_positive_historical_vs_current_spelling() {
+        // Pre-restructure spelling matches the post-restructure spelling.
+        assert!(path_suffix_match(
+            "App_Code/iFalt.designer.vb",
+            "Site/App_Code/iFalt.designer.vb"
+        ));
+        // Direction shouldn't matter.
+        assert!(path_suffix_match(
+            "Site/App_Code/iFalt.designer.vb",
+            "App_Code/iFalt.designer.vb"
+        ));
+        // Exact match is trivially a match.
+        assert!(path_suffix_match("a/b/c.vb", "a/b/c.vb"));
+        // Case-insensitive (Windows-style paths / casing drift).
+        assert!(path_suffix_match("APP_CODE/X.VB", "app_code/x.vb"));
+        // Backslash-normalised.
+        assert!(path_suffix_match(
+            "App_Code\\iFalt.designer.vb",
+            "Site/App_Code/iFalt.designer.vb"
+        ));
+    }
+
+    #[test]
+    fn path_suffix_match_negative_partial_component_does_not_match() {
+        // "Code/x.vb" must NOT match "App_Code/x.vb" — partial path
+        // component, not a real directory-boundary prefix.
+        assert!(!path_suffix_match("Code/x.vb", "App_Code/x.vb"));
+        assert!(!path_suffix_match("App_Code/x.vb", "Code/x.vb"));
+        // Unrelated paths never match.
+        assert!(!path_suffix_match(
+            "Site/App_Code/Other.vb",
+            "Site/App_Code/iFalt.designer.vb"
+        ));
+        // Same filename, different directory family.
+        assert!(!path_suffix_match("Scripts/x.vb", "App_Code/x.vb"));
+    }
+
+    #[test]
+    fn resolve_partner_to_current_reanchors_to_current_spelling() {
+        let current = vec![
+            "Site/App_Code/shared-code/SystemSettingStore.vb".to_string(),
+            "Site/App_GlobalResources/label.en.resx".to_string(),
+        ];
+        let dir = std::env::temp_dir();
+        let resolved = resolve_partner_to_current(
+            "App_Code/shared-code/SystemSettingStore.vb",
+            &current,
+            &dir,
+        );
+        assert_eq!(
+            resolved.as_deref(),
+            Some("Site/App_Code/shared-code/SystemSettingStore.vb")
+        );
+    }
+
+    #[test]
+    fn resolve_partner_to_current_none_when_absent_from_tree() {
+        let current = vec!["Site/App_Code/Foo.vb".to_string()];
+        let dir =
+            std::env::temp_dir().join(format!("engram_p1_resolve_absent_{}", std::process::id()));
+        // Directory need not even exist — the file definitely isn't on
+        // disk under the historical spelling either.
+        let resolved = resolve_partner_to_current("App_Code/DeletedLongAgo.vb", &current, &dir);
+        assert!(
+            resolved.is_none(),
+            "must never emit a partner path absent from the current tree"
+        );
+    }
+
+    #[test]
+    fn resolve_partner_to_current_falls_back_to_disk_probe() {
+        // Not in the (stale/partial) graph-derived current_files list, but
+        // it genuinely exists on disk under the historical spelling.
+        let dir = std::env::temp_dir().join(format!(
+            "engram_p1_resolve_disk_probe_{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("still-here.vb"), b"' still here").unwrap();
+
+        let current: Vec<String> = Vec::new();
+        let resolved = resolve_partner_to_current("still-here.vb", &current, &dir);
+        assert_eq!(resolved.as_deref(), Some("still-here.vb"));
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
