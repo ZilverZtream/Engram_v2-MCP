@@ -1234,16 +1234,20 @@ impl Gate for AntiPatternGate {
     }
 
     async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
-        // Require a project-runtime search engine. If the caller hasn't
-        // initialised it (unit tests, minimal projects), fall back to the
-        // pure destructive-pattern scan.
-        let ps = match ctx
-            .state
-            .get_project_cached(ctx.project_id)
-            .or_else(|| None)
+        // ENSURE the project-runtime search engine — a fresh daemon has
+        // no cached ProjectState, and a `get_project_cached`-only lookup
+        // silently no-ops the whole search branch on the first review of
+        // a session (observed live: only the destructive fallback ever
+        // fired). Fall back to the pure destructive-pattern scan only
+        // when the runtime genuinely can't be built.
+        let ps = match crate::services::project_service::ensure_project_runtime(
+            ctx.state,
+            ctx.project_id,
+        )
+        .await
         {
-            Some(p) => p,
-            None => return Ok(self.destructive_only(ctx)),
+            Ok(p) => p,
+            Err(_) => return Ok(self.destructive_only(ctx)),
         };
 
         let mut findings = self.destructive_only(ctx);
@@ -2359,7 +2363,12 @@ impl Gate for ProductIntentGate {
     }
 
     async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
-        let Some(ps) = ctx.state.get_project_cached(ctx.project_id) else {
+        // ENSURE the runtime — get_project_cached alone returns None on a
+        // fresh daemon and silently no-ops the gate (see AntiPatternGate).
+        let Ok(ps) =
+            crate::services::project_service::ensure_project_runtime(ctx.state, ctx.project_id)
+                .await
+        else {
             return Ok(Vec::new());
         };
         let query = product_intent_query(ctx.diff_files);
