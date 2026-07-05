@@ -1373,7 +1373,11 @@ impl Engram {
                         &ps.info.directory,
                         new_gen,
                         max_commits,
-                        crate::models::GitHistoryMode::Both,
+                        // Forward only: update/refresh is an INCREMENTAL operation.
+                // Backfill is a one-time historical ingest - running it
+                // here re-walked (and re-weighted) hundreds of already-
+                // indexed commits on every routine update.
+                crate::models::GitHistoryMode::Forward,
                         index_antipatterns,
                         engram_git::history::MergeCommitPolicy::AllParents,
                         &token,
@@ -1527,7 +1531,7 @@ impl Engram {
                 max_commits: 500,
                 force: false,
                 index_antipatterns: false,
-                mode: None,
+                mode: Some(crate::models::GitHistoryMode::Forward),
                 wait: true,
             })
             .await
@@ -1808,7 +1812,11 @@ impl Engram {
                 &ps.info.directory,
                 new_gen,
                 max_commits,
-                crate::models::GitHistoryMode::Both,
+                // Forward only: update/refresh is an INCREMENTAL operation.
+                // Backfill is a one-time historical ingest - running it
+                // here re-walked (and re-weighted) hundreds of already-
+                // indexed commits on every routine update.
+                crate::models::GitHistoryMode::Forward,
                 index_antipatterns,
                 engram_git::history::MergeCommitPolicy::AllParents,
                 cancel,
