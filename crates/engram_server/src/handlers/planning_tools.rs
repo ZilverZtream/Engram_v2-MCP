@@ -2639,7 +2639,12 @@ pub(crate) fn split_symmetric_name_tokens(name: &str) -> Vec<String> {
 /// position, sharing at least 2 tokens. This is the name-shape of PAIRED
 /// WebForms/WinForms controls and handlers (Main/Sub, Left/Right, From/To,
 /// Start/End, Sender/Receiver) — a change to one side usually requires
-/// deciding the twin's behavior. Dedupes (a,b)/(b,a); capped at 6 pairs.
+/// deciding the twin's behavior. Pairs are DISJOINT (greedy: each name joins
+/// at most ONE pair) — a single symmetric FAMILY like Show/Hide × Main/Sub
+/// otherwise fans out into C(n,2) redundant cross-pairs that crowd every
+/// other family past the cap (the live PR1933 miss: Hide/Show chains starved
+/// the ddl…Main/Sub handler pair the story was actually about). Dedupes
+/// (a,b)/(b,a); capped at 6 pairs.
 pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)> {
     const MAX_PAIRS: usize = 6;
     let mut seen: HashSet<&str> = HashSet::new();
@@ -2648,18 +2653,19 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
         .iter()
         .map(|n| split_symmetric_name_tokens(n))
         .collect();
+    let mut used = vec![false; uniq.len()];
     let mut out: Vec<(String, String)> = Vec::new();
     for i in 0..uniq.len() {
+        if out.len() >= MAX_PAIRS {
+            break;
+        }
         // Equal length + exactly one differing position => shared = len-1,
         // so "share >= 2 tokens" is equivalent to len >= 3.
-        if toks[i].len() < 3 {
+        if used[i] || toks[i].len() < 3 {
             continue;
         }
         for j in (i + 1)..uniq.len() {
-            if out.len() >= MAX_PAIRS {
-                return out;
-            }
-            if toks[i].len() != toks[j].len() {
+            if used[j] || toks[i].len() != toks[j].len() {
                 continue;
             }
             let diff = toks[i]
@@ -2669,10 +2675,54 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
                 .count();
             if diff == 1 {
                 out.push((uniq[i].clone(), uniq[j].clone()));
+                used[i] = true;
+                used[j] = true;
+                break;
             }
         }
     }
     out
+}
+
+/// Files worth scanning for symmetric sibling controls/handlers: the top
+/// provisional files by corroboration tier that can actually CONTAIN
+/// control/function nodes. Encodes two live traps (the PR1933 regression
+/// where the section silently vanished):
+///  • extension filter — resource/data files carry golden tags too (a
+///    localized .resx family inherits its seed's co-change signal, making
+///    every language sibling tier 0) and `App_GlobalResources/…` sorts
+///    alphabetically FIRST, so without the filter the entire scan budget went
+///    to .resx files that have no control/function nodes → zero pairs;
+///  • corroboration tiebreak — within a tier, MORE signals first, so the
+///    story's strongest file (e.g. cochange|history|vector) is scanned before
+///    single-corroboration peers instead of being buried by BTreeMap
+///    alphabetical order ("site/…" sorts last).
+fn symmetric_sibling_scan_files(
+    prov: &BTreeMap<String, BTreeSet<&'static str>>,
+    take: usize,
+) -> Vec<String> {
+    const CODE_NODE_EXTS: &[&str] = &[
+        ".vb", ".cs", ".aspx", ".ascx", ".master", ".asmx", ".ashx", ".svc", ".asax", ".ts",
+        ".tsx", ".js", ".jsx", ".vbhtml", ".cshtml",
+    ];
+    let mut ranked: Vec<(&String, &BTreeSet<&'static str>)> = prov
+        .iter()
+        .filter(|(p, _)| {
+            let pl = p.to_lowercase();
+            CODE_NODE_EXTS.iter().any(|e| pl.ends_with(e))
+        })
+        .collect();
+    ranked.sort_by(|a, b| {
+        change_set_tier(a.1)
+            .cmp(&change_set_tier(b.1))
+            .then_with(|| b.1.len().cmp(&a.1.len()))
+            .then_with(|| a.0.cmp(b.0))
+    });
+    ranked
+        .into_iter()
+        .take(take)
+        .map(|(p, _)| p.clone())
+        .collect()
 }
 
 #[cfg(test)]
@@ -2747,15 +2797,110 @@ mod symmetric_sibling_tests {
     fn dedupes_names_and_caps_at_six_pairs() {
         // Duplicate name must not pair with itself.
         assert!(symmetric_sibling_pairs(&names(&["btn_from_date", "btn_from_date"])).is_empty());
-        // 8 mutually-pairing names (differ only in the middle token) would
-        // produce C(8,2)=28 ordered-deduped pairs; cap holds at 6.
+        // Pairs are DISJOINT: 8 mutually-pairing names (differ only in the
+        // middle token) yield 4 greedy pairs, not C(8,2) cross-products.
         let many: Vec<String> = (0..8).map(|i| format!("pnlFilterVariant{i}Side")).collect();
         let pairs = symmetric_sibling_pairs(&many);
-        assert_eq!(pairs.len(), 6);
-        // (a,b)/(b,a) dedupe: every pair is emitted in input order, once.
+        assert_eq!(pairs.len(), 4);
+        let mut used: HashSet<&String> = HashSet::new();
         for (a, b) in &pairs {
+            assert!(
+                used.insert(a) && used.insert(b),
+                "name appears twice: {pairs:?}"
+            );
             assert!(many.iter().position(|n| n == a) < many.iter().position(|n| n == b));
         }
+        // Cap holds at 6: 14 mutually-pairing names = 7 disjoint pairs -> 6.
+        let many: Vec<String> = (0..14)
+            .map(|i| format!("pnlFilterVariant{i}Side"))
+            .collect();
+        assert_eq!(symmetric_sibling_pairs(&many).len(), 6);
+    }
+
+    #[test]
+    fn live_producedq_ddl_handler_pair_survives_hide_show_family() {
+        // The exact live PR1933 shape: producedq.aspx.vb's Show/Hide × Main/Sub
+        // helper family plus the ddl…Main/Sub SelectedIndexChanged handlers
+        // (graph function names are class-qualified). Under all-pairs
+        // enumeration the Hide/Show cross-pairs starved the ddl pair past the
+        // cap; disjoint pairing must keep ONE pair per family and include the
+        // handler pair the story is actually about.
+        let ns = names(&[
+            "producedq_producedq.DisableFilterDateOnOptions",
+            "producedq_producedq.EnableFilterDateOnOptions",
+            "producedq_producedq.HideMainContractorBillingFilter",
+            "producedq_producedq.HideSubContractorBillingFilter",
+            "producedq_producedq.ShowMainContractorBillingFilter",
+            "producedq_producedq.ShowSubContractorBillingFilter",
+            "producedq_producedq.ddlBillingStatusMainContractor_SelectedIndexChanged",
+            "producedq_producedq.ddlBillingStatusSubContractor_SelectedIndexChanged",
+        ]);
+        let pairs = symmetric_sibling_pairs(&ns);
+        assert_eq!(pairs.len(), 4, "{pairs:?}");
+        assert!(
+            pairs.contains(&(
+                "producedq_producedq.ddlBillingStatusMainContractor_SelectedIndexChanged"
+                    .to_string(),
+                "producedq_producedq.ddlBillingStatusSubContractor_SelectedIndexChanged"
+                    .to_string()
+            )),
+            "{pairs:?}"
+        );
+        // Unqualified control-node names pair the same way.
+        let pairs = symmetric_sibling_pairs(&names(&[
+            "ddlBillingStatusMainContractor",
+            "ddlBillingStatusSubContractor",
+        ]));
+        assert_eq!(pairs.len(), 1, "{pairs:?}");
+    }
+
+    #[test]
+    fn scan_files_skip_noncode_and_rank_by_corroboration() {
+        // The live PR1933 regression: the resx family expansion makes every
+        // language sibling {cochange, family} = tier 0, and
+        // app_globalresources/… sorts alphabetically before every code file,
+        // so an unfiltered top-10 was ALL resource files (no control/function
+        // nodes) and the section silently vanished. The scan set must skip
+        // node-less extensions and rank the strongest code file first.
+        let mut prov: BTreeMap<String, BTreeSet<&'static str>> = BTreeMap::new();
+        for lang in [
+            "de", "en", "es", "no", "pt", "sl", "sv", "da", "fi", "fr", "it", "nl", "pl",
+        ] {
+            prov.insert(
+                format!("app_globalresources/systemsettings.{lang}.resx"),
+                BTreeSet::from(["cochange", "family"]),
+            );
+        }
+        prov.insert(
+            "db-ociusx.sql/scripts/post/ss_systemsettings.sql".into(),
+            BTreeSet::from(["cochange", "concept"]),
+        );
+        prov.insert(
+            "site/modules/dashboard/pages/public/producedq/producedq.aspx.vb".into(),
+            BTreeSet::from(["cochange", "history", "vtop"]),
+        );
+        prov.insert(
+            "site/app_code/ifalt.designer.vb".into(),
+            BTreeSet::from(["cochange", "concept"]),
+        );
+        prov.insert(
+            "app_code/shared-code/configsettings.vb".into(),
+            BTreeSet::from(["cochange"]),
+        );
+        let files = symmetric_sibling_scan_files(&prov, 10);
+        assert!(
+            files
+                .iter()
+                .all(|f| !f.ends_with(".resx") && !f.ends_with(".sql")),
+            "{files:?}"
+        );
+        // Tier 0 with THREE signals outranks tier-0 two-signal peers despite
+        // sorting alphabetically last.
+        assert_eq!(
+            files[0],
+            "site/modules/dashboard/pages/public/producedq/producedq.aspx.vb"
+        );
+        assert!(files.contains(&"app_code/shared-code/configsettings.vb".to_string()));
     }
 }
 
@@ -3470,24 +3615,20 @@ impl Engram {
         // files and surface one-token-apart name pairs. Generic: name-shape
         // scan, no per-repo names.
         let sibling_section: Option<String> = {
-            // "Top" = the same corroboration-tier order render_change_set uses
-            // (co-change/history first), not BTreeMap alphabetical order.
-            let mut ranked: Vec<(&String, &BTreeSet<&'static str>)> = prov.iter().collect();
-            ranked.sort_by(|a, b| {
-                change_set_tier(a.1)
-                    .cmp(&change_set_tier(b.1))
-                    .then_with(|| a.0.cmp(b.0))
-            });
-            let top_files: Vec<String> = ranked
-                .into_iter()
-                .take(10)
-                .map(|(p, _)| p.clone())
-                .collect();
+            // "Top" = corroboration tier, then MORE signals, restricted to
+            // files that can hold control/function nodes (see the helper's
+            // doc for the two live traps this avoids).
+            let top_files = symmetric_sibling_scan_files(&prov, 10);
             let graph = self.state.graph.clone();
             let pid_s = req.project_id.clone();
             tokio::task::spawn_blocking(move || {
+                const MAX_ROWS: usize = 12;
+                let mut seen_pairs: HashSet<(String, String)> = HashSet::new();
                 let mut rows: Vec<(String, String, String)> = Vec::new();
                 for f in &top_files {
+                    if rows.len() >= MAX_ROWS {
+                        break;
+                    }
                     let mut names: Vec<String> = Vec::new();
                     for nt in ["control", "function"] {
                         for n in graph
@@ -3498,13 +3639,16 @@ impl Engram {
                         }
                     }
                     for (a, b) in symmetric_sibling_pairs(&names) {
-                        if rows.len() >= 8 {
+                        if rows.len() >= MAX_ROWS {
                             break;
                         }
-                        rows.push((f.clone(), a, b));
-                    }
-                    if rows.len() >= 8 {
-                        break;
+                        // Two prov spellings of one file (web-root prefix
+                        // variants; a page's markup vs code-behind matching
+                        // the same nodes via the substring path filter) must
+                        // not spend the row budget on duplicate pairs.
+                        if seen_pairs.insert((a.clone(), b.clone())) {
+                            rows.push((f.clone(), a, b));
+                        }
                     }
                 }
                 if rows.is_empty() {
