@@ -1304,19 +1304,54 @@ impl Gate for AntiPatternGate {
             let hits = hits.unwrap_or_default();
             let supp_hits = supp_hits.unwrap_or_default();
 
-            let relevant: Vec<_> = hits.into_iter().filter(|h| h.score > 0.3).collect();
+            // Hybrid scores are RRF rank-fusion values (~0.03 at rank 1
+            // regardless of match quality) — the old `score > 0.3`
+            // filter could NEVER pass, which silently disabled this
+            // whole branch. Judge relevance by TERM OVERLAP between the
+            // diff-derived query and each hit's actual stored content
+            // instead (same mechanism as ProductIntentGate). Content is
+            // fetched by pk — exact, generation-proof.
+            let query_text = crate::utils::text::code_to_query(&df.added_content);
+            let mut relevant: Vec<(String, f32)> = Vec::new(); // (display path, overlap)
+            for h in hits.into_iter().take(5) {
+                let content = ps
+                    .search
+                    .get_doc_by_pk(&h.pk)
+                    .ok()
+                    .flatten()
+                    .map(|(_, _, c, _, _)| c)
+                    .unwrap_or_default();
+                if content.is_empty() {
+                    continue;
+                }
+                let (matched_n, total_n, _) = query_overlap(&content, &query_text);
+                let overlap = matched_n as f32 / total_n.max(1) as f32;
+                if matched_n >= 4 && overlap >= 0.3 {
+                    relevant.push((h.path.as_str().to_string(), overlap));
+                }
+            }
             if relevant.len() < 2 {
                 continue;
             }
             // Suppression: if the diff matches ≥1 wontfix_patterns doc
-            // (scoped to this file's family) with score > 0.5, dampen
-            // by one severity tier. This is the file-scoped
+            // (scoped to this file's family) with real term overlap,
+            // dampen by one severity tier. This is the file-scoped
             // false-positive suppression the team explicitly asked for
             // via the wontFix threads — we don't discard the finding,
             // we just downgrade it so it doesn't scream about a
             // pattern someone already looked at and left alone.
-            let strong_supp = supp_hits.iter().any(|h| h.score > 0.5);
-            let mut severity = if relevant.iter().any(|h| h.score > 0.6) {
+            let strong_supp = supp_hits.iter().take(5).any(|h| {
+                ps.search
+                    .get_doc_by_pk(&h.pk)
+                    .ok()
+                    .flatten()
+                    .map(|(_, _, c, _, _)| {
+                        let (m, t, _) = query_overlap(&c, &query_text);
+                        m >= 4 && (m as f32 / t.max(1) as f32) >= 0.3
+                    })
+                    .unwrap_or(false)
+            });
+            let mut severity = if relevant.iter().any(|(_, ov)| *ov >= 0.5) {
                 Severity::Warning
             } else {
                 Severity::Info
@@ -1330,22 +1365,20 @@ impl Gate for AntiPatternGate {
             }
 
             let mut evidence: Vec<String> = Vec::new();
-            for h in &relevant {
+            for (path, overlap) in &relevant {
                 // `path` on CodeRabbit-sourced docs is the cluster's
                 // file pattern (e.g. `/site/**/*.vb`) — surface that
                 // so the reader sees it's a CodeRabbit rule, not a
                 // reverted-commit antipattern. The DocStore also
                 // carries `author` = "coderabbit" on those docs; the
                 // path prefix is a reliable visual signal.
-                let path = h.path.as_str();
                 let source_label = if path.contains("**/") || path.starts_with("coderabbit://") {
                     " [source: CodeRabbit]"
                 } else {
                     ""
                 };
                 evidence.push(format!(
-                    "match = `{path}` (score {:.3}){source_label}",
-                    h.score
+                    "match = `{path}` (term overlap {overlap:.2}){source_label}"
                 ));
             }
             if !supp_hits.is_empty() {
@@ -2366,6 +2399,12 @@ impl Gate for ProductIntentGate {
         // OVERLAP against the actual section content instead: what
         // fraction of the diff-derived words the section text contains.
         let mut scored: Vec<(String, f32, Vec<String>, f32)> = Vec::new();
+        tracing::debug!(
+            gate = "product_intent",
+            hit_count = hits.len(),
+            query = %query,
+            "product_intent search returned"
+        );
         for h in hits.into_iter().take(5) {
             let raw = h.path.as_str();
             let section = raw.strip_prefix("memory_bank:").unwrap_or(raw).to_string();
@@ -2374,18 +2413,30 @@ impl Gate for ProductIntentGate {
             if section.starts_with("engram/") {
                 continue;
             }
+            // Fetch by pk (not doc_id): the pk on the hit is exact,
+            // while a doc_id lookup would rebuild the pk with the
+            // CURRENT generation — wrong for docs ingested at an older
+            // one.
             let content = ps
                 .search
-                .get_doc_by_doc_id(ctx.project_id, "memory_bank", ctx.generation, &h.doc_id)
+                .get_doc_by_pk(&h.pk)
                 .ok()
                 .flatten()
                 .map(|(_, _, c, _, _)| c)
                 .unwrap_or_default();
+            let (matched_n, total_n, matched) = query_overlap(&content, &query);
+            let overlap = matched_n as f32 / total_n.max(1) as f32;
+            tracing::debug!(
+                gate = "product_intent",
+                section = %section,
+                content_len = content.len(),
+                matched_n,
+                total_n,
+                "product_intent hit overlap"
+            );
             if content.is_empty() {
                 continue;
             }
-            let (matched_n, total_n, matched) = query_overlap(&content, &query);
-            let overlap = matched_n as f32 / total_n.max(1) as f32;
             if matched_n >= 4 && overlap >= 0.25 {
                 scored.push((section, overlap, matched, h.score));
             }
