@@ -1110,11 +1110,19 @@ impl HybridSearchEngine {
                 .contains(&table_name)
             {
                 let table = self.lance_conn.open_table(&table_name).execute().await?;
-                for p in paths {
-                    // Escape single quotes in path (SQL injection safety)
-                    let safe_path = p.as_str().replace('\'', "''");
-                    let safe_ns = namespace.replace('\'', "''");
-                    let filter = format!("namespace = '{}' AND path = '{}'", safe_ns, safe_path);
+                let safe_ns = namespace.replace('\'', "''");
+                // Chunked IN-filters: every `table.delete()` rewrites Lance
+                // fragments, so one delete PER PATH turned a 1,670-doc
+                // cleanup into ~19 minutes. One delete per 200 paths keeps
+                // the filter string modest and the fragment churn bounded.
+                for chunk in paths.chunks(200) {
+                    let list = chunk
+                        .iter()
+                        // Escape single quotes (SQL injection safety).
+                        .map(|p| format!("'{}'", p.as_str().replace('\'', "''")))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let filter = format!("namespace = '{safe_ns}' AND path IN ({list})");
                     table.delete(&filter).await?;
                 }
             }
