@@ -695,15 +695,27 @@ pub async fn detect_rule_alignments(
         }
     }
 
-    // Hybrid-search-backed alignment — only runs when the runtime
-    // search engine is available (not the case in minimal test
-    // setups). Failing gracefully here keeps the service useful
-    // without the index.
-    if let Some(ps) = state.get_project_cached(project_id) {
+    // Hybrid-search-backed alignment — ENSURE the runtime (a fresh
+    // daemon has no cached ProjectState; a cached-only lookup silently
+    // skipped this whole branch, same defect as the review's async
+    // gates). Failing gracefully keeps the service useful without the
+    // index (minimal test setups).
+    if let Ok(ps) =
+        crate::services::project_service::ensure_project_runtime(state, project_id).await
+    {
         for f in diff_files {
             if f.is_binary
                 || matches!(f.change_type, ChangeType::Deleted)
                 || f.added_content.len() < 50
+            {
+                continue;
+            }
+            // Resource/markup text is not code — see AntiPatternGate.
+            let lower_path = f.path.to_ascii_lowercase();
+            if lower_path.ends_with(".resx")
+                || lower_path.ends_with(".xml")
+                || lower_path.ends_with(".config")
+                || lower_path.ends_with(".css")
             {
                 continue;
             }
@@ -712,7 +724,7 @@ pub async fn detect_rule_alignments(
                 project_id: project_id.to_string(),
                 namespace: "antipattern".into(),
                 generation,
-                text: query,
+                text: query.clone(),
                 top_k: 3,
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
@@ -730,7 +742,27 @@ pub async fn detect_rule_alignments(
                 .await
                 .unwrap_or_default();
             for h in hits {
-                if h.score < 0.5 {
+                // RRF scores (~0.03 at rank 1) make absolute score
+                // thresholds dead code — judge by term overlap against
+                // the hit's stored content, same as the review gates.
+                if h.path.as_str().to_ascii_lowercase().contains(".min.") {
+                    continue;
+                }
+                let content = ps
+                    .search
+                    .get_doc_by_pk(&h.pk)
+                    .ok()
+                    .flatten()
+                    .map(|(_, _, c, _, _)| c)
+                    .unwrap_or_default();
+                if content.is_empty() {
+                    continue;
+                }
+                let (matched_n, total_n, _) =
+                    crate::services::pre_commit_review_service::gates::query_overlap(
+                        &content, &query,
+                    );
+                if matched_n < 4 || (matched_n as f32 / total_n.max(1) as f32) < 0.3 {
                     continue;
                 }
                 // CodeRabbit docs land in the antipattern namespace
