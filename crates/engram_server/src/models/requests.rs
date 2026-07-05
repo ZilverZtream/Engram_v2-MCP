@@ -3080,6 +3080,26 @@ pub struct IngestCodeReviewHistoryRequest {
     pub promote_min_prs: usize,
 }
 
+// ─── Support KB ──────────────────────────────────────────────────────────────
+
+fn default_max_features() -> usize {
+    50
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProduceSupportKbRequest {
+    pub project_id: String,
+    /// Write the generated cards to `<project>/support-kb/` (engram-owned
+    /// directory, regenerated wholesale). Default false — the tool always
+    /// returns the summary + index inline.
+    #[serde(default)]
+    pub write_to_disk: bool,
+    /// Cap on generated feature cards. Default 50.
+    #[serde(default = "default_max_features")]
+    pub max_features: usize,
+}
+
 // ─── Explain change ──────────────────────────────────────────────────────────
 
 fn default_explain_diff() -> String {

@@ -158,6 +158,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "produce_support_kb",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "add_repo_rule",
         status: CapabilityStatus::Implemented,
     },

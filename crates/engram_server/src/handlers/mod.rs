@@ -14,6 +14,7 @@ pub mod quality_gate_tools;
 pub mod review_tools;
 pub mod search_tools;
 pub mod settings_tools;
+pub mod support_kb_tools;
 
 pub mod runtime_observation_tools;
 
