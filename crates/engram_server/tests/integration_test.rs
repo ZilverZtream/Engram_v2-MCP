@@ -2061,6 +2061,7 @@ async fn test_search_history() {
     // 2. Index Git History
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4079,6 +4080,7 @@ async fn test_incremental_temporal_coupling() {
     // Run git history index
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4117,6 +4119,7 @@ async fn test_incremental_temporal_coupling() {
     // Run git history index again (incremental)
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4155,6 +4158,7 @@ async fn test_incremental_temporal_coupling() {
 
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4239,6 +4243,7 @@ async fn test_rename_preserves_coupling() {
 
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4267,6 +4272,7 @@ async fn test_rename_preserves_coupling() {
 
     engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: false,
@@ -4578,6 +4584,7 @@ async fn test_structural_revert_detection() {
     // Run history index with antipatterns enabled
     let res = engram
         .index_git_history(Parameters(engram_server::IndexGitHistoryRequest {
+            force: false,
             project_id: project_id.to_string(),
             max_commits: 10,
             index_antipatterns: true,
