@@ -477,6 +477,32 @@ internal sealed class AstEmitter
                 }
             }
 
+            // AddressOf method references are calls-by-delegate: the target
+            // IS invoked (bootstrap registrations like
+            // GlobalConfiguration.Configure(AddressOf WebApiConfig.Register),
+            // timer/thread callbacks). Without these edges the target shows
+            // 0 callers and every unwired/dead-method surface false-flags it.
+            foreach (var aref in collector.AddressOfRefs)
+            {
+                var delegateTarget = SanitizeName(ExtractInvocationName(aref.Operand));
+                if (string.IsNullOrWhiteSpace(delegateTarget)) continue;
+                edges.Add(new EdgeDto
+                {
+                    SourceName = fqn,
+                    SourceKind = "function",
+                    SourceStartLine = methodStartLine,
+                    SourceLanguage = "vb",
+                    TargetName = delegateTarget,
+                    TargetKind = "function",
+                    Kind = "calls",
+                    Metadata = new()
+                    {
+                        ["call_site_line"] = Line(tree, aref).ToString(),
+                        ["via"] = "addressof"
+                    }
+                });
+            }
+
             foreach (var create in collector.ObjectCreations)
             {
                 var typeText = create.Type.ToString();
@@ -933,6 +959,7 @@ internal sealed class AstEmitter
     {
         public readonly List<AddRemoveHandlerStatementSyntax> AddRemoveHandlers = [];
         public readonly List<InvocationExpressionSyntax> Invocations = [];
+        public readonly List<UnaryExpressionSyntax> AddressOfRefs = [];
         public readonly List<ObjectCreationExpressionSyntax> ObjectCreations = [];
         public readonly List<AssignmentStatementSyntax> Assignments = [];
         public readonly List<LocalDeclarationStatementSyntax> LocalDeclarations = [];
@@ -948,6 +975,12 @@ internal sealed class AstEmitter
 
         public override void VisitInvocationExpression(InvocationExpressionSyntax node)
         { Invocations.Add(node); base.VisitInvocationExpression(node); }
+
+        public override void VisitUnaryExpression(UnaryExpressionSyntax node)
+        {
+            if (node.IsKind(SyntaxKind.AddressOfExpression)) AddressOfRefs.Add(node);
+            base.VisitUnaryExpression(node);
+        }
 
         public override void VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
         { ObjectCreations.Add(node); base.VisitObjectCreationExpression(node); }
