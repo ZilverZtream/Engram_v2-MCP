@@ -382,6 +382,12 @@ pub struct IndexProjectRequest {
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct RefreshCorporaRequest {
+    pub project_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
     pub project_id: String,
     #[serde(default = "default_true")]
