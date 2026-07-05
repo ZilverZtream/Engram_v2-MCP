@@ -32,7 +32,7 @@ use serde::Serialize;
 use crate::services::blast_radius_service::compute_blast_radius;
 use crate::services::pre_commit_review_service::{
     ChangeType, DiffFile, is_test_path, parse_unified_diff, path_suffix_match, resolve_diff_source,
-    resolve_partner_to_current,
+    resolve_partner_to_current, resx_dir_stem, resx_family_display,
 };
 use crate::state::AppState;
 
@@ -837,6 +837,35 @@ pub fn detect_coupling_notes(
             });
         }
     }
+    // Collapse localized .resx language variants of one family into a
+    // single note BEFORE the cap — otherwise a 7-locale family eats the
+    // whole note budget and hides every other coupled partner. Mirrors
+    // `collapse_resx_family_findings` in pre_commit_review: a lone resx
+    // partner keeps its own spelling; only 2+ variants become a family.
+    let mut collapsed: Vec<CouplingNote> = Vec::new();
+    let mut family_slot: HashMap<(String, String, String), (usize, usize)> = HashMap::new();
+    for note in out {
+        let Some((dir, stem)) = resx_dir_stem(&note.partner_file) else {
+            collapsed.push(note);
+            continue;
+        };
+        let key = (note.source_file.clone(), dir.clone(), stem.clone());
+        match family_slot.get_mut(&key) {
+            Some((i, members)) => {
+                *members += 1;
+                // 2+ variants: display the family, keep the strongest weight.
+                collapsed[*i].partner_file = resx_family_display(&dir, &stem);
+                if note.weight > collapsed[*i].weight {
+                    collapsed[*i].weight = note.weight;
+                }
+            }
+            None => {
+                family_slot.insert(key, (collapsed.len(), 1));
+                collapsed.push(note);
+            }
+        }
+    }
+    let mut out = collapsed;
     // Cap at 5 — avoid drowning the PR description.
     out.sort_by(|a, b| b.weight.cmp(&a.weight));
     out.truncate(5);
@@ -1602,6 +1631,87 @@ mod tests {
              surviving partner re-anchored to its CURRENT spelling"
         );
         assert_eq!(notes[0].weight, 80);
+    }
+
+    #[test]
+    fn coupling_notes_collapse_resx_locale_families_before_cap() {
+        // A 7-locale resx family must not eat the whole 5-note budget —
+        // it collapses to one family note so other coupled partners
+        // still surface. A LONE resx partner keeps its own spelling.
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let store = GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open");
+        let pid = "proj-resx";
+
+        let mk_file = |path: &str| engram_graph::Node {
+            node_id: format!("file:{path}"),
+            node_type: "file".to_string(),
+            name: path.rsplit('/').next().unwrap_or(path).to_string(),
+            namespace: "code".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new(path),
+            start_line: 0,
+            end_line: 0,
+            generation: 1,
+            metadata: None,
+        };
+        let variants = [
+            "Site/App_GlobalResources/label.resx",
+            "Site/App_GlobalResources/label.en.resx",
+            "Site/App_GlobalResources/label.de.resx",
+        ];
+        let mut nodes = vec![
+            mk_file("Site/App_Code/x.vb"),
+            mk_file("Site/App_Code/other.vb"),
+            mk_file("Site/App_GlobalResources/help.resx"),
+        ];
+        nodes.extend(variants.iter().map(|v| mk_file(v)));
+        store.upsert_nodes(pid, &nodes).expect("upsert_nodes");
+
+        let mk_edge = |target: &str, weight: u32| engram_graph::Edge {
+            source_id: "file:Site/App_Code/x.vb".to_string(),
+            target_id: format!("file:{target}"),
+            namespace: "code".to_string(),
+            language: "vb".to_string(),
+            edge_kind: EdgeKind::TemporalCoupling,
+            weight,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 1,
+        };
+        let mut edges: Vec<engram_graph::Edge> = variants.iter().map(|v| mk_edge(v, 200)).collect();
+        edges.push(mk_edge("Site/App_GlobalResources/help.resx", 90));
+        edges.push(mk_edge("Site/App_Code/other.vb", 60));
+        store.upsert_edges(pid, &edges).expect("upsert_edges");
+
+        let diff = vec![mk_diff(
+            ChangeType::Modified,
+            "Site/App_Code/x.vb",
+            &["Dim a = 1"],
+            &[],
+        )];
+        let changed: HashSet<String> = std::iter::once("Site/App_Code/x.vb".to_string()).collect();
+
+        let notes = detect_coupling_notes(&store, pid, tmp.path(), &diff, &changed);
+        let mut partners: Vec<&str> = notes.iter().map(|n| n.partner_file.as_str()).collect();
+        partners.sort_unstable();
+        assert_eq!(
+            partners,
+            vec![
+                "Site/App_Code/other.vb",
+                "Site/App_GlobalResources/help.resx",
+                "Site/App_GlobalResources/label.*.resx",
+            ],
+            "3 locale variants collapse to one family note, lone resx keeps \
+             its spelling, non-resx partner still fits in the budget"
+        );
+        let family = notes
+            .iter()
+            .find(|n| n.partner_file.ends_with("label.*.resx"))
+            .expect("family note present");
+        assert_eq!(
+            family.weight, 200,
+            "family note carries the strongest weight"
+        );
     }
 
     #[test]

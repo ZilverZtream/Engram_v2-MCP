@@ -1391,7 +1391,7 @@ pub fn aggregate_findings(
 /// (`label.resx`, `label.en.resx`, `label.de.resx`, … all share
 /// `stem = "label"`). Returns `None` for non-`.resx` paths or a `.resx`
 /// with an empty stem.
-fn resx_dir_stem(path: &str) -> Option<(String, String)> {
+pub(crate) fn resx_dir_stem(path: &str) -> Option<(String, String)> {
     let p = path.replace('\\', "/");
     if !p.to_ascii_lowercase().ends_with(".resx") {
         return None;
@@ -1408,7 +1408,7 @@ fn resx_dir_stem(path: &str) -> Option<(String, String)> {
     }
 }
 
-fn resx_family_display(dir: &str, stem: &str) -> String {
+pub(crate) fn resx_family_display(dir: &str, stem: &str) -> String {
     if dir.is_empty() {
         format!("{stem}.*.resx")
     } else {
