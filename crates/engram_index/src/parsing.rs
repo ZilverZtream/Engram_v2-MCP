@@ -29,6 +29,89 @@ pub struct ExtractedEdge {
 /// Built during Pass 1 of two-pass call graph extraction.
 type FqnTable = std::collections::HashMap<String, String>;
 
+/// True when a trimmed line starts with a comment marker in any of the
+/// languages this indexer handles (VB `'`, C-family `//`/`/*`/`*`,
+/// scripting `#`, SQL/Lua `--`, XML `<!--`, asm/ini `;`, VB legacy `REM`).
+fn is_comment_line(trimmed: &str) -> bool {
+    trimmed.starts_with('\'')
+        || trimmed.starts_with("//")
+        || trimmed.starts_with('#')
+        || trimmed.starts_with('*')
+        || trimmed.starts_with("/*")
+        || trimmed.starts_with("--")
+        || trimmed.starts_with("<!--")
+        || trimmed.starts_with(';')
+        || trimmed.to_ascii_lowercase().starts_with("rem ")
+}
+
+/// Detect "must update in N places" sync-contract comments. These are
+/// machine-readable maintenance contracts: a trigger line announcing that
+/// some logic is duplicated across N sites, followed by an enumerated
+/// list of those sites. Emitted as `sync_contract` symbols so the review
+/// pipeline can assert when a diff touches a subset of the listed sites
+/// (the classic failure: two of three copies updated, the third ships
+/// stale — observed live as a missing CR-exclusion in a marker-import
+/// delete path whose contract comment named all three sites).
+pub fn detect_sync_contracts(text: &str) -> Vec<ExtractedSymbol> {
+    use std::sync::LazyLock;
+    static TRIGGER: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"(?i)\b(?:must|keep|update|sync|change)\b.{0,80}?\b(\d{1,2})\s+places")
+            .expect("valid regex")
+    });
+    static SITE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        // An enumerated comment line: optional comment markers, then
+        // `1.` / `2)` / `-` / `*`, then the site reference.
+        regex::Regex::new(r#"^(?:['/#*;<!\- ]|rem )*\s*(?:\d{1,2}[.)]|[-*•])\s+(.{3,200})$"#)
+            .expect("valid regex")
+    });
+
+    let lines: Vec<&str> = text.lines().collect();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < lines.len() {
+        let t = lines[i].trim_start();
+        if !is_comment_line(t) || !TRIGGER.is_match(t) {
+            i += 1;
+            continue;
+        }
+        let declared: usize = TRIGGER
+            .captures(t)
+            .and_then(|c| c[1].parse().ok())
+            .unwrap_or(0);
+        // Gather the enumerated site list from the following comment lines.
+        let mut sites: Vec<String> = Vec::new();
+        let mut j = i + 1;
+        while j < lines.len() && j <= i + 12 {
+            let lt = lines[j].trim_start();
+            if !is_comment_line(lt) {
+                break;
+            }
+            if let Some(cap) = SITE.captures(lt) {
+                sites.push(cap[1].trim().to_string());
+            } else if !sites.is_empty() {
+                break; // enumeration ended
+            }
+            j += 1;
+        }
+        if sites.len() >= 2 {
+            let mut meta = std::collections::HashMap::new();
+            meta.insert("sites".to_string(), sites.join("||"));
+            meta.insert("declared_places".to_string(), declared.to_string());
+            out.push(ExtractedSymbol {
+                name: format!("sync-contract ({} sites)", sites.len()),
+                kind: "sync_contract".to_string(),
+                start_line: (i + 1) as u32,
+                end_line: j as u32,
+                metadata: Some(meta),
+            });
+            i = j;
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
 /// Check if a function name matches a WebForms page lifecycle method.
 /// Returns `(lifecycle_stage, sequence_number)` if it matches.
 fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
@@ -1055,6 +1138,71 @@ class Baz {
                 .map(String::as_str),
             Some("Baz.qux")
         );
+    }
+}
+
+#[cfg(test)]
+mod sync_contract_tests {
+    use super::detect_sync_contracts;
+
+    #[test]
+    fn detects_vb_three_place_contract() {
+        // The live MarkerImport.vb shape, verbatim structure.
+        let text = "\
+Some code
+    ' NOTE! If the logic for checking vital data on marker change we must update it in 3 places:
+    ' 1. _io.import.MarkerImport.GetMarkersToDeleteFromProject()
+    ' 2. _io.installationsobjekt.DeleteImportedMapMarker()
+    ' 3. _integration.gis.vetrofibermap.Feature.EventProcessing.CheckForVitalDataOnMarker()
+    Dim x = 1
+";
+        let c = detect_sync_contracts(text);
+        assert_eq!(c.len(), 1);
+        assert_eq!(c[0].kind, "sync_contract");
+        assert_eq!(c[0].start_line, 2);
+        let meta = c[0].metadata.as_ref().unwrap();
+        assert_eq!(meta.get("declared_places").unwrap(), "3");
+        let sites: Vec<&str> = meta.get("sites").unwrap().split("||").collect();
+        assert_eq!(sites.len(), 3);
+        assert!(sites[0].contains("GetMarkersToDeleteFromProject"));
+        assert!(sites[2].contains("CheckForVitalDataOnMarker"));
+    }
+
+    #[test]
+    fn detects_c_style_and_ignores_single_site_lists() {
+        let text = "\
+// keep this validation in sync in 2 places:
+// 1. src/api/validate.ts
+// 2. src/worker/validate.ts
+code();
+// must update in 4 places:
+// 1. only-one-site-listed
+code();
+";
+        let c = detect_sync_contracts(text);
+        assert_eq!(c.len(), 1, "single-site enumerations are not contracts");
+        let sites: Vec<&str> = c[0]
+            .metadata
+            .as_ref()
+            .unwrap()
+            .get("sites")
+            .unwrap()
+            .split("||")
+            .collect();
+        assert_eq!(sites, vec!["src/api/validate.ts", "src/worker/validate.ts"]);
+    }
+
+    #[test]
+    fn ignores_prose_without_enumeration_and_code_lines() {
+        let text = "\
+' we must update the docs in 3 places eventually
+Dim a = 1
+Dim b = 2
+";
+        assert!(detect_sync_contracts(text).is_empty());
+        // trigger phrase in CODE (not a comment) must not fire
+        let code = "var msg = \"must update in 3 places\";\nvar x = 1;\nvar y = 2;\n";
+        assert!(detect_sync_contracts(code).is_empty());
     }
 }
 

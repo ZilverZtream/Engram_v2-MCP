@@ -41,6 +41,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(GuardParityGate),
         Box::new(UnwiredGate),
         Box::new(ProductIntentGate),
+        Box::new(SyncContractGate),
     ]
 }
 
@@ -2265,6 +2266,133 @@ impl Gate for UnwiredGate {
     }
 }
 
+// ─── Gate 14: Sync contracts ────────────────────────────────────────────────
+//
+// "Must update in N places" comments are machine-readable maintenance
+// contracts (extracted at ingest as `sync_contract` nodes). When a diff
+// touches SOME of a contract's listed sites but not all, the untouched
+// copy ships stale behavior — the exact two-of-three failure observed
+// live in a marker-import delete path. Sites are resolved to files via
+// the graph (dotted references) or matched as paths; unresolvable sites
+// fall back to a word-boundary scan of the diff's added lines.
+
+pub struct SyncContractGate;
+
+/// Last dotted identifier of a non-path site reference, sans trailing
+/// `()`/punctuation: `_io.import.MarkerImport.GetMarkersToDeleteFromProject()`
+/// → `GetMarkersToDeleteFromProject`.
+pub(crate) fn site_tail_identifier(site: &str) -> Option<String> {
+    let s = site.trim().trim_end_matches([' ', '.', ';', ':', ',']);
+    let s = s.strip_suffix("()").unwrap_or(s);
+    let tail = s.rsplit('.').next().unwrap_or(s);
+    let ok = tail.len() >= 3
+        && tail.chars().all(|c| c.is_alphanumeric() || c == '_')
+        && tail
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '_');
+    ok.then(|| tail.to_string())
+}
+
+#[async_trait]
+impl Gate for SyncContractGate {
+    fn name(&self) -> &'static str {
+        "sync_contract"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let mut findings = Vec::new();
+        let contracts = ctx
+            .graph
+            .query_nodes(ctx.project_id, Some("sync_contract"), None, None, 300)
+            .unwrap_or_default();
+        for c in contracts {
+            let Some(meta) = &c.metadata else { continue };
+            let Some(sites_raw) = meta.get("sites").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let sites: Vec<&str> = sites_raw
+                .split("||")
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            if sites.len() < 2 {
+                continue;
+            }
+            let mut touched: Vec<String> = Vec::new();
+            let mut untouched: Vec<String> = Vec::new();
+            for site in &sites {
+                let is_touched = if site.contains('/') || site.contains('\\') {
+                    ctx.changed_paths.iter().any(|p| path_suffix_match(p, site))
+                } else if let Some(tail) = site_tail_identifier(site) {
+                    let nodes = ctx
+                        .graph
+                        .query_nodes(ctx.project_id, Some("function"), Some(&tail), None, 10)
+                        .unwrap_or_default();
+                    let via_graph = nodes
+                        .iter()
+                        .filter(|n| bare_name_matches(&n.name, &tail))
+                        .any(|n| {
+                            ctx.changed_paths
+                                .iter()
+                                .any(|p| path_suffix_match(p, n.file_path.as_str()))
+                        });
+                    let tail_lower = tail.to_lowercase();
+                    via_graph
+                        || ctx.diff_files.iter().any(|df| {
+                            !df.is_binary
+                                && df
+                                    .added_lines
+                                    .iter()
+                                    .any(|(_, l)| contains_word(&l.to_lowercase(), &tail_lower))
+                        })
+                } else {
+                    false
+                };
+                if is_touched {
+                    touched.push((*site).to_string());
+                } else {
+                    untouched.push((*site).to_string());
+                }
+            }
+            if !touched.is_empty() && !untouched.is_empty() {
+                findings.push(
+                    ReviewFinding::new(
+                        Severity::Warning,
+                        "sync_contract",
+                        c.file_path.as_str().to_string(),
+                        format!(
+                            "Sync contract partially honored: {}/{} listed sites touched",
+                            touched.len(),
+                            sites.len()
+                        ),
+                        format!(
+                            "`{}` (line {}) declares logic that must be kept in sync across \
+                             {} places. This diff touches {} of them but NOT: {}. \
+                             Two-of-three updates is the classic way these contracts rot — \
+                             the untouched site ships stale behavior.",
+                            c.file_path.as_str(),
+                            c.start_line,
+                            sites.len(),
+                            touched.len(),
+                            untouched.join("; ")
+                        ),
+                        "Update the untouched site(s) in the same change, or amend the \
+                         contract comment if a site was retired."
+                            .to_string(),
+                    )
+                    .with_lines(vec![c.start_line as usize])
+                    .with_evidence(vec![
+                        format!("touched = {}", touched.join("; ")),
+                        format!("untouched = {}", untouched.join("; ")),
+                    ]),
+                );
+            }
+        }
+        Ok(findings)
+    }
+}
+
 // ─── Gate 13: Product intent ────────────────────────────────────────────────
 //
 // Bind recorded product/domain knowledge to the diff. Projects that
@@ -2567,6 +2695,20 @@ mod tests {
             "api.RestartTransaction",
             "StartTransaction"
         ));
+    }
+
+    #[test]
+    fn site_tail_identifier_parses_fqn_and_rejects_junk() {
+        assert_eq!(
+            site_tail_identifier("_io.import.MarkerImport.GetMarkersToDeleteFromProject()"),
+            Some("GetMarkersToDeleteFromProject".to_string())
+        );
+        assert_eq!(
+            site_tail_identifier("SomeClass.DoThing() ,"),
+            Some("DoThing".to_string())
+        );
+        assert_eq!(site_tail_identifier("1)"), None);
+        assert_eq!(site_tail_identifier("a.b"), None, "tail too short");
     }
 
     #[test]
