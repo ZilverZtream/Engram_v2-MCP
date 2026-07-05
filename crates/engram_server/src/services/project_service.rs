@@ -292,8 +292,11 @@ pub async fn get_incremental_changes(
                         .map(|s| s.to_string());
                     reason = format!(
                         "stat stored=({stored_mtime},{stored_size}) disk=({mtime},{size}) \
-                         hash_stored={}",
-                        stored_hash.is_some()
+                         hash_stored={} raw_meta={}",
+                        stored_hash.is_some(),
+                        // Full object, truncated — the KEYS identify which
+                        // writer produced a fingerprint-less metadata blob.
+                        meta.to_string().chars().take(160).collect::<String>()
                     );
 
                     if stored_mtime == mtime && stored_size == size {
