@@ -1446,29 +1446,18 @@ impl HybridSearchEngine {
                             .map(|d| d.as_millis() as u64)
                             .unwrap_or(0);
 
-                        let Ok(text) = String::from_utf8(bytes) else {
-                            // DS1/D5: log unexpected UTF-8 failures (fail-open: skip file).
-                            tracing::warn!(
-                                path = %p.display(),
-                                "DS1/D5: file UTF-8 decode failed during indexing — file skipped (fail-open)"
-                            );
-                            local_stats
-                                .skipped_files
-                                .push((rel_path, "Invalid UTF-8 encoding".into()));
-                            return (local_stats, local_docs);
-                        };
-                        let language = engram_core::guess_language(p);
-                        *local_stats
-                            .languages
-                            .entry(language.to_string())
-                            .or_insert(0) += 1;
-
                         // Wrap rel_path in Arc so all symbols/edges/chunks from this file
                         // share one allocation. O(1) clone instead of O(N) string copies.
                         let arc_rel = Arc::new(rel_path);
 
+                        // Record the file + its fingerprint BEFORE the decode
+                        // gate: an undecodable file must still get a
+                        // fingerprint-carrying file node, otherwise the
+                        // incremental change scan re-reads and re-hashes it
+                        // on EVERY update forever (observed as a permanent
+                        // 4-file "changed" tail of minified vendor JS +
+                        // cp1252 CSS).
                         local_stats.all_files.push((*arc_rel).clone());
-
                         local_stats
                             .fingerprints
                             .push(crate::docstore::FileFingerprint {
@@ -1477,6 +1466,24 @@ impl HybridSearchEngine {
                                 mtime_ms,
                                 file_hash,
                             });
+
+                        let Ok(text) = String::from_utf8(bytes) else {
+                            // DS1/D5: log unexpected UTF-8 failures (fail-open:
+                            // skip content, keep the fingerprint node).
+                            tracing::warn!(
+                                path = %p.display(),
+                                "DS1/D5: file UTF-8 decode failed during indexing — file skipped (fail-open)"
+                            );
+                            local_stats
+                                .skipped_files
+                                .push(((*arc_rel).clone(), "Invalid UTF-8 encoding".into()));
+                            return (local_stats, local_docs);
+                        };
+                        let language = engram_core::guess_language(p);
+                        *local_stats
+                            .languages
+                            .entry(language.to_string())
+                            .or_insert(0) += 1;
 
                         let ext_lower = p
                             .extension()
