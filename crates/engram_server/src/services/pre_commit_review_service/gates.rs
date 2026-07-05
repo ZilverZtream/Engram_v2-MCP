@@ -40,6 +40,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(SecretLeakageGate),
         Box::new(GuardParityGate),
         Box::new(UnwiredGate),
+        Box::new(ProductIntentGate),
     ]
 }
 
@@ -2191,6 +2192,168 @@ impl Gate for UnwiredGate {
     }
 }
 
+// ─── Gate 13: Product intent ────────────────────────────────────────────────
+//
+// Bind recorded product/domain knowledge to the diff. Projects that
+// ingest PO decisions, domain rules, or wiki knowledge into the
+// memory_bank namespace get those sections surfaced when a diff touches
+// the areas they describe — the reviewer sees "there IS a recorded
+// decision about this area" instead of having to remember to ask.
+// Purely opportunistic: no memory bank, no sections matching, or no
+// search runtime → zero findings, zero noise.
+
+pub struct ProductIntentGate;
+
+/// Words generic to every codebase layout — they'd match everything and
+/// mean nothing in a prose knowledge base.
+static PRODUCT_QUERY_STOPWORDS: &[&str] = &[
+    "app", "code", "site", "src", "js", "ts", "vb", "cs", "aspx", "ascx", "asmx", "sql", "resx",
+    "json", "xml", "www", "inc", "lib", "bin", "obj", "the", "and", "for", "new", "api", "web",
+];
+
+/// Split an identifier into lowercase words on case boundaries and
+/// non-alphanumeric separators: `ChangeRequestMarker` → change request
+/// marker; `api-broker` → api broker; `io_pr_iom` → io pr iom.
+pub(crate) fn split_identifier_words(ident: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut cur = String::new();
+    let mut prev_lower = false;
+    for ch in ident.chars() {
+        if !ch.is_alphanumeric() {
+            if !cur.is_empty() {
+                words.push(cur.to_lowercase());
+                cur.clear();
+            }
+            prev_lower = false;
+            continue;
+        }
+        if ch.is_uppercase() && prev_lower && !cur.is_empty() {
+            words.push(cur.to_lowercase());
+            cur.clear();
+        }
+        prev_lower = ch.is_lowercase() || ch.is_numeric();
+        cur.push(ch);
+    }
+    if !cur.is_empty() {
+        words.push(cur.to_lowercase());
+    }
+    words
+}
+
+/// Derive a prose-friendly query from the diff's touched areas: file
+/// stems and parent-directory names, identifier-split into words, minus
+/// layout stopwords. Word order follows diff order; capped at 30 words.
+pub(crate) fn product_intent_query(diff_files: &[DiffFile]) -> String {
+    let mut words: Vec<String> = Vec::new();
+    let mut seen: HashSet<String> = HashSet::new();
+    for df in diff_files {
+        if df.is_binary || is_test_path(&df.path) {
+            continue;
+        }
+        let p = df.path.replace('\\', "/");
+        let fname = p.rsplit('/').next().unwrap_or(&p);
+        let stem = fname.split('.').next().unwrap_or(fname);
+        let dir_leaf = p.rsplit('/').nth(1).unwrap_or("");
+        for part in [stem, dir_leaf] {
+            for w in split_identifier_words(part) {
+                if w.len() < 3
+                    || w.chars().all(|c| c.is_ascii_digit())
+                    || PRODUCT_QUERY_STOPWORDS.contains(&w.as_str())
+                    || !seen.insert(w.clone())
+                {
+                    continue;
+                }
+                words.push(w);
+                if words.len() >= 30 {
+                    return words.join(" ");
+                }
+            }
+        }
+    }
+    words.join(" ")
+}
+
+#[async_trait]
+impl Gate for ProductIntentGate {
+    fn name(&self) -> &'static str {
+        "product_intent"
+    }
+
+    async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let Some(ps) = ctx.state.get_project_cached(ctx.project_id) else {
+            return Ok(Vec::new());
+        };
+        let query = product_intent_query(ctx.diff_files);
+        if query.is_empty() {
+            return Ok(Vec::new());
+        }
+        let hq = HybridQuery {
+            project_id: ctx.project_id.to_string(),
+            namespace: "memory_bank".into(),
+            // GlobalMutable namespace — the search layer applies no
+            // generation filter; the value here is inert.
+            generation: ctx.generation,
+            text: query.clone(),
+            top_k: 5,
+            fts_mode: "loose".into(),
+            include_path_prefixes: None,
+            exclude_path_prefixes: None,
+            language_filters: None,
+            author_filter: None,
+            date_after: None,
+            date_before: None,
+            // Diversity: three notes about three different sections beat
+            // three near-duplicates of the strongest one.
+            use_mmr: true,
+        };
+        let cancel = CancellationToken::new();
+        let hits = ps
+            .search
+            .search(&hq, None, &cancel)
+            .await
+            .unwrap_or_default();
+
+        let mut findings = Vec::new();
+        for h in hits.into_iter().filter(|h| h.score > 0.4).take(3) {
+            let raw = h.path.as_str();
+            let section = raw.strip_prefix("memory_bank:").unwrap_or(raw).to_string();
+            // Engram-internal bookkeeping sections (index reports) are
+            // not product knowledge.
+            if section.starts_with("engram/") {
+                continue;
+            }
+            findings.push(
+                ReviewFinding::new(
+                    Severity::Info,
+                    "product_intent",
+                    section.clone(),
+                    format!("Recorded product/domain knowledge may apply: `{section}`"),
+                    format!(
+                        "The team knowledge base section `{section}` matches this diff's \
+                         touched areas (score {:.2}). It may record a product decision, \
+                         domain rule, or constraint this change must honor — read it \
+                         before merging.",
+                        h.score
+                    ),
+                    "Read the section and confirm the change matches the recorded \
+                     decision; if the decision is stale, update the memory bank instead \
+                     of silently diverging."
+                        .to_string(),
+                )
+                .with_evidence(vec![
+                    format!("score = {:.3}", h.score),
+                    format!("query = {query}"),
+                ])
+                .with_next_tool(format!(
+                    "read_memory_bank(project_id=\"{}\", section=\"{}\")",
+                    ctx.project_id, section
+                )),
+            );
+        }
+        Ok(findings)
+    }
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -2211,6 +2374,58 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn split_identifier_words_handles_camel_snake_and_kebab() {
+        assert_eq!(
+            split_identifier_words("ChangeRequestMarker"),
+            vec!["change", "request", "marker"]
+        );
+        assert_eq!(split_identifier_words("api-broker"), vec!["api", "broker"]);
+        assert_eq!(
+            split_identifier_words("io_pr_iom_log"),
+            vec!["io", "pr", "iom", "log"]
+        );
+        assert_eq!(
+            split_identifier_words("ioMarkerInfowindow"),
+            vec!["io", "marker", "infowindow"]
+        );
+    }
+
+    #[test]
+    fn product_intent_query_uses_stems_and_dirs_minus_stopwords() {
+        let diff = vec![
+            mk_df("Site/App_Code/ata/code/ChangeRequestMarker.vb", &[(1, "x")]),
+            mk_df(
+                "Site/modules/dashboard/ts/map/vsMap/iomarker/ioMarker.ts",
+                &[(1, "x")],
+            ),
+            mk_df("Site/tests/SomethingTest.vb", &[(1, "x")]),
+        ];
+        let q = product_intent_query(&diff);
+        assert!(
+            q.contains("change") && q.contains("request") && q.contains("marker"),
+            "domain words from stems must be present: {q}"
+        );
+        assert!(
+            q.contains("iomarker") || q.contains("marker"),
+            "directory leaf words included: {q}"
+        );
+        assert!(
+            !q.split_whitespace()
+                .any(|w| w == "code" || w == "app" || w == "vb"),
+            "layout stopwords excluded: {q}"
+        );
+        assert!(!q.contains("test"), "test files contribute nothing: {q}");
+    }
+
+    #[test]
+    fn product_intent_query_empty_for_empty_or_binary_diff() {
+        assert!(product_intent_query(&[]).is_empty());
+        let mut bin = mk_df("gfx/logo.png", &[]);
+        bin.is_binary = true;
+        assert!(product_intent_query(&[bin]).is_empty());
     }
 
     #[test]
