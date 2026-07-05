@@ -31,7 +31,8 @@ use serde::Serialize;
 
 use crate::services::blast_radius_service::compute_blast_radius;
 use crate::services::pre_commit_review_service::{
-    ChangeType, DiffFile, is_test_path, parse_unified_diff, resolve_diff_source,
+    ChangeType, DiffFile, is_test_path, parse_unified_diff, path_suffix_match, resolve_diff_source,
+    resolve_partner_to_current,
 };
 use crate::state::AppState;
 
@@ -249,8 +250,13 @@ pub async fn explain_change(
         detect_rule_alignments(state, project_id, generation, &diff_files, &repo_rules).await;
 
     // Stage 6: coupling notes.
-    let coupling_notes =
-        detect_coupling_notes(&state.graph, project_id, &diff_files, &changed_paths);
+    let coupling_notes = detect_coupling_notes(
+        &state.graph,
+        project_id,
+        project_dir,
+        &diff_files,
+        &changed_paths,
+    );
 
     // Stage 7: risk badge.
     let (risk_badge, risk_rationale) = compute_risk(&affected_files, &coupling_notes);
@@ -762,9 +768,21 @@ pub async fn detect_rule_alignments(
 pub fn detect_coupling_notes(
     graph: &GraphStore,
     project_id: &str,
+    project_dir: &Path,
     diff_files: &[DiffFile],
     changed_paths: &HashSet<String>,
 ) -> Vec<CouplingNote> {
+    // Current-tree file paths — used to re-anchor HISTORICAL partner
+    // spellings (pre-restructure paths in co-change history, e.g.
+    // `App_Code/x.vb` vs `Site/App_Code/x.vb`) to the spelling that
+    // actually exists today. Same rationale as `TemporalGate` in
+    // `pre_commit_review_service`.
+    let current_files: Vec<String> = graph
+        .query_nodes(project_id, Some("file"), None, None, 50_000)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|n| n.file_path.as_str().to_string())
+        .collect();
     let mut out: Vec<CouplingNote> = Vec::new();
     for f in diff_files {
         if matches!(f.change_type, ChangeType::Added | ChangeType::Deleted) {
@@ -774,6 +792,10 @@ pub fn detect_coupling_notes(
         let neighbors = graph
             .neighbors(project_id, EdgeKind::TemporalCoupling, &node_id, 10)
             .unwrap_or_default();
+        // Multiple historical spellings can resolve to the same current
+        // file — note each partner once per source file (neighbors are
+        // weight-sorted, so the strongest wins).
+        let mut noted: HashSet<String> = HashSet::new();
         for (partner_id, weight) in neighbors {
             // 50 is the "strong coupling" floor we use elsewhere in
             // the codebase — anything under that is background
@@ -781,11 +803,31 @@ pub fn detect_coupling_notes(
             if weight < 50 {
                 continue;
             }
-            let partner_path = partner_id
-                .strip_prefix("file:")
-                .unwrap_or(&partner_id)
-                .to_string();
-            if changed_paths.contains(&partner_path) {
+            let raw_partner = partner_id.strip_prefix("file:").unwrap_or(&partner_id);
+            // Suffix-aware membership: a historical spelling counts as
+            // "in the diff" when it component-suffix-matches any changed
+            // path — exact string equality misses restructured repos.
+            if changed_paths
+                .iter()
+                .any(|p| path_suffix_match(p, raw_partner))
+            {
+                continue;
+            }
+            // Never emit a partner path that doesn't exist in the current
+            // tree; when the historical spelling resolves to an existing
+            // file, emit the CURRENT spelling instead.
+            let Some(partner_path) =
+                resolve_partner_to_current(raw_partner, &current_files, project_dir)
+            else {
+                continue;
+            };
+            if changed_paths
+                .iter()
+                .any(|p| path_suffix_match(p, &partner_path))
+            {
+                continue;
+            }
+            if !noted.insert(partner_path.clone()) {
                 continue;
             }
             out.push(CouplingNote {
@@ -1479,6 +1521,87 @@ mod tests {
         let entry = render_changelog_entry(&narrative).expect("feat must emit entry");
         assert!(entry.contains("### Added"));
         assert!(entry.contains("**orders**"));
+    }
+
+    #[test]
+    fn coupling_notes_reanchor_historical_spellings_and_drop_gone_partners() {
+        // Co-change history stores pre-restructure spellings
+        // (`App_Code/x.vb` for today's `Site/App_Code/x.vb`). Exact-match
+        // membership used to double-report partners already in the diff
+        // and emit stale paths nothing on disk answers to — same defect
+        // class fixed in TemporalGate; this pins the ported behavior.
+        let tmp = tempfile::TempDir::new().expect("tempdir");
+        let store = GraphStore::open(&tmp.path().join("graph.redb")).expect("GraphStore::open");
+        let pid = "proj-couple";
+
+        let mk_file = |path: &str| engram_graph::Node {
+            node_id: format!("file:{path}"),
+            node_type: "file".to_string(),
+            name: path.rsplit('/').next().unwrap_or(path).to_string(),
+            namespace: "code".to_string(),
+            language: "vb".to_string(),
+            file_path: engram_core::RelPath::new(path),
+            start_line: 0,
+            end_line: 0,
+            generation: 1,
+            metadata: None,
+        };
+        store
+            .upsert_nodes(
+                pid,
+                &[
+                    mk_file("Site/App_Code/x.vb"),
+                    mk_file("Site/App_Code/x2.vb"),
+                    mk_file("Site/App_Code/partner.vb"),
+                ],
+            )
+            .expect("upsert_nodes");
+
+        let mk_edge = |target: &str, weight: u32| engram_graph::Edge {
+            source_id: "file:Site/App_Code/x.vb".to_string(),
+            target_id: format!("file:{target}"),
+            namespace: "code".to_string(),
+            language: "vb".to_string(),
+            edge_kind: EdgeKind::TemporalCoupling,
+            weight,
+            generation: 1,
+            metadata: None,
+            updated_at_ms: 1,
+        };
+        store
+            .upsert_edges(
+                pid,
+                &[
+                    // Deleted long ago: no current file node, nothing on disk.
+                    mk_edge("App_Code/gone.vb", 100),
+                    // Historical spelling of a file that IS in the diff.
+                    mk_edge("App_Code/x2.vb", 90),
+                    // Historical spelling of an existing partner not in the diff.
+                    mk_edge("App_Code/partner.vb", 80),
+                ],
+            )
+            .expect("upsert_edges");
+
+        let diff = vec![mk_diff(
+            ChangeType::Modified,
+            "Site/App_Code/x.vb",
+            &["Dim a = 1"],
+            &[],
+        )];
+        let changed: HashSet<String> = ["Site/App_Code/x.vb", "Site/App_Code/x2.vb"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let notes = detect_coupling_notes(&store, pid, tmp.path(), &diff, &changed);
+        let partners: Vec<&str> = notes.iter().map(|n| n.partner_file.as_str()).collect();
+        assert_eq!(
+            partners,
+            vec!["Site/App_Code/partner.vb"],
+            "gone partner dropped, in-diff historical spelling skipped, \
+             surviving partner re-anchored to its CURRENT spelling"
+        );
+        assert_eq!(notes[0].weight, 80);
     }
 
     #[test]
