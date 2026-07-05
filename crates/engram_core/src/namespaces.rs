@@ -63,8 +63,17 @@ pub fn get_policy(namespace: &str) -> Result<NamespacePolicy> {
             retention: NamespaceRetention::KeepLatestOnly,
         }),
         NAMESPACE_HISTORY => Ok(NamespacePolicy {
-            versioning: NamespaceVersioning::AppendOnly,
-            retention: NamespaceRetention::KeepLastGenerations(10),
+            // Merged-PR change units carry STABLE doc_ids (`pr:<id>`) and
+            // describe immutable history — they must not rot with the
+            // generation counter. The old AppendOnly +
+            // KeepLastGenerations(10) policy assumed generations bump only
+            // on full reindexes; incremental updates bump the counter per
+            // run, so any 10 routine updates (observed: 33 in one day)
+            // purged the whole corpus. GlobalMutable = indexed at gen 0,
+            // pk delete-then-add overwrite, no generation filter at query
+            // time, kept forever — same as memory_bank/business_logic.
+            versioning: NamespaceVersioning::GlobalMutable,
+            retention: NamespaceRetention::KeepForever,
         }),
         NAMESPACE_ANTIPATTERN => Ok(NamespacePolicy {
             versioning: NamespaceVersioning::AppendOnly,
