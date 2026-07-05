@@ -1259,6 +1259,19 @@ impl Gate for AntiPatternGate {
             {
                 continue;
             }
+            // Resource/markup text is not CODE — a resx label's words
+            // matching a VB file's prose produces confident-looking
+            // nonsense (live: label.resx "resembling" a properties.vb at
+            // 0.42 overlap). Only real code files query the antipattern
+            // index.
+            let lower_path = df.path.to_ascii_lowercase();
+            if lower_path.ends_with(".resx")
+                || lower_path.ends_with(".xml")
+                || lower_path.ends_with(".config")
+                || lower_path.ends_with(".css")
+            {
+                continue;
+            }
             let query = crate::utils::text::code_to_query(&df.added_content);
             // Run both namespace searches concurrently — same query,
             // two indexes (antipattern + wontfix_patterns). Suppression
@@ -1318,6 +1331,12 @@ impl Gate for AntiPatternGate {
             let query_text = crate::utils::text::code_to_query(&df.added_content);
             let mut relevant: Vec<(String, f32)> = Vec::new(); // (display path, overlap)
             for h in hits.into_iter().take(5) {
+                // Vendored/minified artifacts in the antipattern corpus
+                // (a revert that touched `*.min.js`) match everything —
+                // identifier soup, zero review value.
+                if h.path.as_str().to_ascii_lowercase().contains(".min.") {
+                    continue;
+                }
                 let content = ps
                     .search
                     .get_doc_by_pk(&h.pk)
@@ -2408,7 +2427,7 @@ impl Gate for ProductIntentGate {
         // OVERLAP against the actual section content instead: what
         // fraction of the diff-derived words the section text contains.
         let mut scored: Vec<(String, f32, Vec<String>, f32)> = Vec::new();
-        tracing::info!(
+        tracing::debug!(
             gate = "product_intent",
             hit_count = hits.len(),
             query = %query,
@@ -2435,7 +2454,7 @@ impl Gate for ProductIntentGate {
                 .unwrap_or_default();
             let (matched_n, total_n, matched) = query_overlap(&content, &query);
             let overlap = matched_n as f32 / total_n.max(1) as f32;
-            tracing::info!(
+            tracing::debug!(
                 gate = "product_intent",
                 section = %section,
                 content_len = content.len(),
