@@ -3164,6 +3164,18 @@ impl Engram {
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
+        // Input parity (arm-B run 3 vs 4: F1 22 -> 71 from this alone):
+        // merge the full work-item text into the story at the front door so
+        // EVERY downstream consumer — concept extraction, footprint
+        // searches, the temporal/thin-bug triggers, scaffold detection, and
+        // the rendered brief — sees what the developers actually received.
+        let mut req = req;
+        if let Some(wi) = req.work_item_text.take() {
+            let wi = wi.trim();
+            if !wi.is_empty() {
+                req.story = format!("{}\n\n## Work item (full text)\n{}", req.story.trim(), wi);
+            }
+        }
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ => extract_story_concepts(&req.story),
