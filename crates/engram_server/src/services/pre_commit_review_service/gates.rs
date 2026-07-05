@@ -42,6 +42,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(UnwiredGate),
         Box::new(ProductIntentGate),
         Box::new(SyncContractGate),
+        Box::new(CoAddedFamilyGate),
     ]
 }
 
@@ -2702,6 +2703,185 @@ impl Gate for ProductIntentGate {
 
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
+// ─── Gate 17: Co-added family companions ─────────────────────────────────────
+//
+// When a diff ADDS files into a directory family (e.g. a new api-v2
+// controller cohort), the merged-PR corpus knows what PRs that added
+// files there ALSO consistently touched — docs contracts
+// (copilot-instructions.md), permission/role files, registration
+// files. File-level co-change cannot carry this (probe 2026-07-05:
+// the family's own cohort files saturate the partner list), so this
+// gate mines the PR docs' "Files shipped together" lists directly.
+// Generic for any repo with an ingested merged-PR corpus.
+
+/// Parent-directory family key for an added file: the parent dir,
+/// lowercased, leading `site/` stripped (PR-corpus paths carry no
+/// Site/ prefix). None for files at depth < 2 (no meaningful family).
+pub(crate) fn family_key(path: &str) -> Option<String> {
+    let norm = path.replace('\\', "/").to_lowercase();
+    let norm = norm.strip_prefix("site/").unwrap_or(&norm);
+    let (parent, _) = norm.rsplit_once('/')?;
+    if !parent.contains('/') {
+        // Single-segment parents ("docs", "src") are too coarse to
+        // define a cohort family.
+        return None;
+    }
+    Some(parent.to_string())
+}
+
+/// Parse the file list out of a merged-PR corpus doc: `- path` lines
+/// under the "## Files shipped together" heading.
+pub(crate) fn parse_pr_doc_files(content: &str) -> Vec<String> {
+    let mut in_files = false;
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with("## ") {
+            in_files = t.starts_with("## Files shipped together");
+            continue;
+        }
+        if in_files && let Some(p) = t.strip_prefix("- ") {
+            let p = p.trim();
+            if !p.is_empty() && !p.starts_with("...") {
+                out.push(p.replace('\\', "/"));
+            }
+        }
+    }
+    out
+}
+
+pub struct CoAddedFamilyGate;
+
+#[async_trait]
+impl Gate for CoAddedFamilyGate {
+    fn name(&self) -> &'static str {
+        "co_added_family"
+    }
+
+    async fn run_async(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        use std::collections::{BTreeMap, BTreeSet};
+
+        // Only fires when the diff ADDS files — the companion contract
+        // is about introducing new cohort members, not editing old ones.
+        let mut families: BTreeSet<String> = BTreeSet::new();
+        for df in ctx.diff_files {
+            if matches!(df.change_type, ChangeType::Added)
+                && !df.is_binary
+                && let Some(fam) = family_key(&df.path)
+            {
+                families.insert(fam);
+            }
+        }
+        if families.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let Ok(ps) =
+            crate::services::project_service::ensure_project_runtime(ctx.state, ctx.project_id)
+                .await
+        else {
+            return Ok(Vec::new());
+        };
+
+        let mut findings = Vec::new();
+        for family in families.into_iter().take(3) {
+            // Lexical search over the PR corpus for docs referencing the
+            // family dir; loose mode tokenizes the path segments.
+            let hq = engram_index::hybrid::HybridQuery {
+                project_id: ctx.project_id.to_string(),
+                namespace: "history".into(),
+                // GlobalMutable namespace — no generation filter applies.
+                generation: ctx.generation,
+                text: family.replace(['/', '-', '_'], " "),
+                top_k: 20,
+                fts_mode: "loose".into(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let cancel = tokio_util::sync::CancellationToken::new();
+            let hits = ps
+                .search
+                .search(&hq, None, &cancel)
+                .await
+                .unwrap_or_default();
+
+            // Exemplars: PRs whose shipped-file list includes an ADD
+            // under this family dir.
+            let mut exemplar_count = 0usize;
+            let mut companion_counts: BTreeMap<String, usize> = BTreeMap::new();
+            for h in hits {
+                if !h.path.as_str().starts_with("pr:") {
+                    continue;
+                }
+                let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk) else {
+                    continue;
+                };
+                let files = parse_pr_doc_files(&content);
+                let in_family = files.iter().any(|f| f.to_lowercase().contains(&family));
+                if !in_family {
+                    continue;
+                }
+                exemplar_count += 1;
+                let mut seen_this_pr: BTreeSet<String> = BTreeSet::new();
+                for f in files {
+                    let fl = f.to_lowercase();
+                    if fl.contains(&family) {
+                        continue; // the cohort itself, not a companion
+                    }
+                    if seen_this_pr.insert(fl.clone()) {
+                        *companion_counts.entry(f).or_insert(0) += 1;
+                    }
+                }
+            }
+            if exemplar_count < 3 {
+                continue; // too little history to assert a contract
+            }
+
+            // Companions touched by >=60% of exemplar PRs and absent
+            // from THIS diff.
+            let mut missing: Vec<(String, usize)> = companion_counts
+                .into_iter()
+                .filter(|(_, n)| *n * 10 >= exemplar_count * 6)
+                .filter(|(p, _)| !ctx.changed_paths.iter().any(|c| path_suffix_match(c, p)))
+                .collect();
+            if missing.is_empty() {
+                continue;
+            }
+            missing.sort_by(|a, b| b.1.cmp(&a.1));
+            missing.truncate(5);
+            let list = missing
+                .iter()
+                .map(|(p, n)| format!("`{p}` ({n}/{exemplar_count} PRs)"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            findings.push(ReviewFinding::new(
+                Severity::Warning,
+                "co_added_family",
+                format!("{family}/"),
+                format!("PRs adding files under {family}/ historically also touch companion files"),
+                format!(
+                    "Of {exemplar_count} merged PRs that added files under `{family}/`, \
+                     most also touched: {list}. This diff adds files there but touches \
+                     none of these companions — docs contracts, permission entries, and \
+                     registrations ride along in this family's approved history."
+                ),
+                "Check each companion: update it if the contract applies (e.g. API docs \
+                 for a new endpoint), or note why it doesn't for this change."
+                    .to_string(),
+            ));
+            if findings.len() >= 2 {
+                break;
+            }
+        }
+        Ok(findings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2983,6 +3163,32 @@ mod tests {
             Some("ChangeRequestMarker"),
             "enclosing class must be captured so common names only get \
              suppressed by same-class graph nodes"
+        );
+    }
+
+    #[test]
+    fn family_key_strips_site_and_requires_depth() {
+        assert_eq!(
+            family_key("Site/App_Code/api-v2/Controllers/markerInspection/X.vb").as_deref(),
+            Some("app_code/api-v2/controllers/markerinspection")
+        );
+        assert_eq!(family_key("docs/readme.md"), None);
+        assert_eq!(family_key("X.vb"), None);
+    }
+
+    #[test]
+    fn parse_pr_doc_files_reads_shipped_list_only() {
+        let doc = "# PR-1: t\nmerged: x | files: 3\n\nbody - not a file\n\n\
+                   ## Files shipped together in this approved change\n\
+                   - App_Code/api-v2/WebApiConfig.vb\n\
+                   - .github/copilot-instructions.md\n\
+                   ... and 2 more\n\n## Other section\n- not/this.vb\n";
+        assert_eq!(
+            parse_pr_doc_files(doc),
+            vec![
+                "App_Code/api-v2/WebApiConfig.vb".to_string(),
+                ".github/copilot-instructions.md".to_string()
+            ]
         );
     }
 

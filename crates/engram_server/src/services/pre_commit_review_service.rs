@@ -2035,7 +2035,7 @@ pub async fn run_pre_commit_review(
     // Gates that perform hybrid search must run on the async runtime
     // (they await the search engine); everything else is sync and goes
     // to spawn_blocking for true parallelism.
-    const ASYNC_GATES: &[&str] = &["antipattern", "product_intent"];
+    const ASYNC_GATES: &[&str] = &["antipattern", "product_intent", "co_added_family"];
 
     for gate in gates::all_gates() {
         let name = gate.name();
