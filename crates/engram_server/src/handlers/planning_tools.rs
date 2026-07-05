@@ -1273,6 +1273,49 @@ pub(crate) fn is_settings_table_name(name: &str) -> bool {
         .any(|p| lower.contains(p))
 }
 
+/// Does the story ask for ANALYTICS OVER TIME (time-to-X, aging, trends,
+/// audit history)? Such stories need the domain entity's STATUS-CHANGE
+/// HISTORY — which lives in log/history tables the concept/co-change arms
+/// miss, because the story names the entity, not its log table.
+pub(crate) fn story_asks_analytics_over_time(story: &str) -> bool {
+    let s = story.to_lowercase();
+    [
+        "time to",
+        "aging",
+        "over time",
+        "history",
+        "audit",
+        "trend",
+        "duration",
+        "elapsed",
+        "performance of",
+        "completion",
+    ]
+    .iter()
+    .any(|t| s.contains(t))
+}
+
+/// Log/history/audit table-name shape (db_table node names are lowercase).
+/// The "log" check is boundary-guarded so catalog/dialog/login/blog/logistics
+/// don't match — the same false-positive class the token-boundary concept
+/// matching in this file exists to prevent.
+pub(crate) fn is_history_log_table_name(name: &str) -> bool {
+    let n = name.to_lowercase();
+    if n.contains("hist") || n.contains("audit") {
+        return true;
+    }
+    n.match_indices("log").any(|(i, _)| {
+        let pre = &n[..i];
+        let post = &n[i + 3..];
+        !(pre.ends_with("cata")
+            || pre.ends_with("dia")
+            || pre.ends_with('b')
+            || post.starts_with("in")
+            || post.starts_with("ist")
+            || post.starts_with("ic"))
+    })
+}
+
 /// Stopword filter for deterministic concept extraction from a user story.
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     const STOPWORDS: &[&str] = &[
@@ -1843,6 +1886,51 @@ mod guards_settings_tests {
         assert!(is_settings_table_name("UserOptions"));
         assert!(!is_settings_table_name("Orders"));
         assert!(!is_settings_table_name("Photos"));
+    }
+
+    #[test]
+    fn history_log_table_names_match_and_reject_lookalikes() {
+        for n in [
+            "io_pr_iom_log",
+            "order_status_history",
+            "audit_trail",
+            "pris_hist",
+            "event_log",
+            "log_entries",
+        ] {
+            assert!(is_history_log_table_name(n), "{n} should match");
+        }
+        for n in [
+            "catalog",
+            "dialog_settings",
+            "user_login",
+            "blog_posts",
+            "logistics",
+            "logic_rules",
+            "orders",
+        ] {
+            assert!(!is_history_log_table_name(n), "{n} should NOT match");
+        }
+    }
+
+    #[test]
+    fn analytics_over_time_intent_detects_temporal_asks_only() {
+        assert!(story_asks_analytics_over_time(
+            "Report on TIME TO completion for purchase orders"
+        ));
+        assert!(story_asks_analytics_over_time(
+            "Show order aging per customer"
+        ));
+        assert!(story_asks_analytics_over_time("visualize approval trends"));
+        assert!(story_asks_analytics_over_time(
+            "how long items stay in each status (duration)"
+        ));
+        assert!(!story_asks_analytics_over_time(
+            "Add a new field to the customer form"
+        ));
+        assert!(!story_asks_analytics_over_time(
+            "Rename the export button on the invoice page"
+        ));
     }
 
     #[test]
@@ -2520,6 +2608,7 @@ fn render_change_set(
     story: &str,
     concepts: &[String],
     prov: &BTreeMap<String, BTreeSet<&'static str>>,
+    temporal_section: Option<&str>,
 ) -> String {
     const LAYERS: &[(&str, &[&str])] = &[
         (
@@ -2571,6 +2660,11 @@ fn render_change_set(
          matches the story's concepts. [semantic]/[graph]: embedding or \
          dependency-graph association (weakest — verify before trusting).\n\n",
     );
+    // Temporal-analytics section renders BEFORE the checklist so the
+    // checklist's "log/history tables above" pointer is literally true.
+    if let Some(sec) = temporal_section {
+        s.push_str(sec);
+    }
     s.push_str(
         "## Completeness checklist - REQUIRED decision points\n\
          Treat EACH item below as a decision you must make and state \
@@ -2594,6 +2688,13 @@ fn render_change_set(
     );
     s.push_str("- Every schema / setting / column change: include the SQL migration.\n");
     s.push_str("- Every .ts that compiles into a committed bundle: update the bundle.\n");
+    if temporal_section.is_some() {
+        s.push_str(
+            "- Analytics-over-time ask (time-to-X/aging/history): check the domain \
+             entity's log/history tables above — computing durations needs the \
+             status-change history, and teams typically expose it.\n",
+        );
+    }
     s.push_str(
         "- Story changes DEFAULT behaviour (UI or otherwise)? Decide EXPLICITLY \
          whether this team's convention calls for a NEW SETTING to gate it - \
@@ -3062,7 +3163,139 @@ impl Engram {
             }
         }
 
-        let mut out = render_change_set(req.story.trim(), &concepts, &prov);
+        // Temporal-analytics expansion: a story asking for analytics OVER TIME
+        // ("time to approve", aging, trends) needs the domain entity's
+        // STATUS-CHANGE HISTORY — which lives in log/history tables the
+        // concept/co-change arms miss because the story names the entity, not
+        // its log table (a live A/B: the dossier missed the log table an
+        // approved PR queried for exactly this ask). Surface the graph's
+        // log/history/audit tables plus their accessor functions so the plan
+        // decides explicitly. Generic: name-shape scan, no per-repo names.
+        let temporal_section: Option<String> = if story_asks_analytics_over_time(&req.story) {
+            let graph = self.state.graph.clone();
+            let pid_t = req.project_id.clone();
+            let cand_files: Vec<String> = prov.keys().cloned().collect();
+            tokio::task::spawn_blocking(move || {
+                let tables = graph
+                    .query_nodes(
+                        &pid_t,
+                        Some("db_table"),
+                        None,
+                        None,
+                        crate::handlers::NODE_SCAN_LIMIT,
+                    )
+                    .unwrap_or_default();
+                let cand_norm: Vec<String> = cand_files
+                    .iter()
+                    .map(|f| f.replace('\\', "/").to_lowercase())
+                    .collect();
+                let cand_dirs: HashSet<String> = cand_norm
+                    .iter()
+                    .filter_map(|f| f.rfind('/').map(|i| f[..i].to_string()))
+                    .collect();
+                let cand_words: HashSet<String> = path_token_bag(&cand_norm)
+                    .into_iter()
+                    .filter(|t| t.starts_with("w:"))
+                    .collect();
+                // (related-to-candidates, accessor count, table, accessor rows)
+                let mut rows: Vec<(bool, usize, String, Vec<String>)> = Vec::new();
+                for t in tables.iter().filter(|t| is_history_log_table_name(&t.name)) {
+                    let incoming = graph
+                        .find_incoming_edges_with_kind(&pid_t, None, &t.node_id, 50)
+                        .unwrap_or_default();
+                    let mut accessors: Vec<String> = Vec::new();
+                    let mut related = false;
+                    let mut total = 0usize;
+                    for (src, _, _) in &incoming {
+                        let Ok(Some(f)) = graph.get_node(&pid_t, src) else {
+                            continue;
+                        };
+                        if f.node_type != "function" {
+                            continue;
+                        }
+                        total += 1;
+                        let fp = f.file_path.as_str().replace('\\', "/");
+                        let fpl = fp.to_lowercase();
+                        if !related {
+                            // "Related" = an accessor file shares a directory
+                            // prefix or a basename word with the ranked set.
+                            let dir_match = fpl
+                                .rfind('/')
+                                .map(|i| fpl[..i].to_string())
+                                .is_some_and(|d| {
+                                    cand_dirs
+                                        .iter()
+                                        .any(|c| c.starts_with(&d) || d.starts_with(c.as_str()))
+                                });
+                            let word_match = path_token_bag(std::slice::from_ref(&fpl))
+                                .iter()
+                                .any(|w| w.starts_with("w:") && cand_words.contains(w));
+                            related = dir_match || word_match;
+                        }
+                        if accessors.len() < 3 {
+                            accessors.push(format!("{} ({}:{})", f.name, fp, f.start_line));
+                        }
+                    }
+                    rows.push((related, total, t.name.clone(), accessors));
+                }
+                if rows.is_empty() {
+                    return None;
+                }
+                // Prefer tables whose accessors overlap the ranked candidates;
+                // when NONE overlap, show all matches with a note rather than
+                // guess (the overlap heuristic is a ranking aid, not an oracle).
+                let any_related = rows.iter().any(|(r, ..)| *r);
+                if any_related {
+                    rows.retain(|(r, ..)| *r);
+                }
+                rows.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.2.cmp(&b.2)));
+                let mut s = String::from(
+                    "## History/log tables (analytics-over-time signal)\n\
+                     This story asks for analytics OVER TIME (time-to-X / aging / \
+                     history). Computing a duration needs the STATUS-CHANGE \
+                     HISTORY, and this codebase keeps it in tables like these — \
+                     decide explicitly which one holds this story's domain entity:\n",
+                );
+                if !any_related {
+                    s.push_str(
+                        "(no accessor file overlaps the ranked candidates — showing \
+                         all log/history tables in the graph; verify domain \
+                         relevance)\n",
+                    );
+                }
+                for (_, total, name, accessors) in rows.iter().take(8) {
+                    if accessors.is_empty() {
+                        s.push_str(&format!(
+                            "- `{name}` (no accessor functions in the graph)\n"
+                        ));
+                    } else {
+                        s.push_str(&format!(
+                            "- `{name}` — accessed by: {}{}\n",
+                            accessors.join(", "),
+                            if *total > accessors.len() {
+                                format!(" (+{} more)", total - accessors.len())
+                            } else {
+                                String::new()
+                            }
+                        ));
+                    }
+                }
+                s.push('\n');
+                Some(s)
+            })
+            .await
+            .ok()
+            .flatten()
+        } else {
+            None
+        };
+
+        let mut out = render_change_set(
+            req.story.trim(),
+            &concepts,
+            &prov,
+            temporal_section.as_deref(),
+        );
 
         // Scaffold template: when the story ADDS a new API/structural feature,
         // surface the codebase's existing feature COHORT as a template to mirror.
