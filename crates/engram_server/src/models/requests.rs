@@ -1189,6 +1189,10 @@ pub struct ImpactAnalysisRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetTableSchemaRequest {
     pub project_id: String,
+    // Agents routinely pass the generic `name`/`table`; accept them so a
+    // wrong guess doesn't hard-fail under deny_unknown_fields (knowledge-
+    // pack friction 2026-07-06).
+    #[serde(alias = "name", alias = "table")]
     pub table_name: String,
 }
 
@@ -2501,6 +2505,7 @@ pub struct AnalyzeDatabaseIntelligenceRequest {
 pub struct GetSpDetailsRequest {
     pub project_id: String,
     /// Name of the stored procedure.
+    #[serde(alias = "name", alias = "sp")]
     pub sp_name: String,
     /// If true, re-analyze even if cached. Default: false.
     #[serde(default)]
@@ -2712,6 +2717,7 @@ pub struct GetMethodEditContextRequest {
     /// Relative path to the code file containing the method.
     pub file_path: String,
     /// Method name to analyze.
+    #[serde(alias = "name", alias = "method")]
     pub method_name: String,
     /// Class name (optional, for disambiguation).
     #[serde(default)]
@@ -2777,6 +2783,7 @@ pub struct PrepareImplementationContextRequest {
     /// The file containing the method to be modified.
     pub file_path: String,
     /// The method name to prepare context for.
+    #[serde(alias = "name", alias = "method")]
     pub method_name: String,
     /// Optional class name for disambiguation.
     #[serde(default)]
@@ -2879,6 +2886,7 @@ pub struct ValidateSqlFragmentRequest {
 pub struct FindTestsForMethodRequest {
     pub project_id: String,
     /// Fully qualified method name or partial name.
+    #[serde(alias = "name", alias = "method")]
     pub method_name: String,
     /// Optional: specific file to narrow the search.
     #[serde(default)]
@@ -2922,6 +2930,7 @@ pub struct CheckEditSafetyRequest {
     /// Relative path to the file containing the method.
     pub file_path: String,
     /// Method name.
+    #[serde(alias = "name", alias = "method")]
     pub method_name: String,
     /// Optional class name for disambiguation.
     #[serde(default)]
