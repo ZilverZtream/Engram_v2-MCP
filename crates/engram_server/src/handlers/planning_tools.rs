@@ -3761,12 +3761,43 @@ impl Engram {
                     .into_iter()
                     .filter(|t| t.starts_with("w:"))
                     .collect();
+                // Name -> node_id, for the LINQ plural fallback below.
+                let tbl_ids: HashMap<String, String> = tables
+                    .iter()
+                    .map(|t| (t.name.to_lowercase(), t.node_id.clone()))
+                    .collect();
                 // (related-to-candidates, accessor count, table, accessor rows)
                 let mut rows: Vec<(bool, usize, String, Vec<String>)> = Vec::new();
                 for t in tables.iter().filter(|t| is_history_log_table_name(&t.name)) {
-                    let incoming = graph
+                    let mut incoming = graph
                         .find_incoming_edges_with_kind(&pid_t, None, &t.node_id, 50)
                         .unwrap_or_default();
+                    // LINQ-to-SQL split: code reads via the DataContext's
+                    // Table(Of X) property, which is conventionally the PLURAL
+                    // (io_pr_iom_logs) while the db_table node is the singular
+                    // DDL name (io_pr_iom_log) — so the singular schema node
+                    // has 0 accessors while a separate code-only plural node
+                    // holds them (confirmed live 2026-07-06). When empty,
+                    // union the plural variant's incoming edges. Generic
+                    // English-plural shapes, no per-repo names.
+                    if incoming.is_empty() {
+                        let base = t.name.to_lowercase();
+                        let mut cands = vec![format!("{base}s"), format!("{base}es")];
+                        if let Some(stem) = base.strip_suffix('y') {
+                            cands.push(format!("{stem}ies"));
+                        }
+                        for c in cands {
+                            if let Some(nid) = tbl_ids.get(&c) {
+                                let extra = graph
+                                    .find_incoming_edges_with_kind(&pid_t, None, nid, 50)
+                                    .unwrap_or_default();
+                                if !extra.is_empty() {
+                                    incoming = extra;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     let mut accessors: Vec<String> = Vec::new();
                     let mut related = false;
                     let mut total = 0usize;
