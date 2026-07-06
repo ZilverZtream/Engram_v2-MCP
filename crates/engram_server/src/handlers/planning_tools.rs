@@ -2695,6 +2695,24 @@ fn sibling_pair_tier(a: &str, b: &str) -> u8 {
     }
 }
 
+/// Relevance tier of an already-formed symmetric pair (two full names),
+/// for cross-file ranking in the sibling section. Splits both, finds the
+/// single differing token, and tiers it (see sibling_pair_tier). Falls
+/// back to tier 1 when the names aren't cleanly one token apart.
+pub(crate) fn symmetric_pair_tier(a: &str, b: &str) -> u8 {
+    let ta = split_symmetric_name_tokens(a);
+    let tb = split_symmetric_name_tokens(b);
+    if ta.len() != tb.len() {
+        return 1;
+    }
+    let diffs: Vec<(&String, &String)> = ta.iter().zip(tb.iter()).filter(|(x, y)| x != y).collect();
+    if diffs.len() == 1 {
+        sibling_pair_tier(diffs[0].0, diffs[0].1)
+    } else {
+        1
+    }
+}
+
 pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)> {
     const MAX_PAIRS: usize = 6;
     let mut seen: HashSet<&str> = HashSet::new();
@@ -2828,6 +2846,25 @@ mod symmetric_sibling_tests {
             pairs,
             vec![("btn_from_date".to_string(), "btn_to_date".to_string())]
         );
+    }
+
+    #[test]
+    fn symmetric_pair_tier_classifies_full_names() {
+        use super::symmetric_pair_tier;
+        // Toggle/directional antonyms → tier 2.
+        assert_eq!(
+            symmetric_pair_tier("ToggleFilterMainContractor", "ToggleFilterSubContractor"),
+            2
+        );
+        assert_eq!(
+            symmetric_pair_tier("ShowBillingPanel", "HideBillingPanel"),
+            2
+        );
+        // CRUD/lifecycle → tier 0.
+        assert_eq!(symmetric_pair_tier("svcAddRow", "svcClearRow"), 0);
+        assert_eq!(symmetric_pair_tier("Commit", "Dispose"), 0);
+        // Neutral → tier 1.
+        assert_eq!(symmetric_pair_tier("CompanyName", "CustomerName"), 1);
     }
 
     #[test]
@@ -3836,11 +3873,14 @@ impl Engram {
             tokio::task::spawn_blocking(move || {
                 const MAX_ROWS: usize = 12;
                 let mut seen_pairs: HashSet<(String, String)> = HashSet::new();
+                // Collect ALL pairs across ALL candidate files FIRST, then
+                // rank by relevance tier and truncate — a lifecycle-only
+                // file that ranks above the toggle-rich one must NOT eat the
+                // whole budget in file order (live: PR1933 dossier put
+                // CustomerInvoiceImporter Add/Clear/Commit noise above the
+                // Show/Hide/Toggle Main/Sub pairs the story needed).
                 let mut rows: Vec<(String, String, String)> = Vec::new();
                 for f in &top_files {
-                    if rows.len() >= MAX_ROWS {
-                        break;
-                    }
                     let mut names: Vec<String> = Vec::new();
                     for nt in ["control", "function"] {
                         for n in graph
@@ -3851,9 +3891,6 @@ impl Engram {
                         }
                     }
                     for (a, b) in symmetric_sibling_pairs(&names) {
-                        if rows.len() >= MAX_ROWS {
-                            break;
-                        }
                         // Two prov spellings of one file (web-root prefix
                         // variants; a page's markup vs code-behind matching
                         // the same nodes via the substring path filter) must
@@ -3866,6 +3903,11 @@ impl Engram {
                 if rows.is_empty() {
                     return None;
                 }
+                // Tier desc across files; stable within a tier.
+                rows.sort_by(|x, y| {
+                    symmetric_pair_tier(&y.1, &y.2).cmp(&symmetric_pair_tier(&x.1, &x.2))
+                });
+                rows.truncate(MAX_ROWS);
                 let mut s = String::from(
                     "## Symmetric sibling controls/handlers\n\
                      These controls/handlers in the candidate files come in \
