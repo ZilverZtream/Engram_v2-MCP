@@ -365,25 +365,7 @@ pub fn grep(
 
     // ── Step 2: execute tier ──
     let (matches, chunks_scanned, files_scanned) = match tier {
-        GrepTier::TermIndex => {
-            let r = execute_term_index(engine, docstore, q, case_sensitive)?;
-            // camelCase-concat miss: the trigram index tokenizes content on
-            // camelCase boundaries (`CheckWrite` → [check, write]), so a
-            // concatenated all-lowercase query (`checkwrite`) lacks the
-            // cross-token trigrams and the index returns 0 — even though a
-            // case-insensitive scan matches. Fall back to a full scan for
-            // this precise shape (verified live 2026-07-06: lowercase
-            // identifier queries silently returned 0 on camelCase code).
-            if r.0.is_empty()
-                && !case_sensitive
-                && q.pattern.len() >= MIN_TRIGRAM_LEN
-                && q.pattern.chars().all(|c| c.is_ascii_alphanumeric())
-            {
-                execute_full_scan(docstore, q, case_sensitive)?
-            } else {
-                r
-            }
-        }
+        GrepTier::TermIndex => execute_term_index(engine, docstore, q, case_sensitive)?,
         GrepTier::TermNarrowed => execute_term_narrowed(engine, docstore, q, case_sensitive)?,
         GrepTier::FullScan => execute_full_scan(docstore, q, case_sensitive)?,
     };
