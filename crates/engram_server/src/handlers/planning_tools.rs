@@ -2647,6 +2647,54 @@ pub(crate) fn split_symmetric_name_tokens(name: &str) -> Vec<String> {
 /// other family past the cap (the live PR1933 miss: Hide/Show chains starved
 /// the ddl…Main/Sub handler pair the story was actually about). Dedupes
 /// (a,b)/(b,a); capped at 6 pairs.
+/// Relevance tier of a symmetric pair from its ONE differing token pair.
+/// 2 = a real MUTUAL-EXCLUSION / directional antonym (Main/Sub, Show/Hide,
+/// Enable/Disable, Left/Right, …) — the toggle a story like "show X when
+/// Y is selected" actually needs; 0 = a CRUD/LIFECYCLE antonym (Add/Clear,
+/// Commit/Dispose, Load/Save) that name-symmetry catches but that is rarely
+/// the story's twin-decision; 1 = everything else (Company/Customer,
+/// Period/Project). Keeps the high-signal toggle pairs above the lifecycle
+/// noise the flat first-N order used to mix in (live: PR1933 dossier).
+fn sibling_pair_tier(a: &str, b: &str) -> u8 {
+    const TOGGLE: &[&str] = &[
+        "main", "sub", "show", "hide", "enable", "disable", "left", "right", "from", "to", "start",
+        "end", "open", "close", "prev", "previous", "next", "expand", "collapse", "on", "off",
+        "min", "max", "up", "down", "first", "last", "in", "out", "single", "multi", "line",
+        "polygon", "point", "checkin", "checkout", "before", "after", "include", "exclude", "asc",
+        "desc",
+    ];
+    const LIFECYCLE: &[&str] = &[
+        "add",
+        "remove",
+        "clear",
+        "delete",
+        "insert",
+        "create",
+        "commit",
+        "dispose",
+        "load",
+        "save",
+        "attach",
+        "detach",
+        "init",
+        "destroy",
+        "connect",
+        "disconnect",
+        "copy",
+        "move",
+        "import",
+        "export",
+    ];
+    let (a, b) = (a.to_lowercase(), b.to_lowercase());
+    if TOGGLE.contains(&a.as_str()) && TOGGLE.contains(&b.as_str()) {
+        2
+    } else if LIFECYCLE.contains(&a.as_str()) || LIFECYCLE.contains(&b.as_str()) {
+        0
+    } else {
+        1
+    }
+}
+
 pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)> {
     const MAX_PAIRS: usize = 6;
     let mut seen: HashSet<&str> = HashSet::new();
@@ -2656,13 +2704,11 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
         .map(|n| split_symmetric_name_tokens(n))
         .collect();
     let mut used = vec![false; uniq.len()];
-    let mut out: Vec<(String, String)> = Vec::new();
+    // Collect ALL pairs with their relevance tier, then sort so the
+    // toggle/directional pairs win the MAX_PAIRS budget over lifecycle
+    // noise (was: first-N in name order, which mixed them).
+    let mut scored: Vec<(u8, usize, String, String)> = Vec::new();
     for i in 0..uniq.len() {
-        if out.len() >= MAX_PAIRS {
-            break;
-        }
-        // Equal length + exactly one differing position => shared = len-1,
-        // so "share >= 2 tokens" is equivalent to len >= 3.
         if used[i] || toks[i].len() < 3 {
             continue;
         }
@@ -2670,20 +2716,28 @@ pub(crate) fn symmetric_sibling_pairs(names: &[String]) -> Vec<(String, String)>
             if used[j] || toks[i].len() != toks[j].len() {
                 continue;
             }
-            let diff = toks[i]
+            let diffs: Vec<(&String, &String)> = toks[i]
                 .iter()
                 .zip(toks[j].iter())
                 .filter(|(a, b)| a != b)
-                .count();
-            if diff == 1 {
-                out.push((uniq[i].clone(), uniq[j].clone()));
+                .collect();
+            if diffs.len() == 1 {
+                let (da, db) = diffs[0];
+                let tier = sibling_pair_tier(da, db);
+                scored.push((tier, i, uniq[i].clone(), uniq[j].clone()));
                 used[i] = true;
                 used[j] = true;
                 break;
             }
         }
     }
-    out
+    // Tier desc; within a tier preserve discovery order (stable by index).
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+    scored
+        .into_iter()
+        .take(MAX_PAIRS)
+        .map(|(_, _, a, b)| (a, b))
+        .collect()
 }
 
 /// Top provisional files by corroboration tier that can actually CONTAIN
@@ -2774,6 +2828,41 @@ mod symmetric_sibling_tests {
             pairs,
             vec![("btn_from_date".to_string(), "btn_to_date".to_string())]
         );
+    }
+
+    #[test]
+    fn toggle_pairs_outrank_lifecycle_under_the_cap() {
+        // 7 pairs, cap is 6: the lifecycle Add/Clear pair must be the one
+        // dropped, and Main/Sub + Show/Hide must lead (PR1933 relevance).
+        let mut input: Vec<&str> = Vec::new();
+        // 6 lifecycle pairs (tier 0) declared FIRST so name-order would
+        // have kept them under the old first-N logic.
+        for (a, b) in [
+            ("svcAddRow", "svcClearRow"),
+            ("svcCommitTx", "svcDisposeTx"),
+            ("svcLoadState", "svcSaveState"),
+            ("svcAttachItem", "svcDetachItem"),
+            ("svcImportData", "svcExportData"),
+            ("svcConnectDb", "svcDisconnectDb"),
+        ] {
+            input.push(a);
+            input.push(b);
+        }
+        // 2 toggle pairs (tier 2) declared LAST.
+        input.extend(["ToggleFilterMainContractor", "ToggleFilterSubContractor"]);
+        input.extend(["ShowBillingPanel", "HideBillingPanel"]);
+        let pairs = symmetric_sibling_pairs(&names(&input));
+        assert_eq!(pairs.len(), 6);
+        let flat: Vec<String> = pairs
+            .iter()
+            .flat_map(|(a, b)| [a.clone(), b.clone()])
+            .collect();
+        // Both toggle pairs survive the cap...
+        assert!(flat.iter().any(|n| n.contains("MainContractor")));
+        assert!(flat.iter().any(|n| n.contains("ShowBillingPanel")));
+        // ...and they lead (first two emitted pairs are the tier-2 toggles).
+        assert!(pairs[0].0.contains("Main") || pairs[0].0.contains("Show"));
+        assert!(pairs[1].0.contains("Main") || pairs[1].0.contains("Show"));
     }
 
     #[test]
