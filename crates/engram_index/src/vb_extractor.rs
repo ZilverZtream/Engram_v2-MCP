@@ -72,8 +72,15 @@ static RE_VB_SETTINGS_STORE: LazyLock<Regex> = LazyLock::new(|| {
 // Permission checks by call-name shape (IsInRole, IsUserInRole, IsXxxAdmin,
 // CheckAccessLevel, HasPermission, RequireRole, DemandAdmin, Authorize...).
 static RE_VB_GUARD_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    // `check(read|write)` = the CheckRead/CheckWrite(permissionObject)
+    // idiom, and `check_<entity>id` = the Check_pr_id/Check_rv_id
+    // project-access-scoping family — both are the DOMINANT guard style
+    // in DAO-delegated codebases, and both were invisible to the old
+    // pattern (it demanded a literal access/permission/role substring,
+    // so guard-map tools reported provably-guarded methods as UNGUARDED
+    // — knowledge-pack harvest 2026-07-06, corroborated across domains).
     Regex::new(
-        r"(?i)\b(is[a-z0-9_]*admin[a-z0-9_]*|isinrole|isuserinrole|is[a-z0-9_]*role|check[a-z0-9_]*(access|permission|role)[a-z0-9_]*|has[a-z0-9_]*(permission|access|role)[a-z0-9_]*|require[a-z0-9_]*(role|permission|admin)[a-z0-9_]*|demand[a-z0-9_]*|authorize[a-z0-9_]*)\s*\(",
+        r"(?i)\b(is[a-z0-9_]*admin[a-z0-9_]*|isinrole|isuserinrole|is[a-z0-9_]*role|check[a-z0-9_]*(access|permission|role)[a-z0-9_]*|check(?:read|write)[a-z0-9_]*|check_[a-z0-9_]*id|has[a-z0-9_]*(permission|access|role)[a-z0-9_]*|require[a-z0-9_]*(role|permission|admin)[a-z0-9_]*|demand[a-z0-9_]*|authorize[a-z0-9_]*)\s*\(",
     )
     .expect("valid VB guard regex")
 });
@@ -1413,6 +1420,23 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, &'static str)> {
 mod tests {
     use super::extract_vb;
     use std::path::Path;
+
+    #[test]
+    fn guard_regex_matches_checkreadwrite_and_project_access_families() {
+        let re = &*super::RE_VB_GUARD_CALL;
+        // Previously MISSED (no access/permission/role substring) — the
+        // guard-map DAO-delegation blind spot.
+        assert!(re.is_match("If _us.UserAccess.CheckWrite(obj) Then"));
+        assert!(re.is_match("If _us.UserAccess.CheckRead(obj) Then"));
+        assert!(re.is_match("_us.accessctrl.Check_pr_id(project_id)"));
+        assert!(re.is_match("_us.accessctrl.Check_rv_id(rv_id)"));
+        // Still matched via the existing "access" alternative.
+        assert!(re.is_match("check_fiberaccessbyid(x)"));
+        assert!(re.is_match("If IsUserInRole(\"Admin\") Then"));
+        // Must NOT match ordinary calls.
+        assert!(!re.is_match("Dim n = GetCount(list)"));
+        assert!(!re.is_match("results.CheckSum(data)"));
+    }
 
     #[test]
     fn settings_store_property_reads_emit_reads_setting_edges() {
