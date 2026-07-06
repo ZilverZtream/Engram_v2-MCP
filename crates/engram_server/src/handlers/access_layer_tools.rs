@@ -779,6 +779,32 @@ fn build_method_info_from_node(
     }
 }
 
+/// Table names referenced by FROM/JOIN/INTO/UPDATE/DELETE in a SQL
+/// fragment, deduped, original case preserved. Consumes an optional
+/// `[schema].`/`db.schema.` qualifier so the returned name is the TABLE,
+/// not `dbo` — the codebase's universal `[dbo].[table]` bracket style
+/// previously yielded the schema and false unknown_table warnings.
+/// One source of truth for both validate_sql_fragment and
+/// validate_generated_code.
+pub(crate) fn referenced_sql_tables(sql: &str) -> Vec<String> {
+    use std::sync::LazyLock;
+    static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(
+            r"(?i)\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|INSERT\s+INTO)\s+(?:\[?\w+\]?\.){0,2}\[?(\w+)\]?",
+        )
+        .expect("valid table-ref regex")
+    });
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for cap in RE.captures_iter(sql) {
+        let t = cap[1].to_string();
+        if seen.insert(t.to_lowercase()) {
+            out.push(t);
+        }
+    }
+    out
+}
+
 /// Rough cyclomatic-complexity estimate: 1 + decision points, via a
 /// language-agnostic keyword scan (VB/C#/TS/JS). Comment lines skipped.
 /// Good enough for the green/yellow/red edit-safety thresholds that
@@ -3280,19 +3306,14 @@ impl Engram {
                     graph_tables.iter().map(|n| n.name.to_lowercase()).collect()
                 };
 
-                // Simple heuristic: look for FROM/JOIN/INTO/UPDATE table_name patterns
-                let table_ref_re = regex::Regex::new(
-                    r"(?i)\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+\[?(\w+)\]?",
-                )
-                .ok();
-                if let Some(re) = table_ref_re {
-                    for cap in re.captures_iter(&code) {
-                        let tbl = cap[1].to_lowercase();
-                        if !known_tables.contains(&tbl)
-                            && !expected_tables.iter().any(|t| t.to_lowercase() == tbl)
-                        {
-                            unknown_tables.push(cap[1].to_string());
-                        }
+                // Table refs (schema-qualifier aware — see
+                // referenced_sql_tables).
+                for tbl_orig in referenced_sql_tables(&code) {
+                    let tbl = tbl_orig.to_lowercase();
+                    if !known_tables.contains(&tbl)
+                        && !expected_tables.iter().any(|t| t.to_lowercase() == tbl)
+                    {
+                        unknown_tables.push(tbl_orig);
                     }
                 }
 
@@ -3655,21 +3676,9 @@ impl Engram {
             let mut issues: Vec<SqlValidationIssue> = Vec::new();
             let sql_lower = sql.to_lowercase();
 
-            // 1. Extract table names referenced in SQL
-            let table_ref_re = regex::Regex::new(
-                r"(?i)\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|INSERT\s+INTO)\s+\[?(\w+)\]?",
-            )
-            .ok();
-            let referenced_tables: Vec<String> = table_ref_re
-                .as_ref()
-                .map(|re| {
-                    re.captures_iter(&sql)
-                        .map(|c| c[1].to_string())
-                        .collect::<HashSet<_>>()
-                        .into_iter()
-                        .collect()
-                })
-                .unwrap_or_default();
+            // 1. Extract table names referenced in SQL (schema-qualifier
+            // aware — see referenced_sql_tables).
+            let referenced_tables: Vec<String> = referenced_sql_tables(&sql);
 
             // 2. Check table existence in the graph
             let known_tables: HashSet<String> = graph
@@ -4276,6 +4285,36 @@ impl Engram {
         out.push_str(&md);
         out.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+#[cfg(test)]
+mod referenced_sql_tables_tests {
+    use super::referenced_sql_tables;
+
+    #[test]
+    fn schema_qualified_names_yield_the_table_not_the_schema() {
+        assert_eq!(
+            referenced_sql_tables("SELECT * FROM [dbo].[io_pr_iom]"),
+            vec!["io_pr_iom"]
+        );
+        assert_eq!(
+            referenced_sql_tables("SELECT * FROM dbo.projekt p"),
+            vec!["projekt"]
+        );
+        assert_eq!(
+            referenced_sql_tables("UPDATE [mydb].[dbo].[resurs] SET x = 1"),
+            vec!["resurs"]
+        );
+        assert_eq!(
+            referenced_sql_tables("SELECT * FROM planner_ak_aktiviteter"),
+            vec!["planner_ak_aktiviteter"]
+        );
+        // JOIN + dedup + qualifier mix.
+        let t = referenced_sql_tables(
+            "SELECT * FROM [dbo].[a] JOIN b ON a.id=b.id JOIN [dbo].[a] c ON 1=1",
+        );
+        assert_eq!(t, vec!["a", "b"]);
     }
 }
 
