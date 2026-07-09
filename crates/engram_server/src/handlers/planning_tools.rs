@@ -3312,7 +3312,15 @@ impl Engram {
             let coords = tokio::task::spawn_blocking(move || {
                 let org = reg.get_meta(&pid, "ado_org").ok().flatten();
                 let project = reg.get_meta(&pid, "ado_project").ok().flatten();
-                org.zip(project)
+                org.zip(project).or_else(|| {
+                    // Zero-config fallback: an Azure DevOps remote URL
+                    // already names the org/project, so the auto-fetch
+                    // works on any ADO-backed repo even when no
+                    // refresh_corpora stage-4 run ever persisted coords.
+                    let dir = reg.get_project(&pid).ok().flatten()?.directory;
+                    let url = git_remote_origin_url(std::path::Path::new(&dir))?;
+                    ado_coords_from_remote_url(&url)
+                })
             })
             .await
             .ok()
@@ -4874,6 +4882,87 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
+/// Azure DevOps (org, project) from a git remote URL. Handles the three
+/// remote shapes ADO issues: modern HTTPS (`https://[user@]dev.azure.com/
+/// {org}/{project}/_git/{repo}`), SSH (`git@ssh.dev.azure.com:v3/{org}/
+/// {project}/{repo}`), and legacy (`https://{org}.visualstudio.com/
+/// [DefaultCollection/]{project}/_git/{repo}`). Non-ADO remotes → None.
+pub(crate) fn ado_coords_from_remote_url(url: &str) -> Option<(String, String)> {
+    let url = url.trim().trim_end_matches('/').trim_end_matches(".git");
+    // SSH first — its host also contains "dev.azure.com" but with ':' not '/'.
+    if let Some(rest) = url.split("ssh.dev.azure.com:v3/").nth(1) {
+        let mut seg = rest.split('/');
+        let (org, project, repo) = (seg.next()?, seg.next()?, seg.next()?);
+        if !org.is_empty() && !project.is_empty() && !repo.is_empty() {
+            return Some((org.to_string(), project.to_string()));
+        }
+        return None;
+    }
+    if let Some(rest) = url.split("dev.azure.com/").nth(1) {
+        let mut seg = rest.split('/');
+        let (org, project) = (seg.next()?, seg.next()?);
+        if !org.is_empty() && !project.is_empty() && seg.next() == Some("_git") {
+            return Some((org.to_string(), project.to_string()));
+        }
+        return None;
+    }
+    if let Some((host, rest)) = url.strip_prefix("https://").and_then(|u| u.split_once('/'))
+        && let Some(org) = host.strip_suffix(".visualstudio.com")
+    {
+        let mut seg = rest.split('/');
+        let mut project = seg.next()?;
+        if project == "DefaultCollection" {
+            project = seg.next()?;
+        }
+        if !org.is_empty() && !project.is_empty() && seg.next() == Some("_git") {
+            return Some((org.to_string(), project.to_string()));
+        }
+    }
+    None
+}
+
+/// `remote.origin.url` read straight from `.git/config` (no subprocess).
+/// Follows a `.git` POINTER FILE (worktrees/submodules: "gitdir: <path>"),
+/// where the shared config sits two levels above the per-worktree gitdir.
+pub(crate) fn git_remote_origin_url(root: &std::path::Path) -> Option<String> {
+    let dot_git = root.join(".git");
+    let config_path = if dot_git.is_file() {
+        let content = std::fs::read_to_string(&dot_git).ok()?;
+        let gitdir = content.strip_prefix("gitdir:")?.trim();
+        let gitdir = if std::path::Path::new(gitdir).is_absolute() {
+            std::path::PathBuf::from(gitdir)
+        } else {
+            root.join(gitdir)
+        };
+        let local = gitdir.join("config");
+        if local.exists() {
+            local
+        } else {
+            gitdir.parent()?.parent()?.join("config")
+        }
+    } else {
+        dot_git.join("config")
+    };
+    parse_origin_url(&std::fs::read_to_string(config_path).ok()?)
+}
+
+/// Minimal .git/config scan: the first `url =` inside `[remote "origin"]`.
+pub(crate) fn parse_origin_url(cfg: &str) -> Option<String> {
+    let mut in_origin = false;
+    for line in cfg.lines() {
+        let t = line.trim();
+        if t.starts_with('[') {
+            in_origin = t.eq_ignore_ascii_case(r#"[remote "origin"]"#);
+        } else if in_origin
+            && let Some(v) = t.strip_prefix("url")
+            && let Some(v) = v.trim_start().strip_prefix('=')
+        {
+            return Some(v.trim().to_string());
+        }
+    }
+    None
+}
+
 /// PAT source for the work-item auto-fetch: per-call wins, else the
 /// server's own `ADO_PAT` env var (the daemon's deployment environment —
 /// the same convention the ADO eval/corpora scripts use). Nothing is
@@ -5013,7 +5102,59 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
 
 #[cfg(test)]
 mod work_item_tests {
-    use super::{base64_encode, extract_work_item_id, pick_pat, strip_html};
+    use super::{
+        ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
+        pick_pat, strip_html,
+    };
+
+    #[test]
+    fn ado_coords_from_all_remote_shapes() {
+        let ok = |u: &str| ado_coords_from_remote_url(u).expect(u);
+        assert_eq!(
+            ok("https://dev.azure.com/patric0375/OciusX/_git/OciusX"),
+            ("patric0375".into(), "OciusX".into())
+        );
+        // user@ prefix (credential-embedding clone URLs) and trailing slash.
+        assert_eq!(
+            ok("https://patric0375@dev.azure.com/patric0375/OciusX/_git/OciusX/"),
+            ("patric0375".into(), "OciusX".into())
+        );
+        assert_eq!(
+            ok("git@ssh.dev.azure.com:v3/myorg/My%20Project/repo"),
+            ("myorg".into(), "My%20Project".into())
+        );
+        assert_eq!(
+            ok("https://myorg.visualstudio.com/proj/_git/repo"),
+            ("myorg".into(), "proj".into())
+        );
+        assert_eq!(
+            ok("https://myorg.visualstudio.com/DefaultCollection/proj/_git/repo"),
+            ("myorg".into(), "proj".into())
+        );
+        // Non-ADO remotes and malformed paths → None, never a wrong guess.
+        assert!(ado_coords_from_remote_url("https://github.com/org/repo.git").is_none());
+        assert!(ado_coords_from_remote_url("https://dev.azure.com/org").is_none());
+        assert!(ado_coords_from_remote_url("https://dev.azure.com/org/proj/notgit/x").is_none());
+        assert!(ado_coords_from_remote_url("").is_none());
+    }
+
+    #[test]
+    fn origin_url_parsed_from_git_config() {
+        let cfg = r#"[core]
+	repositoryformatversion = 0
+[remote "upstream"]
+	url = https://example.com/other.git
+[remote "origin"]
+	url = https://dev.azure.com/patric0375/OciusX/_git/OciusX
+	fetch = +refs/heads/*:refs/remotes/origin/*
+"#;
+        assert_eq!(
+            parse_origin_url(cfg).as_deref(),
+            Some("https://dev.azure.com/patric0375/OciusX/_git/OciusX")
+        );
+        // No origin section → None (never the wrong remote's URL).
+        assert!(parse_origin_url("[remote \"upstream\"]\n\turl = https://x/y").is_none());
+    }
 
     #[test]
     fn pat_precedence_per_call_then_env_then_none() {
