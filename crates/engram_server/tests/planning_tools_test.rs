@@ -116,7 +116,7 @@ async fn find_similar_changes_reports_missing_companions() {
     let repo = git2::Repository::init(root).unwrap();
     let sig = git2::Signature::now("Test", "test@example.com").unwrap();
 
-    let mut commit_files = |files: &[(&str, &str)], msg: &str, parent: Option<git2::Oid>| {
+    let commit_files = |files: &[(&str, &str)], msg: &str, parent: Option<git2::Oid>| {
         for (path, content) in files {
             let full = root.join(path);
             if let Some(dir) = full.parent() {

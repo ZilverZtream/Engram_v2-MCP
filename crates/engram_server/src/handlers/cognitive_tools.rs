@@ -3775,6 +3775,11 @@ impl Engram {
         // This makes the DATA-LOSS case (overwrite a hand-authored
         // CLAUDE.md without any backup) structurally impossible
         // without the caller explicitly opting into `overwrite_existing`.
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
         let mut written: Vec<String> = Vec::new();
         let mut notes: Vec<String> = Vec::new();
         // Always surface the rules-pipeline summary so the caller

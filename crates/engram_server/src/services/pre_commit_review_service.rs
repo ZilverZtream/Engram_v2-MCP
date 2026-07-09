@@ -2314,11 +2314,6 @@ pub fn resolve_partner_to_current(
 pub use gates::all_gates;
 
 #[cfg(test)]
-pub(crate) fn test_parse(diff: &str) -> Vec<DiffFile> {
-    parse_unified_diff(diff)
-}
-
-#[cfg(test)]
 mod tests {
     use super::*;
 
