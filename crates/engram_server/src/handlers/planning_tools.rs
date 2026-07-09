@@ -4391,10 +4391,23 @@ impl Engram {
                 .as_deref()
                 .map(str::trim)
                 .filter(|d| !d.is_empty());
-            let mut shown = 0usize;
-            for h in &hits {
-                if shown >= 2 {
-                    break;
+            // Story kind profile from the RANKED candidate set — the same
+            // ultra-coarse taxonomy the pr: docs carry on their `kinds:`
+            // line. Preferring kind-matching exemplars keeps a UI story
+            // from being shaped by API cohorts (and vice versa); lexical
+            // rank breaks ties, so with no kind signal the order is
+            // unchanged.
+            let story_kinds: std::collections::BTreeSet<String> =
+                crate::handlers::pr_history_tools::classify_kinds(
+                    &prov.keys().cloned().collect::<Vec<_>>(),
+                )
+                .into_iter()
+                .collect();
+            let mut seen_doc_ids: HashSet<&str> = HashSet::new();
+            let mut docs: Vec<(usize, usize, String)> = Vec::new(); // (kind overlap, lexical rank, content)
+            for (rank, h) in hits.iter().enumerate() {
+                if !seen_doc_ids.insert(h.doc_id.as_str()) {
+                    continue;
                 }
                 let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_doc_id(
                     &req.project_id,
@@ -4414,6 +4427,22 @@ impl Engram {
                         continue;
                     }
                 }
+                let overlap = content
+                    .lines()
+                    .find_map(|l| l.split("| kinds: ").nth(1))
+                    .map(|ks| {
+                        ks.split(',')
+                            .map(str::trim)
+                            .filter(|k| story_kinds.contains(*k))
+                            .count()
+                    })
+                    .unwrap_or(0);
+                docs.push((overlap, rank, content));
+            }
+            // Highest kind overlap first; original lexical rank tiebreaks.
+            docs.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            let mut shown = 0usize;
+            for (_, _, content) in docs.iter().take(2) {
                 if shown == 0 {
                     out.push_str("\n## Approved exemplars — how similar merged work was shaped\n");
                 }
@@ -4423,7 +4452,7 @@ impl Engram {
                 // cohort IS the payload — see exemplar_view.
                 out.push_str(&format!(
                     "{}\n",
-                    crate::handlers::pr_history_tools::exemplar_view(&content, 20).trim_end()
+                    crate::handlers::pr_history_tools::exemplar_view(content, 20).trim_end()
                 ));
             }
             if shown > 0 {
