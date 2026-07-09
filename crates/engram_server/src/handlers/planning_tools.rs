@@ -3353,7 +3353,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_MEMORY_BANK.into(),
                 generation: 0,
-                text: req.story.clone(),
+                text: story_for_concepts(&req.story),
                 top_k: 3,
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
@@ -4203,7 +4203,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
                 generation: 0,
-                text: req.story.clone(),
+                text: story_for_concepts(&req.story),
                 top_k: fetch_k,
                 fts_mode: "loose".into(),
                 include_path_prefixes: Some(vec!["pr:".into()]),
@@ -4252,11 +4252,13 @@ impl Engram {
                     out.push_str("\n## Approved exemplars — how similar merged work was shaped\n");
                 }
                 shown += 1;
-                let head: String = content.chars().take(500).collect();
-                out.push_str(&format!("{}\n", head.trim_end()));
-                if content.chars().count() > 500 {
-                    out.push_str("(truncated)\n");
-                }
+                // Structure-aware cut: a char-head ends before the file
+                // cohort (title/meta → ≤600-char body → cohort), and the
+                // cohort IS the payload — see exemplar_view.
+                out.push_str(&format!(
+                    "{}\n",
+                    crate::handlers::pr_history_tools::exemplar_view(&content, 20).trim_end()
+                ));
             }
             if shown > 0 {
                 out.push_str(
