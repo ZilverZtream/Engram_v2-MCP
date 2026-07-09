@@ -41,6 +41,9 @@ fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
         "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
+        // with endpoint changes (live recall miss: docs/openapi/*.yaml).
+        "yaml", "yml",
     ]
 }
 
@@ -49,6 +52,9 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
         "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
+        // with endpoint changes (live recall miss: docs/openapi/*.yaml).
+        "yaml", "yml",
     ]
 }
 
