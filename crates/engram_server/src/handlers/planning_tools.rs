@@ -1420,7 +1420,8 @@ mod tests {
         .iter()
         .map(|s| s.to_string())
         .collect();
-        let cohort = find_analog_cohort(&index, "controller").expect("cohort");
+        let none = std::collections::HashSet::new();
+        let cohort = find_analog_cohort(&index, "controller", &none).expect("cohort");
         let lc: Vec<String> = cohort.iter().map(|f| f.to_lowercase()).collect();
         assert!(
             lc.iter().any(|f| f.contains("roqentriescontroller")),
@@ -1432,7 +1433,43 @@ mod tests {
         );
         assert!(cohort.len() >= 5, "{cohort:?}");
         // cue filter: a cue absent from any cohort yields nothing.
-        assert!(find_analog_cohort(&index, "nonexistentcue").is_none());
+        assert!(find_analog_cohort(&index, "nonexistentcue", &none).is_none());
+    }
+
+    #[test]
+    fn analog_cohort_prefers_the_story_connected_family() {
+        // TWO equally-complete api families; the ranked candidate set
+        // overlaps only the Marker one — it must win DETERMINISTICALLY
+        // (the old map-order tie made template picks flip across runs).
+        let index: Vec<String> = [
+            "App_Code/api-v2/Controllers/Roq/RoqEntriesController.vb",
+            "App_Code/api-v2/Services/Roq/RoqEntryService.vb",
+            "App_Code/api-v2/Services/Roq/interfaces/IRoqEntryService.vb",
+            "App_Code/api-v2/DataTransferObjects/Roq/RoqEntry-In.vb",
+            "App_Code/api-v2/Controllers/Marker/MarkersController.vb",
+            "App_Code/api-v2/Services/Marker/MarkerService.vb",
+            "App_Code/api-v2/Services/Marker/interfaces/IMarkerService.vb",
+            "App_Code/api-v2/DataTransferObjects/Marker/Marker-In.vb",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let ranked: std::collections::HashSet<String> =
+            ["app_code/api-v2/services/marker/markerservice.vb".to_string()]
+                .into_iter()
+                .collect();
+        let cohort = find_analog_cohort(&index, "controller", &ranked).expect("cohort");
+        assert!(
+            cohort.iter().any(|f| f.contains("MarkersController")),
+            "story-connected family must win: {cohort:?}"
+        );
+        // With NO overlap on either side, the lexicographic tiebreak makes
+        // the pick stable (Marker < Roq alphabetically).
+        let none = std::collections::HashSet::new();
+        let c1 = find_analog_cohort(&index, "controller", &none).expect("cohort");
+        let c2 = find_analog_cohort(&index, "controller", &none).expect("cohort");
+        assert_eq!(c1, c2);
+        assert!(c1.iter().any(|f| f.contains("MarkersController")), "{c1:?}");
     }
 }
 
@@ -2722,7 +2759,18 @@ fn propose_scaffold_paths(cohort: &[String], entity_pascal: &str) -> Vec<String>
     out
 }
 
-fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
+/// Pick the template family for the scaffold section. `ranked` is the
+/// story's own candidate set (canon lowercase paths): the family MOST
+/// CONNECTED to this story wins — both more relevant as a template and
+/// fully deterministic. The old (dirs, file-count) ordering left ties to
+/// HashMap iteration order, so the SAME dossier flipped template families
+/// across runs (live PR1890: RoQ vs User family, recall tri-stating
+/// 54/62/69 on the flip).
+fn find_analog_cohort(
+    index: &[String],
+    cue: &str,
+    ranked: &HashSet<String>,
+) -> Option<Vec<String>> {
     let cue = cue.to_lowercase();
     let mut groups: HashMap<(String, String), (HashSet<String>, Vec<String>)> = HashMap::new();
     for f in index {
@@ -2742,7 +2790,7 @@ fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
         e.0.insert(parent);
         e.1.push(f.clone());
     }
-    let mut cands: Vec<(usize, Vec<String>)> = groups
+    let mut cands: Vec<(usize, usize, Vec<String>)> = groups
         .into_values()
         .filter(|(dirs, files)| {
             dirs.len() >= 3
@@ -2750,11 +2798,20 @@ fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
         })
         .map(|(dirs, mut files)| {
             files.sort();
-            (dirs.len(), files)
+            let overlap = files
+                .iter()
+                .filter(|f| ranked.contains(&f.to_lowercase()))
+                .count();
+            (overlap, dirs.len(), files)
         })
         .collect();
-    cands.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.len().cmp(&a.1.len())));
-    cands.into_iter().next().map(|(_, files)| files)
+    cands.sort_by(|a, b| {
+        b.0.cmp(&a.0) // candidate-set overlap: the story's OWN family first
+            .then(b.1.cmp(&a.1)) // then structural completeness (role dirs)
+            .then(b.2.len().cmp(&a.2.len()))
+            .then_with(|| a.2.cmp(&b.2)) // lexicographic: NEVER map order
+    });
+    cands.into_iter().next().map(|(_, _, files)| files)
 }
 
 /// Co-change-first tier for ranking: history/co-change (the most predictive
@@ -4279,7 +4336,8 @@ impl Engram {
                     .unwrap_or_default();
                 index.sort();
                 index.dedup();
-                if let Some(cohort) = find_analog_cohort(&index, "controller") {
+                let ranked_canon: HashSet<String> = prov.keys().map(|k| k.to_lowercase()).collect();
+                if let Some(cohort) = find_analog_cohort(&index, "controller", &ranked_canon) {
                     let area = cohort
                         .first()
                         .map(|f| {
