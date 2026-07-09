@@ -30,13 +30,15 @@ if len(sec) < 2:
     print("no '## Files to change' section found")
     sys.exit(2)
 body = sec[1].split("\n## ", 1)[0]
-# One path per bullet: first `code span` or bare path-ish token on the line.
+# One path per BULLET line only — prose paragraphs in the section (e.g.
+# "Explicitly NOT touched: `Web.config` ...") must not count as proposals.
 proposed = set()
 for line in body.splitlines():
-    line = line.strip().lstrip("-*").strip()
-    if not line:
+    stripped = line.strip()
+    if not stripped.startswith(("-", "*")):
         continue
-    m = re.search(r"`([^`]+)`", line) or re.search(r"([\w~./\\-]+\.[\w.]+)", line)
+    stripped = stripped.lstrip("-*").strip()
+    m = re.search(r"`([^`]+)`", stripped) or re.search(r"([\w~./\\-]+\.[\w.]+)", stripped)
     if m:
         proposed.add(base(m.group(1)))
 
