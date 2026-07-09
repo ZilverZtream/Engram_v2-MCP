@@ -84,6 +84,13 @@ def setup_index(eng, rec, max_commits=500):
         raise RuntimeError(f"no project_id in index_project output:\n{out[:600]}")
     pid = m.group(1)
     eng.tool("index_git_history", {"project_id": pid, "max_commits": max_commits, "wait": True})
+    # Merged-PR exemplar corpus (pr: docs in the history namespace). Without
+    # this the dossier's "Approved exemplars" section silently vanishes on
+    # fresh eval indexes (live 2026-07-10: PR1913 regen lost IRoqEntryService
+    # because the baseline project HAD the corpus and the fresh one didn't).
+    # Leak-freedom is preserved at QUERY time: get_change_set filters
+    # exemplars by merged_before < the PR's closed_date.
+    eng.tool("ingest_merged_prs", {"project_id": pid, "max_commits": max_commits})
     health = eng.tool("project_health", {"project_id": pid})
     return pid, wt, time.time() - t0, health
 
