@@ -5168,7 +5168,10 @@ mod work_item_tests {
             pick_pat(Some("  ".into()), Some("env-pat".into())),
             Some("env-pat".to_string())
         );
-        assert_eq!(pick_pat(None, Some(" env-pat \n".into())), Some("env-pat".to_string()));
+        assert_eq!(
+            pick_pat(None, Some(" env-pat \n".into())),
+            Some("env-pat".to_string())
+        );
         // Neither source → auto-fetch silently degrades.
         assert_eq!(pick_pat(None, None), None);
         assert_eq!(pick_pat(Some(String::new()), Some("".into())), None);
