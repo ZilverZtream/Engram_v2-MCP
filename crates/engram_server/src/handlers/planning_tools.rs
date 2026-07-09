@@ -3298,13 +3298,14 @@ impl Engram {
         // searches, the temporal/thin-bug triggers, scaffold detection, and
         // the rendered brief — sees what the developers actually received.
         let mut req = req;
-        // Auto-fetch: story references a work-item id, caller supplied a
-        // per-call PAT, and refresh_corpora saved the org/project
-        // coordinates. Silent degrade on any failure — the dossier still
-        // builds from the story alone.
+        // Auto-fetch: story references a work-item id, a PAT is available
+        // (per-call, or the server's own ADO_PAT env — a live agent never
+        // holds credentials, the server host does), and refresh_corpora
+        // saved the org/project coordinates. Silent degrade on any
+        // failure — the dossier still builds from the story alone.
         if req.work_item_text.is_none()
-            && let Some(pat) = req.pat_token.take()
             && let Some(wi_id) = extract_work_item_id(&req.story)
+            && let Some(pat) = resolve_ado_pat(req.pat_token.take())
         {
             let reg = self.state.registry.clone();
             let pid = req.project_id.clone();
@@ -4873,6 +4874,24 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
+/// PAT source for the work-item auto-fetch: per-call wins, else the
+/// server's own `ADO_PAT` env var (the daemon's deployment environment —
+/// the same convention the ADO eval/corpora scripts use). Nothing is
+/// ever persisted. The env fallback is what makes the auto-fetch fire in
+/// REAL agent sessions: agents don't hold credentials, the host does.
+fn resolve_ado_pat(per_call: Option<String>) -> Option<String> {
+    pick_pat(per_call, std::env::var("ADO_PAT").ok())
+}
+
+/// Pure precedence: first non-blank of (per-call, env fallback), trimmed.
+fn pick_pat(per_call: Option<String>, env_fallback: Option<String>) -> Option<String> {
+    per_call
+        .into_iter()
+        .chain(env_fallback)
+        .map(|p| p.trim().to_string())
+        .find(|p| !p.is_empty())
+}
+
 /// Fetch an ADO work item's full text (title + description/repro +
 /// acceptance criteria, HTML stripped). None on ANY failure — callers
 /// degrade to the story alone.
@@ -4994,7 +5013,25 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
 
 #[cfg(test)]
 mod work_item_tests {
-    use super::{base64_encode, extract_work_item_id, strip_html};
+    use super::{base64_encode, extract_work_item_id, pick_pat, strip_html};
+
+    #[test]
+    fn pat_precedence_per_call_then_env_then_none() {
+        // Per-call PAT wins over the env fallback.
+        assert_eq!(
+            pick_pat(Some("call-pat".into()), Some("env-pat".into())),
+            Some("call-pat".to_string())
+        );
+        // Blank per-call falls through to env (a live agent passes nothing).
+        assert_eq!(
+            pick_pat(Some("  ".into()), Some("env-pat".into())),
+            Some("env-pat".to_string())
+        );
+        assert_eq!(pick_pat(None, Some(" env-pat \n".into())), Some("env-pat".to_string()));
+        // Neither source → auto-fetch silently degrades.
+        assert_eq!(pick_pat(None, None), None);
+        assert_eq!(pick_pat(Some(String::new()), Some("".into())), None);
+    }
 
     #[test]
     fn extracts_ids_from_common_forms() {

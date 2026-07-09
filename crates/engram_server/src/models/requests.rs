@@ -584,8 +584,10 @@ pub struct GetChangeSetRequest {
     /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
     /// references an id (e.g. "Bug #847") and `work_item_text` is not
     /// provided. Per-call only — never persisted (same stance as
-    /// refresh_corpora). Org/project default from the coordinates saved
-    /// by the last refresh_corpora stage-4 run.
+    /// refresh_corpora). When omitted, the server falls back to its own
+    /// `ADO_PAT` env var, so live agent sessions (which never hold
+    /// credentials) still get input parity. Org/project default from the
+    /// coordinates saved by the last refresh_corpora stage-4 run.
     #[serde(default)]
     pub pat_token: Option<String>,
 }
