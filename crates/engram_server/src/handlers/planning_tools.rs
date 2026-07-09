@@ -293,6 +293,37 @@ pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
     out
 }
 
+/// OpenAPI/Swagger contract documents in a (lowercased) file index. The
+/// spec is an ASSERTED CONTRACT for the API layer — endpoint/DTO changes
+/// ship a spec update (recurring recall miss: docs/openapi/*.yaml shipped
+/// with every RoQ endpoint change but never ranked — no code edge reaches
+/// a yaml). Vendor-filtered, sorted for determinism, capped: a
+/// spec-per-service repo could hold dozens.
+pub(crate) fn api_spec_docs(index: &[String]) -> Vec<String> {
+    let mut specs: Vec<String> = index
+        .iter()
+        .filter(|f| {
+            (f.contains("openapi") || f.contains("swagger"))
+                && (f.ends_with(".yaml") || f.ends_with(".yml") || f.ends_with(".json"))
+                && !engram_core::is_vendor_path(f)
+        })
+        .cloned()
+        .collect();
+    specs.sort();
+    specs.truncate(3);
+    specs
+}
+
+/// True when a (lowercased, web-root-stripped) candidate path is API-layer
+/// code: a code file with a path segment that names an api surface
+/// (`api`, `api-v2`, `api-json`, `apis`, …).
+pub(crate) fn is_api_code_path(ps: &str) -> bool {
+    (ps.ends_with(".vb") || ps.ends_with(".cs") || ps.ends_with(".ts") || ps.ends_with(".js"))
+        && ps.split('/').any(|seg| {
+            seg.starts_with("api") && seg.len() <= 12 // segment NAMES an api surface, not e.g. "apiary-docs-archive"
+        })
+}
+
 /// "dir/.../*.ext" shape of a path, used to report recurring companion
 /// patterns ("Admin/*.aspx") instead of raw historical file names.
 pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
@@ -1218,6 +1249,43 @@ mod tests {
         assert!(interface_pair_candidates("a/b/form.designer.cs").is_empty());
         // Root-level file (no dir) yields nothing.
         assert!(interface_pair_candidates("standalone.vb").is_empty());
+    }
+
+    #[test]
+    fn api_spec_docs_finds_contract_documents() {
+        use super::{api_spec_docs, is_api_code_path};
+        let index: Vec<String> = [
+            "docs/openapi/ox-fiber.yaml",
+            "docs/openapi/ox-core.yaml",
+            "app_code/api-v2/controllers/roqentriescontroller.vb",
+            "node_modules/swagger-ui/dist/swagger-ui.json", // vendor → excluded
+            "docs/readme.md",                               // not a spec
+            "config/swagger.json",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let specs = api_spec_docs(&index);
+        assert_eq!(
+            specs,
+            vec![
+                "config/swagger.json".to_string(),
+                "docs/openapi/ox-core.yaml".to_string(),
+                "docs/openapi/ox-fiber.yaml".to_string(),
+            ]
+        );
+        // API-layer detection: api-ish path segment + code extension.
+        assert!(is_api_code_path(
+            "app_code/api-v2/controllers/roqentriescontroller.vb"
+        ));
+        assert!(is_api_code_path(
+            "app_code/installationsobjekt/api-json/x.vb"
+        ));
+        // Not API code: no api segment, or non-code files.
+        assert!(!is_api_code_path("modules/dashboard/pages/map.aspx.vb"));
+        assert!(!is_api_code_path("docs/openapi/ox-fiber.yaml"));
+        // "apiary-docs-archive" style long segments do not count.
+        assert!(!is_api_code_path("apiary-docs-archive/util.vb"));
     }
 
     #[test]
@@ -3773,6 +3841,15 @@ impl Engram {
                     if index_set.contains(&c) {
                         fam.push((c, sigs.clone()));
                     }
+                }
+            }
+            // API-spec contract documents: set-level rule — any API-layer
+            // code candidate pulls the OpenAPI/Swagger docs that exist in
+            // the index. Tagged "family" (asserted-contract companion,
+            // exempt from the tail cap like the resx language sets).
+            if prov.keys().any(|p| is_api_code_path(&strip(p))) {
+                for f in api_spec_docs(&index) {
+                    fam.push((f, BTreeSet::from(["family"])));
                 }
             }
             for (k, v) in fam {
