@@ -534,7 +534,7 @@ pub fn find_dependency_cycles(
 
     let mut graph: DiGraph<String, EdgeKind> = DiGraph::new();
     let mut idx: HashMap<String, NodeIndex> = HashMap::new();
-    let mut get_idx =
+    let get_idx =
         |g: &mut DiGraph<String, EdgeKind>, m: &mut HashMap<String, NodeIndex>, id: &str| {
             if let Some(i) = m.get(id) {
                 *i

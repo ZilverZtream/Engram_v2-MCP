@@ -258,6 +258,7 @@ async fn session_bookends_track_scope_drift() {
             engram_server::models::CompleteEditSessionRequest {
                 project_id: pid.clone(),
                 edited_files: vec!["a.aspx".into()],
+                dossier: None,
             },
         ))
         .await
@@ -280,6 +281,7 @@ async fn session_bookends_track_scope_drift() {
             engram_server::models::CompleteEditSessionRequest {
                 project_id: pid.clone(),
                 edited_files: vec!["a.aspx".into()],
+                dossier: None,
             },
         ))
         .await;

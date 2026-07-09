@@ -1471,9 +1471,11 @@ mod tests {
 
     #[test]
     fn derive_socket_path_uses_data_dir_when_short() {
-        let p = derive_socket_path(Path::new("/data"));
+        // Underscore: the assert is unix-only, so `p` is otherwise unused
+        // on Windows builds.
+        let _p = derive_socket_path(Path::new("/data"));
         #[cfg(unix)]
-        assert_eq!(p, PathBuf::from("/data/.engram.sock"));
+        assert_eq!(_p, PathBuf::from("/data/.engram.sock"));
     }
 
     #[cfg(unix)]

@@ -88,7 +88,7 @@ pub(crate) fn classify_domains(files: &[String]) -> Vec<String> {
 /// (settings) — without a curated taxonomy that would rot.
 pub(crate) fn classify_kinds(files: &[String]) -> Vec<String> {
     let mut kinds: Vec<&'static str> = Vec::new();
-    let mut add = |k: &'static str, kinds: &mut Vec<&'static str>| {
+    let add = |k: &'static str, kinds: &mut Vec<&'static str>| {
         if !kinds.contains(&k) {
             kinds.push(k);
         }

@@ -1856,7 +1856,7 @@ mod tests {
 
     #[test]
     fn cluster_rules_respects_language_boundary() {
-        let mut a = ParsedRule {
+        let a = ParsedRule {
             rule_text: "".into(),
             pattern_tokens: vec!["DeleteAllOnSubmit".into(), "SubmitChanges".into()],
             file_path: "f.vb".into(),
