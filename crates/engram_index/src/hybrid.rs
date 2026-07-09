@@ -2058,6 +2058,28 @@ impl HybridSearchEngine {
             must.push((Occur::Must, Box::new(BooleanQuery::new(lq))));
         }
 
+        // The "inline the core" reimplementation above drifted from
+        // `lexical_search`: it never applied include_path_prefixes, so
+        // grep's path_prefix silently didn't constrain (live repro
+        // 2026-07-06: 75/75 results out-of-prefix) AND, once the caller
+        // post-filtered, in-prefix recall collapsed for common patterns
+        // because top_k was spent on out-of-prefix chunks. Same clause
+        // shape as lexical_search.
+        if let Some(prefixes) = &q.include_path_prefixes {
+            let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for p in prefixes {
+                if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                    &format!("{}.*", regex::escape(p)),
+                    self.fields.path,
+                ) {
+                    prefix_queries.push((Occur::Should, Box::new(rq)));
+                }
+            }
+            if !prefix_queries.is_empty() {
+                must.push((Occur::Must, Box::new(BooleanQuery::new(prefix_queries))));
+            }
+        }
+
         let query = BooleanQuery::new(must);
         let top_docs: Vec<(Score, DocAddress)> =
             searcher.search(&query, &TopDocs::with_limit(q.top_k))?;
