@@ -215,10 +215,16 @@ pub(crate) fn exemplar_view(content: &str, max_files: usize) -> String {
                 // Fold the doc's own overflow marker into ours.
                 extra_files += n;
             }
-        } else if !line.trim().is_empty() && body_lines < 2 {
-            out.push_str(line);
-            out.push('\n');
-            body_lines += 1;
+        } else if body_lines < 2 {
+            // Body: first two CONTENT lines. Heading-only lines are PR
+            // description-template artifacts ("###Task/work completed",
+            // "## How to test") — labels, not prose; skip them.
+            let t = line.trim();
+            if !t.is_empty() && !t.starts_with('#') {
+                out.push_str(line);
+                out.push('\n');
+                body_lines += 1;
+            }
         }
     }
     if extra_files > 0 {
@@ -740,5 +746,29 @@ mod tests {
         );
         let view = exemplar_view(&doc, 20);
         assert!(view.contains("... and 50 more"), "{view}");
+    }
+
+    #[test]
+    fn exemplar_view_skips_template_heading_lines_in_body() {
+        // ADO PR descriptions carry template headings ("###Task/work
+        // completed") — labels, not prose. The two body slots must go to
+        // content lines (live sighting: PR-1968 exemplar).
+        let body =
+            "###Task/work completed\nFixes tenant filtering.\n### How to test\nAssign a resource.";
+        let doc = render_pr_doc(
+            "PR-9",
+            "t",
+            "dev",
+            1_750_000_000,
+            body,
+            &[],
+            &["a.vb".into()],
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(!view.contains("###Task/work completed"), "{view}");
+        assert!(!view.contains("### How to test"), "{view}");
+        assert!(view.contains("Fixes tenant filtering."));
+        assert!(view.contains("Assign a resource."));
+        assert!(view.contains("- a.vb"));
     }
 }
