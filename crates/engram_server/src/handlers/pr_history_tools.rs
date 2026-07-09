@@ -173,6 +173,31 @@ pub(crate) fn render_pr_doc(
     md
 }
 
+/// Epoch seconds at 00:00:00 UTC of a `YYYY-MM-DD` date (shape validated by
+/// the caller; impossible day-of-month values are accepted like `date -u`
+/// would normalize them — the callers only need a monotonic cutoff).
+/// Hinnant's days_from_civil; no chrono dependency. Lets `merged_before`
+/// cutoffs ride the indexed `timestamp` field INSIDE the query instead of
+/// post-ranking display filtering — post-cutoff docs were eating the top_k
+/// slots, so the survivors shifted whenever the corpus gained newer PRs
+/// (live 2026-07-10: PR1913 replay picked different exemplars after a
+/// corpus backfill added two months of PRs).
+pub(crate) fn ymd_to_epoch_secs(ymd: &str) -> Option<u64> {
+    let y: i64 = ymd.get(0..4)?.parse().ok()?;
+    let m: i64 = ymd.get(5..7)?.parse().ok()?;
+    let d: i64 = ymd.get(8..10)?.parse().ok()?;
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    u64::try_from(days * 86_400).ok()
+}
+
 /// Compact view of a `pr:` history doc for embedding in a dossier. A plain
 /// char-head is the WRONG cut here: the doc layout is title/meta → body
 /// (≤600 chars) → file cohort, so a 500-char head usually ends before the
@@ -485,6 +510,28 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top = req.top.clamp(1, 10);
 
+        let merged_before = req
+            .merged_before
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+            .map(str::to_string);
+        if let Some(d) = &merged_before
+            && (d.len() != 10
+                || !d.chars().enumerate().all(|(i, c)| {
+                    if i == 4 || i == 7 {
+                        c == '-'
+                    } else {
+                        c.is_ascii_digit()
+                    }
+                }))
+        {
+            return Err(McpError::invalid_params(
+                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
+                None,
+            ));
+        }
+
         let q = engram_index::HybridQuery {
             project_id: req.project_id.clone(),
             namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -498,7 +545,14 @@ impl Engram {
             language_filters: None,
             author_filter: None,
             date_after: None,
-            date_before: None,
+            // Cutoff INSIDE the query (strictly before the date): post-cutoff
+            // docs must not eat top_k slots, or the survivors shift whenever
+            // the corpus gains newer PRs. The display-time string check below
+            // stays as belt-and-braces.
+            date_before: merged_before
+                .as_deref()
+                .and_then(ymd_to_epoch_secs)
+                .map(|s| s.saturating_sub(1)),
             use_mmr: false,
         };
         let engine = ps.search.clone();
@@ -523,27 +577,6 @@ impl Engram {
             .map(str::trim)
             .filter(|k| !k.is_empty())
             .map(str::to_lowercase);
-        let merged_before = req
-            .merged_before
-            .as_deref()
-            .map(str::trim)
-            .filter(|d| !d.is_empty())
-            .map(str::to_string);
-        if let Some(d) = &merged_before
-            && (d.len() != 10
-                || !d.chars().enumerate().all(|(i, c)| {
-                    if i == 4 || i == 7 {
-                        c == '-'
-                    } else {
-                        c.is_ascii_digit()
-                    }
-                }))
-        {
-            return Err(McpError::invalid_params(
-                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
-                None,
-            ));
-        }
         let mut out = format!(
             "# How similar approved work was done — '{}'{}\n",
             req.story,
@@ -746,6 +779,19 @@ mod tests {
         );
         let view = exemplar_view(&doc, 20);
         assert!(view.contains("... and 50 more"), "{view}");
+    }
+
+    #[test]
+    fn ymd_to_epoch_round_trips_with_ymd_utc() {
+        use super::ymd_to_epoch_secs;
+        assert_eq!(ymd_to_epoch_secs("1970-01-01"), Some(0));
+        for d in ["2000-02-29", "2026-05-14", "2026-12-31", "2024-03-01"] {
+            let secs = ymd_to_epoch_secs(d).expect(d);
+            assert_eq!(crate::utils::ymd_utc(secs * 1000), d, "round-trip {d}");
+        }
+        assert!(ymd_to_epoch_secs("garbage").is_none());
+        assert!(ymd_to_epoch_secs("2026-13-01").is_none());
+        assert!(ymd_to_epoch_secs("2026-00-10").is_none());
     }
 
     #[test]

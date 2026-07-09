@@ -4196,9 +4196,18 @@ impl Engram {
         // an accepted change (and often contain the files ranking missed).
         // merged_before keeps replays/evals leak-free (see find_merged_work).
         if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
-            // With a cutoff active, most of the freshest matches get
-            // filtered - fetch deeper so older exemplars can surface.
-            let fetch_k = if req.merged_before.is_some() { 24 } else { 6 };
+            let cutoff_secs = req
+                .merged_before
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+                .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs);
+            // Cutoff rides the indexed timestamp INSIDE the query (strictly
+            // before the date): with the old display-time filter, post-cutoff
+            // docs ate the top_k slots, so replay exemplars shifted whenever
+            // the corpus gained newer PRs. Keep a modest over-fetch for the
+            // dedup/malformed-doc cases.
+            let fetch_k = if req.merged_before.is_some() { 12 } else { 6 };
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -4211,7 +4220,7 @@ impl Engram {
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
-                date_before: None,
+                date_before: cutoff_secs.map(|s| s.saturating_sub(1)),
                 use_mmr: false,
             };
             let engine = ps.search.clone();
