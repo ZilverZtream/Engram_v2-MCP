@@ -173,6 +173,60 @@ pub(crate) fn render_pr_doc(
     md
 }
 
+/// Compact view of a `pr:` history doc for embedding in a dossier. A plain
+/// char-head is the WRONG cut here: the doc layout is title/meta → body
+/// (≤600 chars) → file cohort, so a 500-char head usually ends before the
+/// cohort — the one part that shows the SHAPE of an approved change (and
+/// the part agents won't fetch via a follow-up call; utilization-wall
+/// lesson). Keep the title + meta line, the first two body lines, and the
+/// cohort capped at `max_files` with a folded overflow count.
+pub(crate) fn exemplar_view(content: &str, max_files: usize) -> String {
+    let mut out = String::new();
+    let mut body_lines = 0usize;
+    let mut in_cohort = false;
+    let mut shown_files = 0usize;
+    let mut extra_files = 0usize;
+    for (i, line) in content.lines().enumerate() {
+        if i == 0 || line.starts_with("merged: ") {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if line.starts_with("## Files shipped together") {
+            in_cohort = true;
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if in_cohort {
+            if line.starts_with("- ") {
+                if shown_files < max_files {
+                    out.push_str(line);
+                    out.push('\n');
+                    shown_files += 1;
+                } else {
+                    extra_files += 1;
+                }
+            } else if let Some(n) = line
+                .strip_prefix("... and ")
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|s| s.parse::<usize>().ok())
+            {
+                // Fold the doc's own overflow marker into ours.
+                extra_files += n;
+            }
+        } else if !line.trim().is_empty() && body_lines < 2 {
+            out.push_str(line);
+            out.push('\n');
+            body_lines += 1;
+        }
+    }
+    if extra_files > 0 {
+        out.push_str(&format!("... and {extra_files} more\n"));
+    }
+    out
+}
+
 impl Engram {
     pub async fn handle_ingest_merged_prs(
         &self,
@@ -636,5 +690,55 @@ mod tests {
         assert!(doc.contains("# PR-9: Add department field"));
         assert!(doc.contains("files: 70"));
         assert!(doc.contains("... and 10 more"), "{doc}");
+    }
+
+    #[test]
+    fn exemplar_view_reaches_cohort_past_long_body() {
+        // A body near the 600-char render cap: the old 500-char head cut
+        // ended inside it and the cohort never appeared in the dossier.
+        let body = "word ".repeat(115); // ~575 chars
+        let files: Vec<String> = (0..30).map(|i| format!("dir/file{i}.vb")).collect();
+        let doc = render_pr_doc(
+            "PR-9",
+            "Add department field",
+            "dev",
+            1_750_000_000,
+            &body,
+            &["dir".into()],
+            &files,
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(view.contains("# PR-9: Add department field"));
+        assert!(view.contains("merged: "));
+        assert!(
+            view.contains("## Files shipped together"),
+            "cohort header must survive: {view}"
+        );
+        assert!(view.contains("- dir/file0.vb"));
+        assert!(view.contains("- dir/file19.vb"));
+        // 30 files, 20 shown → 10 folded.
+        assert!(!view.contains("- dir/file20.vb"));
+        assert!(view.contains("... and 10 more"), "{view}");
+        // Body capped at two lines: the repeated filler is one long line,
+        // so it appears once, not verbatim-in-full beyond that.
+        assert!(view.len() < doc.len());
+    }
+
+    #[test]
+    fn exemplar_view_folds_doc_overflow_marker() {
+        // Doc itself capped at 60 with "... and 10 more"; viewing at 20
+        // must fold both remainders: 40 hidden here + 10 already folded.
+        let files: Vec<String> = (0..70).map(|i| format!("dir/file{i}.vb")).collect();
+        let doc = render_pr_doc(
+            "PR-9",
+            "t",
+            "dev",
+            1_750_000_000,
+            "",
+            &["dir".into()],
+            &files,
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(view.contains("... and 50 more"), "{view}");
     }
 }
