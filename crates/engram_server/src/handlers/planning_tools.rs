@@ -3337,7 +3337,7 @@ impl Engram {
         }
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => extract_story_concepts(&req.story),
+            _ => extract_story_concepts(&story_for_concepts(&req.story)),
         };
 
         // KB language bridge: the team's wiki/docs corpus (memory_bank
@@ -4882,6 +4882,17 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
+/// Concept extraction must not see the scaffolding labels this handler
+/// injects around fetched work-item text: live verify (OciusX Bug #847)
+/// showed the header tokens — "work", "item", "full" — outranking the
+/// story's actual domain concepts. The rendered brief keeps the labels;
+/// extraction gets this stripped view.
+pub(crate) fn story_for_concepts(story: &str) -> String {
+    story
+        .replace("## Work item (full text)", "")
+        .replace("Acceptance criteria:", "")
+}
+
 /// Azure DevOps (org, project) from a git remote URL. Handles the three
 /// remote shapes ADO issues: modern HTTPS (`https://[user@]dev.azure.com/
 /// {org}/{project}/_git/{repo}`), SSH (`git@ssh.dev.azure.com:v3/{org}/
@@ -5104,8 +5115,21 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
 mod work_item_tests {
     use super::{
         ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
-        pick_pat, strip_html,
+        pick_pat, story_for_concepts, strip_html,
     };
+
+    #[test]
+    fn concept_extraction_view_drops_injected_labels() {
+        let s = "Bug #847\n\n## Work item (full text)\n[Bug #847] Can't assign resources \
+                 to tasks in multitenant mode\n\nAcceptance criteria:\nnone";
+        let cleaned = story_for_concepts(s);
+        // The injected scaffolding labels are gone…
+        assert!(!cleaned.contains("Work item (full text)"));
+        assert!(!cleaned.contains("Acceptance criteria:"));
+        // …while the actual story/work-item content survives verbatim.
+        assert!(cleaned.contains("Can't assign resources to tasks in multitenant mode"));
+        assert!(cleaned.contains("Bug #847"));
+    }
 
     #[test]
     fn ado_coords_from_all_remote_shapes() {
