@@ -324,6 +324,20 @@ pub(crate) fn is_api_code_path(ps: &str) -> bool {
         })
 }
 
+/// True when a function node name is a `Can<Something>` permission helper
+/// (`CanUserUploadMarkerIcon`, `aspnetUsers.CanEditRoq`) — the naming
+/// convention shared across C#/VB/TS codebases. Checks the LAST dotted
+/// segment; requires an uppercase after "Can" so `Cancel`, `Canonical`
+/// and `scan` don't match.
+pub(crate) fn is_can_helper_name(name: &str) -> bool {
+    let last = name.rsplit('.').next().unwrap_or(name);
+    let mut chars = last.chars();
+    matches!(
+        (chars.next(), chars.next(), chars.next(), chars.next()),
+        (Some('C'), Some('a'), Some('n'), Some(c)) if c.is_ascii_uppercase()
+    )
+}
+
 /// "dir/.../*.ext" shape of a path, used to report recurring companion
 /// patterns ("Admin/*.aspx") instead of raw historical file names.
 pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
@@ -1249,6 +1263,21 @@ mod tests {
         assert!(interface_pair_candidates("a/b/form.designer.cs").is_empty());
         // Root-level file (no dir) yields nothing.
         assert!(interface_pair_candidates("standalone.vb").is_empty());
+    }
+
+    #[test]
+    fn can_helper_names_match_convention_only() {
+        use super::is_can_helper_name;
+        assert!(is_can_helper_name("CanUserUploadMarkerIcon"));
+        assert!(is_can_helper_name("aspnetUsers.CanEditRoq"));
+        assert!(is_can_helper_name("CanDo"));
+        // Not permission helpers: Cancel/Canonical/scan/short names.
+        assert!(!is_can_helper_name("Cancel"));
+        assert!(!is_can_helper_name("CancelOrder"));
+        assert!(!is_can_helper_name("Canonicalize"));
+        assert!(!is_can_helper_name("ScanFiles"));
+        assert!(!is_can_helper_name("Can"));
+        assert!(!is_can_helper_name("candidate_list"));
     }
 
     #[test]
@@ -4476,7 +4505,7 @@ impl Engram {
             // the section silently vanished. Pick node-bearing code files,
             // strongest corroboration first.
             let top_files = top_node_bearing_files(&prov, 15);
-            let gates = tokio::task::spawn_blocking(move || {
+            let (gates, helper_files) = tokio::task::spawn_blocking(move || {
                 let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
                 for f in &top_files {
                     for n in graph
@@ -4495,7 +4524,25 @@ impl Engram {
                         }
                     }
                 }
-                gates
+                // House auth-helper convention: where Can* permission
+                // helpers are DEFINED. Two arm-B autopsies missed the same
+                // class (PR1890 role.vb, PR1913 aspnetUsers.vb): the team
+                // routes new permission surface through its user/role
+                // helper file, and nothing in the brief named that file.
+                let mut helper_files: HashMap<String, usize> = HashMap::new();
+                if !gates.is_empty() {
+                    for n in graph
+                        .query_nodes(&pid_g, Some("function"), Some("can"), None, 4000)
+                        .unwrap_or_default()
+                    {
+                        if is_can_helper_name(&n.name) {
+                            *helper_files
+                                .entry(n.file_path.as_str().replace('\\', "/"))
+                                .or_default() += 1;
+                        }
+                    }
+                }
+                (gates, helper_files)
             })
             .await
             .unwrap_or_default();
@@ -4511,6 +4558,24 @@ impl Engram {
                 rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
                 for (n, g) in rows.into_iter().take(10) {
                     out.push_str(&format!("- {g} ({n} gated symbol(s) in the set)\n"));
+                }
+                // Only a real convention is worth a line: >=3 Can* helpers
+                // concentrated in a file.
+                let mut hf: Vec<(usize, String)> = helper_files
+                    .into_iter()
+                    .filter(|(_, n)| *n >= 3)
+                    .map(|(f, n)| (n, f))
+                    .collect();
+                hf.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                if !hf.is_empty() {
+                    out.push_str(
+                        "House convention: permission checks are defined as Can* helpers \
+                         in these files — a NEW gated surface usually adds its helper \
+                         there (2 live audits missed exactly this):\n",
+                    );
+                    for (n, f) in hf.into_iter().take(2) {
+                        out.push_str(&format!("- `{f}` ({n} Can* helpers)\n"));
+                    }
                 }
             }
         }
