@@ -257,6 +257,42 @@ pub(crate) fn transpile_pair_candidates(ps: &str) -> Vec<String> {
     }
 }
 
+/// Interface <-> implementation pairing candidates for a (web-root-stripped,
+/// lowercased) .NET class file: `Service.vb` pairs with `IService.vb` in the
+/// same dir or an `interfaces/` subfolder, and vice versa. A signature change
+/// to one side nearly always touches the other (live PR1913 recall miss:
+/// `RoqEntryService.vb` ranked, `interfaces/IRoqEntryService.vb` didn't).
+/// The caller keeps only candidates that EXIST in the index, so the
+/// I-prefix over-generation ("invoice.vb" -> "nvoice.vb") is harmless.
+/// Empty for markup code-behind/designer files (they pair via the page rule).
+pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
+    let is_class_file = (ps.ends_with(".vb") || ps.ends_with(".cs"))
+        && !ps.ends_with(".designer.vb")
+        && !ps.ends_with(".designer.cs")
+        && !ps.ends_with(".aspx.vb")
+        && !ps.ends_with(".aspx.cs")
+        && !ps.ends_with(".ascx.vb")
+        && !ps.ends_with(".ascx.cs");
+    if !is_class_file {
+        return Vec::new();
+    }
+    let Some(slash) = ps.rfind('/') else {
+        return Vec::new();
+    };
+    let (dir, file) = ps.split_at(slash + 1);
+    // Implementation -> its interface (same dir, or interfaces/ below).
+    let mut out = vec![format!("{dir}i{file}"), format!("{dir}interfaces/i{file}")];
+    // Interface -> its implementation (same dir, or the dir above an
+    // interfaces/ folder).
+    if let Some(stem) = file.strip_prefix('i').filter(|s| !s.is_empty()) {
+        out.push(format!("{dir}{stem}"));
+        if let Some(parent) = dir.strip_suffix("interfaces/") {
+            out.push(format!("{parent}{stem}"));
+        }
+    }
+    out
+}
+
 /// "dir/.../*.ext" shape of a path, used to report recurring companion
 /// patterns ("Admin/*.aspx") instead of raw historical file names.
 pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
@@ -1144,6 +1180,44 @@ mod tests {
         // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
+    }
+
+    #[test]
+    fn interface_pair_candidates_links_service_and_iservice() {
+        use super::interface_pair_candidates;
+        // Implementation -> interface, same dir and interfaces/ subfolder
+        // (the live PR1913 miss shape).
+        let c = interface_pair_candidates(
+            "app_code/api-v2/services/reportingofquantities/roqentryservice.vb",
+        );
+        assert!(
+            c.contains(
+                &"app_code/api-v2/services/reportingofquantities/interfaces/iroqentryservice.vb"
+                    .to_string()
+            ),
+            "{c:?}"
+        );
+        assert!(
+            c.contains(
+                &"app_code/api-v2/services/reportingofquantities/iroqentryservice.vb".to_string()
+            ),
+            "{c:?}"
+        );
+        // Interface -> implementation, out of the interfaces/ folder.
+        let r = interface_pair_candidates(
+            "app_code/api-v2/services/reportingofquantities/interfaces/iroqentryservice.vb",
+        );
+        assert!(
+            r.contains(
+                &"app_code/api-v2/services/reportingofquantities/roqentryservice.vb".to_string()
+            ),
+            "{r:?}"
+        );
+        // Markup code-behind and designer files pair via the page rule, not here.
+        assert!(interface_pair_candidates("a/b/page.aspx.vb").is_empty());
+        assert!(interface_pair_candidates("a/b/form.designer.cs").is_empty());
+        // Root-level file (no dir) yields nothing.
+        assert!(interface_pair_candidates("standalone.vb").is_empty());
     }
 
     #[test]
@@ -3690,6 +3764,12 @@ impl Engram {
                 // miss: editing a .ts but forgetting the shipped .js). Only add a
                 // partner that EXISTS in the index.
                 for c in transpile_pair_candidates(&ps) {
+                    if index_set.contains(&c) {
+                        fam.push((c, sigs.clone()));
+                    }
+                }
+                // Interface <-> implementation (.NET IService convention).
+                for c in interface_pair_candidates(&ps) {
                     if index_set.contains(&c) {
                         fam.push((c, sigs.clone()));
                     }
