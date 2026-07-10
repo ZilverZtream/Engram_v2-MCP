@@ -820,53 +820,103 @@ async fn fetch_azure_devops(
     Ok((out, skipped_incremental))
 }
 
-/// Iteration source commits for a PR, oldest→newest. Empty on any failure.
-async fn fetch_iteration_commits(
+/// Per-PR map of `changes-API path → [blob objectId in iteration order]`
+/// — every version of every file the PR touched. Built from each
+/// iteration's `changes` (which carries item.path + item.objectId).
+/// Empty on any failure. The ADO items-by-path API 404s here, and thread
+/// paths carry a `/Site` prefix the changes paths lack, so objectId is
+/// the reliable handle for fetching a specific version.
+async fn fetch_pr_file_versions(
     client: &reqwest::Client,
     base: &str,
     auth: &str,
     pr_id: u64,
-) -> Vec<String> {
+) -> std::collections::HashMap<String, Vec<String>> {
     use reqwest::header::{ACCEPT, AUTHORIZATION};
-    let url = format!("{base}/pullrequests/{pr_id}/iterations?api-version=7.1");
-    let Ok(resp) = client.get(&url).header(AUTHORIZATION, auth).header(ACCEPT, "application/json").send().await else {
-        return Vec::new();
+    use std::collections::HashMap;
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    // How many iterations?
+    let iters_url = format!("{base}/pullrequests/{pr_id}/iterations?api-version=7.1");
+    let Some(iter_ids): Option<Vec<u64>> = async {
+        let body: serde_json::Value = client
+            .get(&iters_url)
+            .header(AUTHORIZATION, auth)
+            .header(ACCEPT, "application/json")
+            .send()
+            .await
+            .ok()?
+            .error_for_status()
+            .ok()?
+            .json()
+            .await
+            .ok()?;
+        Some(
+            body.get("value")?
+                .as_array()?
+                .iter()
+                .filter_map(|it| it.get("id").and_then(|v| v.as_u64()))
+                .collect(),
+        )
+    }
+    .await
+    else {
+        return out;
     };
-    let Ok(resp) = resp.error_for_status() else {
-        return Vec::new();
-    };
-    let Ok(body) = resp.json::<serde_json::Value>().await else {
-        return Vec::new();
-    };
-    body.get("value")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|it| {
-                    it.get("sourceRefCommit")
-                        .and_then(|c| c.get("commitId"))
-                        .and_then(|v| v.as_str())
-                        .map(String::from)
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+    const MAX_ITERS: usize = 10;
+    for it in iter_ids.into_iter().take(MAX_ITERS) {
+        let ch_url =
+            format!("{base}/pullrequests/{pr_id}/iterations/{it}/changes?api-version=7.1");
+        let Ok(resp) = client
+            .get(&ch_url)
+            .header(AUTHORIZATION, auth)
+            .header(ACCEPT, "application/json")
+            .send()
+            .await
+        else {
+            continue;
+        };
+        let Ok(resp) = resp.error_for_status() else {
+            continue;
+        };
+        let Ok(body) = resp.json::<serde_json::Value>().await else {
+            continue;
+        };
+        let entries = body
+            .get("changeEntries")
+            .or_else(|| body.get("value"))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for e in entries {
+            let Some(item) = e.get("item") else { continue };
+            let (Some(path), Some(oid)) = (
+                item.get("path").and_then(|v| v.as_str()),
+                item.get("objectId").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            if oid.is_empty() {
+                continue;
+            }
+            let versions = out.entry(path.to_string()).or_default();
+            if versions.last().map(String::as_str) != Some(oid) {
+                versions.push(oid.to_string());
+            }
+        }
+    }
+    out
 }
 
-/// Raw content of `file_path` at `commit`. None on any failure (file
-/// absent at that version, binary, network error).
-async fn fetch_blob_at_commit(
+/// Raw content of a blob by its objectId (the reliable ADO handle — no
+/// path/version resolution). None on any failure or oversized blob.
+async fn fetch_blob_by_object_id(
     client: &reqwest::Client,
     base: &str,
     auth: &str,
-    file_path: &str,
-    commit: &str,
+    object_id: &str,
 ) -> Option<String> {
     use reqwest::header::{ACCEPT, AUTHORIZATION};
-    let path = url_escape(file_path.trim_start_matches('/'));
-    let url = format!(
-        "{base}/items?path=/{path}&versionType=commit&version={commit}&api-version=7.1&$format=text"
-    );
+    let url = format!("{base}/blobs/{object_id}?api-version=7.1&$format=text");
     let resp = client
         .get(&url)
         .header(AUTHORIZATION, auth)
@@ -877,17 +927,27 @@ async fn fetch_blob_at_commit(
         .error_for_status()
         .ok()?;
     let text = resp.text().await.ok()?;
-    // Guard against an HTML/JSON error page slipping through as text.
     if text.len() > 2_000_000 {
         return None;
     }
     Some(text)
 }
 
-/// Fill `fix_hunk` on resolved, tokenized findings by token-anchoring the
-/// fix in the PR's iteration diffs. Walks consecutive iteration pairs for
-/// the finding's file (blobs cached) and takes the first hunk whose
-/// removed side carries a quoted token.
+/// A thread's file matches a changes-API path when one is a path-suffix
+/// of the other (thread paths carry a `/Site` prefix the changes paths
+/// drop). Compare on the last few segments to avoid basename collisions.
+fn path_suffix_matches(thread_path: &str, changes_path: &str) -> bool {
+    let a = thread_path.trim_start_matches('/').to_ascii_lowercase();
+    let b = changes_path.trim_start_matches('/').to_ascii_lowercase();
+    a.ends_with(&b) || b.ends_with(&a)
+}
+
+/// Fill `fix_hunk` on resolved, tokenized findings: diff the finding's
+/// file between its EARLIEST and LATEST version in the PR (widest span;
+/// token-anchoring finds the fix hunk regardless of intervening churn)
+/// and take the hunk whose removed side carries a quoted token. Bounded
+/// (resolved + tokenized only; per-PR version map cached; blobs cached by
+/// objectId) and fully fail-soft.
 async fn attach_fix_hunks(
     client: &reqwest::Client,
     base: &str,
@@ -895,11 +955,8 @@ async fn attach_fix_hunks(
     findings: &mut [RawReviewComment],
 ) {
     use std::collections::HashMap;
-    // Per-PR iteration commits, fetched once.
-    let mut iters_by_pr: HashMap<u64, Vec<String>> = HashMap::new();
-    // (commit, file) → blob content (or None when known-absent).
-    let mut blob_cache: HashMap<(String, String), Option<String>> = HashMap::new();
-    const MAX_ITER_WALK: usize = 8;
+    let mut versions_by_pr: HashMap<u64, HashMap<String, Vec<String>>> = HashMap::new();
+    let mut blob_cache: HashMap<String, Option<String>> = HashMap::new();
 
     for f in findings.iter_mut() {
         let resolved = matches!(f.thread_status, ThreadStatus::Fixed | ThreadStatus::Closed);
@@ -910,40 +967,45 @@ async fn attach_fix_hunks(
         if tokens.is_empty() {
             continue;
         }
-        let commits = iters_by_pr
-            .entry(f.pr_id)
-            .or_insert(fetch_iteration_commits(client, base, auth, f.pr_id).await)
-            .clone();
-        if commits.len() < 2 {
+        if !versions_by_pr.contains_key(&f.pr_id) {
+            let v = fetch_pr_file_versions(client, base, auth, f.pr_id).await;
+            versions_by_pr.insert(f.pr_id, v);
+        }
+        let file_versions = &versions_by_pr[&f.pr_id];
+        // Find the changes-path whose file matches this finding's, take
+        // its earliest and latest distinct objectIds.
+        let Some(oids) = file_versions
+            .iter()
+            .find(|(p, _)| path_suffix_matches(&f.file_path, p))
+            .map(|(_, v)| v)
+        else {
+            continue;
+        };
+        if oids.len() < 2 {
+            continue; // file has one version in the PR → no before→after
+        }
+        let (first, last) = (&oids[0], &oids[oids.len() - 1]);
+        for oid in [first, last] {
+            if !blob_cache.contains_key(oid) {
+                let v = fetch_blob_by_object_id(client, base, auth, oid).await;
+                blob_cache.insert(oid.clone(), v);
+            }
+        }
+        let (Some(old), Some(new)) = (
+            blob_cache.get(first).cloned().flatten(),
+            blob_cache.get(last).cloned().flatten(),
+        ) else {
+            continue;
+        };
+        if old == new {
             continue;
         }
-        // Walk consecutive iteration pairs; first token-anchored hunk wins.
-        'pairs: for w in commits.windows(2).take(MAX_ITER_WALK) {
-            let (prev, cur) = (&w[0], &w[1]);
-            let mut sides: Vec<Option<String>> = Vec::with_capacity(2);
-            for c in [prev, cur] {
-                let key = (c.clone(), f.file_path.clone());
-                if !blob_cache.contains_key(&key) {
-                    let v = fetch_blob_at_commit(client, base, auth, &f.file_path, c).await;
-                    blob_cache.insert(key.clone(), v);
-                }
-                sides.push(blob_cache.get(&key).cloned().flatten());
-            }
-            let (Some(old), Some(new)) = (sides[0].clone(), sides[1].clone()) else {
-                continue;
-            };
-            if old == new {
-                continue;
-            }
-            let diff = similar::TextDiff::from_lines(&old, &new)
-                .unified_diff()
-                .context_radius(2)
-                .header(&format!("a/{}", f.file_path), &format!("b/{}", f.file_path))
-                .to_string();
-            if let Some(hunk) = fix_hunk_by_token(&diff, &tokens) {
-                f.fix_hunk = Some(hunk);
-                break 'pairs;
-            }
+        let diff = similar::TextDiff::from_lines(&old, &new)
+            .unified_diff()
+            .context_radius(2)
+            .to_string();
+        if let Some(hunk) = fix_hunk_by_token(&diff, &tokens) {
+            f.fix_hunk = Some(hunk);
         }
     }
 }
@@ -1956,6 +2018,25 @@ mod tests {
         assert_eq!(Severity::parse("major"), Severity::Critical);
         assert_eq!(Severity::parse("medium"), Severity::Warning);
         assert_eq!(Severity::parse("minor"), Severity::Info);
+    }
+
+    #[test]
+    fn path_suffix_matches_handles_site_prefix() {
+        // Thread paths carry /Site; changes-API paths drop it.
+        assert!(path_suffix_matches(
+            "/Site/App_Code/api-v2/WebApiConfig.vb",
+            "/App_Code/api-v2/WebApiConfig.vb"
+        ));
+        // Identical.
+        assert!(path_suffix_matches("/a/b/c.vb", "/a/b/c.vb"));
+        // Different files must not match.
+        assert!(!path_suffix_matches(
+            "/Site/App_Code/Foo.vb",
+            "/App_Code/Bar.vb"
+        ));
+        // Bare-basename collision across dirs still matches on the tail —
+        // acceptable: the diff+token-anchor is the real filter.
+        assert!(path_suffix_matches("/x/Config.vb", "/Config.vb"));
     }
 
     #[test]
