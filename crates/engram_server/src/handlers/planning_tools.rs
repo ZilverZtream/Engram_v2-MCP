@@ -4647,13 +4647,50 @@ impl Engram {
                 // of silent.
                 let max_bucket = both.max(client_only).max(server_only);
                 if (total - max_bucket) * 4 >= total {
-                    out.push_str(
-                        "  ⚖ FACTORING FORK: this work class has shipped BOTH ways in this \
-                         repo — the layer choice is a product decision, not derivable from \
-                         the story. Pick ONE deliberately (weigh the authors above), and \
-                         STATE the choice and its rationale in your plan and PR description \
-                         so reviewers judge the fork instead of discovering it.\n",
-                    );
+                    // Name the MAJORITY layering as the default. The fork
+                    // callout's first cut (2026-07-10) only said "pick
+                    // one", and a rerun agent confidently chose the 22%
+                    // minority layer on a bug whose team fix spanned both
+                    // (PR1937: 85.7 -> 50 file-F1). Deviating from a
+                    // clear house majority is legitimate but must clear a
+                    // higher bar than a coin-flip, so the majority is
+                    // stated as the prior and equal splits say so.
+                    let (majority, share) = [
+                        ("client+server together", both),
+                        ("client-side only", client_only),
+                        ("server-side only", server_only),
+                    ]
+                    .into_iter()
+                    .max_by_key(|(_, n)| *n)
+                    .map(|(label, n)| (label, (n * 100) / total.max(1)))
+                    .unwrap_or(("client+server together", 0));
+                    let tie = [both, client_only, server_only]
+                        .iter()
+                        .filter(|&&n| n == max_bucket)
+                        .count()
+                        > 1;
+                    if tie {
+                        out.push_str(
+                            "  ⚖ FACTORING FORK: this work class has shipped BOTH ways here in \
+                             roughly EQUAL measure — the layer choice is a genuine product \
+                             decision no evidence settles. Pick ONE deliberately (weigh the \
+                             authors above; a client-visible symptom with a server root cause \
+                             often warrants BOTH layers), and STATE the choice and its \
+                             rationale in your plan and PR description so reviewers judge the \
+                             fork instead of discovering it.\n",
+                        );
+                    } else {
+                        out.push_str(&format!(
+                            "  ⚖ FACTORING FORK: contested, but the house MAJORITY ({share}%) \
+                             ships this work class {majority} — treat that as the DEFAULT. \
+                             Deviating to a narrower layer is legitimate only with a specific, \
+                             stated reason (e.g. you verified the other layer genuinely has no \
+                             defect/role in THIS change); absent that, follow the majority. A \
+                             client-visible symptom with a server root cause usually lands in \
+                             BOTH layers here. STATE your choice and its rationale so reviewers \
+                             judge the fork instead of discovering it.\n"
+                        ));
+                    }
                 }
             }
         }
