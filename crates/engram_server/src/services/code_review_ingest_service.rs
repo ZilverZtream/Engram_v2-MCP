@@ -1131,6 +1131,14 @@ pub fn strip_html(s: &str) -> String {
     static BLOCK_RE: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
         regex::Regex::new(r"(?is)<(?:script|style|head)[^>]*>.*?</(?:script|style|head)>").ok()
     });
+    // CodeRabbit folds its INTERNAL tooling transcript into collapsible
+    // blocks — `<details><summary>🧩 Analysis chain</summary>🏁 Script
+    // executed: #!/bin/bash …`. That text is not part of the finding;
+    // ingested, it polluted rule texts and token clouds (live: PR1874
+    // residual entries were analysis-chain shell scripts). Drop the whole
+    // block; the finding's bold title always sits OUTSIDE it.
+    static DETAILS_RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"(?is)<details>.*?(?:</details>|\z)").ok());
     static TAG_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"<[^>]+>").ok());
 
@@ -1138,6 +1146,10 @@ pub fn strip_html(s: &str) -> String {
         .as_ref()
         .map(|re| re.replace_all(s, "").to_string())
         .unwrap_or_else(|| s.to_string());
+    let stripped = DETAILS_RE
+        .as_ref()
+        .map(|re| re.replace_all(&stripped, "").to_string())
+        .unwrap_or(stripped);
     let tagless = TAG_RE
         .as_ref()
         .map(|re| re.replace_all(&stripped, "").to_string())
@@ -1766,6 +1778,23 @@ mod tests {
         assert!(tokens.iter().any(|t| t == "NullReferenceException"));
         assert!(tokens.iter().any(|t| t == "prGetSubProjects"));
         assert!(tokens.iter().any(|t| t == "GetByID"));
+    }
+
+    #[test]
+    fn strip_html_drops_details_analysis_chains() {
+        let body = "**Missing null check on qtyRow.**\n\nThe row lookup can return Nothing.\n\
+                    <details><summary>🧩 Analysis chain</summary>\n🏁 Script executed: \
+                    #!/bin/bash\nfind . -name '*.vb' | xargs grep -l qtyRow</details>\n\
+                    Fix by guarding the lookup.";
+        let out = strip_html(body);
+        assert!(out.contains("Missing null check"));
+        assert!(out.contains("Fix by guarding"));
+        assert!(!out.contains("Script executed"), "analysis chain leaked: {out}");
+        assert!(!out.contains("bin/bash"));
+        // Unterminated details (truncated comment) must also be dropped.
+        let out2 = strip_html("**Title.**\n<details><summary>chain</summary>partial…");
+        assert!(!out2.contains("partial"));
+        assert!(out2.contains("Title."));
     }
 
     #[test]
