@@ -4699,6 +4699,10 @@ impl Engram {
                         return None;
                     }
                     let path = node_id.strip_prefix("file:")?.to_string();
+                    // Type declarations are not implementation targets.
+                    if path.to_lowercase().ends_with(".d.ts") {
+                        return None;
+                    }
                     let importers = graph
                         .find_incoming_edges(
                             &pid_s,
@@ -4752,7 +4756,12 @@ impl Engram {
                         }
                     }
                 }
-                out.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                // SPECIFIC-first (fan-in ASCENDING): maximum fan-in =
+                // framework hubs (q.ts at 25 = a stopword, the IDF lesson);
+                // the story-relevant shared component sits at low fan-in
+                // (live: qtyManager.ts at 2 — the map + fbinstplan
+                // surfaces).
+                out.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
                 out.truncate(3);
                 out
             })
