@@ -283,7 +283,7 @@ impl Default for IngestConfig {
             source: IngestSource::JsonlFile {
                 path: PathBuf::new(),
             },
-            // Matches the 43% fixed-rate floor in the OciusX corpus while
+            // Matches the 43% fixed-rate floor in the pilot corpus while
             // still rejecting noise: ≥ 50% of decisive threads must say
             // `fixed` before we treat the pattern as a positive rule.
             min_fix_rate: 0.5,
@@ -792,7 +792,7 @@ async fn fetch_azure_devops(
             && out.len() >= cap * 10
         {
             // Rough heuristic: average ~10 threads per PR with CR
-            // comments in the OciusX corpus; cap output so unbounded
+            // comments in the pilot corpus; cap output so unbounded
             // fetches don't blow memory when callers forget max_prs.
             break;
         }

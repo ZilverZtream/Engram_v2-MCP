@@ -479,7 +479,7 @@ impl Engram {
             .map(|(_, _, file, _)| file.as_str())
             .collect();
         // ENG-2026-CFP-NOISE: drop vendored/minified/bundled artifacts (bower,
-        // node_modules, *.min.js, versioned jquery, …). The OciusX eval found the
+        // node_modules, *.min.js, versioned jquery, …). The pilot eval found the
         // concept-footprint lexical layer was the dominant noise source handed to
         // the model (precision ~5%); these generated files are never the change
         // target and crowd out the real files.
@@ -1568,7 +1568,7 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         // Keep DOMAIN nouns/features (report, export, import, search, filter,
         // map, invoice, status, …) as real concepts — only pure verbs here.
         // NOTE: only UNAMBIGUOUS generic verbs. Deliberately NOT stopwording
-        // verbs that double as OciusX domain nouns — change ("Change Requests"),
+        // verbs that double as domain nouns in the pilot corpus — change ("Change Requests"),
         // view (DB/map views), select (SQL), process (business process), create
         // (creation flows) — to avoid hurting recall on those concepts.
         "update",
@@ -2872,7 +2872,7 @@ pub(crate) fn split_symmetric_name_tokens(name: &str) -> Vec<String> {
 /// deciding the twin's behavior. Pairs are DISJOINT (greedy: each name joins
 /// at most ONE pair) — a single symmetric FAMILY like Show/Hide × Main/Sub
 /// otherwise fans out into C(n,2) redundant cross-pairs that crowd every
-/// other family past the cap (the live PR1933 miss: Hide/Show chains starved
+/// other family past the cap (the a live pilot PR miss: Hide/Show chains starved
 /// the ddl…Main/Sub handler pair the story was actually about). Dedupes
 /// (a,b)/(b,a); capped at 6 pairs.
 /// Relevance tier of a symmetric pair from its ONE differing token pair.
@@ -3176,7 +3176,7 @@ mod symmetric_sibling_tests {
 
     #[test]
     fn live_producedq_ddl_handler_pair_survives_hide_show_family() {
-        // The exact live PR1933 shape: producedq.aspx.vb's Show/Hide × Main/Sub
+        // The exact a live pilot PR shape: producedq.aspx.vb's Show/Hide × Main/Sub
         // helper family plus the ddl…Main/Sub SelectedIndexChanged handlers
         // (graph function names are class-qualified). Under all-pairs
         // enumeration the Hide/Show cross-pairs starved the ddl pair past the
@@ -3213,7 +3213,7 @@ mod symmetric_sibling_tests {
 
     #[test]
     fn scan_files_skip_noncode_and_rank_by_corroboration() {
-        // The live PR1933 regression: the resx family expansion makes every
+        // The a live pilot PR regression: the resx family expansion makes every
         // language sibling {cochange, family} = tier 0, and
         // app_globalresources/… sorts alphabetically before every code file,
         // so an unfiltered top-10 was ALL resource files (no control/function
@@ -3515,7 +3515,7 @@ fn render_change_set(
 
 impl Engram {
     /// ONE call: the ranked, co-change-confirmed, family-aware change set for a
-    /// user story. The OciusX-validated recipe ported into Engram — concept
+    /// user story. The pilot-validated recipe ported into Engram — concept
     /// footprint + git co-change, co-change/history ranked first, vendor noise
     /// filtered. Generic; no per-repo hardcoding.
     /// With `pat_token`, auto-fetches a referenced ADO work item for input
@@ -5459,7 +5459,7 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
 }
 
 /// Concept extraction must not see the scaffolding labels this handler
-/// injects around fetched work-item text: live verify (OciusX Bug #847)
+/// injects around fetched work-item text: live verify (pilot corpus Bug #847)
 /// showed the header tokens — "work", "item", "full" — outranking the
 /// story's actual domain concepts. The rendered brief keeps the labels;
 /// extraction gets this stripped view.
@@ -5468,7 +5468,7 @@ pub(crate) fn story_for_concepts(story: &str) -> String {
         .replace("## Work item (full text)", "")
         .replace("Acceptance criteria:", "");
     // URLs are not domain concepts: a pasted support-ticket link made its
-    // hostname/path tokens ("ociusx", "agent") 2 of the 5 extracted
+    // hostname/path tokens 2 of the 5 extracted
     // concepts on a live fetch. Drop whole URL tokens.
     s.split_whitespace()
         .filter(|w| !w.starts_with("http://") && !w.starts_with("https://"))

@@ -15,7 +15,7 @@ pub enum LanguageFamily {
     C,
     Cpp,
     Rust,
-    /// VB.NET — the primary OciusX language.
+    /// VB.NET — the pilot corpus's primary language.
     Vb,
 }
 

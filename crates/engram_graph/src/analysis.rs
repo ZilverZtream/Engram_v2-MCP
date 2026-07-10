@@ -381,7 +381,7 @@ pub struct FoundPath {
 /// answer (marked `directed: false`, hops carry `reversed` flags).
 ///
 /// `kind_filter`: when non-empty, only these edge kinds are traversed.
-/// Loads the project's edge list once (one prefix scan) — OciusX-scale
+/// Loads the project's edge list once (one prefix scan) — pilot-corpus-scale
 /// (113k edges) builds the adjacency map in well under a second.
 pub fn find_path(
     store: &GraphStore,

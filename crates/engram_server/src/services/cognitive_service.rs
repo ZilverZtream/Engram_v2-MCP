@@ -215,7 +215,7 @@ pub async fn analyze_file_style(
 // ── Static fallback: language-aware pattern detection ────────────────────────
 //
 // Runs when git history is shallow. For VB.NET files we look for the
-// OciusX-style patterns a reader would expect the style guide to call
+// pilot-style patterns a reader would expect the style guide to call
 // out — `Optional db As <Context> = Nothing`, `Using db …`, `Is Nothing`
 // guards, Module vs Class declaration, Handles-clause discipline, etc.
 // For C# / Rust / other we emit a generic pass. Every detector returns a
@@ -552,7 +552,7 @@ fn static_analyze_vb(content: &str) -> Vec<String> {
         }
     }
 
-    // `SafeRedirect(...) : Return` mandatory pair (OciusX convention).
+    // `SafeRedirect(...) : Return` mandatory pair (pilot corpus convention).
     if let Some(re) = SAFEREDIRECT_RE.as_ref()
         && re.is_match(content)
     {
@@ -794,7 +794,7 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
             .ok()
     });
 
-    // ── Module system: ES6 `import` vs triple-slash references (OciusX) ──
+    // ── Module system: ES6 `import` vs triple-slash references (pilot corpus) ──
     let es6_imports = content.matches("import {").count()
         + content.matches("import *").count()
         + content.matches("import type ").count()
@@ -812,7 +812,7 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
         }
     }
     if !triple_paths.is_empty() && triple_paths.len() >= es6_imports {
-        // OciusX-flavored: triple-slash dominates — cite the referenced paths.
+        // pilot-flavored: triple-slash dominates — cite the referenced paths.
         let sample: Vec<String> = triple_paths
             .iter()
             .take(3)
@@ -3224,7 +3224,7 @@ mod tests {
         assert_ne!(style_language_label("App_Code/Foo.vb"), "Python");
     }
 
-    const OCIUSX_VB_SAMPLE: &str = r#"
+    const PILOT_VB_SAMPLE: &str = r#"
 Imports System
 Imports System.Web
 Imports System.Linq
@@ -3280,8 +3280,8 @@ End Module
 
     #[test]
     fn vb_static_analyzer_detects_multiple_patterns() {
-        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
-        // Sanity: we get at least 5 distinct rule bullets on the OciusX shape,
+        let bullets = static_analyze_file_style(PILOT_VB_SAMPLE, "sharedfunc.vb");
+        // Sanity: we get at least 5 distinct rule bullets on the pilot-corpus shape,
         // covering naming + context injection + Using + Is Nothing + Module.
         assert!(
             bullets.len() >= 5,
@@ -3314,7 +3314,7 @@ End Module
 
     #[test]
     fn vb_static_analyzer_flags_safe_redirect_return_pair() {
-        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
+        let bullets = static_analyze_file_style(PILOT_VB_SAMPLE, "sharedfunc.vb");
         assert!(
             bullets
                 .iter()
@@ -3325,7 +3325,7 @@ End Module
 
     #[test]
     fn vb_static_analyzer_prefers_try_catch_when_no_on_error() {
-        let bullets = static_analyze_file_style(OCIUSX_VB_SAMPLE, "sharedfunc.vb");
+        let bullets = static_analyze_file_style(PILOT_VB_SAMPLE, "sharedfunc.vb");
         // The "Try/Catch only" bullet describes the current style AND
         // advises against introducing `On Error Resume Next`, so both
         // phrases appear in the same bullet. We only care that:
@@ -3414,10 +3414,10 @@ public class Foo {
     }
 
     // ── TypeScript ───────────────────────────────────────────────────────
-    // Representative OciusX-style file: triple-slash references (no ES6
+    // Representative pilot-style file: triple-slash references (no ES6
     // modules), jQuery, camelCase functions, const declarations, typed
     // parameters. This exercises most TS detectors at once.
-    const OCIUSX_TS_SAMPLE: &str = r##"
+    const PILOT_TS_SAMPLE: &str = r##"
 /// <reference path="../Q.ts" />
 /// <reference path="../jquery.d.ts" />
 
@@ -3456,9 +3456,9 @@ namespace App.Forms {
 "##;
 
     #[test]
-    fn ts_static_analyzer_detects_ociusx_patterns() {
-        let bullets = static_analyze_file_style(OCIUSX_TS_SAMPLE, "OrderForm.ts");
-        // Parity with VB: ≥8 prescriptive bullets on an OciusX-shape TS file.
+    fn ts_static_analyzer_detects_pilot_patterns() {
+        let bullets = static_analyze_file_style(PILOT_TS_SAMPLE, "OrderForm.ts");
+        // Parity with VB: ≥8 prescriptive bullets on an pilot-shape TS file.
         assert!(
             bullets.len() >= 8,
             "expected ≥8 TS bullets for VB parity, got {}: {bullets:#?}",
@@ -3467,7 +3467,7 @@ namespace App.Forms {
         let joined = bullets.join(" | ");
         assert!(
             joined.contains("triple-slash"),
-            "triple-slash reference detector must fire on OciusX-style TS, got: {joined}"
+            "triple-slash reference detector must fire on pilot-style TS, got: {joined}"
         );
         // Triple-slash paths should be cited verbatim (parity with VB's `Module sharedfunc`).
         assert!(
@@ -3491,18 +3491,18 @@ namespace App.Forms {
 
     #[test]
     fn ts_static_analyzer_reports_type_annotations_and_any_risk() {
-        let bullets = static_analyze_file_style(OCIUSX_TS_SAMPLE, "OrderForm.ts");
+        let bullets = static_analyze_file_style(PILOT_TS_SAMPLE, "OrderForm.ts");
         let joined = bullets.join(" | ");
         assert!(
             joined.contains("Type annotations"),
             "typed-param detector must fire, got: {joined}"
         );
         // The `: any` RISK bullet is exercised separately by TS_RISK_SAMPLE where it
-        // has 3+ occurrences. The OciusX-shape sample deliberately has only 2, so
+        // has 3+ occurrences. The pilot-shape sample deliberately has only 2, so
         // here we just confirm the sample stays under the risk threshold.
         assert!(
             !joined.contains("TYPE RISK") || !joined.contains("`: any`"),
-            "clean OciusX sample should not trip the `: any` risk, got: {joined}"
+            "clean pilot sample should not trip the `: any` risk, got: {joined}"
         );
     }
 
@@ -3705,7 +3705,7 @@ async function noop() {
         );
         assert!(
             joined.contains("WebForms bridge") && joined.contains("__doPostBack"),
-            "OciusX `__doPostBack` bridge must be flagged, got: {joined}"
+            "pilot-corpus `__doPostBack` bridge must be flagged, got: {joined}"
         );
     }
 
@@ -3796,7 +3796,7 @@ app.listen(process.env.PORT || 3000);
     #[test]
     fn ts_static_analyzer_does_not_falsely_flag_react_on_angle_casts() {
         // Pure angle-bracket casts must NOT be counted as JSX (the false-positive
-        // we saw on OciusX `<HTMLInputElement>elem` sites).
+        // we saw on the pilot corpus `<HTMLInputElement>elem` sites).
         let sample = r##"
 /// <reference path="./q.ts" />
 class widgetCtrl {

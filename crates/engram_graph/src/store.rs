@@ -971,12 +971,12 @@ impl GraphStore {
 
     /// All edges EXCEPT the statistical history kinds (TemporalCoupling,
     /// CoOccurrence). After git-history indexing those can outnumber
-    /// structural edges 10:1 (OciusX: 1.3M temporal vs 113k structural) —
+    /// structural edges 10:1 (pilot corpus: 1.3M temporal vs 113k structural) —
     /// a full-table scan per tool call stops scaling. Key layout is
     /// `project\0kind\0source\0target`, so per-kind prefix scans skip the
     /// temporal ranges entirely.
     /// Stream every edge of one kind through a visitor without
-    /// materializing the list — OciusX has 1.3M TemporalCoupling edges and
+    /// materializing the list — the pilot corpus has 1.3M TemporalCoupling edges and
     /// collecting them costs hundreds of MB for aggregation that needs a
     /// running map.
     /// Point lookup of one edge's resolution confidence (TODO-12).
@@ -2408,7 +2408,7 @@ impl GraphStore {
             // Per-kind prefix scans, skipping statistical history kinds:
             // TemporalCoupling/CoOccurrence endpoints are always concrete
             // file ids, never `::` placeholders, and after git-history
-            // indexing they dominate the table (OciusX: 1.3M vs 113k).
+            // indexing they dominate the table (pilot corpus: 1.3M vs 113k).
             for kind in EdgeKind::ALL {
                 if matches!(kind, EdgeKind::TemporalCoupling | EdgeKind::CoOccurrence) {
                     continue;
@@ -3231,7 +3231,7 @@ mod tests {
         );
     }
 
-    /// Regression guard for the OciusX shape where a GridView's
+    /// Regression guard for the pilot-corpus shape where a GridView's
     /// `DataSourceID` binding ends at a database column via
     /// `binding_field → ReadsColumn → column:…`. The BFS used to
     /// terminate only at `sql:` / `inline_sql` / `stored_proc` nodes
@@ -3291,7 +3291,7 @@ mod tests {
             .expect("find_ui_paths");
         assert!(
             !paths.is_empty(),
-            "BFS must terminate at a db_column endpoint — this is the OciusX shape"
+            "BFS must terminate at a db_column endpoint — this is the pilot-corpus shape"
         );
         let first = &paths[0];
         assert!(

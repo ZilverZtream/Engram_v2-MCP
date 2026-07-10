@@ -1,7 +1,7 @@
 //! Content-hash embedding cache (16b groundwork).
 //!
 //! Embedding is the dominant cost of indexing with a real model: a full
-//! OciusX reindex re-embeds 28k unchanged chunks (~30 min via Ollama), and
+//! pilot-corpus reindex re-embeds 28k unchanged chunks (~30 min via Ollama), and
 //! the incremental-update copy-forward path funnels unchanged docs back
 //! through `index_docs`, re-embedding the whole corpus per update.
 //!

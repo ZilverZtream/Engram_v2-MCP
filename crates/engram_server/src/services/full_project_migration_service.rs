@@ -1930,7 +1930,7 @@ mod tests {
     // `flag_path.contains(codebehind.unwrap_or(""))`. When the dossier had
     // no detected codebehind the filter degenerated to `.contains("")`
     // which is always true, so the first page without a codebehind dumped
-    // the project-wide VB flag list (~50 KB on OciusX) into a single
+    // the project-wide VB flag list (~50 KB on the pilot corpus) into a single
     // dossier's section.
 
     #[test]

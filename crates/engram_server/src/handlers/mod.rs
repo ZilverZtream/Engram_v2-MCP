@@ -19,7 +19,7 @@ pub mod support_kb_tools;
 pub mod runtime_observation_tools;
 
 /// Result cap for UNFILTERED full-graph node scans. 50k silently truncated
-/// on OciusX gen-3 (the settings-store extraction grew the graph past it) —
+/// on pilot-corpus gen-3 (the settings-store extraction grew the graph past it) —
 /// recall loss on the catalog/footprint/guards tools. query_nodes scans the
 /// whole table regardless once no filter early-exits, so a higher cap costs
 /// only the extra deserialization of rows that were previously dropped.

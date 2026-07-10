@@ -863,7 +863,7 @@ fn extract_vb_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
         });
     }
 
-    // SafeRedirect convention (OciusX-style — generic test: "project uses a
+    // SafeRedirect convention (pilot-style — generic test: "project uses a
     // SafeRedirect helper"). Only emitted when we see ≥3 uses; one-off calls
     // don't constitute a convention.
     let sr = SAFE_REDIRECT_RE

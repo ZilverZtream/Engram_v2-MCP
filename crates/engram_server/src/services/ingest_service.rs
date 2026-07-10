@@ -912,7 +912,7 @@ pub async fn process_ingest_stats(
         // `event_wiring` family so we can see exactly which source/target
         // IDs land as Dependency edges. This was requested to diagnose
         // why `trace_ui_event` from `control:…:linqSource` returned zero
-        // outgoing Dependency edges on OciusX despite the extractor
+        // outgoing Dependency edges on the pilot corpus despite the extractor
         // emitting 1571 `event_wiring` edges — a log here makes the
         // resolved node-id shape visible without requiring a custom
         // graph dump.

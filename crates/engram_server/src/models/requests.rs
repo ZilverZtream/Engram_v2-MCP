@@ -557,7 +557,7 @@ pub struct PlanUserStoryRequest {
 /// Planning: the ranked, co-change-confirmed, family-complete set of files a
 /// user story is likely to require — one call. Concept-footprint + git co-change
 /// + structural graph, fused with co-change-first ranking, .NET family expansion,
-/// and vendor-noise filtering. (Validated on the OciusX eval: this packaging flips
+/// and vendor-noise filtering. (Validated on the pilot eval: this packaging flips
 /// Engram from hurting to helping a code-gen agent.)
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -823,7 +823,7 @@ pub struct ListSettingsRequest {
     #[serde(default)]
     pub scope: Option<String>,
     /// Max settings rendered per category. Default 25 (raise up to 500 for
-    /// the exhaustive dump) — the full OciusX catalog at 100/category was
+    /// the exhaustive dump) — the pilot corpus's full catalog at 100/category was
     /// ~58K chars, too heavy for a planning-phase call.
     #[serde(default = "default_settings_per_category")]
     pub max_per_category: usize,

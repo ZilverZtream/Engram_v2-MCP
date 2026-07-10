@@ -2816,7 +2816,7 @@ pub fn escape_tantivy_literal(s: &str) -> String {
                 // grammar token, so an unescaped contraction (`doesn't`) makes
                 // parse_query return Err(SyntaxError) — which aborts the whole
                 // hybrid search() before the vector arm runs. Found via the
-                // OciusX eval: NL queries with apostrophes returned 0 hits.
+                // pilot eval: NL queries with apostrophes returned 0 hits.
                 out.push('\\');
                 out.push(c);
             }

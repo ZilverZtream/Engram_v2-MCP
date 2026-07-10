@@ -446,7 +446,7 @@ pub fn extract_webforms(
             // `DataSourceID="ctrlId"` → `data_binding` edge from the
             // consumer control to its data-source control. Without this
             // edge, trace_ui_event on a GridView with declarative
-            // binding (the common OciusX shape — LinqDataSource /
+            // binding (the common pilot-corpus shape — LinqDataSource /
             // ObjectDataSource / SqlDataSource wired purely through
             // markup) cannot cross from the grid to the data source,
             // so it never reaches the codebehind handler or SQL table.
@@ -2175,7 +2175,7 @@ mod tests {
         // kind isn't "control", `NodeId::control` isn't called and the
         // edge lands with a non-matching source_id — exactly the
         // shape that made `traverse_graph(control:…:linqSource,
-        // dependency)` return zero on OciusX.
+        // dependency)` return zero on the pilot corpus.
         let ls_first = edges
             .iter()
             .find(|e| e.kind == "event_wiring" && e.source_name == "linqSource")

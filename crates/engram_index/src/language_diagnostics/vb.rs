@@ -1,4 +1,4 @@
-//! VB.NET pre-edit risk diagnostics. VB.NET is the primary OciusX language, so
+//! VB.NET pre-edit risk diagnostics. VB.NET is the pilot corpus's primary language, so
 //! an agent about to edit a VB method needs the same "what to watch out for"
 //! signal the C#/C/C++/Rust modules provide. These flag the high-value VB
 //! footguns a reviewer would block on.
