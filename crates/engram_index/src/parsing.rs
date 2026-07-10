@@ -702,7 +702,11 @@ impl SymbolExtractor {
         // Emit them as the same `imports` edges ES imports get.
         if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
             for line in content.lines().take(200) {
-                let t = line.trim();
+                // U+FEFF is NOT Rust-whitespace: a BOM'd first line (the
+                // Visual Studio default for TS files — live: fbinstplan/
+                // main.ts) survives trim() and silently broke the whole
+                // scan via the first-statement break below.
+                let t = line.trim().trim_start_matches('\u{feff}').trim_start();
                 if t.is_empty() || t.starts_with("//!") {
                     continue;
                 }
@@ -1047,6 +1051,18 @@ mod tests {
         assert!(imports.contains(&"./options.ts"), "{imports:?}");
         // Directives after the first statement are NOT directives per spec.
         assert!(!imports.contains(&"too/late.ts"), "{imports:?}");
+
+        // BOM'd first line (the Visual Studio default): U+FEFF is NOT
+        // Rust-whitespace, so a plain trim() left it and broke the scan
+        // (live: fbinstplan/main.ts had zero edges after the first ship).
+        let bom_src = "\u{feff}/// <reference path=\"app.ts\" />\nlet x = 1;\n";
+        let (_, bom_edges) = extractor.extract(Path::new("app/bom.ts"), bom_src);
+        assert!(
+            bom_edges
+                .iter()
+                .any(|e| e.kind == "imports" && e.target_name == "app.ts"),
+            "BOM'd directive must still be seen: {bom_edges:?}"
+        );
     }
 
     /// Compile-time proof that `CompiledQueries` is Send + Sync.
