@@ -4683,35 +4683,49 @@ impl Engram {
             let shared = tokio::task::spawn_blocking(move || {
                 let mut out: Vec<(usize, String, Vec<String>)> = Vec::new();
                 let mut seen: HashSet<String> = HashSet::new();
+                // Both shapes matter: (a) a candidate DEPENDS ON a shared
+                // component; (b) the candidate ITSELF is the shared
+                // component other surfaces import (the run-9 shape:
+                // qtyManager.ts consumed by the map AND fbinstplan
+                // surfaces — the fan-in is INCOMING at the candidate).
+                let mut check = |node_id: String,
+                                 graph: &engram_graph::GraphStore|
+                 -> Option<(usize, String, Vec<String>)> {
+                    if !seen.insert(node_id.clone()) {
+                        return None;
+                    }
+                    let path = node_id.strip_prefix("file:")?.to_string();
+                    let importers = graph
+                        .find_incoming_edges(
+                            &pid_s,
+                            Some(engram_graph::EdgeKind::Imports),
+                            &node_id,
+                            25,
+                        )
+                        .unwrap_or_default();
+                    if importers.len() < 2 {
+                        return None;
+                    }
+                    let sample: Vec<String> = importers
+                        .iter()
+                        .take(3)
+                        .filter_map(|(src, _)| src.strip_prefix("file:").map(str::to_string))
+                        .collect();
+                    Some((importers.len(), path, sample))
+                };
                 for f in &top_files {
                     let fid = engram_core::ids::NodeId::file(f).0;
+                    // (b) the candidate itself as the shared component.
+                    if let Some(row) = check(fid.clone(), &graph) {
+                        out.push(row);
+                    }
+                    // (a) shared components the candidate depends on.
                     for (dep_id, _w) in graph
                         .neighbors(&pid_s, engram_graph::EdgeKind::Imports, &fid, 20)
                         .unwrap_or_default()
                     {
-                        if !seen.insert(dep_id.clone()) {
-                            continue;
-                        }
-                        let Some(dep_path) = dep_id.strip_prefix("file:") else {
-                            continue;
-                        };
-                        let importers = graph
-                            .find_incoming_edges(
-                                &pid_s,
-                                Some(engram_graph::EdgeKind::Imports),
-                                &dep_id,
-                                25,
-                            )
-                            .unwrap_or_default();
-                        if importers.len() >= 2 {
-                            let sample: Vec<String> = importers
-                                .iter()
-                                .take(3)
-                                .filter_map(|(src, _)| {
-                                    src.strip_prefix("file:").map(str::to_string)
-                                })
-                                .collect();
-                            out.push((importers.len(), dep_path.to_string(), sample));
+                        if let Some(row) = check(dep_id, &graph) {
+                            out.push(row);
                         }
                     }
                 }
