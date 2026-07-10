@@ -5464,9 +5464,16 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
 /// story's actual domain concepts. The rendered brief keeps the labels;
 /// extraction gets this stripped view.
 pub(crate) fn story_for_concepts(story: &str) -> String {
-    story
+    let s = story
         .replace("## Work item (full text)", "")
-        .replace("Acceptance criteria:", "")
+        .replace("Acceptance criteria:", "");
+    // URLs are not domain concepts: a pasted support-ticket link made its
+    // hostname/path tokens ("ociusx", "agent") 2 of the 5 extracted
+    // concepts on a live fetch. Drop whole URL tokens.
+    s.split_whitespace()
+        .filter(|w| !w.starts_with("http://") && !w.starts_with("https://"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Azure DevOps (org, project) from a git remote URL. Handles the three
@@ -5826,6 +5833,16 @@ mod work_item_tests {
         );
         // No origin section → None (never the wrong remote's URL).
         assert!(parse_origin_url("[remote \"upstream\"]\n\turl = https://x/y").is_none());
+    }
+
+    #[test]
+    fn concept_view_drops_url_tokens() {
+        let s = "Camera icon bug\n\nSee https://ociusx.zendesk.com/agent/tickets/956 for repro";
+        let cleaned = story_for_concepts(s);
+        assert!(!cleaned.contains("zendesk"), "{cleaned}");
+        assert!(!cleaned.contains("https://"), "{cleaned}");
+        assert!(cleaned.contains("Camera icon bug"));
+        assert!(cleaned.contains("for repro"));
     }
 
     #[test]
