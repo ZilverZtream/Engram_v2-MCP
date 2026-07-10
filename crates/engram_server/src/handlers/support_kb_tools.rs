@@ -49,6 +49,53 @@ pub(crate) fn feature_slug(section_id: &str) -> Option<&str> {
     stripped.rsplit('/').next().filter(|s| !s.is_empty())
 }
 
+/// The docs' own title for a section: frontmatter `title:` first, then the
+/// first `# ` heading (first 30 lines).
+pub(crate) fn extract_doc_title(content: &str) -> Option<String> {
+    let mut in_fm = false;
+    for (i, line) in content.lines().take(30).enumerate() {
+        let t = line.trim();
+        if i == 0 && t == "---" {
+            in_fm = true;
+            continue;
+        }
+        if in_fm {
+            if t == "---" {
+                in_fm = false;
+                continue;
+            }
+            if let Some(v) = t.strip_prefix("title:") {
+                let v = v.trim().trim_matches('"').trim_matches('\'');
+                if !v.is_empty() {
+                    return Some(v.to_string());
+                }
+            }
+            continue;
+        }
+        if let Some(h) = t.strip_prefix("# ")
+            && !h.trim().is_empty()
+        {
+            return Some(h.trim().to_string());
+        }
+    }
+    None
+}
+
+/// `change-requests` → `Change Requests`.
+pub(crate) fn humanize_slug(slug: &str) -> String {
+    slug.split(['-', '_'])
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 impl Engram {
     pub async fn handle_produce_support_kb(
         &self,
@@ -103,11 +150,15 @@ impl Engram {
             let index_sec = &sections[idx.expect("retained above")];
             let roles = extract_roles_line(&index_sec.content)
                 .unwrap_or_else(|| "(not stated in docs)".to_string());
-            let title = if index_sec.title.trim().is_empty() {
-                slug.clone()
-            } else {
-                index_sec.title.clone()
-            };
+            // Human title: the docs' own frontmatter/heading first — the
+            // memory-bank section title is often the raw ingest path
+            // ("docs/docs/change-requests/index"), useless on a card.
+            let title = extract_doc_title(&index_sec.content)
+                .or_else(|| {
+                    let t = index_sec.title.trim();
+                    (!t.is_empty() && !t.contains('/')).then(|| t.to_string())
+                })
+                .unwrap_or_else(|| humanize_slug(slug));
 
             // Code-derived rules: hybrid search over the business_logic
             // namespace with the feature title (GlobalMutable — no
@@ -244,5 +295,19 @@ mod tests {
         );
         assert_eq!(feature_slug("docs/docs/change-requests/creating"), None);
         assert_eq!(feature_slug("docs/index"), Some("docs"));
+    }
+
+    #[test]
+    fn doc_title_from_frontmatter_heading_or_slug() {
+        // Frontmatter title wins (the live Change-Requests docs shape).
+        let fm = "---\ntitle: Change Requests\ndescription: Track modifications\n---\n\n# Something Else\n";
+        assert_eq!(extract_doc_title(fm).as_deref(), Some("Change Requests"));
+        // No frontmatter → first heading.
+        let h = "\n# As-Built Notes\n\ncontent";
+        assert_eq!(extract_doc_title(h).as_deref(), Some("As-Built Notes"));
+        // Neither → caller falls back to the humanized slug.
+        assert_eq!(extract_doc_title("plain text only"), None);
+        assert_eq!(humanize_slug("change-requests"), "Change Requests");
+        assert_eq!(humanize_slug("as_built_notes"), "As Built Notes");
     }
 }
