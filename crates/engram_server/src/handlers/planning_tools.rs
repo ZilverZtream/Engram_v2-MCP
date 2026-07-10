@@ -4563,7 +4563,7 @@ impl Engram {
             // the section silently vanished. Pick node-bearing code files,
             // strongest corroboration first.
             let top_files = top_node_bearing_files(&prov, 15);
-            let (gates, helper_files) = tokio::task::spawn_blocking(move || {
+            let (gates, helper_files, gate_def_files) = tokio::task::spawn_blocking(move || {
                 let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
                 for f in &top_files {
                     for n in graph
@@ -4588,11 +4588,28 @@ impl Engram {
                 // routes new permission surface through its user/role
                 // helper file, and nothing in the brief named that file.
                 let mut helper_files: HashMap<String, usize> = HashMap::new();
+                // Gate DEFINITION sites: method-shaped gates (check_pr_id,
+                // CheckWrite, checkread) are function nodes — one scan maps
+                // each gate to the file DEFINING it. That file is the
+                // permission catalog/helper class a new gated surface edits
+                // (the miss class of two arm-B audits: role.vb,
+                // aspnetUsers.vb) — derived from the graph, no name
+                // convention needed.
+                let mut def_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
                 if !gates.is_empty() {
+                    let gate_names: HashSet<String> =
+                        gates.keys().map(|g| g.to_lowercase()).collect();
                     for n in graph
-                        .query_nodes(&pid_g, Some("function"), Some("can"), None, 4000)
+                        .query_nodes(&pid_g, Some("function"), None, None, usize::MAX)
                         .unwrap_or_default()
                     {
+                        let last = n.name.rsplit('.').next().unwrap_or(&n.name).to_lowercase();
+                        if gate_names.contains(&last) {
+                            def_files
+                                .entry(n.file_path.as_str().replace('\\', "/"))
+                                .or_default()
+                                .insert(last);
+                        }
                         if is_can_helper_name(&n.name) {
                             *helper_files
                                 .entry(n.file_path.as_str().replace('\\', "/"))
@@ -4600,7 +4617,7 @@ impl Engram {
                         }
                     }
                 }
-                (gates, helper_files)
+                (gates, helper_files, def_files)
             })
             .await
             .unwrap_or_default();
@@ -4616,6 +4633,20 @@ impl Engram {
                 rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
                 for (n, g) in rows.into_iter().take(10) {
                     out.push_str(&format!("- {g} ({n} gated symbol(s) in the set)\n"));
+                }
+                // Definition sites: the file(s) DEFINING these gate checks —
+                // a new gated surface usually adds its check/helper THERE.
+                let mut df: Vec<(usize, String, Vec<String>)> = gate_def_files
+                    .into_iter()
+                    .map(|(f, gs)| (gs.len(), f, gs.into_iter().collect()))
+                    .collect();
+                df.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                for (_, f, gs) in df.into_iter().take(2) {
+                    out.push_str(&format!(
+                        "Gate definitions: `{f}` defines {} — permission-surface changes \
+                         usually land there too.\n",
+                        gs.join(", ")
+                    ));
                 }
                 // Only a real convention is worth a line: >=3 Can* helpers
                 // concentrated in a file.
