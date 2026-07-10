@@ -39,6 +39,36 @@ def commit_exists(sha):
     return git("cat-file", "-e", f"{sha}^{{commit}}")[0] == 0
 
 
+def quoted_tokens(text):
+    """Backtick-quoted code tokens the reviewer named, longest first —
+    these are what the fix removes/changes, a line-number-independent
+    anchor."""
+    import re
+    toks = re.findall(r"`([^`]{3,60})`", text)
+    # Keep identifier-ish quotes (drop pure prose in backticks).
+    toks = [t for t in toks if re.search(r"[A-Za-z_]\w*", t)]
+    return sorted(set(toks), key=len, reverse=True)
+
+
+def hunk_with_token(diff_text, tokens):
+    """First @@ hunk whose REMOVED (-) side contains a named token —
+    the hunk that changed the offending code, regardless of line drift."""
+    cur, out = [], None
+    removed = []
+    for ln in diff_text.splitlines():
+        if ln.startswith("@@ "):
+            if out is None and any(any(t in r for t in tokens) for r in removed):
+                out = "\n".join(cur)
+            cur, removed = [ln], []
+        else:
+            cur.append(ln)
+            if ln.startswith("-") and not ln.startswith("---"):
+                removed.append(ln)
+    if out is None and any(any(t in r for t in tokens) for r in removed):
+        out = "\n".join(cur)
+    return out
+
+
 def hunk_covering(diff_text, line):
     """Return the @@ hunk whose NEW-file range covers `line`, else None."""
     import re
@@ -84,30 +114,44 @@ def main():
         fp = tc["filePath"].lstrip("/")
         line = (tc.get("rightFileStart") or {}).get("line") or 1
         pub = th.get("publishedDate") or ""
-        first = next((i for i in range(1, len(seq))
-                      if seq[i][0] > pub and seq[i][1] and commit_exists(seq[i][1])
-                      and seq[i - 1][1] and commit_exists(seq[i - 1][1])), None)
-        text = (th["comments"][0].get("content") or "").strip().replace("\n", " ")[:90]
-        if first is None:
+        full = th["comments"][0].get("content") or ""
+        text = full.strip().replace("\n", " ")[:90]
+        toks = quoted_tokens(full)
+        # Search EVERY later local iteration's file diff (fixes batch into
+        # non-adjacent pushes), preferring a token-anchored hunk; fall back
+        # to the line-covering hunk in the first post-publish iteration.
+        located, via, at = None, None, None
+        for i in range(1, len(seq)):
+            if seq[i][0] <= pub or not (seq[i][1] and commit_exists(seq[i][1])):
+                continue
+            if not (seq[i - 1][1] and commit_exists(seq[i - 1][1])):
+                continue
+            code, diff = git("diff", seq[i - 1][1], seq[i][1], "--", fp)
+            if code != 0 or not diff.strip():
+                continue
+            if toks:
+                h = hunk_with_token(diff, toks)
+                if h:
+                    located, via, at = h, "token", i
+                    break
+            if located is None:
+                h = hunk_covering(diff, line)
+                if h:
+                    located, via, at = h, "line", i  # keep looking for a token match
+        if located is None:
             tally["no_hunk"] += 1
             continue
-        prev_c, cur_c = seq[first - 1][1], seq[first][1]
-        code, diff = git("diff", prev_c, cur_c, "--", fp)
-        if code != 0 or not diff.strip():
-            tally["no_hunk"] += 1
-            continue
-        hunk = hunk_covering(diff, line)
-        n_hunks = diff.count("\n@@ ") + diff.count("@@ -")
-        if hunk:
-            tally["clean" if n_hunks <= 2 else "noisy"] += 1
-            print(f"FINDING [{fp.split('/')[-1]}:{line}]: {text}")
-            print(f"  FIX (iter{first}, {n_hunks} hunk(s) in file):")
-            for hl in hunk.splitlines()[:12]:
-                print(f"    {hl}")
-            print()
-        else:
-            tally["no_hunk"] += 1
-    print(f"SIGNAL: {tally}  (clean = single/dual-hunk fix located at the finding's line)")
+        tally["clean" if via == "token" else "noisy"] += 1
+        print(f"FINDING [{fp.split('/')[-1]}]: {text}")
+        print(f"  FIX (iter{at}, via {via}):")
+        for hl in located.splitlines()[:10]:
+            print(f"    {hl}")
+        print()
+    loc = tally["clean"] + tally["noisy"]
+    total = loc + tally["no_hunk"]
+    print(f"SIGNAL: {tally}  (clean = token-anchored fix; noisy = line-only fallback)")
+    print(f"LOCALIZED: {loc}/{total} findings paired to a fix hunk "
+          f"({tally['clean']} token-anchored)")
 
 
 if __name__ == "__main__":
