@@ -5036,7 +5036,7 @@ impl Engram {
                 let g = g.to_lowercase().replace('\\', "/");
                 g.split("/**").next().unwrap_or(&g).trim_end_matches('/').to_string()
             };
-            let mut rows: Vec<(bool, String, String)> = Vec::new();
+            let mut rows: Vec<(bool, String, String, Option<String>)> = Vec::new();
             let mut seen_rule: HashSet<String> = HashSet::new();
             for h in hits {
                 let Ok(Some((path, _, content, _, _))) = ps.search.get_doc_by_doc_id(
@@ -5057,6 +5057,12 @@ impl Engram {
                     .and_then(|l| l.split('|').next())
                     .map(|s| s.trim().to_string())
                     .unwrap_or_default();
+                // The concrete before→after the team applied (iteration-delta
+                // mining): everything after the exemplar marker in the doc.
+                let fix_hunk = content
+                    .split_once("House fix (applied in a merged PR):")
+                    .map(|(_, h)| h.trim().to_string())
+                    .filter(|h| !h.is_empty());
                 let prefix = glob_prefix(path.as_str());
                 let file_match = !prefix.is_empty()
                     && cand_paths.iter().any(|c| {
@@ -5072,23 +5078,44 @@ impl Engram {
                     } else {
                         format!(" ({})", fix_rate.to_lowercase())
                     }),
+                    fix_hunk,
                 ));
             }
-            // Candidate-matching rules first, then the best of the rest.
-            rows.sort_by(|a, b| b.0.cmp(&a.0));
+            // Candidate-matching rules first; among those, rules that carry a
+            // concrete fix exemplar rank ahead (they're the most actionable).
+            rows.sort_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| b.3.is_some().cmp(&a.3.is_some()))
+            });
             rows.truncate(8);
             if !rows.is_empty() {
                 out.push_str(
                     "\n## Review rules for this change (distilled from this repo's past code reviews)\n\
                      Reviewers flagged these issue classes repeatedly — in the file families \
                      marked ▲ they fired on the very files this change ranks. Write the code \
-                     so they never fire; each one caught late costs a review round-trip:\n",
+                     so they never fire; each one caught late costs a review round-trip. \
+                     Where a ‹house fix› is shown, that is the exact change the team applied \
+                     last time — mirror its approach:\n",
                 );
-                for (matched, family, rule) in rows {
+                // Show the concrete fix hunk for the top few file-matched
+                // rules that carry one; keep the rest as one-liners so the
+                // section stays scannable.
+                let mut hunks_shown = 0usize;
+                for (matched, family, rule, fix_hunk) in rows {
                     out.push_str(&format!(
                         "- {}{family}: {rule}\n",
                         if matched { "▲ " } else { "" }
                     ));
+                    if hunks_shown < 3
+                        && matched
+                        && let Some(hunk) = fix_hunk
+                    {
+                        let trimmed: String = hunk.lines().take(14).collect::<Vec<_>>().join("\n");
+                        out.push_str("  ‹house fix›\n```diff\n");
+                        out.push_str(&trimmed);
+                        out.push_str("\n```\n");
+                        hunks_shown += 1;
+                    }
                 }
             }
         }
