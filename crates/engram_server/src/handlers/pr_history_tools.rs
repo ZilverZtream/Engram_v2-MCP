@@ -173,6 +173,22 @@ pub(crate) fn render_pr_doc(
     md
 }
 
+/// Layer profile of a pr-doc `kinds:` value: (touches_client, touches_server).
+/// Client = ui-code/ui-markup/js; server = backend/api/database. `settings`
+/// and `resources` are layer-neutral (both sides ship them).
+pub(crate) fn layer_profile(kinds_line: &str) -> (bool, bool) {
+    let mut client = false;
+    let mut server = false;
+    for k in kinds_line.split(',').map(str::trim) {
+        match k {
+            "ui-code" | "ui-markup" | "js" => client = true,
+            "backend" | "api" | "database" => server = true,
+            _ => {}
+        }
+    }
+    (client, server)
+}
+
 /// Epoch seconds at 00:00:00 UTC of a `YYYY-MM-DD` date (shape validated by
 /// the caller; impossible day-of-month values are accepted like `date -u`
 /// would normalize them — the callers only need a monotonic cutoff).
@@ -779,6 +795,20 @@ mod tests {
         );
         let view = exemplar_view(&doc, 20);
         assert!(view.contains("... and 50 more"), "{view}");
+    }
+
+    #[test]
+    fn layer_profile_classifies_kinds_lines() {
+        use super::layer_profile;
+        assert_eq!(
+            layer_profile("api, backend, ui-code, ui-markup"),
+            (true, true)
+        );
+        assert_eq!(layer_profile("js"), (true, false));
+        assert_eq!(layer_profile("backend, database"), (false, true));
+        // Layer-neutral kinds alone -> neither side.
+        assert_eq!(layer_profile("settings, resources"), (false, false));
+        assert_eq!(layer_profile("-"), (false, false));
     }
 
     #[test]

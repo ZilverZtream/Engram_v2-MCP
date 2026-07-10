@@ -4547,6 +4547,51 @@ impl Engram {
                     "next: find_merged_work(story=...) for the complete approved file cohorts.\n",
                 );
             }
+            // House factoring prior: across ALL fetched similar merged PRs
+            // (not just the 2 shown), how did the team LAYER this kind of
+            // work — client, server, or both? The factoring fork (same fix,
+            // different layer) is the dominant plan-vs-team divergence
+            // (arm-B runs 13/15/17: mechanism-correct plans, other layer).
+            // Evidence, not a rule: the agent still decides.
+            let mut both = 0usize;
+            let mut client_only = 0usize;
+            let mut server_only = 0usize;
+            let mut example = String::new();
+            for (_, _, content) in &docs {
+                let Some(kinds_line) = content.lines().find_map(|l| l.split("| kinds: ").nth(1))
+                else {
+                    continue;
+                };
+                let (c, s) = crate::handlers::pr_history_tools::layer_profile(kinds_line);
+                match (c, s) {
+                    (true, true) => {
+                        both += 1;
+                        if example.is_empty()
+                            && let Some(t) = content.lines().next()
+                        {
+                            example = t.trim_start_matches('#').trim().to_string();
+                        }
+                    }
+                    (true, false) => client_only += 1,
+                    (false, true) => server_only += 1,
+                    (false, false) => {}
+                }
+            }
+            let total = both + client_only + server_only;
+            if total >= 4 {
+                out.push_str(&format!(
+                    "House factoring prior ({total} similar merged PRs): {both} shipped \
+                     CLIENT+SERVER together, {client_only} client-side only, {server_only} \
+                     server-side only{}. When your fix could land in either layer, weigh \
+                     this team's habit — a mechanism-correct plan in the OTHER layer is \
+                     the most common way plans diverge from what actually merged.\n",
+                    if example.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" (e.g. {example})")
+                    }
+                ));
+            }
         }
 
         // Permission gates in the candidate set: when ranked files carry
