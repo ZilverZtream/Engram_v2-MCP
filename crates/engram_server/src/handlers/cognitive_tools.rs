@@ -3803,6 +3803,7 @@ impl Engram {
                 // CLAUDE.md without explicit consent.
                 let divert = safe_join(&project_dir, "CLAUDE.engram.md")
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.engram.md");
                 notes.push(
                     "Existing CLAUDE.md was left UNTOUCHED — engram output was written to \
                      CLAUDE.engram.md instead. Pass `overwrite_existing: true` to merge or \
@@ -3822,6 +3823,7 @@ impl Engram {
                 let backup_name = format!("CLAUDE.md.{ts}.bak");
                 let backup_path = safe_join(&project_dir, &backup_name)
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.md.*.bak");
                 std::fs::write(&backup_path, &existing)
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 written.push(backup_name.clone());

@@ -8,6 +8,40 @@ fn default_exts() -> Vec<&'static str> {
     ]
 }
 
+/// Ensure `entry` is listed in `<repo>/.git/info/exclude` — git's
+/// local-only ignore file.
+///
+/// Engram artifacts written into a customer working tree (support-kb/,
+/// CLAUDE.engram.md, CLAUDE.md backups) must never dirty `git status` or
+/// risk being pushed to the customer's remote; teams often cannot modify
+/// the shared .gitignore (live report 2026-07-10: a generated support-kb/
+/// polluted a developer's active branch), so the exclude file is the only
+/// safe channel. Best-effort hygiene: silently no-ops when the directory
+/// is not a git repo, when `.git` is a worktree pointer file, or on any
+/// IO error. Idempotent — an existing entry is never duplicated.
+pub fn ensure_git_excluded(project_dir: &Path, entry: &str) {
+    let git_dir = project_dir.join(".git");
+    if !git_dir.is_dir() {
+        return;
+    }
+    let info = git_dir.join("info");
+    let exclude = info.join("exclude");
+    let existing = std::fs::read_to_string(&exclude).unwrap_or_default();
+    if existing.lines().any(|l| l.trim() == entry) {
+        return;
+    }
+    if std::fs::create_dir_all(&info).is_err() {
+        return;
+    }
+    let mut s = existing;
+    if !s.is_empty() && !s.ends_with('\n') {
+        s.push('\n');
+    }
+    s.push_str(entry);
+    s.push('\n');
+    let _ = std::fs::write(&exclude, s);
+}
+
 /// Return the file extensions to index for a given project_type string.
 ///
 /// This function accepts the canonical strings produced by `ProjectType::as_str()`
