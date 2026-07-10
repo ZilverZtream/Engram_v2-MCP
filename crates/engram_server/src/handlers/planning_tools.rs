@@ -4557,13 +4557,28 @@ impl Engram {
             let mut client_only = 0usize;
             let mut server_only = 0usize;
             let mut example = String::new();
+            // Per-layer author lists: WHO made each layer choice matters —
+            // senior/lead authors' factoring is more authoritative house
+            // style than anyone else's (user 2026-07-10). Authority is
+            // surfaced generically via the author names + counts; the
+            // reader (agent or human) weighs them.
+            let mut layer_authors: BTreeMap<&'static str, BTreeMap<String, usize>> =
+                BTreeMap::new();
             for (_, _, content) in &docs {
-                let Some(kinds_line) = content.lines().find_map(|l| l.split("| kinds: ").nth(1))
-                else {
+                let meta = content.lines().find(|l| l.contains("| kinds: "));
+                let Some(meta) = meta else { continue };
+                let Some(kinds_line) = meta.split("| kinds: ").nth(1) else {
                     continue;
                 };
+                let author = meta
+                    .split("| author: ")
+                    .nth(1)
+                    .and_then(|r| r.split(" |").next())
+                    .unwrap_or("?")
+                    .trim()
+                    .to_string();
                 let (c, s) = crate::handlers::pr_history_tools::layer_profile(kinds_line);
-                match (c, s) {
+                let bucket = match (c, s) {
                     (true, true) => {
                         both += 1;
                         if example.is_empty()
@@ -4571,11 +4586,23 @@ impl Engram {
                         {
                             example = t.trim_start_matches('#').trim().to_string();
                         }
+                        "client+server"
                     }
-                    (true, false) => client_only += 1,
-                    (false, true) => server_only += 1,
-                    (false, false) => {}
-                }
+                    (true, false) => {
+                        client_only += 1;
+                        "client-only"
+                    }
+                    (false, true) => {
+                        server_only += 1;
+                        "server-only"
+                    }
+                    (false, false) => continue,
+                };
+                *layer_authors
+                    .entry(bucket)
+                    .or_default()
+                    .entry(author)
+                    .or_default() += 1;
             }
             let total = both + client_only + server_only;
             if total >= 4 {
@@ -4591,6 +4618,16 @@ impl Engram {
                         format!(" (e.g. {example})")
                     }
                 ));
+                // WHO made each choice: lead/senior authors' layer choices
+                // are the strongest house-style evidence.
+                for (bucket, authors) in &layer_authors {
+                    let mut rows: Vec<(usize, &String)> =
+                        authors.iter().map(|(a, n)| (*n, a)).collect();
+                    rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+                    let list: Vec<String> =
+                        rows.iter().map(|(n, a)| format!("{a} ({n})")).collect();
+                    out.push_str(&format!("  {bucket} by: {}\n", list.join(", ")));
+                }
             }
         }
 
