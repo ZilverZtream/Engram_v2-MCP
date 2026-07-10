@@ -1767,7 +1767,7 @@ mod tests {
         // in rule docs' token clouds). Identifier-shaped PascalCase and
         // explicit code markers still pass.
         let body = "Thanks! Understood. Therefore we should Carefully check \
-                    NullReferenceException in `prGetSubProjects` when GetByID() runs.";
+                    NullReferenceException in `spGetChildRecords` when GetByID() runs.";
         let tokens = extract_pattern_tokens(body);
         for prose in ["Thanks", "Understood", "Therefore", "Carefully"] {
             assert!(
@@ -1776,15 +1776,15 @@ mod tests {
             );
         }
         assert!(tokens.iter().any(|t| t == "NullReferenceException"));
-        assert!(tokens.iter().any(|t| t == "prGetSubProjects"));
+        assert!(tokens.iter().any(|t| t == "spGetChildRecords"));
         assert!(tokens.iter().any(|t| t == "GetByID"));
     }
 
     #[test]
     fn strip_html_drops_details_analysis_chains() {
-        let body = "**Missing null check on qtyRow.**\n\nThe row lookup can return Nothing.\n\
+        let body = "**Missing null check on selectedRow.**\n\nThe row lookup can return Nothing.\n\
                     <details><summary>🧩 Analysis chain</summary>\n🏁 Script executed: \
-                    #!/bin/bash\nfind . -name '*.vb' | xargs grep -l qtyRow</details>\n\
+                    #!/bin/bash\nfind . -name '*.vb' | xargs grep -l selectedRow</details>\n\
                     Fix by guarding the lookup.";
         let out = strip_html(body);
         assert!(out.contains("Missing null check"));
