@@ -3292,6 +3292,18 @@ pub(crate) fn dominant_logger(content: &str) -> Option<String> {
     }
 }
 
+/// An assignment whose RHS ends in a contractually-nullable-returning
+/// call: `x = …FirstOrDefault(…)` / `SingleOrDefault` / `Find` /
+/// `ElementAtOrDefault` (VB/C#/LINQ) or `.find(…)` (JS/TS). These return
+/// null/undefined by their own contract — keying on the method name is
+/// precise, not a heuristic guess about what "looks like" a query.
+static RE_AC_NULLABLE_ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b([a-z_]\w*)\s*=\s*.*\.(FirstOrDefault|SingleOrDefault|ElementAtOrDefault|Find|find)\s*\(",
+    )
+    .expect("valid nullable-assign regex")
+});
+
 pub struct AddedConventionsGate;
 
 #[async_trait]
@@ -3511,6 +3523,88 @@ impl Gate for AddedConventionsGate {
                     );
                 }
             }
+
+            // (d) Unguarded deref of a contractually-nullable result — the
+            // #1 recurring class in the 2026-07-10 replay corpus (54 caught
+            // + 31 missed of 263 real review findings). Evidence-gated like
+            // the docs check: only fires where an ingested repo rule
+            // demands null-guarding data-access returns, so it never fires
+            // on a codebase without that convention. Precise trigger:
+            // `x = ….FirstOrDefault(…)` etc. (methods that return null BY
+            // CONTRACT), immediately followed within the added block by
+            // `x.<member>` with no intervening null check.
+            let rule_demands_null_guard = ctx.repo_rules.iter().any(|r| {
+                let t = r.rule_text.to_lowercase();
+                (t.contains("null") || t.contains("nothing"))
+                    && (t.contains("guard")
+                        || t.contains("check")
+                        || t.contains("before")
+                        || t.contains("data-access")
+                        || t.contains("data access"))
+            });
+            if rule_demands_null_guard {
+                let added = &df.added_lines;
+                let mut flagged: Vec<(usize, String)> = Vec::new();
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    let Some(cap) = RE_AC_NULLABLE_ASSIGN.captures(text) else {
+                        continue;
+                    };
+                    let var = cap[1].to_string();
+                    if var.is_empty() {
+                        continue;
+                    }
+                    // Same-line guard already present (`= x.Find(..) ?? …`,
+                    // inline If) — skip.
+                    let lower = text.to_lowercase();
+                    if lower.contains("??")
+                        || lower.contains(&format!("{}?.", var.to_lowercase()))
+                    {
+                        continue;
+                    }
+                    // Look ahead in the contiguous added block for a deref
+                    // or a guard, whichever comes first.
+                    let deref = format!("{}.", var.to_lowercase());
+                    let guard_is_nothing = format!("{} is nothing", var.to_lowercase());
+                    let guard_isnot = format!("{} isnot nothing", var.to_lowercase());
+                    for j in idx + 1..(idx + 6).min(added.len()) {
+                        if added[j].0 != added[j - 1].0 + 1 {
+                            break; // left the contiguous added region
+                        }
+                        let l = added[j].1.to_lowercase();
+                        if l.contains(&guard_is_nothing)
+                            || l.contains(&guard_isnot)
+                            || l.contains(&format!("if {} ", var.to_lowercase()))
+                            || l.contains("=== null")
+                            || l.contains("!== undefined")
+                            || l.contains(&format!("{}?.", var.to_lowercase()))
+                        {
+                            break; // guarded before use — good
+                        }
+                        if l.contains(&deref) {
+                            flagged.push((*line_no, var.clone()));
+                            break;
+                        }
+                    }
+                }
+                for (line_no, var) in flagged.into_iter().take(4) {
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Warning,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("`{var}` may be null (…OrDefault/Find) and is dereferenced without a guard"),
+                            format!(
+                                "`{var}` is assigned from a method that returns null/undefined by \
+                                 contract, then used without a null check — this repo's rules \
+                                 require guarding data-access returns, and it is the single most \
+                                 common review-bounce class."
+                            ),
+                            format!("Guard `{var}` (If {var} IsNot Nothing / early return / null-conditional) before using it."),
+                        )
+                        .with_lines(vec![line_no]),
+                    );
+                }
+            }
         }
         Ok(findings)
     }
@@ -3533,6 +3627,33 @@ mod tests {
             removed_content: String::new(),
             hunks: Vec::new(),
             is_binary: false,
+        }
+    }
+
+    #[test]
+    fn nullable_assign_regex_matches_contract_nullable_calls_only() {
+        // Contractually-nullable → match + capture the var.
+        for (src, var) in [
+            ("Dim u = db.Users.FirstOrDefault(Function(x) x.Id = 1)", "u"),
+            ("row = list.SingleOrDefault(r => r.Ok)", "row"),
+            ("var m = arr.find(x => x.id === id)", "m"),
+            ("marker = markers.Find(AddressOf Match)", "marker"),
+        ] {
+            let c = RE_AC_NULLABLE_ASSIGN
+                .captures(src)
+                .unwrap_or_else(|| panic!("should match: {src}"));
+            assert_eq!(&c[1], var, "wrong var for: {src}");
+        }
+        // Non-nullable-by-contract calls must NOT match.
+        for src in [
+            "Dim all = db.Users.ToList()",
+            "count = items.Count()",
+            "first = seq.First()", // First() throws, not nullable — excluded on purpose
+        ] {
+            assert!(
+                RE_AC_NULLABLE_ASSIGN.captures(src).is_none(),
+                "should NOT match: {src}"
+            );
         }
     }
 
