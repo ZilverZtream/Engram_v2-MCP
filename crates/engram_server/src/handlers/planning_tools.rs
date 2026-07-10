@@ -4894,6 +4894,101 @@ impl Engram {
             }
         }
 
+        // Review rules for the candidate file families — WRITING-time
+        // injection of the distilled review corpus. Replay calibration
+        // (2026-07-10, 23 merged PRs / 263 real review findings) showed the
+        // post-hoc gates and the reviewers are largely ORTHOGONAL detectors:
+        // the classes that cause 3-6 re-push iterations (null-safety,
+        // event-API misuse, localization bypass, error handling) are
+        // covered by the ingested anti-pattern rules, but only if the
+        // agent sees them BEFORE writing the code. So the dossier — the
+        // first thing a planning agent reads — carries the relevant rules.
+        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+            let q = engram_index::HybridQuery {
+                project_id: req.project_id.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
+                generation: 0,
+                text: story_for_concepts(&req.story),
+                top_k: 12,
+                fts_mode: "loose".into(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let engine = ps.search.clone();
+            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
+            // Boost rules whose file-family glob matches a ranked candidate:
+            // those fire on exactly the files this change will touch.
+            let cand_paths: Vec<String> = prov.keys().map(|k| k.to_lowercase()).collect();
+            let glob_prefix = |g: &str| -> String {
+                let g = g.to_lowercase().replace('\\', "/");
+                g.split("/**").next().unwrap_or(&g).trim_end_matches('/').to_string()
+            };
+            let mut rows: Vec<(bool, String, String)> = Vec::new();
+            let mut seen_rule: HashSet<String> = HashSet::new();
+            for h in hits {
+                let Ok(Some((path, _, content, _, _))) = ps.search.get_doc_by_doc_id(
+                    &req.project_id,
+                    engram_core::namespaces::NAMESPACE_ANTIPATTERN,
+                    0,
+                    &h.doc_id,
+                ) else {
+                    continue;
+                };
+                let instruction = content.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+                if instruction.len() < 12 || !seen_rule.insert(instruction.to_lowercase()) {
+                    continue;
+                }
+                let fix_rate = content
+                    .lines()
+                    .find(|l| l.starts_with("Fix rate:"))
+                    .and_then(|l| l.split('|').next())
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default();
+                let prefix = glob_prefix(path.as_str());
+                let file_match = !prefix.is_empty()
+                    && cand_paths.iter().any(|c| {
+                        c.starts_with(&prefix)
+                            || c.strip_prefix("site/").is_some_and(|s| s.starts_with(&prefix))
+                            || prefix.strip_prefix("site/").is_some_and(|p| c.starts_with(p))
+                    });
+                rows.push((
+                    file_match,
+                    format!("`{}`", path.as_str()),
+                    format!("{instruction}{}", if fix_rate.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({})", fix_rate.to_lowercase())
+                    }),
+                ));
+            }
+            // Candidate-matching rules first, then the best of the rest.
+            rows.sort_by(|a, b| b.0.cmp(&a.0));
+            rows.truncate(8);
+            if !rows.is_empty() {
+                out.push_str(
+                    "\n## Review rules for this change (distilled from this repo's past code reviews)\n\
+                     Reviewers flagged these issue classes repeatedly — in the file families \
+                     marked ▲ they fired on the very files this change ranks. Write the code \
+                     so they never fire; each one caught late costs a review round-trip:\n",
+                );
+                for (matched, family, rule) in rows {
+                    out.push_str(&format!(
+                        "- {}{family}: {rule}\n",
+                        if matched { "▲ " } else { "" }
+                    ));
+                }
+            }
+        }
+
         // The ranked file set is the single most freshness-sensitive output
         // in the funnel: a stale index proposes the wrong files. This was
         // the only primary funnel tool with no staleness signal.
