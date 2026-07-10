@@ -4679,7 +4679,11 @@ impl Engram {
         {
             let graph = self.state.graph.clone();
             let pid_s = req.project_id.clone();
-            let top_files = top_node_bearing_files(&prov, 12);
+            // ALL candidates, not a top-N: adjacency lookups are O(degree)
+            // and the shared component often carries a WEAK signal for the
+            // story (live: qtyManager.ts was [vector]-only for the RoQ
+            // search story yet is exactly the fork that matters).
+            let top_files: Vec<String> = prov.keys().cloned().collect();
             let shared = tokio::task::spawn_blocking(move || {
                 let mut out: Vec<(usize, String, Vec<String>)> = Vec::new();
                 let mut seen: HashSet<String> = HashSet::new();
