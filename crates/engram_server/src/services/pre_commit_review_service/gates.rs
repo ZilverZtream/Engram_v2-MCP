@@ -3318,11 +3318,22 @@ impl Gate for AddedConventionsGate {
             let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
             let disk = String::from_utf8_lossy(&disk_bytes);
 
-            // (a) Undocumented ADDED public members, only where the file's
-            // own house style documents them.
+            // (a) Undocumented ADDED public members. Evidence basis, either:
+            //   - the file's own house style documents public members, or
+            //   - an ingested repo rule demands doc comments (the live case:
+            //     copilot-instructions mandate XML docs while merged files
+            //     often skip them — reviewers enforce the RULE, so
+            //     file-local style alone missed exactly the findings this
+            //     gate was built from).
             let (documented, total) = doc_coverage(&disk);
-            let house_documents = total >= 3 && documented * 10 >= total * 4;
-            if house_documents {
+            let file_documents = total >= 3 && documented * 10 >= total * 4;
+            let rule_demands_docs = ctx.repo_rules.iter().any(|r| {
+                let t = r.rule_text.to_lowercase();
+                (t.contains("xml doc") || t.contains("xml-doc") || t.contains("doc comment")
+                    || t.contains("'''") || t.contains("///"))
+                    && (t.contains("public") || t.contains("member") || t.contains("summary"))
+            });
+            if file_documents || rule_demands_docs {
                 let added: Vec<&(usize, String)> = df.added_lines.iter().collect();
                 let mut undocumented: Vec<(usize, String)> = Vec::new();
                 for (idx, (line_no, text)) in added.iter().enumerate() {
@@ -3364,9 +3375,16 @@ impl Gate for AddedConventionsGate {
                                 undocumented.len()
                             ),
                             format!(
-                                "This file documents {documented} of its {total} public members; \
-                                 the added {} lack(s) a doc comment. Reviewers here flag \
+                                "{} The added {} lack(s) a doc comment. Reviewers here flag \
                                  undocumented public surface on every fresh change.",
+                                if file_documents {
+                                    format!(
+                                        "This file documents {documented} of its {total} public members."
+                                    )
+                                } else {
+                                    "This repo's ingested rules require doc comments on public members."
+                                        .to_string()
+                                },
                                 names.join(", ")
                             ),
                             "Add a doc comment above each new public member, matching the \
