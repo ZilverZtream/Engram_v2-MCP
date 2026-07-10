@@ -44,6 +44,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(SyncContractGate),
         Box::new(CoAddedFamilyGate),
         Box::new(ComplexityGate),
+        Box::new(AddedConventionsGate),
     ]
 }
 
@@ -3221,6 +3222,210 @@ impl Gate for ComplexityGate {
     }
 }
 
+// ─── Gate 17: Added-code conventions (docs + logging) ───────────────────────
+//
+// The two mechanical classes that dominated the 2026-07-10 authoring
+// experiment (fresh implementations exhibited 62-78% of the exact
+// findings reviewers had raised; XML-docs-on-public-members and
+// house-logger-in-catch recurred on every fresh API surface):
+//   (a) an ADDED public member with no doc comment, in a file whose
+//       existing public members ARE documented (house style evidenced
+//       from the same file on disk — no evidence, no finding);
+//   (b) an ADDED catch block that logs via a different helper than the
+//       file's dominant logger.
+// Both language-generic (VB ''' / C#-TS ///+/** */), evidence-based,
+// capped per file.
+
+static RE_AC_PUBLIC_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?im)^\s*(?:public|friend)\s+(?:(?:shared|overrides|overridable|async|static|virtual|override|sealed|readonly|partial)\s+)*(?:function|sub|property|class|interface|enum|[\w<>\[\],?]+)\s+(\w+)",
+    )
+    .expect("valid public decl regex")
+});
+
+static RE_AC_DOC_LINE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*(?:'''|///|/\*\*|\*)").expect("valid doc line regex")
+});
+
+static RE_AC_CATCH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^\s*catch\b").expect("valid catch regex"));
+
+static RE_AC_LOG_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b([\w.]*\blog\w*)\s*\(").expect("valid log call regex")
+});
+
+/// Fraction of public decls in `content` that carry a doc comment on the
+/// line above, together with the total count — the house-style evidence.
+pub(crate) fn doc_coverage(content: &str) -> (usize, usize) {
+    let lines: Vec<&str> = content.lines().collect();
+    let (mut documented, mut total) = (0usize, 0usize);
+    for (i, line) in lines.iter().enumerate() {
+        if RE_AC_PUBLIC_DECL.is_match(line) {
+            total += 1;
+            if i > 0 && RE_AC_DOC_LINE.is_match(lines[i - 1]) {
+                documented += 1;
+            }
+        }
+    }
+    (documented, total)
+}
+
+/// Dominant logging helper name in `content` (lowercased), if one call
+/// shape clearly wins (>=3 uses and >=3x the runner-up).
+pub(crate) fn dominant_logger(content: &str) -> Option<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for cap in RE_AC_LOG_CALL.captures_iter(content) {
+        let name = cap[1].to_lowercase();
+        // "log" alone or console noise is not a helper convention.
+        if name == "log" || name.contains("console.") {
+            continue;
+        }
+        *counts.entry(name).or_default() += 1;
+    }
+    let mut v: Vec<(String, usize)> = counts.into_iter().collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    match v.as_slice() {
+        [] => None,
+        [(name, n)] if *n >= 3 => Some(name.clone()),
+        [(name, n), (_, m), ..] if *n >= 3 && *n >= m * 3 => Some(name.clone()),
+        _ => None,
+    }
+}
+
+pub struct AddedConventionsGate;
+
+#[async_trait]
+impl Gate for AddedConventionsGate {
+    fn name(&self) -> &'static str {
+        "added_conventions"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            let lower = df.path.to_lowercase();
+            let is_code = [".vb", ".cs", ".ts", ".tsx", ".js", ".jsx"]
+                .iter()
+                .any(|e| lower.ends_with(e));
+            if !is_code
+                || df.is_binary
+                || df.is_test_file()
+                || super::is_generated_filename(&df.path)
+                || df.added_content.is_empty()
+            {
+                continue;
+            }
+            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk = String::from_utf8_lossy(&disk_bytes);
+
+            // (a) Undocumented ADDED public members, only where the file's
+            // own house style documents them.
+            let (documented, total) = doc_coverage(&disk);
+            let house_documents = total >= 3 && documented * 10 >= total * 4;
+            if house_documents {
+                let added: Vec<&(usize, String)> = df.added_lines.iter().collect();
+                let mut undocumented: Vec<(usize, String)> = Vec::new();
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    let Some(cap) = RE_AC_PUBLIC_DECL.captures(text) else {
+                        continue;
+                    };
+                    // Doc line directly above — in the added block or on disk.
+                    let prev_added = idx
+                        .checked_sub(1)
+                        .and_then(|i| added.get(i))
+                        .filter(|(n, _)| n + 1 == *line_no)
+                        .map(|(_, t)| RE_AC_DOC_LINE.is_match(t));
+                    let documented_above = match prev_added {
+                        Some(v) => v,
+                        None => line_no
+                            .checked_sub(2)
+                            .and_then(|i| disk.lines().nth(i))
+                            .map(|l| RE_AC_DOC_LINE.is_match(l))
+                            .unwrap_or(false),
+                    };
+                    if !documented_above {
+                        undocumented.push((*line_no, cap[1].to_string()));
+                    }
+                }
+                if !undocumented.is_empty() {
+                    let names: Vec<String> = undocumented
+                        .iter()
+                        .take(5)
+                        .map(|(_, n)| format!("`{n}`"))
+                        .collect();
+                    let lines: Vec<usize> = undocumented.iter().take(5).map(|(l, _)| *l).collect();
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!(
+                                "{} new public member(s) missing doc comments in a documented file",
+                                undocumented.len()
+                            ),
+                            format!(
+                                "This file documents {documented} of its {total} public members; \
+                                 the added {} lack(s) a doc comment. Reviewers here flag \
+                                 undocumented public surface on every fresh change.",
+                                names.join(", ")
+                            ),
+                            "Add a doc comment above each new public member, matching the \
+                             style used elsewhere in this file.",
+                        )
+                        .with_lines(lines),
+                    );
+                }
+            }
+
+            // (b) Added catch blocks logging via a non-dominant helper.
+            if let Some(dom) = dominant_logger(&disk) {
+                let mut off_convention: Vec<(usize, String)> = Vec::new();
+                let added = &df.added_lines;
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    if !RE_AC_CATCH.is_match(text) {
+                        continue;
+                    }
+                    // Scan the next few ADDED lines (same contiguous block)
+                    // for a log call.
+                    for j in idx + 1..(idx + 8).min(added.len()) {
+                        let (n, t) = &added[j];
+                        if *n != added[j - 1].0 + 1 {
+                            break; // left the contiguous added block
+                        }
+                        if let Some(cap) = RE_AC_LOG_CALL.captures(t) {
+                            let used = cap[1].to_lowercase();
+                            if used != dom && !used.ends_with(&format!(".{dom}")) && !dom.ends_with(&used)
+                            {
+                                off_convention.push((*line_no, cap[1].to_string()));
+                            }
+                            break;
+                        }
+                    }
+                }
+                for (line_no, used) in off_convention.into_iter().take(3) {
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("Added catch block logs via `{used}` — file's convention is `{dom}`"),
+                            format!(
+                                "The dominant logging helper in this file is `{dom}`; a new \
+                                 catch block logging through `{used}` is the exact class \
+                                 reviewers bounce ('align exception logging with the required \
+                                 convention')."
+                            ),
+                            format!("Route the catch-block logging through `{dom}` like the rest of the file."),
+                        )
+                        .with_lines(vec![line_no]),
+                    );
+                }
+            }
+        }
+        Ok(findings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3239,6 +3444,27 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn doc_coverage_counts_documented_public_members() {
+        let src = "''' <summary>Adds.</summary>\n\
+                   Public Function AddItem(x As Integer) As Integer\n\
+                   End Function\n\
+                   Public Sub Undocumented()\n\
+                   End Sub\n\
+                   ''' <summary>Gets.</summary>\n\
+                   Public Property Name As String\n";
+        let (documented, total) = doc_coverage(src);
+        assert_eq!((documented, total), (2, 3));
+    }
+
+    #[test]
+    fn dominant_logger_requires_clear_winner() {
+        let src = "api.LogError(a)\napi.LogError(b)\napi.LogError(c)\nLogger.Loggerror(d)\n";
+        assert_eq!(dominant_logger(src).as_deref(), Some("api.logerror"));
+        let tied = "api.LogError(a)\nLogger.Loggerror(b)\n";
+        assert_eq!(dominant_logger(tied), None);
     }
 
     #[test]
