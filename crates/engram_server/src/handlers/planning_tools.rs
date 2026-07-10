@@ -3454,10 +3454,18 @@ fn render_change_set(
                  whether this team's convention calls for a NEW SETTING to gate it - \
                  mature codebases frequently ship behaviour changes as configurable \
                  toggles (settings store + admin UI + default), and stories rarely say \
-                 so. Check how similar merged work did it (the exemplars below).\n\n",
+                 so. Check how similar merged work did it (the exemplars below).\n",
             );
         }
     }
+    s.push_str(
+        "- Symptom names a user ACTION ('when removing/adding/clicking X')? Then the \
+         fix must be VISIBLE AT THAT MOMENT - a fix that corrects the state only on \
+         the next load/refresh/reopen does NOT close the report, even when it is the \
+         cleaner root-cause fix (a live A/B: the correct-on-next-open server fix lost \
+         to the team's dims-immediately client fix). State the feedback timing your \
+         fix delivers.\n\n",
+    );
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
     let layer_names: Vec<&str> = LAYERS
