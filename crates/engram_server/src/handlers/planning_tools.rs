@@ -1185,14 +1185,14 @@ mod tests {
         // and stole the concept slots, tanking recall. They must be rejected so
         // the real domain tokens surface.
         let c = extract_story_concepts(
-            "patric0375 a778c06a field worker searches the RoQ code list by redovisning category",
+            "acmeorg0375 a778c06a field worker searches the RoQ code list by redovisning category",
         );
         assert!(
             !c.contains(&"a778c06a".to_string()),
             "commit hash must be rejected: {c:?}"
         );
         assert!(
-            !c.contains(&"patric0375".to_string()),
+            !c.contains(&"acmeorg0375".to_string()),
             "username/id must be rejected: {c:?}"
         );
         // Garbage is gone; real word tokens fill the slots instead.
@@ -1650,7 +1650,7 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
             return None;
         }
         // Reject hash/ID garbage that leaks into PR-derived stories: commit SHAs
-        // ("a778c06a"), usernames/board IDs ("patric0375"), ticket numbers. A real
+        // ("a778c06a"), usernames/board IDs, ticket numbers. A real
         // domain concept almost never carries 3+ digits; such tokens otherwise
         // steal the limited concept slots and tank recall. Generic, no per-repo
         // names — robustness to noisy story input.
@@ -2476,10 +2476,10 @@ mod review_ingest_tests {
     #[test]
     fn sonarqube_issue_export_parses_to_findings() {
         let json = r#"{"issues":[
-            {"component":"ociusx:Site/App_Code/dal/users.vb","rule":"vbnet:S2077",
+            {"component":"app:Site/App_Code/dal/users.vb","rule":"vbnet:S2077",
              "message":"Make sure using a dynamically formatted SQL query is safe here.",
              "severity":"CRITICAL","line":42},
-            {"component":"ociusx:Site/Default.aspx.vb","rule":"vbnet:S1481",
+            {"component":"app:Site/Default.aspx.vb","rule":"vbnet:S1481",
              "message":"Remove the unused local variable 'x'.","severity":"MINOR"}
         ]}"#;
         let findings = parse_sonarqube_issues(json);
@@ -3229,7 +3229,7 @@ mod symmetric_sibling_tests {
             );
         }
         prov.insert(
-            "db-ociusx.sql/scripts/post/ss_systemsettings.sql".into(),
+            "db-app.sql/scripts/post/ss_systemsettings.sql".into(),
             BTreeSet::from(["cochange", "concept"]),
         );
         prov.insert(
@@ -5790,13 +5790,13 @@ mod work_item_tests {
     fn ado_coords_from_all_remote_shapes() {
         let ok = |u: &str| ado_coords_from_remote_url(u).expect(u);
         assert_eq!(
-            ok("https://dev.azure.com/patric0375/OciusX/_git/OciusX"),
-            ("patric0375".into(), "OciusX".into())
+            ok("https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo"),
+            ("exampleorg".into(), "ExampleRepo".into())
         );
         // user@ prefix (credential-embedding clone URLs) and trailing slash.
         assert_eq!(
-            ok("https://patric0375@dev.azure.com/patric0375/OciusX/_git/OciusX/"),
-            ("patric0375".into(), "OciusX".into())
+            ok("https://exampleuser@dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo/"),
+            ("exampleorg".into(), "ExampleRepo".into())
         );
         assert_eq!(
             ok("git@ssh.dev.azure.com:v3/myorg/My%20Project/repo"),
@@ -5824,12 +5824,12 @@ mod work_item_tests {
 [remote "upstream"]
 	url = https://example.com/other.git
 [remote "origin"]
-	url = https://dev.azure.com/patric0375/OciusX/_git/OciusX
+	url = https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo
 	fetch = +refs/heads/*:refs/remotes/origin/*
 "#;
         assert_eq!(
             parse_origin_url(cfg).as_deref(),
-            Some("https://dev.azure.com/patric0375/OciusX/_git/OciusX")
+            Some("https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo")
         );
         // No origin section → None (never the wrong remote's URL).
         assert!(parse_origin_url("[remote \"upstream\"]\n\turl = https://x/y").is_none());
@@ -5837,9 +5837,9 @@ mod work_item_tests {
 
     #[test]
     fn concept_view_drops_url_tokens() {
-        let s = "Camera icon bug\n\nSee https://ociusx.zendesk.com/agent/tickets/956 for repro";
+        let s = "Camera icon bug\n\nSee https://support.example.com/agent/tickets/956 for repro";
         let cleaned = story_for_concepts(s);
-        assert!(!cleaned.contains("zendesk"), "{cleaned}");
+        assert!(!cleaned.contains("support.example"), "{cleaned}");
         assert!(!cleaned.contains("https://"), "{cleaned}");
         assert!(cleaned.contains("Camera icon bug"));
         assert!(cleaned.contains("for repro"));
