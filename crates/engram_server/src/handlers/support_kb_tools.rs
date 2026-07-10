@@ -181,6 +181,32 @@ impl Engram {
         // Only features that HAVE an index section count (siblings alone
         // are sub-pages of something we didn't recognise).
         features.retain(|_, (idx, _)| idx.is_some());
+        // A feature index that CONTAINS other feature indexes is a taxonomy
+        // LEVEL (the docs root — live: docs/docs/index produced a roleless
+        // "docs" card at any nesting depth), not a feature.
+        let dirs: Vec<(String, String)> = features
+            .iter()
+            .filter_map(|(slug, (idx, _))| {
+                idx.map(|i| {
+                    (
+                        slug.clone(),
+                        sections[i]
+                            .section_id
+                            .trim_end_matches("/index")
+                            .to_string(),
+                    )
+                })
+            })
+            .collect();
+        let levels: std::collections::HashSet<String> = dirs
+            .iter()
+            .filter(|(_, d)| {
+                dirs.iter()
+                    .any(|(_, other)| other != d && other.starts_with(&format!("{d}/")))
+            })
+            .map(|(s, _)| s.clone())
+            .collect();
+        features.retain(|slug, _| !levels.contains(slug));
 
         if features.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
