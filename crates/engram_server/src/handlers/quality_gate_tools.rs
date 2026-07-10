@@ -116,8 +116,16 @@ impl Engram {
                     .iter()
                     .any(|k| l.contains(k))
             };
+            // Guideline sources (copilot-instructions, coding rules) are
+            // team mandates by nature — their parser assigns a flat
+            // "medium" severity, so severity only gates the FINDING
+            // sources (coderabbit/sonarqube exports), where it is real.
+            let guideline_source = matches!(
+                source,
+                QualitySource::CopilotInstructions | QualitySource::CodingRulesMd
+            );
             for r in rules.iter().filter(|r| {
-                r.severity.eq_ignore_ascii_case("high")
+                (guideline_source || r.severity.eq_ignore_ascii_case("high"))
                     && is_mandate(&r.text)
                     && r.text.len() >= 30
                     && r.text.len() <= 400
