@@ -464,6 +464,9 @@ impl Engram {
         let mut written = 0usize;
         if req.write_to_disk {
             let project_dir = std::path::PathBuf::from(&rec.directory);
+            // Engram-owned output in a customer tree: keep it out of the
+            // team's git status / pushes via the local-only exclude file.
+            crate::utils::files::ensure_git_excluded(&project_dir, "support-kb/");
             let kb_dir = engram_core::safe_join(&project_dir, "support-kb")
                 .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
             std::fs::create_dir_all(&kb_dir)
