@@ -174,6 +174,12 @@ pub struct RawReviewComment {
     pub severity: String,
     #[serde(default)]
     pub coderabbit_comment: String,
+    /// Token-anchored fix exemplar: the unified-diff hunk from the merged
+    /// PR's later iterations that changed the code this finding named.
+    /// Populated (fail-soft) only for resolved findings during the
+    /// azure_devops fetch; None for JSONL and unresolved findings.
+    #[serde(default)]
+    pub fix_hunk: Option<String>,
 }
 
 impl ThreadStatus {
@@ -228,6 +234,9 @@ pub struct ParsedRule {
     /// the same finding from a different PR.
     pub semantic_hash: String,
     pub raw_body: String,
+    /// Token-anchored fix exemplar (unified-diff hunk) carried from the
+    /// raw comment — the concrete before→after the team applied.
+    pub fix_hunk: Option<String>,
 }
 
 /// A cluster of ParsedRules that represent the same underlying pattern.
@@ -785,6 +794,7 @@ async fn fetch_azure_devops(
                 line_end,
                 severity,
                 coderabbit_comment: cr_text.join("\n\n"),
+                fix_hunk: None, // filled by the bounded fix-exemplar pass below
             });
         }
 
@@ -798,7 +808,144 @@ async fn fetch_azure_devops(
         }
     }
 
+    // Bounded fix-exemplar pass (iteration-delta mining): for RESOLVED
+    // findings that quote code, recover the concrete house fix hunk from
+    // the merged PR's iteration diffs. Ingest is a batch op, so the extra
+    // ADO calls are acceptable; kept cheap by (a) resolved + tokenized
+    // findings only, (b) per-PR iteration fetch cached, (c) blobs cached
+    // by (commit, file), (d) fully fail-soft — a missing hunk just means
+    // the rule ships without an exemplar.
+    attach_fix_hunks(&client, &base, &auth, &mut out).await;
+
     Ok((out, skipped_incremental))
+}
+
+/// Iteration source commits for a PR, oldest→newest. Empty on any failure.
+async fn fetch_iteration_commits(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    pr_id: u64,
+) -> Vec<String> {
+    use reqwest::header::{ACCEPT, AUTHORIZATION};
+    let url = format!("{base}/pullrequests/{pr_id}/iterations?api-version=7.1");
+    let Ok(resp) = client.get(&url).header(AUTHORIZATION, auth).header(ACCEPT, "application/json").send().await else {
+        return Vec::new();
+    };
+    let Ok(resp) = resp.error_for_status() else {
+        return Vec::new();
+    };
+    let Ok(body) = resp.json::<serde_json::Value>().await else {
+        return Vec::new();
+    };
+    body.get("value")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|it| {
+                    it.get("sourceRefCommit")
+                        .and_then(|c| c.get("commitId"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Raw content of `file_path` at `commit`. None on any failure (file
+/// absent at that version, binary, network error).
+async fn fetch_blob_at_commit(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    file_path: &str,
+    commit: &str,
+) -> Option<String> {
+    use reqwest::header::{ACCEPT, AUTHORIZATION};
+    let path = url_escape(file_path.trim_start_matches('/'));
+    let url = format!(
+        "{base}/items?path=/{path}&versionType=commit&version={commit}&api-version=7.1&$format=text"
+    );
+    let resp = client
+        .get(&url)
+        .header(AUTHORIZATION, auth)
+        .header(ACCEPT, "text/plain")
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    let text = resp.text().await.ok()?;
+    // Guard against an HTML/JSON error page slipping through as text.
+    if text.len() > 2_000_000 {
+        return None;
+    }
+    Some(text)
+}
+
+/// Fill `fix_hunk` on resolved, tokenized findings by token-anchoring the
+/// fix in the PR's iteration diffs. Walks consecutive iteration pairs for
+/// the finding's file (blobs cached) and takes the first hunk whose
+/// removed side carries a quoted token.
+async fn attach_fix_hunks(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    findings: &mut [RawReviewComment],
+) {
+    use std::collections::HashMap;
+    // Per-PR iteration commits, fetched once.
+    let mut iters_by_pr: HashMap<u64, Vec<String>> = HashMap::new();
+    // (commit, file) → blob content (or None when known-absent).
+    let mut blob_cache: HashMap<(String, String), Option<String>> = HashMap::new();
+    const MAX_ITER_WALK: usize = 8;
+
+    for f in findings.iter_mut() {
+        let resolved = matches!(f.thread_status, ThreadStatus::Fixed | ThreadStatus::Closed);
+        if !resolved || f.file_path.is_empty() {
+            continue;
+        }
+        let tokens = quoted_code_tokens(&f.coderabbit_comment);
+        if tokens.is_empty() {
+            continue;
+        }
+        let commits = iters_by_pr
+            .entry(f.pr_id)
+            .or_insert(fetch_iteration_commits(client, base, auth, f.pr_id).await)
+            .clone();
+        if commits.len() < 2 {
+            continue;
+        }
+        // Walk consecutive iteration pairs; first token-anchored hunk wins.
+        'pairs: for w in commits.windows(2).take(MAX_ITER_WALK) {
+            let (prev, cur) = (&w[0], &w[1]);
+            let mut sides: Vec<Option<String>> = Vec::with_capacity(2);
+            for c in [prev, cur] {
+                let key = (c.clone(), f.file_path.clone());
+                if !blob_cache.contains_key(&key) {
+                    let v = fetch_blob_at_commit(client, base, auth, &f.file_path, c).await;
+                    blob_cache.insert(key.clone(), v);
+                }
+                sides.push(blob_cache.get(&key).cloned().flatten());
+            }
+            let (Some(old), Some(new)) = (sides[0].clone(), sides[1].clone()) else {
+                continue;
+            };
+            if old == new {
+                continue;
+            }
+            let diff = similar::TextDiff::from_lines(&old, &new)
+                .unified_diff()
+                .context_radius(2)
+                .header(&format!("a/{}", f.file_path), &format!("b/{}", f.file_path))
+                .to_string();
+            if let Some(hunk) = fix_hunk_by_token(&diff, &tokens) {
+                f.fix_hunk = Some(hunk);
+                break 'pairs;
+            }
+        }
+    }
 }
 
 fn is_coderabbit_author(author: Option<&serde_json::Value>) -> bool {
@@ -969,6 +1116,7 @@ pub fn parse_comment(raw: &RawReviewComment) -> Option<ParsedRule> {
         content_hash,
         semantic_hash,
         raw_body: body,
+        fix_hunk: raw.fix_hunk.clone(),
     })
 }
 
@@ -1627,6 +1775,23 @@ fn cluster_index_body(c: &ReviewCluster) -> String {
         c.canonical.severity,
         c.canonical.language
     ));
+
+    // Fix exemplar: the concrete before→after the team applied last time,
+    // token-anchored from a merged-PR later iteration. Prefer the
+    // canonical member's; fall back to any member that has one. Bounded
+    // so a huge hunk can't blow the index/snippet budget. This is what
+    // upgrades a rule from "avoid X" to "avoid X — here's the house fix".
+    let exemplar = c
+        .canonical
+        .fix_hunk
+        .as_deref()
+        .or_else(|| c.members.iter().find_map(|m| m.fix_hunk.as_deref()));
+    if let Some(hunk) = exemplar {
+        const MAX_HUNK: usize = 1200;
+        let trimmed: String = hunk.chars().take(MAX_HUNK).collect();
+        body.push_str("\n\nHouse fix (applied in a merged PR):\n");
+        body.push_str(&trimmed);
+    }
     body
 }
 
@@ -1794,6 +1959,36 @@ mod tests {
     }
 
     #[test]
+    fn cluster_index_body_renders_house_fix_exemplar() {
+        let raw = RawReviewComment {
+            pr_id: 1,
+            pr_title: String::new(),
+            pr_author: String::new(),
+            pr_date: String::new(),
+            pr_branch: String::new(),
+            pr_url: String::new(),
+            thread_id: 1,
+            thread_status: ThreadStatus::Fixed,
+            file_path: "/f.vb".into(),
+            line_start: 1,
+            line_end: 1,
+            severity: "major".into(),
+            coderabbit_comment: "_🟠 Major_\n\n**Guard `Query.projectId` before calling \
+                `Check_pr_id`.** Use `HasValue` safely.".into(),
+            fix_hunk: Some(
+                "@@ -1,3 +1,3 @@\n-If Query.projectId.HasValue Then\n+If Query?.projectId IsNot Nothing Then"
+                    .into(),
+            ),
+        };
+        let rule = parse_comment(&raw).expect("parses");
+        assert_eq!(rule.fix_hunk.as_deref().map(|h| h.contains("IsNot Nothing")), Some(true));
+        let cluster = build_cluster(vec![rule]);
+        let body = cluster_index_body(&cluster);
+        assert!(body.contains("House fix (applied in a merged PR):"), "body:\n{body}");
+        assert!(body.contains("If Query?.projectId IsNot Nothing Then"));
+    }
+
+    #[test]
     fn strip_html_removes_tags_and_scripts() {
         let input = "<p>hello <script>alert(1)</script>world</p>";
         assert_eq!(strip_html(input), "hello world");
@@ -1934,6 +2129,7 @@ mod tests {
             line_end: 0,
             severity: "".into(),
             coderabbit_comment: "## Walkthrough\n\nSome summary".into(),
+            fix_hunk: None,
         };
         assert!(parse_comment(&raw).is_none());
     }
@@ -1959,6 +2155,7 @@ mod tests {
                 can wipe an existing IO-marker warning after a company switch.\n\n\
                 ✅ Addressed in commits eb16a30 to dde4b4e"
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse must succeed");
         assert!(parsed.rule_text.contains("Avoid clearing"));
@@ -1988,6 +2185,7 @@ mod tests {
             content_hash: format!("{pr}"),
             semantic_hash: "s".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let rules = vec![
             make(1, &["PdfExtGState", "PdfDocument", "WriteToDisk"]),
@@ -2024,6 +2222,7 @@ mod tests {
             content_hash: blake3::hash(tokens.join(",").as_bytes()).to_hex()[..8].to_string(),
             semantic_hash: "s".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let rules = vec![
             make(&["DeleteAllOnSubmit", "SubmitChanges"]),
@@ -2052,6 +2251,7 @@ mod tests {
             content_hash: "a".into(),
             semantic_hash: "sa".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let mut b = a.clone();
         b.language = "typescript".into();
@@ -2082,6 +2282,7 @@ mod tests {
             content_hash: format!("{status:?}"),
             semantic_hash: "s-status".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let clusters = cluster_rules(
             vec![
@@ -2137,6 +2338,7 @@ mod tests {
                 The call to `gQtyManager.validate()` can throw when window is not ready.\n\n\
                 ✅ Addressed in commits 1331879 to 8133c13"
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse");
         // Raw status was Closed but the ✅ marker promotes it to Fixed.
@@ -2166,6 +2368,7 @@ mod tests {
                 The parameter `flag` inside `handleInput()` shadows an outer `flag` from the \
                 surrounding `controller` scope."
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse");
         assert_eq!(parsed.fix_status, ThreadStatus::Closed);
@@ -2193,6 +2396,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         assert!((parsed_rule_weight(&rule) - 0.85).abs() < 0.001);
         assert!(!is_suppression(&rule));
@@ -2217,6 +2421,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         assert!(is_suppression(&rule));
         assert_eq!(parsed_rule_weight(&rule), 0.0);
@@ -2283,6 +2488,7 @@ mod tests {
                 **Avoid calling setWarningsText unconditionally.**\n\n\
                 The `setWarningsText()` call in the `else` branch clears other warnings."
                 .into(),
+            fix_hunk: None,
         };
         let p1 = parse_comment(&base).unwrap();
         let base2 = RawReviewComment {
@@ -2323,6 +2529,7 @@ mod tests {
                 content_hash: format!("{pr}"),
                 semantic_hash: "s".into(),
                 raw_body: "".into(),
+                fix_hunk: None,
             }
         };
         let rules = vec![
@@ -2397,6 +2604,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let clusters = cluster_rules(vec![rule], 0.4);
         assert_eq!(clusters[0].fix_rate, 0.0);
