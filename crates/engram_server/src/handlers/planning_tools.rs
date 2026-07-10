@@ -4684,6 +4684,11 @@ impl Engram {
             // story (live: qtyManager.ts was [vector]-only for the RoQ
             // search story yet is exactly the fork that matters).
             let top_files: Vec<String> = prov.keys().cloned().collect();
+            // Corroboration per canon path — the same-fan-in tiebreak
+            // (an alphabetical tiebreak buried qtyManager.ts behind
+            // unrelated fan-in-2 pairs).
+            let sig_count: HashMap<String, usize> =
+                prov.iter().map(|(k, v)| (k.clone(), v.len())).collect();
             let shared = tokio::task::spawn_blocking(move || {
                 let mut out: Vec<(usize, String, Vec<String>)> = Vec::new();
                 let mut seen: HashSet<String> = HashSet::new();
@@ -4760,8 +4765,18 @@ impl Engram {
                 // framework hubs (q.ts at 25 = a stopword, the IDF lesson);
                 // the story-relevant shared component sits at low fan-in
                 // (live: qtyManager.ts at 2 — the map + fbinstplan
-                // surfaces).
-                out.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+                // surfaces). Same fan-in → the component with more story
+                // corroboration wins (an alphabetical tiebreak buried
+                // qtyManager behind unrelated fan-in-2 pairs).
+                out.sort_by(|a, b| {
+                    a.0.cmp(&b.0)
+                        .then_with(|| {
+                            let sa = sig_count.get(&a.1.to_lowercase()).copied().unwrap_or(0);
+                            let sb = sig_count.get(&b.1.to_lowercase()).copied().unwrap_or(0);
+                            sb.cmp(&sa)
+                        })
+                        .then_with(|| a.1.cmp(&b.1))
+                });
                 out.truncate(3);
                 out
             })
