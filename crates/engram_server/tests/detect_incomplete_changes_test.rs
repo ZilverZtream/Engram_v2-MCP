@@ -88,6 +88,11 @@ async fn untouched_partner_and_state_key_surface() {
         &[
             file_node("file:pages/edit.aspx", "pages/edit.aspx"),
             file_node("file:pages/edit.aspx.vb", "pages/edit.aspx.vb"),
+            // The shared-state reader's FILE node must exist too — the
+            // edit-completeness index-presence check (post ded6b05/unwired
+            // feature era) looks edited paths up as file nodes and warns
+            // on misses, which broke case 3's clean-pass expectation.
+            file_node("file:pages/list.aspx.vb", "pages/list.aspx.vb"),
             engram_graph::Node {
                 node_id: "sym:function:pages/edit.aspx.vb:Save:5".into(),
                 node_type: "function".into(),
@@ -136,6 +141,21 @@ async fn untouched_partner_and_state_key_surface() {
                 "file:pages/edit.aspx.vb",
                 EdgeKind::TemporalCoupling,
                 42,
+            ),
+            // Both fixture functions have callers — otherwise the
+            // implemented-but-never-wired check (ded6b05) legitimately
+            // flags them and case 3 can never pass clean.
+            edge(
+                "sym:function:pages/edit.aspx:Page_Load:1",
+                "sym:function:pages/edit.aspx.vb:Save:5",
+                EdgeKind::Calls,
+                1,
+            ),
+            edge(
+                "sym:function:pages/edit.aspx:Page_Load:1",
+                "sym:function:pages/list.aspx.vb:Load:5",
+                EdgeKind::Calls,
+                1,
             ),
             // Edited symbol writes a key another file reads.
             edge(

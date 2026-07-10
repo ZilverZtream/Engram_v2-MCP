@@ -112,7 +112,13 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
 
     report.push_str("## Summary\n");
     report.push_str(&format!("- Total files found: {}\n", stats.files));
-    report.push_str(&format!("- Files indexed: {}\n", stats.all_files.len()));
+    // `all_files` includes undecodable files on purpose (they carry
+    // fingerprint nodes so the incremental scan stops re-reading them
+    // forever); "indexed" for the reader means content actually ingested.
+    report.push_str(&format!(
+        "- Files indexed: {}\n",
+        stats.all_files.len().saturating_sub(stats.skipped_files.len())
+    ));
     report.push_str(&format!("- Files skipped: {}\n", stats.skipped_files.len()));
     report.push_str(&format!("- Total chunks created: {}\n", stats.chunks));
     report.push_str(&format!(

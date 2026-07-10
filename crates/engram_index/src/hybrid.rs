@@ -377,13 +377,21 @@ impl HybridSearchEngine {
     /// Async variant of [`Self::acquire_writer_blocking`] for callers on
     /// the tokio runtime — backs off with `tokio::time::sleep` so the
     /// worker thread is not blocked while waiting for the lock.
+    ///
+    /// Cancel-aware (CANCEL-POLICY-INDEX): a cancelled caller must not
+    /// keep waiting up to the full lock deadline for a writer it will
+    /// never use.
     async fn acquire_writer(
         &self,
         what: &str,
+        cancel: &CancellationToken,
     ) -> anyhow::Result<tantivy::IndexWriter<tantivy::TantivyDocument>> {
         let deadline = std::time::Instant::now() + WRITER_LOCK_WAIT;
         let mut delay = std::time::Duration::from_millis(500);
         loop {
+            if cancel.is_cancelled() {
+                anyhow::bail!("cancelled while waiting for the tantivy writer lock ({what})");
+            }
             match self.tantivy_index.writer(self.tantivy_writer_memory) {
                 Ok(w) => return Ok(w),
                 Err(tantivy::TantivyError::LockFailure(
@@ -676,7 +684,7 @@ impl HybridSearchEngine {
                 .transpose()?;
 
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("index_docs").await?;
+                self.acquire_writer("index_docs", cancel).await?;
             for d in docs {
                 if cancel.is_cancelled() {
                     break;
@@ -933,7 +941,8 @@ impl HybridSearchEngine {
                 })
                 .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("generation purge").await?;
+                self.acquire_writer("generation purge", &CancellationToken::new())
+                    .await?;
 
             for ns in engram_core::KNOWN_NAMESPACES {
                 if let Ok(policy) = engram_core::get_policy(ns) {
@@ -1220,7 +1229,8 @@ impl HybridSearchEngine {
                 })
                 .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.acquire_writer("delete_files").await?;
+                self.acquire_writer("delete_files", &CancellationToken::new())
+                    .await?;
             for p in paths {
                 let pid_term = Term::from_field_text(self.fields.project_id, project_id);
                 let ns_term = Term::from_field_text(self.fields.namespace, namespace);
