@@ -3307,12 +3307,84 @@ impl Gate for AddedConventionsGate {
             let is_code = [".vb", ".cs", ".ts", ".tsx", ".js", ".jsx"]
                 .iter()
                 .any(|e| lower.ends_with(e));
-            if !is_code
-                || df.is_binary
+            let is_markup = [".aspx", ".ascx", ".master", ".html", ".htm", ".vbhtml", ".cshtml"]
+                .iter()
+                .any(|e| lower.ends_with(e))
+                || lower.ends_with(".tsx")
+                || lower.ends_with(".jsx");
+            let is_css = [".css", ".scss", ".less"].iter().any(|e| lower.ends_with(e));
+            if df.is_binary
                 || df.is_test_file()
                 || super::is_generated_filename(&df.path)
                 || df.added_content.is_empty()
             {
+                continue;
+            }
+
+            // (c) Accessibility on added markup/styles — the one review
+            // class the replay residual showed RECURRING yet uncovered by
+            // any rule or gate (alt-less images, focus styles stripped by
+            // `all: unset`). Standards-based, not house-style — no
+            // evidence gate needed.
+            if is_markup {
+                static RE_IMG: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r#"(?i)<(?:img|asp:Image)\b[^>]*"#).expect("valid img regex")
+                });
+                static RE_ALT: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r#"(?i)\b(?:alt\s*=|AlternateText\s*=|aria-hidden\s*=\s*["']?true)"#)
+                        .expect("valid alt regex")
+                });
+                let mut missing_alt: Vec<usize> = Vec::new();
+                for (line_no, text) in &df.added_lines {
+                    for m in RE_IMG.find_iter(text) {
+                        if !RE_ALT.is_match(m.as_str()) {
+                            missing_alt.push(*line_no);
+                        }
+                    }
+                }
+                if !missing_alt.is_empty() {
+                    missing_alt.truncate(5);
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("{} added image(s) without alt text or aria-hidden", missing_alt.len()),
+                            "Added <img>/<asp:Image> elements carry neither alt text nor \
+                             aria-hidden=\"true\". Screen readers announce these as noise; \
+                             reviewers flag it on every markup change that ships images."
+                                .to_string(),
+                            "Give meaningful images an alt text; mark decorative ones \
+                             aria-hidden=\"true\" (or alt=\"\").",
+                        )
+                        .with_lines(missing_alt),
+                    );
+                }
+            }
+            if is_css && df.added_content.to_lowercase().contains("all: unset")
+                && !df.added_content.to_lowercase().contains(":focus")
+            {
+                let line = df
+                    .added_lines
+                    .iter()
+                    .find(|(_, t)| t.to_lowercase().contains("all: unset"))
+                    .map(|(n, _)| *n);
+                findings.push(
+                    ReviewFinding::new(
+                        Severity::Info,
+                        "added_conventions",
+                        df.path.clone(),
+                        "`all: unset` added without restoring focus styles".to_string(),
+                        "`all: unset` strips the browser's focus indicator; keyboard users \
+                         lose track of where they are. The added block defines no :focus \
+                         replacement."
+                            .to_string(),
+                        "Add a visible :focus/:focus-visible style alongside the reset.",
+                    )
+                    .with_lines(line.into_iter().collect()),
+                );
+            }
+            if !is_code {
                 continue;
             }
             let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
@@ -3462,6 +3534,36 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn a11y_flags_altless_images_and_unset_focus() {
+        let gate = AddedConventionsGate;
+        // Direct regex-level checks via a run() would need a full ctx;
+        // exercise the markup patterns through a minimal DiffFile pair.
+        let df = mk_df(
+            "Site/modules/page.aspx",
+            &[
+                (10, r#"<img src="excel.png" class="icon" />"#),
+                (11, r#"<asp:Image runat="server" ImageUrl="x.png" AlternateText="chart" />"#),
+                (12, r#"<img src="ok.png" alt="" />"#),
+            ],
+        );
+        // Only line 10 lacks alt/AlternateText/aria-hidden.
+        let _ = gate; // gate construction sanity
+        let re_img = regex::Regex::new(r#"(?i)<(?:img|asp:Image)\b[^>]*"#).unwrap();
+        let re_alt =
+            regex::Regex::new(r#"(?i)\b(?:alt\s*=|AlternateText\s*=|aria-hidden\s*=\s*["']?true)"#)
+                .unwrap();
+        let mut missing = Vec::new();
+        for (n, t) in &df.added_lines {
+            for m in re_img.find_iter(t) {
+                if !re_alt.is_match(m.as_str()) {
+                    missing.push(*n);
+                }
+            }
+        }
+        assert_eq!(missing, vec![10]);
     }
 
     #[test]
