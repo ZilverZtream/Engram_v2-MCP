@@ -43,6 +43,7 @@ pub const NAMESPACE_MEMORY: &str = "memory";
 pub const NAMESPACE_HISTORY: &str = "history";
 pub const NAMESPACE_ANTIPATTERN: &str = "antipattern";
 pub const NAMESPACE_WONTFIX: &str = "wontfix_patterns";
+pub const NAMESPACE_QUALITY_GATE: &str = "quality_gate";
 pub const NAMESPACE_MEMORY_BANK: &str = "memory_bank";
 pub const NAMESPACE_INSIGHTS: &str = "insights";
 pub const NAMESPACE_BUSINESS_LOGIC: &str = "business_logic";
@@ -52,6 +53,7 @@ pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_HISTORY,
     NAMESPACE_ANTIPATTERN,
     NAMESPACE_WONTFIX,
+    NAMESPACE_QUALITY_GATE,
     NAMESPACE_MEMORY_BANK,
     NAMESPACE_INSIGHTS,
     NAMESPACE_BUSINESS_LOGIC,
@@ -90,6 +92,13 @@ pub fn get_policy(namespace: &str) -> Result<NamespacePolicy> {
             retention: NamespaceRetention::KeepForever,
         }),
         NAMESPACE_WONTFIX => Ok(NamespacePolicy {
+            versioning: NamespaceVersioning::GlobalMutable,
+            retention: NamespaceRetention::KeepForever,
+        }),
+        // Team guidelines / external-finding rules: content-hash doc_ids,
+        // valid across reindexes — was generation-pinned via the unknown-
+        // namespace fallback (the same rot antipattern had).
+        NAMESPACE_QUALITY_GATE => Ok(NamespacePolicy {
             versioning: NamespaceVersioning::GlobalMutable,
             retention: NamespaceRetention::KeepForever,
         }),
