@@ -116,13 +116,18 @@ impl Engram {
                     .iter()
                     .any(|k| l.contains(k))
             };
-            // Guideline sources (copilot-instructions, coding rules) are
-            // team mandates by nature — their parser assigns a flat
-            // "medium" severity, so severity only gates the FINDING
-            // sources (coderabbit/sonarqube exports), where it is real.
+            // Guideline sources (copilot-instructions, coding rules, and
+            // the DevOps recurring-issues/learnings board) are team
+            // mandates by nature — their parsers assign a flat "medium"
+            // severity, so severity only gates the FINDING sources
+            // (coderabbit/sonarqube exports), where it is real. The board
+            // is mandate-heavy ("Make sure all .js are transpiled…",
+            // "Must be tested on a real phone…") and belongs here.
             let guideline_source = matches!(
                 source,
-                QualitySource::CopilotInstructions | QualitySource::CodingRulesMd
+                QualitySource::CopilotInstructions
+                    | QualitySource::CodingRulesMd
+                    | QualitySource::DevOpsBoard
             );
             for r in rules.iter().filter(|r| {
                 (guideline_source || r.severity.eq_ignore_ascii_case("high"))
