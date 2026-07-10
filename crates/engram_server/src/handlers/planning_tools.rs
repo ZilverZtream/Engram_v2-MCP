@@ -5617,7 +5617,29 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
     let accept = get("Microsoft.VSTS.Common.AcceptanceCriteria");
     let mut out = format!("[{wtype} #{id}] {title}\n\n{}", strip_html(desc));
     if !accept.is_empty() {
-        out.push_str(&format!("\n\nAcceptance criteria:\n{}", strip_html(accept)));
+        // AC provenance (fail-soft): one-liner stories sometimes get
+        // acceptance criteria back-filled by the implementer (often
+        // AI-assisted) after the team wrote the story. Those are hints
+        // to verify, not team-committed spec — and an agent that treats
+        // them as spec faithfully implements criteria the team never
+        // agreed to. Label who wrote the AC and flag back-fills.
+        let label = match fetch_ac_provenance(&client, org, project, id, &auth).await {
+            Some((ac_author, ac_date, creator)) => {
+                if !creator.is_empty() && ac_author != creator {
+                    format!(
+                        "Acceptance criteria (written by {ac_author} on {ac_date}; \
+                         the story was created by {creator} — these criteria were \
+                         back-filled later; verify them against the description and \
+                         existing merged work rather than treating them as \
+                         team-committed spec)"
+                    )
+                } else {
+                    format!("Acceptance criteria (written by {ac_author} on {ac_date})")
+                }
+            }
+            None => "Acceptance criteria".to_string(),
+        };
+        out.push_str(&format!("\n\n{label}:\n{}", strip_html(accept)));
     }
     // Linked work items (bounded, fail-soft): titles + trimmed descriptions.
     for lid in extract_relation_ids(&v, id).into_iter().take(3) {
@@ -5657,6 +5679,73 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
         out.push_str(&format!("\n\n[linked {ltype} #{lid}] {ltitle}\n{body}"));
     }
     Some(out)
+}
+
+/// Who first wrote the acceptance criteria, and who created the item.
+///
+/// Reads the work-item revision history (`/updates`) and returns
+/// `(ac_author, ac_date_yyyy_mm_dd, item_creator)` for the first
+/// revision that populated AcceptanceCriteria. None on any failure or
+/// if the field never appears in history — callers fall back to an
+/// unannotated label.
+async fn fetch_ac_provenance(
+    client: &reqwest::Client,
+    org: &str,
+    project: &str,
+    id: u64,
+    auth: &str,
+) -> Option<(String, String, String)> {
+    let url = format!(
+        "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}/updates?api-version=7.0&$top=200"
+    );
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Basic {auth}"))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let v: serde_json::Value = resp.json().await.ok()?;
+    let updates = v.get("value")?.as_array()?;
+    let mut creator = String::new();
+    for u in updates {
+        let who = u
+            .get("revisedBy")
+            .and_then(|b| b.get("displayName"))
+            .and_then(|d| d.as_str())
+            .unwrap_or("")
+            .to_string();
+        if u.get("rev").and_then(|r| r.as_u64()) == Some(1) {
+            creator = who.clone();
+        }
+        let Some(fields) = u.get("fields") else {
+            continue;
+        };
+        let Some(ac) = fields.get("Microsoft.VSTS.Common.AcceptanceCriteria") else {
+            continue;
+        };
+        let new_val = ac.get("newValue").and_then(|x| x.as_str()).unwrap_or("");
+        let old_val = ac.get("oldValue").and_then(|x| x.as_str()).unwrap_or("");
+        if new_val.trim().is_empty() || !old_val.trim().is_empty() {
+            continue; // want the revision that FIRST populated the field
+        }
+        // Prefer the field-level ChangedDate; revisedDate is 9999-01-01
+        // on some in-flight revisions.
+        let date = fields
+            .get("System.ChangedDate")
+            .and_then(|c| c.get("newValue"))
+            .and_then(|d| d.as_str())
+            .or_else(|| u.get("revisedDate").and_then(|d| d.as_str()))
+            .unwrap_or("");
+        let date = date.get(..10).unwrap_or(date).to_string();
+        if who.is_empty() {
+            return None;
+        }
+        return Some((who, date, creator));
+    }
+    None
 }
 
 /// Work-item ids from an item's `relations` array (System.LinkTypes.* only —

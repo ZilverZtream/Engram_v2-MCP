@@ -42,6 +42,7 @@ pub enum NamespaceScope {
 pub const NAMESPACE_MEMORY: &str = "memory";
 pub const NAMESPACE_HISTORY: &str = "history";
 pub const NAMESPACE_ANTIPATTERN: &str = "antipattern";
+pub const NAMESPACE_WONTFIX: &str = "wontfix_patterns";
 pub const NAMESPACE_MEMORY_BANK: &str = "memory_bank";
 pub const NAMESPACE_INSIGHTS: &str = "insights";
 pub const NAMESPACE_BUSINESS_LOGIC: &str = "business_logic";
@@ -50,6 +51,7 @@ pub const KNOWN_NAMESPACES: &[&str] = &[
     NAMESPACE_MEMORY,
     NAMESPACE_HISTORY,
     NAMESPACE_ANTIPATTERN,
+    NAMESPACE_WONTFIX,
     NAMESPACE_MEMORY_BANK,
     NAMESPACE_INSIGHTS,
     NAMESPACE_BUSINESS_LOGIC,
@@ -75,8 +77,20 @@ pub fn get_policy(namespace: &str) -> Result<NamespacePolicy> {
             versioning: NamespaceVersioning::GlobalMutable,
             retention: NamespaceRetention::KeepForever,
         }),
+        // Review-corpus rules (anti-patterns + wontFix suppressions) carry
+        // STABLE content-hash doc_ids and describe team review history —
+        // the same shape as `history` above, and the same failure mode:
+        // AppendOnly pinned them to the ingest-time generation, so routine
+        // incremental updates (which bump the counter) orphaned the whole
+        // corpus for every generation-scoped reader (live: get_chunk at
+        // gen 36 couldn't fetch rules written at gen ~30). GlobalMutable =
+        // gen 0, pk upsert, survives wipe_and_reindex.
         NAMESPACE_ANTIPATTERN => Ok(NamespacePolicy {
-            versioning: NamespaceVersioning::AppendOnly,
+            versioning: NamespaceVersioning::GlobalMutable,
+            retention: NamespaceRetention::KeepForever,
+        }),
+        NAMESPACE_WONTFIX => Ok(NamespacePolicy {
+            versioning: NamespaceVersioning::GlobalMutable,
             retention: NamespaceRetention::KeepForever,
         }),
         NAMESPACE_MEMORY_BANK => Ok(NamespacePolicy {
