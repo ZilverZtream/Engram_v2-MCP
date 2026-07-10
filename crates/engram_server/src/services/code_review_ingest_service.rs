@@ -1306,6 +1306,80 @@ fn extract_fix_commit(body: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
+// ─── Fix-exemplar localization (iteration-delta mining) ──────────────────────
+//
+// A review finding quotes the offending code in backticks; the merged PR's
+// later-iteration diff of the same file contains the concrete fix. Matching
+// the fix hunk by that quoted token (not by line number, which drifts across
+// iterations) recovers the canonical before→after — the highest-quality
+// signal for the rule corpus ("here's how the team fixed this last time").
+//
+// Proven in eval/_iter_delta_probe.py: token-anchoring ~3x'd the hit rate on
+// live PRs (PR1874 4/17 → 11/17). These are the in-tree, unit-tested core;
+// the live ADO iteration-diff fetch that feeds them is wired separately.
+
+/// Backtick-quoted identifier-ish tokens the reviewer named, longest first —
+/// a line-number-independent anchor for the offending code.
+pub(crate) fn quoted_code_tokens(finding_text: &str) -> Vec<String> {
+    use std::sync::LazyLock;
+    static RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"`([^`]{3,60})`").ok());
+    static IDENT: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"[A-Za-z_]\w*").ok());
+    let (Some(re), Some(ident)) = (RE.as_ref(), IDENT.as_ref()) else {
+        return Vec::new();
+    };
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out: Vec<String> = Vec::new();
+    for cap in re.captures_iter(finding_text) {
+        if let Some(m) = cap.get(1) {
+            let t = m.as_str().to_string();
+            if ident.is_match(&t) && seen.insert(t.clone()) {
+                out.push(t);
+            }
+        }
+    }
+    out.sort_by(|a, b| b.len().cmp(&a.len()));
+    out
+}
+
+/// From a unified diff of ONE file, return the first `@@` hunk whose
+/// REMOVED (`-`) side contains one of `tokens` — the hunk that changed the
+/// offending code, regardless of how line numbers drifted. None if no
+/// removed line carries a named token (a fix that only ADDS lines, or an
+/// unrelated hunk).
+pub(crate) fn fix_hunk_by_token(diff_text: &str, tokens: &[String]) -> Option<String> {
+    if tokens.is_empty() {
+        return None;
+    }
+    let has_token = |removed: &[&str]| -> bool {
+        removed.iter().any(|r| tokens.iter().any(|t| r.contains(t.as_str())))
+    };
+    let mut cur: Vec<&str> = Vec::new();
+    let mut removed: Vec<&str> = Vec::new();
+    let mut started = false;
+    for line in diff_text.lines() {
+        if line.starts_with("@@ ") {
+            if started && has_token(&removed) {
+                return Some(cur.join("\n"));
+            }
+            cur.clear();
+            removed.clear();
+            cur.push(line);
+            started = true;
+        } else if started {
+            cur.push(line);
+            if line.starts_with('-') && !line.starts_with("---") {
+                removed.push(line);
+            }
+        }
+    }
+    if started && has_token(&removed) {
+        return Some(cur.join("\n"));
+    }
+    None
+}
+
 pub fn infer_language(file_path: &str) -> String {
     let lower = file_path.to_ascii_lowercase();
     let ext = lower.rsplit('.').next().unwrap_or("");
@@ -1801,6 +1875,38 @@ mod tests {
     fn extract_fix_commit_grabs_sha() {
         let body = "✅ Addressed in commits 8133c13 to dde4b4e";
         assert_eq!(extract_fix_commit(body), Some("8133c13".to_string()));
+    }
+
+    #[test]
+    fn quoted_code_tokens_ranks_identifiers_longest_first() {
+        let finding = "**Guard `Query` before dereferencing** — call `Check_pr_id` and \
+                       avoid `x`.";
+        let toks = quoted_code_tokens(finding);
+        // 'x' is <3 chars → dropped; identifiers kept, longest first.
+        assert_eq!(toks, vec!["Check_pr_id".to_string(), "Query".to_string()]);
+    }
+
+    #[test]
+    fn fix_hunk_by_token_locates_the_removed_offending_code() {
+        // The literal PR1874 fix the probe recovered: nullable-guard change.
+        let diff = "@@ -18,7 +18,7 @@ Namespace _api2.svc\n\
+                     \n\
+                                     Using db As New iFaltDataContext\n\
+                     \n\
+                     -                If Query.projectId.HasValue Then\n\
+                     +                If Query?.projectId IsNot Nothing Then\n\
+                                          Return Nothing\n\
+                     @@ -39,7 +39,7 @@ another region\n\
+                     -                Dim x = 1\n\
+                     +                Dim x = 2\n";
+        let toks = quoted_code_tokens("Guard `Query.projectId.HasValue` before use");
+        let hunk = fix_hunk_by_token(diff, &toks).expect("should locate the guard hunk");
+        assert!(hunk.contains("If Query.projectId.HasValue Then"));
+        assert!(hunk.contains("If Query?.projectId IsNot Nothing Then"));
+        // Must pick the FIRST token-bearing hunk, not the unrelated x=1 one.
+        assert!(!hunk.contains("Dim x = 1"));
+        // A token nobody removed → no match.
+        assert!(fix_hunk_by_token(diff, &["nonexistent_symbol".to_string()]).is_none());
     }
 
     #[test]
