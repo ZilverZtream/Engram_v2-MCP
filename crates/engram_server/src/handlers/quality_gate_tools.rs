@@ -92,6 +92,64 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        // BRIDGE: guideline-class mandates also become REGISTRY repo rules —
+        // the store the pre-commit gates and get_chunk rule-injection read.
+        // Without this, a team guideline (copilot-instructions demanding XML
+        // docs) lives only in the searchable namespace and every gate that
+        // keys on ctx.repo_rules stays blind to it (live gap: gate 17's
+        // docs check needed a manual add_repo_rule). Promotion is bounded
+        // and shape-gated: high-severity rules whose text reads as a
+        // mandate, deduped against existing rules by prefix.
+        let mut promoted = 0usize;
+        {
+            let existing: Vec<String> = self
+                .state
+                .registry
+                .list_repo_rules(&req.project_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|r| r.rule_text.to_lowercase())
+                .collect();
+            let is_mandate = |t: &str| {
+                let l = t.to_lowercase();
+                ["must", "never", "always", "required", "do not", "don't"]
+                    .iter()
+                    .any(|k| l.contains(k))
+            };
+            for r in rules.iter().filter(|r| {
+                r.severity.eq_ignore_ascii_case("high")
+                    && is_mandate(&r.text)
+                    && r.text.len() >= 30
+                    && r.text.len() <= 400
+            }) {
+                if promoted >= 20 {
+                    break;
+                }
+                let key: String = r.text.to_lowercase().chars().take(80).collect();
+                if existing.iter().any(|e| e.starts_with(&key)) {
+                    continue;
+                }
+                let rule = engram_core::registry::RepoRule {
+                    rule_id: format!("qg-{}", &r.id),
+                    file_pattern: r.path_scope.clone().unwrap_or_else(|| "**/*".into()),
+                    rule_text: r.text.clone(),
+                    priority: 5,
+                    updated_at_ms: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis() as u64)
+                        .unwrap_or(0),
+                };
+                if self
+                    .state
+                    .registry
+                    .put_repo_rule(&req.project_id, &rule)
+                    .is_ok()
+                {
+                    promoted += 1;
+                }
+            }
+        }
+
         let sev = by_sev
             .iter()
             .map(|(k, v)| format!("{v} {k}"))
@@ -99,7 +157,9 @@ impl Engram {
             .join(", ");
         Ok(CallToolResult::success(vec![Content::text(format!(
             "Ingested {} quality-gate rules from {origin} (source_type={}, category={}) into the \
-             `{QG_NAMESPACE}` namespace [{sev}]. Use pre_push_audit to check a change against them.",
+             `{QG_NAMESPACE}` namespace [{sev}]. {promoted} high-severity mandate(s) auto-promoted \
+             to repo rules (gates + rule injection read those). Use pre_push_audit to check a \
+             change against them.",
             rules.len(),
             req.source_type,
             rules[0].category,
