@@ -4669,6 +4669,80 @@ impl Engram {
             }
         }
 
+        // Shared components in the candidates' dependency graph: a component
+        // IMPORTED BY multiple surfaces is usually where a cross-surface
+        // affordance is implemented. Past-PR evidence (arm-B run 9): the
+        // team extended the SHARED select control while a locally-scoped
+        // plan diverged in 10 files — the extend-vs-local fork needs to be
+        // an EXPLICIT decision. Graph-only (O(degree) adjacency); silent
+        // when the codebase has no import edges.
+        {
+            let graph = self.state.graph.clone();
+            let pid_s = req.project_id.clone();
+            let top_files = top_node_bearing_files(&prov, 12);
+            let shared = tokio::task::spawn_blocking(move || {
+                let mut out: Vec<(usize, String, Vec<String>)> = Vec::new();
+                let mut seen: HashSet<String> = HashSet::new();
+                for f in &top_files {
+                    let fid = engram_core::ids::NodeId::file(f).0;
+                    for (dep_id, _w) in graph
+                        .neighbors(&pid_s, engram_graph::EdgeKind::Imports, &fid, 20)
+                        .unwrap_or_default()
+                    {
+                        if !seen.insert(dep_id.clone()) {
+                            continue;
+                        }
+                        let Some(dep_path) = dep_id.strip_prefix("file:") else {
+                            continue;
+                        };
+                        let importers = graph
+                            .find_incoming_edges(
+                                &pid_s,
+                                Some(engram_graph::EdgeKind::Imports),
+                                &dep_id,
+                                25,
+                            )
+                            .unwrap_or_default();
+                        if importers.len() >= 2 {
+                            let sample: Vec<String> = importers
+                                .iter()
+                                .take(3)
+                                .filter_map(|(src, _)| {
+                                    src.strip_prefix("file:").map(str::to_string)
+                                })
+                                .collect();
+                            out.push((importers.len(), dep_path.to_string(), sample));
+                        }
+                    }
+                }
+                out.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                out.truncate(3);
+                out
+            })
+            .await
+            .unwrap_or_default();
+            if !shared.is_empty() {
+                out.push_str(
+                    "\n## Shared components in the candidates' dependency graph\n\
+                     These are imported by MULTIPLE surfaces. When the story adds an \
+                     affordance to a dialog/control these components implement, decide \
+                     EXPLICITLY whether the change belongs IN the shared component \
+                     (how past cross-surface work usually shipped) or locally in each \
+                     consumer — an unstated fork here diverges the whole file set:\n",
+                );
+                for (n, comp, sample) in shared {
+                    out.push_str(&format!(
+                        "- `{comp}` — imported by {n} file(s), e.g. {}\n",
+                        sample
+                            .iter()
+                            .map(|s| format!("`{s}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            }
+        }
+
         // The ranked file set is the single most freshness-sensitive output
         // in the funnel: a stale index proposes the wrong files. This was
         // the only primary funnel tool with no staleness signal.
