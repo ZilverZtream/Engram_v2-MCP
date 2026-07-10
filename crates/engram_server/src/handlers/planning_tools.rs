@@ -4920,14 +4920,62 @@ impl Engram {
                 use_mmr: false,
             };
             let engine = ps.search.clone();
-            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+            let mut hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
                 .await
                 .ok()
                 .and_then(|r| r.ok())
                 .unwrap_or_default();
-            // Boost rules whose file-family glob matches a ranked candidate:
-            // those fire on exactly the files this change will touch.
+            // FAMILY-FIRST second pool: story-similarity finds rules about
+            // similar FEATURES, but recurring review findings follow CODE
+            // SURFACES — api-layer convention rules apply to every API
+            // story regardless of topic (authoring experiment 2026-07-10:
+            // story-matched-only arming produced zero benefit on PR1874
+            // while the finding classes were all api-v2 family rules).
+            // Rule docs carry their file-family glob as the synthetic
+            // path, so a prefix-filtered query fetches the rules that fire
+            // on exactly the directories this change will touch.
             let cand_paths: Vec<String> = prov.keys().map(|k| k.to_lowercase()).collect();
+            {
+                let mut fam_prefixes: Vec<String> = Vec::new();
+                for c in cand_paths.iter().take(12) {
+                    let segs: Vec<&str> = c.split('/').collect();
+                    if segs.len() >= 2 {
+                        let p = segs[..segs.len().min(3) - 1].join("/");
+                        if !p.is_empty() && !fam_prefixes.contains(&p) {
+                            fam_prefixes.push(p);
+                        }
+                    }
+                }
+                fam_prefixes.truncate(6);
+                if !fam_prefixes.is_empty() {
+                    let fq = engram_index::HybridQuery {
+                        project_id: req.project_id.clone(),
+                        namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
+                        generation: 0,
+                        text: story_for_concepts(&req.story),
+                        top_k: 12,
+                        fts_mode: "loose".into(),
+                        include_path_prefixes: Some(fam_prefixes),
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    };
+                    let engine2 = ps.search.clone();
+                    let fam_hits = tokio::task::spawn_blocking(move || engine2.lexical_search(&fq))
+                        .await
+                        .ok()
+                        .and_then(|r| r.ok())
+                        .unwrap_or_default();
+                    // Family pool first — dedupe by doc_id happens below
+                    // via the instruction-dedupe set.
+                    let mut merged = fam_hits;
+                    merged.extend(hits);
+                    hits = merged;
+                }
+            }
             let glob_prefix = |g: &str| -> String {
                 let g = g.to_lowercase().replace('\\', "/");
                 g.split("/**").next().unwrap_or(&g).trim_end_matches('/').to_string()
