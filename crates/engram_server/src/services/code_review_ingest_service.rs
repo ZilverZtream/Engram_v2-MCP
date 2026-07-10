@@ -1232,22 +1232,46 @@ fn extract_pattern_tokens(body: &str) -> Vec<String> {
     // SCREAMING_CASE constants; we cover those via the backtick path
     // when the author marked them.
     static BACKTICK_RE: LazyLock<Option<regex::Regex>> =
-        LazyLock::new(|| regex::Regex::new(r"`([A-Za-z_][A-Za-z0-9_\.]{2,})`").ok());
+        LazyLock::new(|| regex::Regex::new(r"`([A-Za-z_][A-Za-z0-9_\.]{2,})(?:\(\))?`").ok());
     static PASCAL_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"\b([A-Z][a-z]+[A-Za-z0-9]{2,})\b").ok());
+    // camelCase with an interior hump ("gQtyManager", "setWarningsText") —
+    // English prose never has interior caps, so this shape needs no
+    // prose filter.
+    static CAMEL_RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"\b([a-z_][a-z0-9_]*[A-Z][A-Za-z0-9_]+)\b").ok());
     static METHOD_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"\b([A-Za-z_][A-Za-z0-9_]{2,})\s*\(").ok());
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<String> = Vec::new();
-    for re in [BACKTICK_RE.as_ref(), PASCAL_RE.as_ref(), METHOD_RE.as_ref()]
-        .iter()
-        .flatten()
-    {
+    for (re, is_pascal) in [
+        (BACKTICK_RE.as_ref(), false),
+        (PASCAL_RE.as_ref(), true),
+        (CAMEL_RE.as_ref(), false),
+        (METHOD_RE.as_ref(), false),
+    ] {
+        let Some(re) = re else { continue };
         for cap in re.captures_iter(body).take(200) {
             if let Some(m) = cap.get(1) {
                 let tok = m.as_str().trim_matches('.').to_string();
                 if tok.len() < 4 || is_stop_token(&tok) {
+                    continue;
+                }
+                // The PascalCase path alone also matches plain Titlecase
+                // ENGLISH words ("Thanks", "Carefully", "Understood") —
+                // review-comment courtesy prose that polluted the rule
+                // docs' token clouds and degraded rule search (live: the
+                // writing-time rules section is matched lexically against
+                // story text). Require a real identifier signal: an
+                // interior uppercase hump, digit, or underscore.
+                // Backtick tokens are author-marked code and call-shaped
+                // tokens are code by construction — those paths stay open.
+                if is_pascal
+                    && !tok[1..]
+                        .chars()
+                        .any(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+                {
                     continue;
                 }
                 if seen.insert(tok.clone()) {
@@ -1722,6 +1746,26 @@ mod tests {
         for t in &tokens {
             assert!(!is_stop_token(t), "leaked stopword: {t}");
         }
+    }
+
+    #[test]
+    fn extract_pattern_tokens_drops_titlecase_prose() {
+        // Courtesy/reply prose from review threads must not become
+        // pattern tokens (live: "Thanks, Understood, Learnt, Carefully"
+        // in rule docs' token clouds). Identifier-shaped PascalCase and
+        // explicit code markers still pass.
+        let body = "Thanks! Understood. Therefore we should Carefully check \
+                    NullReferenceException in `prGetSubProjects` when GetByID() runs.";
+        let tokens = extract_pattern_tokens(body);
+        for prose in ["Thanks", "Understood", "Therefore", "Carefully"] {
+            assert!(
+                !tokens.iter().any(|t| t == prose),
+                "prose token leaked: {prose} in {tokens:?}"
+            );
+        }
+        assert!(tokens.iter().any(|t| t == "NullReferenceException"));
+        assert!(tokens.iter().any(|t| t == "prGetSubProjects"));
+        assert!(tokens.iter().any(|t| t == "GetByID"));
     }
 
     #[test]
