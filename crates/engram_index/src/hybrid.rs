@@ -1541,7 +1541,15 @@ impl HybridSearchEngine {
                         } else if matches!(ext_lower.as_deref(), Some("rdlc" | "rdl")) {
                             crate::report_extractor::extract_ssrs_report(&arc_rel, &text)
                         } else {
-                            extractor.extract(p, &text)
+                            // PROJECT-RELATIVE path, not the absolute disk
+                            // path: the extractor only needs ext/filename,
+                            // and its triple-slash reference resolution
+                            // builds file-node target paths from the
+                            // source's directory — absolute sources made
+                            // every target absolute, which the ingest
+                            // safety check rejects (live: whole index job
+                            // died on the first BOM-visible reference).
+                            extractor.extract(std::path::Path::new(arc_rel.as_str()), &text)
                         };
                         // Language-generic pass: "must update in N places"
                         // comments are machine-readable sync contracts —
