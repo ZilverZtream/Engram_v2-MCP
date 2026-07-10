@@ -115,6 +115,51 @@ def workitem(wid, with_linked=False):
     return out
 
 
+AC_FIELD = "Microsoft.VSTS.Common.AcceptanceCriteria"
+DESC_FIELD = "System.Description"
+
+
+def workitem_field_provenance(wid):
+    """Who wrote the description / acceptance criteria, revision by revision.
+
+    Motivation (user, 2026-07-10): one-liner stories sometimes get ACs
+    back-filled by an AI session (or by the implementer) AFTER the team
+    wrote the story — those ACs are not team spec, and scoring an agent
+    against them as ground truth is circular. This surfaces, per field,
+    who FIRST populated it and every author who touched it since, so an
+    eval (or a dossier) can weigh ACs by provenance.
+    """
+    j = get(f"{BASE}/wit/workItems/{wid}/updates", **{"$top": 200})
+    events = {AC_FIELD: [], DESC_FIELD: []}
+    created_by, created_date = "", ""
+    for u in j.get("value", []):
+        flds = u.get("fields", {}) or {}
+        who = (u.get("revisedBy") or {}).get("displayName", "?")
+        when = flds.get("System.ChangedDate", {}).get("newValue", "") or u.get("revisedDate", "")
+        if u.get("rev") == 1:
+            created_by, created_date = who, when
+        for field in (AC_FIELD, DESC_FIELD):
+            if field in flds:
+                old = _strip_html(flds[field].get("oldValue", "") or "")
+                new = _strip_html(flds[field].get("newValue", "") or "")
+                if new == old:
+                    continue
+                events[field].append({
+                    "rev": u.get("rev"),
+                    "by": who,
+                    "date": (when or "")[:10],
+                    "kind": "added" if not old else ("cleared" if not new else "edited"),
+                    "chars": len(new),
+                })
+    return {
+        "id": wid,
+        "created_by": created_by,
+        "created_date": created_date[:10],
+        "acceptance_history": events[AC_FIELD],
+        "description_history": events[DESC_FIELD],
+    }
+
+
 def pr_changed_files(pr_id):
     """Canonical changed-file list = the last iteration's changes."""
     iters = get(
@@ -192,9 +237,15 @@ def main():
     ap.add_argument("--out", default="eval/data/ociusx_prs.json")
     ap.add_argument("--with-linked", action="store_true",
                     help="also pull linked work items' text (support tickets) into each story - input parity for cluster-fix PRs; do NOT mix corpora built with and without this flag in one campaign")
+    ap.add_argument("--provenance", type=int, metavar="WID",
+                    help="print description/AC authorship history for one work item")
     args = ap.parse_args()
     global WITH_LINKED
     WITH_LINKED = args.with_linked
+
+    if args.provenance:
+        print(json.dumps(workitem_field_provenance(args.provenance), indent=2))
+        return
 
     if args.pr:
         pr = get(f"{BASE}/git/repositories/{REPO}/pullRequests/{args.pr}")

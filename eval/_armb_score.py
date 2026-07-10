@@ -53,3 +53,65 @@ print(f"P={p * 100:.1f} R={r * 100:.1f} F1={f1 * 100:.1f}")
 print("\nTP:", *tp, sep="\n  ")
 print("\nFP (proposed, not in PR — judge: rider-class? factoring?):", *fp, sep="\n  ")
 print("\nFN (in PR, not proposed):", *fn, sep="\n  ")
+
+# ---- name-tolerant column -------------------------------------------------
+# 100 devs produce 100 namings for the same artifact; the agent cannot be
+# docked for `RoQMaxNum` vs `RoQMaximumNumberOfImage` (user ruling
+# 2026-07-10). Pair each FP with the FN it most plausibly IS — same
+# extension plus either high stem similarity or a long shared prefix —
+# and report a second F1 where those pairs count as hits. Pairs are
+# printed for eyeball verification; the exact column stays primary.
+from difflib import SequenceMatcher
+
+
+def stem_ext(b):
+    if "." in b:
+        s, e = b.split(".", 1)
+    else:
+        s, e = b, ""
+    return s, e
+
+
+def common_prefix_len(a, b):
+    n = 0
+    for x, y in zip(a, b):
+        if x != y:
+            break
+        n += 1
+    return n
+
+
+candidates = []
+for f in fp:
+    fs, fe = stem_ext(f)
+    for g in fn:
+        gs, ge = stem_ext(g)
+        if fe != ge:
+            continue
+        ratio = SequenceMatcher(None, fs, gs).ratio()
+        if ratio >= 0.6 or common_prefix_len(fs, gs) >= 6:
+            candidates.append((ratio, f, g))
+
+pairs = []
+used_fp, used_fn = set(), set()
+for ratio, f, g in sorted(candidates, reverse=True):
+    if f in used_fp or g in used_fn:
+        continue
+    pairs.append((f, g, ratio))
+    used_fp.add(f)
+    used_fn.add(g)
+
+if pairs:
+    tp2 = len(tp) + len(pairs)
+    p2 = tp2 / len(proposed) if proposed else 0.0
+    r2 = tp2 / len(real) if real else 0.0
+    f12 = 2 * p2 * r2 / (p2 + r2) if p2 + r2 else 0.0
+    print("\nNAME-VARIANT pairs (proposed ≈ real, credited below):")
+    for f, g, ratio in pairs:
+        print(f"  {f}  ≈  {g}  (sim {ratio:.2f})")
+    print(
+        f"\nname-tolerant: TP={tp2} FP={len(fp) - len(pairs)} FN={len(fn) - len(pairs)}"
+        f"  P={p2 * 100:.1f} R={r2 * 100:.1f} F1={f12 * 100:.1f}"
+    )
+else:
+    print("\nname-tolerant: no variant pairs found — F1 unchanged")

@@ -235,6 +235,58 @@ def expand_families(prov, wt):
     return len(add)
 
 
+_PROV_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wi_provenance.json")
+
+
+def _ac_provenance(wid):
+    """AC/description authorship for a work item, cached to disk so
+    --reuse reruns are deterministic and offline. Returns None on any
+    failure (no PAT, network down) — provenance is an annotation, never
+    a hard dependency."""
+    cache = {}
+    if os.path.exists(_PROV_CACHE_PATH):
+        try:
+            cache = json.load(open(_PROV_CACHE_PATH, encoding="utf-8"))
+        except Exception:
+            cache = {}
+    key = str(wid)
+    if key not in cache:
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "ado_fetch", os.path.join(os.path.dirname(os.path.abspath(__file__)), "ado_fetch.py"))
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            cache[key] = m.workitem_field_provenance(wid)
+            json.dump(cache, open(_PROV_CACHE_PATH, "w", encoding="utf-8"), indent=1)
+        except (Exception, SystemExit):  # ado_fetch sys.exits without a PAT
+            return None
+    return cache.get(key)
+
+
+def _acceptance_label(wi):
+    """Header for the AC block, carrying provenance when known.
+
+    User ruling 2026-07-10: one-liner stories sometimes get ACs
+    back-filled by the implementer (often AI-assisted) after the team
+    wrote the story — the two biggest implementer-authored AC blobs in
+    the eval set sit on exactly the two crater scores (1938=47.6,
+    1913=66.7). Team-authored ACs are spec; back-filled ACs are hints
+    the plan must verify against the description and merged exemplars."""
+    label = "Acceptance"
+    p = _ac_provenance(wi.get("id")) if wi.get("id") else None
+    if p and p.get("acceptance_history"):
+        first = p["acceptance_history"][0]
+        label = f"Acceptance (written by {first['by']} on {first['date']}"
+        if p.get("created_by") and first["by"] != p["created_by"]:
+            label += (f"; the story itself was created by {p['created_by']} — "
+                      "these criteria were back-filled later, treat them as "
+                      "implementer notes to verify against the description and "
+                      "existing merged work, NOT team-committed spec")
+        label += ")"
+    return label
+
+
 def build_dossier(eng, pid, rec, wt):
     """Single source of truth: the native get_change_set tool — the exact
     artifact an agent calls in production. Its markdown IS the dossier the
@@ -257,7 +309,7 @@ def build_dossier(eng, pid, rec, wt):
         if wi.get("description"):
             parts.append(wi["description"])
         if wi.get("acceptance"):
-            parts.append("Acceptance:\n" + wi["acceptance"])
+            parts.append(_acceptance_label(wi) + ":\n" + wi["acceptance"])
         for li in wi.get("linked_items", []) or []:
             parts.append(f"[linked {li.get('type','item')} {li.get('id','')}] "
                          f"{li.get('title','')}\n{li.get('description','')}")
