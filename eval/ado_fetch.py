@@ -41,6 +41,7 @@ def _pat():
 
 SESS = requests.Session()
 SESS.auth = ("", _pat())
+WITH_LINKED = False
 
 
 def get(url, **params):
@@ -67,10 +68,17 @@ def pr_workitems(pr_id):
     return [w["id"] for w in j.get("value", [])]
 
 
-def workitem(wid):
-    j = get(f"{BASE}/wit/workitems/{wid}")
+def workitem(wid, with_linked=False):
+    """with_linked: also pull the text of RELATED work items (support
+    tickets, duplicates, parents) - dev-visible input the bare item's
+    description under-represents. Live case: PR1937's merged fix covered a
+    THREE-symptom support-ticket cluster while the item text carried one
+    symptom; the missing 2/3 cost the eval agent the file-set match.
+    Leak-safe: linked items were visible to the dev BEFORE implementing."""
+    expand = {"$expand": "relations"} if with_linked else {}
+    j = get(f"{BASE}/wit/workitems/{wid}", **expand)
     f = j.get("fields", {})
-    return {
+    out = {
         "id": wid,
         "type": f.get("System.WorkItemType", ""),
         "title": f.get("System.Title", ""),
@@ -78,6 +86,33 @@ def workitem(wid):
         "acceptance": _strip_html(f.get("Microsoft.VSTS.Common.AcceptanceCriteria", "")),
         "state": f.get("System.State", ""),
     }
+    if with_linked:
+        linked = []
+        for rel in j.get("relations", []):
+            if not rel.get("rel", "").startswith("System.LinkTypes"):
+                continue
+            url = rel.get("url", "")
+            lid = url.rsplit("/", 1)[-1]
+            if not lid.isdigit() or int(lid) == wid:
+                continue
+            try:
+                lj = get(f"{BASE}/wit/workitems/{lid}")
+                lf = lj.get("fields", {})
+                text = _strip_html(lf.get("System.Description", ""))
+                if text:
+                    linked.append({
+                        "id": int(lid),
+                        "type": lf.get("System.WorkItemType", ""),
+                        "title": lf.get("System.Title", ""),
+                        "description": text[:1500],
+                    })
+            except Exception:
+                continue  # missing/permission-restricted links are non-fatal
+            if len(linked) >= 5:
+                break
+        if linked:
+            out["linked_items"] = linked
+    return out
 
 
 def pr_changed_files(pr_id):
@@ -119,7 +154,7 @@ def pr_record(pr):
     source = (pr.get("lastMergeSourceCommit") or {}).get("commitId", "")
     merge = (pr.get("lastMergeCommit") or {}).get("commitId", "")
     wids = pr_workitems(pr_id)
-    stories = [workitem(w) for w in wids]
+    stories = [workitem(w, with_linked=WITH_LINKED) for w in wids]
     files = pr_changed_files(pr_id)
     # ── HARD WALL ──────────────────────────────────────────────────────────
     # `story` is the ONLY thing a developer (and thus the model + Engram) gets.
@@ -155,7 +190,11 @@ def main():
     ap.add_argument("--top", type=int, default=50, help="number of completed PRs")
     ap.add_argument("--author", default="", help="only keep PRs whose author contains this (e.g. Torvang)")
     ap.add_argument("--out", default="eval/data/ociusx_prs.json")
+    ap.add_argument("--with-linked", action="store_true",
+                    help="also pull linked work items' text (support tickets) into each story - input parity for cluster-fix PRs; do NOT mix corpora built with and without this flag in one campaign")
     args = ap.parse_args()
+    global WITH_LINKED
+    WITH_LINKED = args.with_linked
 
     if args.pr:
         pr = get(f"{BASE}/git/repositories/{REPO}/pullRequests/{args.pr}")
