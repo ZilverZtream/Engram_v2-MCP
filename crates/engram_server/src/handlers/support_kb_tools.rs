@@ -44,8 +44,14 @@ pub(crate) fn extract_roles_line(content: &str) -> Option<String> {
 
 /// Feature slug from a docs index section id:
 /// `docs/docs/change-requests/index` → `change-requests`.
+/// A top-level `docs/index` is the docs ROOT, not a feature (live: it
+/// produced a roleless "docs" card) — the feature index must live under
+/// a docs subtree.
 pub(crate) fn feature_slug(section_id: &str) -> Option<&str> {
     let stripped = section_id.strip_suffix("/index")?;
+    if !stripped.contains('/') {
+        return None;
+    }
     stripped.rsplit('/').next().filter(|s| !s.is_empty())
 }
 
@@ -486,7 +492,9 @@ mod tests {
             Some("change-requests")
         );
         assert_eq!(feature_slug("docs/docs/change-requests/creating"), None);
-        assert_eq!(feature_slug("docs/index"), Some("docs"));
+        // The docs ROOT index is not a feature (it produced a roleless
+        // "docs" card on the live KB).
+        assert_eq!(feature_slug("docs/index"), None);
     }
 
     #[test]
