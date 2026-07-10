@@ -468,6 +468,36 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     }
 });
 
+/// Resolve a triple-slash reference target against the referencing file's
+/// project-relative directory, normalizing `.`/`..` segments. `None` when
+/// the reference escapes the project root. The resolved path is what lets
+/// ingest mint a REAL `file:` node id (`target_kind=file`) — an unresolved
+/// relative string falls through to symbol resolution and lands as a
+/// phantom node no traversal can reach (live: edges emitted, graph empty).
+pub(crate) fn resolve_reference_path(source_rel: &Path, reference: &str) -> Option<String> {
+    let mut segs: Vec<&str> = source_rel
+        .parent()
+        .and_then(|p| p.to_str())
+        .unwrap_or("")
+        .split(['/', '\\'])
+        .filter(|s| !s.is_empty() && *s != ".")
+        .collect();
+    for seg in reference.split(['/', '\\']) {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                segs.pop()?;
+            }
+            s => segs.push(s),
+        }
+    }
+    if segs.is_empty() {
+        None
+    } else {
+        Some(segs.join("/"))
+    }
+}
+
 /// `/// <reference path="../qty/qtyManager.ts" />` → `Some("../qty/qtyManager.ts")`.
 /// Only `path=` references count — `types=`/`lib=` name compiler packages,
 /// not project files.
@@ -713,14 +743,18 @@ impl SymbolExtractor {
                 if !t.starts_with("//") {
                     break; // directives are only valid before the first statement
                 }
-                if let Some(p) = extract_triple_slash_reference(t) {
+                if let Some(p) = extract_triple_slash_reference(t)
+                    && let Some(resolved) = resolve_reference_path(path, &p)
+                {
                     edges.push(ExtractedEdge {
                         source_name: "file".to_string(),
                         source_kind: "file".to_string(),
                         source_start_line: 0,
                         source_language: static_ext.to_string(),
-                        target_name: p,
-                        target_kind: None,
+                        // Project-relative resolved path + target_kind=file →
+                        // ingest mints NodeId::file(...) (a real node).
+                        target_name: resolved,
+                        target_kind: Some("file".to_string()),
                         target_start_line: None,
                         kind: "imports".to_string(),
                         metadata: None,
@@ -1041,16 +1075,27 @@ mod tests {
                    // plain comment is fine before code\n\
                    class MapMain {\n    run(): void {}\n}\n\
                    /// <reference path=\"too/late.ts\" />\n";
-        let (_, edges) = extractor.extract(Path::new("app/main.ts"), src);
-        let imports: Vec<&str> = edges
+        let (_, edges) = extractor.extract(Path::new("Site/ts/fbinstplan/main.ts"), src);
+        let imports: Vec<(&str, Option<&str>)> = edges
             .iter()
             .filter(|e| e.kind == "imports")
-            .map(|e| e.target_name.as_str())
+            .map(|e| (e.target_name.as_str(), e.target_kind.as_deref()))
             .collect();
-        assert!(imports.contains(&"../qty/qtyManager.ts"), "{imports:?}");
-        assert!(imports.contains(&"./options.ts"), "{imports:?}");
+        // Targets are RESOLVED project-relative paths with target_kind=file
+        // (an unresolved relative string becomes a phantom symbol node).
+        assert!(
+            imports.contains(&("Site/ts/qty/qtyManager.ts", Some("file"))),
+            "{imports:?}"
+        );
+        assert!(
+            imports.contains(&("Site/ts/fbinstplan/options.ts", Some("file"))),
+            "{imports:?}"
+        );
         // Directives after the first statement are NOT directives per spec.
-        assert!(!imports.contains(&"too/late.ts"), "{imports:?}");
+        assert!(
+            !imports.iter().any(|(t, _)| t.contains("late.ts")),
+            "{imports:?}"
+        );
 
         // BOM'd first line (the Visual Studio default): U+FEFF is NOT
         // Rust-whitespace, so a plain trim() left it and broke the scan
@@ -1060,8 +1105,36 @@ mod tests {
         assert!(
             bom_edges
                 .iter()
-                .any(|e| e.kind == "imports" && e.target_name == "app.ts"),
+                .any(|e| e.kind == "imports" && e.target_name == "app/app.ts"),
             "BOM'd directive must still be seen: {bom_edges:?}"
+        );
+    }
+
+    #[test]
+    fn reference_path_resolution() {
+        use super::resolve_reference_path;
+        let src = Path::new("Site/ts/fbinstplan/main.ts");
+        assert_eq!(
+            resolve_reference_path(src, "../qty/qtyManager.ts").as_deref(),
+            Some("Site/ts/qty/qtyManager.ts")
+        );
+        assert_eq!(
+            resolve_reference_path(src, "./app.ts").as_deref(),
+            Some("Site/ts/fbinstplan/app.ts")
+        );
+        assert_eq!(
+            resolve_reference_path(src, "app.ts").as_deref(),
+            Some("Site/ts/fbinstplan/app.ts")
+        );
+        // Escaping the project root → None, never a phantom.
+        assert_eq!(
+            resolve_reference_path(Path::new("a.ts"), "../../x.ts"),
+            None
+        );
+        // Root-level source referencing a sibling.
+        assert_eq!(
+            resolve_reference_path(Path::new("main.ts"), "lib/util.ts").as_deref(),
+            Some("lib/util.ts")
         );
     }
 
