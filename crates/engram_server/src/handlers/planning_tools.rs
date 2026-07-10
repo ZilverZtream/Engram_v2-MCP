@@ -4713,8 +4713,27 @@ impl Engram {
                         .collect();
                     Some((importers.len(), path, sample))
                 };
+                // prov keys are CANON (lowercased, web-root-stripped) but
+                // adjacency wants the EXACT node id (original case +
+                // prefix). Map via the file-node index: lowercase(+stripped)
+                // -> original rel path.
+                let mut real: HashMap<String, String> = HashMap::new();
+                if let Ok(meta) = graph.list_file_node_metadata(&pid_s) {
+                    for (rp, _) in meta {
+                        let orig = rp.as_str().replace('\\', "/");
+                        let lower = orig.to_lowercase();
+                        if let Some(stripped) = lower.strip_prefix("site/") {
+                            real.entry(stripped.to_string())
+                                .or_insert_with(|| orig.clone());
+                        }
+                        real.entry(lower).or_insert(orig);
+                    }
+                }
                 for f in &top_files {
-                    let fid = engram_core::ids::NodeId::file(f).0;
+                    let Some(orig) = real.get(&f.to_lowercase()) else {
+                        continue;
+                    };
+                    let fid = engram_core::ids::NodeId::file(orig).0;
                     // (b) the candidate itself as the shared component.
                     if let Some(row) = check(fid.clone(), &graph) {
                         out.push(row);
