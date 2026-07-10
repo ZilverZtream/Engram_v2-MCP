@@ -4636,6 +4636,25 @@ impl Engram {
                         rows.iter().map(|(n, a)| format!("{a} ({n})")).collect();
                     out.push_str(&format!("  {bucket} by: {}\n", list.join(", ")));
                 }
+                // Explicit fork callout when the history is genuinely
+                // CONTESTED (minority layering >= 1/4 of similar PRs).
+                // Authoring experiments (2026-07-10: three arms on a
+                // post-knowledge-cutoff bug) showed mechanism-correct
+                // implementations landing in the other layer as THE
+                // dominant residual divergence from merged work — a
+                // product/team decision no evidence derives. What helps
+                // is making the choice explicit and reviewable instead
+                // of silent.
+                let max_bucket = both.max(client_only).max(server_only);
+                if (total - max_bucket) * 4 >= total {
+                    out.push_str(
+                        "  ⚖ FACTORING FORK: this work class has shipped BOTH ways in this \
+                         repo — the layer choice is a product decision, not derivable from \
+                         the story. Pick ONE deliberately (weigh the authors above), and \
+                         STATE the choice and its rationale in your plan and PR description \
+                         so reviewers judge the fork instead of discovering it.\n",
+                    );
+                }
             }
         }
 
