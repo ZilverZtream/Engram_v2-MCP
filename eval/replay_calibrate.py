@@ -69,8 +69,36 @@ def iteration1(pr_id):
 
 
 def real_findings(pr_id):
-    d = json.load(open(RAW_FINDINGS, encoding="utf-8"))
-    return [f for f in d if f.get("pr_id") == pr_id]
+    """File-scoped review findings straight from the PR's threads.
+
+    qg_findings_raw.json (ado_findings_all.py) deliberately drops file
+    paths — it was built for rule distillation, and replaying against it
+    produced a fake 0% pre-catch. The threads API carries
+    threadContext.filePath + rightFileStart.line, which is what
+    file-level matching needs.
+    """
+    j = ado.get(f"{ado.BASE}/git/repositories/{ado.REPO}/pullRequests/{pr_id}/threads")
+    out = []
+    for th in j.get("value", []):
+        tc = th.get("threadContext") or {}
+        fp = tc.get("filePath", "")
+        if not fp:
+            continue  # PR-level meta threads (summaries, walkthroughs)
+        comments = [c for c in th.get("comments", []) if c.get("commentType") != "system"]
+        if not comments:
+            continue
+        first = comments[0]
+        text = (first.get("content") or "").strip()
+        if not text:
+            continue
+        out.append({
+            "file": fp,
+            "line": (tc.get("rightFileStart") or {}).get("line"),
+            "text": text[:600],
+            "status": th.get("status", ""),
+            "author": (first.get("author") or {}).get("displayName", ""),
+        })
+    return out
 
 
 def canon_base(p):
@@ -154,7 +182,8 @@ def replay(pr_id):
                "real_findings": len(reals), "file_level_caught": len(caught),
                "caught": [{"real": f, "gates": h} for f, h in caught],
                "missed": [f for f, _ in missed],
-               "gate_findings_total": len(gate_findings)},
+               "gate_findings_total": len(gate_findings),
+               "gate_findings": gate_findings},
               open(out_path, "w", encoding="utf-8"), indent=1)
     print(f"\nwrote {out_path}")
     return 0
