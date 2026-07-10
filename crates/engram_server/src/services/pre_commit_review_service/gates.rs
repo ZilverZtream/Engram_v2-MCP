@@ -43,6 +43,7 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(ProductIntentGate),
         Box::new(SyncContractGate),
         Box::new(CoAddedFamilyGate),
+        Box::new(ComplexityGate),
     ]
 }
 
@@ -2912,6 +2913,314 @@ impl Gate for CoAddedFamilyGate {
     }
 }
 
+// ─── Gate 16: Complexity & parameter budget (SonarQube friction) ────────────
+//
+// Two SonarQube defaults the team pays re-push cycles for (user ruling
+// 2026-07-10): cyclomatic complexity per function ≤ 15, and parameter
+// lists ≤ 7 (agents habitually violate this — observed: a generated
+// 19-parameter VB function). Plus the house "clean as you code" rule:
+// touching a function that is ALREADY over the complexity budget should
+// usually include the refactor down to ~13–14 when reasonably safe,
+// because SonarQube taxes every future touch of that function otherwise.
+// Detection is language-generic (VB / C# / TS / JS) and heuristic —
+// keyword-anchored declaration scans and the same decision-point counter
+// the edit-safety verdicts use, not a full parser.
+
+const SQ_COMPLEXITY_MAX: u32 = 15;
+const SQ_PARAMS_MAX: usize = 7;
+
+fn complexity_gate_ext(path: &str) -> Option<bool> {
+    // Some(true) = VB-style (End Function terminators), Some(false) = brace-style.
+    let l = path.to_ascii_lowercase();
+    if l.ends_with(".vb") {
+        Some(true)
+    } else if [".cs", ".ts", ".tsx", ".js", ".jsx"]
+        .iter()
+        .any(|e| l.ends_with(e))
+    {
+        Some(false)
+    } else {
+        None
+    }
+}
+
+static RE_CX_DECL_VB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?im)^\s*(?:<[^>\r\n]*>\s*)?(?:(?:public|private|protected|friend|shared|overrides|overridable|notoverridable|mustoverride|async|iterator)\s+)*(?:function|sub)\s+(\w+)\s*\(",
+    )
+    .expect("valid vb decl regex")
+});
+
+static RE_CX_DECL_CS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)^\s*(?:\[[^\]\r\n]*\]\s*)*(?:(?:public|private|protected|internal|static|virtual|override|sealed|async|partial|new|extern|unsafe)\s+)+[\w<>\[\],\s?]*?\b(\w+)\s*\(",
+    )
+    .expect("valid cs decl regex")
+});
+
+static RE_CX_DECL_TS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)\bfunction\s+(\w+)\s*\(|^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\(|^\s*(?:(?:public|private|protected|static|async|readonly)\s+)+(\w+)\s*\(",
+    )
+    .expect("valid ts decl regex")
+});
+
+/// Count parameters in the list opening at `open_paren` (byte offset of
+/// `(` in `text`). Commas at paren depth 1 with angle/bracket depth 0
+/// separate parameters; returns None if the list never closes (truncated
+/// diff content).
+pub(crate) fn count_params_at(text: &str, open_paren: usize) -> Option<usize> {
+    let bytes = text.as_bytes();
+    if bytes.get(open_paren) != Some(&b'(') {
+        return None;
+    }
+    let (mut paren, mut angle, mut bracket) = (0i32, 0i32, 0i32);
+    let mut commas = 0usize;
+    let mut saw_content = false;
+    for &b in &bytes[open_paren..] {
+        match b {
+            b'(' => paren += 1,
+            b')' => {
+                paren -= 1;
+                if paren == 0 {
+                    return Some(if saw_content { commas + 1 } else { 0 });
+                }
+            }
+            b'<' => angle += 1,
+            b'>' => angle = (angle - 1).max(0),
+            b'[' => bracket += 1,
+            b']' => bracket -= 1,
+            b',' if paren == 1 && angle == 0 && bracket == 0 => commas += 1,
+            b if !b.is_ascii_whitespace() => saw_content = true,
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Function spans `(start_line, end_line, name)` (1-based, inclusive) in
+/// a file's lines. VB spans close at `End Function`/`End Sub`; brace
+/// languages close at the matching `}` (naive brace count — string
+/// literals containing braces can skew it; acceptable for a review nudge).
+pub(crate) fn function_spans(content: &str, vb_style: bool) -> Vec<(usize, usize, String)> {
+    let decl_re: &Regex = if vb_style { &RE_CX_DECL_VB } else { &RE_CX_DECL_CS };
+    let ts_re: &Regex = &RE_CX_DECL_TS;
+    let line_starts: Vec<usize> = std::iter::once(0)
+        .chain(content.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+    let line_of = |off: usize| line_starts.partition_point(|&s| s <= off); // 1-based
+    // Collect declaration candidates first (dedup by start line), then
+    // compute spans — keeps the borrow of `spans` out of the scan loops.
+    let mut candidates: Vec<(usize, String)> = decl_re
+        .captures_iter(content)
+        .map(|m| {
+            let name = m.get(1).map(|g| g.as_str().to_string()).unwrap_or_default();
+            (m.get(0).expect("group 0").start(), name)
+        })
+        .collect();
+    if !vb_style {
+        for m in ts_re.captures_iter(content) {
+            let name = m
+                .get(1)
+                .or_else(|| m.get(2))
+                .or_else(|| m.get(3))
+                .map(|g| g.as_str().to_string())
+                .unwrap_or_default();
+            candidates.push((m.get(0).expect("group 0").start(), name));
+        }
+    }
+    candidates.sort_by_key(|(off, _)| *off);
+    let mut seen_lines: HashSet<usize> = HashSet::new();
+
+    let mut spans = Vec::new();
+    for (m_start, name) in candidates {
+        let start_line = line_of(m_start);
+        if !seen_lines.insert(start_line) {
+            continue;
+        }
+        let end_line = if vb_style {
+            static RE_END: LazyLock<Regex> = LazyLock::new(|| {
+                Regex::new(r"(?i)^\s*end\s+(?:function|sub)\b").expect("valid end regex")
+            });
+            content
+                .lines()
+                .enumerate()
+                .skip(start_line)
+                .find(|(_, l)| RE_END.is_match(l))
+                .map(|(i, _)| i + 1)
+        } else {
+            let mut depth = 0i32;
+            let mut seen_open = false;
+            let mut end = None;
+            for (i, l) in content.lines().enumerate().skip(start_line - 1) {
+                for c in l.chars() {
+                    match c {
+                        '{' => {
+                            depth += 1;
+                            seen_open = true;
+                        }
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if seen_open && depth <= 0 {
+                    end = Some(i + 1);
+                    break;
+                }
+            }
+            end
+        };
+        if let Some(e) = end_line {
+            spans.push((start_line, e, name));
+        }
+    }
+    spans
+}
+
+pub struct ComplexityGate;
+
+#[async_trait]
+impl Gate for ComplexityGate {
+    fn name(&self) -> &'static str {
+        "complexity_budget"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        use crate::handlers::access_layer_tools::estimate_complexity;
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            let Some(vb_style) = complexity_gate_ext(&df.path) else {
+                continue;
+            };
+            if df.is_binary
+                || df.is_test_file()
+                || super::is_generated_filename(&df.path)
+                || df.added_content.is_empty()
+            {
+                continue;
+            }
+
+            // A. Parameter budget on ADDED declarations — the shape agents
+            // generate. added_content is new-lines-only, so this fires on
+            // new/rewritten signatures, not untouched legacy ones.
+            let decl_res: [&Regex; 2] = if vb_style {
+                [&RE_CX_DECL_VB, &RE_CX_DECL_VB]
+            } else {
+                [&RE_CX_DECL_CS, &RE_CX_DECL_TS]
+            };
+            let mut seen_offsets: HashSet<usize> = HashSet::new();
+            for re in decl_res {
+                for m in re.captures_iter(&df.added_content) {
+                    let whole = m.get(0).expect("group 0");
+                    if !seen_offsets.insert(whole.start()) {
+                        continue;
+                    }
+                    let name = (1..=3)
+                        .filter_map(|i| m.get(i))
+                        .map(|g| g.as_str())
+                        .next()
+                        .unwrap_or("?")
+                        .to_string();
+                    let open = whole.end() - 1;
+                    let Some(n) = count_params_at(&df.added_content, open) else {
+                        continue;
+                    };
+                    if n <= SQ_PARAMS_MAX {
+                        continue;
+                    }
+                    let decl_line = df
+                        .added_lines
+                        .get(df.added_content[..whole.start()].matches('\n').count())
+                        .map(|(ln, _)| *ln);
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Warning,
+                            "complexity_budget",
+                            df.path.clone(),
+                            format!("`{name}` declares {n} parameters (SonarQube max {SQ_PARAMS_MAX})"),
+                            format!(
+                                "This diff adds a declaration with {n} parameters. SonarQube \
+                                 flags any function over {SQ_PARAMS_MAX}; long parameter lists \
+                                 are also the most common agent-generated review bounce."
+                            ),
+                            "Group the parameters into a parameter object (options/query/DTO \
+                             type) or split the function so each piece takes a coherent subset.",
+                        )
+                        .with_lines(decl_line.into_iter().collect()),
+                    );
+                }
+            }
+
+            // B. Complexity of functions this diff touches, measured on the
+            // post-change file. New-over-budget = hard warning; touched
+            // legacy-over-budget = the clean-as-you-code nudge.
+            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            if disk_bytes.is_empty() {
+                continue;
+            }
+            let disk = String::from_utf8_lossy(&disk_bytes);
+            let touched: Vec<(usize, usize)> = df
+                .hunks
+                .iter()
+                .map(|h| (h.new_start, h.new_start + h.new_count.max(1) - 1))
+                .collect();
+            let added_line_set: HashSet<usize> = df.added_lines.iter().map(|(n, _)| *n).collect();
+            let disk_lines: Vec<&str> = disk.lines().collect();
+            let mut over: Vec<(u32, usize, String, bool)> = Vec::new();
+            for (start, end, name) in function_spans(&disk, vb_style) {
+                if !touched.iter().any(|(ts, te)| start <= *te && end >= *ts) {
+                    continue;
+                }
+                let body = disk_lines
+                    .get(start - 1..end.min(disk_lines.len()))
+                    .unwrap_or(&[])
+                    .join("\n");
+                let cx = estimate_complexity(&body);
+                if cx > SQ_COMPLEXITY_MAX {
+                    over.push((cx, start, name, added_line_set.contains(&start)));
+                }
+            }
+            over.sort_by(|a, b| b.0.cmp(&a.0));
+            for (cx, start, name, is_new) in over.into_iter().take(3) {
+                let (sev, title, detail, suggestion) = if is_new {
+                    (
+                        Severity::Warning,
+                        format!("New function `{name}` has estimated complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "SonarQube will reject this on the next scan — new code over \
+                             complexity {SQ_COMPLEXITY_MAX} is a standing quality-gate failure \
+                             (estimated {cx} decision points)."
+                        ),
+                        "Extract the branch clusters into named helpers now, before push — \
+                         guard clauses for the early exits, a helper per decision cluster."
+                            .to_string(),
+                    )
+                } else {
+                    (
+                        Severity::Info,
+                        format!("Touched function `{name}` is already at complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "This diff modifies a function that already exceeds the complexity \
+                             budget (estimated {cx}). House rule: when you touch an \
+                             over-budget function, take it down to ~13–14 in the same change \
+                             if reasonably safe — otherwise every future touch pays this tax."
+                        ),
+                        "If the change is low-risk, extract the densest branch cluster into a \
+                         helper while you are here; if it is too risky, note that explicitly \
+                         in the PR description."
+                            .to_string(),
+                    )
+                };
+                findings.push(
+                    ReviewFinding::new(sev, "complexity_budget", df.path.clone(), title, detail, suggestion)
+                        .with_lines(vec![start]),
+                );
+            }
+        }
+        Ok(findings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2930,6 +3239,71 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn param_counter_handles_nesting_and_emptiness() {
+        let vb = "Public Function DoSomething(q, w, e, r, t, y, u, i, o, p, a, s, d, f, g, h, h2, j, j2) As Boolean";
+        let open = vb.find('(').unwrap();
+        assert_eq!(count_params_at(vb, open), Some(19));
+
+        let cs = "public void Ok(Dictionary<string, int> map, Func<int, int> f) {";
+        assert_eq!(count_params_at(cs, cs.find('(').unwrap()), Some(2));
+
+        let empty = "Public Sub NoArgs()";
+        assert_eq!(count_params_at(empty, empty.find('(').unwrap()), Some(0));
+
+        let unterminated = "Public Sub Cut(a, b,";
+        assert_eq!(count_params_at(unterminated, unterminated.find('(').unwrap()), None);
+    }
+
+    #[test]
+    fn vb_function_spans_close_at_end_function() {
+        let src = "Public Class C\n\
+                   Public Function A(x As Integer) As Integer\n\
+                   If x > 0 Then Return 1\n\
+                   Return 0\n\
+                   End Function\n\
+                   Private Sub B()\n\
+                   End Sub\n\
+                   End Class\n";
+        let spans = function_spans(src, true);
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0], (2, 5, "A".to_string()));
+        assert_eq!(spans[1], (6, 7, "B".to_string()));
+    }
+
+    #[test]
+    fn brace_function_spans_close_at_matching_brace() {
+        let src = "export function calc(a: number): number {\n\
+                   if (a > 1) {\n\
+                   return 1;\n\
+                   }\n\
+                   return 0;\n\
+                   }\n";
+        let spans = function_spans(src, false);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].0, 1);
+        assert_eq!(spans[0].1, 6);
+        assert_eq!(spans[0].2, "calc");
+    }
+
+    #[test]
+    fn complexity_gate_flags_wide_param_list_in_added_vb() {
+        let decl = "Public Function DoSomething(q, w, e, r, t, y, u, i, o, p, a, s, d, f, g, h, h2, j, j2) As Boolean";
+        let df = mk_df("Site/App_Code/foo.vb", &[(10, decl)]);
+        // Run just the added-declaration scan by invoking the gate with a
+        // context-free shim: parameter check needs only the DiffFile.
+        let mut found = Vec::new();
+        for re in [&*RE_CX_DECL_VB] {
+            for m in re.captures_iter(&df.added_content) {
+                let open = m.get(0).unwrap().end() - 1;
+                if let Some(n) = count_params_at(&df.added_content, open) {
+                    found.push(n);
+                }
+            }
+        }
+        assert_eq!(found, vec![19]);
     }
 
     #[test]
