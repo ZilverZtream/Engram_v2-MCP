@@ -5572,8 +5572,13 @@ fn pick_pat(per_call: Option<String>, env_fallback: Option<String>) -> Option<St
 /// acceptance criteria, HTML stripped). None on ANY failure — callers
 /// degrade to the story alone.
 async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Option<String> {
-    let url =
-        format!("https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0");
+    // $expand=relations: real defects come as LINKED CLUSTERS — the eval's
+    // four-arm study measured a single missing sibling bug at -45.7 F1
+    // (PR1937: two linked bugs, one symptom each). Input parity means the
+    // whole cluster, exactly what the dev sees on the item.
+    let url = format!(
+        "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0&$expand=relations"
+    );
     let auth = base64_encode(format!(":{pat}").as_bytes());
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -5607,7 +5612,74 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
     if !accept.is_empty() {
         out.push_str(&format!("\n\nAcceptance criteria:\n{}", strip_html(accept)));
     }
+    // Linked work items (bounded, fail-soft): titles + trimmed descriptions.
+    for lid in extract_relation_ids(&v, id).into_iter().take(3) {
+        let lurl = format!(
+            "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{lid}?api-version=7.0"
+        );
+        let Ok(lresp) = client
+            .get(&lurl)
+            .header("Authorization", format!("Basic {auth}"))
+            .send()
+            .await
+        else {
+            continue;
+        };
+        if !lresp.status().is_success() {
+            continue;
+        }
+        let Ok(lv) = lresp.json::<serde_json::Value>().await else {
+            continue;
+        };
+        let Some(lf) = lv.get("fields") else { continue };
+        let lget = |k: &str| lf.get(k).and_then(|x| x.as_str()).unwrap_or("");
+        let ltitle = lget("System.Title");
+        if ltitle.is_empty() {
+            continue;
+        }
+        let ldesc = {
+            let d = lget("System.Description");
+            if d.is_empty() {
+                lget("Microsoft.VSTS.TCM.ReproSteps")
+            } else {
+                d
+            }
+        };
+        let ltype = lget("System.WorkItemType");
+        let body: String = strip_html(ldesc).chars().take(1200).collect();
+        out.push_str(&format!("\n\n[linked {ltype} #{lid}] {ltitle}\n{body}"));
+    }
     Some(out)
+}
+
+/// Work-item ids from an item's `relations` array (System.LinkTypes.* only —
+/// attachments/hyperlinks/commits carry other rel values). Excludes `self_id`.
+pub(crate) fn extract_relation_ids(v: &serde_json::Value, self_id: u64) -> Vec<u64> {
+    let mut out = Vec::new();
+    let Some(rels) = v.get("relations").and_then(|r| r.as_array()) else {
+        return out;
+    };
+    for rel in rels {
+        let is_wi_link = rel
+            .get("rel")
+            .and_then(|r| r.as_str())
+            .is_some_and(|r| r.starts_with("System.LinkTypes"));
+        if !is_wi_link {
+            continue;
+        }
+        let Some(id) = rel
+            .get("url")
+            .and_then(|u| u.as_str())
+            .and_then(|u| u.rsplit('/').next())
+            .and_then(|s| s.parse::<u64>().ok())
+        else {
+            continue;
+        };
+        if id != self_id && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
 }
 
 /// Standard base64 (RFC 4648) for the Basic-auth header — avoids pulling
@@ -5754,6 +5826,26 @@ mod work_item_tests {
         );
         // No origin section → None (never the wrong remote's URL).
         assert!(parse_origin_url("[remote \"upstream\"]\n\turl = https://x/y").is_none());
+    }
+
+    #[test]
+    fn relation_ids_extracted_from_worklinks_only() {
+        use super::extract_relation_ids;
+        let v = serde_json::json!({
+            "relations": [
+                {"rel": "System.LinkTypes.Related", "url": "https://dev.azure.com/o/p/_apis/wit/workItems/817"},
+                {"rel": "System.LinkTypes.Hierarchy-Reverse", "url": ".../workItems/100"},
+                {"rel": "AttachedFile", "url": ".../attachments/abc"},
+                {"rel": "ArtifactLink", "url": "vstfs:///Git/Commit/xyz"},
+                {"rel": "System.LinkTypes.Related", "url": ".../workItems/691"}
+            ]
+        });
+        // self (691) excluded; attachments/artifacts ignored; order kept.
+        assert_eq!(extract_relation_ids(&v, 691), vec![817, 100]);
+        assert_eq!(
+            extract_relation_ids(&serde_json::json!({}), 1),
+            Vec::<u64>::new()
+        );
     }
 
     #[test]
