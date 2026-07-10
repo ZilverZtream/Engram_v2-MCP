@@ -468,6 +468,29 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     }
 });
 
+/// `/// <reference path="../qty/qtyManager.ts" />` → `Some("../qty/qtyManager.ts")`.
+/// Only `path=` references count — `types=`/`lib=` name compiler packages,
+/// not project files.
+pub(crate) fn extract_triple_slash_reference(line: &str) -> Option<String> {
+    let rest = line.trim().strip_prefix("///")?.trim_start();
+    let rest = rest.strip_prefix("<reference")?;
+    let idx = rest.find("path")?;
+    let after = rest[idx + 4..].trim_start();
+    let after = after.strip_prefix('=')?.trim_start();
+    let quote = after.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let inner = &after[1..];
+    let end = inner.find(quote)?;
+    let p = inner[..end].trim();
+    if p.is_empty() {
+        None
+    } else {
+        Some(p.to_string())
+    }
+}
+
 /// Map a file extension to a `&'static str` for source_language fields.
 fn ext_to_static(ext: &str) -> &'static str {
     match ext {
@@ -671,6 +694,36 @@ impl SymbolExtractor {
 
         let mut symbols = Vec::new();
         let mut edges = Vec::new();
+
+        // Old-style TS projects (tsconfig outFile, no ES modules) wire files
+        // with triple-slash reference DIRECTIVES — comments, invisible to the
+        // tree-sitter import query. Live probe 2026-07-10: a hub TS file had
+        // ZERO Imports edges, making shared-component fan-in underivable.
+        // Emit them as the same `imports` edges ES imports get.
+        if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
+            for line in content.lines().take(200) {
+                let t = line.trim();
+                if t.is_empty() || t.starts_with("//!") {
+                    continue;
+                }
+                if !t.starts_with("//") {
+                    break; // directives are only valid before the first statement
+                }
+                if let Some(p) = extract_triple_slash_reference(t) {
+                    edges.push(ExtractedEdge {
+                        source_name: "file".to_string(),
+                        source_kind: "file".to_string(),
+                        source_start_line: 0,
+                        source_language: static_ext.to_string(),
+                        target_name: p,
+                        target_kind: None,
+                        target_start_line: None,
+                        kind: "imports".to_string(),
+                        metadata: None,
+                    });
+                }
+            }
+        }
 
         // For edge extraction, we need to know which symbol we are currently inside.
         // Simplified: find innermost symbol that encloses the call.
@@ -951,6 +1004,50 @@ mod tests {
     use super::*;
     use std::path::Path;
     use tree_sitter::{Query, QueryCursor};
+
+    #[test]
+    fn triple_slash_reference_parsing() {
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference path="../qty/qtyManager.ts" />"#),
+            Some("../qty/qtyManager.ts".to_string())
+        );
+        assert_eq!(
+            extract_triple_slash_reference(r#"///<reference path='a.ts'/>"#),
+            Some("a.ts".to_string())
+        );
+        // types=/lib= directives are compiler packages, not project files.
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference types="jquery" />"#),
+            None
+        );
+        // Plain comments and code lines don't match.
+        assert_eq!(extract_triple_slash_reference("// not a directive"), None);
+        assert_eq!(extract_triple_slash_reference("let x = 1;"), None);
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference path="" />"#),
+            None
+        );
+    }
+
+    #[test]
+    fn ts_extract_emits_triple_slash_imports_edges() {
+        let extractor = SymbolExtractor::new();
+        let src = "/// <reference path=\"../qty/qtyManager.ts\" />\n\
+                   /// <reference path=\"./options.ts\" />\n\
+                   // plain comment is fine before code\n\
+                   class MapMain {\n    run(): void {}\n}\n\
+                   /// <reference path=\"too/late.ts\" />\n";
+        let (_, edges) = extractor.extract(Path::new("app/main.ts"), src);
+        let imports: Vec<&str> = edges
+            .iter()
+            .filter(|e| e.kind == "imports")
+            .map(|e| e.target_name.as_str())
+            .collect();
+        assert!(imports.contains(&"../qty/qtyManager.ts"), "{imports:?}");
+        assert!(imports.contains(&"./options.ts"), "{imports:?}");
+        // Directives after the first statement are NOT directives per spec.
+        assert!(!imports.contains(&"too/late.ts"), "{imports:?}");
+    }
 
     /// Compile-time proof that `CompiledQueries` is Send + Sync.
     #[test]
