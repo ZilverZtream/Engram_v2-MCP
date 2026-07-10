@@ -267,6 +267,11 @@ pub struct IngestStats {
     pub incremental_skipped_prs: usize,
     pub newest_pr_id: Option<u64>,
     pub elapsed_ms: u128,
+    /// Diagnostics for the iteration-delta fix-exemplar pass: how many
+    /// raw comments got a fix hunk attached, and how many survived into
+    /// parsed rules. Surfaced in the report to localize losses.
+    pub raw_with_fix_hunk: usize,
+    pub parsed_with_fix_hunk: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -367,6 +372,7 @@ pub async fn ingest_code_review_history(
     let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id).await?;
     stats.total_raw = raw.len();
     stats.incremental_skipped_prs = skipped;
+    stats.raw_with_fix_hunk = raw.iter().filter(|r| r.fix_hunk.is_some()).count();
 
     // Stage 2: parse
     let mut parsed: Vec<ParsedRule> = Vec::with_capacity(raw.len());
@@ -386,6 +392,7 @@ pub async fn ingest_code_review_history(
         }
     }
     stats.parsed_success = parsed.len();
+    stats.parsed_with_fix_hunk = parsed.iter().filter(|p| p.fix_hunk.is_some()).count();
     stats.newest_pr_id = newest_pr;
 
     // Stage 2b: optional LLM classification of ambiguous `closed`
@@ -957,6 +964,8 @@ async fn attach_fix_hunks(
     use std::collections::HashMap;
     let mut versions_by_pr: HashMap<u64, HashMap<String, Vec<String>>> = HashMap::new();
     let mut blob_cache: HashMap<String, Option<String>> = HashMap::new();
+    let (mut n_candidates, mut n_versionmap_empty, mut n_no_match, mut n_attached) =
+        (0usize, 0usize, 0usize, 0usize);
 
     for f in findings.iter_mut() {
         let resolved = matches!(f.thread_status, ThreadStatus::Fixed | ThreadStatus::Closed);
@@ -967,11 +976,15 @@ async fn attach_fix_hunks(
         if tokens.is_empty() {
             continue;
         }
+        n_candidates += 1;
         if !versions_by_pr.contains_key(&f.pr_id) {
             let v = fetch_pr_file_versions(client, base, auth, f.pr_id).await;
             versions_by_pr.insert(f.pr_id, v);
         }
         let file_versions = &versions_by_pr[&f.pr_id];
+        if file_versions.is_empty() {
+            n_versionmap_empty += 1;
+        }
         // Find the changes-path whose file matches this finding's, take
         // its earliest and latest distinct objectIds.
         let Some(oids) = file_versions
@@ -979,6 +992,7 @@ async fn attach_fix_hunks(
             .find(|(p, _)| path_suffix_matches(&f.file_path, p))
             .map(|(_, v)| v)
         else {
+            n_no_match += 1;
             continue;
         };
         if oids.len() < 2 {
@@ -1006,8 +1020,16 @@ async fn attach_fix_hunks(
             .to_string();
         if let Some(hunk) = fix_hunk_by_token(&diff, &tokens) {
             f.fix_hunk = Some(hunk);
+            n_attached += 1;
         }
     }
+    tracing::info!(
+        candidates = n_candidates,
+        versionmap_empty = n_versionmap_empty,
+        no_path_match = n_no_match,
+        attached = n_attached,
+        "fix-exemplar pass complete"
+    );
 }
 
 fn is_coderabbit_author(author: Option<&serde_json::Value>) -> bool {
@@ -2018,6 +2040,27 @@ mod tests {
         assert_eq!(Severity::parse("major"), Severity::Critical);
         assert_eq!(Severity::parse("medium"), Severity::Warning);
         assert_eq!(Severity::parse("minor"), Severity::Info);
+    }
+
+    #[test]
+    fn similar_diff_output_is_parseable_by_token_anchor() {
+        // The live seam: `similar`'s unified_diff().to_string() must be
+        // shaped so fix_hunk_by_token (which keys on `@@ ` headers and
+        // leading `-`) can find the removed offending line. If similar's
+        // format differs, exemplars silently never attach.
+        let old = "line one\nconst valueCell = test(item.value)\nline three\nfour\n";
+        let new = "line one\nconst valueCell = safe(item.value)\nline three\nfour\n";
+        let diff = similar::TextDiff::from_lines(old, new)
+            .unified_diff()
+            .context_radius(2)
+            .to_string();
+        let toks = vec!["item.value".to_string(), "valueCell".to_string()];
+        let hunk = fix_hunk_by_token(&diff, &toks);
+        assert!(
+            hunk.is_some(),
+            "fix_hunk_by_token could not parse similar's output:\n{diff}"
+        );
+        assert!(hunk.unwrap().contains("test(item.value)"));
     }
 
     #[test]

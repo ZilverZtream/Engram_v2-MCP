@@ -123,6 +123,10 @@ impl Engram {
         if let Some(pr) = stats.newest_pr_id {
             out.push_str(&format!("**Newest PR seen**: #{pr}\n"));
         }
+        out.push_str(&format!(
+            "**Fix exemplars**: {} attached to raw comments · {} survived into parsed rules\n",
+            stats.raw_with_fix_hunk, stats.parsed_with_fix_hunk
+        ));
         out.push_str(&format!("\n_Completed in {}ms._\n", stats.elapsed_ms));
 
         tracing::info!(
