@@ -245,11 +245,23 @@ def build_dossier(eng, pid, rec, wt):
     Parse its output into prov(canon->signals) for the prov.json dump.
     Returns (md, prov)."""
     s = rec["story"]
-    story = s["title"]
-    if s.get("description"):
-        story += "\n\n" + s["description"]
-    if s.get("acceptance"):
-        story += "\n\nAcceptance:\n" + s["acceptance"]
+    # ALL linked work items, not just [0]: PR1937 was linked to TWO bugs
+    # (691 + 817) describing different symptoms of the same defect cluster;
+    # the convenience fields dropped the second and the missing symptom cost
+    # the eval agent the file-set match. Input parity = everything the dev
+    # could see on the PR's work items.
+    parts = []
+    for wi in s.get("work_items") or [s]:
+        if wi.get("title"):
+            parts.append(wi["title"])
+        if wi.get("description"):
+            parts.append(wi["description"])
+        if wi.get("acceptance"):
+            parts.append("Acceptance:\n" + wi["acceptance"])
+        for li in wi.get("linked_items", []) or []:
+            parts.append(f"[linked {li.get('type','item')} {li.get('id','')}] "
+                         f"{li.get('title','')}\n{li.get('description','')}")
+    story = "\n\n".join(p for p in parts if p) or s["title"]
     args = {"project_id": pid, "story": story}
     cd = (rec.get("closed_date") or "")[:10]
     if cd:
