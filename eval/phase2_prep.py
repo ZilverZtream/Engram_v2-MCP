@@ -322,6 +322,19 @@ def build_dossier(eng, pid, rec, wt):
     if "TOOL_ERROR" in md:
         print(f"  get_change_set error: {md[:160]}", file=sys.stderr)
         return md, {}
+    # LEAK-SAFETY (2026-07-10): get_change_set's '## Review rules' section
+    # renders fix-exemplar ‹house fix› ```diff blocks pulled from the FULL
+    # antipattern corpus, which is NOT bounded by merged_before — so in an
+    # eval it can leak the PR-under-test's OWN merged fix. Strip those diff
+    # blocks from the saved eval dossier (the one-line rules themselves are
+    # kept; only the concrete leaked hunks are removed). Production is
+    # unaffected — this strip is eval-only. See the iteration-delta-mining
+    # memory's leak-safety caveat.
+    before = md
+    md = re.sub(r"\n\s*‹house fix›\n```diff\n.*?\n```\n", "\n", md, flags=re.S)
+    n_stripped = before.count("‹house fix›") - md.count("‹house fix›")
+    if n_stripped:
+        print(f"  stripped {n_stripped} leaked fix-exemplar hunk(s) from eval dossier")
     prov = {}
     for m in re.finditer(r"^- `([^`]+)`\s*\[([^\]]*)\]", md, re.M):
         c = canon(m.group(1))
