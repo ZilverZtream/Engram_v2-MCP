@@ -202,3 +202,141 @@ End Function
     assert_eq!(marker.start_line, 1);
     assert_eq!(marker.end_line, 3);
 }
+
+#[test]
+fn type_with_field_rows_is_a_struct() {
+    let src = "\
+Namespace Demo
+    Type Point
+        X As Int
+        Y As Int
+    End Type
+End Namespace
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "Demo.Point");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("fields").map(String::as_str), Some("X:Int||Y:Int"));
+}
+
+#[test]
+fn type_with_variant_rows_is_a_union() {
+    let src = "\
+Type Shape
+    Circle(radius As Int)
+    Rectangle(w As Int, h As Int)
+    Point
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "union")
+        .expect("union symbol");
+    assert_eq!(t.name, "Shape");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("variants").map(String::as_str),
+        Some("Circle/1||Rectangle/2||Point/0")
+    );
+}
+
+#[test]
+fn generic_type_records_parameters_and_constraints() {
+    let src = "\
+Namespace Std
+    Public Type BTreeMap Of K As Ordered, V As Droppable
+        Handle As Int
+    End Type
+End Namespace
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "Std.BTreeMap");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("generic_params").map(String::as_str),
+        Some("K:Ordered||V:Droppable")
+    );
+    assert_eq!(m.get("access").map(String::as_str), Some("Public"));
+}
+
+#[test]
+fn implements_clause_emits_an_edge() {
+    let src = "\
+Namespace Std
+    Namespace Collections
+        Type ListError Implements Std.Error
+            Operation As Str
+        End Type
+    End Namespace
+End Namespace
+";
+    let (syms, edges) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "Std.Collections.ListError");
+
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "implements_interface")
+        .expect("implements_interface edge");
+    assert_eq!(e.source_name, "Std.Collections.ListError");
+    assert_eq!(e.target_name, "Std.Error");
+}
+
+#[test]
+fn enum_and_interface_declarations() {
+    let src = "\
+Enum Status
+    Idle = 0
+    Running = 1
+End Enum
+Interface IStream
+End Interface
+";
+    let (syms, _) = run(src);
+    let e = syms.iter().find(|s| s.kind == "enum").expect("enum symbol");
+    assert_eq!(e.name, "Status");
+    let m = e.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("members").map(String::as_str),
+        Some("Idle=0||Running=1")
+    );
+
+    let i = syms
+        .iter()
+        .find(|s| s.kind == "interface")
+        .expect("interface symbol");
+    assert_eq!(i.name, "IStream");
+}
+
+#[test]
+fn ref_and_weak_fields_are_marked_by_strength() {
+    let src = "\
+Type Node
+    Parent As Weak(Of Node)
+    Child As Ref(Of Node)
+    Count As Int
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("fields").map(String::as_str),
+        Some("Parent:Weak(Of Node):weak||Child:Ref(Of Node):strong||Count:Int")
+    );
+}

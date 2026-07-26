@@ -196,11 +196,20 @@ pub fn extract_ml(
             .map(|b| b.fqn.as_str())
             .unwrap_or("");
 
+        // Type/Enum/Interface bodies are classified from their rows, so
+        // collect the block's lines up to its matching `End`.
+        let body: Vec<&str> = if matches!(keyword, "Type" | "Enum" | "Interface") {
+            collect_block_body(source, idx, keyword)
+        } else {
+            Vec::new()
+        };
+
         let (fqn, symbol_idx) = decls::open_declaration(
             keyword,
             trimmed,
             parent_fqn,
             line_no,
+            &body,
             &mut symbols,
             &mut edges,
         );
@@ -225,6 +234,37 @@ pub fn extract_ml(
     }
 
     (symbols, edges)
+}
+
+/// Lines strictly inside the block that opens at `open_idx`, up to its
+/// matching `End <keyword>`. Nested blocks of the same keyword are balanced.
+pub(crate) fn collect_block_body<'a>(
+    source: &'a str,
+    open_idx: usize,
+    keyword: &str,
+) -> Vec<&'a str> {
+    let mut out = Vec::new();
+    let mut depth = 1usize;
+    for line in source.lines().skip(open_idx + 1) {
+        let trimmed = strip_comment(line).trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if let Some(closed) = block_closer(trimmed) {
+            if closed == keyword {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            continue;
+        }
+        if block_opener(trimmed) == Some(keyword) {
+            depth += 1;
+        }
+        out.push(trimmed);
+    }
+    out
 }
 
 #[cfg(test)]
