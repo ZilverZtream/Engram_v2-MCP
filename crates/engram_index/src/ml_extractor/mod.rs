@@ -226,3 +226,40 @@ pub fn extract_ml(
 
     (symbols, edges)
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    // `strip_comment` is `pub(crate)`, so its escape-handling contract is
+    // pinned here directly rather than through `extract_ml`. This is
+    // deliberate, not an oversight: `extract_ml` only ever inspects a
+    // line's FIRST token (via `block_opener`/`block_closer`), and
+    // `strip_comment` only ever truncates a line's SUFFIX, never its
+    // prefix — so nothing past the declaration keyword and name can
+    // change which symbols come out the other end. An escape-handling
+    // regression here is real but invisible to any test built on
+    // `extract_ml`'s symbol/edge output; it can only be caught here.
+
+    #[test]
+    fn strip_comment_does_not_close_string_on_escaped_quote() {
+        // The escaped quote (`\"`) must not be treated as the string's
+        // closing quote. If it were, the parser would exit "in string"
+        // mode one character early, see the following `'` as outside any
+        // string, and wrongly truncate — even though the string is not
+        // actually closed until the final `"`.
+        let line = "Return \"a\\\" ' not a comment\"";
+        assert_eq!(strip_comment(line), line);
+    }
+
+    #[test]
+    fn strip_comment_still_truncates_a_real_trailing_comment() {
+        // Once the escaped quote is correctly skipped and the string
+        // closes at its real final quote, a genuine trailing comment
+        // (outside any string) must still be stripped. Pairs with the
+        // test above so this file can't pass by simply never truncating.
+        let line = "Return \"a\\\" b\" ' real comment";
+        assert_eq!(strip_comment(line), "Return \"a\\\" b\" ");
+    }
+}
