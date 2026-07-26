@@ -751,6 +751,10 @@ End Namespace
         .find(|e| e.kind == "calls" && e.target_name == "Helper")
         .expect("calls edge");
     assert_eq!(e.source_name, "Demo.Main");
+    // `source_start_line` is the STATEMENT's own line (the `Return
+    // Helper(3)` line, line 6), not a sentinel and not the enclosing
+    // function's start line -- house convention per `asp_classic_extractor.rs`.
+    assert_eq!(e.source_start_line, 6);
 }
 
 #[test]
@@ -832,11 +836,95 @@ End Function
         .find(|e| e.kind == "dependency" && e.target_name == "Unsafe(RawPtr, Alloc)")
         .expect("capability edge");
     assert_eq!(e.source_name, "Poke");
+    // `source_start_line` is the `Unsafe(...)` statement's own line (2),
+    // not the enclosing function's start line (1).
+    assert_eq!(e.source_start_line, 2);
     let m = e.metadata.as_ref().expect("metadata");
     assert_eq!(m.get("relation").map(String::as_str), Some("capability"));
     assert_eq!(
         m.get("capabilities").map(String::as_str),
         Some("RawPtr||Alloc")
+    );
+}
+
+#[test]
+fn bare_unsafe_grants_all_capability() {
+    // Every `Unsafe` block in the pre-existing tests is either the
+    // parenthesized form or a top-level `Unsafe(Ffi)` wrapper with no
+    // enclosing function (so the capability-edge owner lookup never
+    // fires). The bare-`Unsafe` -> `All` branch was correct by inspection
+    // but had zero test coverage before this.
+    let src = "\
+Function Poke2(p As Int) As Int
+    Unsafe
+        Set p^ To 42
+    End Unsafe
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "dependency" && e.target_name == "Unsafe")
+        .expect("bare capability edge");
+    assert_eq!(e.source_name, "Poke2");
+    let m = e.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("relation").map(String::as_str), Some("capability"));
+    assert_eq!(m.get("capabilities").map(String::as_str), Some("All"));
+}
+
+#[test]
+fn new_expression_type_constructors_do_not_emit_phantom_calls() {
+    // Real corpus shape: `New Ref(Of T)(...)` places the type name right
+    // after `New`, not after `As` -- the type-annotation-position guard
+    // cannot fire there, so `TYPE_CONSTRUCTORS` is the ONLY thing
+    // suppressing the phantom edge. `Ref` is also exercised in ordinary
+    // type-annotation position on the same line (`Var first As Ref(Of
+    // Node)`), and `Slice` pins the newly-added TYPE_CONSTRUCTORS entry
+    // (corpus has 3 real `New Slice(...)` occurrences).
+    let src = "\
+Function Build() As Int
+    Var first As Ref(Of Node) = New Ref(Of Node)(firstValue)
+    Var buf As Slice(Of Byte) = New Slice(Of Byte)(16)
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+    assert!(
+        !edges
+            .iter()
+            .any(|e| e.kind == "calls" && e.target_name == "Ref"),
+        "New Ref(...) construction must not emit a phantom calls edge, got {edges:?}"
+    );
+    assert!(
+        !edges
+            .iter()
+            .any(|e| e.kind == "calls" && e.target_name == "Slice"),
+        "New Slice(...) construction must not emit a phantom calls edge, got {edges:?}"
+    );
+}
+
+#[test]
+fn as_position_guard_suppresses_a_name_outside_type_constructors() {
+    // `Std.BTreeMap` (also used in `function_signature_records_params_return_and_throws`
+    // and `generic_type_records_parameters_and_constraints`) is a real
+    // generic stdlib type, but its last segment, "BTreeMap", is NOT in
+    // `TYPE_CONSTRUCTORS`. Only the type-annotation-position guard (`… As
+    // Foo(`) can suppress a phantom call edge to it here, which isolates
+    // that guard: deleting it while leaving `TYPE_CONSTRUCTORS` untouched
+    // would make this test fail.
+    let src = "\
+Function UseMap() As Int
+    Var m As Std.BTreeMap(Of Int, Int)
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+    assert!(
+        !edges
+            .iter()
+            .any(|e| e.kind == "calls" && e.target_name == "Std.BTreeMap"),
+        "type annotation must not emit a phantom calls edge, got {edges:?}"
     );
 }
 
@@ -848,6 +936,7 @@ Function Fib(n As Int) As Int
 End Function
 
 Say Fib(15)
+Say Fib(16)
 ";
     let (syms, edges) = run(src);
     let m = syms
@@ -861,6 +950,17 @@ Say Fib(15)
             .and_then(|x| x.get("synthetic"))
             .map(String::as_str),
         Some("module_entry")
+    );
+    // The synthetic symbol's line span must cover exactly the top-level
+    // statements (lines 5-6), not the whole file and not just the first
+    // top-level line.
+    assert_eq!(
+        m.start_line, 5,
+        "expected span to start at the first top-level statement"
+    );
+    assert_eq!(
+        m.end_line, 6,
+        "expected span to end at the last top-level statement"
     );
 
     // The top-level call attributes to the module entry, not to nothing.
