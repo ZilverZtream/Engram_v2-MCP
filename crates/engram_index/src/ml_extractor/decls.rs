@@ -20,12 +20,9 @@ pub(crate) fn open_declaration(
     let _ = edges;
     match keyword {
         "Namespace" => {
-            let Some(name) = trimmed.strip_prefix("Namespace").map(str::trim) else {
+            let Some(name) = declaration_name(trimmed, "Namespace") else {
                 return (String::new(), None);
             };
-            if name.is_empty() {
-                return (String::new(), None);
-            }
             let fqn = if parent_fqn.is_empty() {
                 name.to_string()
             } else {
