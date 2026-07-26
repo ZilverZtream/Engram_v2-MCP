@@ -18,6 +18,7 @@ pub mod jquery_inventory;
 pub mod js_extractor;
 pub mod language_diagnostics;
 pub mod layout_extractor;
+pub mod ml_extractor;
 pub mod parsing;
 pub mod quality_gates;
 pub mod report_extractor;
