@@ -135,9 +135,11 @@ fn generic_function_name_captured_before_of_clause() {
     // Generic parameters sit BETWEEN the declared name and the parameter
     // list: `Function BTreeMap_Get Of K, V(tree As Int, key As K) As V`.
     // A pattern demanding `name(` would miss this declaration entirely —
-    // and miss 400+ similar generic declarations across the stdlib.
+    // and miss 400+ similar generic declarations across the stdlib. Also
+    // covers Step 5's `generic_params`/`access` metadata on the
+    // Function/Sub arm, which until now was only exercised on `Type`.
     let src = "\
-Function BTreeMap_Get Of K, V(tree As Int, key As K) As V
+Public Function BTreeMap_Get Of K As Ordered, V(tree As Int, key As K) As V
     Return key
 End Function
 ";
@@ -147,6 +149,12 @@ End Function
         .find(|s| s.kind == "function")
         .expect("function symbol");
     assert_eq!(f.name, "BTreeMap_Get");
+    let m = f.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("generic_params").map(String::as_str),
+        Some("K:Ordered||V")
+    );
+    assert_eq!(m.get("access").map(String::as_str), Some("Public"));
 }
 
 #[test]
@@ -243,6 +251,86 @@ End Type
         m.get("variants").map(String::as_str),
         Some("Circle/1||Rectangle/2||Point/0")
     );
+}
+
+#[test]
+fn mixed_body_rows_fall_back_to_struct_not_union() {
+    // Mixed bodies (both field AND variant-shaped rows) never occur in
+    // valid MiniLang -- a corpus survey of 204 .ml files found zero such
+    // cases. This pins the documented fallback: any field row forces
+    // `kind: "struct"` even when variant-shaped rows are also present, and
+    // those variant-shaped rows are still recorded in `variants` metadata
+    // rather than silently dropped. This is NOT a majority/dominance rule
+    // -- a single field row wins over any number of variant rows.
+    let src = "\
+Type Mixed
+    Name As Str
+    Circle(radius As Int)
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "Mixed");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("fields").map(String::as_str), Some("Name:Str"));
+    assert_eq!(m.get("variants").map(String::as_str), Some("Circle/1"));
+}
+
+#[test]
+fn empty_body_type_defaults_to_struct_with_no_metadata() {
+    // `Type Foo` / `End Type` with no rows never occurs in the corpus, but
+    // it is a well-defined fallback: no field or variant rows means both
+    // metadata strings are empty, `meta()` filters them out entirely, and
+    // the symbol still gets a reasonable default kind (`struct`) rather
+    // than panicking or being misclassified as `union` from nothing.
+    let src = "\
+Type Foo
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms.iter().find(|s| s.name == "Foo").expect("Foo symbol");
+    assert_eq!(t.kind, "struct");
+    assert!(t.metadata.is_none(), "got metadata {:?}", t.metadata);
+}
+
+#[test]
+fn function_type_field_row_is_correctly_classified_as_a_field() {
+    // `Mapper As Function(T) As R` is a live grammar trap that DOES occur
+    // in the real stdlib (e.g. `Std.Collections.List.Core.ml`'s
+    // `ListMapCursor`/`ListFilterCursor`). `split_once(" As ")` splits at
+    // the FIRST " As ", so `lhs = "Mapper"`, `rhs = "Function(T) As R"`;
+    // since `lhs` has no `(`, it is a field, not a union variant, and the
+    // full `Function(T) As R` is recorded as its type. This also exercises
+    // a parenthesised generic type on a field's RHS
+    // (`Std.Collections.List(Of T)`), which must land as a field too.
+    let src = "\
+Type ListMapCursor Of T, R
+    Items As Std.Collections.List(Of T)
+    Index As Int
+    Mapper As Function(T) As R
+End Type
+";
+    let (syms, _) = run(src);
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "ListMapCursor");
+    assert!(
+        !syms
+            .iter()
+            .any(|s| s.kind == "function" && s.name.contains("Mapper")),
+        "Mapper field must not be misread as a function declaration: {syms:?}"
+    );
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("fields").map(String::as_str),
+        Some("Items:Std.Collections.List(Of T)||Index:Int||Mapper:Function(T) As R")
+    );
+    assert_eq!(m.get("generic_params").map(String::as_str), Some("T||R"));
 }
 
 #[test]

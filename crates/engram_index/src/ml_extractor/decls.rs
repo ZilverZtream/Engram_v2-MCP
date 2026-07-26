@@ -58,7 +58,14 @@ pub(crate) fn open_declaration(
             let fqn = qualify(parent_fqn, &name);
 
             // A row shaped `Name As Type` is a struct field; `Name(…)` or a
-            // bare `Name` is a union variant. Classify by which dominates.
+            // bare `Name` is a union variant. A `Type` is a union only when
+            // it has at least one variant-shaped row and NO field rows; any
+            // field row makes it a struct. Mixed bodies (both field and
+            // variant rows) never occur in valid MiniLang — the corpus has
+            // zero such cases — so this is a defined fallback, not a
+            // dominance/majority rule: a single field row forces
+            // `kind: "struct"` even alongside variant-shaped rows, and any
+            // such rows are still recorded in the `variants` metadata.
             let mut fields: Vec<String> = Vec::new();
             let mut variants: Vec<String> = Vec::new();
             for row in body {
