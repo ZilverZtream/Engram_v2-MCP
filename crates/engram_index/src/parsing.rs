@@ -541,6 +541,8 @@ fn ext_to_static(ext: &str) -> &'static str {
         "cxx" => "cxx",
         "hh" => "hh",
         "vb" => "vb",
+        "ml" => "ml",
+        "mlinc" => "mlinc",
         _ => "unknown",
     }
 }
