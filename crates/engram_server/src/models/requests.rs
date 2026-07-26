@@ -170,6 +170,11 @@ pub enum ProjectType {
     /// C projects.
     #[serde(alias = "ansi_c")]
     C,
+    /// MiniLang — native systems language compiled by MiniLangCompiler.
+    /// Indexes `.ml`/`.mlinc` alongside the polyglot compiler sources and
+    /// conformance-test goldens that share the repository.
+    #[serde(alias = "mini_lang", alias = "ml")]
+    MiniLang,
 }
 
 impl ProjectType {
@@ -182,6 +187,7 @@ impl ProjectType {
             Self::CSharp => "csharp",
             Self::Cpp => "cpp",
             Self::C => "c",
+            Self::MiniLang => "minilang",
         }
     }
 
@@ -241,6 +247,11 @@ impl ProjectType {
             Some(Self::Cpp)
         } else if ["c", "ansi_c"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
             Some(Self::C)
+        } else if ["minilang", "mini_lang", "ml"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::MiniLang)
         } else {
             None
         }

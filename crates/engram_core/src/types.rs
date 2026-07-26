@@ -44,6 +44,11 @@ pub fn guess_language(path: &std::path::Path) -> &'static str {
         "java" => "java",
         "cs" => "csharp",
         "vb" => "vbnet",
+        // MiniLang — native systems language, VB-flavoured block syntax.
+        // `.ml` is claimed unconditionally; an OCaml repo's files stay
+        // searchable but yield no MiniLang symbols. Decision recorded in
+        // docs/superpowers/specs/2026-07-26-minilang-language-support-design.md.
+        "ml" | "mlinc" => "minilang",
         "cpp" | "cc" | "cxx" | "hpp" | "h" => "cpp",
         "c" => "c",
         "md" => "markdown",
@@ -158,5 +163,24 @@ mod vendor_path_tests {
         assert!(!is_vendor_path("Scripts/jquery.ociusGrid.js"));
         // 'package'/'libs' singular or different segments do not match.
         assert!(!is_vendor_path("src/package/manager.vb"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn minilang_extensions_map_to_minilang() {
+        use std::path::Path;
+        assert_eq!(
+            guess_language(Path::new("Std.Collections.List.ml")),
+            "minilang"
+        );
+        assert_eq!(guess_language(Path::new("shared.mlinc")), "minilang");
+        // Case-insensitive: guess_language lowercases the extension.
+        assert_eq!(guess_language(Path::new("Kernel.ML")), "minilang");
+        // Unrelated extensions are untouched.
+        assert_eq!(guess_language(Path::new("Form1.vb")), "vbnet");
     }
 }
