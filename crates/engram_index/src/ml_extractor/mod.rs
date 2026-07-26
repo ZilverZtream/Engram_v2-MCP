@@ -145,6 +145,11 @@ pub(crate) struct OpenBlock {
     /// Index into the symbol vector for the symbol this block produced,
     /// so the scanner can backfill `end_line` when the block closes.
     pub symbol_idx: Option<usize>,
+    /// Locals declared directly in this block, for ownership metadata.
+    pub immutable_locals: Vec<String>,
+    pub mutable_locals: Vec<String>,
+    /// True once a `Catch` line is seen inside this block.
+    pub has_catch: bool,
 }
 
 /// Extract symbols and edges from a MiniLang source file.
@@ -162,6 +167,7 @@ pub fn extract_ml(
     let mut symbols: Vec<ExtractedSymbol> = Vec::new();
     let mut edges: Vec<ExtractedEdge> = Vec::new();
     let mut stack: Vec<OpenBlock> = Vec::new();
+    let mut top_level_lines: Vec<(u32, String)> = Vec::new();
 
     for (idx, raw_line) in source.lines().enumerate() {
         let line_no = (idx + 1) as u32;
@@ -218,6 +224,21 @@ pub fn extract_ml(
             if let Some(open) = stack.pop() {
                 if let Some(i) = open.symbol_idx {
                     symbols[i].end_line = line_no;
+                    if open.keyword == "Function" || open.keyword == "Sub" {
+                        let mut m = symbols[i].metadata.take().unwrap_or_default();
+                        if !open.immutable_locals.is_empty() {
+                            m.insert("immutable_locals".into(), open.immutable_locals.join("||"));
+                        }
+                        if !open.mutable_locals.is_empty() {
+                            m.insert("mutable_locals".into(), open.mutable_locals.join("||"));
+                        }
+                        if open.has_catch {
+                            m.insert("has_catch".into(), "true".into());
+                        }
+                        if !m.is_empty() {
+                            symbols[i].metadata = Some(m);
+                        }
+                    }
                 }
                 debug_assert_eq!(
                     open.keyword, closed,
@@ -227,9 +248,94 @@ pub fn extract_ml(
             continue;
         }
 
-        let Some(keyword) = block_opener(trimmed) else {
+        let opener = block_opener(trimmed);
+
+        // Statement lines (everything that opens no block) contribute call
+        // edges attributed to the innermost enclosing function. Rows
+        // directly inside a Type/Enum/Interface body (fields, variants,
+        // members — already classified from `body` in `open_declaration`)
+        // are NOT statements and must be skipped here, exactly as they were
+        // before this scanner existed: without this guard, a field row like
+        // `Mapper As Function(T) As R` has no block opener either, so it
+        // would fall into this branch, find no enclosing Function/Sub, and
+        // be misfiled as a top-level program statement — fabricating a
+        // `<module>` entry symbol in files that declare no such thing.
+        if opener.is_none() {
+            let in_declaration_body = matches!(
+                stack.last().map(|b| b.keyword.as_str()),
+                Some("Type") | Some("Enum") | Some("Interface")
+            );
+            if in_declaration_body {
+                // A field/variant/member row: not a statement, not a
+                // declaration opener. Already accounted for by `body` in
+                // `open_declaration`; nothing more to do with it here.
+                continue;
+            }
+
+            // This needs a mutable borrow of the stack to record locals and
+            // catch regions, so it is a standalone block, resolved and
+            // dropped BEFORE the immutable borrow below clones the
+            // enclosing FQN — the two borrows cannot coexist.
+            if let Some(owner) = stack
+                .iter_mut()
+                .rev()
+                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+            {
+                if let Some((name, mutable)) = bodies::local_binding(trimmed) {
+                    if mutable {
+                        owner.mutable_locals.push(name);
+                    } else {
+                        owner.immutable_locals.push(name);
+                    }
+                }
+                if trimmed == "Catch" || trimmed.starts_with("Catch ") {
+                    owner.has_catch = true;
+                }
+            }
+
+            let enclosing = stack
+                .iter()
+                .rev()
+                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                .map(|b| b.fqn.clone());
+            match enclosing {
+                Some(fqn) => bodies::scan_statement(trimmed, &fqn, line_no, &mut edges),
+                None => {
+                    // Top level: record for the synthetic module entry.
+                    top_level_lines.push((line_no, trimmed.to_string()));
+                }
+            }
+            continue;
+        }
+
+        let Some(keyword) = opener else {
             continue;
         };
+
+        if keyword == "Unsafe" {
+            if let Some(caps) = bodies::unsafe_capabilities(trimmed) {
+                if let Some(owner) = stack
+                    .iter()
+                    .rev()
+                    .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                {
+                    edges.push(ExtractedEdge {
+                        source_name: owner.fqn.clone(),
+                        source_kind: "function".to_string(),
+                        source_start_line: owner.start_line,
+                        source_language: "ml".to_string(),
+                        target_name: trimmed.to_string(),
+                        target_kind: Some("capability".to_string()),
+                        target_start_line: None,
+                        kind: "dependency".to_string(),
+                        metadata: decls::meta(&[
+                            ("relation", "capability".to_string()),
+                            ("capabilities", caps.join("||")),
+                        ]),
+                    });
+                }
+            }
+        }
 
         let parent_fqn = stack
             .iter()
@@ -261,6 +367,9 @@ pub fn extract_ml(
             fqn,
             start_line: line_no,
             symbol_idx,
+            immutable_locals: Vec::new(),
+            mutable_locals: Vec::new(),
+            has_catch: false,
         });
     }
 
@@ -273,6 +382,30 @@ pub fn extract_ml(
                 symbols[i].end_line = last_line;
             }
         }
+    }
+
+    // Script-style files run their top-level statements as the program
+    // entry point. Give those statements a caller so their call edges are
+    // not dangling. Pure-declaration files (the stdlib) get nothing.
+    if !top_level_lines.is_empty() {
+        let stem = rel_path
+            .rsplit(['/', '\\'])
+            .next()
+            .and_then(|f| f.split('.').next())
+            .unwrap_or("module");
+        let module_fqn = format!("{stem}.<module>");
+        let first = top_level_lines.first().map(|(l, _)| *l).unwrap_or(1);
+        let last = top_level_lines.last().map(|(l, _)| *l).unwrap_or(first);
+        for (line_no, text) in &top_level_lines {
+            bodies::scan_statement(text, &module_fqn, *line_no, &mut edges);
+        }
+        symbols.push(ExtractedSymbol {
+            name: module_fqn,
+            kind: "function".to_string(),
+            start_line: first,
+            end_line: last,
+            metadata: decls::meta(&[("synthetic", "module_entry".to_string())]),
+        });
     }
 
     (symbols, edges)

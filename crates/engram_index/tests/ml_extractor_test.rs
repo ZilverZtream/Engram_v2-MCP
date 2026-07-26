@@ -732,3 +732,186 @@ Include \"\\\\attacker.example\\share\\payload.ml\"
         "absolute/UNC includes must not fabricate a project-relative edge, got {edges:?}"
     );
 }
+
+#[test]
+fn call_edges_attribute_to_the_enclosing_function() {
+    let src = "\
+Namespace Demo
+    Function Helper(n As Int) As Int
+        Return n
+    End Function
+    Function Main() As Int
+        Return Helper(3)
+    End Function
+End Namespace
+";
+    let (_, edges) = run(src);
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "Helper")
+        .expect("calls edge");
+    assert_eq!(e.source_name, "Demo.Main");
+}
+
+#[test]
+fn spawn_and_detached_are_flagged_on_the_call_edge() {
+    let src = "\
+Function Worker(n As Int) As Int
+    Return n
+End Function
+Function Boot() As Int
+    Spawn Call Worker(42)
+    Spawn Detached Hi Call Worker(7)
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+    let spawns: Vec<&engram_index::parsing::ExtractedEdge> = edges
+        .iter()
+        .filter(|e| e.kind == "calls" && e.target_name == "Worker")
+        .collect();
+    assert_eq!(spawns.len(), 2, "expected two spawn call edges");
+
+    assert!(spawns.iter().any(|e| {
+        let m = e.metadata.as_ref().expect("metadata");
+        m.get("spawn").map(String::as_str) == Some("true") && m.get("detached").is_none()
+    }));
+    assert!(spawns.iter().any(|e| {
+        let m = e.metadata.as_ref().expect("metadata");
+        m.get("detached").map(String::as_str) == Some("true")
+            && m.get("priority").map(String::as_str) == Some("Hi")
+    }));
+}
+
+#[test]
+fn channel_and_simd_calls_carry_domain_metadata() {
+    let src = "\
+Function Pipe() As Int
+    Var ch As Channel(Of Int) = NewChannel(Of Int)(4)
+    Send(ch, 42)
+    Var v As Vector256(Of Int32) = Std.Vector.Splat256 Of Int32(7i32)
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+
+    let send = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "Send")
+        .expect("Send call edge");
+    assert_eq!(
+        send.metadata
+            .as_ref()
+            .and_then(|m| m.get("concurrency"))
+            .map(String::as_str),
+        Some("channel")
+    );
+
+    let splat = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "Std.Vector.Splat256")
+        .expect("SIMD call edge");
+    let m = splat.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("simd_width").map(String::as_str), Some("256"));
+    assert_eq!(m.get("lane_type").map(String::as_str), Some("Int32"));
+}
+
+#[test]
+fn unsafe_capability_block_emits_a_capability_edge() {
+    let src = "\
+Function Poke(p As Int) As Int
+    Unsafe(RawPtr, Alloc)
+        Set p^ To 42
+    End Unsafe
+    Return 0
+End Function
+";
+    let (_, edges) = run(src);
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "dependency" && e.target_name == "Unsafe(RawPtr, Alloc)")
+        .expect("capability edge");
+    assert_eq!(e.source_name, "Poke");
+    let m = e.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("relation").map(String::as_str), Some("capability"));
+    assert_eq!(
+        m.get("capabilities").map(String::as_str),
+        Some("RawPtr||Alloc")
+    );
+}
+
+#[test]
+fn top_level_statements_get_a_module_entry_symbol() {
+    let src = "\
+Function Fib(n As Int) As Int
+    Return n
+End Function
+
+Say Fib(15)
+";
+    let (syms, edges) = run(src);
+    let m = syms
+        .iter()
+        .find(|s| s.name == "Sample.<module>")
+        .expect("module entry symbol");
+    assert_eq!(m.kind, "function");
+    assert_eq!(
+        m.metadata
+            .as_ref()
+            .and_then(|x| x.get("synthetic"))
+            .map(String::as_str),
+        Some("module_entry")
+    );
+
+    // The top-level call attributes to the module entry, not to nothing.
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "Fib")
+        .expect("top-level call edge");
+    assert_eq!(e.source_name, "Sample.<module>");
+}
+
+#[test]
+fn pure_declaration_files_get_no_module_entry() {
+    let src = "\
+Namespace Std
+    Function Helper() As Int
+        Return 0
+    End Function
+End Namespace
+";
+    let (syms, _) = run(src);
+    assert!(
+        syms.iter().all(|s| !s.name.ends_with("<module>")),
+        "stdlib-style declaration-only files must not get a module entry"
+    );
+}
+
+#[test]
+fn function_records_local_binding_modes_and_fallible_regions() {
+    let src = "\
+Function Risky() As Int
+    Dim fixed As Int
+    Var counter As Int
+    Mut total As Int
+    Try
+        Set total To counter
+    Catch
+        Set total To 0
+    End Try
+    Return total
+End Function
+";
+    let (syms, _) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    let m = f.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("immutable_locals").map(String::as_str), Some("fixed"));
+    assert_eq!(
+        m.get("mutable_locals").map(String::as_str),
+        Some("counter||total")
+    );
+    assert_eq!(m.get("has_catch").map(String::as_str), Some("true"));
+}
