@@ -475,17 +475,29 @@ fn first_param_type(trimmed: &str) -> Option<String> {
     if ty.is_empty() { None } else { Some(ty) }
 }
 
-/// The project-relative target of an `Include "…"` line.
+/// The project-relative target of an `Include "…"` line, or `None` when the
+/// line names no legitimate project-relative file.
 ///
 /// Include paths resolve relative to the INCLUDING file's directory. The
 /// result stays project-relative: absolute edge targets are rejected by the
-/// ingest safety check.
+/// ingest safety check. `None` is the correct outcome — not a
+/// best-effort fallback — for two adversarial shapes the corpus's
+/// `tests/negative/includes/` suite exists specifically to prove the
+/// MiniLang compiler itself rejects:
+///   - absolute, UNC (`\\server\share\…`), or device-namespace (`\\?\…`)
+///     paths, including alternate-data-stream targets (`C:\…:hidden`),
+///     which are never project-relative to begin with;
+///   - `..` segments that pop past the project root. Before this guard,
+///     `parts.pop()` on an empty `Vec` was a silent no-op, so extra
+///     leading `..`s were simply dropped and the function returned a
+///     plausible-looking but FABRICATED in-project target instead of no
+///     edge at all — worse than a missing edge.
 pub(crate) fn include_target(trimmed: &str, rel_path: &str) -> Option<String> {
     let rest = trimmed.strip_prefix("Include")?.trim_start();
     let rest = rest.strip_prefix('"')?;
     let end = rest.find('"')?;
     let raw = rest[..end].trim().replace('\\', "/");
-    if raw.is_empty() {
+    if raw.is_empty() || is_unsafe_include_path(&raw) {
         return None;
     }
     let dir = rel_path.replace('\\', "/");
@@ -504,7 +516,10 @@ pub(crate) fn include_target(trimmed: &str, rel_path: &str) -> Option<String> {
         match seg {
             "" | "." => {}
             ".." => {
-                parts.pop();
+                // A `..` with nothing left to pop escapes the project
+                // root: there is no legitimate project-relative target,
+                // so bail out entirely rather than dropping the segment.
+                parts.pop()?;
             }
             s => parts.push(s),
         }
@@ -512,12 +527,40 @@ pub(crate) fn include_target(trimmed: &str, rel_path: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
+/// True for a path that can never resolve to a project-relative file:
+/// UNC/device-namespace (`//server/…`, `//?/…` after backslash
+/// normalisation), POSIX-absolute (`/…`), or drive-letter-absolute
+/// (`C:/…`, which also covers alternate-data-stream targets like
+/// `C:/Windows/win.ini:hidden`). `raw` must already have had `\` -> `/`
+/// normalisation applied.
+fn is_unsafe_include_path(raw: &str) -> bool {
+    if raw.starts_with('/') {
+        return true;
+    }
+    let bytes = raw.as_bytes();
+    bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
+}
+
 /// A `Declare Function … Lib "…"` (P/Invoke) or
 /// `Extern "C" [Blocking] Function … Lib "…"` (C-FFI) binding.
+///
+/// A leading `Public`/`Private` modifier (4 corpus occurrences) is stripped
+/// the same way `declaration_name` strips one, and recorded in the `access`
+/// metadata for consistency with the other declaration kinds. Without this,
+/// `Public Declare …` / `Public Extern …` lines matched neither this
+/// function nor any other, and silently produced no symbol at all.
 pub(crate) fn parse_ffi_binding(trimmed: &str, line_no: u32) -> Option<ExtractedSymbol> {
-    let (binding, rest) = if let Some(r) = trimmed.strip_prefix("Declare ") {
+    let access = access_modifier(trimmed);
+    let mut rest = trimmed;
+    for modifier in ["Public ", "Private "] {
+        if let Some(r) = rest.strip_prefix(modifier) {
+            rest = r.trim_start();
+        }
+    }
+
+    let (binding, rest) = if let Some(r) = rest.strip_prefix("Declare ") {
         ("pinvoke", r)
-    } else if let Some(r) = trimmed.strip_prefix("Extern ") {
+    } else if let Some(r) = rest.strip_prefix("Extern ") {
         // Skip the ABI string: `"C" [Blocking] Function …`.
         let r = r.trim_start();
         let r = r.strip_prefix('"')?;
@@ -557,6 +600,7 @@ pub(crate) fn parse_ffi_binding(trimmed: &str, line_no: u32) -> Option<Extracted
             ("binding", binding.to_string()),
             ("library", library),
             ("alias", alias),
+            ("access", access),
             (
                 "blocking",
                 if blocking {
@@ -581,12 +625,24 @@ fn quoted_after(haystack: &str, marker: &str) -> Option<String> {
 /// A `Const NAME = expr` declaration. Constants are CTFE-evaluated and
 /// allocate no runtime storage, so the expression text is the useful
 /// payload — it is what a fixed-array size resolves to.
+///
+/// A leading `Public`/`Private` modifier is stripped the same way
+/// `declaration_name` strips one (no corpus occurrences today, but stripped
+/// for symmetry with every other declaration kind), and recorded in the
+/// `access` metadata.
 pub(crate) fn parse_const(
     trimmed: &str,
     parent_fqn: &str,
     line_no: u32,
 ) -> Option<ExtractedSymbol> {
-    let rest = trimmed.strip_prefix("Const")?;
+    let access = access_modifier(trimmed);
+    let mut rest = trimmed;
+    for modifier in ["Public ", "Private "] {
+        if let Some(r) = rest.strip_prefix(modifier) {
+            rest = r.trim_start();
+        }
+    }
+    let rest = rest.strip_prefix("Const")?;
     if !rest.starts_with(' ') {
         return None;
     }
@@ -600,6 +656,6 @@ pub(crate) fn parse_const(
         kind: "constant".to_string(),
         start_line: line_no,
         end_line: line_no,
-        metadata: meta(&[("value", value.trim().to_string())]),
+        metadata: meta(&[("value", value.trim().to_string()), ("access", access)]),
     })
 }
