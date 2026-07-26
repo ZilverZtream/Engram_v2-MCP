@@ -190,7 +190,16 @@ pub fn extract_ml(
             continue;
         }
 
-        {
+        // A `Const` directly inside a Function/Sub body (real corpus case:
+        // `test_mlh2380_const_ctfe.ml`'s `Const LOCAL = 6 * 7`) is local to
+        // that function's execution, not a project-level declaration. Skip
+        // extraction entirely rather than attributing it to whatever named
+        // scope encloses the function.
+        let inside_executable_scope = matches!(
+            stack.last().map(|b| b.keyword.as_str()),
+            Some("Function") | Some("Sub")
+        );
+        if !inside_executable_scope {
             let parent_fqn = stack
                 .iter()
                 .rev()
