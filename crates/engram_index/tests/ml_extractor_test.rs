@@ -428,3 +428,186 @@ End Type
         Some("Parent:Weak(Of Node):weak||Child:Ref(Of Node):strong||Count:Int")
     );
 }
+
+#[test]
+fn function_signature_records_params_return_and_throws() {
+    let src = "\
+Namespace Std
+    Function BTreeMap_Get Of K As Ordered, V(Borrow tree As Std.BTreeMap(Of K, V), key As K) As V Throws Std.BTreeLookupError
+        Return key
+    End Function
+End Namespace
+";
+    let (syms, edges) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    assert_eq!(f.name, "Std.BTreeMap_Get");
+    let m = f.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("generic_params").map(String::as_str),
+        Some("K:Ordered||V")
+    );
+    assert_eq!(
+        m.get("params").map(String::as_str),
+        Some("borrow tree||owned key")
+    );
+    assert_eq!(m.get("returns").map(String::as_str), Some("V"));
+    assert_eq!(
+        m.get("throws").map(String::as_str),
+        Some("Std.BTreeLookupError")
+    );
+
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "dependency" && e.target_name == "Std.BTreeLookupError")
+        .expect("throws edge");
+    assert_eq!(e.source_name, "Std.BTreeMap_Get");
+    assert_eq!(
+        e.metadata
+            .as_ref()
+            .and_then(|m| m.get("relation"))
+            .map(String::as_str),
+        Some("throws")
+    );
+}
+
+#[test]
+fn nullable_return_and_borrowmut_params() {
+    let src = "\
+Function FirstPositive(BorrowMut buf As Bytes, x As Int) As Int?
+    Return x
+End Function
+";
+    let (syms, _) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function")
+        .expect("function symbol");
+    let m = f.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("params").map(String::as_str),
+        Some("borrow_mut buf||owned x")
+    );
+    assert_eq!(m.get("returns").map(String::as_str), Some("Int"));
+    assert_eq!(m.get("nullable_return").map(String::as_str), Some("true"));
+}
+
+#[test]
+fn function_type_annotation_is_not_a_declaration() {
+    // `Mapper As Function(T) As R` is a FIELD, not a function declaration.
+    let src = "\
+Type ListMapCursor Of T, R
+    Index As Int
+    Mapper As Function(T) As R
+End Type
+";
+    let (syms, _) = run(src);
+    assert!(
+        syms.iter().all(|s| s.kind != "function"),
+        "field of function type must not register as a declaration, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct")
+        .expect("struct symbol");
+    assert_eq!(t.name, "ListMapCursor");
+}
+
+#[test]
+fn method_convention_links_this_param_to_its_type() {
+    let src = "\
+Namespace Std
+    Type ListError
+        Operation As Str
+    End Type
+    Function Message(this As Std.ListError) As Str
+        Return this.Operation
+    End Function
+End Namespace
+";
+    let (_, edges) = run(src);
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "contains" && e.target_name == "Std.Message")
+        .expect("method containment edge");
+    assert_eq!(e.source_name, "Std.ListError");
+}
+
+#[test]
+fn include_emits_a_file_edge_resolved_relative_to_the_includer() {
+    let src = "Include \"Std.Collections.Typed.HashMaps.ml\"\n";
+    let (_, edges) = extract_ml(
+        Path::new("C:/proj/src/Libraries/Std.Collections.Typed.ml"),
+        "src/Libraries/Std.Collections.Typed.ml",
+        src,
+    );
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "includes_file")
+        .expect("includes_file edge");
+    assert_eq!(
+        e.target_name,
+        "src/Libraries/Std.Collections.Typed.HashMaps.ml"
+    );
+    assert_eq!(e.target_kind.as_deref(), Some("file"));
+}
+
+#[test]
+fn ffi_bindings_record_library_and_binding_style() {
+    let src = "\
+Unsafe(Ffi)
+    Declare Function GetTickCount Lib \"kernel32.dll\" () As Int
+    Extern \"C\" Blocking Function SlowOp Lib \"mylib.dll\" (x As Int) As Int
+End Unsafe
+";
+    let (syms, _) = run(src);
+    let externs: Vec<&engram_index::parsing::ExtractedSymbol> = syms
+        .iter()
+        .filter(|s| s.kind == "extern_function")
+        .collect();
+    assert_eq!(
+        externs.len(),
+        2,
+        "got {:?}",
+        externs.iter().map(|s| &s.name).collect::<Vec<_>>()
+    );
+
+    let tick = externs
+        .iter()
+        .find(|s| s.name == "GetTickCount")
+        .expect("GetTickCount");
+    let m = tick.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("binding").map(String::as_str), Some("pinvoke"));
+    assert_eq!(m.get("library").map(String::as_str), Some("kernel32.dll"));
+
+    let slow = externs.iter().find(|s| s.name == "SlowOp").expect("SlowOp");
+    let m = slow.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("binding").map(String::as_str), Some("c_ffi"));
+    assert_eq!(m.get("library").map(String::as_str), Some("mylib.dll"));
+    assert_eq!(m.get("blocking").map(String::as_str), Some("true"));
+}
+
+#[test]
+fn const_declarations_record_their_ctfe_expression() {
+    let src = "\
+Namespace Demo
+    Const WIDTH = 5 * 2
+End Namespace
+";
+    let (syms, _) = run(src);
+    let c = syms
+        .iter()
+        .find(|s| s.kind == "constant")
+        .expect("constant symbol");
+    assert_eq!(c.name, "Demo.WIDTH");
+    assert_eq!(
+        c.metadata
+            .as_ref()
+            .and_then(|m| m.get("value"))
+            .map(String::as_str),
+        Some("5 * 2")
+    );
+}

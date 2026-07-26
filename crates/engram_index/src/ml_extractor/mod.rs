@@ -170,6 +170,39 @@ pub fn extract_ml(
             continue;
         }
 
+        if let Some(target) = decls::include_target(trimmed, rel_path) {
+            edges.push(ExtractedEdge {
+                source_name: rel_path.to_string(),
+                source_kind: "file".to_string(),
+                source_start_line: line_no,
+                source_language: "ml".to_string(),
+                target_name: target,
+                target_kind: Some("file".to_string()),
+                target_start_line: None,
+                kind: "includes_file".to_string(),
+                metadata: None,
+            });
+            continue;
+        }
+
+        if let Some(sym) = decls::parse_ffi_binding(trimmed, line_no) {
+            symbols.push(sym);
+            continue;
+        }
+
+        {
+            let parent_fqn = stack
+                .iter()
+                .rev()
+                .find(|b| !b.fqn.is_empty())
+                .map(|b| b.fqn.as_str())
+                .unwrap_or("");
+            if let Some(sym) = decls::parse_const(trimmed, parent_fqn, line_no) {
+                symbols.push(sym);
+                continue;
+            }
+        }
+
         // Closing lines first: `End Function` also starts with a keyword
         // that would otherwise be scanned as an opener.
         if let Some(closed) = block_closer(trimmed) {

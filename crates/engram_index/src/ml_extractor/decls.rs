@@ -38,6 +38,48 @@ pub(crate) fn open_declaration(
                 return (String::new(), None);
             };
             let fqn = qualify(parent_fqn, &name);
+            let params = parse_params(trimmed);
+            let (returns, nullable) = if keyword == "Sub" {
+                (String::new(), false)
+            } else {
+                parse_return(trimmed)
+            };
+            let throws = parse_throws(trimmed);
+
+            if !throws.is_empty() {
+                edges.push(ExtractedEdge {
+                    source_name: fqn.clone(),
+                    source_kind: "function".to_string(),
+                    source_start_line: line_no,
+                    source_language: "ml".to_string(),
+                    target_name: throws.clone(),
+                    target_kind: Some("struct".to_string()),
+                    target_start_line: None,
+                    kind: "dependency".to_string(),
+                    metadata: meta(&[("relation", "throws".to_string())]),
+                });
+            }
+
+            // MiniLang's method convention: a first parameter named `this`
+            // makes the function a method of that parameter's type.
+            if let Some(first) = params.first() {
+                if first.ends_with(" this") {
+                    if let Some(owner) = first_param_type(trimmed) {
+                        edges.push(ExtractedEdge {
+                            source_name: owner,
+                            source_kind: "struct".to_string(),
+                            source_start_line: 0,
+                            source_language: "ml".to_string(),
+                            target_name: fqn.clone(),
+                            target_kind: Some("function".to_string()),
+                            target_start_line: Some(line_no),
+                            kind: "contains".to_string(),
+                            metadata: meta(&[("relation", "method".to_string())]),
+                        });
+                    }
+                }
+            }
+
             symbols.push(ExtractedSymbol {
                 name: fqn.clone(),
                 kind: "function".to_string(),
@@ -47,6 +89,17 @@ pub(crate) fn open_declaration(
                     ("is_sub", (keyword == "Sub").to_string()),
                     ("generic_params", generic_params(trimmed)),
                     ("access", access_modifier(trimmed)),
+                    ("params", params.join("||")),
+                    ("returns", returns),
+                    (
+                        "nullable_return",
+                        if nullable {
+                            "true".to_string()
+                        } else {
+                            String::new()
+                        },
+                    ),
+                    ("throws", throws),
                 ]),
             });
             (fqn, Some(symbols.len() - 1))
@@ -273,4 +326,280 @@ pub(crate) fn generic_params(trimmed: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("||")
+}
+
+/// The parenthesised parameter list of a declaration line, rendered as
+/// `mode name` entries: `borrow tree||owned key`.
+///
+/// The list starts at the first `(` that follows the declared name and any
+/// `Of …` clause. Nested parens (generic types such as
+/// `Std.BTreeMap(Of K, V)`) are balanced, and commas inside them do not
+/// split parameters.
+pub(crate) fn parse_params(trimmed: &str) -> Vec<String> {
+    let Some(open) = param_list_start(trimmed) else {
+        return Vec::new();
+    };
+    let bytes = trimmed.as_bytes();
+    let mut depth = 0i32;
+    let mut parts: Vec<String> = Vec::new();
+    let mut current = String::new();
+    // `open` is a BYTE index. Filter on the byte offset rather than using
+    // `.skip(open)`, which would skip that many CHARS and mis-slice any
+    // line containing non-ASCII text.
+    for (i, ch) in trimmed.char_indices().filter(|(i, _)| *i >= open) {
+        let b = bytes[i];
+        if b == b'(' {
+            depth += 1;
+            if depth == 1 {
+                continue;
+            }
+        } else if b == b')' {
+            depth -= 1;
+            if depth == 0 {
+                break;
+            }
+        }
+        if b == b',' && depth == 1 {
+            parts.push(std::mem::take(&mut current));
+            continue;
+        }
+        current.push(ch);
+    }
+    parts.push(current);
+
+    parts
+        .into_iter()
+        .filter_map(|p| {
+            let p = p.trim();
+            if p.is_empty() {
+                return None;
+            }
+            let (mode, rest) = if let Some(r) = p.strip_prefix("BorrowMut ") {
+                ("borrow_mut", r)
+            } else if let Some(r) = p.strip_prefix("Borrow ") {
+                ("borrow", r)
+            } else {
+                ("owned", p)
+            };
+            let name: String = rest
+                .trim_start()
+                .chars()
+                .take_while(|c| c.is_alphanumeric() || *c == '_')
+                .collect();
+            if name.is_empty() {
+                None
+            } else {
+                Some(format!("{mode} {name}"))
+            }
+        })
+        .collect()
+}
+
+/// Byte index of the `(` that opens the parameter list, skipping any
+/// parenthesised generic constraint inside a preceding `Of …` clause.
+fn param_list_start(trimmed: &str) -> Option<usize> {
+    // Everything before the parameter list is `[access] kw Name [Of …]`.
+    // The `Of` clause may itself contain parens, so scan from after it.
+    let scan_from = match trimmed.find(" Of ") {
+        Some(idx) => {
+            // The Of clause ends at the first `(` that is NOT part of a
+            // constraint type; constraints in the corpus are bare
+            // identifiers, so the first `(` after " Of " opens the params.
+            idx + 4
+        }
+        None => 0,
+    };
+    trimmed[scan_from..].find('(').map(|p| scan_from + p)
+}
+
+/// The `As <Type>` return clause of a Function line, and whether it is
+/// nullable (`?`-suffixed). Returns `("", false)` for `Sub` and for
+/// functions with no return clause.
+pub(crate) fn parse_return(trimmed: &str) -> (String, bool) {
+    // The return clause is the LAST ` As ` at paren depth 0 — parameter
+    // types also use ` As `, so a naive rsplit would pick up the final
+    // parameter's type when there is no return clause.
+    let bytes = trimmed.as_bytes();
+    let mut depth = 0i32;
+    let mut last_as: Option<usize> = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => depth -= 1,
+            b'A' if depth == 0
+                && trimmed[i..].starts_with("As ")
+                && i > 0
+                && bytes[i - 1] == b' ' =>
+            {
+                last_as = Some(i + 3);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    let Some(start) = last_as else {
+        return (String::new(), false);
+    };
+    let rest = trimmed[start..].trim_start();
+    let ty: String = rest
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '.')
+        .collect();
+    let nullable = rest[ty.len()..].starts_with('?');
+    (ty, nullable)
+}
+
+/// The error type named by a `Throws E` clause, or empty.
+pub(crate) fn parse_throws(trimmed: &str) -> String {
+    let Some((_, rest)) = trimmed.split_once(" Throws ") else {
+        return String::new();
+    };
+    rest.trim()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '.')
+        .collect()
+}
+
+/// The declared type of the first parameter, used to attach `this`-style
+/// methods to their owning type.
+fn first_param_type(trimmed: &str) -> Option<String> {
+    let open = trimmed.find('(')?;
+    let rest = &trimmed[open + 1..];
+    let (_, after_as) = rest.split_once(" As ")?;
+    let ty: String = after_as
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '.')
+        .collect();
+    if ty.is_empty() { None } else { Some(ty) }
+}
+
+/// The project-relative target of an `Include "…"` line.
+///
+/// Include paths resolve relative to the INCLUDING file's directory. The
+/// result stays project-relative: absolute edge targets are rejected by the
+/// ingest safety check.
+pub(crate) fn include_target(trimmed: &str, rel_path: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix("Include")?.trim_start();
+    let rest = rest.strip_prefix('"')?;
+    let end = rest.find('"')?;
+    let raw = rest[..end].trim().replace('\\', "/");
+    if raw.is_empty() {
+        return None;
+    }
+    let dir = rel_path.replace('\\', "/");
+    let dir = match dir.rfind('/') {
+        Some(i) => &dir[..i],
+        None => "",
+    };
+    let joined = if dir.is_empty() {
+        raw
+    } else {
+        format!("{dir}/{raw}")
+    };
+    // Normalise `a/./b` and `a/b/../c` without touching the filesystem.
+    let mut parts: Vec<&str> = Vec::new();
+    for seg in joined.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            s => parts.push(s),
+        }
+    }
+    Some(parts.join("/"))
+}
+
+/// A `Declare Function … Lib "…"` (P/Invoke) or
+/// `Extern "C" [Blocking] Function … Lib "…"` (C-FFI) binding.
+pub(crate) fn parse_ffi_binding(trimmed: &str, line_no: u32) -> Option<ExtractedSymbol> {
+    let (binding, rest) = if let Some(r) = trimmed.strip_prefix("Declare ") {
+        ("pinvoke", r)
+    } else if let Some(r) = trimmed.strip_prefix("Extern ") {
+        // Skip the ABI string: `"C" [Blocking] Function …`.
+        let r = r.trim_start();
+        let r = r.strip_prefix('"')?;
+        let end = r.find('"')?;
+        ("c_ffi", &r[end + 1..])
+    } else {
+        return None;
+    };
+
+    let rest = rest.trim_start();
+    let (blocking, rest) = match rest.strip_prefix("Blocking ") {
+        Some(r) => (true, r.trim_start()),
+        None => (false, rest),
+    };
+
+    let rest = rest
+        .strip_prefix("Function ")
+        .or_else(|| rest.strip_prefix("Sub "))?;
+    let name: String = rest
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if name.is_empty() {
+        return None;
+    }
+
+    let library = quoted_after(trimmed, " Lib ").unwrap_or_default();
+    let alias = quoted_after(trimmed, " Alias ").unwrap_or_default();
+
+    Some(ExtractedSymbol {
+        name,
+        kind: "extern_function".to_string(),
+        start_line: line_no,
+        end_line: line_no,
+        metadata: meta(&[
+            ("binding", binding.to_string()),
+            ("library", library),
+            ("alias", alias),
+            (
+                "blocking",
+                if blocking {
+                    "true".to_string()
+                } else {
+                    String::new()
+                },
+            ),
+            ("params", parse_params(trimmed).join("||")),
+        ]),
+    })
+}
+
+/// The double-quoted string immediately following `marker`.
+fn quoted_after(haystack: &str, marker: &str) -> Option<String> {
+    let (_, rest) = haystack.split_once(marker)?;
+    let rest = rest.trim_start().strip_prefix('"')?;
+    let end = rest.find('"')?;
+    Some(rest[..end].to_string())
+}
+
+/// A `Const NAME = expr` declaration. Constants are CTFE-evaluated and
+/// allocate no runtime storage, so the expression text is the useful
+/// payload — it is what a fixed-array size resolves to.
+pub(crate) fn parse_const(
+    trimmed: &str,
+    parent_fqn: &str,
+    line_no: u32,
+) -> Option<ExtractedSymbol> {
+    let rest = trimmed.strip_prefix("Const")?;
+    if !rest.starts_with(' ') {
+        return None;
+    }
+    let (name, value) = rest.trim_start().split_once('=')?;
+    let name = name.trim();
+    if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    Some(ExtractedSymbol {
+        name: qualify(parent_fqn, name),
+        kind: "constant".to_string(),
+        start_line: line_no,
+        end_line: line_no,
+        metadata: meta(&[("value", value.trim().to_string())]),
+    })
 }
