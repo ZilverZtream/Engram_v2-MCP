@@ -59,7 +59,11 @@ const CALL_STOPWORDS: &[&str] = &[
 
 /// Generic TYPE constructors. `Var v As Vector256(Of Int32)` is a type
 /// annotation, not a call — without this the graph fills with calls to
-/// `Vector256`, `Channel`, and `List` that no function ever makes.
+/// `Vector256`, `Channel`, and `List` that no function ever makes. Also
+/// covers the `New <Type>(…)` construction shape (`New Ref(Of T)(…)`,
+/// `New Slice(Of T)(…)`), where the type name follows `New`, not `As`, so
+/// the type-annotation-position guard below does not fire and this list is
+/// the ONLY thing suppressing the phantom edge.
 const TYPE_CONSTRUCTORS: &[&str] = &[
     "Channel",
     "Vector128",
@@ -73,6 +77,7 @@ const TYPE_CONSTRUCTORS: &[&str] = &[
     "Function",
     "Option",
     "Result",
+    "Slice",
 ];
 
 /// Channel primitives — flagged so concurrency questions are answerable.
@@ -153,7 +158,7 @@ pub(crate) fn scan_statement(
         edges.push(ExtractedEdge {
             source_name: enclosing_fqn.to_string(),
             source_kind: "function".to_string(),
-            source_start_line: 0,
+            source_start_line: line_no,
             source_language: "ml".to_string(),
             target_name: name.to_string(),
             target_kind: Some("function".to_string()),

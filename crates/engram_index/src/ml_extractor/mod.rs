@@ -322,7 +322,7 @@ pub fn extract_ml(
                     edges.push(ExtractedEdge {
                         source_name: owner.fqn.clone(),
                         source_kind: "function".to_string(),
-                        source_start_line: owner.start_line,
+                        source_start_line: line_no,
                         source_language: "ml".to_string(),
                         target_name: trimmed.to_string(),
                         target_kind: Some("capability".to_string()),
