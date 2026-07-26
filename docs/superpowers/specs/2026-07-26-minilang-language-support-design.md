@@ -26,11 +26,42 @@ block-structured syntax. Blocks open with a keyword and close with `End <keyword
 `End Unsafe`, `End Using`, `End Asm`, `End Ui`, `End Try`). There is no tree-sitter grammar,
 so extraction is hand-rolled and line-based — the same approach as `asp_classic_extractor.rs`.
 
+> **`LANGUAGE.md` is not a sufficient grammar reference.** It documents neither `Sub`, access
+> modifiers, `Throws` clauses, nor generic constraints — all of which are widespread in the
+> shipped standard library. The grammar below was derived from the actual corpus
+> (`src/`, `examples/`, `benchmarks/`) and the corpus is the authority. Counts are from that survey.
+
+The real declaration grammar:
+
+```
+[Public|Private] Function Name [Of T[ As Constraint][, U…]](params) [As RetType[?]] [Throws ErrType]
+[Public|Private] Sub      Name [Of T[ As Constraint][, U…]](params)                 [Throws ErrType]
+[Public]         Type     Name [Of T[, U…]] [Implements Interface]
+                 Interface Name
+                 Enum      Name
+```
+
+Parameters are `[Borrow|BorrowMut] name As Type`.
+
+Three properties of this grammar drive extractor correctness:
+
+1. **The `Of` clause sits between the name and the parameter list** — `Function BTreeMap_Get Of
+   K, V(Borrow tree As …)`. A `Function\s+(\w+)\s*\(` pattern misses every generic declaration
+   (400+ in the stdlib). The name must be matched independently of what follows it.
+2. **`As Function(…)` is a type annotation, not a declaration.** Parameter and field rows like
+   `Mapper As Function(T) As R` and `BorrowMut handler As Function(Int) As Int` must never
+   register as function declarations. Declaration matching anchors on `Function`/`Sub` as the
+   first token after optional access modifiers, not on the keyword appearing anywhere.
+3. **`'` is unambiguously a comment marker.** MiniLang has no character-literal syntax — `Char`
+   values are produced by `Std.Convert.IntToChar`. Comment stripping only needs to respect
+   double-quoted strings and their `\` escapes.
+
 Constructs that carry indexable meaning:
 
-- `Namespace A.B` … `End Namespace` — nests; establishes FQNs
-- `Function F(p As T) As R` … `End Function` — no access modifiers; `Of T` generics;
-  `?`-suffixed nullable returns; `Borrow`/`BorrowMut` parameter modes
+- `Namespace A.B` … `End Namespace` — nests; establishes FQNs (259 uses)
+- `Function F(…) As R` … `End Function` (3,585) and `Sub S(…)` … `End Sub` (686, void procedure)
+  — optional `Public`/`Private`; `Of T [As Constraint]` generics; `?`-suffixed nullable returns;
+  `Borrow`/`BorrowMut` parameter modes; `Throws ErrType` clause (1,000+ uses)
 - `Type T` … `End Type` — a **struct** when rows are `Name As Type`, a **discriminated union**
   when rows are `Variant(payload…)` or bare `Variant`; `Implements I` clause; `Of T, E` generics
 - `Enum E` … `End Enum` — optional explicit values
@@ -42,8 +73,13 @@ Constructs that carry indexable meaning:
 - `Unsafe(RawPtr, Alloc, Asm, Ffi, All)` — capability-granular unsafe blocks
 - `Spawn [Detached] [Hi|Lo|Normal] Call f(…)`, `Channel(Of T)`, `Send`/`Receive`/`Close`
 - `Vector128/256/512(Of T)` and the `Std.Vector.*` intrinsic family
-- `Ui … End Ui` — declarative UI DSL (`Panel`, `Label`, `Badge`, `Rect`, `Bg`, `Gradient`)
+- `Ui … End Ui` — declarative UI DSL. Container elements observed in the corpus:
+  `Panel`, `Label`, `Button`, `Badge`, `Card`, `Field`, `Checkbox`, `Radio`, `Switch`, `Slider`,
+  `ProgressBar`, `Image`, `Divider`, `VStack`; attribute rows: `Rect`, `Bg`, `Text`, `Style`,
+  `Border`, `Gradient`, `Shadow`
 - `Asm … End Asm` — inline x64 assembly with `In`/`Out` bindings
+- `Select`/`Switch`/`SelectChannel` … `End <kw>` — additional block terminators the scanner
+  must balance even though they emit no symbols
 - `Using Arena a` … `End Using`, `Try`/`Catch`/`Finally`, `Ref(Of T)`/`Weak(Of T)`
 
 Comments are `'`, `#`, or `//`. There is **no doc-comment convention** (no `'''` equivalent).
@@ -97,7 +133,7 @@ A directory module, split by concern rather than one oversized file:
 | Construct | kind | metadata |
 |---|---|---|
 | `Namespace A.B` | `namespace` | nests; prefixes every FQN inside |
-| `Function F(…) As R` | `function` | params with binding mode, return type, nullable flag, generic params; a first parameter named `this` also emits `Contains` Type→Function (MiniLang's method convention) |
+| `Function F(…) As R` / `Sub S(…)` | `function` | `is_sub` flag, access modifier, params with binding mode, return type, nullable flag, generic params with constraints, `throws` type; a first parameter named `this` also emits `Contains` Type→Function (MiniLang's method convention) |
 | `Type T` with `X As Int` rows | `struct` | fields; `Ref(Of T)` vs `Weak(Of T)` marked strong/weak |
 | `Type T` with variant rows | `union` | variant names and payload arity |
 | `Enum E` | `enum` | members with explicit values |
@@ -115,6 +151,7 @@ A directory module, split by concern rather than one oversized file:
 | calls — plain, `Call f(x)`, `Spawn [Detached] Call f(x)`, qualified `Std.X.Y Of Int(…)` | `calls` | enclosing function → callee FQN; metadata flags spawn/detached/priority/generic args |
 | `Include "x.ml"` | `includes_file` | file → file, resolved relative to the includer |
 | `Type T Implements I` | `implements_interface` | struct/union → interface |
+| `Function F(…) Throws E` | `dependency` | function → error type, metadata `relation=throws`. 1,000+ in the stdlib; makes "what can this fail with" answerable |
 | `Unsafe(RawPtr, Ffi)` | `dependency` | function → capability, metadata lists granted capabilities |
 | `Send`/`Receive`/`Close`/`NewChannel(Of T)` | `calls` | plus `concurrency=channel`, element type |
 | `Std.Vector.*128/256/512 Of T` | `calls` | plus `simd_width`, `lane_type` |
@@ -162,8 +199,8 @@ explicit no-analogue finding.
 | Site | Why |
 |---|---|
 | `business_logic_service.rs` `detect_language` | `.ml` currently resolves to `"vb"` *by accident* — the fallback sniffs for `End Function`, which MiniLang has. It works by luck and misreads `End Type`/`End Match`/`End Ui`. Needs an explicit `"ml"` branch. |
-| `full_project_migration_service.rs` | New `extract_ml_method_body`: `End Function` depth tracking, no `Sub`, no access modifiers, aware of `End Type`/`End Namespace` |
-| `business_logic_service.rs` `extract_method_names` | New `ML_METHOD_NAME_RE`. Must **not** match first-class-function field rows such as `Mapper As Function(T) As R` |
+| `full_project_migration_service.rs` | New `extract_ml_method_body`: `End Function`/`End Sub` depth tracking with optional `Public`/`Private`, tolerant of an `Of T, U` clause before the parameter list, and of nested `End Type`/`End Unsafe`/`End Using`/`End Match` blocks |
+| `business_logic_service.rs` `extract_method_names` | New `ML_METHOD_NAME_RE` matching `Function`/`Sub` with optional access modifier, name captured independently of a following `Of` clause. Must **not** match first-class-function type annotations such as `Mapper As Function(T) As R` |
 | `gates.rs` `complexity_gate_ext` | `.ml`/`.mlinc` → `Some(true)` (End-Function terminator style). Without this, gate 16 (complexity/params) silently skips every MiniLang file |
 | `gates.rs` `check_style_compliance` | MiniLang style flag alongside `is_vb` / `is_csharp` / `is_ts_js` |
 | `planning_tools.rs` `interface_pair_candidates` | Add `.ml` — `Std.IO.IStream.ml` is a real interface file following the paired-file convention |
