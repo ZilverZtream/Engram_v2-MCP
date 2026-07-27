@@ -15,6 +15,7 @@ pub mod decls;
 pub mod ui;
 
 use crate::parsing::{ExtractedEdge, ExtractedSymbol};
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 /// Block keywords that open a nesting level. Every one is closed by
@@ -189,6 +190,20 @@ pub fn extract_ml(
     let mut edges: Vec<ExtractedEdge> = Vec::new();
     let mut stack: Vec<OpenBlock> = Vec::new();
     let mut top_level_lines: Vec<(u32, String)> = Vec::new();
+    // How many UI elements of a given keyword have already opened under a
+    // given parent scope (keyed by the parent's fqn, or "" for root-level
+    // elements) — same-type siblings are the common case in the real
+    // corpus (a single `Panel` commonly holds several `Label`s/`Switch`es;
+    // `examples/ui/declarative_switch_png.ml` has 4 Labels and 3 Switches
+    // under one Panel), and ancestry alone does not distinguish them.
+    let mut ui_child_counts: HashMap<(String, &'static str), usize> = HashMap::new();
+    // Defensive de-duplication for `contains_ui` edges, matching the
+    // convention in `layout_extractor.rs` — each (parent, child) pair is
+    // already unique once `ui_child_counts` disambiguates same-type
+    // siblings' fqns, since this single-pass scanner visits each element
+    // line exactly once, but this is cheap insurance against ever
+    // double-emitting the same edge.
+    let mut seen_contains_ui: HashSet<(String, String)> = HashSet::new();
 
     for (idx, raw_line) in source.lines().enumerate() {
         let line_no = (idx + 1) as u32;
@@ -271,21 +286,36 @@ pub fn extract_ml(
 
         let opener = block_opener(trimmed);
 
+        // Rows directly inside a Type/Enum/Interface body (fields,
+        // variants, members) are a flat member list, NEVER nested block
+        // declarations — regardless of what `block_opener` returns for
+        // them. This matters even when `block_opener` DOES match a
+        // keyword: a field literally named after a block keyword (real
+        // corpus shape: `Type Box { Label As Str }` in 8 files under
+        // `tests/conformance/`, where `Label` collides with the `Ui` DSL's
+        // `Label` element) would otherwise be treated as a genuine opener
+        // — fabricating a `control`/etc. symbol that does not exist, and
+        // pushing a phantom `OpenBlock` with no matching `End Label` in
+        // the source, corrupting the stack until the enclosing `End Type`
+        // line wrongly closes IT instead of the real `Type` block. Every
+        // such row is already fully classified from `body` in
+        // `open_declaration` when the ENCLOSING Type/Enum/Interface line
+        // was processed; there is nothing more to do with it here.
+        let in_declaration_body = matches!(
+            stack.last().map(|b| b.keyword.as_str()),
+            Some("Type") | Some("Enum") | Some("Interface")
+        );
+
         // Statement lines (everything that opens no block) contribute call
         // edges attributed to the innermost enclosing function. Rows
-        // directly inside a Type/Enum/Interface body (fields, variants,
-        // members — already classified from `body` in `open_declaration`)
-        // are NOT statements and must be skipped here, exactly as they were
-        // before this scanner existed: without this guard, a field row like
-        // `Mapper As Function(T) As R` has no block opener either, so it
-        // would fall into this branch, find no enclosing Function/Sub, and
-        // be misfiled as a top-level program statement — fabricating a
-        // `<module>` entry symbol in files that declare no such thing.
+        // directly inside a Type/Enum/Interface body must be skipped here
+        // too, exactly as they were before this scanner existed: without
+        // this guard, a field row like `Mapper As Function(T) As R` has no
+        // block opener either, so it would fall into this branch, find no
+        // enclosing Function/Sub, and be misfiled as a top-level program
+        // statement — fabricating a `<module>` entry symbol in files that
+        // declare no such thing.
         if opener.is_none() {
-            let in_declaration_body = matches!(
-                stack.last().map(|b| b.keyword.as_str()),
-                Some("Type") | Some("Enum") | Some("Interface")
-            );
             if in_declaration_body {
                 // A field/variant/member row: not a statement, not a
                 // declaration opener. Already accounted for by `body` in
@@ -360,6 +390,16 @@ pub fn extract_ml(
             continue;
         };
 
+        if in_declaration_body {
+            // A field/variant/member row whose name happens to collide
+            // with a block keyword (see the comment above `opener`'s
+            // computation) — not a real opener. Skip the entire
+            // keyword-specific dispatch below (Unsafe/UI element/Asm/
+            // generic declaration) and do not push anything onto the
+            // stack for it.
+            continue;
+        }
+
         if keyword == "Unsafe" {
             if let Some(caps) = bodies::unsafe_capabilities(trimmed) {
                 if let Some(owner) = stack
@@ -392,9 +432,23 @@ pub fn extract_ml(
                 .rev()
                 .find(|b| ui::UI_ELEMENTS.contains(&b.keyword.as_str()))
                 .map(|b| b.fqn.clone());
-            let fqn = match &parent {
+            let base_fqn = match &parent {
                 Some(p) => format!("{p}.{keyword}"),
                 None => format!("{stem}.{keyword}"),
+            };
+            // Disambiguate same-type siblings under the same parent (the
+            // common case in the real corpus — see `ui_child_counts`'s
+            // doc comment above). The first occurrence keeps the plain
+            // name; the 2nd, 3rd, … get a trailing ordinal.
+            let scope_key = (parent.clone().unwrap_or_default(), keyword);
+            let ordinal = ui_child_counts
+                .entry(scope_key)
+                .and_modify(|n| *n += 1)
+                .or_insert(1);
+            let fqn = if *ordinal == 1 {
+                base_fqn
+            } else {
+                format!("{base_fqn}{ordinal}")
             };
             let mut sym = ui::ui_symbol(keyword, &fqn, line_no);
             if keyword == "Ui" {
@@ -420,17 +474,23 @@ pub fn extract_ml(
             let symbol_idx = Some(symbols.len() - 1);
 
             if let Some(p) = parent {
-                edges.push(ExtractedEdge {
-                    source_name: p,
-                    source_kind: "ui_container".to_string(),
-                    source_start_line: 0,
-                    source_language: "ml".to_string(),
-                    target_name: fqn.clone(),
-                    target_kind: Some("control".to_string()),
-                    target_start_line: Some(line_no),
-                    kind: "contains_ui".to_string(),
-                    metadata: None,
-                });
+                if seen_contains_ui.insert((p.clone(), fqn.clone())) {
+                    edges.push(ExtractedEdge {
+                        source_name: p,
+                        source_kind: "ui_container".to_string(),
+                        // The line where this containment was observed —
+                        // the child's own opening line — matching house
+                        // convention (`layout_extractor.rs`'s `contains_ui`
+                        // edges use the child's line, not a sentinel).
+                        source_start_line: line_no,
+                        source_language: "ml".to_string(),
+                        target_name: fqn.clone(),
+                        target_kind: Some("control".to_string()),
+                        target_start_line: Some(line_no),
+                        kind: "contains_ui".to_string(),
+                        metadata: None,
+                    });
+                }
             }
 
             stack.push(OpenBlock {
