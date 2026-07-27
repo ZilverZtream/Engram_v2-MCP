@@ -1618,6 +1618,13 @@ impl HybridSearchEngine {
                             crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
+                        } else if matches!(ext_lower.as_deref(), Some("ml" | "mlinc")) {
+                            // MiniLang. Takes BOTH paths: the absolute one to
+                            // stat conformance-golden siblings, the
+                            // project-relative one to build edge targets —
+                            // absolute edge targets are rejected by the
+                            // ingest safety check.
+                            crate::ml_extractor::extract_ml(p, arc_rel.as_str(), &text)
                         } else if ext_lower.as_deref() == Some("cs") {
                             crate::cs_extractor::extract_cs(p, &text)
                         } else if ext_lower.as_deref() == Some("asp") {
