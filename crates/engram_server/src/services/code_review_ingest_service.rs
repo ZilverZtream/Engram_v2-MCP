@@ -1622,6 +1622,7 @@ pub fn infer_language(file_path: &str) -> String {
         "js" | "jsx" | "mjs" => "javascript".into(),
         "vb" => "vbnet".into(),
         "cs" => "csharp".into(),
+        "ml" | "mlinc" => "minilang".into(),
         "go" => "go".into(),
         "java" => "java".into(),
         "sql" => "sql".into(),
