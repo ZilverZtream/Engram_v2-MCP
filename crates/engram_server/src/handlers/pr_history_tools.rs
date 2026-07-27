@@ -88,7 +88,7 @@ pub(crate) fn classify_domains(files: &[String]) -> Vec<String> {
 /// (settings) — without a curated taxonomy that would rot.
 pub(crate) fn classify_kinds(files: &[String]) -> Vec<String> {
     let mut kinds: Vec<&'static str> = Vec::new();
-    let mut add = |k: &'static str, kinds: &mut Vec<&'static str>| {
+    let add = |k: &'static str, kinds: &mut Vec<&'static str>| {
         if !kinds.contains(&k) {
             kinds.push(k);
         }
@@ -171,6 +171,107 @@ pub(crate) fn render_pr_doc(
         md.push_str(&format!("... and {} more\n", files.len() - 60));
     }
     md
+}
+
+/// Layer profile of a pr-doc `kinds:` value: (touches_client, touches_server).
+/// Client = ui-code/ui-markup/js; server = backend/api/database. `settings`
+/// and `resources` are layer-neutral (both sides ship them).
+pub(crate) fn layer_profile(kinds_line: &str) -> (bool, bool) {
+    let mut client = false;
+    let mut server = false;
+    for k in kinds_line.split(',').map(str::trim) {
+        match k {
+            "ui-code" | "ui-markup" | "js" => client = true,
+            "backend" | "api" | "database" => server = true,
+            _ => {}
+        }
+    }
+    (client, server)
+}
+
+/// Epoch seconds at 00:00:00 UTC of a `YYYY-MM-DD` date (shape validated by
+/// the caller; impossible day-of-month values are accepted like `date -u`
+/// would normalize them — the callers only need a monotonic cutoff).
+/// Hinnant's days_from_civil; no chrono dependency. Lets `merged_before`
+/// cutoffs ride the indexed `timestamp` field INSIDE the query instead of
+/// post-ranking display filtering — post-cutoff docs were eating the top_k
+/// slots, so the survivors shifted whenever the corpus gained newer PRs
+/// (live 2026-07-10: PR1913 replay picked different exemplars after a
+/// corpus backfill added two months of PRs).
+pub(crate) fn ymd_to_epoch_secs(ymd: &str) -> Option<u64> {
+    let y: i64 = ymd.get(0..4)?.parse().ok()?;
+    let m: i64 = ymd.get(5..7)?.parse().ok()?;
+    let d: i64 = ymd.get(8..10)?.parse().ok()?;
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    u64::try_from(days * 86_400).ok()
+}
+
+/// Compact view of a `pr:` history doc for embedding in a dossier. A plain
+/// char-head is the WRONG cut here: the doc layout is title/meta → body
+/// (≤600 chars) → file cohort, so a 500-char head usually ends before the
+/// cohort — the one part that shows the SHAPE of an approved change (and
+/// the part agents won't fetch via a follow-up call; utilization-wall
+/// lesson). Keep the title + meta line, the first two body lines, and the
+/// cohort capped at `max_files` with a folded overflow count.
+pub(crate) fn exemplar_view(content: &str, max_files: usize) -> String {
+    let mut out = String::new();
+    let mut body_lines = 0usize;
+    let mut in_cohort = false;
+    let mut shown_files = 0usize;
+    let mut extra_files = 0usize;
+    for (i, line) in content.lines().enumerate() {
+        if i == 0 || line.starts_with("merged: ") {
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if line.starts_with("## Files shipped together") {
+            in_cohort = true;
+            out.push_str(line);
+            out.push('\n');
+            continue;
+        }
+        if in_cohort {
+            if line.starts_with("- ") {
+                if shown_files < max_files {
+                    out.push_str(line);
+                    out.push('\n');
+                    shown_files += 1;
+                } else {
+                    extra_files += 1;
+                }
+            } else if let Some(n) = line
+                .strip_prefix("... and ")
+                .and_then(|r| r.split_whitespace().next())
+                .and_then(|s| s.parse::<usize>().ok())
+            {
+                // Fold the doc's own overflow marker into ours.
+                extra_files += n;
+            }
+        } else if body_lines < 2 {
+            // Body: first two CONTENT lines. Heading-only lines are PR
+            // description-template artifacts ("###Task/work completed",
+            // "## How to test") — labels, not prose; skip them.
+            let t = line.trim();
+            if !t.is_empty() && !t.starts_with('#') {
+                out.push_str(line);
+                out.push('\n');
+                body_lines += 1;
+            }
+        }
+    }
+    if extra_files > 0 {
+        out.push_str(&format!("... and {extra_files} more\n"));
+    }
+    out
 }
 
 impl Engram {
@@ -425,6 +526,28 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let top = req.top.clamp(1, 10);
 
+        let merged_before = req
+            .merged_before
+            .as_deref()
+            .map(str::trim)
+            .filter(|d| !d.is_empty())
+            .map(str::to_string);
+        if let Some(d) = &merged_before
+            && (d.len() != 10
+                || !d.chars().enumerate().all(|(i, c)| {
+                    if i == 4 || i == 7 {
+                        c == '-'
+                    } else {
+                        c.is_ascii_digit()
+                    }
+                }))
+        {
+            return Err(McpError::invalid_params(
+                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
+                None,
+            ));
+        }
+
         let q = engram_index::HybridQuery {
             project_id: req.project_id.clone(),
             namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
@@ -438,7 +561,14 @@ impl Engram {
             language_filters: None,
             author_filter: None,
             date_after: None,
-            date_before: None,
+            // Cutoff INSIDE the query (strictly before the date): post-cutoff
+            // docs must not eat top_k slots, or the survivors shift whenever
+            // the corpus gains newer PRs. The display-time string check below
+            // stays as belt-and-braces.
+            date_before: merged_before
+                .as_deref()
+                .and_then(ymd_to_epoch_secs)
+                .map(|s| s.saturating_sub(1)),
             use_mmr: false,
         };
         let engine = ps.search.clone();
@@ -463,27 +593,6 @@ impl Engram {
             .map(str::trim)
             .filter(|k| !k.is_empty())
             .map(str::to_lowercase);
-        let merged_before = req
-            .merged_before
-            .as_deref()
-            .map(str::trim)
-            .filter(|d| !d.is_empty())
-            .map(str::to_string);
-        if let Some(d) = &merged_before
-            && (d.len() != 10
-                || !d.chars().enumerate().all(|(i, c)| {
-                    if i == 4 || i == 7 {
-                        c == '-'
-                    } else {
-                        c.is_ascii_digit()
-                    }
-                }))
-        {
-            return Err(McpError::invalid_params(
-                format!("merged_before must be YYYY-MM-DD, got '{d}'"),
-                None,
-            ));
-        }
         let mut out = format!(
             "# How similar approved work was done — '{}'{}\n",
             req.story,
@@ -636,5 +745,106 @@ mod tests {
         assert!(doc.contains("# PR-9: Add department field"));
         assert!(doc.contains("files: 70"));
         assert!(doc.contains("... and 10 more"), "{doc}");
+    }
+
+    #[test]
+    fn exemplar_view_reaches_cohort_past_long_body() {
+        // A body near the 600-char render cap: the old 500-char head cut
+        // ended inside it and the cohort never appeared in the dossier.
+        let body = "word ".repeat(115); // ~575 chars
+        let files: Vec<String> = (0..30).map(|i| format!("dir/file{i}.vb")).collect();
+        let doc = render_pr_doc(
+            "PR-9",
+            "Add department field",
+            "dev",
+            1_750_000_000,
+            &body,
+            &["dir".into()],
+            &files,
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(view.contains("# PR-9: Add department field"));
+        assert!(view.contains("merged: "));
+        assert!(
+            view.contains("## Files shipped together"),
+            "cohort header must survive: {view}"
+        );
+        assert!(view.contains("- dir/file0.vb"));
+        assert!(view.contains("- dir/file19.vb"));
+        // 30 files, 20 shown → 10 folded.
+        assert!(!view.contains("- dir/file20.vb"));
+        assert!(view.contains("... and 10 more"), "{view}");
+        // Body capped at two lines: the repeated filler is one long line,
+        // so it appears once, not verbatim-in-full beyond that.
+        assert!(view.len() < doc.len());
+    }
+
+    #[test]
+    fn exemplar_view_folds_doc_overflow_marker() {
+        // Doc itself capped at 60 with "... and 10 more"; viewing at 20
+        // must fold both remainders: 40 hidden here + 10 already folded.
+        let files: Vec<String> = (0..70).map(|i| format!("dir/file{i}.vb")).collect();
+        let doc = render_pr_doc(
+            "PR-9",
+            "t",
+            "dev",
+            1_750_000_000,
+            "",
+            &["dir".into()],
+            &files,
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(view.contains("... and 50 more"), "{view}");
+    }
+
+    #[test]
+    fn layer_profile_classifies_kinds_lines() {
+        use super::layer_profile;
+        assert_eq!(
+            layer_profile("api, backend, ui-code, ui-markup"),
+            (true, true)
+        );
+        assert_eq!(layer_profile("js"), (true, false));
+        assert_eq!(layer_profile("backend, database"), (false, true));
+        // Layer-neutral kinds alone -> neither side.
+        assert_eq!(layer_profile("settings, resources"), (false, false));
+        assert_eq!(layer_profile("-"), (false, false));
+    }
+
+    #[test]
+    fn ymd_to_epoch_round_trips_with_ymd_utc() {
+        use super::ymd_to_epoch_secs;
+        assert_eq!(ymd_to_epoch_secs("1970-01-01"), Some(0));
+        for d in ["2000-02-29", "2026-05-14", "2026-12-31", "2024-03-01"] {
+            let secs = ymd_to_epoch_secs(d).expect(d);
+            assert_eq!(crate::utils::ymd_utc(secs * 1000), d, "round-trip {d}");
+        }
+        assert!(ymd_to_epoch_secs("garbage").is_none());
+        assert!(ymd_to_epoch_secs("2026-13-01").is_none());
+        assert!(ymd_to_epoch_secs("2026-00-10").is_none());
+    }
+
+    #[test]
+    fn exemplar_view_skips_template_heading_lines_in_body() {
+        // ADO PR descriptions carry template headings ("###Task/work
+        // completed") — labels, not prose. The two body slots must go to
+        // content lines (live sighting: PR-1968 exemplar).
+        let body =
+            "###Task/work completed\nFixes tenant filtering.\n### How to test\nAssign a resource.";
+        let doc = render_pr_doc(
+            "PR-9",
+            "t",
+            "dev",
+            1_750_000_000,
+            body,
+            &[],
+            &["a.vb".into()],
+        );
+        let view = exemplar_view(&doc, 20);
+        assert!(!view.contains("###Task/work completed"), "{view}");
+        assert!(!view.contains("### How to test"), "{view}");
+        assert!(view.contains("Fixes tenant filtering."));
+        assert!(view.contains("Assign a resource."));
+        assert!(view.contains("- a.vb"));
     }
 }

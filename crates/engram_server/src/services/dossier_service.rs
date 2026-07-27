@@ -1462,7 +1462,7 @@ pub fn format_migration_dossier(d: &MigrationDossier) -> String {
     // Hub pages (shared masters / user controls) are referenced by hundreds
     // of files â€” uncapped lists turned the dossier into a token bomb.
     const DEP_LIST_CAP: usize = 25;
-    let mut capped_list = |title: &str, items: &[String], out: &mut String| {
+    let capped_list = |title: &str, items: &[String], out: &mut String| {
         if items.is_empty() {
             return;
         }

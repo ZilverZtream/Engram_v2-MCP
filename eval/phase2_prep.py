@@ -235,6 +235,58 @@ def expand_families(prov, wt):
     return len(add)
 
 
+_PROV_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wi_provenance.json")
+
+
+def _ac_provenance(wid):
+    """AC/description authorship for a work item, cached to disk so
+    --reuse reruns are deterministic and offline. Returns None on any
+    failure (no PAT, network down) — provenance is an annotation, never
+    a hard dependency."""
+    cache = {}
+    if os.path.exists(_PROV_CACHE_PATH):
+        try:
+            cache = json.load(open(_PROV_CACHE_PATH, encoding="utf-8"))
+        except Exception:
+            cache = {}
+    key = str(wid)
+    if key not in cache:
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "ado_fetch", os.path.join(os.path.dirname(os.path.abspath(__file__)), "ado_fetch.py"))
+            m = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(m)
+            cache[key] = m.workitem_field_provenance(wid)
+            json.dump(cache, open(_PROV_CACHE_PATH, "w", encoding="utf-8"), indent=1)
+        except (Exception, SystemExit):  # ado_fetch sys.exits without a PAT
+            return None
+    return cache.get(key)
+
+
+def _acceptance_label(wi):
+    """Header for the AC block, carrying provenance when known.
+
+    User ruling 2026-07-10: one-liner stories sometimes get ACs
+    back-filled by the implementer (often AI-assisted) after the team
+    wrote the story — the two biggest implementer-authored AC blobs in
+    the eval set sit on exactly the two crater scores (1938=47.6,
+    1913=66.7). Team-authored ACs are spec; back-filled ACs are hints
+    the plan must verify against the description and merged exemplars."""
+    label = "Acceptance"
+    p = _ac_provenance(wi.get("id")) if wi.get("id") else None
+    if p and p.get("acceptance_history"):
+        first = p["acceptance_history"][0]
+        label = f"Acceptance (written by {first['by']} on {first['date']}"
+        if p.get("created_by") and first["by"] != p["created_by"]:
+            label += (f"; the story itself was created by {p['created_by']} — "
+                      "these criteria were back-filled later, treat them as "
+                      "implementer notes to verify against the description and "
+                      "existing merged work, NOT team-committed spec")
+        label += ")"
+    return label
+
+
 def build_dossier(eng, pid, rec, wt):
     """Single source of truth: the native get_change_set tool — the exact
     artifact an agent calls in production. Its markdown IS the dossier the
@@ -245,11 +297,23 @@ def build_dossier(eng, pid, rec, wt):
     Parse its output into prov(canon->signals) for the prov.json dump.
     Returns (md, prov)."""
     s = rec["story"]
-    story = s["title"]
-    if s.get("description"):
-        story += "\n\n" + s["description"]
-    if s.get("acceptance"):
-        story += "\n\nAcceptance:\n" + s["acceptance"]
+    # ALL linked work items, not just [0]: PR1937 was linked to TWO bugs
+    # (691 + 817) describing different symptoms of the same defect cluster;
+    # the convenience fields dropped the second and the missing symptom cost
+    # the eval agent the file-set match. Input parity = everything the dev
+    # could see on the PR's work items.
+    parts = []
+    for wi in s.get("work_items") or [s]:
+        if wi.get("title"):
+            parts.append(wi["title"])
+        if wi.get("description"):
+            parts.append(wi["description"])
+        if wi.get("acceptance"):
+            parts.append(_acceptance_label(wi) + ":\n" + wi["acceptance"])
+        for li in wi.get("linked_items", []) or []:
+            parts.append(f"[linked {li.get('type','item')} {li.get('id','')}] "
+                         f"{li.get('title','')}\n{li.get('description','')}")
+    story = "\n\n".join(p for p in parts if p) or s["title"]
     args = {"project_id": pid, "story": story}
     cd = (rec.get("closed_date") or "")[:10]
     if cd:
@@ -258,6 +322,19 @@ def build_dossier(eng, pid, rec, wt):
     if "TOOL_ERROR" in md:
         print(f"  get_change_set error: {md[:160]}", file=sys.stderr)
         return md, {}
+    # LEAK-SAFETY (2026-07-10): get_change_set's '## Review rules' section
+    # renders fix-exemplar ‹house fix› ```diff blocks pulled from the FULL
+    # antipattern corpus, which is NOT bounded by merged_before — so in an
+    # eval it can leak the PR-under-test's OWN merged fix. Strip those diff
+    # blocks from the saved eval dossier (the one-line rules themselves are
+    # kept; only the concrete leaked hunks are removed). Production is
+    # unaffected — this strip is eval-only. See the iteration-delta-mining
+    # memory's leak-safety caveat.
+    before = md
+    md = re.sub(r"\n\s*‹house fix›\n```diff\n.*?\n```\n", "\n", md, flags=re.S)
+    n_stripped = before.count("‹house fix›") - md.count("‹house fix›")
+    if n_stripped:
+        print(f"  stripped {n_stripped} leaked fix-exemplar hunk(s) from eval dossier")
     prov = {}
     for m in re.finditer(r"^- `([^`]+)`\s*\[([^\]]*)\]", md, re.M):
         c = canon(m.group(1))

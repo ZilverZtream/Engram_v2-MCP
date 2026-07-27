@@ -2,10 +2,45 @@ use std::path::{Path, PathBuf};
 
 fn default_exts() -> Vec<&'static str> {
     vec![
-        "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "c", "cpp",
-        "cc", "cxx", "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx", "ascx", "master",
-        "asmx", "ashx", "svc", "asax", "config", "xml", "html", "htm", "css", "scss", "less",
+        "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "ml",
+        "mlinc", "c", "cpp", "cc", "cxx", "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx",
+        "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "html", "htm", "css",
+        "scss", "less",
     ]
+}
+
+/// Ensure `entry` is listed in `<repo>/.git/info/exclude` — git's
+/// local-only ignore file.
+///
+/// Engram artifacts written into a customer working tree (support-kb/,
+/// CLAUDE.engram.md, CLAUDE.md backups) must never dirty `git status` or
+/// risk being pushed to the customer's remote; teams often cannot modify
+/// the shared .gitignore (live report 2026-07-10: a generated support-kb/
+/// polluted a developer's active branch), so the exclude file is the only
+/// safe channel. Best-effort hygiene: silently no-ops when the directory
+/// is not a git repo, when `.git` is a worktree pointer file, or on any
+/// IO error. Idempotent — an existing entry is never duplicated.
+pub fn ensure_git_excluded(project_dir: &Path, entry: &str) {
+    let git_dir = project_dir.join(".git");
+    if !git_dir.is_dir() {
+        return;
+    }
+    let info = git_dir.join("info");
+    let exclude = info.join("exclude");
+    let existing = std::fs::read_to_string(&exclude).unwrap_or_default();
+    if existing.lines().any(|l| l.trim() == entry) {
+        return;
+    }
+    if std::fs::create_dir_all(&info).is_err() {
+        return;
+    }
+    let mut s = existing;
+    if !s.is_empty() && !s.ends_with('\n') {
+        s.push('\n');
+    }
+    s.push_str(entry);
+    s.push('\n');
+    let _ = std::fs::write(&exclude, s);
 }
 
 /// Return the file extensions to index for a given project_type string.
@@ -41,6 +76,9 @@ fn dotnet_webforms_cs_exts() -> Vec<&'static str> {
         "cs", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "csproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
+        // with endpoint changes (live recall miss: docs/openapi/*.yaml).
+        "yaml", "yml",
     ]
 }
 
@@ -49,6 +87,9 @@ fn dotnet_webforms_vb_exts() -> Vec<&'static str> {
         "vb", "aspx", "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "sln",
         "vbproj", "sql", "rdlc", "rdl", "asp", "rpt", "md", "json", "js", "ts", "jsx", "tsx",
         "mjs", "cjs", "html", "htm", "css", "scss", "less", "resx",
+        // OpenAPI/Swagger specs + CI pipelines: contract documents that ship
+        // with endpoint changes (live recall miss: docs/openapi/*.yaml).
+        "yaml", "yml",
     ]
 }
 
@@ -77,6 +118,18 @@ fn c_exts() -> Vec<&'static str> {
     ]
 }
 
+/// MiniLang projects. A MiniLang compiler repository is polyglot: MiniLang
+/// stdlib and tests (`ml`/`mlinc`), the compiler itself (VB.NET or C#), and
+/// C/Rust/Go external-ABI fixtures. Conformance tests pair each source file
+/// with `expected`/`error`/`exitcode` goldens, which the extractor links via
+/// `test_oracle` edges.
+fn minilang_exts() -> Vec<&'static str> {
+    vec![
+        "ml", "mlinc", "expected", "error", "exitcode", "vb", "vbproj", "sln", "cs", "csproj", "c",
+        "rs", "go", "ps1", "sh", "md", "json", "yaml", "yml", "txt", "snapshot",
+    ]
+}
+
 /// Exhaustive, enum-dispatched variant for use with validated `ProjectType` input.
 ///
 /// ENG-AUD-2026-EXH-P1-0001: new indexing paths receive a `ProjectType` enum
@@ -92,6 +145,7 @@ pub fn exts_for_project_type_enum(pt: crate::models::ProjectType) -> Vec<&'stati
         ProjectType::CSharp => csharp_exts(),
         ProjectType::Cpp => cpp_exts(),
         ProjectType::C => c_exts(),
+        ProjectType::MiniLang => minilang_exts(),
     }
 }
 
@@ -395,5 +449,44 @@ mod tests {
     fn rejects_pathological_pattern_lengths() {
         let huge_pat = "*".repeat(4_096);
         assert!(!pattern_match("src/file.rs", &huge_pat));
+    }
+
+    #[test]
+    fn minilang_project_type_round_trips_and_indexes_ml() {
+        use crate::models::ProjectType;
+
+        // Registry strings and aliases all resolve to the MiniLang variant.
+        for raw in ["minilang", "MiniLang", "mini_lang", "ml"] {
+            assert_eq!(
+                ProjectType::from_registry_str(raw),
+                Some(ProjectType::MiniLang),
+                "registry string {raw:?} should resolve to MiniLang"
+            );
+        }
+        assert_eq!(ProjectType::MiniLang.as_str(), "minilang");
+
+        // The preset indexes MiniLang source, its goldens, and the polyglot
+        // compiler sources that live alongside it.
+        let exts = exts_for_project_type_enum(ProjectType::MiniLang);
+        for required in [
+            "ml", "mlinc", "expected", "error", "exitcode", "vb", "cs", "rs",
+        ] {
+            assert!(
+                exts.contains(&required),
+                "MiniLang preset must index {required:?}"
+            );
+        }
+
+        // Goldens are MiniLang-only: their names are too generic for other repos.
+        let general = exts_for_project_type_enum(ProjectType::General);
+        assert!(general.contains(&"ml"), "general preset must index .ml");
+        assert!(
+            general.contains(&"mlinc"),
+            "general preset must index .mlinc"
+        );
+        assert!(
+            !general.contains(&"expected"),
+            "general preset must NOT index .expected"
+        );
     }
 }
