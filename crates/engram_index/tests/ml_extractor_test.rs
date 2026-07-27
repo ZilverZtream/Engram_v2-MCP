@@ -1440,3 +1440,118 @@ End Ui
         "contains_ui edges must target distinct Label fqns, got {distinct_targets:?}"
     );
 }
+
+#[test]
+fn inline_type_method_gets_its_own_frame_not_swallowed_by_the_type() {
+    // MLH-2080: `Type` bodies may declare methods with full bodies (real
+    // corpus shape, `tests/negative/syntax/inline_type_method_reserved_this.ml`).
+    // Round-1's fix for the `Label As Str` field-name collision (CRITICAL 1)
+    // over-corrected: it unconditionally skipped EVERY block-opener match
+    // inside a Type body, including a genuine `Function` declaration. Since
+    // nothing was pushed for it, its own `End Function` popped the
+    // enclosing `Type` frame instead -- truncating the Type's `end_line`
+    // and desyncing the stack into the following `End Type`.
+    let src = "\
+Type Job
+    value As Int
+
+    Function Bad(this As Int) As Int
+        Return this
+    End Function
+End Type
+";
+    let (syms, _) = run(src);
+
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function" && s.name == "Job.Bad")
+        .expect("inline method must produce its own function symbol");
+    assert_eq!(f.start_line, 4);
+    assert_eq!(f.end_line, 6, "the method's own End Function, not End Type");
+
+    let t = syms
+        .iter()
+        .find(|s| s.name == "Job" && (s.kind == "struct" || s.kind == "union"))
+        .expect("Type Job symbol");
+    assert_eq!(
+        t.end_line, 7,
+        "the Type's real End Type line, not truncated by the inline method's End Function"
+    );
+}
+
+#[test]
+fn type_with_inline_methods_classifies_as_struct_with_methods_as_own_symbols() {
+    // Real corpus shape (`tests/conformance/interfaces/test_mlh2080_type_inline_methods.ml`):
+    // `Type BuildJob` declares 2 fields and 3 inline methods (MLH-2080).
+    // Before this fix, `collect_block_body` handed the Type classifier
+    // EVERY line inside the block, including each method's declaration
+    // and statement body -- `Function Cost(extra As Int) As Int` was
+    // misread as a variant (its `lhs` contains `(`) and `Return weight *
+    // 2 + extra` as another, polluting `variants` with junk like
+    // `Function/1`/`Return/0`. `collect_type_member_rows` now excludes a
+    // method's declaration line and its whole body from the member rows
+    // handed to the classifier.
+    let src = "\
+Namespace InlineMethodModel
+    Interface IInlineJob
+        Function Cost(extra As Int) As Int
+        Function Label() As Str
+    End Interface
+
+    Type BuildJob Implements IInlineJob
+        name As Str
+        weight As Int
+
+        Function Cost(extra As Int) As Int
+            Return weight * 2 + extra
+        End Function
+
+        Function Label() As Str
+            Return name
+        End Function
+
+        Function Shadow(weight As Int) As Int
+            Return weight + this.weight
+        End Function
+    End Type
+End Namespace
+";
+    let (syms, _) = run(src);
+
+    // The bare Interface signature rows must not fabricate anything:
+    // they collide with the same `Function` keyword but have no body and
+    // no matching `End Function` of their own.
+    let iface = syms
+        .iter()
+        .find(|s| s.kind == "interface" && s.name == "InlineMethodModel.IInlineJob")
+        .expect("Interface symbol");
+    assert_eq!(iface.end_line, 5);
+
+    let t = syms
+        .iter()
+        .find(|s| s.name == "InlineMethodModel.BuildJob")
+        .expect("BuildJob Type symbol");
+    assert_eq!(t.kind, "struct");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("fields").map(String::as_str),
+        Some("name:Str||weight:Int")
+    );
+    assert_eq!(
+        m.get("variants"),
+        None,
+        "no method row must survive into variants metadata, got {m:?}"
+    );
+
+    for method in ["Cost", "Label", "Shadow"] {
+        let fqn = format!("InlineMethodModel.BuildJob.{method}");
+        assert!(
+            syms.iter().any(|s| s.kind == "function" && s.name == fqn),
+            "expected inline method symbol {fqn}, got {:?}",
+            syms.iter()
+                .filter(|s| s.kind == "function")
+                .map(|s| &s.name)
+                .collect::<Vec<_>>()
+        );
+    }
+}
