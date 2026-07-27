@@ -336,7 +336,6 @@ pub fn extract_ml(
     rel_path: &str,
     source: &str,
 ) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-    let _ = abs_path; // used from Task 7 onward for golden pairing
     let mut symbols: Vec<ExtractedSymbol> = Vec::new();
     let mut edges: Vec<ExtractedEdge> = Vec::new();
     let mut stack: Vec<OpenBlock> = Vec::new();
@@ -768,7 +767,42 @@ pub fn extract_ml(
         });
     }
 
+    emit_golden_oracle_edges(abs_path, rel_path, &mut edges);
+
     (symbols, edges)
+}
+
+/// Link a conformance-test source to its golden sidecars.
+///
+/// The sibling is stat'd before an edge is emitted. Emitting purely from
+/// the naming convention would mint phantom file targets for the thousands
+/// of `.ml` files that have no golden.
+fn emit_golden_oracle_edges(abs_path: &Path, rel_path: &str, edges: &mut Vec<ExtractedEdge>) {
+    const ORACLES: &[&str] = &["expected", "error", "exitcode"];
+    let rel = rel_path.replace('\\', "/");
+    let Some(rel_stem) = rel
+        .strip_suffix(".ml")
+        .or_else(|| rel.strip_suffix(".mlinc"))
+    else {
+        return;
+    };
+    for oracle in ORACLES {
+        let sibling = abs_path.with_extension(oracle);
+        if !sibling.is_file() {
+            continue;
+        }
+        edges.push(ExtractedEdge {
+            source_name: rel.clone(),
+            source_kind: "file".to_string(),
+            source_start_line: 0,
+            source_language: "ml".to_string(),
+            target_name: format!("{rel_stem}.{oracle}"),
+            target_kind: Some("file".to_string()),
+            target_start_line: None,
+            kind: "test_oracle".to_string(),
+            metadata: decls::meta(&[("oracle", (*oracle).to_string())]),
+        });
+    }
 }
 
 /// File stem of a project-relative path: `src/Lib/Badge.ml` → `Badge`.
