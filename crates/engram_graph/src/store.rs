@@ -115,6 +115,9 @@ pub enum EdgeKind {
     InheritsFrom,
     /// Class implements an interface (C# `: IFoo`, VB `Implements IFoo`).
     Implements,
+    /// A conformance-test source file paired with its golden output sidecar
+    /// (`foo.ml` → `foo.expected` / `foo.error`).
+    TestOracle,
 }
 
 impl EdgeKind {
@@ -162,6 +165,7 @@ impl EdgeKind {
         EdgeKind::ReadsSetting,
         EdgeKind::InheritsFrom,
         EdgeKind::Implements,
+        EdgeKind::TestOracle,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -209,6 +213,7 @@ impl EdgeKind {
             EdgeKind::ReadsSetting => "reads_setting",
             EdgeKind::InheritsFrom => "inherits_from",
             EdgeKind::Implements => "implements_interface",
+            EdgeKind::TestOracle => "test_oracle",
         }
     }
 
@@ -257,6 +262,7 @@ impl EdgeKind {
             "reads_setting" => Some(EdgeKind::ReadsSetting),
             "inherits_from" => Some(EdgeKind::InheritsFrom),
             "implements_interface" => Some(EdgeKind::Implements),
+            "test_oracle" => Some(EdgeKind::TestOracle),
             _ => None,
         }
     }
@@ -2916,7 +2922,8 @@ mod tests {
                 | EdgeKind::ObservedRuntimeSql
                 | EdgeKind::ReadsSetting
                 | EdgeKind::InheritsFrom
-                | EdgeKind::Implements => all_set.contains(&ek),
+                | EdgeKind::Implements
+                | EdgeKind::TestOracle => all_set.contains(&ek),
             }
         };
 
@@ -2928,7 +2935,7 @@ mod tests {
             );
         }
 
-        let variant_count = 43;
+        let variant_count = 44;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,
@@ -3351,5 +3358,15 @@ mod tests {
             .expect("find_ui_paths");
         assert!(!paths.is_empty());
         assert!(paths[0].iter().any(|n| n.node_type == "db_table"));
+    }
+
+    #[test]
+    fn test_oracle_edge_kind_round_trips() {
+        assert_eq!(EdgeKind::TestOracle.as_str(), "test_oracle");
+        assert_eq!(EdgeKind::parse("test_oracle"), Some(EdgeKind::TestOracle));
+        assert!(
+            EdgeKind::ALL.contains(&EdgeKind::TestOracle),
+            "TestOracle must be in ALL or count-by-kind reporting silently omits it"
+        );
     }
 }

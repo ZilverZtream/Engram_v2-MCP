@@ -905,6 +905,7 @@ pub async fn process_ingest_stats(
             "spatial_call" => engram_graph::EdgeKind::SpatialCall,
             "state_affinity" => engram_graph::EdgeKind::StateAffinity,
             "injects_script" => engram_graph::EdgeKind::InjectsScript,
+            "test_oracle" => engram_graph::EdgeKind::TestOracle,
             _ => engram_graph::EdgeKind::Dependency,
         };
 

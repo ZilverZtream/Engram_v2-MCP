@@ -2029,3 +2029,55 @@ End Function
     assert_eq!(f.start_line, 5);
     assert_eq!(f.end_line, 7);
 }
+
+#[test]
+fn golden_siblings_that_exist_produce_oracle_edges() {
+    // The pairing stats the disk, so build a real temp layout.
+    let dir = std::env::temp_dir().join("engram_ml_oracle_test");
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let ml = dir.join("abi_deep_recursion.ml");
+    std::fs::write(&ml, "Say 1\n").expect("write ml");
+    std::fs::write(dir.join("abi_deep_recursion.expected"), "610\n").expect("write expected");
+
+    let (_, edges) = extract_ml(
+        &ml,
+        "tests/conformance/abi/abi_deep_recursion.ml",
+        "Say 1\n",
+    );
+
+    let e = edges
+        .iter()
+        .find(|e| e.kind == "test_oracle")
+        .expect("test_oracle edge");
+    assert_eq!(e.source_name, "tests/conformance/abi/abi_deep_recursion.ml");
+    assert_eq!(
+        e.target_name,
+        "tests/conformance/abi/abi_deep_recursion.expected"
+    );
+    assert_eq!(e.target_kind.as_deref(), Some("file"));
+    assert_eq!(
+        e.metadata
+            .as_ref()
+            .and_then(|m| m.get("oracle"))
+            .map(String::as_str),
+        Some("expected")
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn missing_golden_siblings_produce_no_phantom_edges() {
+    let dir = std::env::temp_dir().join("engram_ml_oracle_none_test");
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    let ml = dir.join("lonely.ml");
+    std::fs::write(&ml, "Say 1\n").expect("write ml");
+
+    let (_, edges) = extract_ml(&ml, "tests/lonely.ml", "Say 1\n");
+    assert!(
+        edges.iter().all(|e| e.kind != "test_oracle"),
+        "a .ml file with no golden must not mint a phantom oracle target"
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
