@@ -209,11 +209,21 @@ explicit no-analogue finding.
 | `code_review_ingest_service.rs` | Language tag `minilang` |
 | `language_diagnostics/` | New `minilang.rs` + `LanguageFamily::MiniLang`, matching the existing `vb.rs` |
 
-**MiniLang diagnostics** (`language_diagnostics/minilang.rs`) covers documented footguns:
-non-`Detached` `Spawn` of a non-terminating fiber (hangs the root scope at exit); definite
-strong-`Ref` self-cycle (MLC6013); bare `Unsafe` granting more capability than the block uses;
-`Send` on a closed channel; `Match` without `Case Else` over an open variant set; raw
-`Std.Memory.Alloc` with no matching `Free` outside an arena scope.
+**MiniLang diagnostics** (`language_diagnostics/minilang.rs`) covers three documented footguns,
+each a single-line regex match: non-`Detached` `Spawn` of a non-terminating fiber (hangs the
+root scope at exit); bare `Unsafe` granting more capability than the block uses; raw
+`Std.Memory.Alloc` with no matching `Free` and no enclosing `Using Arena` scope elsewhere in the
+file.
+
+**Not implemented — follow-up.** The design originally scoped three additional diagnostics; each
+needs real data-flow or enumeration reasoning that a line-level regex scanner cannot provide, so
+they were correctly dropped rather than shipped as unreliable approximations:
+
+| Diagnostic | Why regex is insufficient |
+|---|---|
+| Definite strong-`Ref` self-cycle (MLC6013) | Detecting a cycle requires tracing the reference graph across assignments and struct fields, not matching a single line |
+| `Send` on a closed channel | Whether a channel is closed at a given `Send` depends on flow-sensitive state across prior statements, not the line the `Send` appears on |
+| `Match` without `Case Else` over an open variant set | Requires knowing the full variant set of the matched type and confirming every arm is covered — type-aware enumeration, not text matching |
 
 **No analogue required** — recorded so these are not later mistaken for gaps:
 

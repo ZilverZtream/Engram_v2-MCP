@@ -1832,7 +1832,7 @@ End Function
 #[test]
 fn parallel_for_is_recognized_as_a_for_opener() {
     // Real corpus shape (`tests/conformance/optimizer/test_mlh2270_parallel_for_syntax.ml`,
-    // 60 occurrences across 9 files): `Parallel For …`/`Parallel For Each
+    // 60 occurrences across 21 files): `Parallel For …`/`Parallel For Each
     // …` is MiniLang's explicit MIMD parallel-loop form, closed by the
     // same bare `Next` as an ordinary `For`. This was found DURING this
     // task's own corpus desync measurement, not in the original spec: a

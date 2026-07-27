@@ -550,8 +550,12 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
                     Regex::new(r"(?im)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Sub|Function)\s+(\w+)\s*\(").ok()
                 } else if is_minilang {
                     // Access modifiers optional; the name may be followed by
-                    // an ` Of …` generic clause instead of `(`.
-                    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Sub|Function)\s+(\w+)\s*(?:\(|Of\s)").ok()
+                    // an ` Of …` generic clause instead of `(`. `Func` is
+                    // MiniLang's alternate function-declaration syntax
+                    // (`Func Name(...) -> Type ... End Func`); its parameter
+                    // list still opens with `(`, so the `(?:\(|Of\s)` suffix
+                    // holds for it too.
+                    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Sub|Function|Func)\s+(\w+)\s*(?:\(|Of\s)").ok()
                 } else if is_csharp {
                     Regex::new(r"(?m)^\s*(?:public|private|protected|internal|static|virtual|override|async|sealed|abstract|new|partial)\s+(?:[\w<>\[\],\?\s]+?\s+)?(\w+)\s*\(").ok()
                 } else if is_ts_js {
@@ -4270,6 +4274,38 @@ diff --git a/foo.ml b/foo.ml
         assert!(
             findings.iter().any(|f| f.title.contains("badCaseGeneric")),
             "expected casing finding for the generic method, got {findings:#?}"
+        );
+    }
+
+    #[test]
+    fn style_gate_flags_minilang_casing_through_func_alternate_syntax() {
+        // MiniLang's alternate `Func Name(...) -> Type` declaration syntax
+        // (real corpus: `tests/drafts/seh_phase5_test.ml`) shipped after
+        // this gate's MiniLang MethodNaming arm was written and was never
+        // added to it — a badly-cased `Func` declaration would silently
+        // never be flagged.
+        let diff = "\
+diff --git a/foo.ml b/foo.ml
+--- a/foo.ml
++++ b/foo.ml
+@@ -1,3 +1,4 @@
+ Namespace Foo
+     Func Existing() -> Int
++    Func badCaseFunc(x: Int) -> Int
+     End Func
+ End Namespace
+";
+        let diff_files = parse_unified_diff(diff);
+        let conventions = vec![DetectedConvention {
+            category: ConventionCategory::MethodNaming,
+            value: "PascalCase".into(),
+            sample_count: 20,
+            total_count: 20,
+        }];
+        let findings = check_style_compliance(&diff_files[0], &conventions);
+        assert!(
+            findings.iter().any(|f| f.title.contains("badCaseFunc")),
+            "expected casing finding for the Func-declared method, got {findings:#?}"
         );
     }
 

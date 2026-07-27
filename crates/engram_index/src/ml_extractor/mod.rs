@@ -163,7 +163,7 @@ pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
         }
     }
     // `Parallel For …` / `Parallel For Each …` is MiniLang's explicit MIMD
-    // parallel-loop form (real corpus: 60 occurrences across 9 files under
+    // parallel-loop form (real corpus: 60 occurrences across 21 files under
     // `tests/conformance/optimizer/`, e.g.
     // `test_mlh2270_parallel_for_syntax.ml`'s `Parallel For index = 0 To
     // 511`), closed by the same bare `Next` as an ordinary `For`.
