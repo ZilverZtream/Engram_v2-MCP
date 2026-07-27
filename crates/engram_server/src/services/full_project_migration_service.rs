@@ -1247,6 +1247,127 @@ pub(crate) fn extract_vb_method_body(
     Some((body.to_string(), start_line, end_line, line_count))
 }
 
+/// Extract a MiniLang `Function`/`Sub`/`Func` body by tracking `End
+/// Function` / `End Sub` / `End Func` depth.
+///
+/// MiniLang differs from VB in three ways that matter here: it has no
+/// access-modifier requirement (but `Public`/`Private` are legal), generic
+/// parameters sit BETWEEN the name and the parameter list
+/// (`Function BTreeMap_Get Of K, V(…)`), and bodies nest `End Type` /
+/// `End Unsafe` / `End Using` / `End Match` / `End Repeat` / `End Union`
+/// blocks that must not be counted as function terminators. A `Function`
+/// declared inside a `Type` body (MLH-2080 inline methods) is handled by
+/// the same depth counter that already handles VB's Sub-inside-Function
+/// case: only `Function`/`Sub`/`Func` opens and `End Function`/`End
+/// Sub`/`End Func` closes move the counter, so any enclosing
+/// `Type`/`Namespace`/`Unsafe` block is simply transparent to it — no
+/// special-casing needed.
+///
+/// `Func` (`Func Name(...) -> Type ... End Func`, MiniLang's alternate
+/// function-declaration syntax — see `ml_extractor::is_function_like`) is
+/// handled the same way as `Function`/`Sub` here. NOTE the collision this
+/// creates: `"End Func"` is a literal string prefix of `"End Function"`,
+/// so the own-end check below cannot use a plain `starts_with` on the
+/// built marker — that would let a nested `Function`'s `End Function` line
+/// masquerade as an enclosing `Func`'s own end. See `is_own_end` below.
+pub(crate) fn extract_ml_method_body(
+    content: &str,
+    method_name: &str,
+) -> Option<(String, u32, u32, u32)> {
+    // The name may be followed by `(` or by an ` Of …` generic clause, so
+    // the pattern must not demand an immediate open paren.
+    let pattern = format!(
+        r"(?im)^\s*(?:(?:Public|Private)\s+)?(Function|Sub|Func)\s+{}\s*(?:\(|Of\s)",
+        regex::escape(method_name)
+    );
+    let re = Regex::new(&pattern)
+        .inspect_err(|e| tracing::warn!(method_name, error = %e, "MiniLang method body regex compile failed"))
+        .ok()?;
+    let m = re.find(content)?;
+
+    let start_offset = m.start();
+    // 1-based source line number: number of newlines preceding the match,
+    // plus 1. `content[..start_offset]` always ends exactly at a line
+    // boundary here (m.start() is either 0 or immediately after a `\n`,
+    // since the pattern is anchored on `^`), so `.lines().count()` yields
+    // the count of complete lines before the match — i.e. the 0-based line
+    // index of the match line — and needs `+ 1` to become a 1-based number.
+    let start_line = content[..start_offset].lines().count() as u32 + 1;
+
+    // Determine if it's Sub or Function
+    let cap = re.captures(&content[m.start()..])?;
+    let kind = cap[1].to_string();
+    let upper_kind = kind.to_uppercase();
+
+    // A nested declaration opener. Anchored at line start after optional
+    // access modifiers, so `Mapper As Function(T) As R` never matches.
+    static ML_NESTED_OPEN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)^\s*(?:(?:Public|Private)\s+)?(?:Function|Sub|Func)\s+\w+")
+            .expect("ml_nested_open")
+    });
+
+    let after_start = &content[start_offset..];
+    let match_len = m.end() - m.start();
+    let decl_line_idx = after_start[..match_len.min(after_start.len())]
+        .matches('\n')
+        .count();
+
+    let mut depth = 1i32;
+    let mut end_pos = None;
+    for (i, line) in after_start.lines().enumerate() {
+        if i <= decl_line_idx {
+            continue;
+        }
+        let trimmed = line.trim().to_uppercase();
+
+        // Count nested Function/Sub/Func openings (skip End … lines).
+        // Non-function block openers (Type, Namespace, Unsafe, Using,
+        // Match, Repeat, Union, If) never match ML_NESTED_OPEN_RE, so they
+        // are transparent to this counter — only Function/Sub/Func nesting
+        // affects depth.
+        if !trimmed.starts_with("END ") && ML_NESTED_OPEN_RE.is_match(line.trim()) {
+            depth += 1;
+        }
+
+        // Only Function/Sub/Func terminators change depth — End Type, End
+        // If, End Unsafe, End Using, End Match, End Repeat, End Union are
+        // unrelated nesting and must be ignored.
+        if trimmed.starts_with("END FUNCTION")
+            || trimmed.starts_with("END SUB")
+            || trimmed.starts_with("END FUNC")
+        {
+            depth -= 1;
+            // `"End Func"` is a literal prefix of `"End Function"`
+            // (`"FUNC"` is a prefix of `"FUNCTION"`), so a plain
+            // `trimmed.starts_with(&format!("END {upper_kind}"))` would let
+            // a nested `Function`'s `End Function` line match when
+            // `upper_kind` is `FUNC`, ending the enclosing `Func` early.
+            // Require the marker to be the WHOLE keyword: nothing
+            // alphanumeric may immediately follow it.
+            let marker = format!("END {upper_kind}");
+            let is_own_end = trimmed
+                .strip_prefix(marker.as_str())
+                .is_some_and(|rest| !rest.starts_with(|c: char| c.is_alphanumeric()));
+            if depth == 0 && is_own_end {
+                let line_start = after_start
+                    .lines()
+                    .take(i)
+                    .map(|l| l.len() + 1)
+                    .sum::<usize>();
+                end_pos = Some(start_offset + line_start + line.len());
+                break;
+            }
+        }
+    }
+
+    let end_offset = end_pos.unwrap_or(content.len());
+    let body = &content[start_offset..end_offset];
+    let line_count = body.lines().count() as u32;
+    let end_line = start_line + line_count.saturating_sub(1);
+
+    Some((body.to_string(), start_line, end_line, line_count))
+}
+
 /// Extract C# method body by tracking brace depth.
 /// Handles verbatim strings (`@"..."`), interpolated strings, block/line comments,
 /// and generic return types with commas (`Dictionary<string, int>`).
@@ -1930,7 +2051,7 @@ mod tests {
     // `flag_path.contains(codebehind.unwrap_or(""))`. When the dossier had
     // no detected codebehind the filter degenerated to `.contains("")`
     // which is always true, so the first page without a codebehind dumped
-    // the project-wide VB flag list (~50 KB on OciusX) into a single
+    // the project-wide VB flag list (~50 KB on the pilot corpus) into a single
     // dossier's section.
 
     #[test]
@@ -3022,6 +3143,174 @@ End Function
         assert!(result.is_some());
         let (body, _, _, _) = result.expect("found");
         assert!(body.contains("Return total"));
+    }
+
+    #[test]
+    fn extract_ml_method_body_handles_generics_and_nested_blocks() {
+        let src = "\
+Namespace Std
+    Function BTreeMap_Get Of K As Ordered, V(Borrow tree As Int, key As K) As V Throws Std.LookupError
+        If key > 0
+            Unsafe(RawPtr)
+                Say 1
+            End Unsafe
+        End If
+        Return key
+    End Function
+
+    Function After() As Int
+        Return 1
+    End Function
+End Namespace
+";
+        let (body, start, end, lines) =
+            extract_ml_method_body(src, "BTreeMap_Get").expect("body extracted");
+
+        assert!(body.starts_with("    Function BTreeMap_Get Of K As Ordered"));
+        assert!(body.trim_end().ends_with("End Function"));
+        // Must not run past its own End Function into the next declaration.
+        assert!(
+            !body.contains("After"),
+            "body leaked into the next function"
+        );
+        assert_eq!(start, 2);
+        assert_eq!(end, 9);
+        assert_eq!(lines, 8);
+    }
+
+    #[test]
+    fn extract_ml_method_body_handles_sub_and_access_modifiers() {
+        let src = "\
+Public Sub Install(target As Int)
+    Say target
+End Sub
+";
+        let (body, _, _, _) = extract_ml_method_body(src, "Install").expect("body extracted");
+        assert!(body.contains("Public Sub Install"));
+        assert!(body.trim_end().ends_with("End Sub"));
+    }
+
+    #[test]
+    fn extract_ml_method_body_handles_func_alternate_syntax() {
+        // Real corpus shape (`tests/drafts/seh_phase5_test.ml`): MiniLang's
+        // alternate `Func Name(...) -> Type ... End Func` declaration
+        // syntax. Two sibling `Func` declarations back to back: if the
+        // declaration regex didn't match `Func` at all this returns None;
+        // if the end-marker never fires (e.g. the depth-decrement disjunct
+        // forgot `"END FUNC"`) the extracted body would swallow the second
+        // declaration too.
+        let src = "\
+Func DivideByZero(x: Int) -> Int
+    Throw 999
+    Return x
+End Func
+Func TestNestedTryCatch() -> Int
+    Return 0
+End Func
+";
+        let (body, start, end, lines) =
+            extract_ml_method_body(src, "DivideByZero").expect("body extracted");
+        assert!(body.starts_with("Func DivideByZero(x: Int) -> Int"));
+        assert!(body.trim_end().ends_with("End Func"));
+        assert!(
+            !body.contains("TestNestedTryCatch"),
+            "body leaked into the next Func declaration: {body:?}"
+        );
+        assert_eq!(start, 1);
+        assert_eq!(end, 4);
+        assert_eq!(lines, 4);
+    }
+
+    #[test]
+    fn extract_ml_method_body_func_end_marker_not_confused_by_nested_function() {
+        // The literal string "End Func" is a prefix of "End Function", so a
+        // careless fix could let a nested `Function`'s own `End Function`
+        // terminate the enclosing `Func`'s extraction early once `Func` is
+        // added to the depth-decrement disjunct. Guard against both
+        // failure directions:
+        //   1. The nested `Function`'s open must be tracked (ML_NESTED_OPEN_RE
+        //      now includes `Func`... here the nested item is `Function`,
+        //      which was already tracked, so this exercises the
+        //      depth arithmetic staying balanced through the outer `Func`).
+        //   2. The outer `Func`'s own end must be the LAST "End Func"/"End
+        //      Function" line seen, not the nested one.
+        let src = "\
+Func Outer() -> Int
+    Type Point
+        Function GetX() As Int
+            Return 1
+        End Function
+    End Type
+    Return 0
+End Func
+Func AfterOuter() -> Int
+    Return 2
+End Func
+";
+        let (body, _, end, _) = extract_ml_method_body(src, "Outer").expect("body extracted");
+        assert!(
+            body.trim_end().ends_with("End Func"),
+            "must stop at its OWN End Func, got: {body:?}"
+        );
+        assert!(
+            !body.contains("AfterOuter"),
+            "body leaked past its own End Func into the next declaration: {body:?}"
+        );
+        assert_eq!(end, 8, "end_line must land on Outer's own End Func");
+    }
+
+    #[test]
+    fn extract_ml_method_body_nested_func_inside_function_stays_balanced() {
+        // The reverse nesting: a `Function` containing a nested `Func`
+        // declaration (MLH-2080-style inline-method shape generalized to
+        // the alternate syntax). If ML_NESTED_OPEN_RE did not track `Func`
+        // opens, the nested `End Func` would still decrement depth (it
+        // matches the "END FUNC" disjunct) without a matching increment,
+        // driving depth to 0 prematurely and permanently desyncing the
+        // counter — the real `End Function` would then never be seen at
+        // depth 0, and the body would over-capture to end of file.
+        let src = "\
+Function Outer() As Int
+    Func Inner() -> Int
+        Return 1
+    End Func
+    Return 0
+End Function
+Function AfterOuter() As Int
+    Return 2
+End Function
+";
+        let (body, _, end, _) =
+            extract_ml_method_body(src, "Outer").expect("body extracted");
+        assert!(
+            body.trim_end().ends_with("End Function"),
+            "must stop at its own End Function, got: {body:?}"
+        );
+        assert!(
+            !body.contains("AfterOuter"),
+            "body over-captured past its own End Function: {body:?}"
+        );
+        assert_eq!(end, 6, "end_line must land on Outer's own End Function");
+    }
+
+    #[test]
+    fn extract_ml_method_body_ignores_function_type_annotations() {
+        // `Mapper As Function(T) As R` must not be mistaken for a declaration
+        // of a function named Mapper.
+        let src = "\
+Type Cursor Of T, R
+    Mapper As Function(T) As R
+End Type
+Function Mapper(x As Int) As Int
+    Return x
+End Function
+";
+        let (body, start, _, _) = extract_ml_method_body(src, "Mapper").expect("body extracted");
+        assert_eq!(
+            start, 4,
+            "must find the real declaration, not the field row"
+        );
+        assert!(body.starts_with("Function Mapper(x As Int)"));
     }
 
     #[test]

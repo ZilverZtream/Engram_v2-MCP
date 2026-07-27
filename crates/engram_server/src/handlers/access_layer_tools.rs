@@ -3155,10 +3155,13 @@ impl Engram {
                         Some(engram_index::language_diagnostics::LanguageFamily::Cpp)
                     }
                     "rs" => Some(engram_index::language_diagnostics::LanguageFamily::Rust),
-                    // VB.NET is the primary OciusX language (.vb, .aspx.vb,
+                    // VB.NET is the pilot corpus's primary language (.vb, .aspx.vb,
                     // .ascx.vb all have extension "vb"); it must get pre-edit
                     // risk diagnostics like every other first-class language.
                     "vb" => Some(engram_index::language_diagnostics::LanguageFamily::Vb),
+                    "ml" | "mlinc" => {
+                        Some(engram_index::language_diagnostics::LanguageFamily::MiniLang)
+                    }
                     _ => None,
                 };
 

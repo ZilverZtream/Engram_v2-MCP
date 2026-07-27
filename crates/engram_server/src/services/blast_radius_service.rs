@@ -1336,7 +1336,7 @@ EndProject
     // sources pointing at it via Dependency edges, then call
     // `compute_blast_radius` end-to-end. They verify that the dependency
     // density factor actually moves the composite score — before this was
-    // added, every target on projects like OciusX scored 1/10 regardless of
+    // added, every target on projects like the pilot corpus scored 1/10 regardless of
     // how many files depended on it.
 
     fn tmp_graph() -> (tempfile::TempDir, engram_graph::GraphStore) {
@@ -1961,7 +1961,7 @@ EndProject
         );
     }
 
-    /// Regression guard for the OciusX shape: a file node with *zero*
+    /// Regression guard for the pilot-corpus shape: a file node with *zero*
     /// `Contains` outgoing edges (that is how the real VB/C# extractors
     /// emit — they attach Contains to the namespace/class, not the file)
     /// must still surface incoming edges on its contained symbols through

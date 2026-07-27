@@ -275,6 +275,7 @@ pub fn language_to_globs(language: &str) -> String {
         "scala" => "**/*.scala,**/*.sc".into(),
         "php" => "**/*.php".into(),
         "html" | "aspx" => "**/*.aspx,**/*.ascx,**/*.html".into(),
+        "minilang" | "ml" => "**/*.ml,**/*.mlinc".into(),
         other => format!("**/*.{other}"),
     }
 }
@@ -300,6 +301,7 @@ pub fn language_display(language: &str) -> &str {
         "swift" => "Swift",
         "scala" => "Scala",
         "php" => "PHP",
+        "minilang" | "ml" => "MiniLang",
         _ => language,
     }
 }
@@ -1037,7 +1039,7 @@ fn render_language_rules_with_cr(
     // EXCLUDED from the signal count because it's all low-confidence
     // 1-PR review-note noise — a file with only `## Review
     // observations` is a review-note collection, not a convention
-    // file. See the ChatGPT review of OciusX's sql/webforms outputs.
+    // file. See the ChatGPT review of the pilot corpus's sql/webforms outputs.
     let signal_lines =
         mandatory.len() + strong.len() + observed.len() + avoid.len() + cr_strong_avoid.len();
     if signal_lines < MIN_RULE_FILE_LINES {
@@ -1412,7 +1414,7 @@ pub fn finalize_co_change_pairs(
     limit: usize,
 ) -> Vec<(String, String, u32)> {
     // PERF: the tail-merge below is O(n^2) by construction (linear probe of
-    // `merged` per pair). Over the full OciusX pair map (~650k unique pairs)
+    // `merged` per pair). Over the full pilot-corpus pair map (~650k unique pairs)
     // that is ~10^11 comparisons — the 30-minute doc-regen hang. Spelling
     // variants we care about are by definition near the top by weight, so
     // sort first and tail-merge only a small working set.
@@ -2394,6 +2396,15 @@ mod tests {
     }
 
     #[test]
+    fn minilang_renders_real_globs_and_display_name() {
+        // The `**/*.{other}` fallback would emit the useless glob
+        // `**/*.minilang`, which matches nothing.
+        assert_eq!(language_to_globs("minilang"), "**/*.ml,**/*.mlinc");
+        assert_eq!(language_to_globs("ml"), "**/*.ml,**/*.mlinc");
+        assert_eq!(language_display("minilang"), "MiniLang");
+    }
+
+    #[test]
     fn language_slug_sanitises_punctuation() {
         assert_eq!(language_slug("VB.NET"), "vbnet");
         assert_eq!(language_slug("C++"), "c");
@@ -2662,7 +2673,7 @@ Another handwritten section.
 
     #[test]
     fn splice_collapses_multiple_engram_blocks_into_one() {
-        // Regression guard for the OciusX duplicate-block incident:
+        // Regression guard for the pilot-corpus duplicate-block incident:
         // a buggy prior splicer run left the file with two engram
         // blocks side-by-side. The fixed splicer must collapse ALL
         // engram-managed content (first begin → last end) into one
@@ -2806,7 +2817,7 @@ Read docs/internal.md first.
         // manual with sections like `## 1. Data layer rules` must
         // survive. These aren't on the engram-owned list so every
         // numbered section is preserved verbatim.
-        let mut existing = String::from("# OciusX\n\n");
+        let mut existing = String::from("# ExampleProject\n\n");
         for i in 1..=5 {
             existing.push_str(&format!("## {i}. Section {i}\n\nDomain rule {i}.\n\n"));
         }

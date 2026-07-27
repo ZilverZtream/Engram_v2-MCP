@@ -1047,6 +1047,7 @@ fn hybrid_index_loops_are_synchronous_and_exempt_from_cancel_policy() {
     const WINDOW: usize = 2_000;
     let mut search_from = 0usize;
     let mut async_loops_found = 0u32;
+    let mut unchecked_async_loops = 0u32;
 
     while let Some(rel) = source[search_from..].find("loop {") {
         let loop_start = search_from + rel;
@@ -1055,16 +1056,29 @@ fn hybrid_index_loops_are_synchronous_and_exempt_from_cancel_policy() {
 
         if window.contains(".await") {
             async_loops_found += 1;
+            if !window.contains("is_cancelled()") {
+                unchecked_async_loops += 1;
+            }
         }
         search_from = loop_start + 1;
     }
 
+    // The single sanctioned async loop is `acquire_writer`'s LockBusy
+    // retry (2026-07-10): it backs off with tokio::time::sleep while a
+    // concurrent operation holds tantivy's one-writer-per-directory
+    // lock, and it checks `cancel.is_cancelled()` on every iteration so
+    // a cancelled caller stops waiting immediately.
     assert_eq!(
-        async_loops_found, 0,
-        "CANCEL-POLICY-INDEX: hybrid.rs must have 0 async `loop {{` blocks \
-         (found {async_loops_found} loops with `.await`). \
-         All current loops are synchronous Tantivy pagination loops. \
+        async_loops_found, 1,
+        "CANCEL-POLICY-INDEX: hybrid.rs must have exactly 1 async `loop {{` block \
+         (the cancel-aware acquire_writer LockBusy retry; found {async_loops_found}). \
+         All other loops are synchronous Tantivy pagination loops. \
          If you added an async loop, add a cancellation check and update this test."
+    );
+    assert_eq!(
+        unchecked_async_loops, 0,
+        "CANCEL-POLICY-INDEX: every async loop in hybrid.rs must check \
+         `is_cancelled()` each iteration (found {unchecked_async_loops} without)."
     );
 }
 

@@ -863,7 +863,7 @@ fn extract_vb_conventions(content: &str, out: &mut Vec<DetectedConvention>) {
         });
     }
 
-    // SafeRedirect convention (OciusX-style — generic test: "project uses a
+    // SafeRedirect convention (pilot-style — generic test: "project uses a
     // SafeRedirect helper"). Only emitted when we see ≥3 uses; one-off calls
     // don't constitute a convention.
     let sr = SAFE_REDIRECT_RE
@@ -2312,11 +2312,6 @@ pub fn resolve_partner_to_current(
 
 // Re-export commonly-used items for the gates module.
 pub use gates::all_gates;
-
-#[cfg(test)]
-pub(crate) fn test_parse(diff: &str) -> Vec<DiffFile> {
-    parse_unified_diff(diff)
-}
 
 #[cfg(test)]
 mod tests {

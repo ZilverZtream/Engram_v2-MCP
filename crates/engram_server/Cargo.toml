@@ -39,6 +39,8 @@ redb.workspace = true
 futures.workspace = true
 async-trait.workspace = true
 fs2.workspace = true
+# Unified-diff of two ADO blob versions for review fix-exemplar mining.
+similar = "2"
 
 [build-dependencies]
 blake3 = "1"

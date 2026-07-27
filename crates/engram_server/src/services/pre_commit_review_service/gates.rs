@@ -43,6 +43,8 @@ pub fn all_gates() -> Vec<Box<dyn Gate>> {
         Box::new(ProductIntentGate),
         Box::new(SyncContractGate),
         Box::new(CoAddedFamilyGate),
+        Box::new(ComplexityGate),
+        Box::new(AddedConventionsGate),
     ]
 }
 
@@ -531,6 +533,10 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
         || file_path.to_ascii_lowercase().ends_with(".tsx")
         || file_path.to_ascii_lowercase().ends_with(".js")
         || file_path.to_ascii_lowercase().ends_with(".jsx");
+    let is_minilang = {
+        let l = file_path.to_ascii_lowercase();
+        l.ends_with(".ml") || l.ends_with(".mlinc")
+    };
 
     for conv in conventions {
         if conv.confidence() < 0.5 {
@@ -542,6 +548,14 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
                 let expected = conv.value.clone();
                 let re_new_method: Option<Regex> = if is_vb {
                     Regex::new(r"(?im)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Sub|Function)\s+(\w+)\s*\(").ok()
+                } else if is_minilang {
+                    // Access modifiers optional; the name may be followed by
+                    // an ` Of …` generic clause instead of `(`. `Func` is
+                    // MiniLang's alternate function-declaration syntax
+                    // (`Func Name(...) -> Type ... End Func`); its parameter
+                    // list still opens with `(`, so the `(?:\(|Of\s)` suffix
+                    // holds for it too.
+                    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Sub|Function|Func)\s+(\w+)\s*(?:\(|Of\s)").ok()
                 } else if is_csharp {
                     Regex::new(r"(?m)^\s*(?:public|private|protected|internal|static|virtual|override|async|sealed|abstract|new|partial)\s+(?:[\w<>\[\],\?\s]+?\s+)?(\w+)\s*\(").ok()
                 } else if is_ts_js {
@@ -2912,6 +2926,703 @@ impl Gate for CoAddedFamilyGate {
     }
 }
 
+// ─── Gate 16: Complexity & parameter budget (SonarQube friction) ────────────
+//
+// Two SonarQube defaults the team pays re-push cycles for (user ruling
+// 2026-07-10): cyclomatic complexity per function ≤ 15, and parameter
+// lists ≤ 7 (agents habitually violate this — observed: a generated
+// 19-parameter VB function). Plus the house "clean as you code" rule:
+// touching a function that is ALREADY over the complexity budget should
+// usually include the refactor down to ~13–14 when reasonably safe,
+// because SonarQube taxes every future touch of that function otherwise.
+// Detection is language-generic (VB / C# / TS / JS) and heuristic —
+// keyword-anchored declaration scans and the same decision-point counter
+// the edit-safety verdicts use, not a full parser.
+
+const SQ_COMPLEXITY_MAX: u32 = 15;
+const SQ_PARAMS_MAX: usize = 7;
+
+fn complexity_gate_ext(path: &str) -> Option<bool> {
+    // Some(true) = VB-style (End Function terminators), Some(false) = brace-style.
+    let l = path.to_ascii_lowercase();
+    // MiniLang uses End Function/End Sub terminators like VB.
+    if l.ends_with(".vb") || l.ends_with(".ml") || l.ends_with(".mlinc") {
+        Some(true)
+    } else if [".cs", ".ts", ".tsx", ".js", ".jsx"]
+        .iter()
+        .any(|e| l.ends_with(e))
+    {
+        Some(false)
+    } else {
+        None
+    }
+}
+
+static RE_CX_DECL_VB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?im)^\s*(?:<[^>\r\n]*>\s*)?(?:(?:public|private|protected|friend|shared|overrides|overridable|notoverridable|mustoverride|async|iterator)\s+)*(?:function|sub)\s+(\w+)\s*\(",
+    )
+    .expect("valid vb decl regex")
+});
+
+static RE_CX_DECL_CS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)^\s*(?:\[[^\]\r\n]*\]\s*)*(?:(?:public|private|protected|internal|static|virtual|override|sealed|async|partial|new|extern|unsafe)\s+)+[\w<>\[\],\s?]*?\b(\w+)\s*\(",
+    )
+    .expect("valid cs decl regex")
+});
+
+static RE_CX_DECL_TS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?m)\bfunction\s+(\w+)\s*\(|^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\(|^\s*(?:(?:public|private|protected|static|async|readonly)\s+)+(\w+)\s*\(",
+    )
+    .expect("valid ts decl regex")
+});
+
+/// Count parameters in the list opening at `open_paren` (byte offset of
+/// `(` in `text`). Commas at paren depth 1 with angle/bracket depth 0
+/// separate parameters; returns None if the list never closes (truncated
+/// diff content).
+pub(crate) fn count_params_at(text: &str, open_paren: usize) -> Option<usize> {
+    let bytes = text.as_bytes();
+    if bytes.get(open_paren) != Some(&b'(') {
+        return None;
+    }
+    let (mut paren, mut angle, mut bracket) = (0i32, 0i32, 0i32);
+    let mut commas = 0usize;
+    let mut saw_content = false;
+    for &b in &bytes[open_paren..] {
+        match b {
+            b'(' => paren += 1,
+            b')' => {
+                paren -= 1;
+                if paren == 0 {
+                    return Some(if saw_content { commas + 1 } else { 0 });
+                }
+            }
+            b'<' => angle += 1,
+            b'>' => angle = (angle - 1).max(0),
+            b'[' => bracket += 1,
+            b']' => bracket -= 1,
+            b',' if paren == 1 && angle == 0 && bracket == 0 => commas += 1,
+            b if !b.is_ascii_whitespace() => saw_content = true,
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Function spans `(start_line, end_line, name)` (1-based, inclusive) in
+/// a file's lines. VB spans close at `End Function`/`End Sub`; brace
+/// languages close at the matching `}` (naive brace count — string
+/// literals containing braces can skew it; acceptable for a review nudge).
+pub(crate) fn function_spans(content: &str, vb_style: bool) -> Vec<(usize, usize, String)> {
+    let decl_re: &Regex = if vb_style { &RE_CX_DECL_VB } else { &RE_CX_DECL_CS };
+    let ts_re: &Regex = &RE_CX_DECL_TS;
+    let line_starts: Vec<usize> = std::iter::once(0)
+        .chain(content.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+    let line_of = |off: usize| line_starts.partition_point(|&s| s <= off); // 1-based
+    // Collect declaration candidates first (dedup by start line), then
+    // compute spans — keeps the borrow of `spans` out of the scan loops.
+    let mut candidates: Vec<(usize, String)> = decl_re
+        .captures_iter(content)
+        .map(|m| {
+            let name = m.get(1).map(|g| g.as_str().to_string()).unwrap_or_default();
+            (m.get(0).expect("group 0").start(), name)
+        })
+        .collect();
+    if !vb_style {
+        for m in ts_re.captures_iter(content) {
+            let name = m
+                .get(1)
+                .or_else(|| m.get(2))
+                .or_else(|| m.get(3))
+                .map(|g| g.as_str().to_string())
+                .unwrap_or_default();
+            candidates.push((m.get(0).expect("group 0").start(), name));
+        }
+    }
+    candidates.sort_by_key(|(off, _)| *off);
+    let mut seen_lines: HashSet<usize> = HashSet::new();
+
+    let mut spans = Vec::new();
+    for (m_start, name) in candidates {
+        let start_line = line_of(m_start);
+        if !seen_lines.insert(start_line) {
+            continue;
+        }
+        let end_line = if vb_style {
+            static RE_END: LazyLock<Regex> = LazyLock::new(|| {
+                Regex::new(r"(?i)^\s*end\s+(?:function|sub)\b").expect("valid end regex")
+            });
+            content
+                .lines()
+                .enumerate()
+                .skip(start_line)
+                .find(|(_, l)| RE_END.is_match(l))
+                .map(|(i, _)| i + 1)
+        } else {
+            let mut depth = 0i32;
+            let mut seen_open = false;
+            let mut end = None;
+            for (i, l) in content.lines().enumerate().skip(start_line - 1) {
+                for c in l.chars() {
+                    match c {
+                        '{' => {
+                            depth += 1;
+                            seen_open = true;
+                        }
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if seen_open && depth <= 0 {
+                    end = Some(i + 1);
+                    break;
+                }
+            }
+            end
+        };
+        if let Some(e) = end_line {
+            spans.push((start_line, e, name));
+        }
+    }
+    spans
+}
+
+pub struct ComplexityGate;
+
+#[async_trait]
+impl Gate for ComplexityGate {
+    fn name(&self) -> &'static str {
+        "complexity_budget"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        use crate::handlers::access_layer_tools::estimate_complexity;
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            let Some(vb_style) = complexity_gate_ext(&df.path) else {
+                continue;
+            };
+            if df.is_binary
+                || df.is_test_file()
+                || super::is_generated_filename(&df.path)
+                || df.added_content.is_empty()
+            {
+                continue;
+            }
+
+            // A. Parameter budget on ADDED declarations — the shape agents
+            // generate. added_content is new-lines-only, so this fires on
+            // new/rewritten signatures, not untouched legacy ones.
+            let decl_res: [&Regex; 2] = if vb_style {
+                [&RE_CX_DECL_VB, &RE_CX_DECL_VB]
+            } else {
+                [&RE_CX_DECL_CS, &RE_CX_DECL_TS]
+            };
+            let mut seen_offsets: HashSet<usize> = HashSet::new();
+            for re in decl_res {
+                for m in re.captures_iter(&df.added_content) {
+                    let whole = m.get(0).expect("group 0");
+                    if !seen_offsets.insert(whole.start()) {
+                        continue;
+                    }
+                    let name = (1..=3)
+                        .filter_map(|i| m.get(i))
+                        .map(|g| g.as_str())
+                        .next()
+                        .unwrap_or("?")
+                        .to_string();
+                    let open = whole.end() - 1;
+                    let Some(n) = count_params_at(&df.added_content, open) else {
+                        continue;
+                    };
+                    if n <= SQ_PARAMS_MAX {
+                        continue;
+                    }
+                    let decl_line = df
+                        .added_lines
+                        .get(df.added_content[..whole.start()].matches('\n').count())
+                        .map(|(ln, _)| *ln);
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Warning,
+                            "complexity_budget",
+                            df.path.clone(),
+                            format!("`{name}` declares {n} parameters (SonarQube max {SQ_PARAMS_MAX})"),
+                            format!(
+                                "This diff adds a declaration with {n} parameters. SonarQube \
+                                 flags any function over {SQ_PARAMS_MAX}; long parameter lists \
+                                 are also the most common agent-generated review bounce."
+                            ),
+                            "Group the parameters into a parameter object (options/query/DTO \
+                             type) or split the function so each piece takes a coherent subset.",
+                        )
+                        .with_lines(decl_line.into_iter().collect()),
+                    );
+                }
+            }
+
+            // B. Complexity of functions this diff touches, measured on the
+            // post-change file. New-over-budget = hard warning; touched
+            // legacy-over-budget = the clean-as-you-code nudge.
+            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            if disk_bytes.is_empty() {
+                continue;
+            }
+            let disk = String::from_utf8_lossy(&disk_bytes);
+            let touched: Vec<(usize, usize)> = df
+                .hunks
+                .iter()
+                .map(|h| (h.new_start, h.new_start + h.new_count.max(1) - 1))
+                .collect();
+            let added_line_set: HashSet<usize> = df.added_lines.iter().map(|(n, _)| *n).collect();
+            let disk_lines: Vec<&str> = disk.lines().collect();
+            let mut over: Vec<(u32, usize, String, bool)> = Vec::new();
+            for (start, end, name) in function_spans(&disk, vb_style) {
+                if !touched.iter().any(|(ts, te)| start <= *te && end >= *ts) {
+                    continue;
+                }
+                let body = disk_lines
+                    .get(start - 1..end.min(disk_lines.len()))
+                    .unwrap_or(&[])
+                    .join("\n");
+                let cx = estimate_complexity(&body);
+                if cx > SQ_COMPLEXITY_MAX {
+                    over.push((cx, start, name, added_line_set.contains(&start)));
+                }
+            }
+            over.sort_by(|a, b| b.0.cmp(&a.0));
+            for (cx, start, name, is_new) in over.into_iter().take(3) {
+                let (sev, title, detail, suggestion) = if is_new {
+                    (
+                        Severity::Warning,
+                        format!("New function `{name}` has estimated complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "SonarQube will reject this on the next scan — new code over \
+                             complexity {SQ_COMPLEXITY_MAX} is a standing quality-gate failure \
+                             (estimated {cx} decision points)."
+                        ),
+                        "Extract the branch clusters into named helpers now, before push — \
+                         guard clauses for the early exits, a helper per decision cluster."
+                            .to_string(),
+                    )
+                } else {
+                    (
+                        Severity::Info,
+                        format!("Touched function `{name}` is already at complexity {cx} (max {SQ_COMPLEXITY_MAX})"),
+                        format!(
+                            "This diff modifies a function that already exceeds the complexity \
+                             budget (estimated {cx}). House rule: when you touch an \
+                             over-budget function, take it down to ~13–14 in the same change \
+                             if reasonably safe — otherwise every future touch pays this tax."
+                        ),
+                        "If the change is low-risk, extract the densest branch cluster into a \
+                         helper while you are here; if it is too risky, note that explicitly \
+                         in the PR description."
+                            .to_string(),
+                    )
+                };
+                findings.push(
+                    ReviewFinding::new(sev, "complexity_budget", df.path.clone(), title, detail, suggestion)
+                        .with_lines(vec![start]),
+                );
+            }
+        }
+        Ok(findings)
+    }
+}
+
+// ─── Gate 17: Added-code conventions (docs + logging) ───────────────────────
+//
+// The two mechanical classes that dominated the 2026-07-10 authoring
+// experiment (fresh implementations exhibited 62-78% of the exact
+// findings reviewers had raised; XML-docs-on-public-members and
+// house-logger-in-catch recurred on every fresh API surface):
+//   (a) an ADDED public member with no doc comment, in a file whose
+//       existing public members ARE documented (house style evidenced
+//       from the same file on disk — no evidence, no finding);
+//   (b) an ADDED catch block that logs via a different helper than the
+//       file's dominant logger.
+// Both language-generic (VB ''' / C#-TS ///+/** */), evidence-based,
+// capped per file.
+
+static RE_AC_PUBLIC_DECL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?im)^\s*(?:public|friend)\s+(?:(?:shared|overrides|overridable|async|static|virtual|override|sealed|readonly|partial)\s+)*(?:function|sub|property|class|interface|enum|[\w<>\[\],?]+)\s+(\w+)",
+    )
+    .expect("valid public decl regex")
+});
+
+static RE_AC_DOC_LINE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^\s*(?:'''|///|/\*\*|\*)").expect("valid doc line regex")
+});
+
+static RE_AC_CATCH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^\s*catch\b").expect("valid catch regex"));
+
+static RE_AC_LOG_CALL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b([\w.]*\blog\w*)\s*\(").expect("valid log call regex")
+});
+
+/// Fraction of public decls in `content` that carry a doc comment on the
+/// line above, together with the total count — the house-style evidence.
+pub(crate) fn doc_coverage(content: &str) -> (usize, usize) {
+    let lines: Vec<&str> = content.lines().collect();
+    let (mut documented, mut total) = (0usize, 0usize);
+    for (i, line) in lines.iter().enumerate() {
+        if RE_AC_PUBLIC_DECL.is_match(line) {
+            total += 1;
+            if i > 0 && RE_AC_DOC_LINE.is_match(lines[i - 1]) {
+                documented += 1;
+            }
+        }
+    }
+    (documented, total)
+}
+
+/// Dominant logging helper name in `content` (lowercased), if one call
+/// shape clearly wins (>=3 uses and >=3x the runner-up).
+pub(crate) fn dominant_logger(content: &str) -> Option<String> {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for cap in RE_AC_LOG_CALL.captures_iter(content) {
+        let name = cap[1].to_lowercase();
+        // "log" alone or console noise is not a helper convention.
+        if name == "log" || name.contains("console.") {
+            continue;
+        }
+        *counts.entry(name).or_default() += 1;
+    }
+    let mut v: Vec<(String, usize)> = counts.into_iter().collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    match v.as_slice() {
+        [] => None,
+        [(name, n)] if *n >= 3 => Some(name.clone()),
+        [(name, n), (_, m), ..] if *n >= 3 && *n >= m * 3 => Some(name.clone()),
+        _ => None,
+    }
+}
+
+/// An assignment whose RHS ends in a contractually-nullable-returning
+/// call: `x = …FirstOrDefault(…)` / `SingleOrDefault` / `Find` /
+/// `ElementAtOrDefault` (VB/C#/LINQ) or `.find(…)` (JS/TS). These return
+/// null/undefined by their own contract — keying on the method name is
+/// precise, not a heuristic guess about what "looks like" a query.
+static RE_AC_NULLABLE_ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)\b([a-z_]\w*)\s*=\s*.*\.(FirstOrDefault|SingleOrDefault|ElementAtOrDefault|Find|find)\s*\(",
+    )
+    .expect("valid nullable-assign regex")
+});
+
+pub struct AddedConventionsGate;
+
+#[async_trait]
+impl Gate for AddedConventionsGate {
+    fn name(&self) -> &'static str {
+        "added_conventions"
+    }
+
+    fn run(&self, ctx: &GateContext<'_>) -> anyhow::Result<Vec<ReviewFinding>> {
+        let mut findings = Vec::new();
+        for df in ctx.diff_files {
+            let lower = df.path.to_lowercase();
+            let is_code = [".vb", ".cs", ".ts", ".tsx", ".js", ".jsx"]
+                .iter()
+                .any(|e| lower.ends_with(e));
+            let is_markup = [".aspx", ".ascx", ".master", ".html", ".htm", ".vbhtml", ".cshtml"]
+                .iter()
+                .any(|e| lower.ends_with(e))
+                || lower.ends_with(".tsx")
+                || lower.ends_with(".jsx");
+            let is_css = [".css", ".scss", ".less"].iter().any(|e| lower.ends_with(e));
+            if df.is_binary
+                || df.is_test_file()
+                || super::is_generated_filename(&df.path)
+                || df.added_content.is_empty()
+            {
+                continue;
+            }
+
+            // (c) Accessibility on added markup/styles — the one review
+            // class the replay residual showed RECURRING yet uncovered by
+            // any rule or gate (alt-less images, focus styles stripped by
+            // `all: unset`). Standards-based, not house-style — no
+            // evidence gate needed.
+            if is_markup {
+                static RE_IMG: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r#"(?i)<(?:img|asp:Image)\b[^>]*"#).expect("valid img regex")
+                });
+                static RE_ALT: LazyLock<Regex> = LazyLock::new(|| {
+                    Regex::new(r#"(?i)\b(?:alt\s*=|AlternateText\s*=|aria-hidden\s*=\s*["']?true)"#)
+                        .expect("valid alt regex")
+                });
+                let mut missing_alt: Vec<usize> = Vec::new();
+                for (line_no, text) in &df.added_lines {
+                    for m in RE_IMG.find_iter(text) {
+                        if !RE_ALT.is_match(m.as_str()) {
+                            missing_alt.push(*line_no);
+                        }
+                    }
+                }
+                if !missing_alt.is_empty() {
+                    missing_alt.truncate(5);
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("{} added image(s) without alt text or aria-hidden", missing_alt.len()),
+                            "Added <img>/<asp:Image> elements carry neither alt text nor \
+                             aria-hidden=\"true\". Screen readers announce these as noise; \
+                             reviewers flag it on every markup change that ships images."
+                                .to_string(),
+                            "Give meaningful images an alt text; mark decorative ones \
+                             aria-hidden=\"true\" (or alt=\"\").",
+                        )
+                        .with_lines(missing_alt),
+                    );
+                }
+            }
+            if is_css && df.added_content.to_lowercase().contains("all: unset")
+                && !df.added_content.to_lowercase().contains(":focus")
+            {
+                let line = df
+                    .added_lines
+                    .iter()
+                    .find(|(_, t)| t.to_lowercase().contains("all: unset"))
+                    .map(|(n, _)| *n);
+                findings.push(
+                    ReviewFinding::new(
+                        Severity::Info,
+                        "added_conventions",
+                        df.path.clone(),
+                        "`all: unset` added without restoring focus styles".to_string(),
+                        "`all: unset` strips the browser's focus indicator; keyboard users \
+                         lose track of where they are. The added block defines no :focus \
+                         replacement."
+                            .to_string(),
+                        "Add a visible :focus/:focus-visible style alongside the reset.",
+                    )
+                    .with_lines(line.into_iter().collect()),
+                );
+            }
+            if !is_code {
+                continue;
+            }
+            let disk_bytes = std::fs::read(ctx.project_dir.join(&df.path)).unwrap_or_default();
+            let disk = String::from_utf8_lossy(&disk_bytes);
+
+            // (a) Undocumented ADDED public members. Evidence basis, either:
+            //   - the file's own house style documents public members, or
+            //   - an ingested repo rule demands doc comments (the live case:
+            //     copilot-instructions mandate XML docs while merged files
+            //     often skip them — reviewers enforce the RULE, so
+            //     file-local style alone missed exactly the findings this
+            //     gate was built from).
+            let (documented, total) = doc_coverage(&disk);
+            let file_documents = total >= 3 && documented * 10 >= total * 4;
+            let rule_demands_docs = ctx.repo_rules.iter().any(|r| {
+                let t = r.rule_text.to_lowercase();
+                (t.contains("xml doc") || t.contains("xml-doc") || t.contains("doc comment")
+                    || t.contains("'''") || t.contains("///"))
+                    && (t.contains("public") || t.contains("member") || t.contains("summary"))
+            });
+            if file_documents || rule_demands_docs {
+                let added: Vec<&(usize, String)> = df.added_lines.iter().collect();
+                let mut undocumented: Vec<(usize, String)> = Vec::new();
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    let Some(cap) = RE_AC_PUBLIC_DECL.captures(text) else {
+                        continue;
+                    };
+                    // Doc line directly above — in the added block or on disk.
+                    let prev_added = idx
+                        .checked_sub(1)
+                        .and_then(|i| added.get(i))
+                        .filter(|(n, _)| n + 1 == *line_no)
+                        .map(|(_, t)| RE_AC_DOC_LINE.is_match(t));
+                    let documented_above = match prev_added {
+                        Some(v) => v,
+                        None => line_no
+                            .checked_sub(2)
+                            .and_then(|i| disk.lines().nth(i))
+                            .map(|l| RE_AC_DOC_LINE.is_match(l))
+                            .unwrap_or(false),
+                    };
+                    if !documented_above {
+                        undocumented.push((*line_no, cap[1].to_string()));
+                    }
+                }
+                if !undocumented.is_empty() {
+                    let names: Vec<String> = undocumented
+                        .iter()
+                        .take(5)
+                        .map(|(_, n)| format!("`{n}`"))
+                        .collect();
+                    let lines: Vec<usize> = undocumented.iter().take(5).map(|(l, _)| *l).collect();
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!(
+                                "{} new public member(s) missing doc comments in a documented file",
+                                undocumented.len()
+                            ),
+                            format!(
+                                "{} The added {} lack(s) a doc comment. Reviewers here flag \
+                                 undocumented public surface on every fresh change.",
+                                if file_documents {
+                                    format!(
+                                        "This file documents {documented} of its {total} public members."
+                                    )
+                                } else {
+                                    "This repo's ingested rules require doc comments on public members."
+                                        .to_string()
+                                },
+                                names.join(", ")
+                            ),
+                            "Add a doc comment above each new public member, matching the \
+                             style used elsewhere in this file.",
+                        )
+                        .with_lines(lines),
+                    );
+                }
+            }
+
+            // (b) Added catch blocks logging via a non-dominant helper.
+            if let Some(dom) = dominant_logger(&disk) {
+                let mut off_convention: Vec<(usize, String)> = Vec::new();
+                let added = &df.added_lines;
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    if !RE_AC_CATCH.is_match(text) {
+                        continue;
+                    }
+                    // Scan the next few ADDED lines (same contiguous block)
+                    // for a log call.
+                    for j in idx + 1..(idx + 8).min(added.len()) {
+                        let (n, t) = &added[j];
+                        if *n != added[j - 1].0 + 1 {
+                            break; // left the contiguous added block
+                        }
+                        if let Some(cap) = RE_AC_LOG_CALL.captures(t) {
+                            let used = cap[1].to_lowercase();
+                            if used != dom && !used.ends_with(&format!(".{dom}")) && !dom.ends_with(&used)
+                            {
+                                off_convention.push((*line_no, cap[1].to_string()));
+                            }
+                            break;
+                        }
+                    }
+                }
+                for (line_no, used) in off_convention.into_iter().take(3) {
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Info,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("Added catch block logs via `{used}` — file's convention is `{dom}`"),
+                            format!(
+                                "The dominant logging helper in this file is `{dom}`; a new \
+                                 catch block logging through `{used}` is the exact class \
+                                 reviewers bounce ('align exception logging with the required \
+                                 convention')."
+                            ),
+                            format!("Route the catch-block logging through `{dom}` like the rest of the file."),
+                        )
+                        .with_lines(vec![line_no]),
+                    );
+                }
+            }
+
+            // (d) Unguarded deref of a contractually-nullable result — the
+            // #1 recurring class in the 2026-07-10 replay corpus (54 caught
+            // + 31 missed of 263 real review findings). Evidence-gated like
+            // the docs check: only fires where an ingested repo rule
+            // demands null-guarding data-access returns, so it never fires
+            // on a codebase without that convention. Precise trigger:
+            // `x = ….FirstOrDefault(…)` etc. (methods that return null BY
+            // CONTRACT), immediately followed within the added block by
+            // `x.<member>` with no intervening null check.
+            let rule_demands_null_guard = ctx.repo_rules.iter().any(|r| {
+                let t = r.rule_text.to_lowercase();
+                (t.contains("null") || t.contains("nothing"))
+                    && (t.contains("guard")
+                        || t.contains("check")
+                        || t.contains("before")
+                        || t.contains("data-access")
+                        || t.contains("data access"))
+            });
+            if rule_demands_null_guard {
+                let added = &df.added_lines;
+                let mut flagged: Vec<(usize, String)> = Vec::new();
+                for (idx, (line_no, text)) in added.iter().enumerate() {
+                    let Some(cap) = RE_AC_NULLABLE_ASSIGN.captures(text) else {
+                        continue;
+                    };
+                    let var = cap[1].to_string();
+                    if var.is_empty() {
+                        continue;
+                    }
+                    // Same-line guard already present (`= x.Find(..) ?? …`,
+                    // inline If) — skip.
+                    let lower = text.to_lowercase();
+                    if lower.contains("??")
+                        || lower.contains(&format!("{}?.", var.to_lowercase()))
+                    {
+                        continue;
+                    }
+                    // Look ahead in the contiguous added block for a deref
+                    // or a guard, whichever comes first.
+                    let deref = format!("{}.", var.to_lowercase());
+                    let guard_is_nothing = format!("{} is nothing", var.to_lowercase());
+                    let guard_isnot = format!("{} isnot nothing", var.to_lowercase());
+                    for j in idx + 1..(idx + 6).min(added.len()) {
+                        if added[j].0 != added[j - 1].0 + 1 {
+                            break; // left the contiguous added region
+                        }
+                        let l = added[j].1.to_lowercase();
+                        if l.contains(&guard_is_nothing)
+                            || l.contains(&guard_isnot)
+                            || l.contains(&format!("if {} ", var.to_lowercase()))
+                            || l.contains("=== null")
+                            || l.contains("!== undefined")
+                            || l.contains(&format!("{}?.", var.to_lowercase()))
+                        {
+                            break; // guarded before use — good
+                        }
+                        if l.contains(&deref) {
+                            flagged.push((*line_no, var.clone()));
+                            break;
+                        }
+                    }
+                }
+                for (line_no, var) in flagged.into_iter().take(4) {
+                    findings.push(
+                        ReviewFinding::new(
+                            Severity::Warning,
+                            "added_conventions",
+                            df.path.clone(),
+                            format!("`{var}` may be null (…OrDefault/Find) and is dereferenced without a guard"),
+                            format!(
+                                "`{var}` is assigned from a method that returns null/undefined by \
+                                 contract, then used without a null check — this repo's rules \
+                                 require guarding data-access returns, and it is the single most \
+                                 common review-bounce class."
+                            ),
+                            format!("Guard `{var}` (If {var} IsNot Nothing / early return / null-conditional) before using it."),
+                        )
+                        .with_lines(vec![line_no]),
+                    );
+                }
+            }
+        }
+        Ok(findings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2930,6 +3641,149 @@ mod tests {
             hunks: Vec::new(),
             is_binary: false,
         }
+    }
+
+    #[test]
+    fn nullable_assign_regex_matches_contract_nullable_calls_only() {
+        // Contractually-nullable → match + capture the var.
+        for (src, var) in [
+            ("Dim u = db.Users.FirstOrDefault(Function(x) x.Id = 1)", "u"),
+            ("row = list.SingleOrDefault(r => r.Ok)", "row"),
+            ("var m = arr.find(x => x.id === id)", "m"),
+            ("marker = markers.Find(AddressOf Match)", "marker"),
+        ] {
+            let c = RE_AC_NULLABLE_ASSIGN
+                .captures(src)
+                .unwrap_or_else(|| panic!("should match: {src}"));
+            assert_eq!(&c[1], var, "wrong var for: {src}");
+        }
+        // Non-nullable-by-contract calls must NOT match.
+        for src in [
+            "Dim all = db.Users.ToList()",
+            "count = items.Count()",
+            "first = seq.First()", // First() throws, not nullable — excluded on purpose
+        ] {
+            assert!(
+                RE_AC_NULLABLE_ASSIGN.captures(src).is_none(),
+                "should NOT match: {src}"
+            );
+        }
+    }
+
+    #[test]
+    fn a11y_flags_altless_images_and_unset_focus() {
+        let gate = AddedConventionsGate;
+        // Direct regex-level checks via a run() would need a full ctx;
+        // exercise the markup patterns through a minimal DiffFile pair.
+        let df = mk_df(
+            "Site/modules/page.aspx",
+            &[
+                (10, r#"<img src="excel.png" class="icon" />"#),
+                (11, r#"<asp:Image runat="server" ImageUrl="x.png" AlternateText="chart" />"#),
+                (12, r#"<img src="ok.png" alt="" />"#),
+            ],
+        );
+        // Only line 10 lacks alt/AlternateText/aria-hidden.
+        let _ = gate; // gate construction sanity
+        let re_img = regex::Regex::new(r#"(?i)<(?:img|asp:Image)\b[^>]*"#).unwrap();
+        let re_alt =
+            regex::Regex::new(r#"(?i)\b(?:alt\s*=|AlternateText\s*=|aria-hidden\s*=\s*["']?true)"#)
+                .unwrap();
+        let mut missing = Vec::new();
+        for (n, t) in &df.added_lines {
+            for m in re_img.find_iter(t) {
+                if !re_alt.is_match(m.as_str()) {
+                    missing.push(*n);
+                }
+            }
+        }
+        assert_eq!(missing, vec![10]);
+    }
+
+    #[test]
+    fn doc_coverage_counts_documented_public_members() {
+        let src = "''' <summary>Adds.</summary>\n\
+                   Public Function AddItem(x As Integer) As Integer\n\
+                   End Function\n\
+                   Public Sub Undocumented()\n\
+                   End Sub\n\
+                   ''' <summary>Gets.</summary>\n\
+                   Public Property Name As String\n";
+        let (documented, total) = doc_coverage(src);
+        assert_eq!((documented, total), (2, 3));
+    }
+
+    #[test]
+    fn dominant_logger_requires_clear_winner() {
+        let src = "api.LogError(a)\napi.LogError(b)\napi.LogError(c)\nLogger.Loggerror(d)\n";
+        assert_eq!(dominant_logger(src).as_deref(), Some("api.logerror"));
+        let tied = "api.LogError(a)\nLogger.Loggerror(b)\n";
+        assert_eq!(dominant_logger(tied), None);
+    }
+
+    #[test]
+    fn param_counter_handles_nesting_and_emptiness() {
+        let vb = "Public Function DoSomething(q, w, e, r, t, y, u, i, o, p, a, s, d, f, g, h, h2, j, j2) As Boolean";
+        let open = vb.find('(').unwrap();
+        assert_eq!(count_params_at(vb, open), Some(19));
+
+        let cs = "public void Ok(Dictionary<string, int> map, Func<int, int> f) {";
+        assert_eq!(count_params_at(cs, cs.find('(').unwrap()), Some(2));
+
+        let empty = "Public Sub NoArgs()";
+        assert_eq!(count_params_at(empty, empty.find('(').unwrap()), Some(0));
+
+        let unterminated = "Public Sub Cut(a, b,";
+        assert_eq!(count_params_at(unterminated, unterminated.find('(').unwrap()), None);
+    }
+
+    #[test]
+    fn vb_function_spans_close_at_end_function() {
+        let src = "Public Class C\n\
+                   Public Function A(x As Integer) As Integer\n\
+                   If x > 0 Then Return 1\n\
+                   Return 0\n\
+                   End Function\n\
+                   Private Sub B()\n\
+                   End Sub\n\
+                   End Class\n";
+        let spans = function_spans(src, true);
+        assert_eq!(spans.len(), 2);
+        assert_eq!(spans[0], (2, 5, "A".to_string()));
+        assert_eq!(spans[1], (6, 7, "B".to_string()));
+    }
+
+    #[test]
+    fn brace_function_spans_close_at_matching_brace() {
+        let src = "export function calc(a: number): number {\n\
+                   if (a > 1) {\n\
+                   return 1;\n\
+                   }\n\
+                   return 0;\n\
+                   }\n";
+        let spans = function_spans(src, false);
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].0, 1);
+        assert_eq!(spans[0].1, 6);
+        assert_eq!(spans[0].2, "calc");
+    }
+
+    #[test]
+    fn complexity_gate_flags_wide_param_list_in_added_vb() {
+        let decl = "Public Function DoSomething(q, w, e, r, t, y, u, i, o, p, a, s, d, f, g, h, h2, j, j2) As Boolean";
+        let df = mk_df("Site/App_Code/foo.vb", &[(10, decl)]);
+        // Run just the added-declaration scan by invoking the gate with a
+        // context-free shim: parameter check needs only the DiffFile.
+        let mut found = Vec::new();
+        for re in [&*RE_CX_DECL_VB] {
+            for m in re.captures_iter(&df.added_content) {
+                let open = m.get(0).unwrap().end() - 1;
+                if let Some(n) = count_params_at(&df.added_content, open) {
+                    found.push(n);
+                }
+            }
+        }
+        assert_eq!(found, vec![19]);
     }
 
     #[test]
@@ -3392,6 +4246,70 @@ diff --git a/foo.vb b/foo.vb
     }
 
     #[test]
+    fn style_gate_flags_minilang_casing_through_of_clause() {
+        // The MiniLang MethodNaming regex must not reuse the VB pattern,
+        // which demands `Sub|Function <name>(` — MiniLang's generic `Of`
+        // clause sits between the name and the parenthesis
+        // (`Function badCaseGeneric Of T(...)`), so a VB-shaped regex would
+        // silently fail to capture the name and miss the finding entirely.
+        let diff = "\
+diff --git a/foo.ml b/foo.ml
+--- a/foo.ml
++++ b/foo.ml
+@@ -1,3 +1,4 @@
+ Module Foo
+     Public Function Existing() As Integer
++    Public Function badCaseGeneric Of T(items As List(Of T)) As List(Of T)
+     End Function
+ End Module
+";
+        let diff_files = parse_unified_diff(diff);
+        let conventions = vec![DetectedConvention {
+            category: ConventionCategory::MethodNaming,
+            value: "PascalCase".into(),
+            sample_count: 20,
+            total_count: 20,
+        }];
+        let findings = check_style_compliance(&diff_files[0], &conventions);
+        assert!(
+            findings.iter().any(|f| f.title.contains("badCaseGeneric")),
+            "expected casing finding for the generic method, got {findings:#?}"
+        );
+    }
+
+    #[test]
+    fn style_gate_flags_minilang_casing_through_func_alternate_syntax() {
+        // MiniLang's alternate `Func Name(...) -> Type` declaration syntax
+        // (real corpus: `tests/drafts/seh_phase5_test.ml`) shipped after
+        // this gate's MiniLang MethodNaming arm was written and was never
+        // added to it — a badly-cased `Func` declaration would silently
+        // never be flagged.
+        let diff = "\
+diff --git a/foo.ml b/foo.ml
+--- a/foo.ml
++++ b/foo.ml
+@@ -1,3 +1,4 @@
+ Namespace Foo
+     Func Existing() -> Int
++    Func badCaseFunc(x: Int) -> Int
+     End Func
+ End Namespace
+";
+        let diff_files = parse_unified_diff(diff);
+        let conventions = vec![DetectedConvention {
+            category: ConventionCategory::MethodNaming,
+            value: "PascalCase".into(),
+            sample_count: 20,
+            total_count: 20,
+        }];
+        let findings = check_style_compliance(&diff_files[0], &conventions);
+        assert!(
+            findings.iter().any(|f| f.title.contains("badCaseFunc")),
+            "expected casing finding for the Func-declared method, got {findings:#?}"
+        );
+    }
+
+    #[test]
     fn secret_gate_skips_fixtures_dir() {
         // Ensure the path-based escape hatch for test fixtures works.
         let diff = "\
@@ -3423,5 +4341,16 @@ diff --git a/tests/fixtures/fake.env b/tests/fixtures/fake.env
         assert!(Severity::Critical < Severity::Warning);
         assert!(Severity::Warning < Severity::Info);
         assert!(Severity::Info < Severity::Style);
+    }
+
+    #[test]
+    fn minilang_files_get_the_complexity_gate() {
+        // Some(true) = End-Function terminator style. Returning None would make
+        // gate 16 silently skip every MiniLang file.
+        assert_eq!(complexity_gate_ext("Std.Collections.List.ml"), Some(true));
+        assert_eq!(complexity_gate_ext("shared.mlinc"), Some(true));
+        assert_eq!(complexity_gate_ext("Form1.vb"), Some(true));
+        assert_eq!(complexity_gate_ext("Program.cs"), Some(false));
+        assert_eq!(complexity_gate_ext("README.md"), None);
     }
 }

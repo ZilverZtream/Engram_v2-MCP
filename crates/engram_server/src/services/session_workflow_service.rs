@@ -760,7 +760,7 @@ mod tests {
 
     #[test]
     fn is_state_target_rejects_symbol_and_file_targets() {
-        // The exact shape of the OciusX pollution: a VB row/property assignment
+        // The exact shape of the pilot-corpus pollution: a VB row/property assignment
         // misclassified as a WritesState edge.
         assert!(!is_state_target(
             "sym:member:Site/App_Code/permits/code/permits.vb:row.pas_color = pas_color:0"
@@ -775,7 +775,7 @@ mod tests {
 
     /// Reconstruction must drop WritesState / ReadsState edges whose
     /// `target_id` is not a real state key. The real-world symptom on
-    /// OciusX was 879 `sym:member:...` edges polluting the "Other" bucket.
+    /// the pilot corpus was 879 `sym:member:...` edges polluting the "Other" bucket.
     #[test]
     fn reconstruct_session_workflows_filters_non_state_targets() {
         use engram_graph::{Edge, GraphStore, Node};

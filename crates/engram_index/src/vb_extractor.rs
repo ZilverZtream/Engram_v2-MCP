@@ -242,7 +242,7 @@ fn parse_via_sidecar(
     // (and an inherited handle keeps the pipe's read end alive — a classic
     // Windows hazard), the write blocks FOREVER at 0 CPU while holding the
     // sidecar mutex, wedging every VB extraction worker behind it. Both
-    // failed OciusX reindexes died exactly here. The write now (a) checks
+    // failed pilot-corpus reindexes died exactly here. The write now (a) checks
     // child liveness first, (b) caps the source size routed through the
     // sidecar, and (c) runs on a helper thread with the same timeout
     // discipline as the response read.

@@ -488,7 +488,7 @@ pub(crate) fn render_section_page_by_page_dossiers(
         // `d.codebehind_file.as_deref().unwrap_or("")` — with no codebehind
         // detected, `cb` was the empty string and `.contains("")` is always
         // true, so the first dossier on pages without a detected codebehind
-        // (e.g. OciusX `Site/AuthCallback.aspx`) dumped the project-wide
+        // (e.g. pilot-corpus `Site/AuthCallback.aspx`) dumped the project-wide
         // flag list (~50 KB) into a single page's section.
         if vb_trans.is_vb_project {
             let page_flags: Vec<&VbTranslationFlag> = vb_trans

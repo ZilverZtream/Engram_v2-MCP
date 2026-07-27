@@ -144,6 +144,30 @@ fn resolve_case_sensitive(pattern: &str, flag: Option<bool>) -> bool {
     pattern.chars().any(|c| c.is_ascii_uppercase())
 }
 
+/// Guard against a SILENT wrong answer from the full-scan tier. FullScan
+/// is reached only for patterns the term index can't serve (a literal
+/// shorter than the trigram minimum, or a regex without a ≥3-char literal
+/// anchor) and it reads per-file content from the DocStore — which the
+/// production ingest path does not populate, so it scans nothing and
+/// returns 0 matches that read as "no matches exist". When a FullScan
+/// query scans zero files, surface that 0 is UNCONFIRMED coverage, not a
+/// proven absence, and tell the caller how to reformulate. Same
+/// fail-loud principle as the unknown-namespace guard.
+fn full_scan_coverage_warning(tier: GrepTier, files_scanned: usize) -> Option<String> {
+    if matches!(tier, GrepTier::FullScan) && files_scanned == 0 {
+        Some(
+            "This pattern used the full-scan tier (a literal shorter than 3 \
+             characters, or a regex without a ≥3-char literal anchor) and scanned \
+             no content — treat 0 matches as UNCONFIRMED coverage, NOT a proven \
+             absence. Reformulate with a literal of ≥3 characters (or add a ≥3-char \
+             literal anchor to the regex) so the term index can serve it."
+                .to_string(),
+        )
+    } else {
+        None
+    }
+}
+
 // ── Freshness check ───────────────────────────────────────────────────────────
 
 /// Compare indexed fingerprints against disk state. Returns the list
@@ -369,6 +393,11 @@ pub fn grep(
         GrepTier::TermNarrowed => execute_term_narrowed(engine, docstore, q, case_sensitive)?,
         GrepTier::FullScan => execute_full_scan(docstore, q, case_sensitive)?,
     };
+
+    // Prefer a real staleness warning; otherwise fail loud if the
+    // full-scan tier scanned nothing (so 0 matches isn't read as absence).
+    let index_stale_warning =
+        index_stale_warning.or_else(|| full_scan_coverage_warning(tier, files_scanned));
 
     Ok(GrepResult {
         matches,
@@ -878,6 +907,19 @@ pub fn project_root_from_directory(directory: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn full_scan_zero_files_warns_unconfirmed_coverage() {
+        // Dead full-scan tier (scanned nothing) → loud, actionable warning.
+        let w = full_scan_coverage_warning(GrepTier::FullScan, 0);
+        assert!(w.is_some());
+        assert!(w.unwrap().contains("UNCONFIRMED"));
+        // Full-scan that DID scan files → no warning.
+        assert!(full_scan_coverage_warning(GrepTier::FullScan, 12).is_none());
+        // Other tiers never warn (they use the term index).
+        assert!(full_scan_coverage_warning(GrepTier::TermIndex, 0).is_none());
+        assert!(full_scan_coverage_warning(GrepTier::TermNarrowed, 0).is_none());
+    }
 
     #[test]
     fn smart_case_sensitive_when_pattern_has_uppercase() {

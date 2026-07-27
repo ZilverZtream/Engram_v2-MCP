@@ -257,6 +257,91 @@ pub(crate) fn transpile_pair_candidates(ps: &str) -> Vec<String> {
     }
 }
 
+/// Interface <-> implementation pairing candidates for a (web-root-stripped,
+/// lowercased) .NET class file: `Service.vb` pairs with `IService.vb` in the
+/// same dir or an `interfaces/` subfolder, and vice versa. A signature change
+/// to one side nearly always touches the other (live PR1913 recall miss:
+/// `RoqEntryService.vb` ranked, `interfaces/IRoqEntryService.vb` didn't).
+/// The caller keeps only candidates that EXIST in the index, so the
+/// I-prefix over-generation ("invoice.vb" -> "nvoice.vb") is harmless.
+/// Empty for markup code-behind/designer files (they pair via the page rule).
+pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
+    let is_class_file = (ps.ends_with(".vb") || ps.ends_with(".cs") || ps.ends_with(".ml"))
+        && !ps.ends_with(".designer.vb")
+        && !ps.ends_with(".designer.cs")
+        && !ps.ends_with(".aspx.vb")
+        && !ps.ends_with(".aspx.cs")
+        && !ps.ends_with(".ascx.vb")
+        && !ps.ends_with(".ascx.cs");
+    if !is_class_file {
+        return Vec::new();
+    }
+    let Some(slash) = ps.rfind('/') else {
+        return Vec::new();
+    };
+    let (dir, file) = ps.split_at(slash + 1);
+    // Implementation -> its interface (same dir, or interfaces/ below).
+    let mut out = vec![format!("{dir}i{file}"), format!("{dir}interfaces/i{file}")];
+    // Interface -> its implementation (same dir, or the dir above an
+    // interfaces/ folder).
+    if let Some(stem) = file.strip_prefix('i').filter(|s| !s.is_empty()) {
+        out.push(format!("{dir}{stem}"));
+        if let Some(parent) = dir.strip_suffix("interfaces/") {
+            out.push(format!("{parent}{stem}"));
+        }
+    }
+    out
+}
+
+/// OpenAPI/Swagger contract documents in a (lowercased) file index. The
+/// spec is an ASSERTED CONTRACT for the API layer — endpoint/DTO changes
+/// ship a spec update (recurring recall miss: docs/openapi/*.yaml shipped
+/// with every RoQ endpoint change but never ranked — no code edge reaches
+/// a yaml). Vendor-filtered, sorted for determinism, capped: a
+/// spec-per-service repo could hold dozens.
+pub(crate) fn api_spec_docs(index: &[String]) -> Vec<String> {
+    let mut specs: Vec<String> = index
+        .iter()
+        .filter(|f| {
+            (f.contains("openapi") || f.contains("swagger"))
+                && (f.ends_with(".yaml") || f.ends_with(".yml") || f.ends_with(".json"))
+                && !engram_core::is_vendor_path(f)
+        })
+        .cloned()
+        .collect();
+    specs.sort();
+    specs.truncate(3);
+    specs
+}
+
+/// True when a (lowercased, web-root-stripped) candidate path is API-layer
+/// code: a code file with a path segment that names an api surface
+/// (`api`, `api-v2`, `api-json`, `apis`, …).
+pub(crate) fn is_api_code_path(ps: &str) -> bool {
+    (ps.ends_with(".vb")
+        || ps.ends_with(".cs")
+        || ps.ends_with(".ts")
+        || ps.ends_with(".js")
+        || ps.ends_with(".ml"))
+        && ps.split('/').any(|seg| {
+            seg.starts_with("api") && seg.len() <= 12 // segment NAMES an api surface, not e.g. "apiary-docs-archive"
+        })
+}
+
+/// True when a function node name is a `Can<Something>` permission helper
+/// (`CanUserUploadMarkerIcon`, `aspnetUsers.CanEditRoq`) — the naming
+/// convention shared across C#/VB/TS codebases. Checks the LAST dotted
+/// segment; requires an uppercase after "Can" so `Cancel`, `Canonical`
+/// and `scan` don't match.
+pub(crate) fn is_can_helper_name(name: &str) -> bool {
+    let last = name.rsplit('.').next().unwrap_or(name);
+    let mut chars = last.chars();
+    matches!(
+        (chars.next(), chars.next(), chars.next(), chars.next()),
+        (Some('C'), Some('a'), Some('n'), Some(c)) if c.is_ascii_uppercase()
+    )
+}
+
 /// "dir/.../*.ext" shape of a path, used to report recurring companion
 /// patterns ("Admin/*.aspx") instead of raw historical file names.
 pub(crate) fn dir_ext_shape(path: &str) -> Option<String> {
@@ -398,7 +483,7 @@ impl Engram {
             .map(|(_, _, file, _)| file.as_str())
             .collect();
         // ENG-2026-CFP-NOISE: drop vendored/minified/bundled artifacts (bower,
-        // node_modules, *.min.js, versioned jquery, …). The OciusX eval found the
+        // node_modules, *.min.js, versioned jquery, …). The pilot eval found the
         // concept-footprint lexical layer was the dominant noise source handed to
         // the model (precision ~5%); these generated files are never the change
         // target and crowd out the real files.
@@ -1104,14 +1189,14 @@ mod tests {
         // and stole the concept slots, tanking recall. They must be rejected so
         // the real domain tokens surface.
         let c = extract_story_concepts(
-            "patric0375 a778c06a field worker searches the RoQ code list by redovisning category",
+            "acmeorg0375 a778c06a field worker searches the RoQ code list by redovisning category",
         );
         assert!(
             !c.contains(&"a778c06a".to_string()),
             "commit hash must be rejected: {c:?}"
         );
         assert!(
-            !c.contains(&"patric0375".to_string()),
+            !c.contains(&"acmeorg0375".to_string()),
             "username/id must be rejected: {c:?}"
         );
         // Garbage is gone; real word tokens fill the slots instead.
@@ -1144,6 +1229,96 @@ mod tests {
         // non-TS/JS paths yield nothing (no false pairing for .json/.css/.vb).
         assert!(transpile_pair_candidates("a/b/config.json").is_empty());
         assert!(transpile_pair_candidates("a/b/page.aspx.vb").is_empty());
+    }
+
+    #[test]
+    fn interface_pair_candidates_links_service_and_iservice() {
+        use super::interface_pair_candidates;
+        // Implementation -> interface, same dir and interfaces/ subfolder
+        // (the live PR1913 miss shape).
+        let c = interface_pair_candidates(
+            "app_code/api-v2/services/reportingofquantities/roqentryservice.vb",
+        );
+        assert!(
+            c.contains(
+                &"app_code/api-v2/services/reportingofquantities/interfaces/iroqentryservice.vb"
+                    .to_string()
+            ),
+            "{c:?}"
+        );
+        assert!(
+            c.contains(
+                &"app_code/api-v2/services/reportingofquantities/iroqentryservice.vb".to_string()
+            ),
+            "{c:?}"
+        );
+        // Interface -> implementation, out of the interfaces/ folder.
+        let r = interface_pair_candidates(
+            "app_code/api-v2/services/reportingofquantities/interfaces/iroqentryservice.vb",
+        );
+        assert!(
+            r.contains(
+                &"app_code/api-v2/services/reportingofquantities/roqentryservice.vb".to_string()
+            ),
+            "{r:?}"
+        );
+        // Markup code-behind and designer files pair via the page rule, not here.
+        assert!(interface_pair_candidates("a/b/page.aspx.vb").is_empty());
+        assert!(interface_pair_candidates("a/b/form.designer.cs").is_empty());
+        // Root-level file (no dir) yields nothing.
+        assert!(interface_pair_candidates("standalone.vb").is_empty());
+    }
+
+    #[test]
+    fn can_helper_names_match_convention_only() {
+        use super::is_can_helper_name;
+        assert!(is_can_helper_name("CanUserUploadMarkerIcon"));
+        assert!(is_can_helper_name("aspnetUsers.CanEditRoq"));
+        assert!(is_can_helper_name("CanDo"));
+        // Not permission helpers: Cancel/Canonical/scan/short names.
+        assert!(!is_can_helper_name("Cancel"));
+        assert!(!is_can_helper_name("CancelOrder"));
+        assert!(!is_can_helper_name("Canonicalize"));
+        assert!(!is_can_helper_name("ScanFiles"));
+        assert!(!is_can_helper_name("Can"));
+        assert!(!is_can_helper_name("candidate_list"));
+    }
+
+    #[test]
+    fn api_spec_docs_finds_contract_documents() {
+        use super::{api_spec_docs, is_api_code_path};
+        let index: Vec<String> = [
+            "docs/openapi/ox-fiber.yaml",
+            "docs/openapi/ox-core.yaml",
+            "app_code/api-v2/controllers/roqentriescontroller.vb",
+            "node_modules/swagger-ui/dist/swagger-ui.json", // vendor → excluded
+            "docs/readme.md",                               // not a spec
+            "config/swagger.json",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let specs = api_spec_docs(&index);
+        assert_eq!(
+            specs,
+            vec![
+                "config/swagger.json".to_string(),
+                "docs/openapi/ox-core.yaml".to_string(),
+                "docs/openapi/ox-fiber.yaml".to_string(),
+            ]
+        );
+        // API-layer detection: api-ish path segment + code extension.
+        assert!(is_api_code_path(
+            "app_code/api-v2/controllers/roqentriescontroller.vb"
+        ));
+        assert!(is_api_code_path(
+            "app_code/installationsobjekt/api-json/x.vb"
+        ));
+        // Not API code: no api segment, or non-code files.
+        assert!(!is_api_code_path("modules/dashboard/pages/map.aspx.vb"));
+        assert!(!is_api_code_path("docs/openapi/ox-fiber.yaml"));
+        // "apiary-docs-archive" style long segments do not count.
+        assert!(!is_api_code_path("apiary-docs-archive/util.vb"));
     }
 
     #[test]
@@ -1249,7 +1424,8 @@ mod tests {
         .iter()
         .map(|s| s.to_string())
         .collect();
-        let cohort = find_analog_cohort(&index, "controller").expect("cohort");
+        let none = std::collections::HashSet::new();
+        let cohort = find_analog_cohort(&index, "controller", &none).expect("cohort");
         let lc: Vec<String> = cohort.iter().map(|f| f.to_lowercase()).collect();
         assert!(
             lc.iter().any(|f| f.contains("roqentriescontroller")),
@@ -1261,7 +1437,43 @@ mod tests {
         );
         assert!(cohort.len() >= 5, "{cohort:?}");
         // cue filter: a cue absent from any cohort yields nothing.
-        assert!(find_analog_cohort(&index, "nonexistentcue").is_none());
+        assert!(find_analog_cohort(&index, "nonexistentcue", &none).is_none());
+    }
+
+    #[test]
+    fn analog_cohort_prefers_the_story_connected_family() {
+        // TWO equally-complete api families; the ranked candidate set
+        // overlaps only the Marker one — it must win DETERMINISTICALLY
+        // (the old map-order tie made template picks flip across runs).
+        let index: Vec<String> = [
+            "App_Code/api-v2/Controllers/Roq/RoqEntriesController.vb",
+            "App_Code/api-v2/Services/Roq/RoqEntryService.vb",
+            "App_Code/api-v2/Services/Roq/interfaces/IRoqEntryService.vb",
+            "App_Code/api-v2/DataTransferObjects/Roq/RoqEntry-In.vb",
+            "App_Code/api-v2/Controllers/Marker/MarkersController.vb",
+            "App_Code/api-v2/Services/Marker/MarkerService.vb",
+            "App_Code/api-v2/Services/Marker/interfaces/IMarkerService.vb",
+            "App_Code/api-v2/DataTransferObjects/Marker/Marker-In.vb",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let ranked: std::collections::HashSet<String> =
+            ["app_code/api-v2/services/marker/markerservice.vb".to_string()]
+                .into_iter()
+                .collect();
+        let cohort = find_analog_cohort(&index, "controller", &ranked).expect("cohort");
+        assert!(
+            cohort.iter().any(|f| f.contains("MarkersController")),
+            "story-connected family must win: {cohort:?}"
+        );
+        // With NO overlap on either side, the lexicographic tiebreak makes
+        // the pick stable (Marker < Roq alphabetically).
+        let none = std::collections::HashSet::new();
+        let c1 = find_analog_cohort(&index, "controller", &none).expect("cohort");
+        let c2 = find_analog_cohort(&index, "controller", &none).expect("cohort");
+        assert_eq!(c1, c2);
+        assert!(c1.iter().any(|f| f.contains("MarkersController")), "{c1:?}");
     }
 }
 
@@ -1360,7 +1572,7 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
         // Keep DOMAIN nouns/features (report, export, import, search, filter,
         // map, invoice, status, …) as real concepts — only pure verbs here.
         // NOTE: only UNAMBIGUOUS generic verbs. Deliberately NOT stopwording
-        // verbs that double as OciusX domain nouns — change ("Change Requests"),
+        // verbs that double as domain nouns in the pilot corpus — change ("Change Requests"),
         // view (DB/map views), select (SQL), process (business process), create
         // (creation flows) — to avoid hurting recall on those concepts.
         "update",
@@ -1442,7 +1654,7 @@ pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
             return None;
         }
         // Reject hash/ID garbage that leaks into PR-derived stories: commit SHAs
-        // ("a778c06a"), usernames/board IDs ("patric0375"), ticket numbers. A real
+        // ("a778c06a"), usernames/board IDs, ticket numbers. A real
         // domain concept almost never carries 3+ digits; such tokens otherwise
         // steal the limited concept slots and tank recall. Generic, no per-repo
         // names — robustness to noisy story input.
@@ -2268,10 +2480,10 @@ mod review_ingest_tests {
     #[test]
     fn sonarqube_issue_export_parses_to_findings() {
         let json = r#"{"issues":[
-            {"component":"ociusx:Site/App_Code/dal/users.vb","rule":"vbnet:S2077",
+            {"component":"app:Site/App_Code/dal/users.vb","rule":"vbnet:S2077",
              "message":"Make sure using a dynamically formatted SQL query is safe here.",
              "severity":"CRITICAL","line":42},
-            {"component":"ociusx:Site/Default.aspx.vb","rule":"vbnet:S1481",
+            {"component":"app:Site/Default.aspx.vb","rule":"vbnet:S1481",
              "message":"Remove the unused local variable 'x'.","severity":"MINOR"}
         ]}"#;
         let findings = parse_sonarqube_issues(json);
@@ -2551,7 +2763,18 @@ fn propose_scaffold_paths(cohort: &[String], entity_pascal: &str) -> Vec<String>
     out
 }
 
-fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
+/// Pick the template family for the scaffold section. `ranked` is the
+/// story's own candidate set (canon lowercase paths): the family MOST
+/// CONNECTED to this story wins — both more relevant as a template and
+/// fully deterministic. The old (dirs, file-count) ordering left ties to
+/// HashMap iteration order, so the SAME dossier flipped template families
+/// across runs (live PR1890: RoQ vs User family, recall tri-stating
+/// 54/62/69 on the flip).
+fn find_analog_cohort(
+    index: &[String],
+    cue: &str,
+    ranked: &HashSet<String>,
+) -> Option<Vec<String>> {
     let cue = cue.to_lowercase();
     let mut groups: HashMap<(String, String), (HashSet<String>, Vec<String>)> = HashMap::new();
     for f in index {
@@ -2571,7 +2794,7 @@ fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
         e.0.insert(parent);
         e.1.push(f.clone());
     }
-    let mut cands: Vec<(usize, Vec<String>)> = groups
+    let mut cands: Vec<(usize, usize, Vec<String>)> = groups
         .into_values()
         .filter(|(dirs, files)| {
             dirs.len() >= 3
@@ -2579,11 +2802,20 @@ fn find_analog_cohort(index: &[String], cue: &str) -> Option<Vec<String>> {
         })
         .map(|(dirs, mut files)| {
             files.sort();
-            (dirs.len(), files)
+            let overlap = files
+                .iter()
+                .filter(|f| ranked.contains(&f.to_lowercase()))
+                .count();
+            (overlap, dirs.len(), files)
         })
         .collect();
-    cands.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.len().cmp(&a.1.len())));
-    cands.into_iter().next().map(|(_, files)| files)
+    cands.sort_by(|a, b| {
+        b.0.cmp(&a.0) // candidate-set overlap: the story's OWN family first
+            .then(b.1.cmp(&a.1)) // then structural completeness (role dirs)
+            .then(b.2.len().cmp(&a.2.len()))
+            .then_with(|| a.2.cmp(&b.2)) // lexicographic: NEVER map order
+    });
+    cands.into_iter().next().map(|(_, _, files)| files)
 }
 
 /// Co-change-first tier for ranking: history/co-change (the most predictive
@@ -2644,7 +2876,7 @@ pub(crate) fn split_symmetric_name_tokens(name: &str) -> Vec<String> {
 /// deciding the twin's behavior. Pairs are DISJOINT (greedy: each name joins
 /// at most ONE pair) — a single symmetric FAMILY like Show/Hide × Main/Sub
 /// otherwise fans out into C(n,2) redundant cross-pairs that crowd every
-/// other family past the cap (the live PR1933 miss: Hide/Show chains starved
+/// other family past the cap (the a live pilot PR miss: Hide/Show chains starved
 /// the ddl…Main/Sub handler pair the story was actually about). Dedupes
 /// (a,b)/(b,a); capped at 6 pairs.
 /// Relevance tier of a symmetric pair from its ONE differing token pair.
@@ -2948,7 +3180,7 @@ mod symmetric_sibling_tests {
 
     #[test]
     fn live_producedq_ddl_handler_pair_survives_hide_show_family() {
-        // The exact live PR1933 shape: producedq.aspx.vb's Show/Hide × Main/Sub
+        // The exact a live pilot PR shape: producedq.aspx.vb's Show/Hide × Main/Sub
         // helper family plus the ddl…Main/Sub SelectedIndexChanged handlers
         // (graph function names are class-qualified). Under all-pairs
         // enumeration the Hide/Show cross-pairs starved the ddl pair past the
@@ -2985,7 +3217,7 @@ mod symmetric_sibling_tests {
 
     #[test]
     fn scan_files_skip_noncode_and_rank_by_corroboration() {
-        // The live PR1933 regression: the resx family expansion makes every
+        // The a live pilot PR regression: the resx family expansion makes every
         // language sibling {cochange, family} = tier 0, and
         // app_globalresources/… sorts alphabetically before every code file,
         // so an unfiltered top-10 was ALL resource files (no control/function
@@ -3001,7 +3233,7 @@ mod symmetric_sibling_tests {
             );
         }
         prov.insert(
-            "db-ociusx.sql/scripts/post/ss_systemsettings.sql".into(),
+            "db-app.sql/scripts/post/ss_systemsettings.sql".into(),
             BTreeSet::from(["cochange", "concept"]),
         );
         prov.insert(
@@ -3226,10 +3458,18 @@ fn render_change_set(
                  whether this team's convention calls for a NEW SETTING to gate it - \
                  mature codebases frequently ship behaviour changes as configurable \
                  toggles (settings store + admin UI + default), and stories rarely say \
-                 so. Check how similar merged work did it (the exemplars below).\n\n",
+                 so. Check how similar merged work did it (the exemplars below).\n",
             );
         }
     }
+    s.push_str(
+        "- Symptom names a user ACTION ('when removing/adding/clicking X')? Then the \
+         fix must be VISIBLE AT THAT MOMENT - a fix that corrects the state only on \
+         the next load/refresh/reopen does NOT close the report, even when it is the \
+         cleaner root-cause fix (a live A/B: the correct-on-next-open server fix lost \
+         to the team's dims-immediately client fix). State the feedback timing your \
+         fix delivers.\n\n",
+    );
     s.push_str("## Candidate files (grouped by layer — order within a group is NOT priority)\n");
 
     let layer_names: Vec<&str> = LAYERS
@@ -3279,7 +3519,7 @@ fn render_change_set(
 
 impl Engram {
     /// ONE call: the ranked, co-change-confirmed, family-aware change set for a
-    /// user story. The OciusX-validated recipe ported into Engram — concept
+    /// user story. The pilot-validated recipe ported into Engram — concept
     /// footprint + git co-change, co-change/history ranked first, vendor noise
     /// filtered. Generic; no per-repo hardcoding.
     /// With `pat_token`, auto-fetches a referenced ADO work item for input
@@ -3298,20 +3538,29 @@ impl Engram {
         // searches, the temporal/thin-bug triggers, scaffold detection, and
         // the rendered brief — sees what the developers actually received.
         let mut req = req;
-        // Auto-fetch: story references a work-item id, caller supplied a
-        // per-call PAT, and refresh_corpora saved the org/project
-        // coordinates. Silent degrade on any failure — the dossier still
-        // builds from the story alone.
+        // Auto-fetch: story references a work-item id, a PAT is available
+        // (per-call, or the server's own ADO_PAT env — a live agent never
+        // holds credentials, the server host does), and refresh_corpora
+        // saved the org/project coordinates. Silent degrade on any
+        // failure — the dossier still builds from the story alone.
         if req.work_item_text.is_none()
-            && let Some(pat) = req.pat_token.take()
             && let Some(wi_id) = extract_work_item_id(&req.story)
+            && let Some(pat) = resolve_ado_pat(req.pat_token.take())
         {
             let reg = self.state.registry.clone();
             let pid = req.project_id.clone();
             let coords = tokio::task::spawn_blocking(move || {
                 let org = reg.get_meta(&pid, "ado_org").ok().flatten();
                 let project = reg.get_meta(&pid, "ado_project").ok().flatten();
-                org.zip(project)
+                org.zip(project).or_else(|| {
+                    // Zero-config fallback: an Azure DevOps remote URL
+                    // already names the org/project, so the auto-fetch
+                    // works on any ADO-backed repo even when no
+                    // refresh_corpora stage-4 run ever persisted coords.
+                    let dir = reg.get_project(&pid).ok().flatten()?.directory;
+                    let url = git_remote_origin_url(std::path::Path::new(&dir))?;
+                    ado_coords_from_remote_url(&url)
+                })
             })
             .await
             .ok()
@@ -3328,7 +3577,7 @@ impl Engram {
         }
         let mut concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => extract_story_concepts(&req.story),
+            _ => extract_story_concepts(&story_for_concepts(&req.story)),
         };
 
         // KB language bridge: the team's wiki/docs corpus (memory_bank
@@ -3344,7 +3593,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_MEMORY_BANK.into(),
                 generation: 0,
-                text: req.story.clone(),
+                text: story_for_concepts(&req.story),
                 top_k: 3,
                 fts_mode: "loose".into(),
                 include_path_prefixes: None,
@@ -3684,6 +3933,21 @@ impl Engram {
                     if index_set.contains(&c) {
                         fam.push((c, sigs.clone()));
                     }
+                }
+                // Interface <-> implementation (.NET IService convention).
+                for c in interface_pair_candidates(&ps) {
+                    if index_set.contains(&c) {
+                        fam.push((c, sigs.clone()));
+                    }
+                }
+            }
+            // API-spec contract documents: set-level rule — any API-layer
+            // code candidate pulls the OpenAPI/Swagger docs that exist in
+            // the index. Tagged "family" (asserted-contract companion,
+            // exempt from the tail cap like the resx language sets).
+            if prov.keys().any(|p| is_api_code_path(&strip(p))) {
+                for f in api_spec_docs(&index) {
+                    fam.push((f, BTreeSet::from(["family"])));
                 }
             }
             for (k, v) in fam {
@@ -4084,7 +4348,8 @@ impl Engram {
                     .unwrap_or_default();
                 index.sort();
                 index.dedup();
-                if let Some(cohort) = find_analog_cohort(&index, "controller") {
+                let ranked_canon: HashSet<String> = prov.keys().map(|k| k.to_lowercase()).collect();
+                if let Some(cohort) = find_analog_cohort(&index, "controller", &ranked_canon) {
                     let area = cohort
                         .first()
                         .map(|f| {
@@ -4187,14 +4452,23 @@ impl Engram {
         // an accepted change (and often contain the files ranking missed).
         // merged_before keeps replays/evals leak-free (see find_merged_work).
         if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
-            // With a cutoff active, most of the freshest matches get
-            // filtered - fetch deeper so older exemplars can surface.
-            let fetch_k = if req.merged_before.is_some() { 24 } else { 6 };
+            let cutoff_secs = req
+                .merged_before
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+                .and_then(crate::handlers::pr_history_tools::ymd_to_epoch_secs);
+            // Cutoff rides the indexed timestamp INSIDE the query (strictly
+            // before the date): with the old display-time filter, post-cutoff
+            // docs ate the top_k slots, so replay exemplars shifted whenever
+            // the corpus gained newer PRs. Keep a modest over-fetch for the
+            // dedup/malformed-doc cases.
+            let fetch_k = if req.merged_before.is_some() { 12 } else { 6 };
             let q = engram_index::HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: engram_core::namespaces::NAMESPACE_HISTORY.into(),
                 generation: 0,
-                text: req.story.clone(),
+                text: story_for_concepts(&req.story),
                 top_k: fetch_k,
                 fts_mode: "loose".into(),
                 include_path_prefixes: Some(vec!["pr:".into()]),
@@ -4202,7 +4476,7 @@ impl Engram {
                 language_filters: None,
                 author_filter: None,
                 date_after: None,
-                date_before: None,
+                date_before: cutoff_secs.map(|s| s.saturating_sub(1)),
                 use_mmr: false,
             };
             let engine = ps.search.clone();
@@ -4216,10 +4490,23 @@ impl Engram {
                 .as_deref()
                 .map(str::trim)
                 .filter(|d| !d.is_empty());
-            let mut shown = 0usize;
-            for h in &hits {
-                if shown >= 2 {
-                    break;
+            // Story kind profile from the RANKED candidate set — the same
+            // ultra-coarse taxonomy the pr: docs carry on their `kinds:`
+            // line. Preferring kind-matching exemplars keeps a UI story
+            // from being shaped by API cohorts (and vice versa); lexical
+            // rank breaks ties, so with no kind signal the order is
+            // unchanged.
+            let story_kinds: std::collections::BTreeSet<String> =
+                crate::handlers::pr_history_tools::classify_kinds(
+                    &prov.keys().cloned().collect::<Vec<_>>(),
+                )
+                .into_iter()
+                .collect();
+            let mut seen_doc_ids: HashSet<&str> = HashSet::new();
+            let mut docs: Vec<(usize, usize, String)> = Vec::new(); // (kind overlap, lexical rank, content)
+            for (rank, h) in hits.iter().enumerate() {
+                if !seen_doc_ids.insert(h.doc_id.as_str()) {
+                    continue;
                 }
                 let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_doc_id(
                     &req.project_id,
@@ -4239,20 +4526,176 @@ impl Engram {
                         continue;
                     }
                 }
+                let overlap = content
+                    .lines()
+                    .find_map(|l| l.split("| kinds: ").nth(1))
+                    .map(|ks| {
+                        ks.split(',')
+                            .map(str::trim)
+                            .filter(|k| story_kinds.contains(*k))
+                            .count()
+                    })
+                    .unwrap_or(0);
+                docs.push((overlap, rank, content));
+            }
+            // Highest kind overlap first; original lexical rank tiebreaks.
+            docs.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+            let mut shown = 0usize;
+            for (_, _, content) in docs.iter().take(2) {
                 if shown == 0 {
                     out.push_str("\n## Approved exemplars — how similar merged work was shaped\n");
                 }
                 shown += 1;
-                let head: String = content.chars().take(500).collect();
-                out.push_str(&format!("{}\n", head.trim_end()));
-                if content.chars().count() > 500 {
-                    out.push_str("(truncated)\n");
-                }
+                // Structure-aware cut: a char-head ends before the file
+                // cohort (title/meta → ≤600-char body → cohort), and the
+                // cohort IS the payload — see exemplar_view.
+                out.push_str(&format!(
+                    "{}\n",
+                    crate::handlers::pr_history_tools::exemplar_view(content, 20).trim_end()
+                ));
             }
             if shown > 0 {
                 out.push_str(
                     "next: find_merged_work(story=...) for the complete approved file cohorts.\n",
                 );
+            }
+            // House factoring prior: across ALL fetched similar merged PRs
+            // (not just the 2 shown), how did the team LAYER this kind of
+            // work — client, server, or both? The factoring fork (same fix,
+            // different layer) is the dominant plan-vs-team divergence
+            // (arm-B runs 13/15/17: mechanism-correct plans, other layer).
+            // Evidence, not a rule: the agent still decides.
+            let mut both = 0usize;
+            let mut client_only = 0usize;
+            let mut server_only = 0usize;
+            let mut example = String::new();
+            // Per-layer author lists: WHO made each layer choice matters —
+            // senior/lead authors' factoring is more authoritative house
+            // style than anyone else's (user 2026-07-10). Authority is
+            // surfaced generically via the author names + counts; the
+            // reader (agent or human) weighs them.
+            let mut layer_authors: BTreeMap<&'static str, BTreeMap<String, usize>> =
+                BTreeMap::new();
+            for (_, _, content) in &docs {
+                let meta = content.lines().find(|l| l.contains("| kinds: "));
+                let Some(meta) = meta else { continue };
+                let Some(kinds_line) = meta.split("| kinds: ").nth(1) else {
+                    continue;
+                };
+                let author = meta
+                    .split("| author: ")
+                    .nth(1)
+                    .and_then(|r| r.split(" |").next())
+                    .unwrap_or("?")
+                    .trim()
+                    .to_string();
+                let (c, s) = crate::handlers::pr_history_tools::layer_profile(kinds_line);
+                let bucket = match (c, s) {
+                    (true, true) => {
+                        both += 1;
+                        if example.is_empty()
+                            && let Some(t) = content.lines().next()
+                        {
+                            example = t.trim_start_matches('#').trim().to_string();
+                        }
+                        "client+server"
+                    }
+                    (true, false) => {
+                        client_only += 1;
+                        "client-only"
+                    }
+                    (false, true) => {
+                        server_only += 1;
+                        "server-only"
+                    }
+                    (false, false) => continue,
+                };
+                *layer_authors
+                    .entry(bucket)
+                    .or_default()
+                    .entry(author)
+                    .or_default() += 1;
+            }
+            let total = both + client_only + server_only;
+            if total >= 4 {
+                out.push_str(&format!(
+                    "House factoring prior ({total} similar merged PRs): {both} shipped \
+                     CLIENT+SERVER together, {client_only} client-side only, {server_only} \
+                     server-side only{}. When your fix could land in either layer, weigh \
+                     this team's habit — a mechanism-correct plan in the OTHER layer is \
+                     the most common way plans diverge from what actually merged.\n",
+                    if example.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" (e.g. {example})")
+                    }
+                ));
+                // WHO made each choice: lead/senior authors' layer choices
+                // are the strongest house-style evidence.
+                for (bucket, authors) in &layer_authors {
+                    let mut rows: Vec<(usize, &String)> =
+                        authors.iter().map(|(a, n)| (*n, a)).collect();
+                    rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+                    let list: Vec<String> =
+                        rows.iter().map(|(n, a)| format!("{a} ({n})")).collect();
+                    out.push_str(&format!("  {bucket} by: {}\n", list.join(", ")));
+                }
+                // Explicit fork callout when the history is genuinely
+                // CONTESTED (minority layering >= 1/4 of similar PRs).
+                // Authoring experiments (2026-07-10: three arms on a
+                // post-knowledge-cutoff bug) showed mechanism-correct
+                // implementations landing in the other layer as THE
+                // dominant residual divergence from merged work — a
+                // product/team decision no evidence derives. What helps
+                // is making the choice explicit and reviewable instead
+                // of silent.
+                let max_bucket = both.max(client_only).max(server_only);
+                if (total - max_bucket) * 4 >= total {
+                    // Name the MAJORITY layering as the default. The fork
+                    // callout's first cut (2026-07-10) only said "pick
+                    // one", and a rerun agent confidently chose the 22%
+                    // minority layer on a bug whose team fix spanned both
+                    // (PR1937: 85.7 -> 50 file-F1). Deviating from a
+                    // clear house majority is legitimate but must clear a
+                    // higher bar than a coin-flip, so the majority is
+                    // stated as the prior and equal splits say so.
+                    let (majority, share) = [
+                        ("client+server together", both),
+                        ("client-side only", client_only),
+                        ("server-side only", server_only),
+                    ]
+                    .into_iter()
+                    .max_by_key(|(_, n)| *n)
+                    .map(|(label, n)| (label, (n * 100) / total.max(1)))
+                    .unwrap_or(("client+server together", 0));
+                    let tie = [both, client_only, server_only]
+                        .iter()
+                        .filter(|&&n| n == max_bucket)
+                        .count()
+                        > 1;
+                    if tie {
+                        out.push_str(
+                            "  ⚖ FACTORING FORK: this work class has shipped BOTH ways here in \
+                             roughly EQUAL measure — the layer choice is a genuine product \
+                             decision no evidence settles. Pick ONE deliberately (weigh the \
+                             authors above; a client-visible symptom with a server root cause \
+                             often warrants BOTH layers), and STATE the choice and its \
+                             rationale in your plan and PR description so reviewers judge the \
+                             fork instead of discovering it.\n",
+                        );
+                    } else {
+                        out.push_str(&format!(
+                            "  ⚖ FACTORING FORK: contested, but the house MAJORITY ({share}%) \
+                             ships this work class {majority} — treat that as the DEFAULT. \
+                             Deviating to a narrower layer is legitimate only with a specific, \
+                             stated reason (e.g. you verified the other layer genuinely has no \
+                             defect/role in THIS change); absent that, follow the majority. A \
+                             client-visible symptom with a server root cause usually lands in \
+                             BOTH layers here. STATE your choice and its rationale so reviewers \
+                             judge the fork instead of discovering it.\n"
+                        ));
+                    }
+                }
             }
         }
 
@@ -4270,7 +4713,7 @@ impl Engram {
             // the section silently vanished. Pick node-bearing code files,
             // strongest corroboration first.
             let top_files = top_node_bearing_files(&prov, 15);
-            let gates = tokio::task::spawn_blocking(move || {
+            let (gates, helper_files, gate_def_files) = tokio::task::spawn_blocking(move || {
                 let mut gates: std::collections::BTreeMap<String, usize> = Default::default();
                 for f in &top_files {
                     for n in graph
@@ -4289,7 +4732,42 @@ impl Engram {
                         }
                     }
                 }
-                gates
+                // House auth-helper convention: where Can* permission
+                // helpers are DEFINED. Two arm-B autopsies missed the same
+                // class (PR1890 role.vb, PR1913 aspnetUsers.vb): the team
+                // routes new permission surface through its user/role
+                // helper file, and nothing in the brief named that file.
+                let mut helper_files: HashMap<String, usize> = HashMap::new();
+                // Gate DEFINITION sites: method-shaped gates (check_pr_id,
+                // CheckWrite, checkread) are function nodes — one scan maps
+                // each gate to the file DEFINING it. That file is the
+                // permission catalog/helper class a new gated surface edits
+                // (the miss class of two arm-B audits: role.vb,
+                // aspnetUsers.vb) — derived from the graph, no name
+                // convention needed.
+                let mut def_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+                if !gates.is_empty() {
+                    let gate_names: HashSet<String> =
+                        gates.keys().map(|g| g.to_lowercase()).collect();
+                    for n in graph
+                        .query_nodes(&pid_g, Some("function"), None, None, usize::MAX)
+                        .unwrap_or_default()
+                    {
+                        let last = n.name.rsplit('.').next().unwrap_or(&n.name).to_lowercase();
+                        if gate_names.contains(&last) {
+                            def_files
+                                .entry(n.file_path.as_str().replace('\\', "/"))
+                                .or_default()
+                                .insert(last);
+                        }
+                        if is_can_helper_name(&n.name) {
+                            *helper_files
+                                .entry(n.file_path.as_str().replace('\\', "/"))
+                                .or_default() += 1;
+                        }
+                    }
+                }
+                (gates, helper_files, def_files)
             })
             .await
             .unwrap_or_default();
@@ -4305,6 +4783,343 @@ impl Engram {
                 rows.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
                 for (n, g) in rows.into_iter().take(10) {
                     out.push_str(&format!("- {g} ({n} gated symbol(s) in the set)\n"));
+                }
+                // Definition sites: the file(s) DEFINING these gate checks —
+                // a new gated surface usually adds its check/helper THERE.
+                let mut df: Vec<(usize, String, Vec<String>)> = gate_def_files
+                    .into_iter()
+                    .map(|(f, gs)| (gs.len(), f, gs.into_iter().collect()))
+                    .collect();
+                df.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                for (_, f, gs) in df.into_iter().take(2) {
+                    out.push_str(&format!(
+                        "Gate definitions: `{f}` defines {} — permission-surface changes \
+                         usually land there too.\n",
+                        gs.join(", ")
+                    ));
+                }
+                // Only a real convention is worth a line: >=3 Can* helpers
+                // concentrated in a file.
+                let mut hf: Vec<(usize, String)> = helper_files
+                    .into_iter()
+                    .filter(|(_, n)| *n >= 3)
+                    .map(|(f, n)| (n, f))
+                    .collect();
+                hf.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                if !hf.is_empty() {
+                    out.push_str(
+                        "House convention: permission checks are defined as Can* helpers \
+                         in these files — a NEW gated surface usually adds its helper \
+                         there (2 live audits missed exactly this):\n",
+                    );
+                    for (n, f) in hf.into_iter().take(2) {
+                        out.push_str(&format!("- `{f}` ({n} Can* helpers)\n"));
+                    }
+                }
+            }
+        }
+
+        // Shared components in the candidates' dependency graph: a component
+        // IMPORTED BY multiple surfaces is usually where a cross-surface
+        // affordance is implemented. Past-PR evidence (arm-B run 9): the
+        // team extended the SHARED select control while a locally-scoped
+        // plan diverged in 10 files — the extend-vs-local fork needs to be
+        // an EXPLICIT decision. Graph-only (O(degree) adjacency); silent
+        // when the codebase has no import edges.
+        {
+            let graph = self.state.graph.clone();
+            let pid_s = req.project_id.clone();
+            // ALL candidates, not a top-N: adjacency lookups are O(degree)
+            // and the shared component often carries a WEAK signal for the
+            // story (live: qtyManager.ts was [vector]-only for the RoQ
+            // search story yet is exactly the fork that matters).
+            let top_files: Vec<String> = prov.keys().cloned().collect();
+            // Corroboration per canon path — the same-fan-in tiebreak
+            // (an alphabetical tiebreak buried qtyManager.ts behind
+            // unrelated fan-in-2 pairs).
+            let sig_count: HashMap<String, usize> =
+                prov.iter().map(|(k, v)| (k.clone(), v.len())).collect();
+            let shared = tokio::task::spawn_blocking(move || {
+                let mut out: Vec<(usize, String, Vec<String>)> = Vec::new();
+                let mut seen: HashSet<String> = HashSet::new();
+                // Both shapes matter: (a) a candidate DEPENDS ON a shared
+                // component; (b) the candidate ITSELF is the shared
+                // component other surfaces import (the run-9 shape:
+                // qtyManager.ts consumed by the map AND fbinstplan
+                // surfaces — the fan-in is INCOMING at the candidate).
+                let mut check = |node_id: String,
+                                 graph: &engram_graph::GraphStore|
+                 -> Option<(usize, String, Vec<String>)> {
+                    if !seen.insert(node_id.clone()) {
+                        return None;
+                    }
+                    let path = node_id.strip_prefix("file:")?.to_string();
+                    // Type declarations are not implementation targets.
+                    if path.to_lowercase().ends_with(".d.ts") {
+                        return None;
+                    }
+                    let importers = graph
+                        .find_incoming_edges(
+                            &pid_s,
+                            Some(engram_graph::EdgeKind::Imports),
+                            &node_id,
+                            25,
+                        )
+                        .unwrap_or_default();
+                    if importers.len() < 2 {
+                        return None;
+                    }
+                    let sample: Vec<String> = importers
+                        .iter()
+                        .take(3)
+                        .filter_map(|(src, _)| src.strip_prefix("file:").map(str::to_string))
+                        .collect();
+                    Some((importers.len(), path, sample))
+                };
+                // prov keys are CANON (lowercased, web-root-stripped) but
+                // adjacency wants the EXACT node id (original case +
+                // prefix). Map via the file-node index: lowercase(+stripped)
+                // -> original rel path.
+                let mut real: HashMap<String, String> = HashMap::new();
+                if let Ok(meta) = graph.list_file_node_metadata(&pid_s) {
+                    for (rp, _) in meta {
+                        let orig = rp.as_str().replace('\\', "/");
+                        let lower = orig.to_lowercase();
+                        if let Some(stripped) = lower.strip_prefix("site/") {
+                            real.entry(stripped.to_string())
+                                .or_insert_with(|| orig.clone());
+                        }
+                        real.entry(lower).or_insert(orig);
+                    }
+                }
+                for f in &top_files {
+                    let Some(orig) = real.get(&f.to_lowercase()) else {
+                        continue;
+                    };
+                    let fid = engram_core::ids::NodeId::file(orig).0;
+                    // (b) the candidate itself as the shared component.
+                    if let Some(row) = check(fid.clone(), &graph) {
+                        out.push(row);
+                    }
+                    // (a) shared components the candidate depends on.
+                    for (dep_id, _w) in graph
+                        .neighbors(&pid_s, engram_graph::EdgeKind::Imports, &fid, 20)
+                        .unwrap_or_default()
+                    {
+                        if let Some(row) = check(dep_id, &graph) {
+                            out.push(row);
+                        }
+                    }
+                }
+                // SPECIFIC-first (fan-in ASCENDING): maximum fan-in =
+                // framework hubs (q.ts at 25 = a stopword, the IDF lesson);
+                // the story-relevant shared component sits at low fan-in
+                // (live: qtyManager.ts at 2 — the map + fbinstplan
+                // surfaces). Same fan-in → the component with more story
+                // corroboration wins (an alphabetical tiebreak buried
+                // qtyManager behind unrelated fan-in-2 pairs).
+                out.sort_by(|a, b| {
+                    a.0.cmp(&b.0)
+                        .then_with(|| {
+                            let sa = sig_count.get(&a.1.to_lowercase()).copied().unwrap_or(0);
+                            let sb = sig_count.get(&b.1.to_lowercase()).copied().unwrap_or(0);
+                            sb.cmp(&sa)
+                        })
+                        .then_with(|| a.1.cmp(&b.1))
+                });
+                out.truncate(3);
+                out
+            })
+            .await
+            .unwrap_or_default();
+            if !shared.is_empty() {
+                out.push_str(
+                    "\n## Shared components in the candidates' dependency graph\n\
+                     These are imported by MULTIPLE surfaces. When the story adds an \
+                     affordance to a dialog/control these components implement, decide \
+                     EXPLICITLY whether the change belongs IN the shared component \
+                     (how past cross-surface work usually shipped) or locally in each \
+                     consumer — an unstated fork here diverges the whole file set:\n",
+                );
+                for (n, comp, sample) in shared {
+                    out.push_str(&format!(
+                        "- `{comp}` — imported by {n} file(s), e.g. {}\n",
+                        sample
+                            .iter()
+                            .map(|s| format!("`{s}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+            }
+        }
+
+        // Review rules for the candidate file families — WRITING-time
+        // injection of the distilled review corpus. Replay calibration
+        // (2026-07-10, 23 merged PRs / 263 real review findings) showed the
+        // post-hoc gates and the reviewers are largely ORTHOGONAL detectors:
+        // the classes that cause 3-6 re-push iterations (null-safety,
+        // event-API misuse, localization bypass, error handling) are
+        // covered by the ingested anti-pattern rules, but only if the
+        // agent sees them BEFORE writing the code. So the dossier — the
+        // first thing a planning agent reads — carries the relevant rules.
+        if let Ok(ps) = self.ensure_project_runtime(&req.project_id).await {
+            let q = engram_index::HybridQuery {
+                project_id: req.project_id.clone(),
+                namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
+                generation: 0,
+                text: story_for_concepts(&req.story),
+                top_k: 12,
+                fts_mode: "loose".into(),
+                include_path_prefixes: None,
+                exclude_path_prefixes: None,
+                language_filters: None,
+                author_filter: None,
+                date_after: None,
+                date_before: None,
+                use_mmr: false,
+            };
+            let engine = ps.search.clone();
+            let mut hits = tokio::task::spawn_blocking(move || engine.lexical_search(&q))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
+            // FAMILY-FIRST second pool: story-similarity finds rules about
+            // similar FEATURES, but recurring review findings follow CODE
+            // SURFACES — api-layer convention rules apply to every API
+            // story regardless of topic (authoring experiment 2026-07-10:
+            // story-matched-only arming produced zero benefit on PR1874
+            // while the finding classes were all api-v2 family rules).
+            // Rule docs carry their file-family glob as the synthetic
+            // path, so a prefix-filtered query fetches the rules that fire
+            // on exactly the directories this change will touch.
+            let cand_paths: Vec<String> = prov.keys().map(|k| k.to_lowercase()).collect();
+            {
+                let mut fam_prefixes: Vec<String> = Vec::new();
+                for c in cand_paths.iter().take(12) {
+                    let segs: Vec<&str> = c.split('/').collect();
+                    if segs.len() >= 2 {
+                        let p = segs[..segs.len().min(3) - 1].join("/");
+                        if !p.is_empty() && !fam_prefixes.contains(&p) {
+                            fam_prefixes.push(p);
+                        }
+                    }
+                }
+                fam_prefixes.truncate(6);
+                if !fam_prefixes.is_empty() {
+                    let fq = engram_index::HybridQuery {
+                        project_id: req.project_id.clone(),
+                        namespace: engram_core::namespaces::NAMESPACE_ANTIPATTERN.into(),
+                        generation: 0,
+                        text: story_for_concepts(&req.story),
+                        top_k: 12,
+                        fts_mode: "loose".into(),
+                        include_path_prefixes: Some(fam_prefixes),
+                        exclude_path_prefixes: None,
+                        language_filters: None,
+                        author_filter: None,
+                        date_after: None,
+                        date_before: None,
+                        use_mmr: false,
+                    };
+                    let engine2 = ps.search.clone();
+                    let fam_hits = tokio::task::spawn_blocking(move || engine2.lexical_search(&fq))
+                        .await
+                        .ok()
+                        .and_then(|r| r.ok())
+                        .unwrap_or_default();
+                    // Family pool first — dedupe by doc_id happens below
+                    // via the instruction-dedupe set.
+                    let mut merged = fam_hits;
+                    merged.extend(hits);
+                    hits = merged;
+                }
+            }
+            let glob_prefix = |g: &str| -> String {
+                let g = g.to_lowercase().replace('\\', "/");
+                g.split("/**").next().unwrap_or(&g).trim_end_matches('/').to_string()
+            };
+            let mut rows: Vec<(bool, String, String, Option<String>)> = Vec::new();
+            let mut seen_rule: HashSet<String> = HashSet::new();
+            for h in hits {
+                let Ok(Some((path, _, content, _, _))) = ps.search.get_doc_by_doc_id(
+                    &req.project_id,
+                    engram_core::namespaces::NAMESPACE_ANTIPATTERN,
+                    0,
+                    &h.doc_id,
+                ) else {
+                    continue;
+                };
+                let instruction = content.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+                if instruction.len() < 12 || !seen_rule.insert(instruction.to_lowercase()) {
+                    continue;
+                }
+                let fix_rate = content
+                    .lines()
+                    .find(|l| l.starts_with("Fix rate:"))
+                    .and_then(|l| l.split('|').next())
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default();
+                // The concrete before→after the team applied (iteration-delta
+                // mining): everything after the exemplar marker in the doc.
+                let fix_hunk = content
+                    .split_once("House fix (applied in a merged PR):")
+                    .map(|(_, h)| h.trim().to_string())
+                    .filter(|h| !h.is_empty());
+                let prefix = glob_prefix(path.as_str());
+                let file_match = !prefix.is_empty()
+                    && cand_paths.iter().any(|c| {
+                        c.starts_with(&prefix)
+                            || c.strip_prefix("site/").is_some_and(|s| s.starts_with(&prefix))
+                            || prefix.strip_prefix("site/").is_some_and(|p| c.starts_with(p))
+                    });
+                rows.push((
+                    file_match,
+                    format!("`{}`", path.as_str()),
+                    format!("{instruction}{}", if fix_rate.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" ({})", fix_rate.to_lowercase())
+                    }),
+                    fix_hunk,
+                ));
+            }
+            // Candidate-matching rules first; among those, rules that carry a
+            // concrete fix exemplar rank ahead (they're the most actionable).
+            rows.sort_by(|a, b| {
+                b.0.cmp(&a.0)
+                    .then_with(|| b.3.is_some().cmp(&a.3.is_some()))
+            });
+            rows.truncate(8);
+            if !rows.is_empty() {
+                out.push_str(
+                    "\n## Review rules for this change (distilled from this repo's past code reviews)\n\
+                     Reviewers flagged these issue classes repeatedly — in the file families \
+                     marked ▲ they fired on the very files this change ranks. Write the code \
+                     so they never fire; each one caught late costs a review round-trip. \
+                     Where a ‹house fix› is shown, that is the exact change the team applied \
+                     last time — mirror its approach:\n",
+                );
+                // Show the concrete fix hunk for the top few file-matched
+                // rules that carry one; keep the rest as one-liners so the
+                // section stays scannable.
+                let mut hunks_shown = 0usize;
+                for (matched, family, rule, fix_hunk) in rows {
+                    out.push_str(&format!(
+                        "- {}{family}: {rule}\n",
+                        if matched { "▲ " } else { "" }
+                    ));
+                    if hunks_shown < 3
+                        && matched
+                        && let Some(hunk) = fix_hunk
+                    {
+                        let trimmed: String = hunk.lines().take(14).collect::<Vec<_>>().join("\n");
+                        out.push_str("  ‹house fix›\n```diff\n");
+                        out.push_str(&trimmed);
+                        out.push_str("\n```\n");
+                        hunks_shown += 1;
+                    }
                 }
             }
         }
@@ -4873,12 +5688,134 @@ pub(crate) fn extract_work_item_id(story: &str) -> Option<u64> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
+/// Concept extraction must not see the scaffolding labels this handler
+/// injects around fetched work-item text: live verify (pilot corpus Bug #847)
+/// showed the header tokens — "work", "item", "full" — outranking the
+/// story's actual domain concepts. The rendered brief keeps the labels;
+/// extraction gets this stripped view.
+pub(crate) fn story_for_concepts(story: &str) -> String {
+    let s = story
+        .replace("## Work item (full text)", "")
+        .replace("Acceptance criteria:", "");
+    // URLs are not domain concepts: a pasted support-ticket link made its
+    // hostname/path tokens 2 of the 5 extracted
+    // concepts on a live fetch. Drop whole URL tokens.
+    s.split_whitespace()
+        .filter(|w| !w.starts_with("http://") && !w.starts_with("https://"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Azure DevOps (org, project) from a git remote URL. Handles the three
+/// remote shapes ADO issues: modern HTTPS (`https://[user@]dev.azure.com/
+/// {org}/{project}/_git/{repo}`), SSH (`git@ssh.dev.azure.com:v3/{org}/
+/// {project}/{repo}`), and legacy (`https://{org}.visualstudio.com/
+/// [DefaultCollection/]{project}/_git/{repo}`). Non-ADO remotes → None.
+pub(crate) fn ado_coords_from_remote_url(url: &str) -> Option<(String, String)> {
+    let url = url.trim().trim_end_matches('/').trim_end_matches(".git");
+    // SSH first — its host also contains "dev.azure.com" but with ':' not '/'.
+    if let Some(rest) = url.split("ssh.dev.azure.com:v3/").nth(1) {
+        let mut seg = rest.split('/');
+        let (org, project, repo) = (seg.next()?, seg.next()?, seg.next()?);
+        if !org.is_empty() && !project.is_empty() && !repo.is_empty() {
+            return Some((org.to_string(), project.to_string()));
+        }
+        return None;
+    }
+    if let Some(rest) = url.split("dev.azure.com/").nth(1) {
+        let mut seg = rest.split('/');
+        let (org, project) = (seg.next()?, seg.next()?);
+        if !org.is_empty() && !project.is_empty() && seg.next() == Some("_git") {
+            return Some((org.to_string(), project.to_string()));
+        }
+        return None;
+    }
+    if let Some((host, rest)) = url.strip_prefix("https://").and_then(|u| u.split_once('/'))
+        && let Some(org) = host.strip_suffix(".visualstudio.com")
+    {
+        let mut seg = rest.split('/');
+        let mut project = seg.next()?;
+        if project == "DefaultCollection" {
+            project = seg.next()?;
+        }
+        if !org.is_empty() && !project.is_empty() && seg.next() == Some("_git") {
+            return Some((org.to_string(), project.to_string()));
+        }
+    }
+    None
+}
+
+/// `remote.origin.url` read straight from `.git/config` (no subprocess).
+/// Follows a `.git` POINTER FILE (worktrees/submodules: "gitdir: <path>"),
+/// where the shared config sits two levels above the per-worktree gitdir.
+pub(crate) fn git_remote_origin_url(root: &std::path::Path) -> Option<String> {
+    let dot_git = root.join(".git");
+    let config_path = if dot_git.is_file() {
+        let content = std::fs::read_to_string(&dot_git).ok()?;
+        let gitdir = content.strip_prefix("gitdir:")?.trim();
+        let gitdir = if std::path::Path::new(gitdir).is_absolute() {
+            std::path::PathBuf::from(gitdir)
+        } else {
+            root.join(gitdir)
+        };
+        let local = gitdir.join("config");
+        if local.exists() {
+            local
+        } else {
+            gitdir.parent()?.parent()?.join("config")
+        }
+    } else {
+        dot_git.join("config")
+    };
+    parse_origin_url(&std::fs::read_to_string(config_path).ok()?)
+}
+
+/// Minimal .git/config scan: the first `url =` inside `[remote "origin"]`.
+pub(crate) fn parse_origin_url(cfg: &str) -> Option<String> {
+    let mut in_origin = false;
+    for line in cfg.lines() {
+        let t = line.trim();
+        if t.starts_with('[') {
+            in_origin = t.eq_ignore_ascii_case(r#"[remote "origin"]"#);
+        } else if in_origin
+            && let Some(v) = t.strip_prefix("url")
+            && let Some(v) = v.trim_start().strip_prefix('=')
+        {
+            return Some(v.trim().to_string());
+        }
+    }
+    None
+}
+
+/// PAT source for the work-item auto-fetch: per-call wins, else the
+/// server's own `ADO_PAT` env var (the daemon's deployment environment —
+/// the same convention the ADO eval/corpora scripts use). Nothing is
+/// ever persisted. The env fallback is what makes the auto-fetch fire in
+/// REAL agent sessions: agents don't hold credentials, the host does.
+fn resolve_ado_pat(per_call: Option<String>) -> Option<String> {
+    pick_pat(per_call, std::env::var("ADO_PAT").ok())
+}
+
+/// Pure precedence: first non-blank of (per-call, env fallback), trimmed.
+fn pick_pat(per_call: Option<String>, env_fallback: Option<String>) -> Option<String> {
+    per_call
+        .into_iter()
+        .chain(env_fallback)
+        .map(|p| p.trim().to_string())
+        .find(|p| !p.is_empty())
+}
+
 /// Fetch an ADO work item's full text (title + description/repro +
 /// acceptance criteria, HTML stripped). None on ANY failure — callers
 /// degrade to the story alone.
 async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Option<String> {
-    let url =
-        format!("https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0");
+    // $expand=relations: real defects come as LINKED CLUSTERS — the eval's
+    // four-arm study measured a single missing sibling bug at -45.7 F1
+    // (PR1937: two linked bugs, one symptom each). Input parity means the
+    // whole cluster, exactly what the dev sees on the item.
+    let url = format!(
+        "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}?api-version=7.0&$expand=relations"
+    );
     let auth = base64_encode(format!(":{pat}").as_bytes());
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
@@ -4910,9 +5847,165 @@ async fn fetch_ado_work_item(org: &str, project: &str, id: u64, pat: &str) -> Op
     let accept = get("Microsoft.VSTS.Common.AcceptanceCriteria");
     let mut out = format!("[{wtype} #{id}] {title}\n\n{}", strip_html(desc));
     if !accept.is_empty() {
-        out.push_str(&format!("\n\nAcceptance criteria:\n{}", strip_html(accept)));
+        // AC provenance (fail-soft): one-liner stories sometimes get
+        // acceptance criteria back-filled by the implementer (often
+        // AI-assisted) after the team wrote the story. Those are hints
+        // to verify, not team-committed spec — and an agent that treats
+        // them as spec faithfully implements criteria the team never
+        // agreed to. Label who wrote the AC and flag back-fills.
+        let label = match fetch_ac_provenance(&client, org, project, id, &auth).await {
+            Some((ac_author, ac_date, creator)) => {
+                if !creator.is_empty() && ac_author != creator {
+                    format!(
+                        "Acceptance criteria (written by {ac_author} on {ac_date}; \
+                         the story was created by {creator} — these criteria were \
+                         back-filled later; verify them against the description and \
+                         existing merged work rather than treating them as \
+                         team-committed spec)"
+                    )
+                } else {
+                    format!("Acceptance criteria (written by {ac_author} on {ac_date})")
+                }
+            }
+            None => "Acceptance criteria".to_string(),
+        };
+        out.push_str(&format!("\n\n{label}:\n{}", strip_html(accept)));
+    }
+    // Linked work items (bounded, fail-soft): titles + trimmed descriptions.
+    for lid in extract_relation_ids(&v, id).into_iter().take(3) {
+        let lurl = format!(
+            "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{lid}?api-version=7.0"
+        );
+        let Ok(lresp) = client
+            .get(&lurl)
+            .header("Authorization", format!("Basic {auth}"))
+            .send()
+            .await
+        else {
+            continue;
+        };
+        if !lresp.status().is_success() {
+            continue;
+        }
+        let Ok(lv) = lresp.json::<serde_json::Value>().await else {
+            continue;
+        };
+        let Some(lf) = lv.get("fields") else { continue };
+        let lget = |k: &str| lf.get(k).and_then(|x| x.as_str()).unwrap_or("");
+        let ltitle = lget("System.Title");
+        if ltitle.is_empty() {
+            continue;
+        }
+        let ldesc = {
+            let d = lget("System.Description");
+            if d.is_empty() {
+                lget("Microsoft.VSTS.TCM.ReproSteps")
+            } else {
+                d
+            }
+        };
+        let ltype = lget("System.WorkItemType");
+        let body: String = strip_html(ldesc).chars().take(1200).collect();
+        out.push_str(&format!("\n\n[linked {ltype} #{lid}] {ltitle}\n{body}"));
     }
     Some(out)
+}
+
+/// Who first wrote the acceptance criteria, and who created the item.
+///
+/// Reads the work-item revision history (`/updates`) and returns
+/// `(ac_author, ac_date_yyyy_mm_dd, item_creator)` for the first
+/// revision that populated AcceptanceCriteria. None on any failure or
+/// if the field never appears in history — callers fall back to an
+/// unannotated label.
+async fn fetch_ac_provenance(
+    client: &reqwest::Client,
+    org: &str,
+    project: &str,
+    id: u64,
+    auth: &str,
+) -> Option<(String, String, String)> {
+    let url = format!(
+        "https://dev.azure.com/{org}/{project}/_apis/wit/workitems/{id}/updates?api-version=7.0&$top=200"
+    );
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Basic {auth}"))
+        .send()
+        .await
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let v: serde_json::Value = resp.json().await.ok()?;
+    let updates = v.get("value")?.as_array()?;
+    let mut creator = String::new();
+    for u in updates {
+        let who = u
+            .get("revisedBy")
+            .and_then(|b| b.get("displayName"))
+            .and_then(|d| d.as_str())
+            .unwrap_or("")
+            .to_string();
+        if u.get("rev").and_then(|r| r.as_u64()) == Some(1) {
+            creator = who.clone();
+        }
+        let Some(fields) = u.get("fields") else {
+            continue;
+        };
+        let Some(ac) = fields.get("Microsoft.VSTS.Common.AcceptanceCriteria") else {
+            continue;
+        };
+        let new_val = ac.get("newValue").and_then(|x| x.as_str()).unwrap_or("");
+        let old_val = ac.get("oldValue").and_then(|x| x.as_str()).unwrap_or("");
+        if new_val.trim().is_empty() || !old_val.trim().is_empty() {
+            continue; // want the revision that FIRST populated the field
+        }
+        // Prefer the field-level ChangedDate; revisedDate is 9999-01-01
+        // on some in-flight revisions.
+        let date = fields
+            .get("System.ChangedDate")
+            .and_then(|c| c.get("newValue"))
+            .and_then(|d| d.as_str())
+            .or_else(|| u.get("revisedDate").and_then(|d| d.as_str()))
+            .unwrap_or("");
+        let date = date.get(..10).unwrap_or(date).to_string();
+        if who.is_empty() {
+            return None;
+        }
+        return Some((who, date, creator));
+    }
+    None
+}
+
+/// Work-item ids from an item's `relations` array (System.LinkTypes.* only —
+/// attachments/hyperlinks/commits carry other rel values). Excludes `self_id`.
+pub(crate) fn extract_relation_ids(v: &serde_json::Value, self_id: u64) -> Vec<u64> {
+    let mut out = Vec::new();
+    let Some(rels) = v.get("relations").and_then(|r| r.as_array()) else {
+        return out;
+    };
+    for rel in rels {
+        let is_wi_link = rel
+            .get("rel")
+            .and_then(|r| r.as_str())
+            .is_some_and(|r| r.starts_with("System.LinkTypes"));
+        if !is_wi_link {
+            continue;
+        }
+        let Some(id) = rel
+            .get("url")
+            .and_then(|u| u.as_str())
+            .and_then(|u| u.rsplit('/').next())
+            .and_then(|s| s.parse::<u64>().ok())
+        else {
+            continue;
+        };
+        if id != self_id && !out.contains(&id) {
+            out.push(id);
+        }
+    }
+    out
 }
 
 /// Standard base64 (RFC 4648) for the Basic-auth header — avoids pulling
@@ -4994,7 +6087,123 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
 
 #[cfg(test)]
 mod work_item_tests {
-    use super::{base64_encode, extract_work_item_id, strip_html};
+    use super::{
+        ado_coords_from_remote_url, base64_encode, extract_work_item_id, parse_origin_url,
+        pick_pat, story_for_concepts, strip_html,
+    };
+
+    #[test]
+    fn concept_extraction_view_drops_injected_labels() {
+        let s = "Bug #847\n\n## Work item (full text)\n[Bug #847] Can't assign resources \
+                 to tasks in multitenant mode\n\nAcceptance criteria:\nnone";
+        let cleaned = story_for_concepts(s);
+        // The injected scaffolding labels are gone…
+        assert!(!cleaned.contains("Work item (full text)"));
+        assert!(!cleaned.contains("Acceptance criteria:"));
+        // …while the actual story/work-item content survives verbatim.
+        assert!(cleaned.contains("Can't assign resources to tasks in multitenant mode"));
+        assert!(cleaned.contains("Bug #847"));
+    }
+
+    #[test]
+    fn ado_coords_from_all_remote_shapes() {
+        let ok = |u: &str| ado_coords_from_remote_url(u).expect(u);
+        assert_eq!(
+            ok("https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo"),
+            ("exampleorg".into(), "ExampleRepo".into())
+        );
+        // user@ prefix (credential-embedding clone URLs) and trailing slash.
+        assert_eq!(
+            ok("https://exampleuser@dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo/"),
+            ("exampleorg".into(), "ExampleRepo".into())
+        );
+        assert_eq!(
+            ok("git@ssh.dev.azure.com:v3/myorg/My%20Project/repo"),
+            ("myorg".into(), "My%20Project".into())
+        );
+        assert_eq!(
+            ok("https://myorg.visualstudio.com/proj/_git/repo"),
+            ("myorg".into(), "proj".into())
+        );
+        assert_eq!(
+            ok("https://myorg.visualstudio.com/DefaultCollection/proj/_git/repo"),
+            ("myorg".into(), "proj".into())
+        );
+        // Non-ADO remotes and malformed paths → None, never a wrong guess.
+        assert!(ado_coords_from_remote_url("https://github.com/org/repo.git").is_none());
+        assert!(ado_coords_from_remote_url("https://dev.azure.com/org").is_none());
+        assert!(ado_coords_from_remote_url("https://dev.azure.com/org/proj/notgit/x").is_none());
+        assert!(ado_coords_from_remote_url("").is_none());
+    }
+
+    #[test]
+    fn origin_url_parsed_from_git_config() {
+        let cfg = r#"[core]
+	repositoryformatversion = 0
+[remote "upstream"]
+	url = https://example.com/other.git
+[remote "origin"]
+	url = https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo
+	fetch = +refs/heads/*:refs/remotes/origin/*
+"#;
+        assert_eq!(
+            parse_origin_url(cfg).as_deref(),
+            Some("https://dev.azure.com/exampleorg/ExampleRepo/_git/ExampleRepo")
+        );
+        // No origin section → None (never the wrong remote's URL).
+        assert!(parse_origin_url("[remote \"upstream\"]\n\turl = https://x/y").is_none());
+    }
+
+    #[test]
+    fn concept_view_drops_url_tokens() {
+        let s = "Camera icon bug\n\nSee https://support.example.com/agent/tickets/956 for repro";
+        let cleaned = story_for_concepts(s);
+        assert!(!cleaned.contains("support.example"), "{cleaned}");
+        assert!(!cleaned.contains("https://"), "{cleaned}");
+        assert!(cleaned.contains("Camera icon bug"));
+        assert!(cleaned.contains("for repro"));
+    }
+
+    #[test]
+    fn relation_ids_extracted_from_worklinks_only() {
+        use super::extract_relation_ids;
+        let v = serde_json::json!({
+            "relations": [
+                {"rel": "System.LinkTypes.Related", "url": "https://dev.azure.com/o/p/_apis/wit/workItems/817"},
+                {"rel": "System.LinkTypes.Hierarchy-Reverse", "url": ".../workItems/100"},
+                {"rel": "AttachedFile", "url": ".../attachments/abc"},
+                {"rel": "ArtifactLink", "url": "vstfs:///Git/Commit/xyz"},
+                {"rel": "System.LinkTypes.Related", "url": ".../workItems/691"}
+            ]
+        });
+        // self (691) excluded; attachments/artifacts ignored; order kept.
+        assert_eq!(extract_relation_ids(&v, 691), vec![817, 100]);
+        assert_eq!(
+            extract_relation_ids(&serde_json::json!({}), 1),
+            Vec::<u64>::new()
+        );
+    }
+
+    #[test]
+    fn pat_precedence_per_call_then_env_then_none() {
+        // Per-call PAT wins over the env fallback.
+        assert_eq!(
+            pick_pat(Some("call-pat".into()), Some("env-pat".into())),
+            Some("call-pat".to_string())
+        );
+        // Blank per-call falls through to env (a live agent passes nothing).
+        assert_eq!(
+            pick_pat(Some("  ".into()), Some("env-pat".into())),
+            Some("env-pat".to_string())
+        );
+        assert_eq!(
+            pick_pat(None, Some(" env-pat \n".into())),
+            Some("env-pat".to_string())
+        );
+        // Neither source → auto-fetch silently degrades.
+        assert_eq!(pick_pat(None, None), None);
+        assert_eq!(pick_pat(Some(String::new()), Some("".into())), None);
+    }
 
     #[test]
     fn extracts_ids_from_common_forms() {

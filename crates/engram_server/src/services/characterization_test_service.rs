@@ -390,7 +390,7 @@ pub fn generate_characterization_tests(
     }
 
     // 1b. Auth-guard test — fires when we can identify a "permission
-    // check" function in the file's function list (common OciusX
+    // check" function in the file's function list (common the pilot corpus
     // pattern: a method named `CheckRead` / `CheckAccess` / `EnsureAuth*`
     // that SafeRedirects on failure). The test asserts an unauthorised
     // user triggers the redirect path rather than proceeding to load.
@@ -1194,7 +1194,7 @@ fn collect_test_context(
     // over-fetch — `query_nodes` does case-insensitive slash-normalised
     // substring matching (see `contains_case_insensitive_path`), which
     // tolerates Windows-style `\` in the caller's input and avoids
-    // capping out at the 5000-node limit on large projects (OciusX has
+    // capping out at the 5000-node limit on large projects (pilot corpus has
     // ~24k function nodes, so the old `query_nodes(None, None, None,
     // 5000)` silently discarded ~78% of them).
     let all_fns = graph.query_nodes(project_id, Some("function"), None, Some(file_path), 10_000)?;
@@ -1631,7 +1631,7 @@ mod tests {
         assert!(!is_event_handler("ProcessOrder"));
     }
 
-    /// The expanded suffix list must cover the OciusX-realistic event
+    /// The expanded suffix list must cover the pilot-realistic event
     /// shapes that the markup extractor's `EVENT_ATTR_RE` emits. Before
     /// this expansion the characterization service generated 3 tests
     /// for a page with 8 wired handlers because half its events

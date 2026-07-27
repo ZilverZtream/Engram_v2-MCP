@@ -296,7 +296,7 @@ fn summarize_samples<K: AsRef<str>>(samples: impl IntoIterator<Item = (K, String
 /// detected mismatch was actually repaired. The prior inline form
 /// `repairs.iter().all(|r| r.success)` returned true vacuously when
 /// `repairs` was empty (auto_repair off), masking real unrepaired
-/// mismatches as "healthy" (observed live on OciusX).
+/// mismatches as "healthy" (observed live on the pilot corpus).
 pub fn compute_overall_healthy(mismatch_count: usize, repairs: &[RepairOutcome]) -> bool {
     mismatch_count == 0 || (repairs.len() == mismatch_count && repairs.iter().all(|r| r.success))
 }
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn empty_docstore_does_not_orphan_all_tantivy_docs() {
-        // OciusX-validated regression: production indexing never populates
+        // pilot-validated regression: production indexing never populates
         // the per-doc DOC_BY_ID table, so docstore_count is 0 for every real
         // project. With the orphan checks ungated this flagged ALL tantivy
         // docs as orphans. Empty docstore => orphan axis untracked, no flag.

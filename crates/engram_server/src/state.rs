@@ -143,7 +143,7 @@ pub struct AppState {
     ///
     /// `find_similar_changes` (also the co-change arm of `get_change_set`)
     /// used to re-diff up to 800 commits on EVERY call — 24 s measured live
-    /// on OciusX. History is immutable, so the walk result is cached keyed
+    /// on the pilot corpus. History is immutable, so the walk result is cached keyed
     /// by the repo's HEAD oid: repeat calls skip git entirely until a new
     /// commit lands, and the long-lived shared daemon amortises the one
     /// slow walk across every connected session. Key: project_id.

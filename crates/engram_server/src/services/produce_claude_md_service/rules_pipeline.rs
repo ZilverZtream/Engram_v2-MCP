@@ -44,12 +44,12 @@ use super::{CriticalRule, RuleSource};
 /// has a keyword dictionary; any rule whose text contains one of the
 /// keywords for a category gets mapped to that category and
 /// aggregated with its peers. Categories are hand-picked based on
-/// the patterns that actually dominate the OciusX corpus — expand
+/// the patterns that actually dominate the pilot corpus — expand
 /// when a new pattern shows up across multiple projects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetaCategory {
     /// Missing null / Nothing / undefined checks before dereferencing.
-    /// The #1 error class on the OciusX corpus (530+ flags).
+    /// The #1 error class on the pilot corpus (530+ flags).
     NullGuard,
     /// Missing audit / activity log calls after data mutations.
     AuditLog,

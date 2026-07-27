@@ -154,6 +154,12 @@ fn escape_like(s: &str) -> String {
     out
 }
 
+/// How long a writer-acquiring operation waits for a busy Tantivy lock
+/// before giving up. Long enough to ride out a watcher incremental pass
+/// or a small tool-triggered index; a full reindex will still exhaust it,
+/// which is correct — the caller should see that error.
+const WRITER_LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
 /// Cancel-safe scope guard for a long-lived Tantivy IndexWriter.
 ///
 /// On drop (including panic/cancel), commits any pending docs and waits
@@ -323,11 +329,87 @@ impl HybridSearchEngine {
     /// The returned guard commits + waits on drop (cancel-safe).
     /// Call `write_docs_to_writer` to add documents, then `finish()`.
     pub fn create_bulk_writer(&self) -> anyhow::Result<BulkWriterGuard> {
-        let writer = self.tantivy_index.writer(self.tantivy_writer_memory)?;
+        let writer = self.acquire_writer_blocking("bulk writer")?;
         Ok(BulkWriterGuard {
             writer: Some(writer),
             docs_since_commit: 0,
         })
+    }
+
+    /// Acquire the Tantivy IndexWriter, retrying on `LockBusy`.
+    ///
+    /// Tantivy allows exactly one IndexWriter per directory. Writers here
+    /// are scoped (acquired per operation, released after commit), so a
+    /// `LockBusy` almost always means another operation — the file
+    /// watcher's incremental update, a reindex, a concurrent tool call —
+    /// holds the writer *right now* and will release it shortly. Failing
+    /// the whole call on first contention turns a routine overlap into a
+    /// user-visible tool error, so wait-and-retry within a bounded window
+    /// instead. Non-lock errors and `LockBusy` past the deadline still
+    /// propagate.
+    fn acquire_writer_blocking(
+        &self,
+        what: &str,
+    ) -> anyhow::Result<tantivy::IndexWriter<tantivy::TantivyDocument>> {
+        let deadline = std::time::Instant::now() + WRITER_LOCK_WAIT;
+        let mut delay = std::time::Duration::from_millis(500);
+        loop {
+            match self.tantivy_index.writer(self.tantivy_writer_memory) {
+                Ok(w) => return Ok(w),
+                Err(tantivy::TantivyError::LockFailure(
+                    tantivy::directory::error::LockError::LockBusy,
+                    _,
+                )) if std::time::Instant::now() + delay < deadline => {
+                    tracing::warn!(
+                        what,
+                        retry_in_ms = delay.as_millis() as u64,
+                        "tantivy writer lock busy — another indexing operation \
+                         is in flight; waiting for it to release"
+                    );
+                    std::thread::sleep(delay);
+                    delay = (delay * 2).min(std::time::Duration::from_secs(5));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+    }
+
+    /// Async variant of [`Self::acquire_writer_blocking`] for callers on
+    /// the tokio runtime — backs off with `tokio::time::sleep` so the
+    /// worker thread is not blocked while waiting for the lock.
+    ///
+    /// Cancel-aware (CANCEL-POLICY-INDEX): a cancelled caller must not
+    /// keep waiting up to the full lock deadline for a writer it will
+    /// never use.
+    async fn acquire_writer(
+        &self,
+        what: &str,
+        cancel: &CancellationToken,
+    ) -> anyhow::Result<tantivy::IndexWriter<tantivy::TantivyDocument>> {
+        let deadline = std::time::Instant::now() + WRITER_LOCK_WAIT;
+        let mut delay = std::time::Duration::from_millis(500);
+        loop {
+            if cancel.is_cancelled() {
+                anyhow::bail!("cancelled while waiting for the tantivy writer lock ({what})");
+            }
+            match self.tantivy_index.writer(self.tantivy_writer_memory) {
+                Ok(w) => return Ok(w),
+                Err(tantivy::TantivyError::LockFailure(
+                    tantivy::directory::error::LockError::LockBusy,
+                    _,
+                )) if std::time::Instant::now() + delay < deadline => {
+                    tracing::warn!(
+                        what,
+                        retry_in_ms = delay.as_millis() as u64,
+                        "tantivy writer lock busy — another indexing operation \
+                         is in flight; waiting for it to release"
+                    );
+                    tokio::time::sleep(delay).await;
+                    delay = (delay * 2).min(std::time::Duration::from_secs(5));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
     }
 
     /// Get a copy of the field schema (for use in blocking closures).
@@ -602,7 +684,7 @@ impl HybridSearchEngine {
                 .transpose()?;
 
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(self.tantivy_writer_memory)?;
+                self.acquire_writer("index_docs", cancel).await?;
             for d in docs {
                 if cancel.is_cancelled() {
                     break;
@@ -859,7 +941,8 @@ impl HybridSearchEngine {
                 })
                 .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(self.tantivy_writer_memory)?;
+                self.acquire_writer("generation purge", &CancellationToken::new())
+                    .await?;
 
             for ns in engram_core::KNOWN_NAMESPACES {
                 if let Ok(policy) = engram_core::get_policy(ns) {
@@ -1146,7 +1229,8 @@ impl HybridSearchEngine {
                 })
                 .transpose()?;
             let mut writer: tantivy::IndexWriter<tantivy::TantivyDocument> =
-                self.tantivy_index.writer(self.tantivy_writer_memory)?;
+                self.acquire_writer("delete_files", &CancellationToken::new())
+                    .await?;
             for p in paths {
                 let pid_term = Term::from_field_text(self.fields.project_id, project_id);
                 let ns_term = Term::from_field_text(self.fields.namespace, namespace);
@@ -1534,6 +1618,13 @@ impl HybridSearchEngine {
                             crate::ddl_extractor::extract_ddl(&arc_rel, &text)
                         } else if ext_lower.as_deref() == Some("vb") {
                             crate::vb_extractor::extract_vb(p, &text)
+                        } else if matches!(ext_lower.as_deref(), Some("ml" | "mlinc")) {
+                            // MiniLang. Takes BOTH paths: the absolute one to
+                            // stat conformance-golden siblings, the
+                            // project-relative one to build edge targets —
+                            // absolute edge targets are rejected by the
+                            // ingest safety check.
+                            crate::ml_extractor::extract_ml(p, arc_rel.as_str(), &text)
                         } else if ext_lower.as_deref() == Some("cs") {
                             crate::cs_extractor::extract_cs(p, &text)
                         } else if ext_lower.as_deref() == Some("asp") {
@@ -1541,7 +1632,15 @@ impl HybridSearchEngine {
                         } else if matches!(ext_lower.as_deref(), Some("rdlc" | "rdl")) {
                             crate::report_extractor::extract_ssrs_report(&arc_rel, &text)
                         } else {
-                            extractor.extract(p, &text)
+                            // PROJECT-RELATIVE path, not the absolute disk
+                            // path: the extractor only needs ext/filename,
+                            // and its triple-slash reference resolution
+                            // builds file-node target paths from the
+                            // source's directory — absolute sources made
+                            // every target absolute, which the ingest
+                            // safety check rejects (live: whole index job
+                            // died on the first BOM-visible reference).
+                            extractor.extract(std::path::Path::new(arc_rel.as_str()), &text)
                         };
                         // Language-generic pass: "must update in N places"
                         // comments are machine-readable sync contracts —
@@ -2056,6 +2155,28 @@ impl HybridSearchEngine {
                 ));
             }
             must.push((Occur::Must, Box::new(BooleanQuery::new(lq))));
+        }
+
+        // The "inline the core" reimplementation above drifted from
+        // `lexical_search`: it never applied include_path_prefixes, so
+        // grep's path_prefix silently didn't constrain (live repro
+        // 2026-07-06: 75/75 results out-of-prefix) AND, once the caller
+        // post-filtered, in-prefix recall collapsed for common patterns
+        // because top_k was spent on out-of-prefix chunks. Same clause
+        // shape as lexical_search.
+        if let Some(prefixes) = &q.include_path_prefixes {
+            let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
+            for p in prefixes {
+                if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
+                    &format!("{}.*", regex::escape(p)),
+                    self.fields.path,
+                ) {
+                    prefix_queries.push((Occur::Should, Box::new(rq)));
+                }
+            }
+            if !prefix_queries.is_empty() {
+                must.push((Occur::Must, Box::new(BooleanQuery::new(prefix_queries))));
+            }
         }
 
         let query = BooleanQuery::new(must);
@@ -2786,7 +2907,7 @@ pub fn escape_tantivy_literal(s: &str) -> String {
                 // grammar token, so an unescaped contraction (`doesn't`) makes
                 // parse_query return Err(SyntaxError) — which aborts the whole
                 // hybrid search() before the vector arm runs. Found via the
-                // OciusX eval: NL queries with apostrophes returned 0 hits.
+                // pilot eval: NL queries with apostrophes returned 0 hits.
                 out.push('\\');
                 out.push(c);
             }

@@ -505,11 +505,16 @@ pub async fn process_ingest_stats(
                 &edge.source_name
             };
             if !is_safe_project_relative_path(path) {
-                anyhow::bail!(
-                    "process_ingest_stats: unsafe path in edge source: {} (file: {})",
-                    path,
-                    rel_path.as_str()
+                // Extractor-derived DATA, not infrastructure: one malformed
+                // path must not kill the whole index job (live: an absolute
+                // reference target failed the job for every file after it).
+                // Skipping the edge preserves the traversal-safety property.
+                tracing::warn!(
+                    path = %path,
+                    file = %rel_path.as_str(),
+                    "process_ingest_stats: unsafe path in edge source - edge skipped"
                 );
+                continue;
             }
             if edge.source_kind == "page" {
                 engram_core::ids::NodeId::page(path).0
@@ -594,11 +599,13 @@ pub async fn process_ingest_stats(
                 &edge.target_name
             };
             if !is_safe_project_relative_path(path) {
-                anyhow::bail!(
-                    "process_ingest_stats: unsafe path in edge target: {} (file: {})",
-                    path,
-                    rel_path.as_str()
+                // Same stance as the source side: skip the edge, keep the job.
+                tracing::warn!(
+                    path = %path,
+                    file = %rel_path.as_str(),
+                    "process_ingest_stats: unsafe path in edge target - edge skipped"
                 );
+                continue;
             }
             if edge.target_kind.as_deref() == Some("page") {
                 engram_core::ids::NodeId::page(path).0
@@ -898,6 +905,7 @@ pub async fn process_ingest_stats(
             "spatial_call" => engram_graph::EdgeKind::SpatialCall,
             "state_affinity" => engram_graph::EdgeKind::StateAffinity,
             "injects_script" => engram_graph::EdgeKind::InjectsScript,
+            "test_oracle" => engram_graph::EdgeKind::TestOracle,
             _ => engram_graph::EdgeKind::Dependency,
         };
 
@@ -905,7 +913,7 @@ pub async fn process_ingest_stats(
         // `event_wiring` family so we can see exactly which source/target
         // IDs land as Dependency edges. This was requested to diagnose
         // why `trace_ui_event` from `control:…:linqSource` returned zero
-        // outgoing Dependency edges on OciusX despite the extractor
+        // outgoing Dependency edges on the pilot corpus despite the extractor
         // emitting 1571 `event_wiring` edges — a log here makes the
         // resolved node-id shape visible without requiring a custom
         // graph dump.

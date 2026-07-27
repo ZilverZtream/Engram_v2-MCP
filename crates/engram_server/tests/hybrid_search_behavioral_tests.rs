@@ -434,7 +434,7 @@ async fn hybrid_lexical_search_empty_project_returns_empty() {
 /// make lexical_search error. Tantivy's query parser treats `'` as a grammar
 /// token, so before escaping it, parse_query returned Err(SyntaxError) — which
 /// propagated out of lexical_search and aborted the whole hybrid search()
-/// before the vector arm ran. Found via the OciusX eval: NL stories like "The
+/// before the vector arm ran. Found via the pilot eval: NL stories like "The
 /// camera icon doesn't go back to dimmed" returned 0 hits from search_memory.
 #[tokio::test]
 async fn lexical_search_tolerates_apostrophe_in_query() {

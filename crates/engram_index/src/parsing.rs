@@ -468,6 +468,59 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     }
 });
 
+/// Resolve a triple-slash reference target against the referencing file's
+/// project-relative directory, normalizing `.`/`..` segments. `None` when
+/// the reference escapes the project root. The resolved path is what lets
+/// ingest mint a REAL `file:` node id (`target_kind=file`) — an unresolved
+/// relative string falls through to symbol resolution and lands as a
+/// phantom node no traversal can reach (live: edges emitted, graph empty).
+pub(crate) fn resolve_reference_path(source_rel: &Path, reference: &str) -> Option<String> {
+    let mut segs: Vec<&str> = source_rel
+        .parent()
+        .and_then(|p| p.to_str())
+        .unwrap_or("")
+        .split(['/', '\\'])
+        .filter(|s| !s.is_empty() && *s != ".")
+        .collect();
+    for seg in reference.split(['/', '\\']) {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                segs.pop()?;
+            }
+            s => segs.push(s),
+        }
+    }
+    if segs.is_empty() {
+        None
+    } else {
+        Some(segs.join("/"))
+    }
+}
+
+/// `/// <reference path="../qty/qtyManager.ts" />` → `Some("../qty/qtyManager.ts")`.
+/// Only `path=` references count — `types=`/`lib=` name compiler packages,
+/// not project files.
+pub(crate) fn extract_triple_slash_reference(line: &str) -> Option<String> {
+    let rest = line.trim().strip_prefix("///")?.trim_start();
+    let rest = rest.strip_prefix("<reference")?;
+    let idx = rest.find("path")?;
+    let after = rest[idx + 4..].trim_start();
+    let after = after.strip_prefix('=')?.trim_start();
+    let quote = after.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let inner = &after[1..];
+    let end = inner.find(quote)?;
+    let p = inner[..end].trim();
+    if p.is_empty() {
+        None
+    } else {
+        Some(p.to_string())
+    }
+}
+
 /// Map a file extension to a `&'static str` for source_language fields.
 fn ext_to_static(ext: &str) -> &'static str {
     match ext {
@@ -488,6 +541,8 @@ fn ext_to_static(ext: &str) -> &'static str {
         "cxx" => "cxx",
         "hh" => "hh",
         "vb" => "vb",
+        "ml" => "ml",
+        "mlinc" => "mlinc",
         _ => "unknown",
     }
 }
@@ -671,6 +726,44 @@ impl SymbolExtractor {
 
         let mut symbols = Vec::new();
         let mut edges = Vec::new();
+
+        // Old-style TS projects (tsconfig outFile, no ES modules) wire files
+        // with triple-slash reference DIRECTIVES — comments, invisible to the
+        // tree-sitter import query. Live probe 2026-07-10: a hub TS file had
+        // ZERO Imports edges, making shared-component fan-in underivable.
+        // Emit them as the same `imports` edges ES imports get.
+        if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
+            for line in content.lines().take(200) {
+                // U+FEFF is NOT Rust-whitespace: a BOM'd first line (the
+                // Visual Studio default for TS files — live: fbinstplan/
+                // main.ts) survives trim() and silently broke the whole
+                // scan via the first-statement break below.
+                let t = line.trim().trim_start_matches('\u{feff}').trim_start();
+                if t.is_empty() || t.starts_with("//!") {
+                    continue;
+                }
+                if !t.starts_with("//") {
+                    break; // directives are only valid before the first statement
+                }
+                if let Some(p) = extract_triple_slash_reference(t)
+                    && let Some(resolved) = resolve_reference_path(path, &p)
+                {
+                    edges.push(ExtractedEdge {
+                        source_name: "file".to_string(),
+                        source_kind: "file".to_string(),
+                        source_start_line: 0,
+                        source_language: static_ext.to_string(),
+                        // Project-relative resolved path + target_kind=file →
+                        // ingest mints NodeId::file(...) (a real node).
+                        target_name: resolved,
+                        target_kind: Some("file".to_string()),
+                        target_start_line: None,
+                        kind: "imports".to_string(),
+                        metadata: None,
+                    });
+                }
+            }
+        }
 
         // For edge extraction, we need to know which symbol we are currently inside.
         // Simplified: find innermost symbol that encloses the call.
@@ -951,6 +1044,101 @@ mod tests {
     use super::*;
     use std::path::Path;
     use tree_sitter::{Query, QueryCursor};
+
+    #[test]
+    fn triple_slash_reference_parsing() {
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference path="../qty/qtyManager.ts" />"#),
+            Some("../qty/qtyManager.ts".to_string())
+        );
+        assert_eq!(
+            extract_triple_slash_reference(r#"///<reference path='a.ts'/>"#),
+            Some("a.ts".to_string())
+        );
+        // types=/lib= directives are compiler packages, not project files.
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference types="jquery" />"#),
+            None
+        );
+        // Plain comments and code lines don't match.
+        assert_eq!(extract_triple_slash_reference("// not a directive"), None);
+        assert_eq!(extract_triple_slash_reference("let x = 1;"), None);
+        assert_eq!(
+            extract_triple_slash_reference(r#"/// <reference path="" />"#),
+            None
+        );
+    }
+
+    #[test]
+    fn ts_extract_emits_triple_slash_imports_edges() {
+        let extractor = SymbolExtractor::new();
+        let src = "/// <reference path=\"../qty/qtyManager.ts\" />\n\
+                   /// <reference path=\"./options.ts\" />\n\
+                   // plain comment is fine before code\n\
+                   class MapMain {\n    run(): void {}\n}\n\
+                   /// <reference path=\"too/late.ts\" />\n";
+        let (_, edges) = extractor.extract(Path::new("Site/ts/fbinstplan/main.ts"), src);
+        let imports: Vec<(&str, Option<&str>)> = edges
+            .iter()
+            .filter(|e| e.kind == "imports")
+            .map(|e| (e.target_name.as_str(), e.target_kind.as_deref()))
+            .collect();
+        // Targets are RESOLVED project-relative paths with target_kind=file
+        // (an unresolved relative string becomes a phantom symbol node).
+        assert!(
+            imports.contains(&("Site/ts/qty/qtyManager.ts", Some("file"))),
+            "{imports:?}"
+        );
+        assert!(
+            imports.contains(&("Site/ts/fbinstplan/options.ts", Some("file"))),
+            "{imports:?}"
+        );
+        // Directives after the first statement are NOT directives per spec.
+        assert!(
+            !imports.iter().any(|(t, _)| t.contains("late.ts")),
+            "{imports:?}"
+        );
+
+        // BOM'd first line (the Visual Studio default): U+FEFF is NOT
+        // Rust-whitespace, so a plain trim() left it and broke the scan
+        // (live: fbinstplan/main.ts had zero edges after the first ship).
+        let bom_src = "\u{feff}/// <reference path=\"app.ts\" />\nlet x = 1;\n";
+        let (_, bom_edges) = extractor.extract(Path::new("app/bom.ts"), bom_src);
+        assert!(
+            bom_edges
+                .iter()
+                .any(|e| e.kind == "imports" && e.target_name == "app/app.ts"),
+            "BOM'd directive must still be seen: {bom_edges:?}"
+        );
+    }
+
+    #[test]
+    fn reference_path_resolution() {
+        use super::resolve_reference_path;
+        let src = Path::new("Site/ts/fbinstplan/main.ts");
+        assert_eq!(
+            resolve_reference_path(src, "../qty/qtyManager.ts").as_deref(),
+            Some("Site/ts/qty/qtyManager.ts")
+        );
+        assert_eq!(
+            resolve_reference_path(src, "./app.ts").as_deref(),
+            Some("Site/ts/fbinstplan/app.ts")
+        );
+        assert_eq!(
+            resolve_reference_path(src, "app.ts").as_deref(),
+            Some("Site/ts/fbinstplan/app.ts")
+        );
+        // Escaping the project root → None, never a phantom.
+        assert_eq!(
+            resolve_reference_path(Path::new("a.ts"), "../../x.ts"),
+            None
+        );
+        // Root-level source referencing a sibling.
+        assert_eq!(
+            resolve_reference_path(Path::new("main.ts"), "lib/util.ts").as_deref(),
+            Some("lib/util.ts")
+        );
+    }
 
     /// Compile-time proof that `CompiledQueries` is Send + Sync.
     #[test]

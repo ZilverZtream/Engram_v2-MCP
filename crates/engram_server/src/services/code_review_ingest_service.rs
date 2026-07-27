@@ -174,6 +174,12 @@ pub struct RawReviewComment {
     pub severity: String,
     #[serde(default)]
     pub coderabbit_comment: String,
+    /// Token-anchored fix exemplar: the unified-diff hunk from the merged
+    /// PR's later iterations that changed the code this finding named.
+    /// Populated (fail-soft) only for resolved findings during the
+    /// azure_devops fetch; None for JSONL and unresolved findings.
+    #[serde(default)]
+    pub fix_hunk: Option<String>,
 }
 
 impl ThreadStatus {
@@ -228,6 +234,9 @@ pub struct ParsedRule {
     /// the same finding from a different PR.
     pub semantic_hash: String,
     pub raw_body: String,
+    /// Token-anchored fix exemplar (unified-diff hunk) carried from the
+    /// raw comment — the concrete before→after the team applied.
+    pub fix_hunk: Option<String>,
 }
 
 /// A cluster of ParsedRules that represent the same underlying pattern.
@@ -258,6 +267,11 @@ pub struct IngestStats {
     pub incremental_skipped_prs: usize,
     pub newest_pr_id: Option<u64>,
     pub elapsed_ms: u128,
+    /// Diagnostics for the iteration-delta fix-exemplar pass: how many
+    /// raw comments got a fix hunk attached, and how many survived into
+    /// parsed rules. Surfaced in the report to localize losses.
+    pub raw_with_fix_hunk: usize,
+    pub parsed_with_fix_hunk: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -283,7 +297,7 @@ impl Default for IngestConfig {
             source: IngestSource::JsonlFile {
                 path: PathBuf::new(),
             },
-            // Matches the 43% fixed-rate floor in the OciusX corpus while
+            // Matches the 43% fixed-rate floor in the pilot corpus while
             // still rejecting noise: ≥ 50% of decisive threads must say
             // `fixed` before we treat the pattern as a positive rule.
             min_fix_rate: 0.5,
@@ -358,6 +372,7 @@ pub async fn ingest_code_review_history(
     let (raw, skipped) = fetch_raw_comments(&config.source, last_pr_id).await?;
     stats.total_raw = raw.len();
     stats.incremental_skipped_prs = skipped;
+    stats.raw_with_fix_hunk = raw.iter().filter(|r| r.fix_hunk.is_some()).count();
 
     // Stage 2: parse
     let mut parsed: Vec<ParsedRule> = Vec::with_capacity(raw.len());
@@ -377,6 +392,7 @@ pub async fn ingest_code_review_history(
         }
     }
     stats.parsed_success = parsed.len();
+    stats.parsed_with_fix_hunk = parsed.iter().filter(|p| p.fix_hunk.is_some()).count();
     stats.newest_pr_id = newest_pr;
 
     // Stage 2b: optional LLM classification of ambiguous `closed`
@@ -785,6 +801,7 @@ async fn fetch_azure_devops(
                 line_end,
                 severity,
                 coderabbit_comment: cr_text.join("\n\n"),
+                fix_hunk: None, // filled by the bounded fix-exemplar pass below
             });
         }
 
@@ -792,13 +809,227 @@ async fn fetch_azure_devops(
             && out.len() >= cap * 10
         {
             // Rough heuristic: average ~10 threads per PR with CR
-            // comments in the OciusX corpus; cap output so unbounded
+            // comments in the pilot corpus; cap output so unbounded
             // fetches don't blow memory when callers forget max_prs.
             break;
         }
     }
 
+    // Bounded fix-exemplar pass (iteration-delta mining): for RESOLVED
+    // findings that quote code, recover the concrete house fix hunk from
+    // the merged PR's iteration diffs. Ingest is a batch op, so the extra
+    // ADO calls are acceptable; kept cheap by (a) resolved + tokenized
+    // findings only, (b) per-PR iteration fetch cached, (c) blobs cached
+    // by (commit, file), (d) fully fail-soft — a missing hunk just means
+    // the rule ships without an exemplar.
+    attach_fix_hunks(&client, &base, &auth, &mut out).await;
+
     Ok((out, skipped_incremental))
+}
+
+/// Per-PR map of `changes-API path → [blob objectId in iteration order]`
+/// — every version of every file the PR touched. Built from each
+/// iteration's `changes` (which carries item.path + item.objectId).
+/// Empty on any failure. The ADO items-by-path API 404s here, and thread
+/// paths carry a `/Site` prefix the changes paths lack, so objectId is
+/// the reliable handle for fetching a specific version.
+async fn fetch_pr_file_versions(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    pr_id: u64,
+) -> std::collections::HashMap<String, Vec<String>> {
+    use reqwest::header::{ACCEPT, AUTHORIZATION};
+    use std::collections::HashMap;
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    // How many iterations?
+    let iters_url = format!("{base}/pullrequests/{pr_id}/iterations?api-version=7.1");
+    let Some(iter_ids): Option<Vec<u64>> = async {
+        let body: serde_json::Value = client
+            .get(&iters_url)
+            .header(AUTHORIZATION, auth)
+            .header(ACCEPT, "application/json")
+            .send()
+            .await
+            .ok()?
+            .error_for_status()
+            .ok()?
+            .json()
+            .await
+            .ok()?;
+        Some(
+            body.get("value")?
+                .as_array()?
+                .iter()
+                .filter_map(|it| it.get("id").and_then(|v| v.as_u64()))
+                .collect(),
+        )
+    }
+    .await
+    else {
+        return out;
+    };
+    const MAX_ITERS: usize = 10;
+    for it in iter_ids.into_iter().take(MAX_ITERS) {
+        let ch_url =
+            format!("{base}/pullrequests/{pr_id}/iterations/{it}/changes?api-version=7.1");
+        let Ok(resp) = client
+            .get(&ch_url)
+            .header(AUTHORIZATION, auth)
+            .header(ACCEPT, "application/json")
+            .send()
+            .await
+        else {
+            continue;
+        };
+        let Ok(resp) = resp.error_for_status() else {
+            continue;
+        };
+        let Ok(body) = resp.json::<serde_json::Value>().await else {
+            continue;
+        };
+        let entries = body
+            .get("changeEntries")
+            .or_else(|| body.get("value"))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for e in entries {
+            let Some(item) = e.get("item") else { continue };
+            let (Some(path), Some(oid)) = (
+                item.get("path").and_then(|v| v.as_str()),
+                item.get("objectId").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            if oid.is_empty() {
+                continue;
+            }
+            let versions = out.entry(path.to_string()).or_default();
+            if versions.last().map(String::as_str) != Some(oid) {
+                versions.push(oid.to_string());
+            }
+        }
+    }
+    out
+}
+
+/// Raw content of a blob by its objectId (the reliable ADO handle — no
+/// path/version resolution). None on any failure or oversized blob.
+async fn fetch_blob_by_object_id(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    object_id: &str,
+) -> Option<String> {
+    use reqwest::header::{ACCEPT, AUTHORIZATION};
+    let url = format!("{base}/blobs/{object_id}?api-version=7.1&$format=text");
+    let resp = client
+        .get(&url)
+        .header(AUTHORIZATION, auth)
+        .header(ACCEPT, "text/plain")
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    let text = resp.text().await.ok()?;
+    if text.len() > 2_000_000 {
+        return None;
+    }
+    Some(text)
+}
+
+/// A thread's file matches a changes-API path when one is a path-suffix
+/// of the other (thread paths carry a `/Site` prefix the changes paths
+/// drop). Compare on the last few segments to avoid basename collisions.
+fn path_suffix_matches(thread_path: &str, changes_path: &str) -> bool {
+    let a = thread_path.trim_start_matches('/').to_ascii_lowercase();
+    let b = changes_path.trim_start_matches('/').to_ascii_lowercase();
+    a.ends_with(&b) || b.ends_with(&a)
+}
+
+/// Fill `fix_hunk` on resolved, tokenized findings: diff the finding's
+/// file between its EARLIEST and LATEST version in the PR (widest span;
+/// token-anchoring finds the fix hunk regardless of intervening churn)
+/// and take the hunk whose removed side carries a quoted token. Bounded
+/// (resolved + tokenized only; per-PR version map cached; blobs cached by
+/// objectId) and fully fail-soft.
+async fn attach_fix_hunks(
+    client: &reqwest::Client,
+    base: &str,
+    auth: &str,
+    findings: &mut [RawReviewComment],
+) {
+    use std::collections::HashMap;
+    let mut versions_by_pr: HashMap<u64, HashMap<String, Vec<String>>> = HashMap::new();
+    let mut blob_cache: HashMap<String, Option<String>> = HashMap::new();
+    let (mut n_candidates, mut n_versionmap_empty, mut n_no_match, mut n_attached) =
+        (0usize, 0usize, 0usize, 0usize);
+
+    for f in findings.iter_mut() {
+        let resolved = matches!(f.thread_status, ThreadStatus::Fixed | ThreadStatus::Closed);
+        if !resolved || f.file_path.is_empty() {
+            continue;
+        }
+        let tokens = quoted_code_tokens(&f.coderabbit_comment);
+        if tokens.is_empty() {
+            continue;
+        }
+        n_candidates += 1;
+        if !versions_by_pr.contains_key(&f.pr_id) {
+            let v = fetch_pr_file_versions(client, base, auth, f.pr_id).await;
+            versions_by_pr.insert(f.pr_id, v);
+        }
+        let file_versions = &versions_by_pr[&f.pr_id];
+        if file_versions.is_empty() {
+            n_versionmap_empty += 1;
+        }
+        // Find the changes-path whose file matches this finding's, take
+        // its earliest and latest distinct objectIds.
+        let Some(oids) = file_versions
+            .iter()
+            .find(|(p, _)| path_suffix_matches(&f.file_path, p))
+            .map(|(_, v)| v)
+        else {
+            n_no_match += 1;
+            continue;
+        };
+        if oids.len() < 2 {
+            continue; // file has one version in the PR → no before→after
+        }
+        let (first, last) = (&oids[0], &oids[oids.len() - 1]);
+        for oid in [first, last] {
+            if !blob_cache.contains_key(oid) {
+                let v = fetch_blob_by_object_id(client, base, auth, oid).await;
+                blob_cache.insert(oid.clone(), v);
+            }
+        }
+        let (Some(old), Some(new)) = (
+            blob_cache.get(first).cloned().flatten(),
+            blob_cache.get(last).cloned().flatten(),
+        ) else {
+            continue;
+        };
+        if old == new {
+            continue;
+        }
+        let diff = similar::TextDiff::from_lines(&old, &new)
+            .unified_diff()
+            .context_radius(2)
+            .to_string();
+        if let Some(hunk) = fix_hunk_by_token(&diff, &tokens) {
+            f.fix_hunk = Some(hunk);
+            n_attached += 1;
+        }
+    }
+    tracing::info!(
+        candidates = n_candidates,
+        versionmap_empty = n_versionmap_empty,
+        no_path_match = n_no_match,
+        attached = n_attached,
+        "fix-exemplar pass complete"
+    );
 }
 
 fn is_coderabbit_author(author: Option<&serde_json::Value>) -> bool {
@@ -969,6 +1200,7 @@ pub fn parse_comment(raw: &RawReviewComment) -> Option<ParsedRule> {
         content_hash,
         semantic_hash,
         raw_body: body,
+        fix_hunk: raw.fix_hunk.clone(),
     })
 }
 
@@ -1131,6 +1363,14 @@ pub fn strip_html(s: &str) -> String {
     static BLOCK_RE: LazyLock<Option<regex::Regex>> = LazyLock::new(|| {
         regex::Regex::new(r"(?is)<(?:script|style|head)[^>]*>.*?</(?:script|style|head)>").ok()
     });
+    // CodeRabbit folds its INTERNAL tooling transcript into collapsible
+    // blocks — `<details><summary>🧩 Analysis chain</summary>🏁 Script
+    // executed: #!/bin/bash …`. That text is not part of the finding;
+    // ingested, it polluted rule texts and token clouds (live: PR1874
+    // residual entries were analysis-chain shell scripts). Drop the whole
+    // block; the finding's bold title always sits OUTSIDE it.
+    static DETAILS_RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"(?is)<details>.*?(?:</details>|\z)").ok());
     static TAG_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"<[^>]+>").ok());
 
@@ -1138,6 +1378,10 @@ pub fn strip_html(s: &str) -> String {
         .as_ref()
         .map(|re| re.replace_all(s, "").to_string())
         .unwrap_or_else(|| s.to_string());
+    let stripped = DETAILS_RE
+        .as_ref()
+        .map(|re| re.replace_all(&stripped, "").to_string())
+        .unwrap_or(stripped);
     let tagless = TAG_RE
         .as_ref()
         .map(|re| re.replace_all(&stripped, "").to_string())
@@ -1232,22 +1476,46 @@ fn extract_pattern_tokens(body: &str) -> Vec<String> {
     // SCREAMING_CASE constants; we cover those via the backtick path
     // when the author marked them.
     static BACKTICK_RE: LazyLock<Option<regex::Regex>> =
-        LazyLock::new(|| regex::Regex::new(r"`([A-Za-z_][A-Za-z0-9_\.]{2,})`").ok());
+        LazyLock::new(|| regex::Regex::new(r"`([A-Za-z_][A-Za-z0-9_\.]{2,})(?:\(\))?`").ok());
     static PASCAL_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"\b([A-Z][a-z]+[A-Za-z0-9]{2,})\b").ok());
+    // camelCase with an interior hump ("gQtyManager", "setWarningsText") —
+    // English prose never has interior caps, so this shape needs no
+    // prose filter.
+    static CAMEL_RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"\b([a-z_][a-z0-9_]*[A-Z][A-Za-z0-9_]+)\b").ok());
     static METHOD_RE: LazyLock<Option<regex::Regex>> =
         LazyLock::new(|| regex::Regex::new(r"\b([A-Za-z_][A-Za-z0-9_]{2,})\s*\(").ok());
 
     let mut seen: HashSet<String> = HashSet::new();
     let mut out: Vec<String> = Vec::new();
-    for re in [BACKTICK_RE.as_ref(), PASCAL_RE.as_ref(), METHOD_RE.as_ref()]
-        .iter()
-        .flatten()
-    {
+    for (re, is_pascal) in [
+        (BACKTICK_RE.as_ref(), false),
+        (PASCAL_RE.as_ref(), true),
+        (CAMEL_RE.as_ref(), false),
+        (METHOD_RE.as_ref(), false),
+    ] {
+        let Some(re) = re else { continue };
         for cap in re.captures_iter(body).take(200) {
             if let Some(m) = cap.get(1) {
                 let tok = m.as_str().trim_matches('.').to_string();
                 if tok.len() < 4 || is_stop_token(&tok) {
+                    continue;
+                }
+                // The PascalCase path alone also matches plain Titlecase
+                // ENGLISH words ("Thanks", "Carefully", "Understood") —
+                // review-comment courtesy prose that polluted the rule
+                // docs' token clouds and degraded rule search (live: the
+                // writing-time rules section is matched lexically against
+                // story text). Require a real identifier signal: an
+                // interior uppercase hump, digit, or underscore.
+                // Backtick tokens are author-marked code and call-shaped
+                // tokens are code by construction — those paths stay open.
+                if is_pascal
+                    && !tok[1..]
+                        .chars()
+                        .any(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+                {
                     continue;
                 }
                 if seen.insert(tok.clone()) {
@@ -1270,6 +1538,80 @@ fn extract_fix_commit(body: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
+// ─── Fix-exemplar localization (iteration-delta mining) ──────────────────────
+//
+// A review finding quotes the offending code in backticks; the merged PR's
+// later-iteration diff of the same file contains the concrete fix. Matching
+// the fix hunk by that quoted token (not by line number, which drifts across
+// iterations) recovers the canonical before→after — the highest-quality
+// signal for the rule corpus ("here's how the team fixed this last time").
+//
+// Proven in eval/_iter_delta_probe.py: token-anchoring ~3x'd the hit rate on
+// live PRs (PR1874 4/17 → 11/17). These are the in-tree, unit-tested core;
+// the live ADO iteration-diff fetch that feeds them is wired separately.
+
+/// Backtick-quoted identifier-ish tokens the reviewer named, longest first —
+/// a line-number-independent anchor for the offending code.
+pub(crate) fn quoted_code_tokens(finding_text: &str) -> Vec<String> {
+    use std::sync::LazyLock;
+    static RE: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"`([^`]{3,60})`").ok());
+    static IDENT: LazyLock<Option<regex::Regex>> =
+        LazyLock::new(|| regex::Regex::new(r"[A-Za-z_]\w*").ok());
+    let (Some(re), Some(ident)) = (RE.as_ref(), IDENT.as_ref()) else {
+        return Vec::new();
+    };
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out: Vec<String> = Vec::new();
+    for cap in re.captures_iter(finding_text) {
+        if let Some(m) = cap.get(1) {
+            let t = m.as_str().to_string();
+            if ident.is_match(&t) && seen.insert(t.clone()) {
+                out.push(t);
+            }
+        }
+    }
+    out.sort_by(|a, b| b.len().cmp(&a.len()));
+    out
+}
+
+/// From a unified diff of ONE file, return the first `@@` hunk whose
+/// REMOVED (`-`) side contains one of `tokens` — the hunk that changed the
+/// offending code, regardless of how line numbers drifted. None if no
+/// removed line carries a named token (a fix that only ADDS lines, or an
+/// unrelated hunk).
+pub(crate) fn fix_hunk_by_token(diff_text: &str, tokens: &[String]) -> Option<String> {
+    if tokens.is_empty() {
+        return None;
+    }
+    let has_token = |removed: &[&str]| -> bool {
+        removed.iter().any(|r| tokens.iter().any(|t| r.contains(t.as_str())))
+    };
+    let mut cur: Vec<&str> = Vec::new();
+    let mut removed: Vec<&str> = Vec::new();
+    let mut started = false;
+    for line in diff_text.lines() {
+        if line.starts_with("@@ ") {
+            if started && has_token(&removed) {
+                return Some(cur.join("\n"));
+            }
+            cur.clear();
+            removed.clear();
+            cur.push(line);
+            started = true;
+        } else if started {
+            cur.push(line);
+            if line.starts_with('-') && !line.starts_with("---") {
+                removed.push(line);
+            }
+        }
+    }
+    if started && has_token(&removed) {
+        return Some(cur.join("\n"));
+    }
+    None
+}
+
 pub fn infer_language(file_path: &str) -> String {
     let lower = file_path.to_ascii_lowercase();
     let ext = lower.rsplit('.').next().unwrap_or("");
@@ -1280,6 +1622,7 @@ pub fn infer_language(file_path: &str) -> String {
         "js" | "jsx" | "mjs" => "javascript".into(),
         "vb" => "vbnet".into(),
         "cs" => "csharp".into(),
+        "ml" | "mlinc" => "minilang".into(),
         "go" => "go".into(),
         "java" => "java".into(),
         "sql" => "sql".into(),
@@ -1517,6 +1860,23 @@ fn cluster_index_body(c: &ReviewCluster) -> String {
         c.canonical.severity,
         c.canonical.language
     ));
+
+    // Fix exemplar: the concrete before→after the team applied last time,
+    // token-anchored from a merged-PR later iteration. Prefer the
+    // canonical member's; fall back to any member that has one. Bounded
+    // so a huge hunk can't blow the index/snippet budget. This is what
+    // upgrades a rule from "avoid X" to "avoid X — here's the house fix".
+    let exemplar = c
+        .canonical
+        .fix_hunk
+        .as_deref()
+        .or_else(|| c.members.iter().find_map(|m| m.fix_hunk.as_deref()));
+    if let Some(hunk) = exemplar {
+        const MAX_HUNK: usize = 1200;
+        let trimmed: String = hunk.chars().take(MAX_HUNK).collect();
+        body.push_str("\n\nHouse fix (applied in a merged PR):\n");
+        body.push_str(&trimmed);
+    }
     body
 }
 
@@ -1684,6 +2044,76 @@ mod tests {
     }
 
     #[test]
+    fn similar_diff_output_is_parseable_by_token_anchor() {
+        // The live seam: `similar`'s unified_diff().to_string() must be
+        // shaped so fix_hunk_by_token (which keys on `@@ ` headers and
+        // leading `-`) can find the removed offending line. If similar's
+        // format differs, exemplars silently never attach.
+        let old = "line one\nconst valueCell = test(item.value)\nline three\nfour\n";
+        let new = "line one\nconst valueCell = safe(item.value)\nline three\nfour\n";
+        let diff = similar::TextDiff::from_lines(old, new)
+            .unified_diff()
+            .context_radius(2)
+            .to_string();
+        let toks = vec!["item.value".to_string(), "valueCell".to_string()];
+        let hunk = fix_hunk_by_token(&diff, &toks);
+        assert!(
+            hunk.is_some(),
+            "fix_hunk_by_token could not parse similar's output:\n{diff}"
+        );
+        assert!(hunk.unwrap().contains("test(item.value)"));
+    }
+
+    #[test]
+    fn path_suffix_matches_handles_site_prefix() {
+        // Thread paths carry /Site; changes-API paths drop it.
+        assert!(path_suffix_matches(
+            "/Site/App_Code/api-v2/WebApiConfig.vb",
+            "/App_Code/api-v2/WebApiConfig.vb"
+        ));
+        // Identical.
+        assert!(path_suffix_matches("/a/b/c.vb", "/a/b/c.vb"));
+        // Different files must not match.
+        assert!(!path_suffix_matches(
+            "/Site/App_Code/Foo.vb",
+            "/App_Code/Bar.vb"
+        ));
+        // Bare-basename collision across dirs still matches on the tail —
+        // acceptable: the diff+token-anchor is the real filter.
+        assert!(path_suffix_matches("/x/Config.vb", "/Config.vb"));
+    }
+
+    #[test]
+    fn cluster_index_body_renders_house_fix_exemplar() {
+        let raw = RawReviewComment {
+            pr_id: 1,
+            pr_title: String::new(),
+            pr_author: String::new(),
+            pr_date: String::new(),
+            pr_branch: String::new(),
+            pr_url: String::new(),
+            thread_id: 1,
+            thread_status: ThreadStatus::Fixed,
+            file_path: "/f.vb".into(),
+            line_start: 1,
+            line_end: 1,
+            severity: "major".into(),
+            coderabbit_comment: "_🟠 Major_\n\n**Guard `Query.projectId` before calling \
+                `Check_pr_id`.** Use `HasValue` safely.".into(),
+            fix_hunk: Some(
+                "@@ -1,3 +1,3 @@\n-If Query.projectId.HasValue Then\n+If Query?.projectId IsNot Nothing Then"
+                    .into(),
+            ),
+        };
+        let rule = parse_comment(&raw).expect("parses");
+        assert_eq!(rule.fix_hunk.as_deref().map(|h| h.contains("IsNot Nothing")), Some(true));
+        let cluster = build_cluster(vec![rule]);
+        let body = cluster_index_body(&cluster);
+        assert!(body.contains("House fix (applied in a merged PR):"), "body:\n{body}");
+        assert!(body.contains("If Query?.projectId IsNot Nothing Then"));
+    }
+
+    #[test]
     fn strip_html_removes_tags_and_scripts() {
         let input = "<p>hello <script>alert(1)</script>world</p>";
         assert_eq!(strip_html(input), "hello world");
@@ -1725,9 +2155,78 @@ mod tests {
     }
 
     #[test]
+    fn extract_pattern_tokens_drops_titlecase_prose() {
+        // Courtesy/reply prose from review threads must not become
+        // pattern tokens (live: "Thanks, Understood, Learnt, Carefully"
+        // in rule docs' token clouds). Identifier-shaped PascalCase and
+        // explicit code markers still pass.
+        let body = "Thanks! Understood. Therefore we should Carefully check \
+                    NullReferenceException in `spGetChildRecords` when GetByID() runs.";
+        let tokens = extract_pattern_tokens(body);
+        for prose in ["Thanks", "Understood", "Therefore", "Carefully"] {
+            assert!(
+                !tokens.iter().any(|t| t == prose),
+                "prose token leaked: {prose} in {tokens:?}"
+            );
+        }
+        assert!(tokens.iter().any(|t| t == "NullReferenceException"));
+        assert!(tokens.iter().any(|t| t == "spGetChildRecords"));
+        assert!(tokens.iter().any(|t| t == "GetByID"));
+    }
+
+    #[test]
+    fn strip_html_drops_details_analysis_chains() {
+        let body = "**Missing null check on selectedRow.**\n\nThe row lookup can return Nothing.\n\
+                    <details><summary>🧩 Analysis chain</summary>\n🏁 Script executed: \
+                    #!/bin/bash\nfind . -name '*.vb' | xargs grep -l selectedRow</details>\n\
+                    Fix by guarding the lookup.";
+        let out = strip_html(body);
+        assert!(out.contains("Missing null check"));
+        assert!(out.contains("Fix by guarding"));
+        assert!(!out.contains("Script executed"), "analysis chain leaked: {out}");
+        assert!(!out.contains("bin/bash"));
+        // Unterminated details (truncated comment) must also be dropped.
+        let out2 = strip_html("**Title.**\n<details><summary>chain</summary>partial…");
+        assert!(!out2.contains("partial"));
+        assert!(out2.contains("Title."));
+    }
+
+    #[test]
     fn extract_fix_commit_grabs_sha() {
         let body = "✅ Addressed in commits 8133c13 to dde4b4e";
         assert_eq!(extract_fix_commit(body), Some("8133c13".to_string()));
+    }
+
+    #[test]
+    fn quoted_code_tokens_ranks_identifiers_longest_first() {
+        let finding = "**Guard `Query` before dereferencing** — call `Check_pr_id` and \
+                       avoid `x`.";
+        let toks = quoted_code_tokens(finding);
+        // 'x' is <3 chars → dropped; identifiers kept, longest first.
+        assert_eq!(toks, vec!["Check_pr_id".to_string(), "Query".to_string()]);
+    }
+
+    #[test]
+    fn fix_hunk_by_token_locates_the_removed_offending_code() {
+        // The literal PR1874 fix the probe recovered: nullable-guard change.
+        let diff = "@@ -18,7 +18,7 @@ Namespace _api2.svc\n\
+                     \n\
+                                     Using db As New iFaltDataContext\n\
+                     \n\
+                     -                If Query.projectId.HasValue Then\n\
+                     +                If Query?.projectId IsNot Nothing Then\n\
+                                          Return Nothing\n\
+                     @@ -39,7 +39,7 @@ another region\n\
+                     -                Dim x = 1\n\
+                     +                Dim x = 2\n";
+        let toks = quoted_code_tokens("Guard `Query.projectId.HasValue` before use");
+        let hunk = fix_hunk_by_token(diff, &toks).expect("should locate the guard hunk");
+        assert!(hunk.contains("If Query.projectId.HasValue Then"));
+        assert!(hunk.contains("If Query?.projectId IsNot Nothing Then"));
+        // Must pick the FIRST token-bearing hunk, not the unrelated x=1 one.
+        assert!(!hunk.contains("Dim x = 1"));
+        // A token nobody removed → no match.
+        assert!(fix_hunk_by_token(diff, &["nonexistent_symbol".to_string()]).is_none());
     }
 
     #[test]
@@ -1755,6 +2254,7 @@ mod tests {
             line_end: 0,
             severity: "".into(),
             coderabbit_comment: "## Walkthrough\n\nSome summary".into(),
+            fix_hunk: None,
         };
         assert!(parse_comment(&raw).is_none());
     }
@@ -1780,6 +2280,7 @@ mod tests {
                 can wipe an existing IO-marker warning after a company switch.\n\n\
                 ✅ Addressed in commits eb16a30 to dde4b4e"
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse must succeed");
         assert!(parsed.rule_text.contains("Avoid clearing"));
@@ -1809,6 +2310,7 @@ mod tests {
             content_hash: format!("{pr}"),
             semantic_hash: "s".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let rules = vec![
             make(1, &["PdfExtGState", "PdfDocument", "WriteToDisk"]),
@@ -1845,6 +2347,7 @@ mod tests {
             content_hash: blake3::hash(tokens.join(",").as_bytes()).to_hex()[..8].to_string(),
             semantic_hash: "s".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let rules = vec![
             make(&["DeleteAllOnSubmit", "SubmitChanges"]),
@@ -1856,7 +2359,7 @@ mod tests {
 
     #[test]
     fn cluster_rules_respects_language_boundary() {
-        let mut a = ParsedRule {
+        let a = ParsedRule {
             rule_text: "".into(),
             pattern_tokens: vec!["DeleteAllOnSubmit".into(), "SubmitChanges".into()],
             file_path: "f.vb".into(),
@@ -1873,6 +2376,7 @@ mod tests {
             content_hash: "a".into(),
             semantic_hash: "sa".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let mut b = a.clone();
         b.language = "typescript".into();
@@ -1903,6 +2407,7 @@ mod tests {
             content_hash: format!("{status:?}"),
             semantic_hash: "s-status".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let clusters = cluster_rules(
             vec![
@@ -1958,6 +2463,7 @@ mod tests {
                 The call to `gQtyManager.validate()` can throw when window is not ready.\n\n\
                 ✅ Addressed in commits 1331879 to 8133c13"
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse");
         // Raw status was Closed but the ✅ marker promotes it to Fixed.
@@ -1987,6 +2493,7 @@ mod tests {
                 The parameter `flag` inside `handleInput()` shadows an outer `flag` from the \
                 surrounding `controller` scope."
                 .into(),
+            fix_hunk: None,
         };
         let parsed = parse_comment(&raw).expect("parse");
         assert_eq!(parsed.fix_status, ThreadStatus::Closed);
@@ -2014,6 +2521,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         assert!((parsed_rule_weight(&rule) - 0.85).abs() < 0.001);
         assert!(!is_suppression(&rule));
@@ -2038,6 +2546,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         assert!(is_suppression(&rule));
         assert_eq!(parsed_rule_weight(&rule), 0.0);
@@ -2104,6 +2613,7 @@ mod tests {
                 **Avoid calling setWarningsText unconditionally.**\n\n\
                 The `setWarningsText()` call in the `else` branch clears other warnings."
                 .into(),
+            fix_hunk: None,
         };
         let p1 = parse_comment(&base).unwrap();
         let base2 = RawReviewComment {
@@ -2144,6 +2654,7 @@ mod tests {
                 content_hash: format!("{pr}"),
                 semantic_hash: "s".into(),
                 raw_body: "".into(),
+                fix_hunk: None,
             }
         };
         let rules = vec![
@@ -2218,6 +2729,7 @@ mod tests {
             content_hash: "x".into(),
             semantic_hash: "sx".into(),
             raw_body: "".into(),
+            fix_hunk: None,
         };
         let clusters = cluster_rules(vec![rule], 0.4);
         assert_eq!(clusters[0].fix_rate, 0.0);

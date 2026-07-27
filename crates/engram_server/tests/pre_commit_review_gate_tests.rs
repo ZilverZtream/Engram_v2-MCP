@@ -642,7 +642,7 @@ fn aggregate_dedups_and_sorts_and_corroborates() {
 // ── all_gates() registry ─────────────────────────────────────────────────────
 
 #[test]
-fn all_gates_returns_eleven_gates_in_expected_order() {
+fn all_gates_returns_expected_roster_in_order() {
     let names: Vec<&str> = all_gates().iter().map(|g| g.name()).collect();
     assert_eq!(
         names,
@@ -658,6 +658,12 @@ fn all_gates_returns_eleven_gates_in_expected_order() {
             "test_coverage",
             "secret_leakage",
             "guard_parity",
+            "unwired",
+            "product_intent",
+            "sync_contract",
+            "co_added_family",
+            "complexity_budget",
+            "added_conventions",
         ]
     );
 }

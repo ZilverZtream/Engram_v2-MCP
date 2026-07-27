@@ -170,6 +170,11 @@ pub enum ProjectType {
     /// C projects.
     #[serde(alias = "ansi_c")]
     C,
+    /// MiniLang — native systems language compiled by MiniLangCompiler.
+    /// Indexes `.ml`/`.mlinc` alongside the polyglot compiler sources and
+    /// conformance-test goldens that share the repository.
+    #[serde(alias = "mini_lang", alias = "ml")]
+    MiniLang,
 }
 
 impl ProjectType {
@@ -182,6 +187,7 @@ impl ProjectType {
             Self::CSharp => "csharp",
             Self::Cpp => "cpp",
             Self::C => "c",
+            Self::MiniLang => "minilang",
         }
     }
 
@@ -241,6 +247,11 @@ impl ProjectType {
             Some(Self::Cpp)
         } else if ["c", "ansi_c"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
             Some(Self::C)
+        } else if ["minilang", "mini_lang", "ml"]
+            .iter()
+            .any(|x| v.eq_ignore_ascii_case(x))
+        {
+            Some(Self::MiniLang)
         } else {
             None
         }
@@ -557,7 +568,7 @@ pub struct PlanUserStoryRequest {
 /// Planning: the ranked, co-change-confirmed, family-complete set of files a
 /// user story is likely to require — one call. Concept-footprint + git co-change
 /// + structural graph, fused with co-change-first ranking, .NET family expansion,
-/// and vendor-noise filtering. (Validated on the OciusX eval: this packaging flips
+/// and vendor-noise filtering. (Validated on the pilot eval: this packaging flips
 /// Engram from hurting to helping a code-gen agent.)
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -584,8 +595,10 @@ pub struct GetChangeSetRequest {
     /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
     /// references an id (e.g. "Bug #847") and `work_item_text` is not
     /// provided. Per-call only — never persisted (same stance as
-    /// refresh_corpora). Org/project default from the coordinates saved
-    /// by the last refresh_corpora stage-4 run.
+    /// refresh_corpora). When omitted, the server falls back to its own
+    /// `ADO_PAT` env var, so live agent sessions (which never hold
+    /// credentials) still get input parity. Org/project default from the
+    /// coordinates saved by the last refresh_corpora stage-4 run.
     #[serde(default)]
     pub pat_token: Option<String>,
 }
@@ -821,7 +834,7 @@ pub struct ListSettingsRequest {
     #[serde(default)]
     pub scope: Option<String>,
     /// Max settings rendered per category. Default 25 (raise up to 500 for
-    /// the exhaustive dump) — the full OciusX catalog at 100/category was
+    /// the exhaustive dump) — the pilot corpus's full catalog at 100/category was
     /// ~58K chars, too heavy for a planning-phase call.
     #[serde(default = "default_settings_per_category")]
     pub max_per_category: usize,

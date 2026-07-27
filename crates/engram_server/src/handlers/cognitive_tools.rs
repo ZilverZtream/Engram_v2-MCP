@@ -283,7 +283,7 @@ impl Engram {
             // on the symbols inside the file via `Contains`. Without
             // this pass, `impact_analysis` on a shared utility file
             // (e.g. `Site/App_Code/shared-code/sharedfunc.vb` on
-            // OciusX — 1000+ real dependents) returned zero.
+            // the pilot corpus — 1000+ real dependents) returned zero.
             if target_id.starts_with("file:") {
                 // Resolve the file's rel_path. Prefer the persisted
                 // node metadata (handles slash / encoding quirks) and
@@ -302,7 +302,7 @@ impl Engram {
                 // Contains edges for file-shaped sources live in the
                 // EDGES table but not in ADJ_OUT (verified by
                 // `traverse_graph(file:…, contains, outgoing)`
-                // returning zero on OciusX). The authoritative
+                // returning zero on the pilot corpus). The authoritative
                 // containment signal is `Node.file_path` equality —
                 // every symbol node stores its owning file.
                 //
@@ -2013,16 +2013,23 @@ impl Engram {
                     crate::services::business_logic_service::detect_language(file_path, &content);
                 let class_name =
                     crate::services::business_logic_service::detect_class_name(&content);
-                let body_opt = if language == "vb" {
-                    crate::services::full_project_migration_service::extract_vb_method_body(
+                let body_opt = match language {
+                    "ml" => {
+                        crate::services::full_project_migration_service::extract_ml_method_body(
+                            &content,
+                            method_name,
+                        )
+                    }
+                    "vb" => {
+                        crate::services::full_project_migration_service::extract_vb_method_body(
+                            &content,
+                            method_name,
+                        )
+                    }
+                    _ => crate::services::full_project_migration_service::extract_cs_method_body(
                         &content,
                         method_name,
-                    )
-                } else {
-                    crate::services::full_project_migration_service::extract_cs_method_body(
-                        &content,
-                        method_name,
-                    )
+                    ),
                 };
 
                 let Some((body, start, _end, _lines)) = body_opt else {
@@ -3362,7 +3369,7 @@ impl Engram {
         //
         // Each `compute_blast_radius` does heavy work (per-kind
         // `neighbors` calls + `list_edges` scan for file targets +
-        // internal PageRank). Sequentially on OciusX-scale graphs
+        // internal PageRank). Sequentially on pilot-corpus-scale graphs
         // this was ~3s; spawn_blocking'd concurrently we bottleneck on
         // the tokio blocking threadpool instead and land around
         // ~500ms for the same 10 calls.
@@ -3617,7 +3624,7 @@ impl Engram {
             let graph = self.state.graph.clone();
             let p = pid.clone();
             tokio::task::spawn_blocking(move || {
-                // Stream ALL temporal edges (1.3M on OciusX) — a capped list
+                // Stream ALL temporal edges (1.3M on the pilot corpus) — a capped list
                 // takes the first N by key order, which biases the sample
                 // alphabetically, not by strength. Accumulate BOTH the top file
                 // pairs AND the section-level rollup in one pass; the section
@@ -3775,6 +3782,11 @@ impl Engram {
         // This makes the DATA-LOSS case (overwrite a hand-authored
         // CLAUDE.md without any backup) structurally impossible
         // without the caller explicitly opting into `overwrite_existing`.
+        tracing::info!(
+            "produce_claude_md section [{}] took {:?}",
+            prev_section,
+            section_clock.elapsed()
+        );
         let mut written: Vec<String> = Vec::new();
         let mut notes: Vec<String> = Vec::new();
         // Always surface the rules-pipeline summary so the caller
@@ -3798,6 +3810,7 @@ impl Engram {
                 // CLAUDE.md without explicit consent.
                 let divert = safe_join(&project_dir, "CLAUDE.engram.md")
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.engram.md");
                 notes.push(
                     "Existing CLAUDE.md was left UNTOUCHED — engram output was written to \
                      CLAUDE.engram.md instead. Pass `overwrite_existing: true` to merge or \
@@ -3817,6 +3830,7 @@ impl Engram {
                 let backup_name = format!("CLAUDE.md.{ts}.bak");
                 let backup_path = safe_join(&project_dir, &backup_name)
                     .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+                crate::utils::files::ensure_git_excluded(&project_dir, "CLAUDE.md.*.bak");
                 std::fs::write(&backup_path, &existing)
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?;
                 written.push(backup_name.clone());
@@ -4742,7 +4756,7 @@ fn build_role_description(
     } else if has_web_services && !has_pages {
         shape.push("Web services (ASMX)".into());
     } else if has_web_services && has_pages {
-        // Classic WebForms + ASMX combo like OciusX.
+        // Classic WebForms + ASMX combo like the pilot corpus.
         shape.push("ASMX + Web API".into());
     }
     if has_wcf {
@@ -4776,7 +4790,7 @@ fn build_role_description(
     // Fragment 3: custom TypeScript framework detection. Pattern:
     // TypeScript files in a `q/` or `Q/` directory, or references to
     // `q.ctrl.` / `q.api.` / `q.page` / `q.bind.` namespaces in code.
-    // This is OciusX-flavoured but generalises: any codebase with a
+    // This is pilot-flavoured but generalises: any codebase with a
     // dominant internal TS namespace surfaces it here.
     let q_framework_files = graph
         .query_nodes(project_id, Some("file"), None, None, 5000)
