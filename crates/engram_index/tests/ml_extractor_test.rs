@@ -1204,7 +1204,7 @@ End Ui
 
 #[test]
 fn ui_header_window_modifier_does_not_shift_attribute_pairs() {
-    // Real corpus shape (284 files, e.g.
+    // Real corpus shape (13 of the 58 files with a `Ui` header, e.g.
     // `examples/ui/declarative_window_png.ml`): a bare `Window` flag with
     // no value of its own sits between `Ui` and the first real key/value
     // pair. Naively pairing tokens two-at-a-time from `Ui` onward reads
@@ -1219,7 +1219,9 @@ fn ui_header_window_modifier_does_not_shift_attribute_pairs() {
     assert_eq!(m.get("width").map(String::as_str), Some("360"));
     assert_eq!(m.get("height").map(String::as_str), Some("220"));
     assert_eq!(m.get("bg").map(String::as_str), Some("bg"));
-    assert_eq!(m.get("window"), None, "got metadata {m:?}");
+    // Windowed vs headless is real semantic content -- it must be
+    // recorded, not silently discarded.
+    assert_eq!(m.get("window").map(String::as_str), Some("true"));
 }
 
 #[test]
@@ -1264,5 +1266,177 @@ End Ui
             && e.source_name == "Sample.Ui"
             && e.target_name.ends_with(".Panel")),
         "Ui should still contain Panel despite the intervening Define Style block, got {edges:?}"
+    );
+}
+
+#[test]
+fn struct_field_named_label_does_not_fabricate_a_ui_control() {
+    // Real corpus shape (8 files under `tests/conformance/` --
+    // `abi/`, `arc/` (x5), `optimizer/`, `syntax/` -- e.g.
+    // `tests/conformance/arc/test_ref_nullable_arc.ml`): a `Type` field is
+    // literally named `Label`, colliding with the `Ui` DSL's `Label`
+    // element keyword. `block_opener("Label As Str")` matches `Label`
+    // (the field NAME is the line's first token), so without a guard this
+    // is indistinguishable from a genuine `Label` element opener -- it
+    // would fabricate a `control` symbol that doesn't exist, and
+    // `ui::ui_own_rows` would find no matching `End Label` and walk to
+    // EOF hoovering up every remaining line in the file as a candidate
+    // attribute row.
+    let src = "\
+Type Box
+    Label As Str
+End Type
+Function After() As Int
+    Return 1
+End Function
+";
+    let (syms, _) = run(src);
+
+    assert!(
+        !syms
+            .iter()
+            .any(|s| s.kind == "control" || s.kind == "ui_container"),
+        "a Type field named Label must never fabricate a UI symbol, got {:?}",
+        syms.iter().map(|s| (&s.kind, &s.name)).collect::<Vec<_>>()
+    );
+
+    let t = syms
+        .iter()
+        .find(|s| s.kind == "struct" && s.name == "Box")
+        .expect("Box struct symbol");
+    let m = t.metadata.as_ref().expect("metadata");
+    assert_eq!(m.get("fields").map(String::as_str), Some("Label:Str"));
+
+    // The sibling Function after the Type must still be parsed correctly
+    // -- proof the scanner's stack was never desynced by the phantom
+    // `Label` block that the old fallthrough would have pushed (and that
+    // `ui::ui_own_rows`, if it had run, never ran away to EOF instead of
+    // stopping at `End Type`).
+    let f = syms
+        .iter()
+        .find(|s| s.kind == "function" && s.name == "After")
+        .expect("After function symbol");
+    assert_eq!(f.start_line, 4);
+    assert_eq!(f.end_line, 6);
+}
+
+#[test]
+fn define_style_bundle_rows_do_not_bleed_onto_the_enclosing_element() {
+    // Real corpus shape (`tests/conformance/ui/test_ui_class_bg_headless.ml`
+    // and 7 other files): a `Define Style` bundle's own attribute-shaped
+    // rows (`Bg`, `Border`, ...) must not fold into the metadata of the
+    // UI element it happens to be nested inside. `Border` is the
+    // discriminating row here (unlike `Bg`, no `Ui` header ever sets
+    // `border`, so a bleed would silently attach a bogus `border` value
+    // to the root container as if it were the window's own).
+    let src = "\
+Ui Width 320 Height 200 Bg bg
+  Define Style filled
+    Bg accent
+    Border accent 2
+    MinSize 120 40
+  End Style
+  Panel
+    Rect 10 10 300 180 8
+  End Panel
+End Ui
+";
+    let (syms, _) = run(src);
+    let root = syms
+        .iter()
+        .find(|s| s.kind == "ui_container" && s.name == "Sample.Ui")
+        .expect("root Ui container");
+    let m = root.metadata.as_ref().expect("metadata");
+    assert_eq!(
+        m.get("bg").map(String::as_str),
+        Some("bg"),
+        "got metadata {m:?}"
+    );
+    assert_eq!(
+        m.get("border"),
+        None,
+        "the Define Style bundle's own Border row must not bleed onto Ui, got metadata {m:?}"
+    );
+}
+
+#[test]
+fn same_type_sibling_elements_get_distinct_identities() {
+    // Real corpus shape (`examples/ui/declarative_switch_png.ml`: a
+    // single `Panel` holds 4 `Label`s and 3 `Switch`es). FQNs built purely
+    // from ancestry (`{parent}.{keyword}`) collapse every same-type
+    // sibling into ONE name, and every `contains_ui` edge to them into
+    // ONE (source, target) pair.
+    let src = "\
+Ui Width 300 Height 200 Bg bg
+  Panel
+    Label
+      Text \"One\"
+    End Label
+    Label
+      Text \"Two\"
+    End Label
+    Label
+      Text \"Three\"
+    End Label
+  End Panel
+End Ui
+";
+    let (syms, edges) = run(src);
+
+    let labels: Vec<&engram_index::parsing::ExtractedSymbol> = syms
+        .iter()
+        .filter(|s| {
+            s.kind == "control"
+                && s.metadata
+                    .as_ref()
+                    .and_then(|m| m.get("element"))
+                    .map(String::as_str)
+                    == Some("Label")
+        })
+        .collect();
+    assert_eq!(
+        labels.len(),
+        3,
+        "expected 3 Label symbols, got {:?}",
+        labels.iter().map(|s| &s.name).collect::<Vec<_>>()
+    );
+    let distinct_names: std::collections::HashSet<&str> =
+        labels.iter().map(|s| s.name.as_str()).collect();
+    assert_eq!(
+        distinct_names.len(),
+        3,
+        "same-type siblings must get distinct names, got {distinct_names:?}"
+    );
+
+    // Each Label's own Text must still fold correctly despite the
+    // ordinal-suffixed fqn.
+    let texts: std::collections::HashSet<Option<&str>> = labels
+        .iter()
+        .map(|s| {
+            s.metadata
+                .as_ref()
+                .and_then(|m| m.get("text"))
+                .map(String::as_str)
+        })
+        .collect();
+    assert!(texts.contains(&Some("One")), "got {texts:?}");
+    assert!(texts.contains(&Some("Two")), "got {texts:?}");
+    assert!(texts.contains(&Some("Three")), "got {texts:?}");
+
+    let label_edges: Vec<&engram_index::parsing::ExtractedEdge> = edges
+        .iter()
+        .filter(|e| e.kind == "contains_ui" && e.target_name.contains("Label"))
+        .collect();
+    assert_eq!(
+        label_edges.len(),
+        3,
+        "expected 3 distinct contains_ui edges to Label children, got {label_edges:?}"
+    );
+    let distinct_targets: std::collections::HashSet<&str> =
+        label_edges.iter().map(|e| e.target_name.as_str()).collect();
+    assert_eq!(
+        distinct_targets.len(),
+        3,
+        "contains_ui edges must target distinct Label fqns, got {distinct_targets:?}"
     );
 }
