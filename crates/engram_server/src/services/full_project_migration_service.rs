@@ -1247,6 +1247,103 @@ pub(crate) fn extract_vb_method_body(
     Some((body.to_string(), start_line, end_line, line_count))
 }
 
+/// Extract a MiniLang `Function`/`Sub` body by tracking `End Function` /
+/// `End Sub` depth.
+///
+/// MiniLang differs from VB in three ways that matter here: it has no
+/// access-modifier requirement (but `Public`/`Private` are legal), generic
+/// parameters sit BETWEEN the name and the parameter list
+/// (`Function BTreeMap_Get Of K, V(…)`), and bodies nest `End Type` /
+/// `End Unsafe` / `End Using` / `End Match` / `End Repeat` / `End Union`
+/// blocks that must not be counted as function terminators. A `Function`
+/// declared inside a `Type` body (MLH-2080 inline methods) is handled by
+/// the same depth counter that already handles VB's Sub-inside-Function
+/// case: only `Function`/`Sub` opens and `End Function`/`End Sub` closes
+/// move the counter, so any enclosing `Type`/`Namespace`/`Unsafe` block is
+/// simply transparent to it — no special-casing needed.
+pub(crate) fn extract_ml_method_body(
+    content: &str,
+    method_name: &str,
+) -> Option<(String, u32, u32, u32)> {
+    // The name may be followed by `(` or by an ` Of …` generic clause, so
+    // the pattern must not demand an immediate open paren.
+    let pattern = format!(
+        r"(?im)^\s*(?:(?:Public|Private)\s+)?(Function|Sub)\s+{}\s*(?:\(|Of\s)",
+        regex::escape(method_name)
+    );
+    let re = Regex::new(&pattern)
+        .inspect_err(|e| tracing::warn!(method_name, error = %e, "MiniLang method body regex compile failed"))
+        .ok()?;
+    let m = re.find(content)?;
+
+    let start_offset = m.start();
+    // 1-based source line number: number of newlines preceding the match,
+    // plus 1. `content[..start_offset]` always ends exactly at a line
+    // boundary here (m.start() is either 0 or immediately after a `\n`,
+    // since the pattern is anchored on `^`), so `.lines().count()` yields
+    // the count of complete lines before the match — i.e. the 0-based line
+    // index of the match line — and needs `+ 1` to become a 1-based number.
+    let start_line = content[..start_offset].lines().count() as u32 + 1;
+
+    // Determine if it's Sub or Function
+    let cap = re.captures(&content[m.start()..])?;
+    let kind = cap[1].to_string();
+    let upper_kind = kind.to_uppercase();
+
+    // A nested declaration opener. Anchored at line start after optional
+    // access modifiers, so `Mapper As Function(T) As R` never matches.
+    static ML_NESTED_OPEN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)^\s*(?:(?:Public|Private)\s+)?(?:Function|Sub)\s+\w+")
+            .expect("ml_nested_open")
+    });
+
+    let after_start = &content[start_offset..];
+    let match_len = m.end() - m.start();
+    let decl_line_idx = after_start[..match_len.min(after_start.len())]
+        .matches('\n')
+        .count();
+
+    let mut depth = 1i32;
+    let mut end_pos = None;
+    for (i, line) in after_start.lines().enumerate() {
+        if i <= decl_line_idx {
+            continue;
+        }
+        let trimmed = line.trim().to_uppercase();
+
+        // Count nested Function/Sub openings (skip End … lines). Non-function
+        // block openers (Type, Namespace, Unsafe, Using, Match, Repeat,
+        // Union, If) never match ML_NESTED_OPEN_RE, so they are transparent
+        // to this counter — only Function/Sub nesting affects depth.
+        if !trimmed.starts_with("END ") && ML_NESTED_OPEN_RE.is_match(line.trim()) {
+            depth += 1;
+        }
+
+        // Only Function/Sub terminators change depth — End Type, End If,
+        // End Unsafe, End Using, End Match, End Repeat, End Union are
+        // unrelated nesting and must be ignored.
+        if trimmed.starts_with("END FUNCTION") || trimmed.starts_with("END SUB") {
+            depth -= 1;
+            if depth == 0 && trimmed.starts_with(&format!("END {upper_kind}")) {
+                let line_start = after_start
+                    .lines()
+                    .take(i)
+                    .map(|l| l.len() + 1)
+                    .sum::<usize>();
+                end_pos = Some(start_offset + line_start + line.len());
+                break;
+            }
+        }
+    }
+
+    let end_offset = end_pos.unwrap_or(content.len());
+    let body = &content[start_offset..end_offset];
+    let line_count = body.lines().count() as u32;
+    let end_line = start_line + line_count.saturating_sub(1);
+
+    Some((body.to_string(), start_line, end_line, line_count))
+}
+
 /// Extract C# method body by tracking brace depth.
 /// Handles verbatim strings (`@"..."`), interpolated strings, block/line comments,
 /// and generic return types with commas (`Dictionary<string, int>`).
@@ -3022,6 +3119,71 @@ End Function
         assert!(result.is_some());
         let (body, _, _, _) = result.expect("found");
         assert!(body.contains("Return total"));
+    }
+
+    #[test]
+    fn extract_ml_method_body_handles_generics_and_nested_blocks() {
+        let src = "\
+Namespace Std
+    Function BTreeMap_Get Of K As Ordered, V(Borrow tree As Int, key As K) As V Throws Std.LookupError
+        If key > 0
+            Unsafe(RawPtr)
+                Say 1
+            End Unsafe
+        End If
+        Return key
+    End Function
+
+    Function After() As Int
+        Return 1
+    End Function
+End Namespace
+";
+        let (body, start, end, lines) =
+            extract_ml_method_body(src, "BTreeMap_Get").expect("body extracted");
+
+        assert!(body.starts_with("    Function BTreeMap_Get Of K As Ordered"));
+        assert!(body.trim_end().ends_with("End Function"));
+        // Must not run past its own End Function into the next declaration.
+        assert!(
+            !body.contains("After"),
+            "body leaked into the next function"
+        );
+        assert_eq!(start, 2);
+        assert_eq!(end, 9);
+        assert_eq!(lines, 8);
+    }
+
+    #[test]
+    fn extract_ml_method_body_handles_sub_and_access_modifiers() {
+        let src = "\
+Public Sub Install(target As Int)
+    Say target
+End Sub
+";
+        let (body, _, _, _) = extract_ml_method_body(src, "Install").expect("body extracted");
+        assert!(body.contains("Public Sub Install"));
+        assert!(body.trim_end().ends_with("End Sub"));
+    }
+
+    #[test]
+    fn extract_ml_method_body_ignores_function_type_annotations() {
+        // `Mapper As Function(T) As R` must not be mistaken for a declaration
+        // of a function named Mapper.
+        let src = "\
+Type Cursor Of T, R
+    Mapper As Function(T) As R
+End Type
+Function Mapper(x As Int) As Int
+    Return x
+End Function
+";
+        let (body, start, _, _) = extract_ml_method_body(src, "Mapper").expect("body extracted");
+        assert_eq!(
+            start, 4,
+            "must find the real declaration, not the field row"
+        );
+        assert!(body.starts_with("Function Mapper(x As Int)"));
     }
 
     #[test]

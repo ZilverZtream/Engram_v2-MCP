@@ -16,7 +16,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::full_project_migration_service::{
-    MethodInfo, MethodKind, extract_cs_method_body, extract_vb_method_body,
+    MethodInfo, MethodKind, extract_cs_method_body, extract_ml_method_body, extract_vb_method_body,
 };
 
 // ── Prompt Template ──────────────────────────────────────────────────────────
@@ -529,8 +529,11 @@ pub async fn analyze_method_logic(
     let body_hash = ContentHash::compute(method_body.as_bytes()).0;
     let fqn = format!("{class_name}.{method_name}");
 
-    let lang_tag = if language == "vb" { "vb.net" } else { "csharp" };
-    let lang_full = if language == "vb" { "VB.NET" } else { "C#" };
+    let (lang_tag, lang_full) = match language {
+        "vb" => ("vb.net", "VB.NET"),
+        "ml" => ("minilang", "MiniLang"),
+        _ => ("csharp", "C#"),
+    };
 
     let numbered_body: String = method_body
         .lines()
@@ -612,8 +615,16 @@ pub fn detect_class_name(content: &str) -> String {
 /// properties / module-level / `ReadOnly Property … End Property` was treated as
 /// C#, skipping VB body extraction and telling the LLM the wrong language. VB is
 /// the PRIMARY language here, so that was a correctness bug.
+///
+/// `.ml`/`.mlinc` (MiniLang) is checked before `.vb`: without this branch, a
+/// `.ml` file falls through to the content sniff, which also finds
+/// `End Function` (MiniLang shares that terminator with VB) and misclassifies
+/// it as `"vb"` — the exact defect this branch fixes.
 pub fn detect_language(file_path: &str, content: &str) -> &'static str {
     let p = file_path.to_ascii_lowercase();
+    if p.ends_with(".ml") || p.ends_with(".mlinc") {
+        return "ml";
+    }
     if p.ends_with(".vb") {
         // covers .vb, .aspx.vb, .ascx.vb, .designer.vb
         return "vb";
@@ -640,16 +651,16 @@ pub async fn analyze_file_logic(
     let language = detect_language(file_path, content);
 
     // Extract method names and bodies
-    let method_names = extract_method_names(content);
+    let method_names = extract_method_names_for_language(content, language);
     let mut methods = Vec::new();
     let mut analyzed_count = 0usize;
     let mut skipped_count = 0usize;
 
     for name in &method_names {
-        let body_opt = if language == "vb" {
-            extract_vb_method_body(content, name)
-        } else {
-            extract_cs_method_body(content, name)
+        let body_opt = match language {
+            "ml" => extract_ml_method_body(content, name),
+            "vb" => extract_vb_method_body(content, name),
+            _ => extract_cs_method_body(content, name),
         };
 
         let Some((body, start, _end, _lines)) = body_opt else {
@@ -691,7 +702,11 @@ pub async fn analyze_file_logic(
             .collect::<Vec<_>>()
             .join("\n");
 
-        let lang_full = if language == "vb" { "VB.NET" } else { "C#" };
+        let lang_full = match language {
+            "vb" => "VB.NET",
+            "ml" => "MiniLang",
+            _ => "C#",
+        };
         let prompt = FILE_PURPOSE_PROMPT
             .replace("{language}", lang_full)
             .replace("{method_list}", &method_list);
@@ -935,14 +950,35 @@ static CS_METHOD_NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?im)^\s*(?:(?:public|private|protected|internal)\s+)?(?:static\s+)?(?:override\s+)?(?:virtual\s+)?(?:async\s+)?(?:\w[\w.<>\[\],]*)\s+(\w+)\s*\(")
         .expect("CS_METHOD_NAME_RE")
 });
+// MiniLang declarations. Access modifiers are optional, and the name may be
+// followed by an ` Of …` generic clause instead of an immediate `(` —
+// demanding a paren would miss every generic declaration in the stdlib.
+// Anchoring on Function/Sub as the first significant token keeps type
+// annotations such as `Mapper As Function(T) As R` from matching.
+static ML_METHOD_NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Function|Sub)\s+(\w+)")
+        .expect("ML_METHOD_NAME_RE")
+});
 
-/// Extract method names from file content.
+/// Extract method names from file content, guessing the language from
+/// content alone. Kept for callers that don't have a file path handy; when
+/// the language is already known (e.g. from `detect_language`), prefer
+/// `extract_method_names_for_language` — MiniLang and VB cannot be told
+/// apart by content alone, since both use `End Sub`/`End Function`.
 fn extract_method_names(content: &str) -> Vec<String> {
     let is_vb = content.contains("End Sub") || content.contains("End Function");
-    let re = if is_vb {
-        &*VB_METHOD_NAME_RE
-    } else {
-        &*CS_METHOD_NAME_RE
+    extract_method_names_for_language(content, if is_vb { "vb" } else { "cs" })
+}
+
+/// Language-explicit method-name extraction. Split out from
+/// `extract_method_names` so MiniLang callers (which cannot be told apart
+/// from VB by content alone — both use `End Function`) can select the right
+/// pattern from the file extension instead.
+pub(crate) fn extract_method_names_for_language(content: &str, language: &str) -> Vec<String> {
+    let re = match language {
+        "ml" => &*ML_METHOD_NAME_RE,
+        "vb" => &*VB_METHOD_NAME_RE,
+        _ => &*CS_METHOD_NAME_RE,
     };
 
     let skip_keywords = [
@@ -1218,6 +1254,39 @@ public partial class OrderEntry : System.Web.UI.Page
                 "protected void Page_Load(object sender, EventArgs e) { }"
             ),
             "cs"
+        );
+    }
+
+    #[test]
+    fn detect_language_recognises_minilang() {
+        assert_eq!(detect_language("Std.Collections.List.ml", ""), "ml");
+        assert_eq!(detect_language("shared.mlinc", ""), "ml");
+        // VB and C# are unaffected.
+        assert_eq!(detect_language("Form1.vb", ""), "vb");
+        assert_eq!(detect_language("Program.cs", ""), "cs");
+    }
+
+    #[test]
+    fn extract_method_names_finds_minilang_declarations() {
+        let src = "\
+Namespace Std
+    Function BTreeMap_Get Of K, V(tree As Int, key As K) As V
+        Return key
+    End Function
+    Public Sub Install(target As Int)
+        Say target
+    End Sub
+End Namespace
+Type Cursor Of T, R
+    Mapper As Function(T) As R
+End Type
+";
+        let names = extract_method_names_for_language(src, "ml");
+        assert!(names.contains(&"BTreeMap_Get".to_string()), "got {names:?}");
+        assert!(names.contains(&"Install".to_string()), "got {names:?}");
+        assert!(
+            !names.contains(&"Mapper".to_string()),
+            "a field of function type must not be a method name, got {names:?}"
         );
     }
 
