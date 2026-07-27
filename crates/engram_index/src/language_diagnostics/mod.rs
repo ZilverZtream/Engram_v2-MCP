@@ -3,6 +3,7 @@
 pub mod c;
 pub mod cpp;
 pub mod csharp;
+pub mod minilang;
 pub mod rust;
 pub mod vb;
 
@@ -14,6 +15,8 @@ pub enum LanguageFamily {
     CSharp,
     C,
     Cpp,
+    /// MiniLang — native systems language with capability-granular unsafe.
+    MiniLang,
     Rust,
     /// VB.NET — the pilot corpus's primary language.
     Vb,
@@ -68,6 +71,10 @@ pub fn detect_language_diagnostics(
         LanguageFamily::Cpp => {
             let diagnostics = cpp::detect(code_files);
             LanguageDiagnosticReport::new("cpp", diagnostics, code_files.len())
+        }
+        LanguageFamily::MiniLang => {
+            let diagnostics = minilang::detect(code_files);
+            LanguageDiagnosticReport::new("minilang", diagnostics, code_files.len())
         }
         LanguageFamily::Rust => {
             let diagnostics = rust::detect(code_files);
