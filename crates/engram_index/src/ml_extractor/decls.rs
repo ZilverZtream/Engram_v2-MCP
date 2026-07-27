@@ -474,7 +474,7 @@ pub(crate) fn parse_params(trimmed: &str) -> Vec<String> {
 
 /// Byte index of the `(` that opens the parameter list, skipping any
 /// parenthesised generic constraint inside a preceding `Of …` clause.
-fn param_list_start(trimmed: &str) -> Option<usize> {
+pub(crate) fn param_list_start(trimmed: &str) -> Option<usize> {
     // Everything before the parameter list is `[access] kw Name [Of …]`.
     // The `Of` clause may itself contain parens, so scan from after it.
     let scan_from = match trimmed.find(" Of ") {
