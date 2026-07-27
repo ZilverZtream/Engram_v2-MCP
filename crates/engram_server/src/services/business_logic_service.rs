@@ -965,6 +965,12 @@ static ML_METHOD_NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
 /// the language is already known (e.g. from `detect_language`), prefer
 /// `extract_method_names_for_language` — MiniLang and VB cannot be told
 /// apart by content alone, since both use `End Sub`/`End Function`.
+///
+/// No production call site remains after this change (`analyze_file_logic`
+/// now calls `extract_method_names_for_language` directly with the detected
+/// language), but this content-guessing entry point stays as a smaller,
+/// still-exercised unit covered by its own tests below.
+#[allow(dead_code)]
 fn extract_method_names(content: &str) -> Vec<String> {
     let is_vb = content.contains("End Sub") || content.contains("End Function");
     extract_method_names_for_language(content, if is_vb { "vb" } else { "cs" })
