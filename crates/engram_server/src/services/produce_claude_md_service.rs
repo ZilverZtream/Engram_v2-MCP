@@ -275,6 +275,7 @@ pub fn language_to_globs(language: &str) -> String {
         "scala" => "**/*.scala,**/*.sc".into(),
         "php" => "**/*.php".into(),
         "html" | "aspx" => "**/*.aspx,**/*.ascx,**/*.html".into(),
+        "minilang" | "ml" => "**/*.ml,**/*.mlinc".into(),
         other => format!("**/*.{other}"),
     }
 }
@@ -300,6 +301,7 @@ pub fn language_display(language: &str) -> &str {
         "swift" => "Swift",
         "scala" => "Scala",
         "php" => "PHP",
+        "minilang" | "ml" => "MiniLang",
         _ => language,
     }
 }
@@ -2391,6 +2393,15 @@ mod tests {
     fn language_to_globs_unknown_uses_language_as_extension() {
         assert_eq!(language_to_globs("zig"), "**/*.zig");
         assert_eq!(language_to_globs("elixir"), "**/*.elixir");
+    }
+
+    #[test]
+    fn minilang_renders_real_globs_and_display_name() {
+        // The `**/*.{other}` fallback would emit the useless glob
+        // `**/*.minilang`, which matches nothing.
+        assert_eq!(language_to_globs("minilang"), "**/*.ml,**/*.mlinc");
+        assert_eq!(language_to_globs("ml"), "**/*.ml,**/*.mlinc");
+        assert_eq!(language_display("minilang"), "MiniLang");
     }
 
     #[test]

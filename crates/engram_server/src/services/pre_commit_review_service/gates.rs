@@ -533,6 +533,10 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
         || file_path.to_ascii_lowercase().ends_with(".tsx")
         || file_path.to_ascii_lowercase().ends_with(".js")
         || file_path.to_ascii_lowercase().ends_with(".jsx");
+    let is_minilang = {
+        let l = file_path.to_ascii_lowercase();
+        l.ends_with(".ml") || l.ends_with(".mlinc")
+    };
 
     for conv in conventions {
         if conv.confidence() < 0.5 {
@@ -544,6 +548,10 @@ fn check_style_compliance(df: &DiffFile, conventions: &[DetectedConvention]) -> 
                 let expected = conv.value.clone();
                 let re_new_method: Option<Regex> = if is_vb {
                     Regex::new(r"(?im)^\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Public|Private|Protected|Friend|Shared|Overrides|Overridable|Async|Partial)?\s*(?:Sub|Function)\s+(\w+)\s*\(").ok()
+                } else if is_minilang {
+                    // Access modifiers optional; the name may be followed by
+                    // an ` Of …` generic clause instead of `(`.
+                    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Sub|Function)\s+(\w+)\s*(?:\(|Of\s)").ok()
                 } else if is_csharp {
                     Regex::new(r"(?m)^\s*(?:public|private|protected|internal|static|virtual|override|async|sealed|abstract|new|partial)\s+(?:[\w<>\[\],\?\s]+?\s+)?(\w+)\s*\(").ok()
                 } else if is_ts_js {
@@ -2933,7 +2941,8 @@ const SQ_PARAMS_MAX: usize = 7;
 fn complexity_gate_ext(path: &str) -> Option<bool> {
     // Some(true) = VB-style (End Function terminators), Some(false) = brace-style.
     let l = path.to_ascii_lowercase();
-    if l.ends_with(".vb") {
+    // MiniLang uses End Function/End Sub terminators like VB.
+    if l.ends_with(".vb") || l.ends_with(".ml") || l.ends_with(".mlinc") {
         Some(true)
     } else if [".cs", ".ts", ".tsx", ".js", ".jsx"]
         .iter()
@@ -4233,6 +4242,38 @@ diff --git a/foo.vb b/foo.vb
     }
 
     #[test]
+    fn style_gate_flags_minilang_casing_through_of_clause() {
+        // The MiniLang MethodNaming regex must not reuse the VB pattern,
+        // which demands `Sub|Function <name>(` — MiniLang's generic `Of`
+        // clause sits between the name and the parenthesis
+        // (`Function badCaseGeneric Of T(...)`), so a VB-shaped regex would
+        // silently fail to capture the name and miss the finding entirely.
+        let diff = "\
+diff --git a/foo.ml b/foo.ml
+--- a/foo.ml
++++ b/foo.ml
+@@ -1,3 +1,4 @@
+ Module Foo
+     Public Function Existing() As Integer
++    Public Function badCaseGeneric Of T(items As List(Of T)) As List(Of T)
+     End Function
+ End Module
+";
+        let diff_files = parse_unified_diff(diff);
+        let conventions = vec![DetectedConvention {
+            category: ConventionCategory::MethodNaming,
+            value: "PascalCase".into(),
+            sample_count: 20,
+            total_count: 20,
+        }];
+        let findings = check_style_compliance(&diff_files[0], &conventions);
+        assert!(
+            findings.iter().any(|f| f.title.contains("badCaseGeneric")),
+            "expected casing finding for the generic method, got {findings:#?}"
+        );
+    }
+
+    #[test]
     fn secret_gate_skips_fixtures_dir() {
         // Ensure the path-based escape hatch for test fixtures works.
         let diff = "\
@@ -4264,5 +4305,16 @@ diff --git a/tests/fixtures/fake.env b/tests/fixtures/fake.env
         assert!(Severity::Critical < Severity::Warning);
         assert!(Severity::Warning < Severity::Info);
         assert!(Severity::Info < Severity::Style);
+    }
+
+    #[test]
+    fn minilang_files_get_the_complexity_gate() {
+        // Some(true) = End-Function terminator style. Returning None would make
+        // gate 16 silently skip every MiniLang file.
+        assert_eq!(complexity_gate_ext("Std.Collections.List.ml"), Some(true));
+        assert_eq!(complexity_gate_ext("shared.mlinc"), Some(true));
+        assert_eq!(complexity_gate_ext("Form1.vb"), Some(true));
+        assert_eq!(complexity_gate_ext("Program.cs"), Some(false));
+        assert_eq!(complexity_gate_ext("README.md"), None);
     }
 }

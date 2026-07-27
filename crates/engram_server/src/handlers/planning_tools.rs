@@ -266,7 +266,7 @@ pub(crate) fn transpile_pair_candidates(ps: &str) -> Vec<String> {
 /// I-prefix over-generation ("invoice.vb" -> "nvoice.vb") is harmless.
 /// Empty for markup code-behind/designer files (they pair via the page rule).
 pub(crate) fn interface_pair_candidates(ps: &str) -> Vec<String> {
-    let is_class_file = (ps.ends_with(".vb") || ps.ends_with(".cs"))
+    let is_class_file = (ps.ends_with(".vb") || ps.ends_with(".cs") || ps.ends_with(".ml"))
         && !ps.ends_with(".designer.vb")
         && !ps.ends_with(".designer.cs")
         && !ps.ends_with(".aspx.vb")
@@ -318,7 +318,11 @@ pub(crate) fn api_spec_docs(index: &[String]) -> Vec<String> {
 /// code: a code file with a path segment that names an api surface
 /// (`api`, `api-v2`, `api-json`, `apis`, …).
 pub(crate) fn is_api_code_path(ps: &str) -> bool {
-    (ps.ends_with(".vb") || ps.ends_with(".cs") || ps.ends_with(".ts") || ps.ends_with(".js"))
+    (ps.ends_with(".vb")
+        || ps.ends_with(".cs")
+        || ps.ends_with(".ts")
+        || ps.ends_with(".js")
+        || ps.ends_with(".ml"))
         && ps.split('/').any(|seg| {
             seg.starts_with("api") && seg.len() <= 12 // segment NAMES an api surface, not e.g. "apiary-docs-archive"
         })
