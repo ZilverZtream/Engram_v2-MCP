@@ -2693,6 +2693,64 @@ their owning function."
 
 ---
 
+### Task 6b: Scanner keyword completeness (retrospective — no section written at plan time)
+
+**This section did not exist when the plan was originally executed.** Task 6b was a substantial,
+separately-reviewed unit of work discovered during Task 6's own review, and the plan was never
+updated to record it — added here after the fact so the plan remains an accurate durable record.
+Task 6 has otherwise not been re-scoped or re-ordered; this section documents work that already
+happened, between Task 6 and Task 7.
+
+**Why it existed:** Task 6's review measured the extractor against the real corpus and found 276
+stack desyncs across 34 files, traced to four block keywords entirely missing from
+`BLOCK_KEYWORDS` (`Repeat`, `Union`, `Func`, `For`), plus an `Asm`/`Sub` mnemonic collision and a
+field access-modifier leaking into field names. None of this was a regression from Task 6's own
+changes — it was pre-existing scanner incompleteness that Task 6's corpus-measurement pass was
+simply the first to quantify.
+
+**Files:**
+- `crates/engram_index/src/ml_extractor/decls.rs`
+- `crates/engram_index/src/ml_extractor/mod.rs`
+- `crates/engram_index/src/ml_extractor/bodies.rs`
+- `crates/engram_index/tests/ml_extractor_test.rs`
+
+**What it covered, in two commits:**
+
+- **`cacb179` — scanner keyword completeness.** Added `Union` as an explicit tagged-union
+  declaration (`decls.rs`, sharing a new `parse_variant` helper with `Type`'s implicit-union
+  fallback), `Repeat` for balance only (no symbol), and `Func` — MiniLang's alternate
+  `Func Name(...) -> Type ... End Func` declaration syntax, via a new `parse_arrow_return` helper
+  and `is_function_like()` unifying `Function`/`Sub`/`Func` across the extractor's call sites.
+  Fixed `For`/`Next` balancing (`For` opens, closed by the bare word `Next` via `closes_block`, or
+  `End For` in compiler-rejected fixtures), which incidentally surfaced and fixed a `Parallel For`
+  (MIMD loop) regression the corpus measurement pass itself caught before commit. Also fixed the
+  `Asm`/`Sub` mnemonic collision (`Sub Rbx, Rax` operand rows no longer fabricate a phantom `Sub`
+  declaration inside an `Asm` block — `skip_as_member_row`) and a field access-modifier leak
+  (`Public`/`Private` were not being stripped from field names in `Type` field-row parsing).
+  57/57 tests passing (48 existing + 9 new). Of the 280 baseline desyncs, the 20 attributable to
+  these six items dropped to 0; 262 remained, ~98% traced to a separate, then-out-of-scope
+  `Try`/`Try Call` collision.
+- **`660930d` — Try/Try-Call collision + review round-1 fixes.** The `Try`/`Try Call` collision,
+  initially flagged out of scope, turned out to be ~98% of the round-0 residual (256 of 262
+  desyncs) and was pulled into scope: `block_opener` had treated bare `Try` and `Try Call X(...)`
+  identically, but only bare `Try` opens a real `Try...End Try` block — `Try Call X(...)` (187
+  corpus occurrences) is a single-line fallible-call statement with no `End Try` of its own. `Try`
+  is now special-cased to require the entire line be bare; the statement still falls through to
+  normal call-edge extraction. Every other `BLOCK_KEYWORDS` entry was checked for the same
+  bare-vs-prefix duality (`If`/`While`/`Select` have bare occurrences, but only in deliberately
+  malformed negative/fuzz fixtures; `Unsafe`/`Using` always open) — `Try` was the only real case.
+  Corpus measurement: 280 → 262 (round 0) → 20 (round 1), a 92.9% reduction from baseline. The
+  remaining 20 split into 6 pre-existing/expected (fuzz + negative fixtures + a non-standard draft
+  dialect) and 14 from two newly-discovered, unrelated, unfixed constructs the line-based scanner
+  doesn't model (single-line `If cond Then stmt`; single-line `Function ... End Function` on one
+  physical line) — flagged for a future round, not fixed here. This commit also re-captured RED
+  honestly against the true pre-Task-6b baseline, corrected two factual errors in the round-0
+  report, fixed a stale doc comment on `member_shaped`, switched `parse_arrow_return` to
+  `rsplit_once`, and added two `closes_block` safety-property regression tests plus a `Try`-`Call`
+  regression test. 60/60 tests passing (57 + 3 new).
+
+---
+
 ### Task 7: `EdgeKind::TestOracle` and conformance-golden pairing
 
 **Files:**
@@ -3162,8 +3220,12 @@ End Type
 
 - [ ] **Step 2: Run them to make sure they fail**
 
-Run: `cargo test -p engram_server extract_ml_method_body detect_language_recognises_minilang extract_method_names_finds_minilang`
-Expected: FAIL to compile — `cannot find function \`extract_ml_method_body\``
+Run: `cargo test -p engram_server extract_ml_method_body`
+Expected: FAIL to compile — `cannot find function \`extract_ml_method_body\``. This is a
+whole-crate compile error (the new tests in `business_logic_service.rs`, `detect_language_recognises_minilang`
+and `extract_method_names_finds_minilang_declarations`, fail to build for the same reason), so a
+single filter is enough to observe it — `cargo test` never reaches the point of applying the
+filter until the crate compiles.
 
 - [ ] **Step 3: Implement `extract_ml_method_body`**
 
@@ -3380,7 +3442,7 @@ fn minilang_renders_real_globs_and_display_name() {
 
 - [ ] **Step 2: Run them to make sure they fail**
 
-Run: `cargo test -p engram_server minilang_files_get_the_complexity_gate minilang_renders_real_globs`
+Run: `cargo test -p engram_server minilang`
 Expected: FAIL — `complexity_gate_ext` returns `None`; `language_to_globs` returns `"**/*.minilang"`.
 
 - [ ] **Step 3: Fix the complexity gate**

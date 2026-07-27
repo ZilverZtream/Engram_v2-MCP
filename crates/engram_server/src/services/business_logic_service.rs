@@ -953,10 +953,12 @@ static CS_METHOD_NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
 // MiniLang declarations. Access modifiers are optional, and the name may be
 // followed by an ` Of …` generic clause instead of an immediate `(` —
 // demanding a paren would miss every generic declaration in the stdlib.
-// Anchoring on Function/Sub as the first significant token keeps type
-// annotations such as `Mapper As Function(T) As R` from matching.
+// Anchoring on Function/Sub/Func as the first significant token keeps type
+// annotations such as `Mapper As Function(T) As R` from matching. `Func`
+// (`Func Name(...) -> Type ... End Func`) is MiniLang's alternate
+// function-declaration syntax — see `ml_extractor::is_function_like`.
 static ML_METHOD_NAME_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Function|Sub)\s+(\w+)")
+    Regex::new(r"(?im)^\s*(?:(?:Public|Private)\s+)?(?:Function|Sub|Func)\s+(\w+)")
         .expect("ML_METHOD_NAME_RE")
 });
 
@@ -1293,6 +1295,30 @@ End Type
         assert!(
             !names.contains(&"Mapper".to_string()),
             "a field of function type must not be a method name, got {names:?}"
+        );
+    }
+
+    #[test]
+    fn extract_method_names_finds_minilang_func_alternate_syntax() {
+        // Real corpus shape (`tests/drafts/seh_phase5_test.ml`): MiniLang's
+        // alternate `Func Name(...) -> Type ... End Func` declaration
+        // syntax. Before ML_METHOD_NAME_RE knew about `Func`,
+        // `analyze_business_logic` silently enumerated zero methods for a
+        // file that declared everything this way.
+        let src = "\
+Func DivideByZero(x: Int) -> Int
+    Throw 999
+    Return x
+End Func
+Func TestNestedTryCatch() -> Int
+    Return 0
+End Func
+";
+        let names = extract_method_names_for_language(src, "ml");
+        assert!(names.contains(&"DivideByZero".to_string()), "got {names:?}");
+        assert!(
+            names.contains(&"TestNestedTryCatch".to_string()),
+            "got {names:?}"
         );
     }
 
