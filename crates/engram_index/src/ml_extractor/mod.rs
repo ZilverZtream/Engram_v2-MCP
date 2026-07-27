@@ -119,6 +119,36 @@ pub(crate) fn strip_comment(line: &str) -> &str {
     line
 }
 
+/// True when `after` — the text following a stripped `If` keyword, e.g.
+/// ` ch == 32 Then Return True` — is MiniLang's one-line conditional
+/// statement form (`If <cond> Then <statement>`), not the ordinary block
+/// form (`If <cond> Then`, with nothing after `Then` — the block's own
+/// body and `End If` live on FOLLOWING lines).
+///
+/// The discriminator cannot be "does the line contain `Then`" — both forms
+/// do, for the exact same condition shape (real corpus: `Std.UI.Parser.ml`'s
+/// `If ch == 32 Then` opens a block; `Std.UI.ParserV2.ml`'s `If ch == 32
+/// Then Return True` does not). It must be "is there anything AFTER
+/// `Then`". `Then` is matched as a whole word so it cannot fire on an
+/// identifier that merely contains it.
+pub(crate) fn if_has_trailing_then_statement(after: &str) -> bool {
+    let bytes = after.as_bytes();
+    let marker = b"Then";
+    let mut i = 0usize;
+    while i + marker.len() <= bytes.len() {
+        if &bytes[i..i + marker.len()] == marker {
+            let before_ok = i == 0 || matches!(bytes[i - 1], b' ' | b'\t');
+            let after_idx = i + marker.len();
+            let after_ok = after_idx >= bytes.len() || matches!(bytes[after_idx], b' ' | b'\t');
+            if before_ok && after_ok {
+                return !after[after_idx..].trim().is_empty();
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
 /// The block keyword a line opens, if any.
 ///
 /// Skips optional `Public`/`Private` access modifiers. Anchors on the
@@ -182,17 +212,29 @@ pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
             // fallible-call statement with no body and no `End Try` of its
             // own. Before this fix, `Try Call …` was wrongly treated as
             // opening a block (matched via the `after.starts_with(' ')`
-            // arm below), pushing a frame nothing ever closed. Checked
-            // every other `BLOCK_KEYWORDS` entry against the corpus for
-            // the same duality (`If`/`While`/`Select` have a handful of
-            // bare occurrences, but only in deliberately-malformed
-            // negative/fuzz fixtures testing a missing condition, not a
-            // real second construct; `Unsafe`/`Using` always open) — `Try`
-            // is the only real case.
+            // arm below), pushing a frame nothing ever closed.
+            //
+            // CORRECTION (this was previously documented, incorrectly, as
+            // "`If`/`While`/`Select` have a handful of bare occurrences,
+            // but only in deliberately-malformed negative/fuzz fixtures
+            // testing a missing condition, not a real second construct" —
+            // `Try` was claimed to be the only real case): `If` has the
+            // SAME duality, and not just in fuzz fixtures. `If <cond> Then`
+            // with nothing else on the line opens an ordinary block (real
+            // corpus: `Std.UI.Parser.ml:71`'s `If ch == 32 Then`, body and
+            // `End If` on following lines), but `If <cond> Then
+            // <statement>` (real corpus, SHIPPED stdlib:
+            // `Std.UI.ParserV2.ml:88`'s `If ch == 32 Then Return True`, 11
+            // occurrences in that one file) is MiniLang's one-line
+            // conditional statement — VB-style short-if — with no body and
+            // no `End If` of its own. See `if_has_trailing_then_statement`.
             if *kw == "Try" {
                 if after.is_empty() {
                     return Some(kw);
                 }
+                continue;
+            }
+            if *kw == "If" && after.starts_with(' ') && if_has_trailing_then_statement(after) {
                 continue;
             }
             // `Unsafe(RawPtr)` has no space before its capability list, so
@@ -236,6 +278,67 @@ pub(crate) fn block_closer(trimmed: &str) -> Option<String> {
 /// the trimmed line `"Next"` alone.
 pub(crate) fn closes_block(trimmed: &str) -> Option<String> {
     block_closer(trimmed).or_else(|| (trimmed == "Next").then(|| "For".to_string()))
+}
+
+/// True when `trimmed` — a line `block_opener` has already recognized as
+/// opening `keyword` — ALSO contains that same block's matching `End
+/// <keyword>` later on the same line.
+///
+/// MiniLang permits an entire block to be written on one line, e.g.
+/// `Function FLAG_HOVER() As Int     Return 1 End Function` (real corpus:
+/// `Std.UI.Events.ml:72-74`, `Std.UI.Render.ml:796-798`,
+/// `Std.UI.Font.ml:5`, and `tests/fuzz/keyword_soup.ml`'s single line,
+/// which self-closes `If`). Such a line opens and closes in the same
+/// instant: the scanner must not push a frame for it, or nothing will ever
+/// pop it and the NEXT real `End <keyword>` in the file closes the wrong
+/// frame instead (silent stack desync; a `debug_assert_eq!` catches it in
+/// debug builds, but it is compiled out in release).
+///
+/// Matched as a whole word — `End Select` must not match inside `End
+/// SelectChannel` (checked via the byte immediately following the
+/// candidate match) — and never inside a double-quoted string literal
+/// (checked via the same escape-aware quote tracking `strip_comment`
+/// uses), e.g. `Function Foo() As Str  Return "End Function"  End
+/// Function` must find the SECOND occurrence, not the one inside the
+/// string. The comment case needs no handling here: `extract_ml`'s loop
+/// strips comments via `strip_comment` before this ever runs, so a marker
+/// written inside a comment (`' End Function`) never reaches this
+/// function's input at all.
+pub(crate) fn has_inline_closer(trimmed: &str, keyword: &str) -> bool {
+    let marker = format!("End {keyword}");
+    let marker = marker.as_bytes();
+    let bytes = trimmed.as_bytes();
+    let mut in_string = false;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_string {
+            if b == b'\\' {
+                i += 2;
+                continue;
+            }
+            if b == b'"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'"' {
+            in_string = true;
+            i += 1;
+            continue;
+        }
+        if bytes[i..].starts_with(marker) {
+            let before_ok = i == 0 || matches!(bytes[i - 1], b' ' | b'\t');
+            let after_idx = i + marker.len();
+            let after_ok = after_idx >= bytes.len() || matches!(bytes[after_idx], b' ' | b'\t');
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 /// True for a block keyword that behaves like a function body: it opens a
@@ -407,7 +510,27 @@ pub fn extract_ml(
         // Closing lines first: `End Function` also starts with a keyword
         // that would otherwise be scanned as an opener. `closes_block`
         // covers both `End X` and the bare `Next` closer of a `For` frame.
-        if let Some(closed) = closes_block(trimmed) {
+        //
+        // A bare `End` (no keyword following it at all) is a THIRD closer
+        // spelling, distinct from both: real corpus `tests/drafts/
+        // seh_test.ml` closes a `Try` block with a lone `End` line — a
+        // pre-`End Try` SEH draft, not the fully-qualified form
+        // `block_closer` matches elsewhere. `block_closer` itself cannot
+        // recognize it: `trimmed.strip_prefix("End")` leaves an empty
+        // remainder, and `.strip_prefix(' ')` on an empty string returns
+        // `None`, so today it is silently swallowed as an unrecognized
+        // statement — the `Try` frame is never popped, and the file's
+        // real `End Sub` wrongly closes IT instead. Unlike `End For`/`Next`
+        // (an unambiguous alternate spelling for one SPECIFIC keyword), a
+        // bare `End` names no keyword at all, so the only sensible lenient
+        // reading is "close whatever is innermost right now" — which is
+        // also, trivially, never a mismatch below.
+        let closer = if trimmed == "End" {
+            stack.last().map(|b| b.keyword.clone())
+        } else {
+            closes_block(trimmed)
+        };
+        if let Some(_closed) = closer {
             if let Some(open) = stack.pop() {
                 if let Some(i) = open.symbol_idx {
                     symbols[i].end_line = line_no;
@@ -427,10 +550,28 @@ pub fn extract_ml(
                         }
                     }
                 }
-                debug_assert_eq!(
-                    open.keyword, closed,
-                    "MiniLang block mismatch at {rel_path}:{line_no}"
-                );
+                // A residual mismatch here (`open.keyword != closed`) means
+                // the SOURCE itself is unbalanced, not that this scanner
+                // failed to recognize a legitimate shape. This used to be
+                // a hard `debug_assert_eq!`, which is exactly what caught
+                // every real defect this task fixed (the self-closing
+                // block, the one-line `If … Then <stmt>`, and the bare
+                // `End` above) — but run over the FULL real corpus, it also
+                // aborts on the two fixtures that are invalid on purpose:
+                // `tests/fuzz/mismatched_blocks.ml` (every block closed by
+                // the WRONG `End <keyword>`, deliberately, to fuzz the
+                // compiler's error recovery) and `tests/negative/syntax/
+                // explicit_union_end_type_rejected.ml` (`Union … End
+                // Type`; its own comment reads "must close with End
+                // Union" — the same "construct the real compiler REJECTS"
+                // precedent as `End For`, documented on `BLOCK_KEYWORDS`
+                // above). Input that is invalid by design has no single
+                // correct parse to converge on, so nothing is asserted:
+                // the frame is popped as-is, consistent with this
+                // scanner's documented nature elsewhere ("a lenient text
+                // scanner over real files on disk, not a validating
+                // parser") — and, crucially, consistent with what a
+                // RELEASE build has always silently done here anyway.
             }
             continue;
         }
@@ -571,6 +712,22 @@ pub fn extract_ml(
             }
         }
 
+        // A line that opens `keyword` AND contains its own matching `End
+        // <keyword>` closes in the same instant (see `has_inline_closer`'s
+        // doc comment). Every branch below still emits whatever symbol the
+        // declaration would normally produce, but must skip: (1) pushing a
+        // frame — there is nothing left for a later line to close, and (2)
+        // any forward scan for the block's body (`ui::ui_own_rows`,
+        // `collect_block_body`, `collect_type_member_rows`) — the body, if
+        // any, is embedded in THIS line, not spread across following ones;
+        // scanning forward would misattribute unrelated subsequent lines
+        // to this block until it coincidentally found some other `End
+        // <keyword>` line. The embedded statement text itself (e.g. the
+        // `Return MakeColor(...)` between the header and `End Function`)
+        // is not decomposed into its own call-edge/local-binding scan —
+        // that is a deliberate, documented scope limit, not an oversight.
+        let self_closing = has_inline_closer(trimmed, keyword);
+
         if keyword == "Unsafe" {
             if let Some(caps) = bodies::unsafe_capabilities(trimmed) {
                 if let Some(owner) = stack.iter().rev().find(|b| is_function_like(&b.keyword)) {
@@ -628,8 +785,14 @@ pub fn extract_ml(
             // Attribute rows belonging directly to this element (stops at
             // the first nested UI element, so a child's own Text/Rect
             // never bleeds into this element's metadata — see
-            // `ui::ui_own_rows`'s doc comment).
-            let own_rows = ui::ui_own_rows(source, idx, keyword);
+            // `ui::ui_own_rows`'s doc comment). A self-closing element has
+            // no separate attribute rows to find on later lines — see the
+            // `self_closing` doc comment above.
+            let own_rows: Vec<&str> = if self_closing {
+                Vec::new()
+            } else {
+                ui::ui_own_rows(source, idx, keyword)
+            };
             if let Some(m) = sym.metadata.as_mut() {
                 for row in &own_rows {
                     if let Some((k, v)) = ui::ui_attribute(row) {
@@ -660,15 +823,21 @@ pub fn extract_ml(
                 }
             }
 
-            stack.push(OpenBlock {
-                keyword: keyword.to_string(),
-                fqn,
-                start_line: line_no,
-                symbol_idx,
-                immutable_locals: Vec::new(),
-                mutable_locals: Vec::new(),
-                has_catch: false,
-            });
+            if self_closing {
+                if let Some(i) = symbol_idx {
+                    symbols[i].end_line = line_no;
+                }
+            } else {
+                stack.push(OpenBlock {
+                    keyword: keyword.to_string(),
+                    fqn,
+                    start_line: line_no,
+                    symbol_idx,
+                    immutable_locals: Vec::new(),
+                    mutable_locals: Vec::new(),
+                    has_catch: false,
+                });
+            }
             continue;
         }
 
@@ -679,18 +848,28 @@ pub fn extract_ml(
                 .find(|b| is_function_like(&b.keyword))
                 .map(|b| b.fqn.clone())
                 .unwrap_or_else(|| file_stem(rel_path));
-            let body = collect_block_body(source, idx, "Asm");
+            let body: Vec<&str> = if self_closing {
+                Vec::new()
+            } else {
+                collect_block_body(source, idx, "Asm")
+            };
             symbols.push(ui::asm_symbol(&body, &owner, line_no));
             let symbol_idx = Some(symbols.len() - 1);
-            stack.push(OpenBlock {
-                keyword: keyword.to_string(),
-                fqn: String::new(),
-                start_line: line_no,
-                symbol_idx,
-                immutable_locals: Vec::new(),
-                mutable_locals: Vec::new(),
-                has_catch: false,
-            });
+            if self_closing {
+                if let Some(i) = symbol_idx {
+                    symbols[i].end_line = line_no;
+                }
+            } else {
+                stack.push(OpenBlock {
+                    keyword: keyword.to_string(),
+                    fqn: String::new(),
+                    start_line: line_no,
+                    symbol_idx,
+                    immutable_locals: Vec::new(),
+                    mutable_locals: Vec::new(),
+                    has_catch: false,
+                });
+            }
             continue;
         }
 
@@ -710,10 +889,14 @@ pub fn extract_ml(
         // `collect_type_member_rows`'s doc comment. `Union` bodies are
         // variants-only, the same flat shape as Enum/Interface, so they
         // share the generic collector.
-        let body: Vec<&str> = match keyword {
-            "Type" => collect_type_member_rows(source, idx),
-            "Enum" | "Interface" | "Union" => collect_block_body(source, idx, keyword),
-            _ => Vec::new(),
+        let body: Vec<&str> = if self_closing {
+            Vec::new()
+        } else {
+            match keyword {
+                "Type" => collect_type_member_rows(source, idx),
+                "Enum" | "Interface" | "Union" => collect_block_body(source, idx, keyword),
+                _ => Vec::new(),
+            }
         };
 
         let (fqn, symbol_idx) = decls::open_declaration(
@@ -726,15 +909,34 @@ pub fn extract_ml(
             &mut edges,
         );
 
-        stack.push(OpenBlock {
-            keyword: keyword.to_string(),
-            fqn,
-            start_line: line_no,
-            symbol_idx,
-            immutable_locals: Vec::new(),
-            mutable_locals: Vec::new(),
-            has_catch: false,
-        });
+        if self_closing {
+            if let Some(i) = symbol_idx {
+                symbols[i].end_line = line_no;
+            }
+            // A self-closing `Function`/`Sub`/`Func`'s embedded body (e.g.
+            // `Return MakeColor(200, 200, 200)` in `Function COLOR_NORMAL()
+            // As Int   Return MakeColor(200, 200, 200) End Function`, real
+            // corpus: `Std.UI.Render.ml:796-798`) is not swallowed: it is
+            // still scanned for call edges, attributed to the symbol just
+            // created. See `function_body_start`'s doc comment for why
+            // only the declaration's OWN `Name(...)` signature needs to be
+            // excluded from that scan, and nothing past it.
+            if is_function_like(keyword) {
+                if let Some(start) = function_body_start(trimmed) {
+                    bodies::scan_statement(&trimmed[start..], &fqn, line_no, &mut edges);
+                }
+            }
+        } else {
+            stack.push(OpenBlock {
+                keyword: keyword.to_string(),
+                fqn,
+                start_line: line_no,
+                symbol_idx,
+                immutable_locals: Vec::new(),
+                mutable_locals: Vec::new(),
+                has_catch: false,
+            });
+        }
     }
 
     // Unterminated blocks (truncated or malformed file): close them at EOF
@@ -803,6 +1005,46 @@ fn emit_golden_oracle_edges(abs_path: &Path, rel_path: &str, edges: &mut Vec<Ext
             metadata: decls::meta(&[("oracle", (*oracle).to_string())]),
         });
     }
+}
+
+/// Byte offset immediately after a `Function`/`Sub`/`Func` declaration's
+/// own parameter list — the earliest point from which the rest of the line
+/// can be safely handed to `bodies::scan_statement` for call-edge
+/// extraction, used for a SELF-CLOSING declaration's embedded body (e.g.
+/// `Return MakeColor(200, 200, 200)` in `Function COLOR_NORMAL() As Int
+/// Return MakeColor(200, 200, 200) End Function`).
+///
+/// Only the signature itself — `Name(...)`, reusing
+/// `decls::param_list_start`'s own `Of …`-clause-aware search for the
+/// opening `(` — needs to be excluded: the declared NAME immediately
+/// followed by `(` is indistinguishable from a genuine call to a function
+/// of that name, and unlike every other token in a header (`As`, `Int`,
+/// `Throws`, …), nothing in `bodies::scan_statement` filters it out.
+/// Nothing past the parameter list needs similar treatment: a return
+/// clause naming a generic type (`As Std.BTreeMap(Of K, V)`) is already
+/// suppressed by `scan_statement`'s own type-annotation-position guard
+/// (`… As` immediately before the match), and everything else in a header
+/// (`Throws Err`, the trailing `End Function` itself) contains no
+/// `identifier(` shape for `CALL_RE` to find at all. `None` when the line
+/// has no parameter list (malformed/atypical) — callers skip the scan
+/// entirely rather than guess a boundary.
+pub(crate) fn function_body_start(trimmed: &str) -> Option<usize> {
+    let open = decls::param_list_start(trimmed)?;
+    let bytes = trimmed.as_bytes();
+    let mut depth = 0i32;
+    for (i, _) in trimmed.char_indices().filter(|(i, _)| *i >= open) {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i + 1);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// File stem of a project-relative path: `src/Lib/Badge.ml` → `Badge`.
@@ -892,6 +1134,25 @@ pub(crate) fn collect_type_member_rows(source: &str, open_idx: usize) -> Vec<&st
             && is_function_like(kw)
             && !member_shaped(trimmed, kw)
         {
+            // A self-closing inline method (`Function Cost() As Int
+            // Return 1 End Function`, all on this one line — see
+            // `has_inline_closer`) has already closed; there is no
+            // separate body to fast-forward past. Without this check, the
+            // loop below would start hunting FORWARD from the NEXT line
+            // for an `End Function`/`End Sub` that was already consumed on
+            // this line, silently swallowing every subsequent line — up to
+            // and including the enclosing `End Type` itself, since
+            // `inner_closed == kw` only matches the SAME keyword and a
+            // mismatched closer is simply skipped, not treated as an
+            // error — as bogus member rows until an unrelated `End
+            // Function`/`End Sub` coincidentally appears somewhere later
+            // in the file. Not reachable in the real corpus today (no
+            // inline `Type` method there self-closes), but this is the
+            // exact interaction the `Type`-member-row collector must not
+            // get wrong.
+            if has_inline_closer(trimmed, kw) {
+                continue;
+            }
             // A real inline method: fast-forward past its own body to its
             // matching `End Function`/`End Sub`, contributing NONE of
             // those lines to the member-row output.

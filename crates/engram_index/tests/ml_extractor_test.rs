@@ -2081,3 +2081,190 @@ fn missing_golden_siblings_produce_no_phantom_edges() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn self_closing_function_on_one_line_does_not_leave_a_dangling_frame() {
+    // Real corpus shape (`Std.UI.Events.ml:72-74`): a WHOLE `Function`
+    // declaration written on one line, including its own `End Function`.
+    // Before this fix, `block_opener` saw the `Function` opener and pushed
+    // a frame; the mid-line `End Function` was invisible to `block_closer`
+    // (which only recognizes a closer at the START of a trimmed line), so
+    // the frame was never popped -- every subsequent declaration nested
+    // under it, and the eventual `End Namespace` closed the WRONG frame (a
+    // `debug_assert_eq!` catches this mismatch in test builds; release
+    // builds silently corrupted the symbol graph instead).
+    let src = "\
+Namespace Demo
+    Function FLAG_HOVER() As Int     Return 1 End Function ' Bit 0
+    Function After() As Int
+        Return 1
+    End Function
+End Namespace
+";
+    let (syms, _) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(
+        fns,
+        vec!["Demo.FLAG_HOVER", "Demo.After"],
+        "got symbols {syms:?}"
+    );
+
+    let flag_hover = syms
+        .iter()
+        .find(|s| s.name == "Demo.FLAG_HOVER")
+        .expect("FLAG_HOVER");
+    assert_eq!(flag_hover.start_line, 2);
+    assert_eq!(
+        flag_hover.end_line, 2,
+        "a self-closing block's span is just its own line"
+    );
+
+    // The stack must not desync: After's own span must be its real one,
+    // not corrupted by a phantom, never-closed FLAG_HOVER frame.
+    let after = syms.iter().find(|s| s.name == "Demo.After").expect("After");
+    assert_eq!(after.start_line, 3);
+    assert_eq!(after.end_line, 5);
+
+    // The enclosing Namespace itself must close on the real `End
+    // Namespace` line, not get popped early by the phantom frame.
+    let ns = syms
+        .iter()
+        .find(|s| s.kind == "namespace" && s.name == "Demo")
+        .expect("Demo namespace");
+    assert_eq!(ns.end_line, 6);
+}
+
+#[test]
+fn self_closing_function_body_call_is_not_swallowed() {
+    // Real corpus shape (`Std.UI.Render.ml:796-798`): a self-closing
+    // `Function`'s embedded body can itself contain a call
+    // (`MakeColor(...)`). The fix must not just make the frame stack
+    // balance -- it must not silently drop the body's own call edge
+    // either, and it must not fabricate a bogus self-call from the
+    // declaration's OWN `Name(...)` signature (`COLOR_NORMAL(` looks
+    // exactly like a call to `COLOR_NORMAL` if the header were scanned
+    // along with the body).
+    let src = "\
+Namespace Demo
+    Function COLOR_NORMAL() As Int   Return MakeColor(200, 200, 200) End Function
+End Namespace
+";
+    let (syms, edges) = run(src);
+    let f = syms
+        .iter()
+        .find(|s| s.name == "Demo.COLOR_NORMAL")
+        .expect("COLOR_NORMAL");
+    assert_eq!(f.start_line, 2);
+    assert_eq!(f.end_line, 2);
+
+    let calls: Vec<&str> = edges
+        .iter()
+        .filter(|e| e.kind == "calls")
+        .map(|e| e.target_name.as_str())
+        .collect();
+    assert_eq!(calls, vec!["MakeColor"], "got edges {edges:?}");
+    assert_eq!(
+        edges
+            .iter()
+            .find(|e| e.kind == "calls")
+            .unwrap()
+            .source_name,
+        "Demo.COLOR_NORMAL"
+    );
+}
+
+#[test]
+fn if_then_one_liner_does_not_open_a_block() {
+    // Real corpus shape (`Std.UI.ParserV2.ml:95-103`): MiniLang's one-line
+    // conditional `If <cond> Then <statement>` (no `End If` of its own) is
+    // mixed, inside the SAME function, with the ordinary multi-line block
+    // form `If <cond> Then` (nothing after `Then` -- body and `End If` on
+    // following lines). Before this fix, `block_opener` could not tell
+    // them apart: it saw `If` at the start of EVERY one of these lines and
+    // pushed a frame for the one-liner too, so the next real `End If`
+    // closed the WRONG frame, leaving the outer block's `If` dangling
+    // until the enclosing `End Function` mis-popped it instead.
+    let src = "\
+Namespace Demo
+    Function IsAlpha(ch As Int) As Bool
+        If ch >= 65 Then
+            If ch <= 90 Then Return True
+        End If
+        If IsDigit(ch) == True Then Return True
+        Return False
+    End Function
+    Function After() As Int
+        Return 1
+    End Function
+End Namespace
+";
+    let (syms, edges) = run(src);
+    let is_alpha = syms
+        .iter()
+        .find(|s| s.name == "Demo.IsAlpha")
+        .expect("IsAlpha");
+    assert_eq!(is_alpha.start_line, 2);
+    assert_eq!(is_alpha.end_line, 8);
+
+    // The stack must not desync: After's own span must be its real one,
+    // not corrupted by a dangling `If` frame from the one-line form above.
+    let after = syms.iter().find(|s| s.name == "Demo.After").expect("After");
+    assert_eq!(after.start_line, 9);
+    assert_eq!(after.end_line, 11);
+
+    // The one-liner's own text must not be swallowed: its call is still
+    // extracted and attributed to the enclosing function, exactly like
+    // any other statement line.
+    let call = edges
+        .iter()
+        .find(|e| e.kind == "calls" && e.target_name == "IsDigit")
+        .expect("calls edge to IsDigit");
+    assert_eq!(call.source_name, "Demo.IsAlpha");
+}
+
+#[test]
+fn bare_end_closes_whatever_is_innermost() {
+    // Real corpus shape (`tests/drafts/seh_test.ml`): a pre-`End Try` SEH
+    // draft closes a `Try` block with a lone `End` line instead of `End
+    // Try`. `block_closer` cannot recognize a bare `End` at all --
+    // `trimmed.strip_prefix("End")` leaves an empty remainder, and
+    // `.strip_prefix(' ')` on an empty string returns `None` -- so before
+    // this fix it was silently swallowed as an unrecognized statement, the
+    // `Try` frame was never popped, and the real `End Sub` wrongly closed
+    // IT instead.
+    let src = "\
+Sub TestException()
+    Try
+        Throw 42
+    Catch ex
+        Say 1
+    End
+    Say 2
+End Sub
+Sub Main()
+    Say 3
+End Sub
+";
+    let (syms, _) = run(src);
+    let fns: Vec<&str> = syms
+        .iter()
+        .filter(|s| s.kind == "function")
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(fns, vec!["TestException", "Main"], "got symbols {syms:?}");
+
+    let test_exception = syms
+        .iter()
+        .find(|s| s.name == "TestException")
+        .expect("TestException");
+    assert_eq!(test_exception.start_line, 1);
+    assert_eq!(test_exception.end_line, 8);
+
+    let main = syms.iter().find(|s| s.name == "Main").expect("Main");
+    assert_eq!(main.start_line, 9);
+    assert_eq!(main.end_line, 11);
+}
