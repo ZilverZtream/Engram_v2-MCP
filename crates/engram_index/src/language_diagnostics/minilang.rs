@@ -381,7 +381,12 @@ fn strong_ref_cycle_diagnostics(
 /// nesting level, i.e. `branch_depth == 0` for both — see `BRANCH_OR_LOOP`).
 /// `Try` is deliberately transparent (does not count toward branch depth):
 /// see `BRANCH_OR_LOOP`'s doc comment for why, validated against the real
-/// corpus's own canonical fixture for this exact fault.
+/// corpus's own canonical fixture for this exact fault. Transparency stops
+/// at `Catch`/`Finally`, which are only reached when an earlier statement
+/// in the `Try` body threw — any `Close` recorded inside that body may not
+/// have run, so `closed` rolls back to the Try's entry snapshot there.
+/// Scanning is scope-isolated per narrowest enclosing function, so the
+/// synthetic `<module>` entry never judges a nested function's channels.
 fn send_after_close_diagnostics(
     file: &str,
     source: &str,
@@ -389,15 +394,23 @@ fn send_after_close_diagnostics(
 ) -> Vec<LanguageDiagnostic> {
     let lines: Vec<&str> = source.lines().collect();
     let mut out = Vec::new();
-    // Cheap insurance against a rare double-scan: a script-style file's
-    // synthetic `<module>` entry spans "first through last top-level
-    // statement line", which — if a real `Function` is declared BETWEEN
-    // two top-level statements — can textually overlap that function's own
-    // (separately scanned) range. A duplicate finding at the identical
-    // line is always redundant, never a second real instance.
-    let mut flagged_lines: HashSet<u32> = HashSet::new();
+    // Scope isolation. A script-style file's synthetic `<module>` entry
+    // spans "first through last top-level statement line", so a real
+    // `Function` declared BETWEEN two top-level statements sits textually
+    // inside the module's range. Scanning the module would otherwise walk
+    // that function's body under the MODULE's `closed` set — `Function` is
+    // not in BRANCH_OR_LOOP, so nothing gates it — and flag an unrelated,
+    // same-named, never-closed channel. Every line is therefore attributed
+    // to its NARROWEST enclosing function and scanned only under that
+    // owner, the same technique `match_missing_case_else_diagnostics` uses.
+    let func_ranges: Vec<(usize, usize, usize)> = symbols
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.kind == "function")
+        .map(|(i, s)| (i, s.start_line as usize, s.end_line as usize))
+        .collect();
 
-    for sym in symbols {
+    for (sym_idx, sym) in symbols.iter().enumerate() {
         if sym.kind != "function" {
             continue;
         }
@@ -409,11 +422,26 @@ fn send_after_close_diagnostics(
 
         let mut closed: HashSet<String> = HashSet::new();
         let mut stack: Vec<&'static str> = Vec::new();
+        // `closed` as it stood on entry to each currently-open `Try`.
+        let mut try_snapshots: Vec<HashSet<String>> = Vec::new();
         for line_no in start..=end {
             // Skip the declaration line itself (`Function Foo(...) As R`):
             // nothing pushed for it, so its own body scan below never runs
             // against the header text.
             if line_no == start {
+                continue;
+            }
+            // Lines owned by a narrower function are that function's to
+            // scan, not this one's. Skipping them wholesale also keeps
+            // `stack` balanced, since the nested `Function` opener and its
+            // `End Function` are skipped as a pair.
+            if func_ranges
+                .iter()
+                .filter(|(_, s, e)| *s <= line_no && line_no <= *e)
+                .min_by_key(|(_, s, e)| e - s)
+                .map(|(i, _, _)| *i)
+                != Some(sym_idx)
+            {
                 continue;
             }
             let raw = lines[line_no - 1];
@@ -432,8 +460,9 @@ fn send_after_close_diagnostics(
                     .last()
                     .map(|s| *s == closed_kw.as_str())
                     .unwrap_or(false)
+                    && stack.pop() == Some("Try")
                 {
-                    stack.pop();
+                    try_snapshots.pop();
                 }
                 continue;
             }
@@ -441,7 +470,25 @@ fn send_after_close_diagnostics(
             if let Some(kw) = ml_extractor::block_opener(trimmed) {
                 if !ml_extractor::has_inline_closer(trimmed, kw) {
                     stack.push(kw);
+                    if kw == "Try" {
+                        try_snapshots.push(closed.clone());
+                    }
                 }
+                continue;
+            }
+
+            // `Catch`/`Finally` are neither openers nor closers, so they
+            // arrive here as plain statements. Both are reachable on a path
+            // where an earlier statement in the `Try` body threw, which
+            // means a `Close` recorded INSIDE that body may never have run.
+            // Roll `closed` back to the Try's entry snapshot. A Close that
+            // completed BEFORE the Try is already in that snapshot and
+            // correctly survives — see the pair of tests covering both.
+            if stack.last().map(|s| *s == "Try").unwrap_or(false)
+                && (trimmed == "Catch" || trimmed.starts_with("Catch ") || trimmed == "Finally")
+                && let Some(snap) = try_snapshots.last()
+            {
+                closed = snap.clone();
                 continue;
             }
 
@@ -470,10 +517,7 @@ fn send_after_close_diagnostics(
             }
             if let Some(cap) = SEND_RE.captures(trimmed) {
                 let chan = &cap[1];
-                if branch_depth == 0
-                    && closed.contains(chan)
-                    && flagged_lines.insert(line_no as u32)
-                {
+                if branch_depth == 0 && closed.contains(chan) {
                     out.push(LanguageDiagnostic {
                         location: format!("{file}:{line_no}"),
                         category: "send_on_closed_channel".to_string(),
@@ -977,6 +1021,112 @@ End Function
         assert!(
             out.iter().any(|d| d.category == "send_on_closed_channel"),
             "expected a send_on_closed_channel finding through a Try boundary: {out:?}"
+        );
+    }
+
+    #[test]
+    fn module_scope_close_does_not_leak_into_a_nested_function() {
+        // A script-style file's synthetic `<module>` entry spans "first
+        // through last top-level statement", so a `Function` declared
+        // BETWEEN two top-level statements sits textually inside it.
+        // `Function` is not in BRANCH_OR_LOOP, so without explicit scope
+        // isolation the module's scan walks straight through the function
+        // body at branch_depth 0 and flags this `Send` — even though the
+        // function's `ch` is a different, never-closed channel.
+        //
+        // The corpus already contains this exact layout
+        // (tests/stress/fibers/race_close_vs_send.ml: a top-level `Var ch`,
+        // a `Function` between it and a later `Close(ch)`); it escapes the
+        // fault only because that function's parameter is named `c`.
+        let src = "\
+Var ch As Channel(Of Int) = NewChannel(Of Int)(1)
+Close(ch)
+
+Function Helper() As Int
+    Var ch As Channel(Of Int) = NewChannel(Of Int)(2)
+    Send(ch, 1)
+    Return 0
+End Function
+
+Return 0
+";
+        let out = detect(&[("script.ml", src)]);
+        assert!(
+            out.iter().all(|d| d.category != "send_on_closed_channel"),
+            "a nested function's own `ch` must not be judged against the \
+             module scope's closed set: {out:?}"
+        );
+    }
+
+    #[test]
+    fn close_inside_try_then_send_in_catch_is_not_flagged() {
+        // The `Catch` clause is reached only when something in the `Try`
+        // body threw — which means a `Close` recorded INSIDE that body may
+        // never have executed. Treating Try as transparent is right for a
+        // Close that completed BEFORE the Try (see the test above), but
+        // not for one recorded inside it.
+        let src = "\
+Function Boot() As Int
+    Var ch As Channel(Of Int) = NewChannel(Of Int)(1)
+    Try
+        Close(ch)
+    Catch fault As Std.Errors.RuntimeFault
+        Send(ch, 2)
+    End Try
+    Return 0
+End Function
+";
+        let out = detect(&[("catch.ml", src)]);
+        assert!(
+            out.iter().all(|d| d.category != "send_on_closed_channel"),
+            "a Close inside the Try body may not have run on the path that \
+             reaches Catch: {out:?}"
+        );
+    }
+
+    #[test]
+    fn close_before_try_still_flags_a_send_in_catch() {
+        // Discriminator for the test above: this Close is unconditional and
+        // completes before the Try is entered, so it HAS happened on every
+        // path that reaches the Catch. Forgetting Try-body closes must not
+        // also forget this one.
+        let src = "\
+Function Boot() As Int
+    Var ch As Channel(Of Int) = NewChannel(Of Int)(1)
+    Close(ch)
+    Try
+        Say \"risky\"
+    Catch fault As Std.Errors.RuntimeFault
+        Send(ch, 2)
+    End Try
+    Return 0
+End Function
+";
+        let out = detect(&[("precatch.ml", src)]);
+        assert!(
+            out.iter().any(|d| d.category == "send_on_closed_channel"),
+            "a Close completed before the Try still governs the Catch: {out:?}"
+        );
+    }
+
+    #[test]
+    fn duplicate_struct_name_in_one_file_drops_the_cycle_candidate() {
+        // File-scoped name resolution deliberately DROPS an ambiguous bare
+        // name rather than guessing which declaration a field refers to.
+        // Locks in the fail-safe direction (miss, never false positive).
+        let src = "\
+Type Node
+    Next As Ref(Of Node)
+End Type
+
+Type Node
+    Value As Int
+End Type
+";
+        let out = detect(&[("dup.ml", src)]);
+        assert!(
+            out.iter().all(|d| d.category != "strong_ref_self_cycle"),
+            "an ambiguous struct name must be dropped, not guessed: {out:?}"
         );
     }
 
