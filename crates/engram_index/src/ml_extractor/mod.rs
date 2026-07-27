@@ -35,12 +35,15 @@ pub(crate) const BLOCK_KEYWORDS: &[&str] = &[
     "Try",
     "Match",
     "Select",
-    "Switch",
     "SelectChannel",
     "Unsafe",
     "Using",
     "Asm",
-    // UI DSL — handled by `ui.rs`.
+    // UI DSL — see `ui::UI_ELEMENTS`. `Switch` lives here (not in the
+    // control-flow section above) because MiniLang has no control-flow
+    // `Switch`/`Case`/`End Switch` construct at all — every real `Switch`
+    // in the corpus is this toggle control; see `ui::UI_ELEMENTS`'s doc
+    // comment for the corpus/parser evidence.
     "Ui",
     "Panel",
     "Label",
@@ -50,12 +53,12 @@ pub(crate) const BLOCK_KEYWORDS: &[&str] = &[
     "Field",
     "Checkbox",
     "Radio",
-    "Switch2",
     "Slider",
     "ProgressBar",
     "Image",
     "Divider",
     "VStack",
+    "Switch",
 ];
 
 /// Strip a line comment, respecting double-quoted string literals.
@@ -110,6 +113,24 @@ pub(crate) fn block_opener(trimmed: &str) -> Option<&'static str> {
     // not blocks — they must not open a nesting level.
     if rest.starts_with("Declare ") || rest.starts_with("Extern ") {
         return None;
+    }
+    // `Define Style <name>` opens a reusable style-property bundle
+    // (`MinSize`/`Margin`/`Padding`/`ZIndex`/… rows), closed by `End
+    // Style` — a real corpus construct (8 files under
+    // `tests/conformance/ui/` and `tests/drafts/`, the "mcss" styling
+    // feature). It is deliberately NOT a bare `Style` entry in
+    // `BLOCK_KEYWORDS`: bare `Style <name>` alone is the much more common
+    // UI ATTRIBUTE row (30 occurrences, folded by `ui::ui_attribute`) —
+    // registering bare `Style` as a block keyword would misparse every
+    // one of those as an unterminated block. This is tracked here for
+    // balance ONLY (like `If`/`While`/`Try`), so a `Define Style … End
+    // Style` bundle nested inside a `Ui` block does not desync the
+    // scanner's stack and corrupt every UI element after it; this task
+    // does not extract the bundle's own properties.
+    if let Some(after) = rest.strip_prefix("Define Style") {
+        if after.is_empty() || after.starts_with(' ') {
+            return Some("Style");
+        }
     }
     for kw in BLOCK_KEYWORDS {
         // `Unsafe(RawPtr)` has no space before its capability list, so match
@@ -272,6 +293,33 @@ pub fn extract_ml(
                 continue;
             }
 
+            // Interior rows of an open UI element (`Rect`/`Bg`/`Text`/…
+            // attribute rows), an `Asm` block (mnemonic and `In`/`Out`
+            // rows), or a `Define Style` bundle (`MinSize`/`Margin`/…
+            // property rows) are already fully accounted for by their
+            // opening line's own handling — the UI branch folds attribute
+            // rows via `ui::ui_own_rows`, and the Asm branch parses its
+            // whole body via `ui::asm_symbol`. Without this guard, every
+            // such row falls through to the generic statement scanner
+            // below: it finds no enclosing Function/Sub for most of them
+            // and misfiles them as top-level program statements —
+            // fabricating a bloated synthetic `<module>` entry symbol for
+            // every UI-DSL file — and for the rows that DO happen to sit
+            // inside a function (an `Asm` block written inside one), it
+            // redundantly re-scans lines already consumed by
+            // `ui::asm_symbol`.
+            let already_consumed = match stack.last() {
+                Some(b) => {
+                    ui::UI_ELEMENTS.contains(&b.keyword.as_str())
+                        || b.keyword == "Asm"
+                        || b.keyword == "Style"
+                }
+                None => false,
+            };
+            if already_consumed {
+                continue;
+            }
+
             // This needs a mutable borrow of the stack to record locals and
             // catch regions, so it is a standalone block, resolved and
             // dropped BEFORE the immutable borrow below clones the
@@ -337,6 +385,88 @@ pub fn extract_ml(
             }
         }
 
+        if ui::UI_ELEMENTS.contains(&keyword) {
+            let stem = file_stem(rel_path);
+            let parent = stack
+                .iter()
+                .rev()
+                .find(|b| ui::UI_ELEMENTS.contains(&b.keyword.as_str()))
+                .map(|b| b.fqn.clone());
+            let fqn = match &parent {
+                Some(p) => format!("{p}.{keyword}"),
+                None => format!("{stem}.{keyword}"),
+            };
+            let mut sym = ui::ui_symbol(keyword, &fqn, line_no);
+            if keyword == "Ui" {
+                let mut m = sym.metadata.take().unwrap_or_default();
+                for (k, v) in ui::ui_header_attrs(trimmed) {
+                    m.insert(k, v);
+                }
+                sym.metadata = Some(m);
+            }
+            // Attribute rows belonging directly to this element (stops at
+            // the first nested UI element, so a child's own Text/Rect
+            // never bleeds into this element's metadata — see
+            // `ui::ui_own_rows`'s doc comment).
+            let own_rows = ui::ui_own_rows(source, idx, keyword);
+            if let Some(m) = sym.metadata.as_mut() {
+                for row in &own_rows {
+                    if let Some((k, v)) = ui::ui_attribute(row) {
+                        m.entry(k).or_insert(v);
+                    }
+                }
+            }
+            symbols.push(sym);
+            let symbol_idx = Some(symbols.len() - 1);
+
+            if let Some(p) = parent {
+                edges.push(ExtractedEdge {
+                    source_name: p,
+                    source_kind: "ui_container".to_string(),
+                    source_start_line: 0,
+                    source_language: "ml".to_string(),
+                    target_name: fqn.clone(),
+                    target_kind: Some("control".to_string()),
+                    target_start_line: Some(line_no),
+                    kind: "contains_ui".to_string(),
+                    metadata: None,
+                });
+            }
+
+            stack.push(OpenBlock {
+                keyword: keyword.to_string(),
+                fqn,
+                start_line: line_no,
+                symbol_idx,
+                immutable_locals: Vec::new(),
+                mutable_locals: Vec::new(),
+                has_catch: false,
+            });
+            continue;
+        }
+
+        if keyword == "Asm" {
+            let owner = stack
+                .iter()
+                .rev()
+                .find(|b| b.keyword == "Function" || b.keyword == "Sub")
+                .map(|b| b.fqn.clone())
+                .unwrap_or_else(|| file_stem(rel_path));
+            let body = collect_block_body(source, idx, "Asm");
+            symbols.push(ui::asm_symbol(&body, &owner, line_no));
+            let symbol_idx = Some(symbols.len() - 1);
+            stack.push(OpenBlock {
+                keyword: keyword.to_string(),
+                fqn: String::new(),
+                start_line: line_no,
+                symbol_idx,
+                immutable_locals: Vec::new(),
+                mutable_locals: Vec::new(),
+                has_catch: false,
+            });
+            continue;
+        }
+
         let parent_fqn = stack
             .iter()
             .rev()
@@ -388,12 +518,7 @@ pub fn extract_ml(
     // entry point. Give those statements a caller so their call edges are
     // not dangling. Pure-declaration files (the stdlib) get nothing.
     if !top_level_lines.is_empty() {
-        let stem = rel_path
-            .rsplit(['/', '\\'])
-            .next()
-            .and_then(|f| f.split('.').next())
-            .unwrap_or("module");
-        let module_fqn = format!("{stem}.<module>");
+        let module_fqn = format!("{}.<module>", file_stem(rel_path));
         let first = top_level_lines.first().map(|(l, _)| *l).unwrap_or(1);
         let last = top_level_lines.last().map(|(l, _)| *l).unwrap_or(first);
         for (line_no, text) in &top_level_lines {
@@ -409,6 +534,16 @@ pub fn extract_ml(
     }
 
     (symbols, edges)
+}
+
+/// File stem of a project-relative path: `src/Lib/Badge.ml` → `Badge`.
+pub(crate) fn file_stem(rel_path: &str) -> String {
+    rel_path
+        .rsplit(['/', '\\'])
+        .next()
+        .and_then(|f| f.split('.').next())
+        .unwrap_or("module")
+        .to_string()
 }
 
 /// Lines strictly inside the block that opens at `open_idx`, up to its
