@@ -268,3 +268,29 @@ fallback, passing both the absolute and project-relative paths.
 API could supply exact ASTs the way the Roslyn sidecar does for VB. The language server is
 currently too basic to build on, and a sidecar couples Engram to a compiler binary. Line-based
 extraction now; revisit if accuracy demands it.
+
+> **SUPERSEDED 2026-07-27 — the rationale above is stale.** The "too basic" assessment was
+> accurate when this spec was written and is no longer true. MiniLangCompiler now carries an
+> in-process `DirectCompilationService.Compile(...)` in `src/MiniLangCompiler.Tooling/`, backed
+> by `DirectCompilationCacheStore` and an `AstCacheCodec` that serializes ASTs with a
+> type-binding serialization binder — i.e. real parsed ASTs, persisted and reusable.
+> (In flight / uncommitted as of this writing, so it is a moving target, not yet a
+> dependency to build against.)
+>
+> **Why this matters more than a normal follow-up.** Every defect class this plan spent six
+> review rounds on is an artifact of scanning text without a parser: self-closing one-line
+> blocks, the `Try` / `Try Call` duality, the missing `Union`/`Repeat`/`Func`/`For` keywords,
+> the Asm `Sub` mnemonic collision, `Label As Str` vs the UI element, and all 280 stack
+> desyncs. An AST-backed extractor makes that entire category structurally impossible, and
+> new MiniLang syntax would work without Engram changing at all.
+>
+> **The architecture already exists in-house.** `vb_extractor` uses exactly this pattern — a
+> Roslyn sidecar with a regex fallback. A MiniLang sidecar over `DirectCompilationService`
+> would follow an established precedent rather than invent one, and the fallback path is
+> already built: the line scanner shipped here becomes the degraded mode when the sidecar is
+> absent, which is precisely how VB behaves.
+>
+> **Not an immediate pivot.** The line-based extractor is shipped, tested, and parses
+> 5,284/5,285 real files with every construct family reaching the graph. Replacing it is a
+> rewrite of the extraction layer against an API that is still uncommitted. Sequence it after
+> `DirectCompilationService` stabilizes.
